@@ -218,6 +218,12 @@
     <string name="exit_toast_text">press again for exit app</string>
     <string name="return_home_toast_text">press again to return home</string>
     <string name="unlock_exit_toast_text">side menu unlocked, press again to return terminal</string>
+    <string name="x11_side_panels_unlock_prompt">Press back again within 1.5s to unlock side panels</string>
+    <string name="x11_side_panels_unlocked">Side panels unlocked. Swipe within 5s to open</string>
+    <string name="x11_side_panels_already_unlocked">Side panels are already unlocked</string>
+    <string name="x11_side_panels_locked_timeout">Side panels locked automatically</string>
+    <string name="x11_side_panels_locked_closed">Side panels locked</string>
+    <string name="x11_side_panels_float_ball_only">Float ball is enabled. Use it to open X11 settings</string>
     <string name="no_such_file">file not found</string>
     <string name="not_executable">is not executable</string>
     <string name="select_command_first">select a startup file</string>

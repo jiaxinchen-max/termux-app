@@ -26,6 +26,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -220,6 +221,22 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     private boolean mPendingTerminalExit;
     private boolean mPendingTerminalMoveToBack;
     private boolean mPendingDisplayReturnToTerminal;
+    private boolean mDisplaySidePanelsUnlocked;
+    private boolean mPendingDisplaySidePanelUnlockBack;
+    private long mLastDisplaySidePanelBackRequestTime;
+    private long mDisplaySidePanelUnlockBackPromptTime;
+
+    private static final long DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS = 1500;
+    private static final long DISPLAY_SIDE_PANEL_UNLOCK_IDLE_TIMEOUT_MS = 5000;
+    private static final long DISPLAY_SIDE_PANEL_BACK_DEBOUNCE_MS = 250;
+
+    private final Runnable mClearPendingDisplaySidePanelUnlockBackRunnable = () -> mPendingDisplaySidePanelUnlockBack = false;
+    private final Runnable mDisplaySidePanelAutoLockRunnable = new Runnable() {
+        @Override
+        public void run() {
+            handleDisplaySidePanelAutoLock();
+        }
+    };
 
     private static final int CONTEXT_MENU_SELECT_URL_ID = 0;
     private static final int CONTEXT_MENU_SHARE_TRANSCRIPT_ID = 1;
@@ -260,11 +277,14 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
     @Override
     public void openX11Preferences(boolean open) {
-        DrawerLayout drawer = getDrawer();
-        if (open)
-            drawer.openDrawer(GravityCompat.END);
-        else
-            drawer.closeDrawer(GravityCompat.END);
+        if (open) {
+            if (mMainSurfaceController != null)
+                mMainSurfaceController.openEndDrawerExplicitly();
+            else
+                getDrawer().openDrawer(GravityCompat.END);
+        } else {
+            getDrawer().closeDrawer(GravityCompat.END);
+        }
     }
 
     @Override
@@ -349,9 +369,88 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         return mMainSurfaceController;
     }
 
-    private void updateTerminalX11PreferencesDrawerAvailability() {
+    private boolean isX11FloatBallMenuActive() {
+        return getLorieViewRuntime().isX11FloatBallMenuEnabled();
+    }
+
+    private void updateDisplaySidePanelPolicy() {
         if (mMainSurfaceController != null)
-            mMainSurfaceController.setTerminalEndDrawerEnabled(!getLorieViewRuntime().isX11FloatBallMenuEnabled());
+            mMainSurfaceController.setDisplaySidePanelPolicy(isX11FloatBallMenuActive(), mDisplaySidePanelsUnlocked);
+    }
+
+    private void resetDisplaySidePanelUnlockBackState() {
+        mPendingDisplaySidePanelUnlockBack = false;
+        mDisplaySidePanelUnlockBackPromptTime = 0;
+        LoriePreferences.handler.removeCallbacks(mClearPendingDisplaySidePanelUnlockBackRunnable);
+    }
+
+    private void scheduleDisplaySidePanelAutoLock() {
+        LoriePreferences.handler.removeCallbacks(mDisplaySidePanelAutoLockRunnable);
+        if (isDisplaySurfaceMode() && mDisplaySidePanelsUnlocked && !isX11FloatBallMenuActive())
+            LoriePreferences.handler.postDelayed(mDisplaySidePanelAutoLockRunnable, DISPLAY_SIDE_PANEL_UNLOCK_IDLE_TIMEOUT_MS);
+    }
+
+    private void lockDisplaySidePanels(boolean showToast, int toastResId) {
+        boolean wasUnlocked = mDisplaySidePanelsUnlocked;
+        mDisplaySidePanelsUnlocked = false;
+        resetDisplaySidePanelUnlockBackState();
+        LoriePreferences.handler.removeCallbacks(mDisplaySidePanelAutoLockRunnable);
+        updateDisplaySidePanelPolicy();
+        if (showToast && wasUnlocked && toastResId != 0)
+            Toast.makeText(this, toastResId, Toast.LENGTH_SHORT).show();
+    }
+
+    private void unlockDisplaySidePanels() {
+        mDisplaySidePanelsUnlocked = true;
+        resetDisplaySidePanelUnlockBackState();
+        updateDisplaySidePanelPolicy();
+        scheduleDisplaySidePanelAutoLock();
+        Toast.makeText(this, R.string.x11_side_panels_unlocked, Toast.LENGTH_SHORT).show();
+    }
+
+    private void handleDisplaySidePanelAutoLock() {
+        if (!isDisplaySurfaceMode() || !mDisplaySidePanelsUnlocked)
+            return;
+        if (getDrawer().isDrawerOpen(GravityCompat.START) || getDrawer().isDrawerOpen(GravityCompat.END)) {
+            scheduleDisplaySidePanelAutoLock();
+            return;
+        }
+        lockDisplaySidePanels(true, R.string.x11_side_panels_locked_timeout);
+    }
+
+    private boolean handleDisplaySidePanelUnlockBackRequest() {
+        if (!isDisplaySurfaceMode())
+            return false;
+
+        long now = SystemClock.uptimeMillis();
+        if (now - mLastDisplaySidePanelBackRequestTime < DISPLAY_SIDE_PANEL_BACK_DEBOUNCE_MS)
+            return true;
+        mLastDisplaySidePanelBackRequestTime = now;
+
+        if (isX11FloatBallMenuActive()) {
+            lockDisplaySidePanels(false, 0);
+            Toast.makeText(this, R.string.x11_side_panels_float_ball_only, Toast.LENGTH_SHORT).show();
+            return true;
+        }
+
+        if (mDisplaySidePanelsUnlocked) {
+            scheduleDisplaySidePanelAutoLock();
+            Toast.makeText(this, R.string.x11_side_panels_already_unlocked, Toast.LENGTH_SHORT).show();
+            return true;
+        }
+
+        if (mPendingDisplaySidePanelUnlockBack
+            && now - mDisplaySidePanelUnlockBackPromptTime <= DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS) {
+            unlockDisplaySidePanels();
+            return true;
+        }
+
+        mPendingDisplaySidePanelUnlockBack = true;
+        mDisplaySidePanelUnlockBackPromptTime = now;
+        LoriePreferences.handler.removeCallbacks(mClearPendingDisplaySidePanelUnlockBackRunnable);
+        LoriePreferences.handler.postDelayed(mClearPendingDisplaySidePanelUnlockBackRunnable, DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS);
+        Toast.makeText(this, R.string.x11_side_panels_unlock_prompt, Toast.LENGTH_SHORT).show();
+        return true;
     }
 
     public void setTerminalCopyMode(boolean copyMode) {
@@ -382,6 +481,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
     public void showTerminalSurface() {
         mPendingDisplayReturnToTerminal = false;
+        lockDisplaySidePanels(false, 0);
         if (mMainSurfaceController != null) {
             mMainSurfaceController.showTerminal();
             updateTerminalToolbarVisibilityForSurface();
@@ -392,7 +492,9 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         mPendingTerminalExit = false;
         mPendingTerminalMoveToBack = false;
         if (mMainSurfaceController != null) {
+            lockDisplaySidePanels(false, 0);
             mMainSurfaceController.showDisplay();
+            updateDisplaySidePanelPolicy();
             if (mMainSurfaceController.isDisplayMode()) {
                 getLorieViewRuntime().refreshX11TerminalToolbar();
                 updateTerminalToolbarVisibilityForSurface();
@@ -512,11 +614,12 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
             @Override
             public void releaseSlider(boolean open) {
-                if (mMainSurfaceController != null && !mMainSurfaceController.isDisplayMode())
-                    return;
-                if (!TermuxActivity.this.getLorieViewRuntime().isX11FloatBallMenuEnabled()
-                    || TermuxActivity.this.mFloatBallMenuClient == null) {
-                    getDrawer().setDrawerLockMode(open ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED, GravityCompat.END);
+                if (mMainSurfaceController != null && mMainSurfaceController.isDisplayMode() && open) {
+                    handleDisplaySidePanelUnlockBackRequest();
+                } else if (mMainSurfaceController != null) {
+                    mMainSurfaceController.restoreDrawerLockMode();
+                } else {
+                    getDrawer().setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, GravityCompat.END);
                 }
             }
 
@@ -634,7 +737,8 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
                         mFloatBallMenuClient.onCreate();
                     }
                 }
-                updateTerminalX11PreferencesDrawerAvailability();
+                lockDisplaySidePanels(false, 0);
+                updateDisplaySidePanelPolicy();
             }
 
             @Override
@@ -647,7 +751,8 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     private void setFloatBallMenuClient() {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         getLorieViewRuntime().setX11FloatBallMenuEnabled(preferences.getBoolean("enableFloatBallMenu", false));
-        updateTerminalX11PreferencesDrawerAvailability();
+        lockDisplaySidePanels(false, 0);
+        updateDisplaySidePanelPolicy();
         if (getLorieViewRuntime().isX11FloatBallMenuEnabled()) {
             mFloatBallMenuClient = new FloatBallMenuClient(this);
             mFloatBallMenuClient.onCreate();
@@ -993,6 +1098,26 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             getDrawer(),
             findViewById(R.id.main_surface_container),
             mTerminalView);
+        mMainSurfaceController.setSurfaceGestureListener(new MainSurfaceController.SurfaceGestureListener() {
+            @Override
+            public void onTerminalEndSwipe() {
+                showDisplaySurface();
+            }
+
+            @Override
+            public void onDisplayStartSwipe() {
+                showTerminalSurface();
+                Toast.makeText(TermuxActivity.this, R.string.open_terminal, Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onDisplayEndSwipe() {
+                scheduleDisplaySidePanelAutoLock();
+                Toast.makeText(TermuxActivity.this, com.termux.x11.R.string.open_x11_settings, Toast.LENGTH_SHORT).show();
+            }
+        });
+        updateDisplaySidePanelPolicy();
+        setDisplaySidePanelDrawerListener();
         TermuxScreenView termuxScreenView = new TermuxScreenView(this);
         mMainSurfaceController.attachDisplayView(termuxScreenView);
         getLorieViewRuntime().attachTermuxScreenView(termuxScreenView);
@@ -1005,6 +1130,16 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         if (mTermuxTerminalViewClient != null)
             mTermuxTerminalViewClient.onCreate();
 
+    }
+
+    private void setDisplaySidePanelDrawerListener() {
+        getDrawer().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
+            @Override
+            public void onDrawerClosed(@NonNull View drawerView) {
+                if (isDisplaySurfaceMode() && mDisplaySidePanelsUnlocked && !isX11FloatBallMenuActive())
+                    lockDisplaySidePanels(true, R.string.x11_side_panels_locked_closed);
+            }
+        });
     }
 
     private void setTermuxSessionsListView() {
@@ -1149,11 +1284,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         } else if (!isDisplaySurfaceMode()) {
             moveTaskToBackOrPrompt();
         } else {
-//            finishActivityIfNotFinishing();
-            if (!getLorieViewRuntime().isX11FloatBallMenuEnabled() || mFloatBallMenuClient == null) {
-                getLorieViewRuntime().releaseX11SidePanel(true);
-                getLorieViewRuntime().handleX11BackNavigation();
-            }
+            handleDisplaySidePanelUnlockBackRequest();
         }
     }
 

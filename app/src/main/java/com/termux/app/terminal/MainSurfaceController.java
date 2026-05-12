@@ -4,6 +4,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewConfiguration;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
@@ -20,10 +21,17 @@ public final class MainSurfaceController {
     private static final int INTERNAL_DRAWER_MIN_DISTANCE_DP = 96;
     private static final int INTERNAL_DRAWER_MAX_DISTANCE_DP = 220;
     private static final float INTERNAL_DRAWER_SHORT_SIDE_DISTANCE_RATIO = 0.24f;
+    private static final long SURFACE_TRANSITION_ANIMATION_MS = 180;
 
     public enum SurfaceMode {
         TERMINAL,
         DISPLAY
+    }
+
+    public interface SurfaceGestureListener {
+        void onTerminalEndSwipe();
+        void onDisplayStartSwipe();
+        void onDisplayEndSwipe();
     }
 
     @NonNull
@@ -37,7 +45,8 @@ public final class MainSurfaceController {
     @NonNull
     private SurfaceMode mMode = SurfaceMode.TERMINAL;
     private boolean mTerminalCopyMode;
-    private boolean mTerminalEndDrawerEnabled;
+    private boolean mDisplayFloatBallMenuEnabled;
+    private boolean mDisplaySidePanelsUnlocked;
     private int mTrackingInternalDrawerGravity;
     private float mInternalDrawerSwipeDownX;
     private float mInternalDrawerSwipeDownY;
@@ -47,6 +56,11 @@ public final class MainSurfaceController {
     private final int mInternalDrawerMaxDistance;
     @Nullable
     private DrawerLayout.DrawerListener mRestoreLockModeOnCloseListener;
+    @Nullable
+    private SurfaceGestureListener mSurfaceGestureListener;
+    private int mSurfaceAnimationGeneration;
+    @NonNull
+    private final DecelerateInterpolator mSurfaceTransitionInterpolator = new DecelerateInterpolator();
 
     public MainSurfaceController(@NonNull DrawerLayout drawerLayout,
                                  @NonNull FrameLayout container,
@@ -92,16 +106,18 @@ public final class MainSurfaceController {
     }
 
     public void showTerminal() {
+        SurfaceMode previousMode = mMode;
         mMode = SurfaceMode.TERMINAL;
-        applyMode();
+        applyMode(previousMode == SurfaceMode.DISPLAY, previousMode);
         mTerminalView.requestFocus();
     }
 
     public void showDisplay() {
         if (mDisplayView == null)
             return;
+        SurfaceMode previousMode = mMode;
         mMode = SurfaceMode.DISPLAY;
-        applyMode();
+        applyMode(previousMode == SurfaceMode.TERMINAL, previousMode);
         mDisplayView.getLorieView().requestFocus();
     }
 
@@ -119,12 +135,16 @@ public final class MainSurfaceController {
         applyDrawerLockMode();
     }
 
-    public void setTerminalEndDrawerEnabled(boolean enabled) {
-        if (mTerminalEndDrawerEnabled == enabled)
+    public void setSurfaceGestureListener(@Nullable SurfaceGestureListener listener) {
+        mSurfaceGestureListener = listener;
+    }
+
+    public void setDisplaySidePanelPolicy(boolean floatBallMenuEnabled, boolean sidePanelsUnlocked) {
+        if (mDisplayFloatBallMenuEnabled == floatBallMenuEnabled
+            && mDisplaySidePanelsUnlocked == sidePanelsUnlocked)
             return;
-        mTerminalEndDrawerEnabled = enabled;
-        if (!enabled && mMode == SurfaceMode.TERMINAL && mDrawerLayout.isDrawerOpen(GravityCompat.END))
-            mDrawerLayout.closeDrawer(GravityCompat.END);
+        mDisplayFloatBallMenuEnabled = floatBallMenuEnabled;
+        mDisplaySidePanelsUnlocked = sidePanelsUnlocked;
         applyDrawerLockMode();
     }
 
@@ -136,6 +156,7 @@ public final class MainSurfaceController {
 
     public void openEndDrawerExplicitly() {
         mDrawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, GravityCompat.END);
+        ensureRestoreLockModeOnCloseListener();
         mDrawerLayout.openDrawer(GravityCompat.END);
     }
 
@@ -176,10 +197,7 @@ public final class MainSurfaceController {
                 if (shouldOpenDrawerFromInternalSwipe(event, mTrackingInternalDrawerGravity)) {
                     int drawerGravity = mTrackingInternalDrawerGravity;
                     mTrackingInternalDrawerGravity = 0;
-                    if (drawerGravity == GravityCompat.START)
-                        openStartDrawerExplicitly();
-                    else
-                        openEndDrawerExplicitly();
+                    handleInternalDrawerSwipeAction(drawerGravity);
                 } else if (event.getActionMasked() == MotionEvent.ACTION_UP) {
                     mTrackingInternalDrawerGravity = 0;
                 }
@@ -188,10 +206,75 @@ public final class MainSurfaceController {
     }
 
     private void applyMode() {
+        applyMode(false, mMode);
+    }
+
+    private void applyMode(boolean animate, @NonNull SurfaceMode previousMode) {
+        if (animate && previousMode != mMode && mDisplayView != null && mContainer.getWidth() > 0) {
+            animateModeChange();
+            applyDrawerLockMode();
+            return;
+        }
+
+        cancelSurfaceAnimations();
         mTerminalView.setVisibility(mMode == SurfaceMode.TERMINAL ? View.VISIBLE : View.GONE);
+        mTerminalView.setTranslationX(0);
         if (mDisplayView != null)
             mDisplayView.setVisibility(mMode == SurfaceMode.DISPLAY ? View.VISIBLE : View.GONE);
+        if (mDisplayView != null)
+            mDisplayView.setTranslationX(0);
         applyDrawerLockMode();
+    }
+
+    private void animateModeChange() {
+        if (mDisplayView == null)
+            return;
+
+        int width = mContainer.getWidth();
+        View incomingView = mMode == SurfaceMode.TERMINAL ? mTerminalView : mDisplayView;
+        View outgoingView = mMode == SurfaceMode.TERMINAL ? mDisplayView : mTerminalView;
+        float incomingStartX = mMode == SurfaceMode.TERMINAL ? -width : width;
+        float outgoingEndX = mMode == SurfaceMode.TERMINAL ? width : -width;
+        int animationGeneration = ++mSurfaceAnimationGeneration;
+
+        mTerminalView.animate().cancel();
+        mDisplayView.animate().cancel();
+
+        incomingView.setVisibility(View.VISIBLE);
+        incomingView.setTranslationX(incomingStartX);
+        incomingView.bringToFront();
+
+        outgoingView.setVisibility(View.VISIBLE);
+        outgoingView.setTranslationX(0);
+
+        incomingView.animate()
+            .translationX(0)
+            .setDuration(SURFACE_TRANSITION_ANIMATION_MS)
+            .setInterpolator(mSurfaceTransitionInterpolator)
+            .withEndAction(() -> {
+                if (animationGeneration == mSurfaceAnimationGeneration)
+                    incomingView.setTranslationX(0);
+            })
+            .start();
+
+        outgoingView.animate()
+            .translationX(outgoingEndX)
+            .setDuration(SURFACE_TRANSITION_ANIMATION_MS)
+            .setInterpolator(mSurfaceTransitionInterpolator)
+            .withEndAction(() -> {
+                if (animationGeneration != mSurfaceAnimationGeneration)
+                    return;
+                outgoingView.setVisibility(View.GONE);
+                outgoingView.setTranslationX(0);
+            })
+            .start();
+    }
+
+    private void cancelSurfaceAnimations() {
+        mSurfaceAnimationGeneration++;
+        mTerminalView.animate().cancel();
+        if (mDisplayView != null)
+            mDisplayView.animate().cancel();
     }
 
     private boolean canOpenDrawerFromInternalSwipe(int drawerGravity) {
@@ -199,11 +282,37 @@ public final class MainSurfaceController {
             return false;
         if (mTerminalCopyMode)
             return false;
-        if (drawerGravity == GravityCompat.START)
-            return mMode == SurfaceMode.TERMINAL;
-        if (drawerGravity == GravityCompat.END)
-            return mMode == SurfaceMode.DISPLAY || (mMode == SurfaceMode.TERMINAL && mTerminalEndDrawerEnabled);
+        if (mMode == SurfaceMode.TERMINAL)
+            return drawerGravity == GravityCompat.START
+                || (drawerGravity == GravityCompat.END && mDisplayView != null);
+        if (mMode == SurfaceMode.DISPLAY)
+            return !mDisplayFloatBallMenuEnabled
+                && mDisplaySidePanelsUnlocked
+                && (drawerGravity == GravityCompat.START || drawerGravity == GravityCompat.END);
         return false;
+    }
+
+    private void handleInternalDrawerSwipeAction(int drawerGravity) {
+        if (mMode == SurfaceMode.TERMINAL) {
+            if (drawerGravity == GravityCompat.START) {
+                openStartDrawerExplicitly();
+            } else if (mSurfaceGestureListener != null) {
+                mSurfaceGestureListener.onTerminalEndSwipe();
+            }
+            return;
+        }
+
+        if (mMode != SurfaceMode.DISPLAY)
+            return;
+
+        if (drawerGravity == GravityCompat.START) {
+            if (mSurfaceGestureListener != null)
+                mSurfaceGestureListener.onDisplayStartSwipe();
+        } else if (drawerGravity == GravityCompat.END) {
+            openEndDrawerExplicitly();
+            if (mSurfaceGestureListener != null)
+                mSurfaceGestureListener.onDisplayEndSwipe();
+        }
     }
 
     private boolean isTouchInsideContainer(@NonNull MotionEvent event) {
@@ -259,14 +368,15 @@ public final class MainSurfaceController {
     }
 
     private void applyDrawerLockMode() {
-        boolean terminalCanOpenStart = mMode == SurfaceMode.TERMINAL && !mTerminalCopyMode;
-        boolean terminalCanOpenEnd = mMode == SurfaceMode.TERMINAL && mTerminalEndDrawerEnabled && !mTerminalCopyMode;
-        boolean displayCanOpenEnd = mMode == SurfaceMode.DISPLAY;
+        boolean startDrawerCanOpen = mMode == SurfaceMode.TERMINAL && !mTerminalCopyMode;
+        boolean endDrawerCanOpen = mMode == SurfaceMode.DISPLAY
+            && !mDisplayFloatBallMenuEnabled
+            && mDisplaySidePanelsUnlocked;
         mDrawerLayout.setDrawerLockMode(
-            terminalCanOpenStart ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED,
+            startDrawerCanOpen ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED,
             GravityCompat.START);
         mDrawerLayout.setDrawerLockMode(
-            (terminalCanOpenEnd || displayCanOpenEnd) ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED,
+            endDrawerCanOpen ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED,
             GravityCompat.END);
     }
 

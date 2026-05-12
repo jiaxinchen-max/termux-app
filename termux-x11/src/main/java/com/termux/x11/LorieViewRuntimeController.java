@@ -278,6 +278,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
                     if (e.getAction() == ACTION_UP) {
                         releaseSlider(true);
                     }
+                    return true;
                 }
                 if (!getX11Focus()) {
                     if (e.getAction() == ACTION_UP) {
