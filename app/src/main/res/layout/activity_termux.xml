@@ -104,9 +104,8 @@
                 <ListView
                     android:id="@+id/terminal_sessions_list"
                     android:layout_width="match_parent"
-                    android:layout_height="0dp"
+                    android:layout_height="280dp"
                     android:layout_gravity="top"
-                    android:layout_weight="3"
                     android:choiceMode="singleChoice"
                     android:longClickable="true" />
 
@@ -114,7 +113,9 @@
                     android:id="@+id/toolbox_container"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
-                    android:layout_weight="2"
+                    android:layout_margin="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/toolbox_inline_background"
                     android:orientation="vertical" />
 
                 <LinearLayout

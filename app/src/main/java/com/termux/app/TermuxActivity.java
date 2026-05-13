@@ -223,12 +223,10 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     private boolean mPendingDisplayReturnToTerminal;
     private boolean mDisplaySidePanelsUnlocked;
     private boolean mPendingDisplaySidePanelUnlockBack;
-    private long mLastDisplaySidePanelBackRequestTime;
     private long mDisplaySidePanelUnlockBackPromptTime;
 
     private static final long DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS = 1500;
     private static final long DISPLAY_SIDE_PANEL_UNLOCK_IDLE_TIMEOUT_MS = 5000;
-    private static final long DISPLAY_SIDE_PANEL_BACK_DEBOUNCE_MS = 250;
 
     private final Runnable mClearPendingDisplaySidePanelUnlockBackRunnable = () -> mPendingDisplaySidePanelUnlockBack = false;
     private final Runnable mDisplaySidePanelAutoLockRunnable = new Runnable() {
@@ -423,9 +421,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             return false;
 
         long now = SystemClock.uptimeMillis();
-        if (now - mLastDisplaySidePanelBackRequestTime < DISPLAY_SIDE_PANEL_BACK_DEBOUNCE_MS)
-            return true;
-        mLastDisplaySidePanelBackRequestTime = now;
 
         if (isX11FloatBallMenuActive()) {
             lockDisplaySidePanels(false, 0);
