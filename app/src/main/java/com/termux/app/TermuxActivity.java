@@ -1097,6 +1097,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         mMainSurfaceController = new MainSurfaceController(
             getDrawer(),
             findViewById(R.id.main_surface_container),
+            findViewById(R.id.terminal_surface_container),
             mTerminalView);
         mMainSurfaceController.setSurfaceGestureListener(new MainSurfaceController.SurfaceGestureListener() {
             @Override

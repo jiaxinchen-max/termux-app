@@ -102,8 +102,10 @@ public class TermuxActivityRootView extends LinearLayout implements ViewTreeObse
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
-        if (mActivity != null && mActivity.getMainSurfaceController() != null)
-            mActivity.getMainSurfaceController().handleInternalDrawerSwipe(event);
+        if (mActivity != null
+            && mActivity.getMainSurfaceController() != null
+            && mActivity.getMainSurfaceController().handleInternalDrawerSwipe(event))
+            return true;
         return super.dispatchTouchEvent(event);
     }
 
