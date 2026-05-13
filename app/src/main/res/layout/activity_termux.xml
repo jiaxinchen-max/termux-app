@@ -101,37 +101,21 @@
                         app:tint="?attr/termuxActivityDrawerImageTint" />
                 </LinearLayout>
 
-                <LinearLayout
-                    style="?android:attr/buttonBarStyle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/show_terminal_button"
-                        style="?android:attr/buttonBarButtonStyle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/action_show_terminal" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/show_display_button"
-                        style="?android:attr/buttonBarButtonStyle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/action_show_display" />
-                </LinearLayout>
-
                 <ListView
                     android:id="@+id/terminal_sessions_list"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:layout_gravity="top"
-                    android:layout_weight="1"
+                    android:layout_weight="3"
                     android:choiceMode="singleChoice"
                     android:longClickable="true" />
+
+                <LinearLayout
+                    android:id="@+id/toolbox_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="2"
+                    android:orientation="vertical" />
 
                 <LinearLayout
                     style="?android:attr/buttonBarStyle"
@@ -146,14 +130,6 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="@string/action_toggle_soft_keyboard" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/toggle_tool_box"
-                        style="?android:attr/buttonBarButtonStyle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/action_toggle_tool_box" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/new_session_button"

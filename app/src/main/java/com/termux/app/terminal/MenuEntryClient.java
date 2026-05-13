@@ -3,7 +3,6 @@ package com.termux.app.terminal;
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
-import android.app.AlertDialog;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,282 +13,226 @@ import android.widget.GridLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.PopupWindow;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.termux.R;
 import com.termux.app.TermuxActivity;
-import com.termux.app.terminal.utils.ScreenUtils;
 
 public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
-    private TermuxActivity mTermuxActivity;
-    private TermuxTerminalSessionActivityClient mTermuxTerminalSessionActivityClient;
-    private PopupWindow mPop;
-    private PopupWindow mConfigPopWindow;
-    private View mPopWindowConfigContent;
-    private LinearLayout mainContentView;
-    private GridLayout mGrideLayout;
-    private MenuEntry mMenutryEntry;
+    private final TermuxActivity mTermuxActivity;
+    private final TermuxTerminalSessionActivityClient mTermuxTerminalSessionActivityClient;
+    private final MenuEntry mMenuEntry;
     private FileBrowser mFileBrowser;
-
-    private MenuEntryClient() {
-    }
+    private LinearLayout mToolboxContainer;
+    private LinearLayout mConfigContainer;
+    private GridLayout mGridLayout;
+    private View mConfigView;
+    private CheckBox mDInputCheckBox;
+    private CheckBox mXInputCheckBox;
 
     public MenuEntryClient(TermuxActivity activity, TermuxTerminalSessionActivityClient termuxTerminalSessionActivityClient) {
-        this.mTermuxActivity = activity;
-        this.mTermuxTerminalSessionActivityClient = termuxTerminalSessionActivityClient;
-        mMenutryEntry = new MenuEntry();
-        mMenutryEntry.loadMenuItems();
-        setToolBoxView();
+        mTermuxActivity = activity;
+        mTermuxTerminalSessionActivityClient = termuxTerminalSessionActivityClient;
+        mMenuEntry = new MenuEntry();
+        mMenuEntry.loadMenuItems();
         setToolboxConfig();
+        setToolboxView();
+    }
+
+    private void setToolboxView() {
+        View container = mTermuxActivity.findViewById(R.id.toolbox_container);
+        if (!(container instanceof LinearLayout))
+            return;
+
+        mToolboxContainer = (LinearLayout) container;
+        mToolboxContainer.removeAllViews();
+
+        LinearLayout inputModeRow = new LinearLayout(mTermuxActivity);
+        inputModeRow.setOrientation(LinearLayout.HORIZONTAL);
+        inputModeRow.setGravity(Gravity.CENTER_VERTICAL);
+        inputModeRow.setPadding(dp(4), 0, dp(4), 0);
+        mDInputCheckBox = new CheckBox(mTermuxActivity);
+        mDInputCheckBox.setText(R.string.set_dinput);
+        mXInputCheckBox = new CheckBox(mTermuxActivity);
+        mXInputCheckBox.setText(R.string.set_xinput);
+        inputModeRow.addView(mDInputCheckBox, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1));
+        inputModeRow.addView(mXInputCheckBox, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1));
+        mToolboxContainer.addView(inputModeRow, new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+
+        ScrollView toolBoxScrollView = new ScrollView(mTermuxActivity);
+        LinearLayout content = new LinearLayout(mTermuxActivity);
+        content.setOrientation(LinearLayout.VERTICAL);
+        toolBoxScrollView.addView(content, new ScrollView.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+
+        mGridLayout = new GridLayout(mTermuxActivity);
+        mGridLayout.setColumnCount(3);
+        mGridLayout.setPadding(dp(4), dp(2), dp(4), dp(2));
+        content.addView(mGridLayout, new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+        updateMenuItems();
+
+        if (mConfigContainer != null)
+            content.addView(mConfigContainer, new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+
+        mToolboxContainer.addView(toolBoxScrollView, new LinearLayout.LayoutParams(MATCH_PARENT, 0, 1));
+    }
+
+    private void updateMenuItems() {
+        if (mGridLayout == null)
+            return;
+
+        mGridLayout.removeAllViews();
+        int itemSize = dp(64);
+
+        LinearLayout recover = createImageButton("script", "setMoBoxEnv", itemSize);
+        recover.setOnClickListener(v -> mTermuxActivity.reInstallCustomStartScript(getSelectedInputModeFlags()));
+        mGridLayout.addView(recover);
+
+        for (int i = 0; i < mMenuEntry.getStartItemList().size(); i++) {
+            MenuEntry.Entry entry = mMenuEntry.getStartItemList().get(i);
+            LinearLayout button = createImageButton(entry.getType(), entry.getFileName(), itemSize);
+            String command = entry.getCommand();
+            if (command == null)
+                command = entry.getPath();
+            final String cmd = command + "\n";
+            button.setOnClickListener(v -> mTermuxTerminalSessionActivityClient.getCurrentStoredSessionOrLast().write(cmd));
+            int idx = i;
+            button.setOnLongClickListener(v -> {
+                mMenuEntry.getStartItemList().remove(idx);
+                mMenuEntry.saveMenuItems();
+                updateMenuItems();
+                Toast.makeText(mTermuxActivity, R.string.remove, Toast.LENGTH_SHORT).show();
+                return true;
+            });
+            mGridLayout.addView(button);
+        }
+
+        LinearLayout addButton = createImageButton("add", mTermuxActivity.getString(com.termux.x11.R.string.add), itemSize);
+        addButton.setOnClickListener(v -> showAddMenuItem());
+        mGridLayout.addView(addButton);
+    }
+
+    private Integer getSelectedInputModeFlags() {
+        int flags = 0;
+        if (mDInputCheckBox != null && mDInputCheckBox.isChecked())
+            flags |= 0b0001;
+        if (mXInputCheckBox != null && mXInputCheckBox.isChecked())
+            flags |= 0b0010;
+        return flags == 0 ? null : flags;
     }
 
     private void showAddMenuItem() {
-//        PopupWindow mConfigPopWindow = AppUtils.showPopupWindow(mainContentView, mPopWindowConfigContent, 200, 240);
-        mConfigPopWindow = new PopupWindow(mTermuxActivity);
-        mConfigPopWindow.setContentView(mPopWindowConfigContent);
-        int x = 0;
-        int y = 120;
-        if (mTermuxActivity.getExtraKeysView().getVisibility() == View.VISIBLE) {
-            y += mTermuxActivity.getExtraKeysView().getHeight();
-        }
-        mConfigPopWindow.setFocusable(true);
-        mConfigPopWindow.showAtLocation(mTermuxActivity.findViewById(R.id.left_drawer), Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM, x, y);
-    }
-
-    private void setToolBoxView() {
-        mPop = new PopupWindow(mTermuxActivity);
-        mPop.setBackgroundDrawable(mTermuxActivity.getDrawable(R.drawable.tool_box_background));
-        int width = ScreenUtils.getScreenWidth(mTermuxActivity);
-        mPop.setWidth(width);
-        mPop.setHeight(width);
-        ScrollView mToolBoxView = new ScrollView(mTermuxActivity);
-        LinearLayout.LayoutParams param = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        param.gravity = Gravity.CENTER | Gravity.TOP;
-        mToolBoxView.setLayoutParams(param);
-        GridLayout gridLayout = new GridLayout(mTermuxActivity);
-        mGrideLayout = gridLayout;
-//        int r = 3;
-        int c = 4;
-
-        gridLayout.setColumnCount(c);
-//        gridLayout.setRowCount(r);
-        gridLayout.setVerticalScrollBarEnabled(true);
-        LinearLayout.LayoutParams grideParam = new LinearLayout.LayoutParams(width, width);
-        grideParam.gravity = Gravity.CENTER_VERTICAL;
-        gridLayout.setLayoutParams(grideParam);
-        gridLayout.setPadding(50, 8, 50, 8);
-
-        mGrideLayout.removeAllViews();
-        updateMenuItems(width, gridLayout);
-
-        LinearLayout linearLayout = new LinearLayout(mTermuxActivity);
-        linearLayout.setLayoutParams(param);
-        mainContentView = new LinearLayout(mTermuxActivity);
-        LinearLayout.LayoutParams mainContentViewLayoutParam = new LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT);
-        mainContentViewLayoutParam.gravity = Gravity.CENTER;
-        mainContentView.setOrientation(LinearLayout.VERTICAL);
-        mainContentView.setLayoutParams(mainContentViewLayoutParam);
-        LinearLayout closeLinearLayout = new LinearLayout(mTermuxActivity);
-        closeLinearLayout.setGravity(Gravity.RIGHT);
-        LinearLayout.LayoutParams closeLinearLayoutLayoutParam = new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT);
-        closeLinearLayoutLayoutParam.setMargins(0, 5, 5, 5);
-        closeLinearLayout.setLayoutParams(closeLinearLayoutLayoutParam);
-        ImageButton closeButton = new ImageButton(mTermuxActivity);
-        closeButton.setBackground(mTermuxActivity.getDrawable(R.drawable.ic_close));
-        closeButton.setOnClickListener(v -> {
-            mPop.dismiss();
-        });
-        closeLinearLayout.addView(closeButton);
-
-        linearLayout.addView(gridLayout);
-        mToolBoxView.addView(linearLayout);
-        mainContentView.addView(closeLinearLayout);
-        mainContentView.addView(mToolBoxView);
-        mPop.setContentView(mainContentView);
-        mTermuxActivity.findViewById(R.id.toggle_tool_box).setOnClickListener(v -> {
-            int x = 0;
-            int y = 120;
-            if (mTermuxActivity.getExtraKeysView().getVisibility() == View.VISIBLE) {
-                y += mTermuxActivity.getExtraKeysView().getHeight();
-            }
-            mPop.showAtLocation(mTermuxActivity.findViewById(R.id.left_drawer), Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM, x, y);
-        });
-        mPop.setOnDismissListener(()->{
-            mMenutryEntry.saveMenuItems();
-        });
-    }
-
-    private void updateMenuItems(int width, GridLayout gridLayout) {
-        LinearLayout recover = createImageButton("script", "setMoBoxEnv", width / 5);
-        gridLayout.addView(recover);
-
-        recover.setOnClickListener(v -> {
-            LinearLayout linearLayout = new LinearLayout(mTermuxActivity);
-            CheckBox dInputCheckBox = new CheckBox(mTermuxActivity);
-            dInputCheckBox.setText(mTermuxActivity.getText(R.string.set_dinput));
-            linearLayout.addView(dInputCheckBox);
-            CheckBox xInputCheckoutBox = new CheckBox(mTermuxActivity);
-            xInputCheckoutBox.setText(mTermuxActivity.getText(R.string.set_xinput));
-            linearLayout.addView(xInputCheckoutBox);
-            AlertDialog.Builder builder = new AlertDialog.Builder(mTermuxActivity);
-            builder.setView(linearLayout);
-            builder.setMessage(mTermuxActivity.getText(R.string.ready_set_mobox_env))
-                .setPositiveButton(mTermuxActivity.getText(R.string.yes), (dialog, id) -> {
-                    int option1 = 0b0001; // dinput
-                    int option2 = 0b0010; // xinput
-                    int flags = 0;
-                    if (dInputCheckBox.isChecked()) {
-                        flags |= option1;
-                    }
-                    if (xInputCheckoutBox.isChecked()) {
-                        flags |= option2;
-                    }
-                    Integer mode = null;
-                    if (flags != 0) {
-                        mode = flags;
-                    }
-                    mTermuxActivity.reInstallCustomStartScript(mode);
-                })
-                .setNegativeButton(mTermuxActivity.getText(R.string.cancel), (dialog, id) -> {
-
-                });
-
-            AlertDialog dialog = builder.create();
-            dialog.setTitle(mTermuxActivity.getText(R.string.select_gamepad_input_mode));
-            dialog.show();
-
-            mPop.dismiss();
-        });
-        for (int i = 0; i < mMenutryEntry.getStartItemList().size(); i++) {
-            LinearLayout button = createImageButton(mMenutryEntry.getStartItemList().get(i).getType(), mMenutryEntry.getStartItemList().get(i).getFileName(), width / 5);
-            button.setLongClickable(true);
-            String command = mMenutryEntry.getStartItemList().get(i).getCommand();
-            if (command == null) {
-                command = mMenutryEntry.getStartItemList().get(i).getPath();
-            }
-            final String cmd = command + "\n";
-            button.setOnClickListener(v -> {
-                mTermuxTerminalSessionActivityClient.getCurrentStoredSessionOrLast().write(cmd);
-            });
-            int idx = i;
-            button.setOnLongClickListener(v -> {
-                AlertDialog.Builder builder = new AlertDialog.Builder(mTermuxActivity);
-                builder.setMessage(mTermuxActivity.getText(R.string.remove_shortcut))
-                    .setPositiveButton(mTermuxActivity.getText(R.string.yes), (dialog, id) -> {
-                        mMenutryEntry.getStartItemList().remove(idx);
-                        mGrideLayout.removeAllViews();
-                        updateMenuItems(ScreenUtils.getScreenWidth(mTermuxActivity), mGrideLayout);
-                    })
-                    .setNegativeButton(mTermuxActivity.getText(R.string.cancel), (dialog, id) -> {
-
-                    });
-
-                AlertDialog dialog = builder.create();
-                dialog.setTitle(mTermuxActivity.getText(R.string.remove));
-                dialog.show();
-                return true;
-            });
-            gridLayout.addView(button);
-        }
-        LinearLayout but = createImageButton("add", mTermuxActivity.getString(com.termux.x11.R.string.add), width / 5);
-        but.setGravity(Gravity.CENTER_VERTICAL);
-        but.setOrientation(LinearLayout.VERTICAL);
-        gridLayout.addView(but);
-        but.setOnClickListener(v -> {
-            showAddMenuItem();
-        });
+        if (mConfigContainer == null)
+            return;
+        mConfigContainer.setVisibility(mConfigContainer.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
     }
 
     private void setToolboxConfig() {
-        mPopWindowConfigContent = mTermuxActivity.getLayoutInflater().inflate(R.layout.menu_launch_item, null);
-        LinearLayout mStartItemEntriesConfig = mPopWindowConfigContent.findViewById(R.id.LConfigStartItems);
+        mConfigContainer = new LinearLayout(mTermuxActivity);
+        mConfigContainer.setOrientation(LinearLayout.VERTICAL);
+        mConfigContainer.setVisibility(View.GONE);
 
-
-        ImageButton mAddConfigButton = mPopWindowConfigContent.findViewById(R.id.BConfig_item);
+        mConfigView = mTermuxActivity.getLayoutInflater().inflate(R.layout.menu_launch_item, mConfigContainer, false);
+        LinearLayout form = mConfigView.findViewById(R.id.LConfigStartItems);
+        form.setLayoutParams(new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+        mConfigContainer.addView(mConfigView, new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
         mFileBrowser = new FileBrowser(mTermuxActivity, this);
         mFileBrowser.init();
-        mAddConfigButton.setOnClickListener(v -> {
-            mFileBrowser.showFileBrowser(mStartItemEntriesConfig);
+        View fileBrowserView = mFileBrowser.getView();
+        fileBrowserView.setVisibility(View.GONE);
+        mConfigContainer.addView(fileBrowserView, new LinearLayout.LayoutParams(MATCH_PARENT, dp(180)));
+
+        ImageButton addConfigButton = mConfigView.findViewById(R.id.BConfig_item);
+        addConfigButton.setOnClickListener(v -> {
+            View browser = mFileBrowser.getView();
+            browser.setVisibility(browser.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
         });
-        EditText command = mPopWindowConfigContent.findViewById(R.id.ETCommand);
-        EditText title = mPopWindowConfigContent.findViewById(R.id.ETTitle);
-        Button okButton = mPopWindowConfigContent.findViewById(R.id.BTOK);
+
+        EditText command = mConfigView.findViewById(R.id.ETCommand);
+        EditText title = mConfigView.findViewById(R.id.ETTitle);
+        Button okButton = mConfigView.findViewById(R.id.BTOK);
         okButton.setOnClickListener(v -> {
-            if (command.getText().toString().isEmpty()||
-            title.getText().toString().isEmpty()){
-                Toast.makeText(mTermuxActivity,R.string.invalid_config,Toast.LENGTH_LONG);
+            String commandText = command.getText().toString();
+            String titleText = title.getText().toString();
+            if (commandText.isEmpty() || titleText.isEmpty()) {
+                Toast.makeText(mTermuxActivity, R.string.invalid_config, Toast.LENGTH_LONG).show();
                 return;
             }
+
             MenuEntry.Entry entry = new MenuEntry.Entry();
-            entry.setPath(command.getText().toString());
-            entry.setFileName(title.getText().toString());
+            entry.setPath(commandText);
+            entry.setFileName(titleText);
             entry.setIconPath("default");
-            entry.setTitlle(title.getText().toString());
-            entry.setCommand(command.getText().toString());
+            entry.setTitlle(titleText);
+            entry.setCommand(commandText);
             entry.setType("executable");
-            mMenutryEntry.addMenuEntry(entry);
-            mGrideLayout.removeAllViews();
-            updateMenuItems(ScreenUtils.getScreenWidth(mTermuxActivity), mGrideLayout);
-            mConfigPopWindow.dismiss();
+            mMenuEntry.addMenuEntry(entry);
+            mMenuEntry.saveMenuItems();
+            updateMenuItems();
+            command.setText("");
+            title.setText("");
+            mFileBrowser.getView().setVisibility(View.GONE);
+            mConfigContainer.setVisibility(View.GONE);
         });
     }
 
     private LinearLayout createImageButton(String type, String title, int size) {
         LinearLayout layout = new LinearLayout(mTermuxActivity);
-        LinearLayout.LayoutParams param = new LinearLayout.LayoutParams(size < 10 ? WRAP_CONTENT : size, size < 10 ? WRAP_CONTENT : size);
-        param.setMargins(10, 10, 10, 10);
+        GridLayout.LayoutParams param = new GridLayout.LayoutParams();
+        param.width = size;
+        param.height = size;
+        param.setMargins(dp(4), dp(4), dp(4), dp(4));
         layout.setLayoutParams(param);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
-        ImageView v = new ImageView(mTermuxActivity);
-        LinearLayout.LayoutParams vParam = new LinearLayout.LayoutParams(MATCH_PARENT, 0);
-        vParam.weight = 3;
-        vParam.gravity = Gravity.CENTER_VERTICAL;
-        v.setLayoutParams(vParam);
+
+        ImageView icon = new ImageView(mTermuxActivity);
+        LinearLayout.LayoutParams iconParam = new LinearLayout.LayoutParams(MATCH_PARENT, 0, 3);
+        iconParam.gravity = Gravity.CENTER_VERTICAL;
+        icon.setLayoutParams(iconParam);
         switch (type) {
-            case "script": {
-                v.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_script_click));
+            case "script":
+                icon.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_script_click));
                 break;
-            }
-            case "executable": {
-                v.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_executable_click));
+            case "executable":
+                icon.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_executable_click));
                 break;
-            }
-            case "short_cut": {
-                v.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_shortcut_click));
+            case "short_cut":
+                icon.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_shortcut_click));
                 break;
-            }
-            case "terminal": {
-                v.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_terminal_click));
+            case "terminal":
+                icon.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_terminal_click));
                 break;
-            }
-            case "add": {
-                v.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_add_click));
+            case "add":
+                icon.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_add_click));
                 break;
-            }
             default:
-                v.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_code_click));
+                icon.setImageDrawable(mTermuxActivity.getDrawable(R.drawable.ic_code_click));
         }
-        TextView tv = new TextView(mTermuxActivity);
-        LinearLayout.LayoutParams tvParam = new LinearLayout.LayoutParams(MATCH_PARENT, 0);
-        tvParam.weight = 1;
-        tv.setGravity(Gravity.CENTER);
-        tv.setLayoutParams(tvParam);
-        tv.setText(title);
-        layout.addView(v);
-        layout.addView(tv);
+
+        TextView text = new TextView(mTermuxActivity);
+        LinearLayout.LayoutParams textParam = new LinearLayout.LayoutParams(MATCH_PARENT, 0, 1);
+        text.setGravity(Gravity.CENTER);
+        text.setSingleLine(true);
+        text.setLayoutParams(textParam);
+        text.setText(title);
+        layout.addView(icon);
+        layout.addView(text);
         return layout;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * mTermuxActivity.getResources().getDisplayMetrics().density);
     }
 
     @Override
     public void onFileSelected(FileInfo fileInfo) {
-        EditText command = mPopWindowConfigContent.findViewById(R.id.ETCommand);
-        EditText title = mPopWindowConfigContent.findViewById(R.id.ETTitle);
+        EditText command = mConfigView.findViewById(R.id.ETCommand);
+        EditText title = mConfigView.findViewById(R.id.ETTitle);
         command.setText(fileInfo.getPath());
         title.setText(fileInfo.getName());
+        mFileBrowser.getView().setVisibility(View.GONE);
     }
 }

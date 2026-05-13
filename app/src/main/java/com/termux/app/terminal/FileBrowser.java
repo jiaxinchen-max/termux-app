@@ -78,6 +78,10 @@ public class FileBrowser implements FileAdapter.OnItemClickListener {
         loadFiles(TERMUX_FILES_DIR_PATH);
     }
 
+    public View getView() {
+        return mFileBrowserView;
+    }
+
     private void loadFiles(String path) {
         List<FileInfo> fileList = getFileList(path);
         this.mFileList.clear();
@@ -91,6 +95,8 @@ public class FileBrowser implements FileAdapter.OnItemClickListener {
         File[] files = parent.listFiles();
         FileInfo parentInfo = new FileInfo("..", parent.getAbsolutePath(), true);
         fileInfoList.add(parentInfo);
+        if (files == null)
+            return fileInfoList;
         for (int i = 0; i < files.length; i++) {
             FileInfo f = new FileInfo(files[i].getName(), files[i].getAbsolutePath(), files[i].isDirectory());
             fileInfoList.add(f);
@@ -99,6 +105,12 @@ public class FileBrowser implements FileAdapter.OnItemClickListener {
     }
 
     public void showFileBrowser(View view) {
+        if (mFileBrowserView == null)
+            return;
+        if (mFileBrowserView.getParent() != null) {
+            mFileBrowserView.setVisibility(View.VISIBLE);
+            return;
+        }
         if (mPopupWindow == null) {
             popWindowHeight = Math.min(AppUtils.getScreenWidth(), AppUtils.getScreenHeight());
             popWindowHeight = (int) UnitUtils.pxToDp(popWindowHeight * 4 / 5);
@@ -108,10 +120,13 @@ public class FileBrowser implements FileAdapter.OnItemClickListener {
     }
 
     public void hideFileBrowser() {
-        if (mPopupWindow == null || !mPopupWindow.isShowing()) {
+        if (mPopupWindow != null && mPopupWindow.isShowing()) {
+            mPopupWindow.dismiss();
             return;
         }
-        mPopupWindow.dismiss();
+        if (mFileBrowserView != null && mFileBrowserView.getParent() != null) {
+            mFileBrowserView.setVisibility(View.GONE);
+        }
     }
 
     @Override

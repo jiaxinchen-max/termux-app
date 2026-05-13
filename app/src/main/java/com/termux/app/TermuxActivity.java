@@ -570,8 +570,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
         setToggleKeyboardView();
 
-        setSurfaceSwitchView();
-
         mMenuEntryClient = new MenuEntryClient(this, mTermuxTerminalSessionActivityClient);
 
         registerForContextMenu(mTerminalView);
@@ -1260,18 +1258,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         findViewById(R.id.toggle_keyboard_button).setOnLongClickListener(v -> {
             toggleTerminalToolbar();
             return true;
-        });
-    }
-
-    private void setSurfaceSwitchView() {
-        findViewById(R.id.show_terminal_button).setOnClickListener(v -> {
-            showTerminalSurface();
-            getDrawer().closeDrawers();
-        });
-
-        findViewById(R.id.show_display_button).setOnClickListener(v -> {
-            showDisplaySurface();
-            getDrawer().closeDrawers();
         });
     }
 

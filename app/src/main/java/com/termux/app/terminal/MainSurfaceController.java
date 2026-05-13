@@ -228,6 +228,11 @@ public final class MainSurfaceController {
                 mInternalDrawerSwipeConsumed = false;
                 mInternalDrawerSwipeDownX = event.getRawX();
                 mInternalDrawerSwipeDownY = event.getRawY();
+                if (isTouchInsideTerminalToolbarArea(event)) {
+                    mTrackingInternalDrawerGravity = 0;
+                    mTrackingTerminalDisplaySwitchGesture = false;
+                    return false;
+                }
                 mTrackingTerminalDisplaySwitchGesture = shouldTrackTerminalDisplaySwitchInput()
                     && isTouchInsideTerminalSwitchArea(event);
 
@@ -577,6 +582,24 @@ public final class MainSurfaceController {
             && x <= location[0] + switchArea.getWidth()
             && y >= location[1]
             && y <= location[1] + switchArea.getHeight();
+    }
+
+    private boolean isTouchInsideTerminalToolbarArea(@NonNull MotionEvent event) {
+        if (mMode != SurfaceMode.TERMINAL || mTerminalSurfaceView.getVisibility() != View.VISIBLE)
+            return false;
+        return isTouchInsideView(mTerminalSurfaceView, event)
+            && !isTouchInsideView(mTerminalView, event);
+    }
+
+    private boolean isTouchInsideView(@NonNull View view, @NonNull MotionEvent event) {
+        int[] location = new int[2];
+        view.getLocationOnScreen(location);
+        float x = event.getRawX();
+        float y = event.getRawY();
+        return x >= location[0]
+            && x <= location[0] + view.getWidth()
+            && y >= location[1]
+            && y <= location[1] + view.getHeight();
     }
 
     @NonNull
