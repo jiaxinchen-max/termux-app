@@ -1,5 +1,7 @@
 package com.termux.app.terminal;
 
+import android.content.res.Configuration;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -59,6 +61,7 @@ public final class MainSurfaceController {
     @Nullable
     private SurfaceGestureListener mSurfaceGestureListener;
     private int mSurfaceAnimationGeneration;
+    private boolean mLandscapeTerminalOverlayEnabled;
     @NonNull
     private final DecelerateInterpolator mSurfaceTransitionInterpolator = new DecelerateInterpolator();
 
@@ -78,6 +81,10 @@ public final class MainSurfaceController {
             viewConfiguration.getScaledTouchSlop() * 4);
         mInternalDrawerMaxDistance = Math.round(INTERNAL_DRAWER_MAX_DISTANCE_DP * density);
 
+        mContainer.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if ((right - left) != (oldRight - oldLeft) || (bottom - top) != (oldBottom - oldTop))
+                applyMode();
+        });
         applyMode();
     }
 
@@ -107,8 +114,11 @@ public final class MainSurfaceController {
 
     public void showTerminal() {
         SurfaceMode previousMode = mMode;
+        boolean previousLandscapeTerminalOverlayEnabled = mLandscapeTerminalOverlayEnabled;
+        mLandscapeTerminalOverlayEnabled = isLandscapeLayout()
+            && (previousMode == SurfaceMode.DISPLAY || mLandscapeTerminalOverlayEnabled);
         mMode = SurfaceMode.TERMINAL;
-        applyMode(previousMode == SurfaceMode.DISPLAY, previousMode);
+        applyMode(previousMode == SurfaceMode.DISPLAY, previousMode, previousLandscapeTerminalOverlayEnabled);
         mTerminalView.requestFocus();
     }
 
@@ -116,8 +126,10 @@ public final class MainSurfaceController {
         if (mDisplayView == null)
             return;
         SurfaceMode previousMode = mMode;
+        boolean previousLandscapeTerminalOverlayEnabled = mLandscapeTerminalOverlayEnabled;
+        mLandscapeTerminalOverlayEnabled = false;
         mMode = SurfaceMode.DISPLAY;
-        applyMode(previousMode == SurfaceMode.TERMINAL, previousMode);
+        applyMode(previousMode == SurfaceMode.TERMINAL, previousMode, previousLandscapeTerminalOverlayEnabled);
         mDisplayView.getLorieView().requestFocus();
     }
 
@@ -206,30 +218,52 @@ public final class MainSurfaceController {
     }
 
     private void applyMode() {
-        applyMode(false, mMode);
+        applyMode(false, mMode, mLandscapeTerminalOverlayEnabled);
     }
 
-    private void applyMode(boolean animate, @NonNull SurfaceMode previousMode) {
+    private void applyMode(boolean animate, @NonNull SurfaceMode previousMode, boolean previousLandscapeTerminalOverlayEnabled) {
         if (animate && previousMode != mMode && mDisplayView != null && mContainer.getWidth() > 0) {
-            animateModeChange();
+            animateModeChange(previousLandscapeTerminalOverlayEnabled);
             applyDrawerLockMode();
             return;
         }
 
         cancelSurfaceAnimations();
+        boolean terminalOverlay = shouldUseLandscapeTerminalOverlay();
+        applySurfaceLayout(terminalOverlay);
+
         mTerminalView.setVisibility(mMode == SurfaceMode.TERMINAL ? View.VISIBLE : View.GONE);
         mTerminalView.setTranslationX(0);
-        if (mDisplayView != null)
-            mDisplayView.setVisibility(mMode == SurfaceMode.DISPLAY ? View.VISIBLE : View.GONE);
-        if (mDisplayView != null)
+        if (mDisplayView != null) {
+            mDisplayView.setVisibility((mMode == SurfaceMode.DISPLAY || terminalOverlay) ? View.VISIBLE : View.GONE);
             mDisplayView.setTranslationX(0);
+            if (mMode == SurfaceMode.DISPLAY) {
+                mDisplayView.bringToFront();
+            } else if (terminalOverlay) {
+                mDisplayView.bringToFront();
+                mTerminalView.bringToFront();
+            } else {
+                mTerminalView.bringToFront();
+            }
+        }
         applyDrawerLockMode();
     }
 
-    private void animateModeChange() {
+    private void animateModeChange(boolean previousLandscapeTerminalOverlayEnabled) {
         if (mDisplayView == null)
             return;
 
+        boolean terminalOverlay = shouldUseLandscapeTerminalOverlay();
+        if (mMode == SurfaceMode.TERMINAL && terminalOverlay) {
+            animateLandscapeTerminalOverlayIn();
+            return;
+        }
+        if (mMode == SurfaceMode.DISPLAY && previousLandscapeTerminalOverlayEnabled && isLandscapeLayout()) {
+            animateLandscapeTerminalOverlayOut();
+            return;
+        }
+
+        applySurfaceLayout(false);
         int width = mContainer.getWidth();
         View incomingView = mMode == SurfaceMode.TERMINAL ? mTerminalView : mDisplayView;
         View outgoingView = mMode == SurfaceMode.TERMINAL ? mDisplayView : mTerminalView;
@@ -268,6 +302,112 @@ public final class MainSurfaceController {
                 outgoingView.setTranslationX(0);
             })
             .start();
+    }
+
+    private void animateLandscapeTerminalOverlayIn() {
+        if (mDisplayView == null)
+            return;
+
+        applySurfaceLayout(true);
+        int terminalWidth = getLandscapeTerminalOverlayWidth();
+        int animationGeneration = ++mSurfaceAnimationGeneration;
+
+        mTerminalView.animate().cancel();
+        mDisplayView.animate().cancel();
+
+        mDisplayView.setVisibility(View.VISIBLE);
+        mDisplayView.setTranslationX(0);
+        mDisplayView.bringToFront();
+
+        mTerminalView.setVisibility(View.VISIBLE);
+        mTerminalView.setTranslationX(-terminalWidth);
+        mTerminalView.bringToFront();
+
+        mTerminalView.animate()
+            .translationX(0)
+            .setDuration(SURFACE_TRANSITION_ANIMATION_MS)
+            .setInterpolator(mSurfaceTransitionInterpolator)
+            .withEndAction(() -> {
+                if (animationGeneration == mSurfaceAnimationGeneration)
+                    mTerminalView.setTranslationX(0);
+            })
+            .start();
+    }
+
+    private void animateLandscapeTerminalOverlayOut() {
+        if (mDisplayView == null)
+            return;
+
+        applySurfaceLayout(true);
+        int terminalWidth = getLandscapeTerminalOverlayWidth();
+        int animationGeneration = ++mSurfaceAnimationGeneration;
+
+        mTerminalView.animate().cancel();
+        mDisplayView.animate().cancel();
+
+        mDisplayView.setVisibility(View.VISIBLE);
+        mDisplayView.setTranslationX(0);
+        mDisplayView.bringToFront();
+
+        mTerminalView.setVisibility(View.VISIBLE);
+        mTerminalView.setTranslationX(0);
+        mTerminalView.bringToFront();
+
+        mTerminalView.animate()
+            .translationX(-terminalWidth)
+            .setDuration(SURFACE_TRANSITION_ANIMATION_MS)
+            .setInterpolator(mSurfaceTransitionInterpolator)
+            .withEndAction(() -> {
+                if (animationGeneration != mSurfaceAnimationGeneration)
+                    return;
+                applySurfaceLayout(false);
+                mTerminalView.setVisibility(View.GONE);
+                mTerminalView.setTranslationX(0);
+                mDisplayView.setVisibility(View.VISIBLE);
+                mDisplayView.setTranslationX(0);
+                mDisplayView.bringToFront();
+            })
+            .start();
+    }
+
+    private boolean shouldUseLandscapeTerminalOverlay() {
+        return mMode == SurfaceMode.TERMINAL
+            && mDisplayView != null
+            && mLandscapeTerminalOverlayEnabled
+            && isLandscapeLayout();
+    }
+
+    private boolean isLandscapeLayout() {
+        if (mContainer.getWidth() > 0 && mContainer.getHeight() > 0)
+            return mContainer.getWidth() > mContainer.getHeight();
+        return mContainer.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+    }
+
+    private int getLandscapeTerminalOverlayWidth() {
+        int width = mContainer.getWidth();
+        int height = mContainer.getHeight();
+        if (width > 0 && height > 0)
+            return Math.min(width, height);
+        return Math.min(
+            mContainer.getResources().getDisplayMetrics().widthPixels,
+            mContainer.getResources().getDisplayMetrics().heightPixels);
+    }
+
+    private void applySurfaceLayout(boolean terminalOverlay) {
+        ViewGroup.LayoutParams layoutParams = mTerminalView.getLayoutParams();
+        FrameLayout.LayoutParams params = layoutParams instanceof FrameLayout.LayoutParams
+            ? (FrameLayout.LayoutParams) layoutParams
+            : new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        int targetWidth = terminalOverlay ? getLandscapeTerminalOverlayWidth() : FrameLayout.LayoutParams.MATCH_PARENT;
+        int targetGravity = terminalOverlay ? Gravity.START : Gravity.NO_GRAVITY;
+        if (params.width != targetWidth
+            || params.height != FrameLayout.LayoutParams.MATCH_PARENT
+            || params.gravity != targetGravity) {
+            params.width = targetWidth;
+            params.height = FrameLayout.LayoutParams.MATCH_PARENT;
+            params.gravity = targetGravity;
+            mTerminalView.setLayoutParams(params);
+        }
     }
 
     private void cancelSurfaceAnimations() {
