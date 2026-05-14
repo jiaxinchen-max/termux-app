@@ -139,6 +139,10 @@ public class FloatBallManager {
         floatMenu.closeMenu();
     }
 
+    public boolean isFloatMenuShowing() {
+        return floatMenu != null && floatMenu.isShowing();
+    }
+
     public void reset() {
         floatBall.setVisibility(View.VISIBLE);
         floatBall.postSleepRunnable();

@@ -313,6 +313,10 @@ public class FloatBallMenuClient {
         return mFloatballManager.isFloatBallOverOtherApp();
     }
 
+    public boolean isFloatMenuShowing() {
+        return mFloatballManager != null && mFloatballManager.isFloatMenuShowing();
+    }
+
     private void startCpuLoadIconUpdater() {
         mLastCpuUsagePercent = -1;
         mHandler.removeCallbacks(mCpuLoadIconUpdater);

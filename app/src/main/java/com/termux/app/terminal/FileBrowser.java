@@ -34,6 +34,8 @@ public class FileBrowser implements FileAdapter.OnItemClickListener {
     private TermuxActivity mTermuxActivity;
     private PopupWindow mPopupWindow;
     private int popWindowHeight, mPopWindowWidth;
+    private int mBrowserLayoutResId = R.layout.file_bowser;
+    private int mItemLayoutResId = R.layout.item_file;
     private String mCurrentPath = TERMUX_FILES_DIR_PATH;
     private FileSlectedAdapter fileSlectedAdapter;
 
@@ -46,13 +48,19 @@ public class FileBrowser implements FileAdapter.OnItemClickListener {
         mPopWindowWidth = 210;
     }
 
+    public FileBrowser(TermuxActivity activity, FileSlectedAdapter ada, int browserLayoutResId, int itemLayoutResId) {
+        this(activity, ada);
+        mBrowserLayoutResId = browserLayoutResId;
+        mItemLayoutResId = itemLayoutResId;
+    }
+
     public void init() {
-        mFileBrowserView = LayoutInflater.from(mTermuxActivity).inflate(R.layout.file_bowser, null);
+        mFileBrowserView = LayoutInflater.from(mTermuxActivity).inflate(mBrowserLayoutResId, null);
         mRecyclerView = mFileBrowserView.findViewById(R.id.recyclerView);
         mSearchEditText = mFileBrowserView.findViewById(R.id.ESearchEditText);
         mFileList = new ArrayList<>();
 
-        mFileAdapter = new FileAdapter(mFileList, this);
+        mFileAdapter = new FileAdapter(mFileList, this, mItemLayoutResId);
         mRecyclerView.setAdapter(mFileAdapter);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(mTermuxActivity));
 

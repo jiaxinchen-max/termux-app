@@ -223,6 +223,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     private boolean mPendingDisplayReturnToTerminal;
     private boolean mDisplaySidePanelsUnlocked;
     private boolean mPendingDisplaySidePanelUnlockBack;
+    private boolean mSuppressNextX11FocusGainFromFloatMenu;
     private long mDisplaySidePanelUnlockBackPromptTime;
 
     private static final long DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS = 1500;
@@ -863,8 +864,25 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
+        if (shouldSuppressX11WindowFocusChangeForFloatMenu(hasFocus))
+            return;
         if (mLorieViewRuntimeController != null)
             mLorieViewRuntimeController.onWindowFocusChanged(hasFocus);
+    }
+
+    private boolean shouldSuppressX11WindowFocusChangeForFloatMenu(boolean hasFocus) {
+        boolean floatMenuShowing = mFloatBallMenuClient != null && mFloatBallMenuClient.isFloatMenuShowing();
+        if (floatMenuShowing) {
+            mSuppressNextX11FocusGainFromFloatMenu = !hasFocus;
+            return true;
+        }
+        if (hasFocus && mSuppressNextX11FocusGainFromFloatMenu) {
+            mSuppressNextX11FocusGainFromFloatMenu = false;
+            return true;
+        }
+        if (!hasFocus)
+            mSuppressNextX11FocusGainFromFloatMenu = false;
+        return false;
     }
 
     @Override

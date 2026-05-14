@@ -96,8 +96,13 @@ public class FloatMenu extends FrameLayout {
             mBallSize = floatBallManager.getBallSize();
             prepareMenuWindowLayout();
             toggle(mDuration);
-            windowManager.addView(this, mLayoutParams);
             isAdded = true;
+            try {
+                windowManager.addView(this, mLayoutParams);
+            } catch (RuntimeException e) {
+                isAdded = false;
+                throw e;
+            }
         }
     }
 
@@ -158,6 +163,10 @@ public class FloatMenu extends FrameLayout {
         if (mMenuLayout.isExpanded()) {
             toggle(mDuration);
         }
+    }
+
+    public boolean isShowing() {
+        return isAdded;
     }
 
     public void remove() {

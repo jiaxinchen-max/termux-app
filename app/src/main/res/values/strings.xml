@@ -215,7 +215,7 @@
     <string name="exit_toast_text">press again for exit app</string>
     <string name="return_home_toast_text">press again to return home</string>
     <string name="unlock_exit_toast_text">side menu unlocked, press again to return terminal</string>
-    <string name="x11_side_panels_unlock_prompt">Press back again within 1.5s to unlock side panels</string>
+    <string name="x11_side_panels_unlock_prompt">Press back again to unlock side panels</string>
     <string name="x11_side_panels_unlocked">Side panels unlocked. Swipe within 5s to open</string>
     <string name="x11_side_panels_already_unlocked">Side panels are already unlocked</string>
     <string name="x11_side_panels_locked_timeout">Side panels locked automatically</string>

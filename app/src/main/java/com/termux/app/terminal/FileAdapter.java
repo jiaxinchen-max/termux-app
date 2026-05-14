@@ -19,11 +19,17 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.FileViewHolder
     private ArrayList<FileInfo> mFileList;
     private final List<FileInfo> mEntireFileList = new ArrayList<>();
     private final OnItemClickListener mListener;
+    private final int mItemLayoutResId;
     private String mLastPath = TERMUX_FILES_DIR_PATH;
 
     public FileAdapter(ArrayList<FileInfo> fileList, OnItemClickListener listener) {
+        this(fileList, listener, R.layout.item_file);
+    }
+
+    public FileAdapter(ArrayList<FileInfo> fileList, OnItemClickListener listener, int itemLayoutResId) {
         this.mFileList = fileList;
         this.mListener = listener;
+        this.mItemLayoutResId = itemLayoutResId;
         mEntireFileList.clear();
         mEntireFileList.addAll(fileList);
     }
@@ -31,7 +37,7 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.FileViewHolder
     @NonNull
     @Override
     public FileViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_file, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(mItemLayoutResId, parent, false);
         return new FileViewHolder(view);
     }
 

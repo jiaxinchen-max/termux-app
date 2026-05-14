@@ -114,7 +114,7 @@
     <string name="exit_toast_text">再按一次退出</string>
     <string name="return_home_toast_text">再按一次返回桌面</string>
     <string name="unlock_exit_toast_text">侧边栏已解锁，再按一次返回终端</string>
-    <string name="x11_side_panels_unlock_prompt">1.5 秒内再次返回可解锁侧边栏</string>
+    <string name="x11_side_panels_unlock_prompt">再次返回解锁侧边栏</string>
     <string name="x11_side_panels_unlocked">侧边栏已解锁，5 秒内滑动打开</string>
     <string name="x11_side_panels_already_unlocked">侧边栏已处于解锁状态</string>
     <string name="x11_side_panels_locked_timeout">侧边栏已自动锁定</string>

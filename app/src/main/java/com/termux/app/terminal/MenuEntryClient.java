@@ -19,6 +19,7 @@ import android.widget.Toast;
 
 import com.termux.R;
 import com.termux.app.TermuxActivity;
+import android.util.TypedValue;
 
 public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
     private final TermuxActivity mTermuxActivity;
@@ -27,6 +28,7 @@ public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
     private FileBrowser mFileBrowser;
     private LinearLayout mToolboxContainer;
     private LinearLayout mConfigContainer;
+    private ScrollView mToolboxScrollView;
     private GridLayout mGridLayout;
     private View mConfigView;
     private CheckBox mDInputCheckBox;
@@ -61,10 +63,10 @@ public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
         inputModeRow.addView(mXInputCheckBox, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1));
         mToolboxContainer.addView(inputModeRow, new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
-        ScrollView toolBoxScrollView = new ScrollView(mTermuxActivity);
+        mToolboxScrollView = new ScrollView(mTermuxActivity);
         LinearLayout content = new LinearLayout(mTermuxActivity);
         content.setOrientation(LinearLayout.VERTICAL);
-        toolBoxScrollView.addView(content, new ScrollView.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+        mToolboxScrollView.addView(content, new ScrollView.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
         mGridLayout = new GridLayout(mTermuxActivity);
         mGridLayout.setColumnCount(3);
@@ -75,7 +77,7 @@ public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
         if (mConfigContainer != null)
             content.addView(mConfigContainer, new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
-        mToolboxContainer.addView(toolBoxScrollView, new LinearLayout.LayoutParams(MATCH_PARENT, 0, 1));
+        mToolboxContainer.addView(mToolboxScrollView, new LinearLayout.LayoutParams(MATCH_PARENT, 0, 1));
     }
 
     private void updateMenuItems() {
@@ -83,7 +85,7 @@ public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
             return;
 
         mGridLayout.removeAllViews();
-        int itemSize = dp(64);
+        int itemSize = dp(38);
 
         LinearLayout recover = createImageButton("script", "setMoBoxEnv", itemSize);
         recover.setOnClickListener(v -> mTermuxActivity.reInstallCustomStartScript(getSelectedInputModeFlags()));
@@ -125,7 +127,10 @@ public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
     private void showAddMenuItem() {
         if (mConfigContainer == null)
             return;
-        mConfigContainer.setVisibility(mConfigContainer.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+        boolean show = mConfigContainer.getVisibility() != View.VISIBLE;
+        mConfigContainer.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (show)
+            scrollToolboxTo(mConfigContainer);
     }
 
     private void setToolboxConfig() {
@@ -138,7 +143,7 @@ public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
         form.setLayoutParams(new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
         mConfigContainer.addView(mConfigView, new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
-        mFileBrowser = new FileBrowser(mTermuxActivity, this);
+        mFileBrowser = new FileBrowser(mTermuxActivity, this, R.layout.toolbox_file_bowser, R.layout.toolbox_item_file);
         mFileBrowser.init();
         View fileBrowserView = mFileBrowser.getView();
         fileBrowserView.setVisibility(View.GONE);
@@ -147,7 +152,13 @@ public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
         ImageButton addConfigButton = mConfigView.findViewById(R.id.BConfig_item);
         addConfigButton.setOnClickListener(v -> {
             View browser = mFileBrowser.getView();
-            browser.setVisibility(browser.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+            boolean show = browser.getVisibility() != View.VISIBLE;
+            if (show) {
+                mFileBrowser.showFileBrowser(v);
+                scrollToolboxTo(browser);
+            } else {
+                mFileBrowser.hideFileBrowser();
+            }
         });
 
         EditText command = mConfigView.findViewById(R.id.ETCommand);
@@ -183,13 +194,13 @@ public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
         GridLayout.LayoutParams param = new GridLayout.LayoutParams();
         param.width = size;
         param.height = size;
-        param.setMargins(dp(4), dp(4), dp(4), dp(4));
+        param.setMargins(dp(2), dp(2), dp(2), dp(2));
         layout.setLayoutParams(param);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
 
         ImageView icon = new ImageView(mTermuxActivity);
-        LinearLayout.LayoutParams iconParam = new LinearLayout.LayoutParams(MATCH_PARENT, 0, 3);
+        LinearLayout.LayoutParams iconParam = new LinearLayout.LayoutParams(MATCH_PARENT, 0, 2);
         iconParam.gravity = Gravity.CENTER_VERTICAL;
         icon.setLayoutParams(iconParam);
         switch (type) {
@@ -216,6 +227,7 @@ public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
         LinearLayout.LayoutParams textParam = new LinearLayout.LayoutParams(MATCH_PARENT, 0, 1);
         text.setGravity(Gravity.CENTER);
         text.setSingleLine(true);
+        text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         text.setLayoutParams(textParam);
         text.setText(title);
         layout.addView(icon);
@@ -225,6 +237,12 @@ public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
 
     private int dp(int value) {
         return Math.round(value * mTermuxActivity.getResources().getDisplayMetrics().density);
+    }
+
+    private void scrollToolboxTo(View target) {
+        if (mToolboxScrollView == null || target == null)
+            return;
+        mToolboxScrollView.post(() -> mToolboxScrollView.smoothScrollTo(0, target.getBottom()));
     }
 
     @Override
