@@ -12,10 +12,12 @@
         android:layout_marginTop="4dp"
         android:background="@drawable/toolbox_item_file_background"
         android:hint="Search"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textColorHint="?android:attr/textColorHint"
         android:imeOptions="actionDone"
         android:inputType="text"
-        android:textColor="@color/black"
-        android:textColorHint="#777777" />
+        android:focusable="true"
+        android:focusableInTouchMode="true" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"

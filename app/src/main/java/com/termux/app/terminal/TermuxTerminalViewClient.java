@@ -75,6 +75,10 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
         return mActivity;
     }
 
+    public void suppressSoftKeyboardOnNextTerminalFocus() {
+        mShowSoftKeyboardIgnoreOnce = true;
+    }
+
     /**
      * Should be called when mActivity.onCreate() is called
      */

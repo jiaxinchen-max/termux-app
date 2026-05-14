@@ -63,9 +63,9 @@
                 android:layout_gravity="start"
                 android:background="?attr/termuxActivityDrawerBackground"
                 android:choiceMode="singleChoice"
-                android:descendantFocusability="blocksDescendants"
                 android:divider="@android:color/transparent"
                 android:dividerHeight="0dp"
+                android:descendantFocusability="afterDescendants"
                 android:orientation="vertical">
 
                 <LinearLayout

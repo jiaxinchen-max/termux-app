@@ -6,6 +6,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -117,6 +118,7 @@ public class FileBrowser implements FileAdapter.OnItemClickListener {
             return;
         if (mFileBrowserView.getParent() != null) {
             mFileBrowserView.setVisibility(View.VISIBLE);
+            focusSearchEditText();
             return;
         }
         if (mPopupWindow == null) {
@@ -125,6 +127,17 @@ public class FileBrowser implements FileAdapter.OnItemClickListener {
             mPopupWindow = AppUtils.showPopupWindow(view, mFileBrowserView, mPopWindowWidth, popWindowHeight);
         }
         mPopupWindow.showAsDropDown(view);
+        focusSearchEditText();
+    }
+
+    private void focusSearchEditText() {
+        if (mSearchEditText == null)
+            return;
+        mSearchEditText.requestFocus();
+        InputMethodManager imm = (InputMethodManager) mTermuxActivity.getSystemService(TermuxActivity.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.showSoftInput(mSearchEditText, InputMethodManager.SHOW_IMPLICIT);
+        }
     }
 
     public void hideFileBrowser() {

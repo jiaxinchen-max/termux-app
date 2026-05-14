@@ -6,4 +6,4 @@
     android:background="?attr/selectableItemBackground"
     android:maxLines="1"
     android:padding="6dp"
-    android:textColor="@color/black" />
+    android:textColor="?android:attr/textColorPrimary" />

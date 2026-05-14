@@ -478,6 +478,9 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     public void showTerminalSurface() {
         mPendingDisplayReturnToTerminal = false;
         lockDisplaySidePanels(false, 0);
+        if (mTermuxTerminalViewClient != null) {
+            mTermuxTerminalViewClient.suppressSoftKeyboardOnNextTerminalFocus();
+        }
         if (mMainSurfaceController != null) {
             mMainSurfaceController.showTerminal();
             updateTerminalToolbarVisibilityForSurface();

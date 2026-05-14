@@ -85,7 +85,7 @@ public class MenuEntryClient implements FileBrowser.FileSlectedAdapter {
             return;
 
         mGridLayout.removeAllViews();
-        int itemSize = dp(38);
+        int itemSize = dp(42);
 
         LinearLayout recover = createImageButton("script", "setMoBoxEnv", itemSize);
         recover.setOnClickListener(v -> mTermuxActivity.reInstallCustomStartScript(getSelectedInputModeFlags()));

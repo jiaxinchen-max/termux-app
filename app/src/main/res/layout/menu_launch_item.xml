@@ -17,6 +17,10 @@
             android:id="@+id/ETCommand"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textColorHint="?android:attr/textColorHint"
             android:maxLines="1"
             android:hint="@string/executable_file"/>
 
@@ -30,10 +34,15 @@
             android:id="@+id/ETTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textColorHint="?android:attr/textColorHint"
             android:maxLines="1"
             android:hint="@string/title"/>
         <Button
             android:id="@+id/BTOK"
+            android:textColor="?android:attr/textColorPrimary"
             android:background="@drawable/icon_button_click"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
