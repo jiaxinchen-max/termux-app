@@ -94,10 +94,10 @@ public class MenuEntry {
                 JSONObject controllerJSONObject = startItemsJSONArray.getJSONObject(i);
                 String path = controllerJSONObject.getString("path");
                 String fileName = controllerJSONObject.getString("fileName");
-                String iconPath = controllerJSONObject.getString("iconPath");
-                String cmd = controllerJSONObject.getString("command");
-                String type = controllerJSONObject.getString("type");
-                String title = controllerJSONObject.getString("title");
+                String iconPath = controllerJSONObject.optString("iconPath", "default");
+                String cmd = controllerJSONObject.optString("command", path);
+                String type = controllerJSONObject.optString("type", "executable");
+                String title = controllerJSONObject.optString("title", fileName);
                 Entry entry = new Entry();
                 entry.setPath(path);
                 entry.setFileName(fileName);

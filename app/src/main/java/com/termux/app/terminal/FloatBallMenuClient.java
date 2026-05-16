@@ -239,13 +239,12 @@ public class FloatBallMenuClient {
                 mFloatballManager.closeMenu();
             }
         };
-        MenuItem unLockLayoutItem = new MenuItem(mTermuxActivity.getDrawable(R.drawable.icon_menu_unlock_layout_shape)) {
+        MenuItem orientationItem = new MenuItem(mTermuxActivity.getDrawable(R.drawable.icon_menu_toggle_orientation_shape)) {
             @Override
             public void action() {
-                MainSurfaceController surfaceController = mTermuxActivity.getMainSurfaceController();
-                if (surfaceController != null)
-                    surfaceController.openCurrentSurfaceDrawerExplicitly();
-                toast(mTermuxActivity.getString(R.string.unlock_layout));
+                String orientation = mTermuxActivity.toggleX11ForceOrientation();
+                if (orientation != null)
+                    toast(orientation);
                 mFloatballManager.closeMenu();
             }
         };
@@ -282,7 +281,7 @@ public class FloatBallMenuClient {
             .addMenuItem(stopItem)
             .addMenuItem(keyboardItem)
             .addMenuItem(gamePadItem)
-            .addMenuItem(unLockLayoutItem)
+            .addMenuItem(orientationItem)
             .addMenuItem(taskManagerItem)
             .addMenuItem(settingItem)
             .buildMenu();

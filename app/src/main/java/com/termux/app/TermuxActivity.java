@@ -28,6 +28,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
+import android.util.TypedValue;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Gravity;
@@ -43,6 +44,7 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -314,6 +316,17 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             mLorieViewRuntimeController.showInputControlsDialog();
     }
 
+    public String toggleX11ForceOrientation() {
+        if (mLorieViewRuntimeController == null)
+            return null;
+
+        String current = getX11Prefs().forceOrientation.get();
+        String next = current != null && current.contains("landscape") ? "portrait" : "landscape";
+        getX11Prefs().forceOrientation.put(next);
+        getLorieViewRuntime().applyX11PreferenceChange("forceOrientation");
+        return next;
+    }
+
     @Override
     public void stopDesktop() {
         stopXserver();
@@ -570,6 +583,8 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         setToggleKeyboardView();
 
         mMenuEntryClient = new MenuEntryClient(this, mTermuxTerminalSessionActivityClient);
+        setLeftDrawerCollapseButtonViews();
+        applyResponsiveLeftDrawerLayout();
 
         registerForContextMenu(mTerminalView);
 
@@ -860,6 +875,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+        applyResponsiveLeftDrawerLayout();
         if (mLorieViewRuntimeController != null)
             mLorieViewRuntimeController.onConfigurationChanged(newConfig);
     }
@@ -1277,6 +1293,84 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         });
     }
 
+    private void setLeftDrawerCollapseButtonViews() {
+        View sessionListButton = findViewById(R.id.toggle_session_list_button);
+        View toolboxButton = findViewById(R.id.toggle_toolbox_button);
+
+        if (sessionListButton != null) {
+            View sessionList = findViewById(R.id.terminal_sessions_list);
+            sessionListButton.setOnClickListener(v -> toggleDrawerSection(
+                sessionList, sessionListButton, R.string.session_list_expanded, R.string.session_list_collapsed));
+        }
+
+        if (toolboxButton != null) {
+            View toolbox = findViewById(R.id.toolbox_container);
+            toolboxButton.setOnClickListener(v -> toggleDrawerSection(
+                toolbox, toolboxButton, R.string.toolbox_expanded, R.string.toolbox_collapsed));
+        }
+    }
+
+    private void toggleDrawerSection(View section, View button, int expandedTextResId, int collapsedTextResId) {
+        if (section == null || button == null)
+            return;
+
+        boolean show = section.getVisibility() != View.VISIBLE;
+        section.setVisibility(show ? View.VISIBLE : View.GONE);
+        button.setAlpha(show ? 1f : 0.45f);
+        if (button instanceof TextView)
+            ((TextView) button).setText(show ? expandedTextResId : collapsedTextResId);
+    }
+
+    private void applyResponsiveLeftDrawerLayout() {
+        boolean landscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+
+        setVisibleIfExists(R.id.toggle_session_list_button, true);
+        setVisibleIfExists(R.id.toggle_toolbox_button, true);
+
+        setViewHeight(R.id.left_drawer_header, landscape ? dp(40) : ViewGroup.LayoutParams.WRAP_CONTENT);
+        setViewHeight(R.id.terminal_sessions_list, landscape ? dp(96) : dp(280));
+        setViewHeight(R.id.left_drawer_actions, landscape ? dp(20) : ViewGroup.LayoutParams.WRAP_CONTENT);
+
+        applyBottomDrawerButtonStyle(findViewById(R.id.toggle_keyboard_button), landscape);
+        applyBottomDrawerButtonStyle(findViewById(R.id.new_session_button), landscape);
+
+        if (mTermuxSessionListViewController != null)
+            mTermuxSessionListViewController.notifyDataSetChanged();
+    }
+
+    private void applyBottomDrawerButtonStyle(View button, boolean landscape) {
+        if (button == null)
+            return;
+
+        ViewGroup.LayoutParams params = button.getLayoutParams();
+        params.height = landscape ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT;
+        button.setLayoutParams(params);
+        button.setMinimumHeight(landscape ? 0 : dp(48));
+        button.setPadding(button.getPaddingLeft(), landscape ? 0 : dp(6), button.getPaddingRight(), landscape ? 0 : dp(6));
+        if (button instanceof TextView)
+            ((TextView) button).setTextSize(TypedValue.COMPLEX_UNIT_SP, landscape ? 7 : 14);
+    }
+
+    private void setVisibleIfExists(int viewId, boolean visible) {
+        View view = findViewById(viewId);
+        if (view != null)
+            view.setVisibility(visible ? View.VISIBLE : View.GONE);
+    }
+
+    private void setViewHeight(int viewId, int height) {
+        View view = findViewById(viewId);
+        if (view == null)
+            return;
+
+        ViewGroup.LayoutParams params = view.getLayoutParams();
+        params.height = height;
+        view.setLayoutParams(params);
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
     @SuppressLint({"RtlHardcoded", "MissingSuperCall"})
     @Override
     public void onBackPressed() {
@@ -1489,6 +1583,8 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         Logger.logVerbose(LOG_TAG, "onActivityResult: requestCode: " + requestCode + ", resultCode: " + resultCode + ", data: " + IntentUtils.getIntentString(data));
+        if (mMenuEntryClient != null && mMenuEntryClient.onActivityResult(requestCode, resultCode, data))
+            return;
         if (mLorieViewRuntimeController != null && mLorieViewRuntimeController.onActivityResult(requestCode, resultCode, data))
             return;
         if (requestCode == PermissionUtils.REQUEST_GRANT_STORAGE_PERMISSION) {

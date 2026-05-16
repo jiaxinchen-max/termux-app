@@ -1,12 +1,14 @@
 package com.termux.app.terminal;
 
 import android.annotation.SuppressLint;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
+import android.util.TypedValue;
 import android.text.style.StyleSpan;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -50,6 +52,7 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
         }
 
         TextView sessionTitleView = sessionRowView.findViewById(R.id.session_title);
+        applyLandscapeSessionRowStyle(sessionTitleView);
 
         TerminalSession sessionAtRow = getItem(position).getTerminalSession();
         if (sessionAtRow == null) {
@@ -90,6 +93,27 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
         int color = sessionRunning || sessionAtRow.getExitStatus() == 0 ? defaultColor : Color.RED;
         sessionTitleView.setTextColor(color);
         return sessionRowView;
+    }
+
+    private void applyLandscapeSessionRowStyle(TextView sessionTitleView) {
+        boolean isLandscape = mActivity.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+
+        ViewGroup.LayoutParams layoutParams = sessionTitleView.getLayoutParams();
+        layoutParams.height = isLandscape ? dp(28) : getListPreferredItemHeight();
+        sessionTitleView.setLayoutParams(layoutParams);
+        sessionTitleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, isLandscape ? 7 : 14);
+        sessionTitleView.setPadding(dp(isLandscape ? 3 : 6), 0, dp(isLandscape ? 3 : 6), 0);
+        sessionTitleView.setSingleLine(isLandscape);
+    }
+
+    private int getListPreferredItemHeight() {
+        TypedValue typedValue = new TypedValue();
+        mActivity.getTheme().resolveAttribute(android.R.attr.listPreferredItemHeight, typedValue, true);
+        return TypedValue.complexToDimensionPixelSize(typedValue.data, mActivity.getResources().getDisplayMetrics());
+    }
+
+    private int dp(int value) {
+        return Math.round(value * mActivity.getResources().getDisplayMetrics().density);
     }
 
     @Override

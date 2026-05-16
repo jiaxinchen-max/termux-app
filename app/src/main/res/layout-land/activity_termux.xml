@@ -63,15 +63,15 @@
                 android:layout_gravity="start"
                 android:background="?attr/termuxActivityDrawerBackground"
                 android:choiceMode="singleChoice"
+                android:descendantFocusability="afterDescendants"
                 android:divider="@android:color/transparent"
                 android:dividerHeight="0dp"
-                android:descendantFocusability="afterDescendants"
                 android:orientation="vertical">
 
                 <LinearLayout
                     android:id="@+id/left_drawer_header"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="40dp"
                     android:orientation="horizontal">
 
                     <ImageButton
@@ -124,7 +124,7 @@
                     <ListView
                         android:id="@+id/terminal_sessions_list"
                         android:layout_width="match_parent"
-                        android:layout_height="280dp"
+                        android:layout_height="96dp"
                         android:layout_gravity="top"
                         android:choiceMode="singleChoice"
                         android:longClickable="true" />
@@ -155,23 +155,31 @@
                     android:id="@+id/left_drawer_actions"
                     style="?android:attr/buttonBarStyle"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="20dp"
                     android:orientation="horizontal">
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/toggle_keyboard_button"
                         style="?android:attr/buttonBarButtonStyle"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:layout_weight="1"
+                        android:minHeight="0dp"
+                        android:paddingTop="0dp"
+                        android:paddingBottom="0dp"
+                        android:textSize="7sp"
                         android:text="@string/action_toggle_soft_keyboard" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/new_session_button"
                         style="?android:attr/buttonBarButtonStyle"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:layout_weight="1"
+                        android:minHeight="0dp"
+                        android:paddingTop="0dp"
+                        android:paddingBottom="0dp"
+                        android:textSize="7sp"
                         android:text="@string/action_new_session" />
                 </LinearLayout>
             </LinearLayout>

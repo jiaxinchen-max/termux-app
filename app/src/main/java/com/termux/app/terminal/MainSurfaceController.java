@@ -1,11 +1,13 @@
 package com.termux.app.terminal;
 
 import android.content.res.Configuration;
+import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewConfiguration;
+import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 
@@ -120,10 +122,9 @@ public final class MainSurfaceController {
 
     public void showTerminal() {
         SurfaceMode previousMode = mMode;
-        boolean previousLandscapeTerminalOverlayEnabled = mLandscapeTerminalOverlayEnabled;
-        mLandscapeTerminalOverlayEnabled = isLandscapeLayout()
-            && (previousMode == SurfaceMode.DISPLAY || mLandscapeTerminalOverlayEnabled);
+        boolean previousLandscapeTerminalOverlayEnabled = shouldUseLandscapeTerminalOverlay();
         mMode = SurfaceMode.TERMINAL;
+        updateLandscapeTerminalOverlayEnabled();
         applyMode(previousMode == SurfaceMode.DISPLAY, previousMode, previousLandscapeTerminalOverlayEnabled);
         mTerminalView.requestFocus();
     }
@@ -132,9 +133,9 @@ public final class MainSurfaceController {
         if (mDisplayView == null)
             return;
         SurfaceMode previousMode = mMode;
-        boolean previousLandscapeTerminalOverlayEnabled = mLandscapeTerminalOverlayEnabled;
-        mLandscapeTerminalOverlayEnabled = false;
+        boolean previousLandscapeTerminalOverlayEnabled = shouldUseLandscapeTerminalOverlay();
         mMode = SurfaceMode.DISPLAY;
+        updateLandscapeTerminalOverlayEnabled();
         applyMode(previousMode == SurfaceMode.TERMINAL, previousMode, previousLandscapeTerminalOverlayEnabled);
         mDisplayView.getLorieView().requestFocus();
     }
@@ -276,6 +277,8 @@ public final class MainSurfaceController {
     }
 
     private void applyMode(boolean animate, @NonNull SurfaceMode previousMode, boolean previousLandscapeTerminalOverlayEnabled) {
+        updateLandscapeTerminalOverlayEnabled();
+
         if (animate && previousMode != mMode && mDisplayView != null && mContainer.getWidth() > 0) {
             animateModeChange(previousLandscapeTerminalOverlayEnabled);
             applyDrawerLockMode();
@@ -424,6 +427,12 @@ public final class MainSurfaceController {
             && isLandscapeLayout();
     }
 
+    private void updateLandscapeTerminalOverlayEnabled() {
+        mLandscapeTerminalOverlayEnabled = mMode == SurfaceMode.TERMINAL
+            && mDisplayView != null
+            && isLandscapeLayout();
+    }
+
     private boolean isLandscapeLayout() {
         if (mContainer.getWidth() > 0 && mContainer.getHeight() > 0)
             return mContainer.getWidth() > mContainer.getHeight();
@@ -432,12 +441,22 @@ public final class MainSurfaceController {
 
     private int getLandscapeTerminalOverlayWidth() {
         int width = mContainer.getWidth();
-        int height = mContainer.getHeight();
-        if (width > 0 && height > 0)
-            return Math.min(width, height);
-        return Math.min(
-            mContainer.getResources().getDisplayMetrics().widthPixels,
-            mContainer.getResources().getDisplayMetrics().heightPixels);
+        int displayShortSide = getDisplayShortSideWidth();
+        if (width > 0)
+            return Math.min(width, displayShortSide);
+        return displayShortSide;
+    }
+
+    private int getDisplayShortSideWidth() {
+        WindowManager windowManager = (WindowManager) mContainer.getContext().getSystemService(android.content.Context.WINDOW_SERVICE);
+        if (windowManager != null) {
+            DisplayMetrics realMetrics = new DisplayMetrics();
+            windowManager.getDefaultDisplay().getRealMetrics(realMetrics);
+            return Math.min(realMetrics.widthPixels, realMetrics.heightPixels);
+        }
+
+        DisplayMetrics metrics = mContainer.getResources().getDisplayMetrics();
+        return Math.min(metrics.widthPixels, metrics.heightPixels);
     }
 
     private void applySurfaceLayout(boolean terminalOverlay) {
