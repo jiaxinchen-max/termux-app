@@ -93,12 +93,14 @@ jobs:
         run: |
           printf '%s\n' "$RELEASE_NOTES" > release-notes.md
 
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
               --title "$RELEASE_NAME" \
               --notes-file release-notes.md
           else
             gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
               --title "$RELEASE_NAME" \
               --notes-file release-notes.md
