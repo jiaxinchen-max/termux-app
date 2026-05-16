@@ -2,6 +2,25 @@ name: Attach Debug APKs To Release
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "GitHub release tag"
+        required: true
+        default: "1.0.8"
+      release_name:
+        description: "GitHub release title"
+        required: true
+        default: "v1.0.8"
+      release_notes:
+        description: "GitHub release notes"
+        required: false
+        default: "Refactor the app, changing the X11 display service from an Activity to a reusable view component.
+Optimize the user experience.
+Fix the virtual button scaling misalignment issue in portrait mode.
+Optimize the floating ball experience."
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -65,12 +84,31 @@ jobs:
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
+      - name: Create or update release notes
+        if: ${{ github.event.inputs.release_notes != '' }}
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          RELEASE_NAME: ${{ github.event.inputs.release_name }}
+          RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
+        run: |
+          printf '%s\n' "$RELEASE_NOTES" > release-notes.md
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
+              --title "$RELEASE_NAME" \
+              --notes-file release-notes.md
+          else
+            gh release create "$RELEASE_TAG" \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_NAME" \
+              --notes-file release-notes.md
+          fi
       - name: Upload APKs to release
         uses: termux/upload-release-action@v4.1.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: "**/*.apk"
           file_glob: true
-          release_name: "v1.0.8"
-          tag: 1.0.8
+          release_name: ${{ github.event.inputs.release_name }}
+          tag: ${{ github.event.inputs.release_tag }}
           checksums: sha256,sha512,md5
