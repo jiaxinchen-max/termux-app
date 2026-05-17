@@ -34,10 +34,45 @@ static int screen_type = LORIEBUFFER_AHARDWAREBUFFER;
 
 #define MAX_RETRY_TIMES 5
 
-#define SOCKET_PATH "/data/data/com.termux/files/home/.wayland/unix_socket"
+#define SOCKET_DIR "/data/data/com.termux/files/home/tmp"
+#define SOCKET_PATH SOCKET_DIR "/wayland-0"
 
 LorieBuffer *lorieBuffer;
 struct lorie_shared_server_state *serverState;
+
+static int readFull(int fd, void *buffer, size_t size) {
+    size_t offset = 0;
+
+    while (offset < size) {
+        ssize_t count = read(fd, (char *) buffer + offset, size - offset);
+        if (count > 0) {
+            offset += count;
+            continue;
+        }
+
+        if (count == 0) {
+            if (offset == 0)
+                return 0;
+            errno = ECONNRESET;
+            return -1;
+        }
+
+        if (errno == EINTR)
+            continue;
+
+        if ((errno == EAGAIN || errno == EWOULDBLOCK) && offset == 0)
+            return -2;
+
+        return -1;
+    }
+
+    return 1;
+}
+
+static int readLorieEvent(int fd, lorieEvent *event) {
+    memset(event, 0, sizeof(*event));
+    return readFull(fd, event, sizeof(*event));
+}
 
 JNIEXPORT jstring JNICALL
 Java_com_termux_wayland_NativeLib_stringFromJNI(
@@ -47,7 +82,7 @@ Java_com_termux_wayland_NativeLib_stringFromJNI(
 }
 
 bool waylandConnectionAlive(void) {
-    return lorieBuffer;
+    return event_fd != -1 && event_loop_running && lorieBuffer && serverState;
 }
 
 void setExitCallback(void (*callback)(void)) {
@@ -150,7 +185,8 @@ static void *eventLoopThread(void *arg) {
             if (events[i].data.fd == event_fd) {
                 if (events[i].events & EPOLLIN) {
                     lorieEvent e = {0};
-                    if (read(event_fd, &e, sizeof(e)) == sizeof(e)) {
+                    int readStatus = readLorieEvent(event_fd, &e);
+                    if (readStatus > 0) {
                         switch (e.type) {
                             case EVENT_SERVER_VERIFY_SUCCEED: {
                                 lorieEvent e1 = {.type = EVENT_APPLY_BUFFER};
@@ -200,8 +236,13 @@ static void *eventLoopThread(void *arg) {
                                 tlog(LOG_WARNING, "Unknown event type: %d", e.type);
                                 break;
                         }
+                    } else if (readStatus == 0) {
+                        tlog(LOG_ERR, "Connection closed");
+                        goto cleanup;
+                    } else if (readStatus == -2) {
+                        continue;
                     } else {
-                        tlog(LOG_ERR, "Incomplete event received");
+                        tlog(LOG_ERR, "Failed to read complete event: %s", strerror(errno));
                         goto cleanup;
                     }
                 } else if (events[i].events & (EPOLLERR | EPOLLHUP)) {
@@ -259,33 +300,36 @@ static int waitForInitialization(void) {
 }
 
 int connectToRender() {
-    struct sockaddr_un serverAddr;
+    buffer_ready = 0;
 
-    event_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (event_fd < 0) {
-        tlog(LOG_ERR, "socket: %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+    for (connect_retry = 0; connect_retry < MAX_RETRY_TIMES; connect_retry++) {
+        struct sockaddr_un serverAddr;
 
-    memset(&serverAddr, 0, sizeof(serverAddr));
-    serverAddr.sun_family = AF_UNIX;
-    strncpy(serverAddr.sun_path, SOCKET_PATH, sizeof(serverAddr.sun_path) - 1);
-
-    int ret = connect(event_fd, (const struct sockaddr *) &serverAddr, sizeof(serverAddr));
-    if (ret < 0) {
-        if (connect_retry >= MAX_RETRY_TIMES - 1) {
-            tlog(LOG_ERR, "connect failed after %d attempts: %s", connect_retry + 1,
-                 strerror(errno));
-            close(event_fd);
-            exit(EXIT_FAILURE);
+        event_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+        if (event_fd < 0) {
+            tlog(LOG_ERR, "socket: %s", strerror(errno));
+            return EXIT_FAILURE;
         }
-        connect_retry++;
-        sleep(5);
-    } else {
+
+        memset(&serverAddr, 0, sizeof(serverAddr));
+        serverAddr.sun_family = AF_UNIX;
+        strncpy(serverAddr.sun_path, SOCKET_PATH, sizeof(serverAddr.sun_path) - 1);
+
+        int ret = connect(event_fd, (const struct sockaddr *) &serverAddr, sizeof(serverAddr));
+        if (ret < 0) {
+            tlog(LOG_ERR, "connect attempt %d/%d failed: %s", connect_retry + 1, MAX_RETRY_TIMES, strerror(errno));
+            close(event_fd);
+            event_fd = -1;
+            if (connect_retry + 1 < MAX_RETRY_TIMES)
+                sleep(5);
+            continue;
+        }
+
         epfd = epoll_create1(0);
         if (epfd == -1) {
             tlog(LOG_ERR, "epoll_create1 failed: %s", strerror(errno));
             close(event_fd);
+            event_fd = -1;
             return EXIT_FAILURE;
         }
 
@@ -294,14 +338,18 @@ int connectToRender() {
         if (epoll_ctl(epfd, EPOLL_CTL_ADD, event_fd, &ev) == -1) {
             tlog(LOG_ERR, "epoll_ctl failed: %s", strerror(errno));
             close(event_fd);
+            event_fd = -1;
             close(epfd);
+            epfd = -1;
             return EXIT_FAILURE;
         }
 
         if (pthread_create(&event_thread_id, NULL, eventLoopThread, NULL) != 0) {
             tlog(LOG_ERR, "Failed to create event loop thread");
             close(event_fd);
+            event_fd = -1;
             close(epfd);
+            epfd = -1;
             return EXIT_FAILURE;
         }
 
@@ -309,17 +357,22 @@ int connectToRender() {
         if (write(event_fd, hello, sizeof(hello)) != sizeof(hello)) {
             tlog(LOG_ERR, "Failed to send handshake");
             close(event_fd);
+            event_fd = -1;
             close(epfd);
+            epfd = -1;
             return EXIT_FAILURE;
         }
 
         if (waitForInitialization() != 0) {
             tlog(LOG_ERR, "Resource initialization failed");
+            event_loop_running = 0;
             return EXIT_FAILURE;
         }
+
+        return 0;
     }
 
-    return 0;
+    return EXIT_FAILURE;
 }
 
 void stopEventLoop(void) {

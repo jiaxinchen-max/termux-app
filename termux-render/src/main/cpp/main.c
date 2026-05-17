@@ -64,6 +64,11 @@ static uint8_t* loadAndPreprocessFrame(int frameId, int bufferWidth, int bufferH
 static int animate(){
     int ret;
     void *shared_buffer;
+    if (serverState == NULL || lorieBuffer == NULL) {
+        tlog(LOG_ERR, "Render resources are not initialized");
+        return -1;
+    }
+
     lorie_mutex_lock(&serverState->lock, &serverState->lockingPid);
     ret = LorieBuffer_lock(lorieBuffer,&shared_buffer);
     if (ret != 0) {

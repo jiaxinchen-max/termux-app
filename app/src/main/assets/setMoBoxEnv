@@ -1,4 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
+ASSET_TMP="${HOME}/.termux/tmp"
+trap 'rm -f "$ASSET_TMP/wine.tar" "$ASSET_TMP/wfm.exe" "$ASSET_TMP/winhandler.exe"' EXIT
+
 function resetMobox(){
     echo "moboxHomeEnv="$moboxHomeEnv
     echo "pathEnv="$pathEnv
@@ -6,9 +9,9 @@ function resetMobox(){
     echo $moboxHomeEnv >> ~/.bashrc
     echo $pathEnv >> ~/.bashrc
 
-    tar -xf ~/wine.tar -C $winePathEnv/lib/
-    cp -rf ~/wfm.exe $PREFIX/glibc/opt/apps/
-    cp -rf ~/winhandler.exe $PREFIX/glibc/opt/apps/
+    tar -xf "$ASSET_TMP/wine.tar" -C $winePathEnv/lib/
+    cp -rf "$ASSET_TMP/wfm.exe" $PREFIX/glibc/opt/apps/
+    cp -rf "$ASSET_TMP/winhandler.exe" $PREFIX/glibc/opt/apps/
     #sed -i '/"dinput"="builtin,native"/d' $PREFIX/glibc/opt/prefix/user.reg
     #sed -i '/"dinput"="native,builtin"/d' $PREFIX/glibc/opt/prefix/user.reg
     #sed -i '/"xinput1_4"="builtin,native"/d' $PREFIX/glibc/opt/prefix/user.reg

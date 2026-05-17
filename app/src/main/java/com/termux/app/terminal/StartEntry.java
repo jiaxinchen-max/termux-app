@@ -1,7 +1,5 @@
 package com.termux.app.terminal;
 
-import static com.termux.shared.termux.TermuxConstants.TERMUX_HOME_DIR_PATH;
-
 import com.termux.x11.controller.core.FileUtils;
 
 import org.json.JSONArray;
@@ -73,7 +71,7 @@ public class StartEntry {
     }
 
     public static void saveStartItems() {
-        File file = new File(TERMUX_HOME_DIR_PATH, ".startItemEntries");
+        File file = ToolboxConfigFiles.file(".startItemEntries");
         try {
             JSONObject data = new JSONObject();
             data.put("version", "1.0");
@@ -95,7 +93,7 @@ public class StartEntry {
     }
 
     public static void loadStartItems() {
-        File file = new File(TERMUX_HOME_DIR_PATH, ".startItemEntries");
+        File file = ToolboxConfigFiles.existingFile(".startItemEntries");
         if (!file.exists() || !file.isFile()) {
             return;
         }

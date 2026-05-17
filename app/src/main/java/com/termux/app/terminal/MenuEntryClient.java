@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.x11.controller.core.ImageUtils;
+import com.termux.x11.controller.core.TermuxConfigFiles;
 
 import java.io.File;
 
@@ -455,7 +456,7 @@ public class MenuEntryClient {
     }
 
     private File getToolboxIconsDir() {
-        return new File(mTermuxActivity.getFilesDir(), "home/.buttonIcons");
+        return TermuxConfigFiles.buttonIconsDir(mTermuxActivity);
     }
 
     private int dp(int value) {

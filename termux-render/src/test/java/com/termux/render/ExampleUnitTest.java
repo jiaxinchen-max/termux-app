@@ -1,4 +1,4 @@
-package com.termux.wayland;
+package com.termux.render;
 
 import org.junit.Test;
 

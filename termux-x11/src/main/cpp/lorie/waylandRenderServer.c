@@ -44,6 +44,40 @@ extern JNIEnv *guienv;
 extern jobject globalThiz;
 
 static int textureId = 0;
+static int readFull(int fd, void *buffer, size_t size) {
+    size_t offset = 0;
+
+    while (offset < size) {
+        ssize_t count = read(fd, (char *) buffer + offset, size - offset);
+        if (count > 0) {
+            offset += count;
+            continue;
+        }
+
+        if (count == 0) {
+            if (offset == 0)
+                return 0;
+            errno = ECONNRESET;
+            return -1;
+        }
+
+        if (errno == EINTR)
+            continue;
+
+        if ((errno == EAGAIN || errno == EWOULDBLOCK) && offset == 0)
+            return -2;
+
+        return -1;
+    }
+
+    return 1;
+}
+
+static int readLorieEvent(int fd, lorieEvent *event) {
+    memset(event, 0, sizeof(*event));
+    return readFull(fd, event, sizeof(*event));
+}
+
 static bool renderConnectAlive(int fd) {
     // Check if socket is closed or has errors.
     struct pollfd p = { .fd = fd, .events = POLLIN | POLLHUP | POLLERR | POLLRDHUP };
@@ -144,12 +178,15 @@ static int process(int fd) {
 
             while (1) {
                 lorieEvent e = {0};
-                ssize_t nread = read(fd, &e, sizeof(e));
-                if (nread == sizeof(e)) {
+                int readStatus = readLorieEvent(fd, &e);
+                if (readStatus > 0) {
                     switch (e.type) {
                         case EVENT_APPLY_BUFFER: {
                             lorieEvent e2 = {0};
-                            read(fd, &e2, sizeof(e2));
+                            if (readLorieEvent(fd, &e2) <= 0) {
+                                log(ERROR, "Failed to read complete screen size event");
+                                return -1;
+                            }
                             LorieBuffer *buffer = LorieBuffer_allocate(e2.screenSize.width,
                                                                        e2.screenSize.height,
                                                                        e2.screenSize.format,
@@ -228,14 +265,13 @@ static int process(int fd) {
                             log(DEBUG, "Unknown event type: %d", e.type);
                             break;
                     }
-                } else if (nread == 0) {
+                } else if (readStatus == 0) {
                     cleanupSharedResources();
                     return 0;
-                } else if (nread < 0) {
-                    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                        break;
-                    }
-                    log(ERROR,"read error");
+                } else if (readStatus == -2) {
+                    break;
+                } else {
+                    log(ERROR, "Failed to read complete event: %s", strerror(errno));
                     return -1;
                 }
             }
