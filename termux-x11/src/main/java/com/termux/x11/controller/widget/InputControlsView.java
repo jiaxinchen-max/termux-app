@@ -28,6 +28,7 @@ import com.termux.x11.controller.inputcontrols.ControlsProfile;
 import com.termux.x11.controller.inputcontrols.ExternalController;
 import com.termux.x11.controller.inputcontrols.ExternalControllerBinding;
 import com.termux.x11.controller.inputcontrols.GamepadState;
+import com.termux.x11.controller.core.TermuxConfigFiles;
 import com.termux.x11.controller.math.Mathf;
 import com.termux.x11.controller.winhandler.WinHandler;
 import com.termux.x11.controller.xserver.Pointer;
@@ -636,7 +637,7 @@ public class InputControlsView extends View {
     }
 
     public Bitmap getCustomIcon(String iconId) {
-        final File buttonIconFile = new File(getContext().getFilesDir().getPath() + "/home/.buttonIcons", iconId + ".png");
+        final File buttonIconFile = new File(TermuxConfigFiles.buttonIconsDir(getContext()), iconId + ".png");
         if (!buttonIconFile.exists()) {
             return null;
         }

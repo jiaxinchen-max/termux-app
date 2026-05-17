@@ -1,7 +1,5 @@
 package com.termux.app.terminal;
 
-import static com.termux.shared.termux.TermuxConstants.TERMUX_HOME_DIR_PATH;
-
 import android.util.Log;
 
 import com.termux.x11.controller.core.FileUtils;
@@ -63,7 +61,7 @@ public class MenuEntry {
 
 
     public static void saveMenuItems() {
-        File file = new File(TERMUX_HOME_DIR_PATH, ".startMenuEntries");
+        File file = ToolboxConfigFiles.file(".startMenuEntries");
         try {
             JSONObject data = new JSONObject();
             data.put("version", "1.0");
@@ -82,7 +80,7 @@ public class MenuEntry {
 
     public static void loadMenuItems() {
         mMenuEntryList.clear();
-        File file = new File(TERMUX_HOME_DIR_PATH, ".startMenuEntries");
+        File file = ToolboxConfigFiles.existingFile(".startMenuEntries");
         if (!file.exists() || !file.isFile()) {
             return;
         }

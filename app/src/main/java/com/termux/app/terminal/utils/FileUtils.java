@@ -79,10 +79,19 @@ public class FileUtils {
      * @param fileName filename to write,such as aaa.txt
      */
     public static void copyAssetsFile2Phone(Activity activity, String fileName) {
+        copyAssetsFile2Phone(activity, fileName, "");
+    }
+
+    public static void copyAssetsFile2Phone(Activity activity, String fileName, String relativeDir) {
         try {
             InputStream inputStream = activity.getAssets().open(fileName);
             //getFilesDir() Get the installation path of the current app /data/data/${package name}/files directory
-            File file = new File(activity.getFilesDir().getAbsolutePath() + File.separator + "home" + File.separator + fileName);
+            File homeDir = new File(activity.getFilesDir(), "home");
+            File targetDir = relativeDir == null || relativeDir.isEmpty() ? homeDir : new File(homeDir, relativeDir);
+            if (!targetDir.isDirectory()) {
+                targetDir.mkdirs();
+            }
+            File file = new File(targetDir, fileName);
             if (!file.exists() || file.length() == 0) {
                 FileOutputStream fos = new FileOutputStream(file);//If the file does not exist, FileOutputStream automatically creates the file
                 int len = -1;

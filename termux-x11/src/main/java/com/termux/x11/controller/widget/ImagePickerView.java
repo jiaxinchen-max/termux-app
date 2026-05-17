@@ -28,6 +28,7 @@ import com.termux.x11.controller.ControlsEditorActivity;
 import com.termux.x11.controller.core.AppUtils;
 import com.termux.x11.controller.core.FileUtils;
 import com.termux.x11.controller.core.ImageUtils;
+import com.termux.x11.controller.core.TermuxConfigFiles;
 import com.termux.x11.controller.core.UnitUtils;
 
 import java.io.File;
@@ -82,7 +83,7 @@ public class ImagePickerView extends View implements View.OnClickListener {
         setFocusable(true);
         setOnClickListener(this);
         if (activityType == getResources().getInteger(R.integer.load_button_icon_code)) {
-            buttonIconDirectoryPath = getContext().getFilesDir().getPath() + "/home/.buttonIcons";
+            buttonIconDirectoryPath = TermuxConfigFiles.buttonIconsDir(context).getPath();
         } else {
             buttonIconDirectoryPath = getContext().getFilesDir().getPath() + "/usr/glibc";
         }
@@ -183,7 +184,7 @@ public class ImagePickerView extends View implements View.OnClickListener {
         String prefix = null;
         try (InputStream is = context.getAssets().open("inputcontrols/icons/" + "0.png")) {
             delete.setImageBitmap(BitmapFactory.decodeStream(is));
-            File buttonIconsDir = new File(context.getFilesDir(), "home/.buttonIcons");
+            File buttonIconsDir = TermuxConfigFiles.buttonIconsDir(context);
             prefix = buttonIconsDir.getPath();
             filenames = buttonIconsDir.list(new FilenameFilter() {
                 @Override

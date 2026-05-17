@@ -5,7 +5,6 @@ import com.termux.x11.LorieViewRuntimeApi;
 import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
 import static com.termux.shared.termux.TermuxConstants.TERMUX_FILES_DIR_PATH;
 import static com.termux.shared.termux.TermuxConstants.TERMUX_HOME_DIR_PATH;
-import static com.termux.shared.termux.TermuxConstants.TERMUX_TMP_PREFIX_DIR_PATH;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -121,6 +120,7 @@ import java.util.List;
  */
 public class TermuxActivity extends AppCompatActivity implements ServiceConnection, LorieViewRuntimeApi.Host, PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
     private static final int FILE_REQUEST_BACKUP_CODE = 101;
+    private static final int MAX_PROCESS_INFO_COUNT = 10;
 
     private MainSurfaceController mMainSurfaceController;
     private LorieViewRuntimeController mLorieViewRuntimeController;
@@ -230,6 +230,120 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
     private static final long DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS = 1500;
     private static final long DISPLAY_SIDE_PANEL_UNLOCK_IDLE_TIMEOUT_MS = 5000;
+
+    private static List<ProcessInfo> collectTermuxProcessInfo() {
+        File[] processDirs = new File("/proc").listFiles();
+        if (processDirs == null) {
+            return null;
+        }
+
+        int uid = android.os.Process.myUid();
+        ArrayList<ProcessInfo> processInfoList = new ArrayList<>();
+        for (File processDir : processDirs) {
+            if (!isPidDirectory(processDir)) {
+                continue;
+            }
+
+            ProcessInfo processInfo = readProcStatus(processDir, uid);
+            if (processInfo != null) {
+                processInfoList.add(processInfo);
+            }
+        }
+
+        processInfoList.sort((left, right) -> Long.compare(right.memoryUsage, left.memoryUsage));
+        if (processInfoList.size() > MAX_PROCESS_INFO_COUNT) {
+            return new ArrayList<>(processInfoList.subList(0, MAX_PROCESS_INFO_COUNT));
+        }
+        return processInfoList.isEmpty() ? null : processInfoList;
+    }
+
+    private static boolean isPidDirectory(File file) {
+        String name = file.getName();
+        if (name.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < name.length(); i++) {
+            if (!Character.isDigit(name.charAt(i))) {
+                return false;
+            }
+        }
+        return file.isDirectory();
+    }
+
+    private static ProcessInfo readProcStatus(File processDir, int expectedUid) {
+        int pid;
+        try {
+            pid = Integer.parseInt(processDir.getName());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+
+        String name = null;
+        int uid = -1;
+        long memoryUsage = 0;
+        int affinityMask = defaultAffinityMask();
+        File statusFile = new File(processDir, "status");
+        try (BufferedReader reader = new BufferedReader(new FileReader(statusFile))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("Name:")) {
+                    name = line.substring("Name:".length()).trim();
+                } else if (line.startsWith("Uid:")) {
+                    uid = parseFirstInt(line.substring("Uid:".length()), -1);
+                } else if (line.startsWith("VmRSS:")) {
+                    memoryUsage = parseFirstLong(line.substring("VmRSS:".length()), 0) * 1024L;
+                } else if (line.startsWith("Cpus_allowed:")) {
+                    affinityMask = parseCpuMask(line.substring("Cpus_allowed:".length()));
+                }
+            }
+        } catch (IOException e) {
+            return null;
+        }
+
+        if (uid != expectedUid || name == null || name.isEmpty()) {
+            return null;
+        }
+        return new ProcessInfo(pid, name, memoryUsage, affinityMask, false);
+    }
+
+    private static int parseFirstInt(String value, int fallback) {
+        long result = parseFirstLong(value, fallback);
+        return result > Integer.MAX_VALUE ? fallback : (int) result;
+    }
+
+    private static long parseFirstLong(String value, long fallback) {
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return fallback;
+        }
+        String[] parts = trimmed.split("\\s+");
+        try {
+            return Long.parseLong(parts[0]);
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    private static int parseCpuMask(String value) {
+        String mask = value.replace(",", "").trim();
+        if (mask.isEmpty()) {
+            return defaultAffinityMask();
+        }
+        if (mask.length() > 8) {
+            mask = mask.substring(mask.length() - 8);
+        }
+        try {
+            int parsed = (int) Long.parseLong(mask, 16);
+            return parsed == 0 ? defaultAffinityMask() : parsed;
+        } catch (NumberFormatException e) {
+            return defaultAffinityMask();
+        }
+    }
+
+    private static int defaultAffinityMask() {
+        int processors = Math.min(Runtime.getRuntime().availableProcessors(), 30);
+        return (1 << processors) - 1;
+    }
 
     private final Runnable mClearPendingDisplaySidePanelUnlockBackRunnable = () -> mPendingDisplaySidePanelUnlockBack = false;
     private final Runnable mDisplaySidePanelAutoLockRunnable = new Runnable() {
@@ -643,13 +757,11 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             @Override
             public void reInstallX11StartScript(Activity activity) {
                 activity.runOnUiThread(() -> {
-                    FileUtils.copyAssetsFile2Phone(activity, "install");
-                    FileUtils.copyAssetsFile2Phone(activity, "collect_process_info");
-                    CommandUtils.exec(activity, "chmod", new ArrayList<>(Arrays.asList("+x", TERMUX_FILES_DIR_PATH + "/home/install")));
-                    CommandUtils.exec(activity, "chmod", new ArrayList<>(Arrays.asList("+x", TERMUX_FILES_DIR_PATH + "/home/collect_process_info")));
-                    FileUtils.copyAssetsFile2Phone(activity, "termux-x11-nightly-1.03.10-0-all.deb");
-                    FileUtils.copyAssetsFile2Phone(activity, "xkeyboard-config_2.45_all.deb");
-                    CommandUtils.execInPath(activity, "install", null, "/home/");
+                    FileUtils.copyAssetsFile2Phone(activity, "install", ".termux/tmp");
+                    new File(TERMUX_HOME_DIR_PATH, ".termux/tmp/install").setExecutable(true, true);
+                    FileUtils.copyAssetsFile2Phone(activity, "termux-x11-nightly-1.03.10-0-all.deb", ".termux/tmp");
+                    FileUtils.copyAssetsFile2Phone(activity, "xkeyboard-config_2.45_all.deb", ".termux/tmp");
+                    CommandUtils.execInPath(activity, "install", null, "/home/.termux/tmp/");
                 });
             }
 
@@ -675,53 +787,10 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
             @Override
             public List<ProcessInfo> collectProcessorInfo(String tag) {
-                List<ProcessInfo> processInfoList = new ArrayList<>();
-                runOnUiThread(() -> {
-                    String path = String.format("%s/process_info", TERMUX_TMP_PREFIX_DIR_PATH);
-                    CommandUtils.execInPath(TermuxActivity.this, "collect_process_info",
-                        new ArrayList<>(Arrays.asList(tag)), "/home/");
-                    if (tag.equals("1")) {
-                        return;
-                    }
-                    File processorFile = new File(path);
-                    BufferedReader reader = null;
-                    String temp = null;
-                    if (processorFile.exists()) {
-                        try {
-                            reader = new BufferedReader(new FileReader(processorFile));
-                            while ((temp = reader.readLine()) != null) {
-                                String[] strs = temp.split(" ");
-                                if (strs.length < 4) {
-                                    continue;
-                                }
-                                int lastIndex = strs[3].lastIndexOf("/");
-                                String fileName = strs[3].substring(lastIndex + 1);
-                                if (strs[0].toUpperCase().contains("PID") ||
-                                    fileName.toUpperCase().contains("PS") ||
-                                    fileName.toUpperCase().contains("SORT") ||
-                                    fileName.toUpperCase().contains("HEAD") ||
-                                    fileName.toUpperCase().contains("AWK")) {
-                                    continue;
-                                }
-
-                                ProcessInfo processInfo = new ProcessInfo(Integer.parseInt(strs[0]),
-                                    fileName, Long.parseLong(strs[1]), 15, false);
-                                processInfoList.add(processInfo);
-                            }
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        } finally {
-                            if (reader != null) {
-                                try {
-                                    reader.close();
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }
-                        }
-                    }
-                });
-                return processInfoList.isEmpty() ? null : processInfoList;
+                if ("1".equals(tag)) {
+                    return null;
+                }
+                return collectTermuxProcessInfo();
             }
 
             @Override
@@ -1597,11 +1666,12 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
     public void reInstallCustomStartScript(Integer mode) {
         runOnUiThread(() -> {
-            FileUtils.copyAssetsFile2Phone(this, "setMoBoxEnv");
-            FileUtils.copyAssetsFile2Phone(this, "winhandler.exe");
-            FileUtils.copyAssetsFile2Phone(this, "wfm.exe");
-            FileUtils.copyAssetsFile2Phone(this, "wine.tar");
-            String command = "chmod +x " + TERMUX_HOME_DIR_PATH + "/setMoBoxEnv && " + TERMUX_HOME_DIR_PATH + "/setMoBoxEnv ";
+            FileUtils.copyAssetsFile2Phone(this, "setMoBoxEnv", ".termux/bin");
+            FileUtils.copyAssetsFile2Phone(this, "winhandler.exe", ".termux/tmp");
+            FileUtils.copyAssetsFile2Phone(this, "wfm.exe", ".termux/tmp");
+            FileUtils.copyAssetsFile2Phone(this, "wine.tar", ".termux/tmp");
+            new File(TERMUX_HOME_DIR_PATH, ".termux/bin/setMoBoxEnv").setExecutable(true, true);
+            String command = TERMUX_HOME_DIR_PATH + "/.termux/bin/setMoBoxEnv ";
             if (mode != null) {
                 command = command + mode;
             }

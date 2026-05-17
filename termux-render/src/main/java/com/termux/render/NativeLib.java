@@ -1,10 +1,10 @@
-package com.termux.wayland;
+package com.termux.render;
 
 public class NativeLib {
 
     // Used to load the 'wayland' library on application startup.
     static {
-        System.loadLibrary("wayland");
+        System.loadLibrary("termux-render");
     }
 
     /**

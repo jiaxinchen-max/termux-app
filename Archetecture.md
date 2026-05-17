@@ -199,7 +199,6 @@ X11 输出链路：
 运行时依赖的脚本和包分布在多个位置：
 
 - `app/src/main/assets/install`
-- `app/src/main/assets/collect_process_info`
 - `app/src/main/assets/setMoBoxEnv`
 - `app/src/main/assets/recover`
 - `app/src/main/assets/termux-x11-nightly-1.03.10-0-all.deb`
