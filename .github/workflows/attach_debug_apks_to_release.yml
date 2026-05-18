@@ -15,8 +15,8 @@ on:
         description: "GitHub release notes"
         required: false
         default: "Refactor the app, changing the X11 display service from an Activity to a reusable view component.
-Optimize the user experience.
-Fix the virtual button scaling misalignment issue in portrait mode.
+Optimize the user experience.\n
+Fix the virtual button scaling misalignment issue in portrait mode.\n
 Optimize the floating ball experience."
 
 permissions:
