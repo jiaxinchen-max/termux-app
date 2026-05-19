@@ -1199,6 +1199,22 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
                 scheduleDisplaySidePanelAutoLock();
                 Toast.makeText(TermuxActivity.this, com.termux.x11.R.string.open_x11_settings, Toast.LENGTH_SHORT).show();
             }
+
+            @Override
+            public void onSurfaceModeChanged(@NonNull MainSurfaceController.SurfaceMode mode) {
+                if (mode == MainSurfaceController.SurfaceMode.TERMINAL) {
+                    lockDisplaySidePanels(false, 0);
+                    if (mTermuxTerminalViewClient != null)
+                        mTermuxTerminalViewClient.suppressSoftKeyboardOnNextTerminalFocus();
+                } else {
+                    mPendingTerminalExit = false;
+                    mPendingTerminalMoveToBack = false;
+                    lockDisplaySidePanels(false, 0);
+                    updateDisplaySidePanelPolicy();
+                    getLorieViewRuntime().refreshX11TerminalToolbar();
+                }
+                updateTerminalToolbarVisibilityForSurface();
+            }
         });
         updateDisplaySidePanelPolicy();
         setDisplaySidePanelDrawerListener();

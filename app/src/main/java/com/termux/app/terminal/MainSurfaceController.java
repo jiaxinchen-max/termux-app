@@ -42,6 +42,7 @@ public final class MainSurfaceController {
         void onTerminalEndSwipe();
         void onDisplayStartSwipe();
         void onDisplayEndSwipe();
+        void onSurfaceModeChanged(@NonNull SurfaceMode mode);
     }
 
     @NonNull
@@ -654,6 +655,9 @@ public final class MainSurfaceController {
         mTrackingSurfaceSwitchDrag = false;
         updateLandscapeTerminalOverlayEnabled();
         applyMode(false, mMode, mLandscapeTerminalOverlayEnabled);
+
+        if (commit && mSurfaceGestureListener != null)
+            mSurfaceGestureListener.onSurfaceModeChanged(mMode);
 
         if (commit && mMode == SurfaceMode.TERMINAL) {
             mTerminalView.requestFocus();
