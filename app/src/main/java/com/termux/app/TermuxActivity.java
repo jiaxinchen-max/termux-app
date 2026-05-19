@@ -222,7 +222,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     private MenuEntryClient mMenuEntryClient;
     private boolean mPendingTerminalExit;
     private boolean mPendingTerminalMoveToBack;
-    private boolean mPendingDisplayReturnToTerminal;
     private boolean mDisplaySidePanelsUnlocked;
     private boolean mPendingDisplaySidePanelUnlockBack;
     private boolean mSuppressNextX11FocusGainFromFloatMenu;
@@ -512,7 +511,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
     private void scheduleDisplaySidePanelAutoLock() {
         LoriePreferences.handler.removeCallbacks(mDisplaySidePanelAutoLockRunnable);
-        if (isDisplaySurfaceMode() && mDisplaySidePanelsUnlocked && !isX11FloatBallMenuActive())
+        if (mDisplaySidePanelsUnlocked && !isX11FloatBallMenuActive())
             LoriePreferences.handler.postDelayed(mDisplaySidePanelAutoLockRunnable, DISPLAY_SIDE_PANEL_UNLOCK_IDLE_TIMEOUT_MS);
     }
 
@@ -535,7 +534,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     }
 
     private void handleDisplaySidePanelAutoLock() {
-        if (!isDisplaySurfaceMode() || !mDisplaySidePanelsUnlocked)
+        if (!mDisplaySidePanelsUnlocked)
             return;
         if (getDrawer().isDrawerOpen(GravityCompat.START) || getDrawer().isDrawerOpen(GravityCompat.END)) {
             scheduleDisplaySidePanelAutoLock();
@@ -545,12 +544,9 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     }
 
     private boolean handleDisplaySidePanelUnlockBackRequest() {
-        if (!isDisplaySurfaceMode())
-            return false;
-
         long now = SystemClock.uptimeMillis();
 
-        if (isX11FloatBallMenuActive()) {
+        if (isDisplaySurfaceMode() && isX11FloatBallMenuActive()) {
             lockDisplaySidePanels(false, 0);
             Toast.makeText(this, R.string.x11_side_panels_float_ball_only, Toast.LENGTH_SHORT).show();
             return true;
@@ -603,7 +599,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     }
 
     public void showTerminalSurface() {
-        mPendingDisplayReturnToTerminal = false;
         lockDisplaySidePanels(false, 0);
         if (mTermuxTerminalViewClient != null) {
             mTermuxTerminalViewClient.suppressSoftKeyboardOnNextTerminalFocus();
@@ -824,7 +819,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
             @Override
             public void onExitApp() {
-                TermuxActivity.this.returnToTerminalOrPrompt();
+                TermuxActivity.this.handleDisplaySidePanelUnlockBackRequest();
             }
         });
     }
@@ -1120,7 +1115,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             Toast.makeText(this, R.string.exit_toast_text, Toast.LENGTH_SHORT).show();
             mPendingTerminalExit = true;
             mPendingTerminalMoveToBack = false;
-            mPendingDisplayReturnToTerminal = false;
             LoriePreferences.handler.postDelayed(() -> mPendingTerminalExit = false, 2000);
         }
     }
@@ -1133,21 +1127,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             Toast.makeText(this, R.string.return_home_toast_text, Toast.LENGTH_SHORT).show();
             mPendingTerminalMoveToBack = true;
             mPendingTerminalExit = false;
-            mPendingDisplayReturnToTerminal = false;
             LoriePreferences.handler.postDelayed(() -> mPendingTerminalMoveToBack = false, 2000);
-        }
-    }
-
-    private void returnToTerminalOrPrompt() {
-        if (mPendingDisplayReturnToTerminal) {
-            mPendingDisplayReturnToTerminal = false;
-            showTerminalSurface();
-        } else {
-            Toast.makeText(this, R.string.unlock_exit_toast_text, Toast.LENGTH_SHORT).show();
-            mPendingDisplayReturnToTerminal = true;
-            mPendingTerminalExit = false;
-            mPendingTerminalMoveToBack = false;
-            LoriePreferences.handler.postDelayed(() -> mPendingDisplayReturnToTerminal = false, 2000);
         }
     }
 
@@ -1236,7 +1216,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         getDrawer().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
             @Override
             public void onDrawerClosed(@NonNull View drawerView) {
-                if (isDisplaySurfaceMode() && mDisplaySidePanelsUnlocked && !isX11FloatBallMenuActive())
+                if (mDisplaySidePanelsUnlocked && !isX11FloatBallMenuActive())
                     lockDisplaySidePanels(true, R.string.x11_side_panels_locked_closed);
             }
         });
@@ -1447,8 +1427,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             getDrawer().closeDrawers();
         } else if (getDrawer().isDrawerOpen(GravityCompat.END)) {
             navigateX11PreferencesBack();
-        } else if (!isDisplaySurfaceMode()) {
-            moveTaskToBackOrPrompt();
         } else {
             handleDisplaySidePanelUnlockBackRequest();
         }

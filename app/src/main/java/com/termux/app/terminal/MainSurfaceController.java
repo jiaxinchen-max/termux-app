@@ -20,11 +20,11 @@ import com.termux.view.TerminalView;
 import com.termux.x11.TermuxScreenView;
 
 public final class MainSurfaceController {
-    private static final int INTERNAL_DRAWER_EDGE_INSET_DP = 24;
     private static final int INTERNAL_DRAWER_HOT_ZONE_WIDTH_DP = 72;
     private static final int INTERNAL_DRAWER_MIN_DISTANCE_DP = 96;
     private static final int INTERNAL_DRAWER_MAX_DISTANCE_DP = 220;
     private static final float INTERNAL_DRAWER_SHORT_SIDE_DISTANCE_RATIO = 0.24f;
+    private static final float SURFACE_SWITCH_COMMIT_RATIO = 0.5f;
     private static final long SURFACE_TRANSITION_ANIMATION_MS = 180;
 
     public enum SurfaceMode {
@@ -55,10 +55,15 @@ public final class MainSurfaceController {
     private boolean mDisplaySidePanelsUnlocked;
     private int mTrackingInternalDrawerGravity;
     private boolean mInternalDrawerSwipeConsumed;
-    private boolean mTrackingTerminalDisplaySwitchGesture;
+    private boolean mTrackingSurfaceSwitchDrag;
+    @NonNull
+    private SurfaceMode mSurfaceSwitchTargetMode = SurfaceMode.DISPLAY;
+    private int mSurfaceSwitchWidth;
+    private float mSurfaceSwitchDragDistance;
+    private boolean mSurfaceSwitchFromLandscapeTerminalOverlay;
+    private boolean mSurfaceSwitchToLandscapeTerminalOverlay;
     private float mInternalDrawerSwipeDownX;
     private float mInternalDrawerSwipeDownY;
-    private final int mInternalDrawerEdgeInset;
     private final int mInternalDrawerHotZoneWidth;
     private final int mInternalDrawerMinDistance;
     private final int mInternalDrawerMaxDistance;
@@ -68,6 +73,7 @@ public final class MainSurfaceController {
     private SurfaceGestureListener mSurfaceGestureListener;
     private int mSurfaceAnimationGeneration;
     private boolean mLandscapeTerminalOverlayEnabled;
+    private boolean mDisplayViewAttachedOnce;
     @NonNull
     private final DecelerateInterpolator mSurfaceTransitionInterpolator = new DecelerateInterpolator();
 
@@ -82,7 +88,6 @@ public final class MainSurfaceController {
 
         float density = container.getResources().getDisplayMetrics().density;
         ViewConfiguration viewConfiguration = ViewConfiguration.get(container.getContext());
-        mInternalDrawerEdgeInset = Math.round(INTERNAL_DRAWER_EDGE_INSET_DP * density);
         mInternalDrawerHotZoneWidth = Math.round(INTERNAL_DRAWER_HOT_ZONE_WIDTH_DP * density);
         mInternalDrawerMinDistance = Math.max(
             Math.round(INTERNAL_DRAWER_MIN_DISTANCE_DP * density),
@@ -109,6 +114,10 @@ public final class MainSurfaceController {
         }
 
         mDisplayView = displayView;
+        if (!mDisplayViewAttachedOnce) {
+            mDisplayViewAttachedOnce = true;
+            mMode = SurfaceMode.DISPLAY;
+        }
         applyMode();
     }
 
@@ -199,14 +208,12 @@ public final class MainSurfaceController {
     }
 
     public boolean handleInternalDrawerSwipe(@NonNull MotionEvent event) {
+        if (mTrackingSurfaceSwitchDrag)
+            return handleSurfaceSwitchDragEvent(event);
+
         if (mInternalDrawerSwipeConsumed) {
             int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_UP) {
-                if (handleUnlockedDisplaySwipeUp(event)) {
-                    mTrackingInternalDrawerGravity = 0;
-                    mInternalDrawerSwipeConsumed = false;
-                    return true;
-                }
                 if (mTrackingInternalDrawerGravity != 0
                     && shouldOpenDrawerFromInternalSwipe(event, mTrackingInternalDrawerGravity)) {
                     int drawerGravity = mTrackingInternalDrawerGravity;
@@ -231,15 +238,16 @@ public final class MainSurfaceController {
                 mInternalDrawerSwipeDownY = event.getRawY();
                 if (isTouchInsideTerminalToolbarArea(event)) {
                     mTrackingInternalDrawerGravity = 0;
-                    mTrackingTerminalDisplaySwitchGesture = false;
                     return false;
                 }
-                mTrackingTerminalDisplaySwitchGesture = shouldTrackTerminalDisplaySwitchInput()
-                    && isTouchInsideTerminalSwitchArea(event);
 
-                if (shouldCaptureUnlockedDisplayInput() && isTouchInsideContainer(event)) {
+                if (shouldLetDrawerLayoutHandleEdgeSwipe(event)) {
                     mTrackingInternalDrawerGravity = 0;
-                    mInternalDrawerSwipeConsumed = true;
+                    return false;
+                }
+
+                if (startSurfaceSwitchDragIfNeeded(event)) {
+                    mTrackingInternalDrawerGravity = 0;
                     return true;
                 }
 
@@ -250,22 +258,20 @@ public final class MainSurfaceController {
             case MotionEvent.ACTION_CANCEL:
                 mTrackingInternalDrawerGravity = 0;
                 mInternalDrawerSwipeConsumed = false;
-                mTrackingTerminalDisplaySwitchGesture = false;
                 return false;
             case MotionEvent.ACTION_MOVE:
             case MotionEvent.ACTION_UP:
                 if (mTrackingInternalDrawerGravity == 0)
-                    return handleTerminalDisplaySwitchSwipeUp(event);
+                    return false;
                 if (shouldOpenDrawerFromInternalSwipe(event, mTrackingInternalDrawerGravity)) {
                     int drawerGravity = mTrackingInternalDrawerGravity;
                     mTrackingInternalDrawerGravity = 0;
                     mInternalDrawerSwipeConsumed = event.getActionMasked() != MotionEvent.ACTION_UP;
-                    mTrackingTerminalDisplaySwitchGesture = false;
                     handleInternalDrawerSwipeAction(drawerGravity);
                     return true;
                 } else if (event.getActionMasked() == MotionEvent.ACTION_UP) {
                     mTrackingInternalDrawerGravity = 0;
-                    return handleTerminalDisplaySwitchSwipeUp(event);
+                    return false;
                 }
                 break;
         }
@@ -483,14 +489,216 @@ public final class MainSurfaceController {
             mDisplayView.animate().cancel();
     }
 
+    private boolean startSurfaceSwitchDragIfNeeded(@NonNull MotionEvent event) {
+        if (mDisplayView == null
+            || mTerminalCopyMode
+            || mDrawerLayout.isDrawerOpen(GravityCompat.START)
+            || mDrawerLayout.isDrawerOpen(GravityCompat.END)
+            || !isTouchInsideContainer(event)) {
+            return false;
+        }
+
+        if (mMode == SurfaceMode.TERMINAL) {
+            if (!mDisplaySidePanelsUnlocked)
+                return false;
+            View edgeView = shouldUseLandscapeTerminalOverlay() ? mTerminalSurfaceView : mContainer;
+            if (!isInViewEdge(edgeView, event, GravityCompat.END))
+                return false;
+            beginSurfaceSwitchDrag(SurfaceMode.DISPLAY);
+            return true;
+        }
+
+        if (mMode == SurfaceMode.DISPLAY
+            && !mDisplayFloatBallMenuEnabled
+            && mDisplaySidePanelsUnlocked
+            && isInViewEdge(mContainer, event, GravityCompat.START)) {
+            beginSurfaceSwitchDrag(SurfaceMode.TERMINAL);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void beginSurfaceSwitchDrag(@NonNull SurfaceMode targetMode) {
+        if (mDisplayView == null)
+            return;
+
+        cancelSurfaceAnimations();
+        mTrackingSurfaceSwitchDrag = true;
+        mSurfaceSwitchTargetMode = targetMode;
+        mSurfaceSwitchDragDistance = 0;
+        mSurfaceSwitchFromLandscapeTerminalOverlay = mMode == SurfaceMode.TERMINAL && shouldUseLandscapeTerminalOverlay();
+        mSurfaceSwitchToLandscapeTerminalOverlay = targetMode == SurfaceMode.TERMINAL && isLandscapeLayout();
+        mSurfaceSwitchWidth = getSurfaceSwitchWidth(targetMode);
+        if (mSurfaceSwitchWidth <= 0)
+            mSurfaceSwitchWidth = Math.max(1, mContainer.getWidth());
+
+        boolean terminalOverlayLayout = mSurfaceSwitchFromLandscapeTerminalOverlay || mSurfaceSwitchToLandscapeTerminalOverlay;
+        applySurfaceLayout(terminalOverlayLayout);
+
+        mDisplayView.setVisibility(View.VISIBLE);
+        mDisplayView.setTranslationX(0);
+
+        mTerminalSurfaceView.setVisibility(View.VISIBLE);
+        if (targetMode == SurfaceMode.TERMINAL) {
+            mTerminalSurfaceView.setTranslationX(getStartEdgeDirection() * mSurfaceSwitchWidth);
+            mDisplayView.bringToFront();
+            mTerminalSurfaceView.bringToFront();
+        } else {
+            mTerminalSurfaceView.setTranslationX(0);
+            if (!mSurfaceSwitchFromLandscapeTerminalOverlay)
+                mDisplayView.setTranslationX(getEndEdgeDirection() * mSurfaceSwitchWidth);
+            mTerminalSurfaceView.bringToFront();
+            if (!mSurfaceSwitchFromLandscapeTerminalOverlay)
+                mDisplayView.bringToFront();
+        }
+    }
+
+    private boolean handleSurfaceSwitchDragEvent(@NonNull MotionEvent event) {
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_MOVE:
+                updateSurfaceSwitchDrag(event);
+                return true;
+            case MotionEvent.ACTION_UP:
+                updateSurfaceSwitchDrag(event);
+                finishSurfaceSwitchDrag(mSurfaceSwitchDragDistance >= mSurfaceSwitchWidth * SURFACE_SWITCH_COMMIT_RATIO);
+                return true;
+            case MotionEvent.ACTION_POINTER_DOWN:
+            case MotionEvent.ACTION_CANCEL:
+                finishSurfaceSwitchDrag(false);
+                return true;
+            default:
+                return true;
+        }
+    }
+
+    private void updateSurfaceSwitchDrag(@NonNull MotionEvent event) {
+        if (mDisplayView == null)
+            return;
+
+        float distance = getSurfaceSwitchInwardDistance(event);
+        mSurfaceSwitchDragDistance = Math.max(0, Math.min(distance, mSurfaceSwitchWidth));
+        applySurfaceSwitchDragProgress(mSurfaceSwitchDragDistance);
+    }
+
+    private void applySurfaceSwitchDragProgress(float distance) {
+        if (mDisplayView == null)
+            return;
+
+        if (mSurfaceSwitchTargetMode == SurfaceMode.DISPLAY) {
+            int endDirection = getEndEdgeDirection();
+            if (mSurfaceSwitchFromLandscapeTerminalOverlay) {
+                mTerminalSurfaceView.setTranslationX(-endDirection * distance);
+                mDisplayView.setTranslationX(0);
+            } else {
+                mTerminalSurfaceView.setTranslationX(-endDirection * distance);
+                mDisplayView.setTranslationX(endDirection * (mSurfaceSwitchWidth - distance));
+            }
+            return;
+        }
+
+        int startDirection = getStartEdgeDirection();
+        mTerminalSurfaceView.setTranslationX(startDirection * (mSurfaceSwitchWidth - distance));
+        if (mSurfaceSwitchToLandscapeTerminalOverlay) {
+            mDisplayView.setTranslationX(0);
+        } else {
+            mDisplayView.setTranslationX(-startDirection * distance);
+        }
+    }
+
+    private void finishSurfaceSwitchDrag(boolean commit) {
+        if (mDisplayView == null) {
+            mTrackingSurfaceSwitchDrag = false;
+            return;
+        }
+
+        int animationGeneration = ++mSurfaceAnimationGeneration;
+        float terminalEndX = getSurfaceSwitchTerminalEndTranslation(commit);
+        float displayEndX = getSurfaceSwitchDisplayEndTranslation(commit);
+
+        mTerminalSurfaceView.animate().cancel();
+        mDisplayView.animate().cancel();
+
+        mTerminalSurfaceView.animate()
+            .translationX(terminalEndX)
+            .setDuration(SURFACE_TRANSITION_ANIMATION_MS)
+            .setInterpolator(mSurfaceTransitionInterpolator)
+            .withEndAction(() -> finishSurfaceSwitchDragAnimation(animationGeneration, commit))
+            .start();
+
+        mDisplayView.animate()
+            .translationX(displayEndX)
+            .setDuration(SURFACE_TRANSITION_ANIMATION_MS)
+            .setInterpolator(mSurfaceTransitionInterpolator)
+            .start();
+    }
+
+    private void finishSurfaceSwitchDragAnimation(int animationGeneration, boolean commit) {
+        if (animationGeneration != mSurfaceAnimationGeneration)
+            return;
+
+        if (commit)
+            mMode = mSurfaceSwitchTargetMode;
+
+        mTrackingSurfaceSwitchDrag = false;
+        updateLandscapeTerminalOverlayEnabled();
+        applyMode(false, mMode, mLandscapeTerminalOverlayEnabled);
+
+        if (commit && mMode == SurfaceMode.TERMINAL) {
+            mTerminalView.requestFocus();
+        } else if (commit && mMode == SurfaceMode.DISPLAY && mDisplayView != null) {
+            mDisplayView.getLorieView().requestFocus();
+        }
+    }
+
+    private float getSurfaceSwitchTerminalEndTranslation(boolean commit) {
+        if (mSurfaceSwitchTargetMode == SurfaceMode.DISPLAY)
+            return commit ? -getEndEdgeDirection() * mSurfaceSwitchWidth : 0;
+        return commit ? 0 : getStartEdgeDirection() * mSurfaceSwitchWidth;
+    }
+
+    private float getSurfaceSwitchDisplayEndTranslation(boolean commit) {
+        if (mDisplayView == null)
+            return 0;
+
+        if (mSurfaceSwitchTargetMode == SurfaceMode.DISPLAY)
+            return commit || mSurfaceSwitchFromLandscapeTerminalOverlay ? 0 : getEndEdgeDirection() * mSurfaceSwitchWidth;
+        if (mSurfaceSwitchToLandscapeTerminalOverlay)
+            return 0;
+        return commit ? -getStartEdgeDirection() * mSurfaceSwitchWidth : 0;
+    }
+
+    private int getSurfaceSwitchWidth(@NonNull SurfaceMode targetMode) {
+        if (mMode == SurfaceMode.TERMINAL && shouldUseLandscapeTerminalOverlay())
+            return getLandscapeTerminalOverlayWidth();
+        if (targetMode == SurfaceMode.TERMINAL && isLandscapeLayout())
+            return getLandscapeTerminalOverlayWidth();
+        return mContainer.getWidth();
+    }
+
+    private float getSurfaceSwitchInwardDistance(@NonNull MotionEvent event) {
+        if (mSurfaceSwitchTargetMode == SurfaceMode.DISPLAY)
+            return getEndEdgeDirection() * (mInternalDrawerSwipeDownX - event.getRawX());
+        return -getStartEdgeDirection() * (event.getRawX() - mInternalDrawerSwipeDownX);
+    }
+
+    private int getStartEdgeDirection() {
+        return mContainer.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL ? 1 : -1;
+    }
+
+    private int getEndEdgeDirection() {
+        return mContainer.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL ? -1 : 1;
+    }
+
     private boolean canOpenDrawerFromInternalSwipe(int drawerGravity) {
         if (mDrawerLayout.isDrawerOpen(GravityCompat.START) || mDrawerLayout.isDrawerOpen(GravityCompat.END))
             return false;
         if (mTerminalCopyMode)
             return false;
         if (mMode == SurfaceMode.TERMINAL)
-            return drawerGravity == GravityCompat.START
-                || (drawerGravity == GravityCompat.END && mDisplayView != null);
+            return mDisplaySidePanelsUnlocked
+                && (drawerGravity == GravityCompat.START
+                || (drawerGravity == GravityCompat.END && mDisplayView != null));
         if (mMode == SurfaceMode.DISPLAY)
             return !mDisplayFloatBallMenuEnabled
                 && mDisplaySidePanelsUnlocked
@@ -498,63 +706,14 @@ public final class MainSurfaceController {
         return false;
     }
 
-    private boolean shouldCaptureUnlockedDisplayInput() {
-        return mMode == SurfaceMode.DISPLAY
-            && !mDisplayFloatBallMenuEnabled
-            && mDisplaySidePanelsUnlocked
-            && !mTerminalCopyMode
-            && !mDrawerLayout.isDrawerOpen(GravityCompat.START)
-            && !mDrawerLayout.isDrawerOpen(GravityCompat.END);
+    private boolean shouldLetDrawerLayoutHandleEdgeSwipe(@NonNull MotionEvent event) {
+        return canDrawerLayoutHandleEdge(GravityCompat.START, event)
+            || canDrawerLayoutHandleEdge(GravityCompat.END, event);
     }
 
-    private boolean shouldTrackTerminalDisplaySwitchInput() {
-        return mMode == SurfaceMode.TERMINAL
-            && mDisplayView != null
-            && !mTerminalCopyMode
-            && !mDrawerLayout.isDrawerOpen(GravityCompat.START)
-            && !mDrawerLayout.isDrawerOpen(GravityCompat.END);
-    }
-
-    private boolean handleTerminalDisplaySwitchSwipeUp(@NonNull MotionEvent event) {
-        if (!mTrackingTerminalDisplaySwitchGesture || event.getActionMasked() != MotionEvent.ACTION_UP)
-            return false;
-
-        mTrackingTerminalDisplaySwitchGesture = false;
-        if (!shouldTrackTerminalDisplaySwitchInput() || !isTouchInsideTerminalSwitchArea(event))
-            return false;
-
-        float horizontalDistance = event.getRawX() - mInternalDrawerSwipeDownX;
-        float verticalDistance = Math.abs(event.getRawY() - mInternalDrawerSwipeDownY);
-        if (Math.abs(horizontalDistance) < getInternalDrawerMinDistance()
-            || Math.abs(horizontalDistance) <= verticalDistance * 1.25f) {
-            return false;
-        }
-
-        boolean rtl = mContainer.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
-        boolean swipeToEnd = rtl ? horizontalDistance > 0 : horizontalDistance < 0;
-        if (!swipeToEnd)
-            return false;
-
-        handleInternalDrawerSwipeAction(GravityCompat.END);
-        return true;
-    }
-
-    private boolean handleUnlockedDisplaySwipeUp(@NonNull MotionEvent event) {
-        if (!shouldCaptureUnlockedDisplayInput() || !isTouchInsideContainer(event))
-            return false;
-
-        float horizontalDistance = event.getRawX() - mInternalDrawerSwipeDownX;
-        float verticalDistance = Math.abs(event.getRawY() - mInternalDrawerSwipeDownY);
-        if (Math.abs(horizontalDistance) < getInternalDrawerMinDistance()
-            || Math.abs(horizontalDistance) <= verticalDistance * 1.25f) {
-            return false;
-        }
-
-        boolean rtl = mContainer.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
-        boolean swipeToRight = horizontalDistance > 0;
-        int drawerGravity = swipeToRight == !rtl ? GravityCompat.START : GravityCompat.END;
-        handleInternalDrawerSwipeAction(drawerGravity);
-        return true;
+    private boolean canDrawerLayoutHandleEdge(int drawerGravity, @NonNull MotionEvent event) {
+        return mDrawerLayout.getDrawerLockMode(drawerGravity) == DrawerLayout.LOCK_MODE_UNLOCKED
+            && isInViewEdge(mContainer, event, drawerGravity);
     }
 
     private void handleInternalDrawerSwipeAction(int drawerGravity) {
@@ -591,18 +750,6 @@ public final class MainSurfaceController {
             && y <= location[1] + mContainer.getHeight();
     }
 
-    private boolean isTouchInsideTerminalSwitchArea(@NonNull MotionEvent event) {
-        View switchArea = shouldUseLandscapeTerminalOverlay() ? mTerminalSurfaceView : mContainer;
-        int[] location = new int[2];
-        switchArea.getLocationOnScreen(location);
-        float x = event.getRawX();
-        float y = event.getRawY();
-        return x >= location[0]
-            && x <= location[0] + switchArea.getWidth()
-            && y >= location[1]
-            && y <= location[1] + switchArea.getHeight();
-    }
-
     private boolean isTouchInsideTerminalToolbarArea(@NonNull MotionEvent event) {
         if (mMode != SurfaceMode.TERMINAL || mTerminalSurfaceView.getVisibility() != View.VISIBLE)
             return false;
@@ -619,6 +766,24 @@ public final class MainSurfaceController {
             && x <= location[0] + view.getWidth()
             && y >= location[1]
             && y <= location[1] + view.getHeight();
+    }
+
+    private boolean isInViewEdge(@NonNull View view, @NonNull MotionEvent event, int drawerGravity) {
+        int[] location = new int[2];
+        view.getLocationOnScreen(location);
+        float x = event.getRawX() - location[0];
+        int width = view.getWidth();
+        if (x < 0 || x > width)
+            return false;
+
+        boolean rtl = mContainer.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
+        boolean useRightEdge = (drawerGravity == GravityCompat.START && rtl)
+            || (drawerGravity == GravityCompat.END && !rtl);
+
+        if (useRightEdge)
+            return x >= width - mInternalDrawerHotZoneWidth;
+
+        return x <= mInternalDrawerHotZoneWidth;
     }
 
     @NonNull
@@ -642,22 +807,7 @@ public final class MainSurfaceController {
     }
 
     private boolean isInInternalDrawerHotZone(@NonNull MotionEvent event, int drawerGravity) {
-        View hotZoneView = getInternalDrawerSwipeHotZoneView(drawerGravity);
-        int[] location = new int[2];
-        hotZoneView.getLocationOnScreen(location);
-        float x = event.getRawX() - location[0];
-        int width = hotZoneView.getWidth();
-        if (x < 0 || x > width)
-            return false;
-        boolean rtl = mContainer.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
-        boolean useRightEdge = (drawerGravity == GravityCompat.START && rtl) || (drawerGravity == GravityCompat.END && !rtl);
-
-        if (useRightEdge)
-            return x <= width - mInternalDrawerEdgeInset
-                && x >= width - mInternalDrawerEdgeInset - mInternalDrawerHotZoneWidth;
-
-        return x >= mInternalDrawerEdgeInset
-            && x <= mInternalDrawerEdgeInset + mInternalDrawerHotZoneWidth;
+        return isInViewEdge(getInternalDrawerSwipeHotZoneView(drawerGravity), event, drawerGravity);
     }
 
     private boolean shouldOpenDrawerFromInternalSwipe(@NonNull MotionEvent event, int drawerGravity) {
@@ -679,7 +829,9 @@ public final class MainSurfaceController {
     }
 
     private void applyDrawerLockMode() {
-        boolean startDrawerCanOpen = mMode == SurfaceMode.TERMINAL && !mTerminalCopyMode;
+        boolean startDrawerCanOpen = mMode == SurfaceMode.TERMINAL
+            && !mTerminalCopyMode
+            && mDisplaySidePanelsUnlocked;
         boolean endDrawerCanOpen = mMode == SurfaceMode.DISPLAY
             && !mDisplayFloatBallMenuEnabled
             && mDisplaySidePanelsUnlocked;

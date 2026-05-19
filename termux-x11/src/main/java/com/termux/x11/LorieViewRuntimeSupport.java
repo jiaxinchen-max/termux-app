@@ -428,7 +428,8 @@ final class X11WindowModeController {
         boolean reseed = prefs.Reseed.get();
 
         int requestedOrientation = getRequestedOrientation(prefs.forceOrientation.get());
-        if (activity.getRequestedOrientation() != requestedOrientation)
+        boolean orientationChangeRequested = activity.getRequestedOrientation() != requestedOrientation;
+        if (orientationChangeRequested)
             activity.setRequestedOrientation(requestedOrientation);
 
         if (hasFocus) {
@@ -470,7 +471,7 @@ final class X11WindowModeController {
 
         window.setSoftInputMode(reseed ? SOFT_INPUT_ADJUST_RESIZE : SOFT_INPUT_ADJUST_PAN);
 
-        if (hasFocus) {
+        if (hasFocus && !orientationChangeRequested) {
             mHost.getLorieView().regenerate();
             mHost.getLorieView().requestLayout();
         }

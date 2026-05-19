@@ -869,9 +869,6 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
             } else {
                 termuxActivityListener.onChangeOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
             }
-            handler.postDelayed(() -> {
-                getLorieView().regenerate();
-            }, 1000);
         }
         setTerminalToolbarView();
 //        Log.d("onConfigurationChanged","orientation:"+orientation);
