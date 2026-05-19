@@ -225,6 +225,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     private boolean mDisplaySidePanelsUnlocked;
     private boolean mPendingDisplaySidePanelUnlockBack;
     private boolean mSuppressNextX11FocusGainFromFloatMenu;
+    private boolean mX11DisplayConnected;
     private long mDisplaySidePanelUnlockBackPromptTime;
 
     private static final long DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS = 1500;
@@ -500,7 +501,10 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
     private void updateDisplaySidePanelPolicy() {
         if (mMainSurfaceController != null)
-            mMainSurfaceController.setDisplaySidePanelPolicy(isX11FloatBallMenuActive(), mDisplaySidePanelsUnlocked);
+            mMainSurfaceController.setDisplaySidePanelPolicy(
+                isX11FloatBallMenuActive(),
+                mDisplaySidePanelsUnlocked,
+                mX11DisplayConnected);
     }
 
     private void resetDisplaySidePanelUnlockBackState() {
@@ -1202,8 +1206,11 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         mMainSurfaceController.attachDisplayView(termuxScreenView);
         getLorieViewRuntime().attachTermuxScreenView(termuxScreenView);
         getLorieViewRuntime().setX11ConnectionStateListener(connected -> {
+            mX11DisplayConnected = connected;
             if (connected)
                 showDisplaySurface();
+            else
+                updateDisplaySidePanelPolicy();
         });
         mTerminalView.setTerminalViewClient(mTermuxTerminalViewClient);
 

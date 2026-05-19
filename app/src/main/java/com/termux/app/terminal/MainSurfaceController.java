@@ -1,6 +1,8 @@
 package com.termux.app.terminal;
 
 import android.content.res.Configuration;
+import android.graphics.Rect;
+import android.os.Build;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -18,6 +20,10 @@ import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.termux.view.TerminalView;
 import com.termux.x11.TermuxScreenView;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public final class MainSurfaceController {
     private static final int INTERNAL_DRAWER_HOT_ZONE_WIDTH_DP = 72;
@@ -53,6 +59,7 @@ public final class MainSurfaceController {
     private boolean mTerminalCopyMode;
     private boolean mDisplayFloatBallMenuEnabled;
     private boolean mDisplaySidePanelsUnlocked;
+    private boolean mDisplayConnected;
     private int mTrackingInternalDrawerGravity;
     private boolean mInternalDrawerSwipeConsumed;
     private boolean mTrackingSurfaceSwitchDrag;
@@ -95,8 +102,10 @@ public final class MainSurfaceController {
         mInternalDrawerMaxDistance = Math.round(INTERNAL_DRAWER_MAX_DISTANCE_DP * density);
 
         mContainer.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-            if ((right - left) != (oldRight - oldLeft) || (bottom - top) != (oldBottom - oldTop))
+            if ((right - left) != (oldRight - oldLeft) || (bottom - top) != (oldBottom - oldTop)) {
                 applyMode();
+                updateSystemGestureExclusionRects();
+            }
         });
         applyMode();
     }
@@ -167,12 +176,14 @@ public final class MainSurfaceController {
         mSurfaceGestureListener = listener;
     }
 
-    public void setDisplaySidePanelPolicy(boolean floatBallMenuEnabled, boolean sidePanelsUnlocked) {
+    public void setDisplaySidePanelPolicy(boolean floatBallMenuEnabled, boolean sidePanelsUnlocked, boolean displayConnected) {
         if (mDisplayFloatBallMenuEnabled == floatBallMenuEnabled
-            && mDisplaySidePanelsUnlocked == sidePanelsUnlocked)
+            && mDisplaySidePanelsUnlocked == sidePanelsUnlocked
+            && mDisplayConnected == displayConnected)
             return;
         mDisplayFloatBallMenuEnabled = floatBallMenuEnabled;
         mDisplaySidePanelsUnlocked = sidePanelsUnlocked;
+        mDisplayConnected = displayConnected;
         applyDrawerLockMode();
     }
 
@@ -698,7 +709,7 @@ public final class MainSurfaceController {
         if (mMode == SurfaceMode.TERMINAL)
             return drawerGravity == GravityCompat.START;
         if (mMode == SurfaceMode.DISPLAY)
-            return !mDisplayFloatBallMenuEnabled
+            return canOpenDisplayEndDrawer()
                 && drawerGravity == GravityCompat.END;
         return false;
     }
@@ -829,13 +840,58 @@ public final class MainSurfaceController {
         boolean startDrawerCanOpen = mMode == SurfaceMode.TERMINAL
             && !mTerminalCopyMode;
         boolean endDrawerCanOpen = mMode == SurfaceMode.DISPLAY
-            && !mDisplayFloatBallMenuEnabled;
+            && canOpenDisplayEndDrawer();
         mDrawerLayout.setDrawerLockMode(
             startDrawerCanOpen ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED,
             GravityCompat.START);
         mDrawerLayout.setDrawerLockMode(
             endDrawerCanOpen ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED,
             GravityCompat.END);
+        updateSystemGestureExclusionRects();
+    }
+
+    private boolean canOpenDisplayEndDrawer() {
+        return !mDisplayFloatBallMenuEnabled
+            && (!mDisplayConnected || mDisplaySidePanelsUnlocked);
+    }
+
+    private void updateSystemGestureExclusionRects() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
+            return;
+
+        int width = mContainer.getWidth();
+        int height = mContainer.getHeight();
+        if (width <= 0 || height <= 0) {
+            mContainer.setSystemGestureExclusionRects(Collections.emptyList());
+            return;
+        }
+
+        List<Rect> rects = new ArrayList<>(2);
+        if (mMode == SurfaceMode.TERMINAL && !mTerminalCopyMode)
+            addSystemGestureExclusionRect(rects, GravityCompat.START, width, height);
+        if (mMode == SurfaceMode.DISPLAY && canOpenDisplayEndDrawer())
+            addSystemGestureExclusionRect(rects, GravityCompat.END, width, height);
+
+        if (mDisplaySidePanelsUnlocked && mDisplayView != null) {
+            if (mMode == SurfaceMode.TERMINAL) {
+                addSystemGestureExclusionRect(rects, GravityCompat.END, width, height);
+            } else if (mMode == SurfaceMode.DISPLAY && !mDisplayFloatBallMenuEnabled) {
+                addSystemGestureExclusionRect(rects, GravityCompat.START, width, height);
+            }
+        }
+
+        mContainer.setSystemGestureExclusionRects(rects);
+    }
+
+    private void addSystemGestureExclusionRect(@NonNull List<Rect> rects, int drawerGravity, int width, int height) {
+        int edgeWidth = Math.min(mInternalDrawerHotZoneWidth, width);
+        boolean rtl = mContainer.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
+        boolean useRightEdge = (drawerGravity == GravityCompat.START && rtl)
+            || (drawerGravity == GravityCompat.END && !rtl);
+        if (useRightEdge)
+            rects.add(new Rect(width - edgeWidth, 0, width, height));
+        else
+            rects.add(new Rect(0, 0, edgeWidth, height));
     }
 
     private void ensureRestoreLockModeOnCloseListener() {
