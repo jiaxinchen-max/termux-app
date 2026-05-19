@@ -84,6 +84,23 @@ jobs:
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
+      - name: Rename APKs for release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RELEASE_APK_DIR="release-apks"
+          mkdir -p "$RELEASE_APK_DIR"
+
+          for apk in ./**/*.apk; do
+            filename="$(basename "$apk")"
+            short_name="$(printf '%s\n' "$filename" \
+              | sed -E 's/\+[0-9a-f]{7}\+/\+/' \
+              | sed -E 's/-github-debug//')"
+            cp "$apk" "$RELEASE_APK_DIR/$short_name"
+          done
+
+          ls -la "$RELEASE_APK_DIR"
       - name: Create or update release notes
         if: ${{ github.event.inputs.release_notes != '' }}
         env:
@@ -109,7 +126,7 @@ jobs:
         uses: termux/upload-release-action@v4.1.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: "**/*.apk"
+          file: "release-apks/*.apk"
           file_glob: true
           release_name: ${{ github.event.inputs.release_name }}
           tag: ${{ github.event.inputs.release_tag }}
