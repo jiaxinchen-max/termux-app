@@ -696,13 +696,10 @@ public final class MainSurfaceController {
         if (mTerminalCopyMode)
             return false;
         if (mMode == SurfaceMode.TERMINAL)
-            return mDisplaySidePanelsUnlocked
-                && (drawerGravity == GravityCompat.START
-                || (drawerGravity == GravityCompat.END && mDisplayView != null));
+            return drawerGravity == GravityCompat.START;
         if (mMode == SurfaceMode.DISPLAY)
             return !mDisplayFloatBallMenuEnabled
-                && mDisplaySidePanelsUnlocked
-                && (drawerGravity == GravityCompat.START || drawerGravity == GravityCompat.END);
+                && drawerGravity == GravityCompat.END;
         return false;
     }
 
@@ -830,11 +827,9 @@ public final class MainSurfaceController {
 
     private void applyDrawerLockMode() {
         boolean startDrawerCanOpen = mMode == SurfaceMode.TERMINAL
-            && !mTerminalCopyMode
-            && mDisplaySidePanelsUnlocked;
+            && !mTerminalCopyMode;
         boolean endDrawerCanOpen = mMode == SurfaceMode.DISPLAY
-            && !mDisplayFloatBallMenuEnabled
-            && mDisplaySidePanelsUnlocked;
+            && !mDisplayFloatBallMenuEnabled;
         mDrawerLayout.setDrawerLockMode(
             startDrawerCanOpen ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED,
             GravityCompat.START);
