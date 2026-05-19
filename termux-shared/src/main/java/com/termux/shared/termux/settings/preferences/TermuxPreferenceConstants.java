@@ -95,6 +95,14 @@ public final class TermuxPreferenceConstants {
         public static final String KEY_TERMINAL_MARGIN_ADJUSTMENT =  "terminal_margin_adjustment";
         public static final boolean DEFAULT_TERMINAL_MARGIN_ADJUSTMENT = true;
 
+        /**
+         * Defines which main surface should be shown after the initial terminal session is ready.
+         */
+        public static final String KEY_STARTUP_SURFACE = "startup_surface";
+        public static final String VALUE_STARTUP_SURFACE_TERMINAL = "terminal";
+        public static final String VALUE_STARTUP_SURFACE_TERMUX_SCREEN = "termux_screen";
+        public static final String DEFAULT_VALUE_STARTUP_SURFACE = VALUE_STARTUP_SURFACE_TERMUX_SCREEN;
+
 
         /**
          * Defines the key for whether to show terminal toolbar containing extra keys and text input field.

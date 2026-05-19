@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="termux_startup_surface_entries">
+        <item>Terminal view</item>
+        <item>Termux screen</item>
+    </string-array>
+
+    <string-array name="termux_startup_surface_values">
+        <item>terminal</item>
+        <item>termux_screen</item>
+    </string-array>
+</resources>

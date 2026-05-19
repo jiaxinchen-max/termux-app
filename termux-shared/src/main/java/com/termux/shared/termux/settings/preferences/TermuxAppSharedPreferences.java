@@ -92,6 +92,30 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
         SharedPreferenceUtils.setBoolean(mSharedPreferences, TERMUX_APP.KEY_TERMINAL_MARGIN_ADJUSTMENT, value, false);
     }
 
+    public String getStartupSurface() {
+        String value = SharedPreferenceUtils.getString(mSharedPreferences,
+            TERMUX_APP.KEY_STARTUP_SURFACE,
+            TERMUX_APP.DEFAULT_VALUE_STARTUP_SURFACE,
+            true);
+        if (!TERMUX_APP.VALUE_STARTUP_SURFACE_TERMINAL.equals(value)
+            && !TERMUX_APP.VALUE_STARTUP_SURFACE_TERMUX_SCREEN.equals(value)) {
+            return TERMUX_APP.DEFAULT_VALUE_STARTUP_SURFACE;
+        }
+        return value;
+    }
+
+    public void setStartupSurface(String value) {
+        if (!TERMUX_APP.VALUE_STARTUP_SURFACE_TERMINAL.equals(value)
+            && !TERMUX_APP.VALUE_STARTUP_SURFACE_TERMUX_SCREEN.equals(value)) {
+            value = TERMUX_APP.DEFAULT_VALUE_STARTUP_SURFACE;
+        }
+        SharedPreferenceUtils.setString(mSharedPreferences, TERMUX_APP.KEY_STARTUP_SURFACE, value, false);
+    }
+
+    public boolean shouldShowTermuxScreenOnStartup() {
+        return TERMUX_APP.VALUE_STARTUP_SURFACE_TERMUX_SCREEN.equals(getStartupSurface());
+    }
+
 
 
     public boolean isSoftKeyboardEnabled() {

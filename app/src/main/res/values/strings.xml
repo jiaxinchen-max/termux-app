@@ -187,6 +187,9 @@
                     It should be enabled to try to fix the issue where soft keyboard covers part of extra keys/terminal view.
                     If it causes screen flickering on your devices, then disable it. (Default)</string>
 
+    <!-- Startup Surface -->
+    <string name="termux_terminal_view_startup_surface_title">Startup Surface</string>
+
 
     <!-- Termux:API App Preferences -->
     <string name="termux_api_preferences_title">&TERMUX_API_APP_NAME;termux api preference</string>

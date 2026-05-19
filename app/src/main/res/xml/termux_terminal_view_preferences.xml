@@ -10,6 +10,14 @@
             app:summaryOn="@string/termux_terminal_view_terminal_margin_adjustment_on"
             app:title="@string/termux_terminal_view_terminal_margin_adjustment_title" />
 
+        <ListPreference
+            app:defaultValue="termux_screen"
+            app:entries="@array/termux_startup_surface_entries"
+            app:entryValues="@array/termux_startup_surface_values"
+            app:key="startup_surface"
+            app:title="@string/termux_terminal_view_startup_surface_title"
+            app:useSimpleSummaryProvider="true" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>

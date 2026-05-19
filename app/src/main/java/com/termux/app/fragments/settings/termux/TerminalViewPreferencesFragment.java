@@ -63,6 +63,20 @@ class TerminalViewPreferencesDataStore extends PreferenceDataStore {
     }
 
     @Override
+    public void putString(String key, String value) {
+        if (mPreferences == null) return;
+        if (key == null) return;
+
+        switch (key) {
+            case "startup_surface":
+                mPreferences.setStartupSurface(value);
+                break;
+            default:
+                break;
+        }
+    }
+
+    @Override
     public boolean getBoolean(String key, boolean defValue) {
         if (mPreferences == null) return false;
 
@@ -71,6 +85,18 @@ class TerminalViewPreferencesDataStore extends PreferenceDataStore {
                 return mPreferences.isTerminalMarginAdjustmentEnabled();
             default:
                 return false;
+        }
+    }
+
+    @Override
+    public String getString(String key, String defValue) {
+        if (mPreferences == null) return defValue;
+
+        switch (key) {
+            case "startup_surface":
+                return mPreferences.getStartupSurface();
+            default:
+                return defValue;
         }
     }
 

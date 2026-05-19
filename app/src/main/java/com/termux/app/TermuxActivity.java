@@ -1033,7 +1033,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
                             launchFailsafe = intent.getExtras().getBoolean(TERMUX_ACTIVITY.EXTRA_FAILSAFE_SESSION, false);
                         }
                         mTermuxTerminalSessionActivityClient.addNewSession(launchFailsafe, null);
-                        showDisplaySurfaceAfterTerminalSessionReady();
+                        showStartupSurfaceAfterTerminalSessionReady();
                     } catch (WindowManager.BadTokenException e) {
                         // Activity finished - ignore.
                     }
@@ -1059,11 +1059,13 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         // Update the {@link TerminalSession} and {@link TerminalEmulator} clients.
         mTermuxService.setTermuxTerminalSessionClient(mTermuxTerminalSessionActivityClient);
         if (terminalSessionReady)
-            showDisplaySurfaceAfterTerminalSessionReady();
+            showStartupSurfaceAfterTerminalSessionReady();
     }
 
-    private void showDisplaySurfaceAfterTerminalSessionReady() {
+    private void showStartupSurfaceAfterTerminalSessionReady() {
         if (mMainSurfaceController == null || mMainSurfaceController.isDisplayMode())
+            return;
+        if (mPreferences == null || !mPreferences.shouldShowTermuxScreenOnStartup())
             return;
         if (mTermuxTerminalViewClient != null)
             mTermuxTerminalViewClient.suppressSoftKeyboardOnNextTerminalFocus();
