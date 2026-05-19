@@ -116,6 +116,25 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
         return TERMUX_APP.VALUE_STARTUP_SURFACE_TERMUX_SCREEN.equals(getStartupSurface());
     }
 
+    public int getLandscapeTerminalOverlayWidthPercent() {
+        int value = SharedPreferenceUtils.getInt(mSharedPreferences,
+            TERMUX_APP.KEY_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT,
+            TERMUX_APP.DEFAULT_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT);
+        return DataUtils.clamp(value,
+            TERMUX_APP.MIN_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT,
+            TERMUX_APP.MAX_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT);
+    }
+
+    public void setLandscapeTerminalOverlayWidthPercent(int value) {
+        value = DataUtils.clamp(value,
+            TERMUX_APP.MIN_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT,
+            TERMUX_APP.MAX_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT);
+        SharedPreferenceUtils.setInt(mSharedPreferences,
+            TERMUX_APP.KEY_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT,
+            value,
+            false);
+    }
+
 
 
     public boolean isSoftKeyboardEnabled() {

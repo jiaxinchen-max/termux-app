@@ -631,6 +631,13 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         return mMainSurfaceController != null && mMainSurfaceController.isDisplayMode();
     }
 
+    private void updateMainSurfaceSettings() {
+        if (mMainSurfaceController == null || mPreferences == null)
+            return;
+        mMainSurfaceController.setLandscapeTerminalOverlayWidthPercent(
+            mPreferences.getLandscapeTerminalOverlayWidthPercent());
+    }
+
     @SuppressLint("ResourceType")
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -870,6 +877,8 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         Logger.logVerbose(LOG_TAG, "onResume");
 
         if (mIsInvalidState) return;
+
+        updateMainSurfaceSettings();
 
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onResume();
@@ -1197,6 +1206,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             findViewById(R.id.main_surface_container),
             findViewById(R.id.terminal_surface_container),
             mTerminalView);
+        updateMainSurfaceSettings();
         mMainSurfaceController.setSurfaceGestureListener(new MainSurfaceController.SurfaceGestureListener() {
             @Override
             public void onTerminalEndSwipe() {

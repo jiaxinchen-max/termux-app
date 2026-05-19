@@ -10,6 +10,7 @@ import androidx.preference.PreferenceManager;
 
 import com.termux.R;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
+import com.termux.shared.termux.settings.preferences.TermuxPreferenceConstants.TERMUX_APP;
 
 @Keep
 public class TerminalViewPreferencesFragment extends PreferenceFragmentCompat {
@@ -77,6 +78,20 @@ class TerminalViewPreferencesDataStore extends PreferenceDataStore {
     }
 
     @Override
+    public void putInt(String key, int value) {
+        if (mPreferences == null) return;
+        if (key == null) return;
+
+        switch (key) {
+            case TERMUX_APP.KEY_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT:
+                mPreferences.setLandscapeTerminalOverlayWidthPercent(value);
+                break;
+            default:
+                break;
+        }
+    }
+
+    @Override
     public boolean getBoolean(String key, boolean defValue) {
         if (mPreferences == null) return false;
 
@@ -95,6 +110,18 @@ class TerminalViewPreferencesDataStore extends PreferenceDataStore {
         switch (key) {
             case "startup_surface":
                 return mPreferences.getStartupSurface();
+            default:
+                return defValue;
+        }
+    }
+
+    @Override
+    public int getInt(String key, int defValue) {
+        if (mPreferences == null) return defValue;
+
+        switch (key) {
+            case TERMUX_APP.KEY_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT:
+                return mPreferences.getLandscapeTerminalOverlayWidthPercent();
             default:
                 return defValue;
         }

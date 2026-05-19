@@ -103,6 +103,11 @@ public final class TermuxPreferenceConstants {
         public static final String VALUE_STARTUP_SURFACE_TERMUX_SCREEN = "termux_screen";
         public static final String DEFAULT_VALUE_STARTUP_SURFACE = VALUE_STARTUP_SURFACE_TERMUX_SCREEN;
 
+        public static final String KEY_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT = "landscape_terminal_overlay_width_percent";
+        public static final int MIN_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT = 70;
+        public static final int MAX_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT = 100;
+        public static final int DEFAULT_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT = 80;
+
 
         /**
          * Defines the key for whether to show terminal toolbar containing extra keys and text input field.

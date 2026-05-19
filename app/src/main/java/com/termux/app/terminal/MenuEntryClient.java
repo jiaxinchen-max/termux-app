@@ -11,6 +11,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.net.Uri;
+import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.View;
@@ -179,7 +180,8 @@ public class MenuEntryClient {
         if (command == null || command.isEmpty())
             return;
 
-        mTermuxTerminalSessionActivityClient.getCurrentStoredSessionOrLast().write(command + "\n");
+        String sessionName = TextUtils.isEmpty(entry.getTitlle()) ? entry.getFileName() : entry.getTitlle();
+        mTermuxTerminalSessionActivityClient.addNewSessionAndRunCommand(command, sessionName);
     }
 
     private void showMenuItemDialog(MenuEntry.Entry entryToUpdate, int updateIndex) {

@@ -92,14 +92,15 @@ public class StartEntryClient implements FileBrowser.FileSlectedAdapter{
                 Toast.makeText(mTermuxActivity, mTermuxActivity.getResources().getString(R.string.not_executable) + ": " + StartEntry.getStartItemList().get(mCurrentCommand).getFileName(), Toast.LENGTH_SHORT).show();
                 return;
             }
-            String command = "^c";
+            StartEntry.Entry entry = StartEntry.getStartItemList().get(mCurrentCommand);
+            String command;
             if (StartEntry.getStartItemList().get(mCurrentCommand).getPath().contains(TERMUX_BIN_PREFIX_DIR_PATH)) {
-                command = StartEntry.getStartItemList().get(mCurrentCommand).getFileName() + "\n";
+                command = entry.getFileName();
             } else {
-                command = StartEntry.getStartItemList().get(mCurrentCommand).getPath() + "\n";
+                command = entry.getPath();
             }
 
-            mTermuxTerminalSessionActivityClient.getCurrentStoredSessionOrLast().write(command);
+            mTermuxTerminalSessionActivityClient.addNewSessionAndRunCommand(command, entry.getFileName());
         });
         mLaunchButton.setOnLongClickListener(l -> {
             mLaunchButton.setVisibility(View.GONE);

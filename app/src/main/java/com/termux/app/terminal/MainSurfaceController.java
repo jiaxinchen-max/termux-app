@@ -18,6 +18,7 @@ import androidx.annotation.Nullable;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
+import com.termux.shared.termux.settings.preferences.TermuxPreferenceConstants.TERMUX_APP;
 import com.termux.view.TerminalView;
 import com.termux.x11.TermuxScreenView;
 
@@ -30,7 +31,6 @@ public final class MainSurfaceController {
     private static final int INTERNAL_DRAWER_MIN_DISTANCE_DP = 96;
     private static final int INTERNAL_DRAWER_MAX_DISTANCE_DP = 220;
     private static final float INTERNAL_DRAWER_SHORT_SIDE_DISTANCE_RATIO = 0.24f;
-    private static final float LANDSCAPE_TERMINAL_OVERLAY_WIDTH_RATIO = 0.7f;
     private static final float SURFACE_SWITCH_COMMIT_RATIO = 0.5f;
     private static final long SURFACE_TRANSITION_ANIMATION_MS = 180;
 
@@ -82,6 +82,7 @@ public final class MainSurfaceController {
     private SurfaceGestureListener mSurfaceGestureListener;
     private int mSurfaceAnimationGeneration;
     private boolean mLandscapeTerminalOverlayEnabled;
+    private int mLandscapeTerminalOverlayWidthPercent = TERMUX_APP.DEFAULT_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT;
     @NonNull
     private final DecelerateInterpolator mSurfaceTransitionInterpolator = new DecelerateInterpolator();
 
@@ -183,6 +184,17 @@ public final class MainSurfaceController {
         mDisplayConnected = displayConnected;
         applyDrawerLockMode();
         updatePreparedDisplayVisibilityForTerminalMode();
+    }
+
+    public void setLandscapeTerminalOverlayWidthPercent(int percent) {
+        int clampedPercent = Math.max(TERMUX_APP.MIN_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT,
+            Math.min(percent, TERMUX_APP.MAX_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT));
+        if (mLandscapeTerminalOverlayWidthPercent == clampedPercent)
+            return;
+
+        mLandscapeTerminalOverlayWidthPercent = clampedPercent;
+        if (shouldUseLandscapeTerminalOverlay() || mTrackingSurfaceSwitchDrag)
+            applyMode();
     }
 
     public void openStartDrawerExplicitly() {
@@ -492,9 +504,10 @@ public final class MainSurfaceController {
     private int getLandscapeTerminalOverlayWidth() {
         int width = mContainer.getWidth();
         int displayShortSide = getDisplayShortSideWidth();
+        float widthRatio = mLandscapeTerminalOverlayWidthPercent / 100f;
         if (width > 0)
-            return Math.max(1, Math.round(Math.min(width, displayShortSide) * LANDSCAPE_TERMINAL_OVERLAY_WIDTH_RATIO));
-        return Math.max(1, Math.round(displayShortSide * LANDSCAPE_TERMINAL_OVERLAY_WIDTH_RATIO));
+            return Math.max(1, Math.round(Math.min(width, displayShortSide) * widthRatio));
+        return Math.max(1, Math.round(displayShortSide * widthRatio));
     }
 
     private int getDisplayShortSideWidth() {

@@ -362,12 +362,29 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     }
 
     public void addNewSession(boolean isFailSafe, String sessionName) {
+        createNewSession(isFailSafe, sessionName);
+    }
+
+    public void addNewSessionAndRunCommand(@Nullable String command, @Nullable String sessionName) {
+        if (TextUtils.isEmpty(command))
+            return;
+
+        TerminalSession newTerminalSession = createNewSession(false, sessionName);
+        if (newTerminalSession == null)
+            return;
+
+        newTerminalSession.write(command.endsWith("\n") ? command : command + "\n");
+    }
+
+    @Nullable
+    private TerminalSession createNewSession(boolean isFailSafe, @Nullable String sessionName) {
         TermuxService service = mActivity.getTermuxService();
-        if (service == null) return;
+        if (service == null) return null;
 
         if (service.getTermuxSessionsSize() >= MAX_SESSIONS) {
             new AlertDialog.Builder(mActivity).setTitle(R.string.title_max_terminals_reached).setMessage(R.string.msg_max_terminals_reached)
                 .setPositiveButton(android.R.string.ok, null).show();
+            return null;
         } else {
             TerminalSession currentSession = mActivity.getCurrentSession();
 
@@ -379,12 +396,13 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             }
 
             TermuxSession newTermuxSession = service.createTermuxSession(null, null, null, workingDirectory, isFailSafe, sessionName);
-            if (newTermuxSession == null) return;
+            if (newTermuxSession == null) return null;
 
             TerminalSession newTerminalSession = newTermuxSession.getTerminalSession();
             setCurrentSession(newTerminalSession);
 
             mActivity.getDrawer().closeDrawers();
+            return newTerminalSession;
         }
     }
 

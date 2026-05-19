@@ -189,6 +189,7 @@
 
     <!-- Startup Surface -->
     <string name="termux_terminal_view_startup_surface_title">Startup Surface</string>
+    <string name="termux_terminal_view_landscape_overlay_width_title">Landscape terminal width</string>
 
 
     <!-- Termux:API App Preferences -->
