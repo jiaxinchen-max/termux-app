@@ -9,7 +9,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewConfiguration;
-import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 
@@ -30,6 +29,7 @@ public final class MainSurfaceController {
     private static final int INTERNAL_DRAWER_MIN_DISTANCE_DP = 96;
     private static final int INTERNAL_DRAWER_MAX_DISTANCE_DP = 220;
     private static final float INTERNAL_DRAWER_SHORT_SIDE_DISTANCE_RATIO = 0.24f;
+    private static final float LANDSCAPE_TERMINAL_OVERLAY_WIDTH_RATIO = 0.7f;
     private static final float SURFACE_SWITCH_COMMIT_RATIO = 0.5f;
     private static final long SURFACE_TRANSITION_ANIMATION_MS = 180;
 
@@ -490,22 +490,10 @@ public final class MainSurfaceController {
 
     private int getLandscapeTerminalOverlayWidth() {
         int width = mContainer.getWidth();
-        int displayShortSide = getDisplayShortSideWidth();
         if (width > 0)
-            return Math.min(width, displayShortSide);
-        return displayShortSide;
-    }
-
-    private int getDisplayShortSideWidth() {
-        WindowManager windowManager = (WindowManager) mContainer.getContext().getSystemService(android.content.Context.WINDOW_SERVICE);
-        if (windowManager != null) {
-            DisplayMetrics realMetrics = new DisplayMetrics();
-            windowManager.getDefaultDisplay().getRealMetrics(realMetrics);
-            return Math.min(realMetrics.widthPixels, realMetrics.heightPixels);
-        }
-
+            return Math.max(1, Math.round(width * LANDSCAPE_TERMINAL_OVERLAY_WIDTH_RATIO));
         DisplayMetrics metrics = mContainer.getResources().getDisplayMetrics();
-        return Math.min(metrics.widthPixels, metrics.heightPixels);
+        return Math.max(1, Math.round(metrics.widthPixels * LANDSCAPE_TERMINAL_OVERLAY_WIDTH_RATIO));
     }
 
     private void applySurfaceLayout(boolean terminalOverlay) {
