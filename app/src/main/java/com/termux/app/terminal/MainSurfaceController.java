@@ -186,6 +186,7 @@ public final class MainSurfaceController {
         mDisplaySidePanelsUnlocked = sidePanelsUnlocked;
         mDisplayConnected = displayConnected;
         applyDrawerLockMode();
+        updatePreparedDisplayVisibilityForTerminalMode();
     }
 
     public void openStartDrawerExplicitly() {
@@ -305,16 +306,20 @@ public final class MainSurfaceController {
 
         cancelSurfaceAnimations();
         boolean terminalOverlay = shouldUseLandscapeTerminalOverlay();
+        boolean prepareDisplayForTerminalSwitch = shouldPrepareDisplayForTerminalSwitch(terminalOverlay);
         applySurfaceLayout(terminalOverlay);
 
         mTerminalSurfaceView.setVisibility(mMode == SurfaceMode.TERMINAL ? View.VISIBLE : View.GONE);
         mTerminalSurfaceView.setTranslationX(0);
         if (mDisplayView != null) {
-            mDisplayView.setVisibility((mMode == SurfaceMode.DISPLAY || terminalOverlay) ? View.VISIBLE : View.GONE);
-            mDisplayView.setTranslationX(0);
+            mDisplayView.setVisibility((mMode == SurfaceMode.DISPLAY || terminalOverlay || prepareDisplayForTerminalSwitch) ? View.VISIBLE : View.GONE);
+            mDisplayView.setTranslationX(prepareDisplayForTerminalSwitch ? getPreparedDisplayTranslationX() : 0);
             if (mMode == SurfaceMode.DISPLAY) {
                 mDisplayView.bringToFront();
             } else if (terminalOverlay) {
+                mDisplayView.bringToFront();
+                mTerminalSurfaceView.bringToFront();
+            } else if (prepareDisplayForTerminalSwitch) {
                 mDisplayView.bringToFront();
                 mTerminalSurfaceView.bringToFront();
             } else {
@@ -443,6 +448,37 @@ public final class MainSurfaceController {
             && mDisplayView != null
             && mLandscapeTerminalOverlayEnabled
             && isLandscapeLayout();
+    }
+
+    private boolean shouldPrepareDisplayForTerminalSwitch(boolean terminalOverlay) {
+        return mMode == SurfaceMode.TERMINAL
+            && mDisplayView != null
+            && !terminalOverlay
+            && mDisplayConnected
+            && mDisplaySidePanelsUnlocked;
+    }
+
+    private void updatePreparedDisplayVisibilityForTerminalMode() {
+        if (mDisplayView == null || mTrackingSurfaceSwitchDrag || mMode != SurfaceMode.TERMINAL)
+            return;
+
+        boolean terminalOverlay = shouldUseLandscapeTerminalOverlay();
+        boolean prepareDisplayForTerminalSwitch = shouldPrepareDisplayForTerminalSwitch(terminalOverlay);
+        if (terminalOverlay)
+            return;
+
+        mDisplayView.setVisibility(prepareDisplayForTerminalSwitch ? View.VISIBLE : View.GONE);
+        mDisplayView.setTranslationX(prepareDisplayForTerminalSwitch ? getPreparedDisplayTranslationX() : 0);
+        if (prepareDisplayForTerminalSwitch)
+            mDisplayView.bringToFront();
+        mTerminalSurfaceView.bringToFront();
+    }
+
+    private float getPreparedDisplayTranslationX() {
+        int width = mContainer.getWidth();
+        if (width <= 0)
+            width = mContainer.getResources().getDisplayMetrics().widthPixels;
+        return getEndEdgeDirection() * Math.max(1, width);
     }
 
     private void updateLandscapeTerminalOverlayEnabled() {
