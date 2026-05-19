@@ -9,6 +9,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewConfiguration;
+import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 
@@ -490,10 +491,22 @@ public final class MainSurfaceController {
 
     private int getLandscapeTerminalOverlayWidth() {
         int width = mContainer.getWidth();
+        int displayShortSide = getDisplayShortSideWidth();
         if (width > 0)
-            return Math.max(1, Math.round(width * LANDSCAPE_TERMINAL_OVERLAY_WIDTH_RATIO));
+            return Math.max(1, Math.round(Math.min(width, displayShortSide) * LANDSCAPE_TERMINAL_OVERLAY_WIDTH_RATIO));
+        return Math.max(1, Math.round(displayShortSide * LANDSCAPE_TERMINAL_OVERLAY_WIDTH_RATIO));
+    }
+
+    private int getDisplayShortSideWidth() {
+        WindowManager windowManager = (WindowManager) mContainer.getContext().getSystemService(android.content.Context.WINDOW_SERVICE);
+        if (windowManager != null) {
+            DisplayMetrics realMetrics = new DisplayMetrics();
+            windowManager.getDefaultDisplay().getRealMetrics(realMetrics);
+            return Math.min(realMetrics.widthPixels, realMetrics.heightPixels);
+        }
+
         DisplayMetrics metrics = mContainer.getResources().getDisplayMetrics();
-        return Math.max(1, Math.round(metrics.widthPixels * LANDSCAPE_TERMINAL_OVERLAY_WIDTH_RATIO));
+        return Math.min(metrics.widthPixels, metrics.heightPixels);
     }
 
     private void applySurfaceLayout(boolean terminalOverlay) {
