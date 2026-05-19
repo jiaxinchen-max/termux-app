@@ -1021,6 +1021,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
         final Intent intent = getIntent();
         setIntent(null);
+        boolean terminalSessionReady = false;
 
         if (mTermuxService.isTermuxSessionsEmpty()) {
             if (mIsVisible) {
@@ -1032,6 +1033,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
                             launchFailsafe = intent.getExtras().getBoolean(TERMUX_ACTIVITY.EXTRA_FAILSAFE_SESSION, false);
                         }
                         mTermuxTerminalSessionActivityClient.addNewSession(launchFailsafe, null);
+                        showDisplaySurfaceAfterTerminalSessionReady();
                     } catch (WindowManager.BadTokenException e) {
                         // Activity finished - ignore.
                     }
@@ -1051,10 +1053,21 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             } else {
                 mTermuxTerminalSessionActivityClient.setCurrentSession(mTermuxTerminalSessionActivityClient.getCurrentStoredSessionOrLast());
             }
+            terminalSessionReady = true;
         }
 
         // Update the {@link TerminalSession} and {@link TerminalEmulator} clients.
         mTermuxService.setTermuxTerminalSessionClient(mTermuxTerminalSessionActivityClient);
+        if (terminalSessionReady)
+            showDisplaySurfaceAfterTerminalSessionReady();
+    }
+
+    private void showDisplaySurfaceAfterTerminalSessionReady() {
+        if (mMainSurfaceController == null || mMainSurfaceController.isDisplayMode())
+            return;
+        if (mTermuxTerminalViewClient != null)
+            mTermuxTerminalViewClient.suppressSoftKeyboardOnNextTerminalFocus();
+        showDisplaySurface();
     }
 
     @Override

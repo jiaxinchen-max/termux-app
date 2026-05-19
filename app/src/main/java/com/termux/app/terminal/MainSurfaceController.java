@@ -81,7 +81,6 @@ public final class MainSurfaceController {
     private SurfaceGestureListener mSurfaceGestureListener;
     private int mSurfaceAnimationGeneration;
     private boolean mLandscapeTerminalOverlayEnabled;
-    private boolean mDisplayViewAttachedOnce;
     @NonNull
     private final DecelerateInterpolator mSurfaceTransitionInterpolator = new DecelerateInterpolator();
 
@@ -124,10 +123,6 @@ public final class MainSurfaceController {
         }
 
         mDisplayView = displayView;
-        if (!mDisplayViewAttachedOnce) {
-            mDisplayViewAttachedOnce = true;
-            mMode = SurfaceMode.DISPLAY;
-        }
         applyMode();
     }
 
@@ -547,9 +542,10 @@ public final class MainSurfaceController {
         }
 
         if (mMode == SurfaceMode.TERMINAL) {
-            if (!mDisplaySidePanelsUnlocked)
+            boolean terminalOverlay = shouldUseLandscapeTerminalOverlay();
+            if (!terminalOverlay && !mDisplaySidePanelsUnlocked)
                 return false;
-            View edgeView = shouldUseLandscapeTerminalOverlay() ? mTerminalSurfaceView : mContainer;
+            View edgeView = terminalOverlay ? mTerminalSurfaceView : mContainer;
             if (!isInViewEdge(edgeView, event, GravityCompat.END))
                 return false;
             beginSurfaceSwitchDrag(SurfaceMode.DISPLAY);
