@@ -339,7 +339,6 @@ class InputConnectionWrapper implements InputConnection {
 @SuppressLint("WrongConstant")
 @SuppressWarnings("deprecation")
 public class LorieView extends SurfaceView implements InputStub {
-    private static final int LOCKED_CURSOR_VIEWPORT_EDGE_MARGIN_PX = 50;
     public final Keyboard keyboard = Keyboard.createKeyboard(this);
     public final Pointer pointer = new Pointer(this);
     final public InputDeviceManager inputDeviceManager = new InputDeviceManager(this);
@@ -799,12 +798,10 @@ public class LorieView extends SurfaceView implements InputStub {
         if (cursorLocker != null && cursorLocker.isEnabled()) {
             float visibleCenterX = availableLeft + availableW / 2.0f;
             float visibleCenterY = availableTop + availableH / 2.0f;
-            int marginX = Math.min(LOCKED_CURSOR_VIEWPORT_EDGE_MARGIN_PX, Math.max(0, drawW / 2 - 1));
-            int marginY = Math.min(LOCKED_CURSOR_VIEWPORT_EDGE_MARGIN_PX, Math.max(0, drawH / 2 - 1));
-            int minPanX = (int) Math.ceil(visibleCenterX + marginX - drawW - baseLeft);
-            int maxPanX = (int) Math.floor(visibleCenterX - marginX - baseLeft);
-            int minPanY = (int) Math.ceil(visibleCenterY + marginY - drawH - baseTop);
-            int maxPanY = (int) Math.floor(visibleCenterY - marginY - baseTop);
+            int minPanX = (int) Math.ceil(visibleCenterX - drawW - baseLeft);
+            int maxPanX = (int) Math.floor(visibleCenterX - baseLeft);
+            int minPanY = (int) Math.ceil(visibleCenterY - drawH - baseTop);
+            int maxPanY = (int) Math.floor(visibleCenterY - baseTop);
             cursorLocker.clampPan(minPanX, maxPanX, minPanY, maxPanY);
             panX = cursorLocker.getPanX();
             panY = cursorLocker.getPanY();

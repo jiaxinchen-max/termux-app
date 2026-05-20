@@ -14,10 +14,7 @@ import android.net.Uri;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
-import android.view.HapticFeedbackConstants;
-import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -111,10 +108,6 @@ public class MenuEntryClient {
         mGridLayout.removeAllViews();
         int itemSize = dp(42);
 
-        LinearLayout recover = createImageButton("script", "setMoBoxEnv", DEFAULT_ICON_PATH, itemSize);
-        recover.setOnClickListener(v -> mTermuxActivity.reInstallCustomStartScript(getSelectedInputModeFlags()));
-        mGridLayout.addView(recover);
-
         for (int i = 0; i < mMenuEntry.getStartItemList().size(); i++) {
             MenuEntry.Entry entry = mMenuEntry.getStartItemList().get(i);
             LinearLayout button = createImageButton(entry.getType(), entry.getFileName(), entry.getIconPath(), itemSize);
@@ -141,59 +134,9 @@ public class MenuEntryClient {
         button.setLongClickable(true);
         button.setFocusable(true);
         button.setOnClickListener(v -> launchMenuEntry(entry));
-
-        final int touchSlop = ViewConfiguration.get(mTermuxActivity).getScaledTouchSlop();
-        final float[] downX = new float[1];
-        final float[] downY = new float[1];
-        final boolean[] menuShown = {false};
-        final boolean[] cancelled = {false};
-        final Runnable[] longPressRunnable = new Runnable[1];
-        button.setOnTouchListener((v, event) -> {
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    downX[0] = event.getX();
-                    downY[0] = event.getY();
-                    menuShown[0] = false;
-                    cancelled[0] = false;
-                    v.setPressed(true);
-                    if (v.getParent() != null)
-                        v.getParent().requestDisallowInterceptTouchEvent(true);
-                    longPressRunnable[0] = () -> {
-                        menuShown[0] = true;
-                        v.setPressed(false);
-                        v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
-                        showToolboxItemMenu(v, index);
-                    };
-                    v.postDelayed(longPressRunnable[0], ViewConfiguration.getLongPressTimeout());
-                    return true;
-                case MotionEvent.ACTION_MOVE:
-                    if (!cancelled[0] && (Math.abs(event.getX() - downX[0]) > touchSlop || Math.abs(event.getY() - downY[0]) > touchSlop)) {
-                        cancelled[0] = true;
-                        v.setPressed(false);
-                        if (longPressRunnable[0] != null)
-                            v.removeCallbacks(longPressRunnable[0]);
-                        if (v.getParent() != null)
-                            v.getParent().requestDisallowInterceptTouchEvent(false);
-                    }
-                    return true;
-                case MotionEvent.ACTION_UP:
-                    if (longPressRunnable[0] != null)
-                        v.removeCallbacks(longPressRunnable[0]);
-                    if (v.getParent() != null)
-                        v.getParent().requestDisallowInterceptTouchEvent(false);
-                    v.setPressed(false);
-                    if (!menuShown[0] && !cancelled[0])
-                        v.performClick();
-                    return true;
-                case MotionEvent.ACTION_CANCEL:
-                    if (longPressRunnable[0] != null)
-                        v.removeCallbacks(longPressRunnable[0]);
-                    if (v.getParent() != null)
-                        v.getParent().requestDisallowInterceptTouchEvent(false);
-                    v.setPressed(false);
-                    return true;
-            }
-            return false;
+        button.setOnLongClickListener(v -> {
+            showToolboxItemMenu(v, index);
+            return true;
         });
     }
 

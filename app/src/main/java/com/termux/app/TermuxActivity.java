@@ -120,7 +120,7 @@ import java.util.List;
  */
 public class TermuxActivity extends AppCompatActivity implements ServiceConnection, LorieViewRuntimeApi.Host, PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
     private static final int FILE_REQUEST_BACKUP_CODE = 101;
-    private static final int MAX_PROCESS_INFO_COUNT = 10;
+    private static final int MAX_PROCESS_INFO_COUNT = 50;
 
     private MainSurfaceController mMainSurfaceController;
     private LorieViewRuntimeController mLorieViewRuntimeController;
