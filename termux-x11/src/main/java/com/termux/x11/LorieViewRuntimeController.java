@@ -1091,10 +1091,12 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         loadProfileSpinner.run();
 
         final CheckBox cbLockCursor = dialog.findViewById(R.id.CBLockCursor);
-        cbLockCursor.setChecked(xServer.cursorLocker.isEnabled());
+        cbLockCursor.setChecked(touchpadView.getTouchMode() == TouchpadView.TouchMode.LOCKED_CURSOR);
 
         final CheckBox cbEnableTouchScreen = dialog.findViewById(R.id.CBTouchScreen);
         cbEnableTouchScreen.setChecked(touchpadView.getTouchMode() == TouchpadView.TouchMode.TOUCH_SCREEN);
+        cbEnableTouchScreen.setEnabled(!cbLockCursor.isChecked());
+        cbLockCursor.setOnCheckedChangeListener((buttonView, isChecked) -> cbEnableTouchScreen.setEnabled(!isChecked));
 
         final CheckBox cbShowTouchscreenControls = dialog.findViewById(R.id.CBShowTouchscreenControls);
         cbShowTouchscreenControls.setChecked(inputControlsView.isShowTouchscreenControls());
@@ -1115,13 +1117,16 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         dialog.setOnConfirmCallback(() -> {
             if (termuxActivityListener == null)
                 return;
-            xServer.cursorLocker.setEnabled(cbLockCursor.isChecked());
+            TouchpadView.TouchMode touchMode = cbLockCursor.isChecked()
+                ? TouchpadView.TouchMode.LOCKED_CURSOR
+                : (cbEnableTouchScreen.isChecked()
+                    ? TouchpadView.TouchMode.TOUCH_SCREEN
+                    : TouchpadView.TouchMode.TRACK_PAD);
+            xServer.cursorLocker.setEnabled(touchMode == TouchpadView.TouchMode.LOCKED_CURSOR);
             inputControlsView.setShowTouchscreenControls(cbShowTouchscreenControls.isChecked());
             int position = sProfile.getSelectedItemPosition();
             if (position > 0) {
-                touchpadView.setTouchMode(cbEnableTouchScreen.isChecked()
-                    ? TouchpadView.TouchMode.TOUCH_SCREEN
-                    : TouchpadView.TouchMode.TRACK_PAD);
+                touchpadView.setTouchMode(touchMode);
                 showInputControls(inputControlsManager.getProfiles().get(position - 1));
             } else {
                 hideInputControls();

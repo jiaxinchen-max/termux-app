@@ -785,13 +785,48 @@ public class LorieView extends SurfaceView implements InputStub {
                 drawH = drawW * p.y / p.x;
         }
 
-        int left = availableLeft + (availableW - drawW) / 2;
-        int top = availableTop + (availableH - drawH) / 2;
+        float viewportScale = cursorLocker != null ? cursorLocker.getViewportScale() : 1.0f;
+        if (viewportScale > 1.0f) {
+            drawW = Math.round(drawW * viewportScale);
+            drawH = Math.round(drawH * viewportScale);
+        }
+
+        int panX = 0;
+        int panY = 0;
+        if (cursorLocker != null && cursorLocker.isEnabled()) {
+            cursorLocker.clampPan(Math.max(0, (drawW - availableW) / 2), Math.max(0, (drawH - availableH) / 2));
+            panX = cursorLocker.getPanX();
+            panY = cursorLocker.getPanY();
+        }
+
+        int left = availableLeft + (availableW - drawW) / 2 + panX;
+        int top = availableTop + (availableH - drawH) / 2 + panY;
 
         viewport.set(left, top, left + drawW, top + drawH);
         screenInfo.handleViewportChanged(viewport.left, viewport.top, viewport.width(), viewport.height(), p.x, p.y);
         setViewport(viewport.left, viewport.top, viewport.width(), viewport.height(), p.x, p.y);
+        if (cursorLocker != null && cursorLocker.isEnabled())
+            movePointerToVisibleCenter();
         mCallback.changed(availableW, availableH, p.x, p.y);
+    }
+
+    public void refreshViewport() {
+        updateViewport();
+    }
+
+    private void movePointerToVisibleCenter() {
+        int availableW = Math.max(0, getMeasuredWidth() - contentInsets.left - contentInsets.right);
+        int availableH = Math.max(0, getMeasuredHeight() - contentInsets.top - contentInsets.bottom);
+        if (availableW == 0 || availableH == 0 || screenInfo.imageWidth <= 0 || screenInfo.imageHeight <= 0)
+            return;
+
+        float visibleCenterX = contentInsets.left + availableW / 2.0f;
+        float visibleCenterY = contentInsets.top + availableH / 2.0f;
+        float x = (visibleCenterX - screenInfo.offsetX) * screenInfo.scale.x;
+        float y = (visibleCenterY - screenInfo.offsetY) * screenInfo.scale.y;
+        x = Math.max(0, Math.min(x, screenInfo.screenWidth - 1));
+        y = Math.max(0, Math.min(y, screenInfo.screenHeight - 1));
+        sendMouseEvent(x, y, BUTTON_UNDEFINED, false, false);
     }
 
     @Override

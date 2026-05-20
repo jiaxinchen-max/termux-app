@@ -365,6 +365,9 @@ public class InputControlsView extends View {
     }
 
     private boolean dispatchPassthroughTouchEvent(MotionEvent event) {
+        if (touchpadView != null && touchpadView.handlesPassthroughInput()) {
+            return touchpadView.onTouchEvent(event);
+        }
         if (passthroughTouchDispatcher != null) {
             return passthroughTouchDispatcher.dispatchTouchEvent(event);
         }

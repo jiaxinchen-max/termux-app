@@ -3,37 +3,16 @@ package com.termux.x11.controller.core;
 import com.termux.x11.LorieView;
 import com.termux.x11.controller.math.Mathf;
 
-import java.util.Timer;
-import java.util.TimerTask;
+public class CursorLocker {
+    private static final float VIEWPORT_SCALE = 1.25f;
 
-public class CursorLocker extends TimerTask {
     private final LorieView xServer;
-    private float damping = 0.25f;
-    private short maxDistance;
     private boolean enabled = false;
-    private final Object pauseLock = new Object();
+    private int panX = 0;
+    private int panY = 0;
 
     public CursorLocker(LorieView xServer) {
         this.xServer = xServer;
-        maxDistance = (short)(xServer.screenInfo.screenWidth * 0.05f);
-        Timer timer = new Timer();
-        timer.schedule(this, 0, 1000 / 60);
-    }
-
-    public short getMaxDistance() {
-        return maxDistance;
-    }
-
-    public void setMaxDistance(short maxDistance) {
-        this.maxDistance = maxDistance;
-    }
-
-    public float getDamping() {
-        return damping;
-    }
-
-    public void setDamping(float damping) {
-        this.damping = damping;
     }
 
     public boolean isEnabled() {
@@ -41,40 +20,41 @@ public class CursorLocker extends TimerTask {
     }
 
     public void setEnabled(boolean enabled) {
-        if (enabled) {
-            synchronized (pauseLock) {
-                this.enabled = true;
-                pauseLock.notifyAll();
-            }
-        }
-        else this.enabled = enabled;
+        this.enabled = enabled;
+        if (!enabled)
+            resetPan();
+        else
+            xServer.refreshViewport();
     }
 
-    @Override
-    public void run() {
-        synchronized (pauseLock) {
-            if (!enabled) {
-                try {
-                    pauseLock.wait();
-                }
-                catch (InterruptedException e) {}
-            }
-        }
+    public float getViewportScale() {
+        return enabled ? VIEWPORT_SCALE : 1.0f;
+    }
 
-        short x = (short) Mathf.clamp(xServer.pointer.getX(), -maxDistance, xServer.screenInfo.screenWidth + maxDistance);
-        short y = (short)Mathf.clamp(xServer.pointer.getY(), -maxDistance, xServer.screenInfo.screenHeight + maxDistance);
+    public int getPanX() {
+        return enabled ? panX : 0;
+    }
 
-        if (x < 0) {
-            xServer.pointer.setX((short)Math.ceil(x * damping));
-        }
-        else if (x >= xServer.screenInfo.screenWidth) {
-            xServer.pointer.setX((short)Math.floor(xServer.screenInfo.screenWidth + (x - xServer.screenInfo.screenWidth) * damping));
-        }
-        if (y < 0) {
-            xServer.pointer.setY((short)Math.ceil(y * damping));
-        }
-        else if (y >= xServer.screenInfo.screenHeight) {
-            xServer.pointer.setY((short)Math.floor(xServer.screenInfo.screenHeight + (y - xServer.screenInfo.screenHeight) * damping));
-        }
+    public int getPanY() {
+        return enabled ? panY : 0;
+    }
+
+    public void panBy(int dx, int dy) {
+        if (!enabled)
+            return;
+        panX += dx;
+        panY += dy;
+        xServer.refreshViewport();
+    }
+
+    public void clampPan(int maxX, int maxY) {
+        panX = (int) Mathf.clamp(panX, -maxX, maxX);
+        panY = (int) Mathf.clamp(panY, -maxY, maxY);
+    }
+
+    private void resetPan() {
+        panX = 0;
+        panY = 0;
+        xServer.refreshViewport();
     }
 }

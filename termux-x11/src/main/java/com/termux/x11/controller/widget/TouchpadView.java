@@ -18,7 +18,7 @@ import com.termux.x11.controller.xserver.Viewport;
 
 public class TouchpadView extends View {
     public enum TouchMode {
-        TRACK_PAD, TOUCH_SCREEN
+        TRACK_PAD, TOUCH_SCREEN, LOCKED_CURSOR
     }
 
     private static final byte MAX_FINGERS = 4;
@@ -47,6 +47,10 @@ public class TouchpadView extends View {
 
     public TouchMode getTouchMode() {
         return touchMode;
+    }
+
+    public boolean handlesPassthroughInput() {
+        return touchMode == TouchMode.TOUCH_SCREEN || touchMode == TouchMode.LOCKED_CURSOR;
     }
 
     public TouchpadView(Context context, LorieView xServer) {
@@ -251,9 +255,10 @@ public class TouchpadView extends View {
             int dx = finger1.deltaX();
             int dy = finger1.deltaY();
 
-//            if (xServer.isRelativeMouseMovement()) {
             if (touchMode == TouchMode.TOUCH_SCREEN) {
                 xServer.pointer.moveTo(finger1.x, finger1.y);
+            } else if (touchMode == TouchMode.LOCKED_CURSOR) {
+                xServer.cursorLocker.panBy(dx, dy);
             } else {
                 xServer.injectPointerMoveDelta(dx, dy);
             }
