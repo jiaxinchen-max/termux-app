@@ -14,7 +14,10 @@ import android.net.Uri;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -114,12 +117,7 @@ public class MenuEntryClient {
         for (int i = 0; i < mMenuEntry.getStartItemList().size(); i++) {
             MenuEntry.Entry entry = mMenuEntry.getStartItemList().get(i);
             LinearLayout button = createImageButton(entry.getType(), entry.getFileName(), entry.getIconPath(), itemSize);
-            button.setOnClickListener(v -> launchMenuEntry(entry));
-            int idx = i;
-            button.setOnLongClickListener(v -> {
-                showToolboxItemMenu(v, idx);
-                return true;
-            });
+            setToolboxItemActions(button, entry, i);
             mGridLayout.addView(button);
         }
 
@@ -135,6 +133,49 @@ public class MenuEntryClient {
         if (mXInputCheckBox != null && mXInputCheckBox.isChecked())
             flags |= 0b0010;
         return flags == 0 ? null : flags;
+    }
+
+    private void setToolboxItemActions(View button, MenuEntry.Entry entry, int index) {
+        button.setClickable(true);
+        button.setLongClickable(true);
+        button.setFocusable(true);
+        button.setOnClickListener(v -> launchMenuEntry(entry));
+
+        final int touchSlop = ViewConfiguration.get(mTermuxActivity).getScaledTouchSlop();
+        final float[] downX = new float[1];
+        final float[] downY = new float[1];
+        final boolean[] menuShown = {false};
+        final Runnable[] longPressRunnable = new Runnable[1];
+        button.setOnTouchListener((v, event) -> {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    downX[0] = event.getX();
+                    downY[0] = event.getY();
+                    menuShown[0] = false;
+                    v.getParent().requestDisallowInterceptTouchEvent(true);
+                    longPressRunnable[0] = () -> {
+                        menuShown[0] = true;
+                        v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                        showToolboxItemMenu(v, index);
+                    };
+                    v.postDelayed(longPressRunnable[0], ViewConfiguration.getLongPressTimeout());
+                    return false;
+                case MotionEvent.ACTION_MOVE:
+                    if (Math.abs(event.getX() - downX[0]) > touchSlop || Math.abs(event.getY() - downY[0]) > touchSlop) {
+                        if (longPressRunnable[0] != null)
+                            v.removeCallbacks(longPressRunnable[0]);
+                        v.getParent().requestDisallowInterceptTouchEvent(false);
+                    }
+                    return menuShown[0];
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    if (longPressRunnable[0] != null)
+                        v.removeCallbacks(longPressRunnable[0]);
+                    v.getParent().requestDisallowInterceptTouchEvent(false);
+                    return menuShown[0];
+            }
+            return false;
+        });
     }
 
     private void showToolboxItemMenu(View anchor, int index) {
