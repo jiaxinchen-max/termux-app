@@ -561,7 +561,13 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
         return;
     }
 
+    int surfaceW = ANativeWindow_getWidth(win);
     int surfaceH = ANativeWindow_getHeight(win);
+    glViewport(0, 0, surfaceW, surfaceH);
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+
     glViewport(viewportX, surfaceH - viewportY - viewportH, viewportW, viewportH);
 
     // We should signal X server to not use root window while we actively copy it
@@ -589,7 +595,7 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
     glFlush();
 
     // Wait until root window drawing is finished before giving control back to X server
-    eglClientWaitSyncKHR(egl_display, fence, EGL_SYNC_FLUSH_COMMANDS_BIT_KHR, EGL_FOREVER);
+    eglClientWaitSyncKHR(egl_display, fence, 0, EGL_FOREVER);
     eglDestroySyncKHR(egl_display, fence);
     state->waitForNextFrame = true;
     lorie_mutex_unlock(&state->lock, &state->lockingPid);
@@ -603,7 +609,7 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
     glClear(GL_COLOR_BUFFER_BIT);
     glDisable(GL_SCISSOR_TEST);
     fence = eglCreateSyncKHR(egl_display, EGL_SYNC_FENCE_KHR, NULL);
-    eglClientWaitSyncKHR(egl_display, fence, 0, EGL_FOREVER);
+    eglClientWaitSyncKHR(egl_display, fence, EGL_SYNC_FLUSH_COMMANDS_BIT_KHR, EGL_FOREVER);
     eglDestroySyncKHR(egl_display, fence);
 
     state->renderedFrames++;
@@ -761,12 +767,11 @@ static void draw(GLuint id, float x0, float y0, float x1, float y1, float xfacto
 
     glActiveTexture(GL_TEXTURE0);
     glUseProgram(flip ? g_texture_program_bgra : g_texture_program);
-    if (id) {
+    if (id)
         glBindTexture(GL_TEXTURE_2D, id);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
-    }
 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
     glVertexAttribPointer(p, 2, GL_FLOAT, GL_FALSE, 16, coords);
     glVertexAttribPointer(c, 2, GL_FLOAT, GL_FALSE, 16, &coords[2]);
     glEnableVertexAttribArray(p);
