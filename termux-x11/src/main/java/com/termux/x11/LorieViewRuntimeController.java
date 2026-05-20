@@ -323,8 +323,6 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
 
             mX11InputController.handleHostSizeChanged(surfaceWidth, surfaceHeight);
             mX11InputController.handleClientSizeChanged(screenWidth, screenHeight);
-            lorieView.screenInfo.handleHostSizeChanged(surfaceWidth, surfaceHeight);
-            lorieView.screenInfo.handleClientSizeChanged(screenWidth, screenHeight);
             if (lorieView.getDisplay() == null || lorieView.getDisplay().getDisplayId() == Display.DEFAULT_DISPLAY)
                 name = "Builtin Display";
             else if (SamsungDexUtils.checkDeXEnabled(mActivity))
@@ -1096,6 +1094,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         cbLockCursor.setChecked(xServer.cursorLocker.isEnabled());
 
         final CheckBox cbEnableTouchScreen = dialog.findViewById(R.id.CBTouchScreen);
+        cbEnableTouchScreen.setChecked(touchpadView.getTouchMode() == TouchpadView.TouchMode.TOUCH_SCREEN);
 
         final CheckBox cbShowTouchscreenControls = dialog.findViewById(R.id.CBShowTouchscreenControls);
         cbShowTouchscreenControls.setChecked(inputControlsView.isShowTouchscreenControls());

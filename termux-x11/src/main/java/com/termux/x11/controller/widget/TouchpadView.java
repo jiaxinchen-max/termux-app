@@ -45,6 +45,10 @@ public class TouchpadView extends View {
         this.touchMode = touchMode;
     }
 
+    public TouchMode getTouchMode() {
+        return touchMode;
+    }
+
     public TouchpadView(Context context, LorieView xServer) {
         super(context);
         this.xServer = xServer;
@@ -249,9 +253,7 @@ public class TouchpadView extends View {
 
 //            if (xServer.isRelativeMouseMovement()) {
             if (touchMode == TouchMode.TOUCH_SCREEN) {
-//                xServer.injectPointerMove(dx, dy);
-//                WinHandler winHandler = xServer.getWinHandler();
-//                winHandler.mouseEvent(MouseEventFlags.MOVE, dx, dy, 0);
+                xServer.pointer.moveTo(finger1.x, finger1.y);
             } else {
                 xServer.injectPointerMoveDelta(dx, dy);
             }

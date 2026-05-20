@@ -789,6 +789,7 @@ public class LorieView extends SurfaceView implements InputStub {
         int top = availableTop + (availableH - drawH) / 2;
 
         viewport.set(left, top, left + drawW, top + drawH);
+        screenInfo.handleViewportChanged(viewport.left, viewport.top, viewport.width(), viewport.height(), p.x, p.y);
         setViewport(viewport.left, viewport.top, viewport.width(), viewport.height(), p.x, p.y);
         mCallback.changed(availableW, availableH, p.x, p.y);
     }

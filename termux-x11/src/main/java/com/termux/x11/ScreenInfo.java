@@ -39,11 +39,25 @@ public class ScreenInfo {
     }
 
     private void resetTransformation() {
+        if (imageWidth <= 0 || imageHeight <= 0 || screenWidth <= 0 || screenHeight <= 0) {
+            scale.set(1.0f, 1.0f);
+            return;
+        }
         float sx = (float) screenWidth / (float) imageWidth;
         float sy = (float) screenHeight / (float) imageHeight;
 //        float sx = (float) imageWidth / (float) screenWidth;
 //        float sy = (float) imageHeight / (float) screenHeight;
         scale.set(sx, sy);
+    }
+
+    public void handleViewportChanged(int offsetX, int offsetY, int imageWidth, int imageHeight, int screenWidth, int screenHeight) {
+        this.offsetX = offsetX;
+        this.offsetY = offsetY;
+        this.imageWidth = imageWidth;
+        this.imageHeight = imageHeight;
+        this.screenWidth = screenWidth;
+        this.screenHeight = screenHeight;
+        resetTransformation();
     }
 
     public void handleClientSizeChanged(int w, int h) {

@@ -82,10 +82,16 @@ public class Pointer {
     }
 
     public void moveTo(int x, int y) {
+        if (screenPointLiesOutsideImageBoundaryX(x) || screenPointLiesOutsideImageBoundaryY(y)) {
+            return;
+        }
         if (xServer.screenInfo.setCursorPosition(x, y)) {
-            setX(x);
-            setY(y);
-            triggerOnPointerMove((int) ((this.x - xServer.screenInfo.offsetX) * xServer.screenInfo.scale.x), (int) ((this.y - xServer.screenInfo.offsetY) * xServer.screenInfo.scale.y));
+            this.x = x;
+            this.y = y;
+
+            int scaledX = clamp((int) ((x - xServer.screenInfo.offsetX) * xServer.screenInfo.scale.x), 0, xServer.screenInfo.screenWidth - 1);
+            int scaledY = clamp((int) ((y - xServer.screenInfo.offsetY) * xServer.screenInfo.scale.y), 0, xServer.screenInfo.screenHeight - 1);
+            triggerOnPointerMove(scaledX, scaledY);
         }
     }
 
