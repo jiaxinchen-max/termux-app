@@ -1096,7 +1096,26 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         final CheckBox cbEnableTouchScreen = dialog.findViewById(R.id.CBTouchScreen);
         cbEnableTouchScreen.setChecked(touchpadView.getTouchMode() == TouchpadView.TouchMode.TOUCH_SCREEN);
         cbEnableTouchScreen.setEnabled(!cbLockCursor.isChecked());
-        cbLockCursor.setOnCheckedChangeListener((buttonView, isChecked) -> cbEnableTouchScreen.setEnabled(!isChecked));
+        final boolean[] updatingInputMode = {false};
+        cbLockCursor.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (updatingInputMode[0])
+                return;
+            updatingInputMode[0] = true;
+            if (isChecked)
+                cbEnableTouchScreen.setChecked(false);
+            cbEnableTouchScreen.setEnabled(!isChecked);
+            updatingInputMode[0] = false;
+        });
+        cbEnableTouchScreen.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (updatingInputMode[0])
+                return;
+            if (isChecked) {
+                updatingInputMode[0] = true;
+                cbLockCursor.setChecked(false);
+                cbEnableTouchScreen.setEnabled(true);
+                updatingInputMode[0] = false;
+            }
+        });
 
         final CheckBox cbShowTouchscreenControls = dialog.findViewById(R.id.CBShowTouchscreenControls);
         cbShowTouchscreenControls.setChecked(inputControlsView.isShowTouchscreenControls());
