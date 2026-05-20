@@ -52,7 +52,7 @@ public class CursorLocker {
         panY = (int) Mathf.clamp(panY, minY, maxY);
     }
 
-    private void resetPan() {
+    public void resetPan() {
         panX = 0;
         panY = 0;
         xServer.refreshViewport();

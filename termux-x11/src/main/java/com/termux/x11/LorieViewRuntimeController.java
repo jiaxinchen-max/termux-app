@@ -1175,11 +1175,14 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
             return;
 
         boolean hasProfile = inputControlsView.getProfile() != null;
+        if (!connected || !hasProfile)
+            resetLockedCursorMode();
         inputControlsView.setVisibility(connected && hasProfile ? View.VISIBLE : View.GONE);
         touchpadView.setVisibility(connected && hasProfile ? View.VISIBLE : View.GONE);
     }
 
     public void hideInputControls() {
+        resetLockedCursorMode();
         if (inputControlsView == null || touchpadView == null)
             return;
         inputControlsView.setShowTouchscreenControls(true);
@@ -1189,6 +1192,13 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         touchpadView.setVisibility(View.GONE);
 
         inputControlsView.invalidate();
+    }
+
+    public void resetLockedCursorMode() {
+        if (xServer != null && xServer.cursorLocker != null)
+            xServer.cursorLocker.setEnabled(false);
+        if (touchpadView != null && touchpadView.getTouchMode() == TouchpadView.TouchMode.LOCKED_CURSOR)
+            touchpadView.setTouchMode(TouchpadView.TouchMode.TRACK_PAD);
     }
 
     public void reloadInputControlsProfiles(boolean hideCurrentControls) {

@@ -18,6 +18,7 @@ import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -145,6 +146,7 @@ public class MenuEntryClient {
         final float[] downX = new float[1];
         final float[] downY = new float[1];
         final boolean[] menuShown = {false};
+        final boolean[] cancelled = {false};
         final Runnable[] longPressRunnable = new Runnable[1];
         button.setOnTouchListener((v, event) -> {
             switch (event.getActionMasked()) {
@@ -152,27 +154,44 @@ public class MenuEntryClient {
                     downX[0] = event.getX();
                     downY[0] = event.getY();
                     menuShown[0] = false;
-                    v.getParent().requestDisallowInterceptTouchEvent(true);
+                    cancelled[0] = false;
+                    v.setPressed(true);
+                    if (v.getParent() != null)
+                        v.getParent().requestDisallowInterceptTouchEvent(true);
                     longPressRunnable[0] = () -> {
                         menuShown[0] = true;
+                        v.setPressed(false);
                         v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
                         showToolboxItemMenu(v, index);
                     };
                     v.postDelayed(longPressRunnable[0], ViewConfiguration.getLongPressTimeout());
-                    return false;
+                    return true;
                 case MotionEvent.ACTION_MOVE:
-                    if (Math.abs(event.getX() - downX[0]) > touchSlop || Math.abs(event.getY() - downY[0]) > touchSlop) {
+                    if (!cancelled[0] && (Math.abs(event.getX() - downX[0]) > touchSlop || Math.abs(event.getY() - downY[0]) > touchSlop)) {
+                        cancelled[0] = true;
+                        v.setPressed(false);
                         if (longPressRunnable[0] != null)
                             v.removeCallbacks(longPressRunnable[0]);
-                        v.getParent().requestDisallowInterceptTouchEvent(false);
+                        if (v.getParent() != null)
+                            v.getParent().requestDisallowInterceptTouchEvent(false);
                     }
-                    return menuShown[0];
+                    return true;
                 case MotionEvent.ACTION_UP:
+                    if (longPressRunnable[0] != null)
+                        v.removeCallbacks(longPressRunnable[0]);
+                    if (v.getParent() != null)
+                        v.getParent().requestDisallowInterceptTouchEvent(false);
+                    v.setPressed(false);
+                    if (!menuShown[0] && !cancelled[0])
+                        v.performClick();
+                    return true;
                 case MotionEvent.ACTION_CANCEL:
                     if (longPressRunnable[0] != null)
                         v.removeCallbacks(longPressRunnable[0]);
-                    v.getParent().requestDisallowInterceptTouchEvent(false);
-                    return menuShown[0];
+                    if (v.getParent() != null)
+                        v.getParent().requestDisallowInterceptTouchEvent(false);
+                    v.setPressed(false);
+                    return true;
             }
             return false;
         });
@@ -384,12 +403,16 @@ public class MenuEntryClient {
         layout.setLayoutParams(param);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
+        layout.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
 
         ImageView icon = new ImageView(mTermuxActivity);
         LinearLayout.LayoutParams iconParam = new LinearLayout.LayoutParams(MATCH_PARENT, 0, 2);
         iconParam.gravity = Gravity.CENTER_VERTICAL;
         icon.setLayoutParams(iconParam);
         icon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        icon.setClickable(false);
+        icon.setLongClickable(false);
+        icon.setFocusable(false);
         setIconButtonImage(icon, iconPath, type);
 
         TextView text = new TextView(mTermuxActivity);
@@ -399,6 +422,9 @@ public class MenuEntryClient {
         text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         text.setLayoutParams(textParam);
         text.setText(title);
+        text.setClickable(false);
+        text.setLongClickable(false);
+        text.setFocusable(false);
         layout.addView(icon);
         layout.addView(text);
         return layout;
