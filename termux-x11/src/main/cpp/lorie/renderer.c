@@ -9,11 +9,13 @@
 #pragma clang diagnostic ignored "-Wincompatible-pointer-types-discards-qualifiers"
 #define EGL_EGLEXT_PROTOTYPES
 #define GL_GLEXT_PROTOTYPES
+#define CVT_H_GRANULARITY 8
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <media/NdkImageReader.h>
 #include <android/native_window_jni.h>
 #include <android/log.h>
 #include <dlfcn.h>
@@ -113,12 +115,13 @@ static EGLContext ctx = EGL_NO_CONTEXT;
 static EGLSurface defaultSfc = EGL_NO_SURFACE, sfc = EGL_NO_SURFACE;
 static EGLConfig cfg = 0;
 static ANativeWindow *defaultWin = NULL, *win = NULL;
+volatile jint filtering = GL_NEAREST;
 static volatile struct xorg_list addedBuffers, buffers, removedBuffers;
 
-static JNIEnv* renderEnv = NULL;
 static volatile bool stateChanged = false, windowChanged = false;
 static volatile struct lorie_shared_server_state* pendingState = NULL;
 static volatile ANativeWindow* pendingWin = NULL;
+static volatile int viewportX = 0, viewportY = 0, viewportW = 0, viewportH = 0, expectedW = 0, expectedH = 0;
 
 static pthread_mutex_t stateLock;
 static pthread_cond_t stateCond;
@@ -139,10 +142,10 @@ static void pthreadCondVarProxyInit(void);
 static void* pthreadCondVarProxyThread(void* cookie);
 static void pthreadCondVarProxyListenOtherCondVar(pthread_cond_t* var);
 
-static inline __always_inline void bindLinearTexture(GLuint id) {
+static inline __always_inline void bindTexture(GLuint id) {
     glBindTexture(GL_TEXTURE_2D, id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
@@ -161,19 +164,23 @@ const EGLint ctxattribs[] = {
         EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE
 };
 
-int rendererInitThread(JavaVM *vm) {
-    JNIEnv* env;
+static void onImageAvailable(void* context, AImageReader* reader) {
+    AImage* image = NULL;
+    if (AImageReader_acquireLatestImage(reader, &image) == AMEDIA_OK && image)
+        AImage_delete(image);
+}
+
+int rendererInitThread(void) {
     EGLint major, minor;
     EGLint numConfigs;
     EGLint *const alphaAttrib = &configAttribs[11];
+    AImageReader* reader = NULL;
 
     pthread_setname_np(pthread_self(), "LorieRendererThread");
 
     xorg_list_init(&addedBuffers);
     xorg_list_init(&buffers);
     xorg_list_init(&removedBuffers);
-
-    (*vm)->AttachCurrentThread(vm, &env, NULL);
 
     egl_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (egl_display == EGL_NO_DISPLAY)
@@ -194,23 +201,24 @@ int rendererInitThread(JavaVM *vm) {
     if (ctx == EGL_NO_CONTEXT)
         return printEglError("eglCreateContext failed", __LINE__);
 
-    // Weird devices without proper EGL_KHR_surfaceless_context support
-    // We can not use pbuffer-based surfaces because it will require searching for configs supporting it
-    // and I am not sure all devices have configs supporting both pbuffers and regular surfaces simultaneously
-    jclass surfaceTextureClass = (*env)->FindClass(env, "android/graphics/SurfaceTexture");
-    jclass surfaceClass = (*env)->FindClass(env, "android/view/Surface");
+    if (AImageReader_new(1, 1, AIMAGE_FORMAT_RGBA_8888, 2, &reader) != AMEDIA_OK) {
+        log("Failed to initialise ImageReader");
+        return 1;
+    }
 
-    jmethodID surfaceTextureConstructor = (*env)->GetMethodID(env, surfaceTextureClass, "<init>", "(Z)V");
-    jmethodID surfaceConstructor = (*env)->GetMethodID(env, surfaceClass, "<init>", "(Landroid/graphics/SurfaceTexture;)V");
+    if (AImageReader_setImageListener(reader, &(AImageReader_ImageListener) { .context = NULL, .onImageAvailable = onImageAvailable }) != AMEDIA_OK) {
+        log("Failed to set ImageReader listener");
+        AImageReader_delete(reader);
+        return 1;
+    }
 
-    jobject surfaceTextureObject = (*env)->NewObject(env, surfaceTextureClass, surfaceTextureConstructor, true);
-    jobject surfaceObject = (*env)->NewObject(env, surfaceClass, surfaceConstructor, surfaceTextureObject);
+    if (AImageReader_getWindow(reader, &defaultWin) != AMEDIA_OK) {
+        log("Failed to obtain ImageReader native window");
+        AImageReader_delete(reader);
+        return 1;
+    }
 
-    // We will use this surfacetexture each time surface is destroyed, zero reasons to clean it up
-    (*env)->NewGlobalRef(env, surfaceTextureObject);
-    (*env)->NewGlobalRef(env, surfaceObject);
-
-    win = defaultWin = ANativeWindow_fromSurface(env, surfaceObject);
+    win = defaultWin;
     ANativeWindow_acquire(defaultWin);
 
     sfc = defaultSfc = eglCreateWindowSurface(egl_display, cfg, win, NULL);
@@ -241,12 +249,9 @@ int rendererInitThread(JavaVM *vm) {
 
 void rendererInit(JNIEnv* env) {
     pthread_t t;
-    JavaVM *vm;
 
     if (ctx)
         return;
-
-    (*env)->GetJavaVM(env, &vm);
 
     pthreadCondVarProxyInit();
 
@@ -255,10 +260,14 @@ void rendererInit(JNIEnv* env) {
     pthread_cond_init(&stateChangeFinishCond, NULL);
     pthread_spin_init(&bufferLock, false);
 
-    pthread_create(&t, NULL, (void*(*)(void*)) rendererInitThread, vm);
+    pthread_create(&t, NULL, (void*(*)(void*)) rendererInitThread, NULL);
 }
 
-void rendererTestCapabilities(int* legacy_drawing, uint8_t* flip) {
+void rendererSetFiltering(__unused JNIEnv* env, __unused jobject self, jint f) {
+    filtering = f;
+}
+
+void rendererTestCapabilities(int* legacy_drawing) {
     // Some devices do not support sampling from HAL_PIXEL_FORMAT_BGRA_8888, here we are checking it.
     const EGLint imageAttributes[] = {EGL_IMAGE_PRESERVED_KHR, EGL_TRUE, EGL_NONE};
     EGLint numConfigs;
@@ -271,7 +280,7 @@ void rendererTestCapabilities(int* legacy_drawing, uint8_t* flip) {
             .height = 64,
             .layers = 1,
             .usage = AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN | AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN,
-            .format = AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM
+            .format = AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM
     };
 
     if (egl_display == EGL_NO_DISPLAY) {
@@ -308,14 +317,9 @@ void rendererTestCapabilities(int* legacy_drawing, uint8_t* flip) {
     }
 
     if (!(img = eglCreateImageKHR(egl_display, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID, clientBuffer, imageAttributes))) {
-        if (eglGetError() == EGL_BAD_PARAMETER) {
-            loge("Sampling from HAL_PIXEL_FORMAT_BGRA_8888 is not supported, forcing AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM");
-            *flip = 1;
-        } else {
-            loge("Failed to obtain EGLImageKHR from EGLClientBuffer");
-            loge("Forcing legacy drawing");
-            *legacy_drawing = 1;
-        }
+        loge("Failed to obtain EGLImageKHR from EGLClientBuffer");
+        loge("Forcing legacy drawing");
+        *legacy_drawing = 1;
         AHardwareBuffer_release(new);
     } else {
         // For some reason all devices I checked had no GL_EXT_texture_format_BGRA8888 support, but some of them still provided BGRA extension.
@@ -346,17 +350,14 @@ void rendererTestCapabilities(int* legacy_drawing, uint8_t* flip) {
 
         glActiveTexture(GL_TEXTURE0); checkGlError();
         glGenTextures(1, &texture); checkGlError();
-        bindLinearTexture(texture);
+        bindTexture(texture);
         glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, img); checkGlError();
         glGenFramebuffers(1, &fbo); checkGlError();
         glBindFramebuffer(GL_FRAMEBUFFER, fbo); checkGlError();
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0); checkGlError();
         uint32_t pixel[64*64];
         glReadPixels(0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &pixel); checkGlError();
-        if (pixel[0] == 0xAABBCCDD) {
-            log("Xlorie: GLES draws pixels unchanged, probably system does not support AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM. Forcing bgra.\n");
-            *flip = 1;
-        } else if (pixel[0] != 0xAADDCCBB) {
+        if (pixel[0] != 0xAADDCCBB) {
             log("Xlorie: GLES receives broken pixels. Forcing legacy drawing. 0x%X\n", pixel[0]);
             *legacy_drawing = 1;
         }
@@ -420,7 +421,11 @@ void rendererRemoveAllBuffers(void) {
     pthread_spin_unlock(&bufferLock);
 }
 
-void rendererSetWindow(ANativeWindow* newWin) {
+void rendererSetWindow(JNIEnv *env, __unused jobject thiz, jobject jsfc) {
+    ANativeWindow* newWin = jsfc ? ANativeWindow_fromSurface(env, jsfc) : NULL;
+    if (newWin)
+        ANativeWindow_acquire(newWin);
+
     pthread_mutex_lock(&stateLock);
     if (newWin && pendingWin == newWin) {
         ANativeWindow_release(newWin);
@@ -433,6 +438,7 @@ void rendererSetWindow(ANativeWindow* newWin) {
 
     pendingWin = newWin;
     windowChanged = TRUE;
+    expectedW = expectedH = 0;
 
     pthread_cond_signal(&stateCond);
 
@@ -462,6 +468,20 @@ static inline __always_inline void releaseWinAndSurface(ANativeWindow** anw, EGL
         ANativeWindow_release(*anw);
         *anw = defaultWin;
     }
+}
+
+void rendererSetViewport(__unused JNIEnv *env, __unused jclass clazz, int x, int y, int w, int h, int ew, int eh) {
+    pthread_mutex_lock(&stateLock);
+    viewportX = x;
+    viewportY = y;
+    viewportW = w;
+    viewportH = h;
+    expectedW = ew;
+    expectedH = eh;
+    if (state)
+        state->drawRequested = true;
+    pthread_cond_signal(&stateCond);
+    pthread_mutex_unlock(&stateLock);
 }
 
 void rendererRefreshContext(void) {
@@ -531,6 +551,19 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
 
     desc = LorieBuffer_description(buffer);
 
+    int alignedExpectedW = expectedW - (expectedW % CVT_H_GRANULARITY);
+
+    if (!expectedW || !expectedH || desc->height != expectedH ||
+        (desc->width != alignedExpectedW && desc->width != expectedW)) {
+        log("Buffer %llu is not of expected size, expecting %dx%d or %dx%d, got %dx%d",
+            state->rootWindowTextureID, alignedExpectedW, expectedH, expectedW, expectedH,
+            desc->width, desc->height);
+        return;
+    }
+
+    int surfaceH = ANativeWindow_getHeight(win);
+    glViewport(viewportX, surfaceH - viewportY - viewportH, viewportW, viewportH);
+
     // We should signal X server to not use root window while we actively copy it
     lorie_mutex_lock(&state->lock, &state->lockingPid);
     state->drawRequested = FALSE;
@@ -546,7 +579,7 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
         log("Xlorie: updating cursor\n");
         lorie_mutex_lock(&state->cursor.lock, &state->cursor.lockingPid);
         state->cursor.updated = false;
-        bindLinearTexture(cursor.id);
+        bindTexture(cursor.id);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei) state->cursor.width, (GLsizei) state->cursor.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, state->cursor.bits);
         lorie_mutex_unlock(&state->cursor.lock, &state->cursor.lockingPid);
     }
@@ -556,7 +589,7 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
     glFlush();
 
     // Wait until root window drawing is finished before giving control back to X server
-    eglClientWaitSyncKHR(egl_display, fence, 0, EGL_FOREVER);
+    eglClientWaitSyncKHR(egl_display, fence, EGL_SYNC_FLUSH_COMMANDS_BIT_KHR, EGL_FOREVER);
     eglDestroySyncKHR(egl_display, fence);
     state->waitForNextFrame = true;
     lorie_mutex_unlock(&state->lock, &state->lockingPid);
@@ -728,8 +761,11 @@ static void draw(GLuint id, float x0, float y0, float x1, float y1, float xfacto
 
     glActiveTexture(GL_TEXTURE0);
     glUseProgram(flip ? g_texture_program_bgra : g_texture_program);
-    if (id)
+    if (id) {
         glBindTexture(GL_TEXTURE_2D, id);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
+    }
 
     glVertexAttribPointer(p, 2, GL_FLOAT, GL_FALSE, 16, coords);
     glVertexAttribPointer(c, 2, GL_FLOAT, GL_FALSE, 16, &coords[2]);

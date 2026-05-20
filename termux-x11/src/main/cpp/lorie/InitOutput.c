@@ -39,6 +39,10 @@
 
 #include "lorie.h"
 
+#ifndef DRM_FORMAT_MOD_LINEAR
+#define DRM_FORMAT_MOD_LINEAR 0
+#endif
+
 extern void android_shmem_sysv_shm_force(uint8_t enable);
 
 #define unused __attribute__((unused))
@@ -69,7 +73,6 @@ typedef struct {
     struct lorie_shared_server_state* state;
     struct {
         Bool legacyDrawing;
-        uint8_t flip;
         uint32_t width, height;
         char name[1024];
         uint32_t framerate;
@@ -270,10 +273,8 @@ int ddxProcessArgument(unused int argc, unused char *argv[], unused int i) {
         return 1;
     }
 
-    if (strcmp(argv[i], "-force-bgra") == 0) {
-        pvfb->root.flip = TRUE;
+    if (strcmp(argv[i], "-force-bgra") == 0)
         return 1;
-    }
 
     if (strcmp(argv[i], "-disable-dri3") == 0) {
         pvfb->dri3 = FALSE;
@@ -719,7 +720,7 @@ void InitOutput(ScreenInfo * screen_info, int argc, char **argv) {
     screen_info->bitmapBitOrder = BITMAP_BIT_ORDER;
     screen_info->numPixmapFormats = ARRAY_SIZE(depths);
 
-    rendererTestCapabilities(&pvfb->root.legacyDrawing, &pvfb->root.flip);
+    rendererTestCapabilities(&pvfb->root.legacyDrawing);
     xorgGlxCreateVendor();
     lorieInitClipboard();
 
@@ -790,8 +791,7 @@ Bool loriePresentFlip(__unused RRCrtcPtr crtc, __unused uint64_t event_id, __unu
     if (desc->type == LORIEBUFFER_REGULAR) {
         // Regular buffers can not be shared to activity, we must explicitly convert LorieBuffer to FD or AHardwareBuffer
         int8_t type = pvfb->root.legacyDrawing ? LORIEBUFFER_FD : LORIEBUFFER_AHARDWAREBUFFER;
-        int8_t format = pvfb->root.flip ? AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM : AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM;
-        LorieBuffer_convert(priv->buffer, type, format);
+        LorieBuffer_convert(priv->buffer, type, AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM);
         if (desc->type != LORIEBUFFER_REGULAR) {
             // LorieBuffer_convert does not report status but it does not let the type change in the case of error.
             pScreenPtr->ModifyPixmapHeader(pixmap, 0, 0, 0, 0, desc->stride * 4, NULL);
@@ -850,8 +850,7 @@ void *lorieCreatePixmap(__unused ScreenPtr pScreen, int width, int height, __unu
         return priv;
 
     uint8_t type = usage_hint != CREATE_PIXMAP_USAGE_LORIEBUFFER_BACKED ? LORIEBUFFER_REGULAR : pvfb->root.legacyDrawing ? LORIEBUFFER_FD : LORIEBUFFER_AHARDWAREBUFFER;
-    uint8_t format = pvfb->root.flip ? AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM : AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM;
-    priv->buffer = LorieBuffer_allocate(width, height, format, type);
+    priv->buffer = LorieBuffer_allocate(width, height, AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM, type);
     *new_fb_pitch = LorieBuffer_description(priv->buffer)->stride * 4;
 
     LorieBuffer_lock(priv->buffer, &priv->locked);
@@ -935,7 +934,7 @@ static PixmapPtr loriePixmapFromFds(ScreenPtr screen, CARD8 num_fds, const int *
 
     check(num_fds > 1, "DRI3: More than 1 fd");
     check(modifier != RAW_MMAPPABLE_FD && modifier != AHARDWAREBUFFER_SOCKET_FD && modifier != AHARDWAREBUFFER_FLIPPED_SOCKET_FD &&
-          modifier != DRM_FORMAT_MOD_INVALID, "DRI3: Modifier is not RAW_MMAPPABLE_FD or AHARDWAREBUFFER_SOCKET_FD");
+          modifier != DRM_FORMAT_MOD_INVALID && modifier != DRM_FORMAT_MOD_LINEAR, "DRI3: Modifier is not RAW_MMAPPABLE_FD or AHARDWAREBUFFER_SOCKET_FD");
 
     pixmap = screen->CreatePixmap(screen, 0, 0, depth, 0);
     check(!pixmap, "DRI3: failed to create pixmap");
@@ -945,7 +944,7 @@ static PixmapPtr loriePixmapFromFds(ScreenPtr screen, CARD8 num_fds, const int *
 
     priv->imported = true;
 
-    if (modifier == DRM_FORMAT_MOD_INVALID || modifier == RAW_MMAPPABLE_FD) {
+    if (modifier == DRM_FORMAT_MOD_INVALID || modifier == DRM_FORMAT_MOD_LINEAR || modifier == RAW_MMAPPABLE_FD) {
         check(!(priv->buffer = LorieBuffer_wrapFileDescriptor(width, strides[0]/4, height, AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM, fds[0], offsets[0])), "DRI3: LorieBuffer_wrapAHardwareBuffer failed.");
         screen->ModifyPixmapHeader(pixmap, width, height, 0, 0, strides[0], NULL);
         return pixmap;
@@ -985,14 +984,23 @@ static PixmapPtr loriePixmapFromFds(ScreenPtr screen, CARD8 num_fds, const int *
 }
 
 static int lorieGetFormats(__unused ScreenPtr screen, CARD32 *num_formats, CARD32 **formats) {
-    *num_formats = 0;
-    *formats = NULL;
+    static CARD32 format = DRM_FORMAT_ARGB8888;
+    *num_formats = 1;
+    *formats = &format;
     return TRUE;
 }
 
-static int lorieGetModifiers(__unused ScreenPtr screen, __unused uint32_t format, uint32_t *num_modifiers, uint64_t **modifiers) {
-    *num_modifiers = 0;
-    *modifiers = NULL;
+static int lorieGetModifiers(__unused ScreenPtr screen, uint32_t format, uint32_t *num_modifiers, uint64_t **modifiers) {
+    static uint64_t modifier = DRM_FORMAT_MOD_LINEAR;
+
+    if (format != DRM_FORMAT_ARGB8888 && format != DRM_FORMAT_XRGB8888) {
+        *num_modifiers = 0;
+        *modifiers = NULL;
+        return TRUE;
+    }
+
+    *num_modifiers = 1;
+    *modifiers = &modifier;
     return TRUE;
 }
 

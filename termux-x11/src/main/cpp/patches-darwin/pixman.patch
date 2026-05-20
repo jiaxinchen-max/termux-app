@@ -1,6 +1,6 @@
-diff -u -r ../pixman-0.32.6/pixman/pixman-arm.c ./pixman/pixman-arm.c
---- ../pixman-0.32.6/pixman/pixman-arm.c	2013-11-17 09:43:18.000000000 +0100
-+++ ./pixman/pixman-arm.c	2014-08-05 12:54:39.252322492 +0200
+diff --git a/pixman/pixman-arm.c b/pixman/pixman-arm.c
+--- a/pixman/pixman-arm.c
++++ b/pixman/pixman-arm.c
 @@ -96,30 +96,10 @@
  
  #elif defined(__ANDROID__) || defined(ANDROID) /* Android */

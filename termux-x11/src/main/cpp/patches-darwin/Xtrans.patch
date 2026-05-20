@@ -1,4 +1,6 @@
-+++ ./Xtranssock.c
+diff --git a/Xtranssock.c b/Xtranssock.c
+--- a/Xtranssock.c
++++ b/Xtranssock.c
 @@ -215,20 +215,28 @@ is_numeric (const char *str)
  
  
@@ -36,7 +38,9 @@
  #endif /* ICE_t */
  
  
-+++ ./Xtransutil.c
+diff --git a/Xtransutil.c b/Xtransutil.c
+--- a/Xtransutil.c
++++ b/Xtransutil.c
 @@ -468,7 +468,7 @@ trans_mkdir(const char *path, int mode)
  	 * certain security implications. If effective user ID
  	 * is != 0: fail as we may not be able to meet them.

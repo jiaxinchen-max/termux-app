@@ -79,6 +79,7 @@ public class InputControlsView extends View {
     private final PointF mouseMoveOffset = new PointF();
     private boolean showTouchscreenControls = true;
     private Map<String, Integer> counterMap = new HashMap<>();
+    private int controlPointerIdBits = 0;
 
     public void counterMapIncrease(String iconId) {
         Integer v = counterMap.get(iconId);
@@ -370,6 +371,135 @@ public class InputControlsView extends View {
         return touchpadView != null && touchpadView.onTouchEvent(event);
     }
 
+    private boolean dispatchPassthroughTouchEvent(MotionEvent event, int pointerIdBits) {
+        if (pointerIdBits == 0) return false;
+
+        int eventPointerIdBits = 0;
+        for (int i = 0, count = event.getPointerCount(); i < count; i++)
+            eventPointerIdBits |= pointerIdBit(event.getPointerId(i));
+
+        if (pointerIdBits == eventPointerIdBits)
+            return dispatchPassthroughTouchEvent(event);
+
+        MotionEvent splitEvent = createPassthroughEvent(event, pointerIdBits);
+        if (splitEvent == null) return false;
+        try {
+            return dispatchPassthroughTouchEvent(splitEvent);
+        } finally {
+            splitEvent.recycle();
+        }
+    }
+
+    private MotionEvent createPassthroughEvent(MotionEvent event, int pointerIdBits) {
+        int pointerCount = event.getPointerCount();
+        int passthroughPointerCount = 0;
+        int actionIndex = event.getActionIndex();
+        int actionPointerId = event.getPointerId(actionIndex);
+        boolean actionPointerIncluded = false;
+        int passthroughActionIndex = 0;
+
+        for (int i = 0; i < pointerCount; i++) {
+            int bit = pointerIdBit(event.getPointerId(i));
+            if (bit != 0 && (pointerIdBits & bit) != 0) {
+                if (event.getPointerId(i) == actionPointerId) {
+                    actionPointerIncluded = true;
+                    passthroughActionIndex = passthroughPointerCount;
+                }
+                passthroughPointerCount++;
+            }
+        }
+        if (passthroughPointerCount == 0) return null;
+
+        MotionEvent.PointerProperties[] properties = new MotionEvent.PointerProperties[passthroughPointerCount];
+        MotionEvent.PointerCoords[] coords = new MotionEvent.PointerCoords[passthroughPointerCount];
+        for (int i = 0, out = 0; i < pointerCount; i++) {
+            int bit = pointerIdBit(event.getPointerId(i));
+            if (bit == 0 || (pointerIdBits & bit) == 0) continue;
+
+            properties[out] = new MotionEvent.PointerProperties();
+            event.getPointerProperties(i, properties[out]);
+            coords[out] = new MotionEvent.PointerCoords();
+            event.getPointerCoords(i, coords[out]);
+            out++;
+        }
+
+        int actionMasked = event.getActionMasked();
+        int action = actionMasked;
+        if (actionMasked == MotionEvent.ACTION_POINTER_DOWN || actionMasked == MotionEvent.ACTION_POINTER_UP) {
+            if (!actionPointerIncluded) {
+                action = MotionEvent.ACTION_MOVE;
+            } else if (passthroughPointerCount == 1) {
+                action = actionMasked == MotionEvent.ACTION_POINTER_DOWN ? MotionEvent.ACTION_DOWN : MotionEvent.ACTION_UP;
+            } else {
+                action = actionMasked | (passthroughActionIndex << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+            }
+        }
+
+        return MotionEvent.obtain(event.getDownTime(), event.getEventTime(), action, passthroughPointerCount,
+            properties, coords, event.getMetaState(), event.getButtonState(), event.getXPrecision(), event.getYPrecision(),
+            event.getDeviceId(), event.getEdgeFlags(), event.getSource(), event.getFlags());
+    }
+
+    private int pointerIdBit(int pointerId) {
+        return pointerId >= 0 && pointerId < 32 ? 1 << pointerId : 0;
+    }
+
+    private boolean isControlPointer(int pointerId) {
+        int bit = pointerIdBit(pointerId);
+        return bit != 0 && (controlPointerIdBits & bit) != 0;
+    }
+
+    private void setControlPointer(int pointerId, boolean controlPointer) {
+        int bit = pointerIdBit(pointerId);
+        if (bit == 0) return;
+        if (controlPointer)
+            controlPointerIdBits |= bit;
+        else
+            controlPointerIdBits &= ~bit;
+    }
+
+    private int getPassthroughPointerIdBits(MotionEvent event) {
+        int pointerIdBits = 0;
+        for (int i = 0, count = event.getPointerCount(); i < count; i++) {
+            int pointerId = event.getPointerId(i);
+            int bit = pointerIdBit(pointerId);
+            if (bit != 0 && !isControlPointer(pointerId))
+                pointerIdBits |= bit;
+        }
+        return pointerIdBits;
+    }
+
+    private boolean handleControlTouchDown(int pointerId, float x, float y) {
+        boolean handled = false;
+        touchpadView.setPointerButtonLeftEnabled(true);
+        for (ControlElement element : profile.getElements()) {
+            if (element.handleTouchDown(pointerId, x, y)) {
+                handled = true;
+                if (element.getBindingAt(0) == Binding.MOUSE_LEFT_BUTTON)
+                    touchpadView.setPointerButtonLeftEnabled(false);
+            }
+        }
+        return handled;
+    }
+
+    private boolean handleControlTouchMove(int pointerId, float x, float y) {
+        boolean handled = false;
+        for (ControlElement element : profile.getElements()) {
+            if (element.handleTouchMove(pointerId, x, y))
+                handled = true;
+        }
+        return handled;
+    }
+
+    private boolean handleControlTouchUp(int pointerId, float x, float y) {
+        boolean handled = false;
+        for (ControlElement element : profile.getElements()) {
+            if (element.handleTouchUp(pointerId, x, y))
+                handled = true;
+        }
+        return handled;
+    }
+
     public int getMaxWidth() {
         return controlLayoutWidth;
     }
@@ -495,61 +625,62 @@ public class InputControlsView extends View {
             int actionMasked = event.getActionMasked();
             boolean handled = false;
             boolean passthroughHandled = false;
-            boolean passthroughDispatched = false;
 //            Log.d("handleTouchEvent",String.valueOf(event.getAction()));
             switch (actionMasked) {
-                case MotionEvent.ACTION_DOWN:
+                case MotionEvent.ACTION_DOWN: {
+                    controlPointerIdBits = 0;
+                    float x = toControlLayoutX(event.getX(actionIndex));
+                    float y = toControlLayoutY(event.getY(actionIndex));
+                    handled = showTouchscreenControls && handleControlTouchDown(pointerId, x, y);
+                    setControlPointer(pointerId, handled);
+                    if (!handled)
+                        passthroughHandled = dispatchPassthroughTouchEvent(event);
+                    break;
+                }
                 case MotionEvent.ACTION_POINTER_DOWN: {
                     float x = toControlLayoutX(event.getX(actionIndex));
                     float y = toControlLayoutY(event.getY(actionIndex));
-                    touchpadView.setPointerButtonLeftEnabled(true);
-                    for (ControlElement element : profile.getElements()) {
-                        if (element.handleTouchDown(pointerId, x, y)) {
-                            handled = true;
-                            if (element.getBindingAt(0) == Binding.MOUSE_LEFT_BUTTON) {
-                                touchpadView.setPointerButtonLeftEnabled(false);
-                            }
-                        }
-                    }
-                    if (!handled) {
-                        passthroughHandled = dispatchPassthroughTouchEvent(event);
-                        passthroughDispatched = true;
-                    }
+                    handled = showTouchscreenControls && handleControlTouchDown(pointerId, x, y);
+                    setControlPointer(pointerId, handled);
+                    if (!handled)
+                        passthroughHandled = dispatchPassthroughTouchEvent(event, getPassthroughPointerIdBits(event));
                     break;
                 }
                 case MotionEvent.ACTION_MOVE: {
                     for (byte i = 0, count = (byte) event.getPointerCount(); i < count; i++) {
+                        int movePointerId = event.getPointerId(i);
                         float x = toControlLayoutX(event.getX(i));
                         float y = toControlLayoutY(event.getY(i));
-                        boolean pointerHandled = false;
-                        for (ControlElement element : profile.getElements()) {
-                            if (element.handleTouchMove(i, x, y)) {
-                                pointerHandled = true;
-                            }
-                        }
-                        handled |= pointerHandled;
-                        if (!pointerHandled && !passthroughDispatched) {
-                            passthroughHandled = dispatchPassthroughTouchEvent(event);
-                            passthroughDispatched = true;
+                        if (isControlPointer(movePointerId)) {
+                            handleControlTouchMove(movePointerId, x, y);
+                            handled = true;
                         }
                     }
+                    passthroughHandled = dispatchPassthroughTouchEvent(event, getPassthroughPointerIdBits(event));
                     break;
                 }
                 case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_POINTER_UP:
+                case MotionEvent.ACTION_POINTER_UP: {
+                    if (isControlPointer(pointerId)) {
+                        float x = toControlLayoutX(event.getX(actionIndex));
+                        float y = toControlLayoutY(event.getY(actionIndex));
+                        handled = handleControlTouchUp(pointerId, x, y);
+                        setControlPointer(pointerId, false);
+                    } else {
+                        passthroughHandled = dispatchPassthroughTouchEvent(event, getPassthroughPointerIdBits(event));
+                    }
+                    if (actionMasked == MotionEvent.ACTION_UP)
+                        controlPointerIdBits = 0;
+                    break;
+                }
                 case MotionEvent.ACTION_CANCEL:
                     for (byte i = 0, count = (byte) event.getPointerCount(); i < count; i++) {
-                        float x = toControlLayoutX(event.getX(i));
-                        float y = toControlLayoutY(event.getY(i));
-                        for (ControlElement element : profile.getElements())
-                            if (element.handleTouchUp(pointerId, x, y)) {
-                                handled = true;
-                            }
-                        if (!handled && !passthroughDispatched) {
-                            passthroughHandled = dispatchPassthroughTouchEvent(event);
-                            passthroughDispatched = true;
-                        }
+                        int cancelPointerId = event.getPointerId(i);
+                        if (isControlPointer(cancelPointerId))
+                            handleControlTouchUp(cancelPointerId, toControlLayoutX(event.getX(i)), toControlLayoutY(event.getY(i)));
                     }
+                    passthroughHandled = dispatchPassthroughTouchEvent(event, getPassthroughPointerIdBits(event));
+                    controlPointerIdBits = 0;
                     break;
             }
             return handled || passthroughHandled;

@@ -43,7 +43,15 @@ public class KeyInterceptor extends AccessibilityService {
 
     public static void launch(@NonNull Context ctx) {
         try {
-            Settings.Secure.putString(ctx.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, "com.termux.x11/.utils.KeyInterceptor");
+            String service = "com.termux.x11/.utils.KeyInterceptor";
+            String enabled = Settings.Secure.getString(ctx.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+
+            if (enabled == null || enabled.isEmpty())
+                enabled = service;
+            else if (!enabled.contains(service))
+                enabled += ":" + service;
+
+            Settings.Secure.putString(ctx.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, enabled);
             Settings.Secure.putString(ctx.getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED, "1");
             launchedAutomatically = true;
         } catch (SecurityException e) {

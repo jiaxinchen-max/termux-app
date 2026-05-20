@@ -1,4 +1,6 @@
-+++ ./Xext/shm.c
+diff --git a/Xext/shm.c b/Xext/shm.c
+--- a/Xext/shm.c
++++ b/Xext/shm.c
 @@ -193,6 +193,10 @@
  
  #endif
@@ -10,7 +12,9 @@
  static Bool
  ShmCloseScreen(ScreenPtr pScreen)
  {
-+++ ./Xext/shmint.h
+diff --git a/Xext/shmint.h b/Xext/shmint.h
+--- a/Xext/shmint.h
++++ b/Xext/shmint.h
 @@ -80,6 +80,8 @@
  #define SHMDESC_IS_FD(shmdesc)  (0)
  #endif
@@ -20,7 +24,9 @@
  extern _X_EXPORT void
   ShmRegisterFuncs(ScreenPtr pScreen, ShmFuncsPtr funcs);
  
-+++ ./dix/dixutils.c
+diff --git a/dix/dixutils.c b/dix/dixutils.c
+--- a/dix/dixutils.c
++++ b/dix/dixutils.c
 @@ -506,18 +506,25 @@
  
  WorkQueuePtr workQueue;
@@ -103,7 +109,9 @@
      return TRUE;
  }
  
-+++ ./dix/enterleave.c
+diff --git a/dix/enterleave.c b/dix/enterleave.c
+--- a/dix/enterleave.c
++++ b/dix/enterleave.c
 @@ -1541,6 +1541,8 @@
      }
  }
@@ -123,7 +131,9 @@
      if (!IsKeyboardDevice(pDev))
          return;
  
-+++ ./dix/main.c
+diff --git a/dix/main.c b/dix/main.c
+--- a/dix/main.c
++++ b/dix/main.c
 @@ -268,6 +268,7 @@
          }
  
@@ -132,7 +142,9 @@
  
          InputThreadInit();
  
-+++ ./include/os.h
+diff --git a/include/os.h b/include/os.h
+--- a/include/os.h
++++ b/include/os.h
 @@ -557,6 +557,8 @@
  extern _X_EXPORT void
  ddxGiveUp(enum ExitCode error);
@@ -142,7 +154,9 @@
  ddxInputThreadInit(void);
  extern _X_EXPORT int
  TimeSinceLastInputEvent(void);
-+++ ./include/xkbfile.h
+diff --git a/include/xkbfile.h b/include/xkbfile.h
+--- a/include/xkbfile.h
++++ b/include/xkbfile.h
 @@ -79,6 +79,36 @@
  
  /***====================================================================***/
@@ -180,7 +194,9 @@
  _XFUNCPROTOBEGIN
  
  extern _X_EXPORT char *XkbIndentText(unsigned   /* size */
-+++ ./os/osinit.c
+diff --git a/os/osinit.c b/os/osinit.c
+--- a/os/osinit.c
++++ b/os/osinit.c
 @@ -170,13 +170,11 @@
  #endif
  
@@ -197,7 +213,9 @@
              SIGXCPU,
              SIGXFSZ,
  #ifdef SIGEMT
-+++ ./os/utils.c
+diff --git a/os/utils.c b/os/utils.c
+--- a/os/utils.c
++++ b/os/utils.c
 @@ -214,6 +214,8 @@
  {
  #if defined(WIN32) && !defined(__CYGWIN__)
@@ -250,6 +268,8 @@
      }
  
      /* Avoid EINTR during stdio calls */
+diff --git a/present/present.h b/present/present.h
+--- a/present/present.h
 +++ b/present/present.h
 @@ -93,6 +93,9 @@
                                    uint64_t target_msc,
@@ -269,6 +289,8 @@
      present_unflip_ptr                  unflip;
      present_check_flip2_ptr             check_flip2;
  
+diff --git a/present/present_scmd.c b/present/present_scmd.c
+--- a/present/present_scmd.c
 +++ b/present/present_scmd.c
 @@ -599,6 +599,8 @@
                      damage = &window->clipList;
@@ -279,7 +301,9 @@
                  return;
              }
  
-+++ ./xkb/ddxLoad.c
+diff --git a/xkb/ddxLoad.c b/xkb/ddxLoad.c
+--- a/xkb/ddxLoad.c
++++ b/xkb/ddxLoad.c
 @@ -56,6 +56,9 @@
  #define PATHSEPARATOR "/"
  #endif

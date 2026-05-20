@@ -39,7 +39,7 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
         list(GET patch_parts 1 patch_file)
         
         set(dir "${CMAKE_CURRENT_SOURCE_DIR}/${target_dir}")
-        set(patch "${CMAKE_CURRENT_SOURCE_DIR}/patches/${patch_file}")
+        set(patch "${CMAKE_CURRENT_SOURCE_DIR}/patches-darwin/${patch_file}")
         
         # Use git apply -R --check to detect if patch is already applied
         execute_process(
