@@ -18,9 +18,12 @@
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <android/log.h>
 #include <android/sharedmem.h>
 #include "list.h"
 #include "buffer.h"
+
+#define buffer_log(prio, ...) __android_log_print(ANDROID_LOG_ ## prio, "LorieNative", __VA_ARGS__)
 
 struct LorieBuffer {
     int16_t refcount;
@@ -333,6 +336,10 @@ __LIBC_HIDDEN__ void LorieBuffer_sendHandleToUnixSocket(LorieBuffer* _Nonnull bu
     if (socketFd < 0 || !buffer)
         return;
 
+    buffer_log(INFO, "Sending LorieBuffer payload sizeof(LorieBuffer)=%zu sizeof(desc)=%zu width=%d stride=%d height=%d format=%d type=%d id=%llu",
+               sizeof(*buffer), sizeof(buffer->desc), buffer->desc.width, buffer->desc.stride,
+               buffer->desc.height, buffer->desc.format, buffer->desc.type,
+               (unsigned long long) buffer->desc.id);
     write(socketFd, buffer, sizeof(*buffer));
     if (buffer->desc.type == LORIEBUFFER_FD)
         ancil_send_fd(socketFd, buffer->fd);

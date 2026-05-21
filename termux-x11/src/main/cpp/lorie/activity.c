@@ -106,6 +106,20 @@ static jboolean requestConnection(__unused JNIEnv *env, __unused jclass clazz) {
 }
 
 static void connect_(__unused JNIEnv* env, __unused jobject cls, jint fd);
+static bool sendEventToActiveConnection(const lorieEvent *event, const void *payload, size_t payloadSize) {
+    if (conn_fd != -1) {
+        if (write(conn_fd, event, sizeof(*event)) != sizeof(*event))
+            return false;
+
+        if (payload && payloadSize && write(conn_fd, payload, payloadSize) != (ssize_t) payloadSize)
+            return false;
+
+        return true;
+    }
+
+    return waylandRenderSendEvent(event, payload, payloadSize);
+}
+
 static void nativeInit(JNIEnv *env, jobject thiz) {
     JavaVM* vm;
     if (!Charset.self) {
@@ -144,8 +158,10 @@ static int xcallback(int fd, int events, __unused void* data) {
         ALooper_removeFd(ALooper_forThread(), fd);
         close(conn_fd);
         conn_fd = -1;
-        rendererSetSharedState(NULL);
-        rendererRemoveAllBuffers();
+        if (!waylandRenderConnected()) {
+            rendererSetSharedState(NULL);
+            rendererRemoveAllBuffers();
+        }
         log(DEBUG, "disconnected");
         return 1;
     }
@@ -190,6 +206,7 @@ static int xcallback(int fd, int events, __unused void* data) {
                         state = NULL;
                     }
 
+                    rendererSetExternalBufferMode(false);
                     rendererSetSharedState(state);
 
                     close(stateFd); // Closing file descriptor does not unmmap shared memory fragment.
@@ -226,8 +243,10 @@ static void connect_(__unused JNIEnv* env, __unused jobject cls, jint fd) {
     if (conn_fd != -1) {
         ALooper_removeFd(ALooper_forThread(), conn_fd);
         close(conn_fd);
-        rendererSetSharedState(NULL);
-        rendererRemoveAllBuffers();
+        if (!waylandRenderConnected()) {
+            rendererSetSharedState(NULL);
+            rendererRemoveAllBuffers();
+        }
         log(DEBUG, "disconnected");
     }
 
@@ -238,6 +257,10 @@ static void connect_(__unused JNIEnv* env, __unused jobject cls, jint fd) {
 }
 
 static jboolean connected(__unused JNIEnv* env,__unused jclass clazz) {
+    return conn_fd != -1 || waylandRenderConnected();
+}
+
+static jboolean xConnected(__unused JNIEnv* env,__unused jclass clazz) {
     return conn_fd != -1;
 }
 
@@ -298,57 +321,59 @@ static void sendWindowChange(__unused JNIEnv* env, __unused jobject cls, jint wi
 }
 
 static void sendMouseEvent(__unused JNIEnv* env, __unused jobject cls, jfloat x, jfloat y, jint which_button, jboolean button_down, jboolean relative) {
-    if (conn_fd != -1) {
+    if (conn_fd != -1 || waylandRenderConnected()) {
         if (which_button > 0)
             (*env)->CallVoidMethod(env, globalThiz, LorieViewRuntimeRegistry.resetIme);
         lorieEvent e = { .mouse = { .t = EVENT_MOUSE, .x = x, .y = y, .detail = which_button, .down = button_down, .relative = relative } };
-        write(conn_fd, &e, sizeof(e));
+        sendEventToActiveConnection(&e, NULL, 0);
     }
 }
 
 static void sendTouchEvent(__unused JNIEnv* env, __unused jobject cls, jint action, jint id, jint x, jint y) {
-    if (conn_fd != -1 && action != -1) {
+    if ((conn_fd != -1 || waylandRenderConnected()) && action != -1) {
         lorieEvent e = { .touch = { .t = EVENT_TOUCH, .type = action, .id = id, .x = x, .y = y } };
-        write(conn_fd, &e, sizeof(e));
+        sendEventToActiveConnection(&e, NULL, 0);
     }
 }
 
 static void sendStylusEvent(__unused JNIEnv *env, __unused jobject thiz, jfloat x, jfloat y,
                             jint pressure, jint tilt_x, jint tilt_y,
                             jint orientation, jint buttons, jboolean eraser, jboolean mouse) {
-    if (conn_fd != -1) {
+    if (conn_fd != -1 || waylandRenderConnected()) {
         (*env)->CallVoidMethod(env, globalThiz, LorieViewRuntimeRegistry.resetIme);
         lorieEvent e = { .stylus = { .t = EVENT_STYLUS, .x = x, .y = y, .pressure = pressure, .tilt_x = tilt_x, .tilt_y = tilt_y, .orientation = orientation, .buttons = buttons, .eraser = eraser, .mouse = mouse } };
-        write(conn_fd, &e, sizeof(e));
+        sendEventToActiveConnection(&e, NULL, 0);
     }
 }
 
 static void requestStylusEnabled(__unused JNIEnv *env, __unused jclass clazz, jboolean enabled) {
-    if (conn_fd != -1) {
+    if (conn_fd != -1 || waylandRenderConnected()) {
         lorieEvent e = { .stylusEnable = { .t = EVENT_STYLUS_ENABLE, .enable = enabled } };
-        write(conn_fd, &e, sizeof(e));
+        sendEventToActiveConnection(&e, NULL, 0);
     }
 }
 
 static jboolean sendKeyEvent(__unused JNIEnv* env, __unused jobject cls, jint scan_code, jint key_code, jboolean key_down, jint a) {
-    if (conn_fd != -1) {
+    if (conn_fd != -1 || waylandRenderConnected()) {
         int code = (scan_code) ?: android_to_linux_keycode[key_code];
         log(DEBUG, "Sending key: %d (%d %d %d)", code + 8, scan_code, key_code, key_down);
         lorieEvent e = { .key = { .t = EVENT_KEY, .key = code + 8, .state = key_down } };
-        write(conn_fd, &e, sizeof(e));
+        sendEventToActiveConnection(&e, NULL, 0);
     }
 
     return true;
 }
 
 static void sendTextEvent(JNIEnv *env, __unused jobject thiz, jbyteArray text) {
-    if (conn_fd != -1 && text) {
+    if ((conn_fd != -1 || waylandRenderConnected()) && text) {
         jsize length = (*env)->GetArrayLength(env, text);
         jbyte *str = (*env)->GetByteArrayElements(env, text, NULL);
         char *p = (char*) str;
         mbstate_t mbstate = { 0 };
-        if (!length)
+        if (!length) {
+            (*env)->ReleaseByteArrayElements(env, text, str, JNI_ABORT);
             return;
+        }
 
         log(DEBUG, "Parsing text: %.*s", length, str);
 
@@ -366,7 +391,7 @@ static void sendTextEvent(JNIEnv *env, __unused jobject thiz, jbyteArray text) {
 
             log(DEBUG, "Sending unicode event: %lc (U+%X)", wc, wc);
             lorieEvent e = { .unicode = { .t = EVENT_UNICODE, .code = wc } };
-            write(conn_fd, &e, sizeof(e));
+            sendEventToActiveConnection(&e, NULL, 0);
             p += len;
             if (p - (char*) str >= length)
                 break;
@@ -386,6 +411,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, __unused void *reserved) {
             {"setFiltering", "(I)V", (void *)&rendererSetFiltering},
             {"connect", "(I)V", (void *)&connect_},
             {"connected", "()Z", (void *)&connected},
+            {"xConnected", "()Z", (void *)&xConnected},
             {"startLogcat", "(I)V", (void *)&startLogcat},
             {"setClipboardSyncEnabled", "(ZZ)V", (void *)&setClipboardSyncEnabled},
             {"sendClipboardAnnounce", "()V", (void *)&sendClipboardAnnounce},

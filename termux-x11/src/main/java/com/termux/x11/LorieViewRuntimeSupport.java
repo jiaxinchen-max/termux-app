@@ -257,7 +257,7 @@ final class X11ServerConnector {
     }
 
     boolean tryConnect() {
-        if (LorieView.connected())
+        if (LorieView.xConnected())
             return false;
 
         if (mService == null) {

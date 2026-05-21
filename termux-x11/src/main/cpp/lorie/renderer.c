@@ -119,6 +119,7 @@ volatile jint filtering = GL_NEAREST;
 static volatile struct xorg_list addedBuffers, buffers, removedBuffers;
 
 static volatile bool stateChanged = false, windowChanged = false;
+static volatile bool externalBufferMode = false;
 static volatile struct lorie_shared_server_state* pendingState = NULL;
 static volatile ANativeWindow* pendingWin = NULL;
 static volatile int viewportX = 0, viewportY = 0, viewportW = 0, viewportH = 0, expectedW = 0, expectedH = 0;
@@ -265,6 +266,13 @@ void rendererInit(JNIEnv* env) {
 
 void rendererSetFiltering(__unused JNIEnv* env, __unused jobject self, jint f) {
     filtering = f;
+}
+
+void rendererSetExternalBufferMode(bool enabled) {
+    pthread_mutex_lock(&stateLock);
+    externalBufferMode = enabled;
+    pthread_cond_signal(&stateCond);
+    pthread_mutex_unlock(&stateLock);
 }
 
 void rendererTestCapabilities(int* legacy_drawing) {
@@ -545,7 +553,7 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
         *waitingForBuffers = true;
     pthread_spin_unlock(&bufferLock);
     if (!buffer) {
-        log("Buffer %llu not found", state->rootWindowTextureID);
+        log("Buffer %llu not found", (unsigned long long) state->rootWindowTextureID);
         return;
     }
 
@@ -553,10 +561,10 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
 
     int alignedExpectedW = expectedW - (expectedW % CVT_H_GRANULARITY);
 
-    if (!expectedW || !expectedH || desc->height != expectedH ||
-        (desc->width != alignedExpectedW && desc->width != expectedW)) {
+    if (!externalBufferMode && (!expectedW || !expectedH || desc->height != expectedH ||
+        (desc->width != alignedExpectedW && desc->width != expectedW))) {
         log("Buffer %llu is not of expected size, expecting %dx%d or %dx%d, got %dx%d",
-            state->rootWindowTextureID, alignedExpectedW, expectedH, expectedW, expectedH,
+            (unsigned long long) state->rootWindowTextureID, alignedExpectedW, expectedH, expectedW, expectedH,
             desc->width, desc->height);
         return;
     }
@@ -568,7 +576,11 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glViewport(viewportX, surfaceH - viewportY - viewportH, viewportW, viewportH);
+    int drawX = viewportW > 0 && viewportH > 0 ? viewportX : 0;
+    int drawY = viewportW > 0 && viewportH > 0 ? viewportY : 0;
+    int drawW = viewportW > 0 && viewportH > 0 ? viewportW : surfaceW;
+    int drawH = viewportW > 0 && viewportH > 0 ? viewportH : surfaceH;
+    glViewport(drawX, surfaceH - drawY - drawH, drawW, drawH);
 
     // We should signal X server to not use root window while we actively copy it
     lorie_mutex_lock(&state->lock, &state->lockingPid);
