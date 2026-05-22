@@ -153,7 +153,31 @@ static int readFull(int fd, void *buffer, size_t size) {
 
 static int readLorieEvent(int fd, lorieEvent *event) {
     memset(event, 0, sizeof(*event));
+#ifdef SOCK_SEQPACKET
+    ssize_t count;
+    do {
+        count = read(fd, event, sizeof(*event));
+    } while (count < 0 && errno == EINTR);
+
+    if (count == 0)
+        return 0;
+
+    if (count < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return -2;
+        return -1;
+    }
+
+    if ((size_t) count != sizeof(*event)) {
+        log(WARN, "Skipping non-event packet size=%zd expected=%zu first_byte=%u",
+            count, sizeof(*event), event->type);
+        return -2;
+    }
+
+    return 1;
+#else
     return readFull(fd, event, sizeof(*event));
+#endif
 }
 
 static bool renderConnectAlive(int fd) {
