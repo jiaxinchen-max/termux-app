@@ -30,6 +30,12 @@ android {
             version "3.22.1"
         }
     }
+    sourceSets {
+        main {
+            // Assets are installed by the Termux deb package at runtime, not loaded from the APK/AAR.
+            assets.srcDirs = []
+        }
+    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
