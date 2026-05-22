@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1250" height="430" viewBox="0 0 1250 430" role="img" aria-labelledby="title desc">
+  <title id="title">Build pipeline</title>
+  <desc id="desc">Major build-package.sh stages from recipe loading to output package creation.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .step { fill: #ffffff; stroke: #2563eb; stroke-width: 1.4; rx: 10; }
+      .step2 { fill: #ecfdf5; stroke: #059669; stroke-width: 1.4; rx: 10; }
+      .step3 { fill: #fff7ed; stroke: #ea580c; stroke-width: 1.4; rx: 10; }
+      .step4 { fill: #f5f3ff; stroke: #7c3aed; stroke-width: 1.4; rx: 10; }
+      .title { font: 700 24px Arial, sans-serif; fill: #0f172a; }
+      .text { font: 13px Arial, sans-serif; fill: #1e293b; }
+      .small { font: 12px Arial, sans-serif; fill: #475569; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" width="1250" height="430"/>
+  <text class="title" x="40" y="42">build-package.sh Pipeline</text>
+
+  <rect class="step" x="40" y="90" width="145" height="72"/>
+  <text class="text" x="60" y="119">1. Load recipe</text>
+  <text class="small" x="60" y="140">source build.sh</text>
+
+  <rect class="step" x="225" y="90" width="145" height="72"/>
+  <text class="text" x="245" y="119">2. Dependencies</text>
+  <text class="small" x="245" y="140">download or build</text>
+
+  <rect class="step2" x="410" y="90" width="145" height="72"/>
+  <text class="text" x="430" y="119">3. Source</text>
+  <text class="small" x="430" y="140">download, verify</text>
+
+  <rect class="step2" x="595" y="90" width="145" height="72"/>
+  <text class="text" x="615" y="119">4. Host build</text>
+  <text class="small" x="615" y="140">optional tools</text>
+
+  <rect class="step2" x="780" y="90" width="145" height="72"/>
+  <text class="text" x="800" y="119">5. Toolchain</text>
+  <text class="small" x="800" y="140">NDK, sysroot</text>
+
+  <rect class="step3" x="965" y="90" width="145" height="72"/>
+  <text class="text" x="985" y="119">6. Patch</text>
+  <text class="small" x="985" y="140">apply *.patch</text>
+
+  <rect class="step3" x="965" y="235" width="145" height="72"/>
+  <text class="text" x="985" y="264">7. Configure</text>
+  <text class="small" x="985" y="285">auto or override</text>
+
+  <rect class="step3" x="780" y="235" width="145" height="72"/>
+  <text class="text" x="800" y="264">8. Compile</text>
+  <text class="small" x="800" y="285">make or custom</text>
+
+  <rect class="step3" x="595" y="235" width="145" height="72"/>
+  <text class="text" x="615" y="264">9. Install</text>
+  <text class="small" x="615" y="285">into prefix</text>
+
+  <rect class="step4" x="410" y="235" width="145" height="72"/>
+  <text class="text" x="430" y="264">10. Massage</text>
+  <text class="small" x="430" y="285">strip, clean, split</text>
+
+  <rect class="step4" x="225" y="235" width="145" height="72"/>
+  <text class="text" x="245" y="264">11. Package</text>
+  <text class="small" x="245" y="285">deb or pacman</text>
+
+  <rect class="step4" x="40" y="235" width="145" height="72"/>
+  <text class="text" x="60" y="264">12. Output</text>
+  <text class="small" x="60" y="285">output/ files</text>
+
+  <path class="line" d="M185 126 L225 126"/>
+  <path class="line" d="M370 126 L410 126"/>
+  <path class="line" d="M555 126 L595 126"/>
+  <path class="line" d="M740 126 L780 126"/>
+  <path class="line" d="M925 126 L965 126"/>
+  <path class="line" d="M1037 162 L1037 235"/>
+  <path class="line" d="M965 271 L925 271"/>
+  <path class="line" d="M780 271 L740 271"/>
+  <path class="line" d="M595 271 L555 271"/>
+  <path class="line" d="M410 271 L370 271"/>
+  <path class="line" d="M225 271 L185 271"/>
+
+  <text class="small" x="40" y="365">Package hooks can override selected stages; utility helpers set up CMake, Meson, Rust, Go, Python, Node.js, pkg-config, proot, and more.</text>
+</svg>

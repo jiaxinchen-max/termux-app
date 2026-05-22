@@ -228,7 +228,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     private boolean mX11DisplayConnected;
     private long mDisplaySidePanelUnlockBackPromptTime;
 
-    private static final long DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS = 1500;
+    private static final long DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS = 3000;
     private static final long DISPLAY_SIDE_PANEL_UNLOCK_IDLE_TIMEOUT_MS = 5000;
 
     private static List<ProcessInfo> collectTermuxProcessInfo() {

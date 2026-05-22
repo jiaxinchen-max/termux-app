@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="470" viewBox="0 0 1100 470" role="img" aria-labelledby="title desc">
+  <title id="title">Package recipe anatomy</title>
+  <desc id="desc">Package directory content and how build.sh metadata and step overrides are consumed by the build system.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .panel { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.5; rx: 12; }
+      .file { fill: #eef6ff; stroke: #2563eb; stroke-width: 1.4; rx: 10; }
+      .meta { fill: #ecfdf5; stroke: #059669; stroke-width: 1.4; rx: 10; }
+      .hook { fill: #fff7ed; stroke: #ea580c; stroke-width: 1.4; rx: 10; }
+      .system { fill: #f5f3ff; stroke: #7c3aed; stroke-width: 1.4; rx: 10; }
+      .title { font: 700 24px Arial, sans-serif; fill: #0f172a; }
+      .section { font: 700 16px Arial, sans-serif; fill: #0f172a; }
+      .text { font: 13px Arial, sans-serif; fill: #1e293b; }
+      .small { font: 12px Arial, sans-serif; fill: #475569; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" width="1100" height="470"/>
+  <text class="title" x="40" y="42">Package Recipe Anatomy</text>
+
+  <rect class="panel" x="40" y="75" width="285" height="340"/>
+  <text class="section" x="65" y="106">package directory</text>
+  <rect class="file" x="65" y="128" width="235" height="42"/>
+  <text class="text" x="85" y="154">build.sh</text>
+  <rect class="file" x="65" y="184" width="235" height="42"/>
+  <text class="text" x="85" y="210">*.patch</text>
+  <rect class="file" x="65" y="240" width="235" height="42"/>
+  <text class="text" x="85" y="266">*.subpackage.sh</text>
+  <rect class="file" x="65" y="296" width="235" height="42"/>
+  <text class="text" x="85" y="322">service or deb scripts</text>
+  <rect class="file" x="65" y="352" width="235" height="42"/>
+  <text class="text" x="85" y="378">extra package assets</text>
+
+  <rect class="panel" x="405" y="75" width="300" height="340"/>
+  <text class="section" x="430" y="106">build.sh content</text>
+  <rect class="meta" x="430" y="128" width="250" height="70"/>
+  <text class="text" x="450" y="153">Metadata variables</text>
+  <text class="small" x="450" y="172">version, srcurl, sha256</text>
+  <text class="small" x="450" y="188">license, maintainer, deps</text>
+  <rect class="hook" x="430" y="222" width="250" height="76"/>
+  <text class="text" x="450" y="247">Optional termux_step_* hooks</text>
+  <text class="small" x="450" y="266">pre_configure, make</text>
+  <text class="small" x="450" y="282">post_make_install, massage</text>
+  <rect class="meta" x="430" y="322" width="250" height="52"/>
+  <text class="text" x="450" y="347">Package policy flags</text>
+  <text class="small" x="450" y="365">hostbuild, build_in_src, arches</text>
+
+  <rect class="panel" x="785" y="75" width="275" height="340"/>
+  <text class="section" x="810" y="106">build-package.sh</text>
+  <rect class="system" x="810" y="132" width="225" height="60"/>
+  <text class="text" x="830" y="156">source build.sh</text>
+  <text class="small" x="830" y="174">load metadata and hooks</text>
+  <rect class="system" x="810" y="218" width="225" height="60"/>
+  <text class="text" x="830" y="242">run default pipeline</text>
+  <text class="small" x="830" y="260">call overrides if present</text>
+  <rect class="system" x="810" y="304" width="225" height="60"/>
+  <text class="text" x="830" y="328">create package file</text>
+  <text class="small" x="830" y="346">deb or pacman archive</text>
+
+  <path class="line" d="M300 149 C350 149 370 149 430 149"/>
+  <path class="line" d="M300 205 C360 205 370 243 430 243"/>
+  <path class="line" d="M300 261 C360 261 370 347 430 347"/>
+  <path class="line" d="M680 162 C730 162 760 162 810 162"/>
+  <path class="line" d="M680 260 C730 260 760 248 810 248"/>
+  <path class="line" d="M680 348 C730 348 760 334 810 334"/>
+</svg>

@@ -16,9 +16,13 @@ extern LorieBuffer* lorieBuffer;
 extern struct lorie_shared_server_state *serverState;
 static char path[256];
 static int frame_number = 0;
-static const char *animation_folder = "animation_light_grey";
+static const char *animation_folder = "animation_wayland";
 
-#define NUM_FRAMES 9
+#ifndef TERMUX_RENDER_ASSETS_DIR
+#define TERMUX_RENDER_ASSETS_DIR "/data/data/com.termux/files/usr/share/termux-render/assets"
+#endif
+
+#define MAX_FRAMES 64
 typedef struct {
     uint8_t *data;
     int width;
@@ -26,10 +30,27 @@ typedef struct {
     bool loaded;
 } CachedFrame;
 
-static CachedFrame frame_cache[NUM_FRAMES] = {0};
+static int frame_count = 0;
+static CachedFrame frame_cache[MAX_FRAMES] = {0};
+
+static const char *getAssetsDir(void) {
+    const char *assetsDir = getenv("TERMUX_RENDER_ASSETS_DIR");
+    return assetsDir && assetsDir[0] ? assetsDir : TERMUX_RENDER_ASSETS_DIR;
+}
+
+static int getAnimationFrameCount(void) {
+    int count = 0;
+    for (int i = 0; i < MAX_FRAMES; i++) {
+        snprintf(path, sizeof(path), "%s/%s/frame_%03d.png", getAssetsDir(), animation_folder, i);
+        if (access(path, R_OK) != 0)
+            break;
+        count++;
+    }
+    return count;
+}
 
 static uint8_t* loadAndPreprocessFrame(int frameId, int bufferWidth, int bufferHeight) {
-    sprintf(path, "/data/data/com.termux/files/home/.wayland/assets/%s/frame_%03d.png", animation_folder, frameId);
+    snprintf(path, sizeof(path), "%s/%s/frame_%03d.png", getAssetsDir(), animation_folder, frameId);
 
     int width, height, channel;
     uint8_t *chs = stbi_load(path, &width, &height, &channel, STBI_rgb_alpha);
@@ -82,7 +103,7 @@ static int animate(){
     int bufferHeight = desc->height;
     int stride = desc->stride;
 
-    int frameId = frame_number % NUM_FRAMES;
+    int frameId = frame_number % frame_count;
     frame_number++;
 
     if (!frame_cache[frameId].loaded) {
@@ -119,7 +140,7 @@ static int animate(){
 }
 
 void cleanupFrameCache() {
-    for (int i = 0; i < NUM_FRAMES; i++) {
+    for (int i = 0; i < MAX_FRAMES; i++) {
         if (frame_cache[i].loaded && frame_cache[i].data) {
             free(frame_cache[i].data);
             frame_cache[i].data = NULL;
@@ -192,6 +213,12 @@ int main(int count,char** argv){
                 height = 800;
             }
         }
+    }
+
+    frame_count = getAnimationFrameCount();
+    if (frame_count <= 0) {
+        tlog(LOG_ERR, "No animation frames found in %s/%s", getAssetsDir(), animation_folder);
+        return 1;
     }
 
     int interval_usec = 1000000 / fps;
