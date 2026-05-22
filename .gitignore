@@ -10,7 +10,6 @@ release/
 .externalNativeBuild
 .cxx
 *.zip
-*.gif
 
 # Local configuration file (sdk path, etc)
 local.properties
