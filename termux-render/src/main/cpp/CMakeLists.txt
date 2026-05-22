@@ -5,6 +5,15 @@ project("termux-render")
 include(GNUInstallDirs)
 
 set(TERMUX_RENDER_ASSETS_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/termux-render/assets")
+set(TERMUX_RENDER_ASSETS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/assets")
+set(INSTALL_ASSETS "default" CACHE STRING "Assets to install: default or all")
+set_property(CACHE INSTALL_ASSETS PROPERTY STRINGS default all)
+string(TOLOWER "${INSTALL_ASSETS}" TERMUX_RENDER_INSTALL_ASSETS)
+if(NOT TERMUX_RENDER_INSTALL_ASSETS STREQUAL "default" AND
+        NOT TERMUX_RENDER_INSTALL_ASSETS STREQUAL "all")
+        message(FATAL_ERROR "INSTALL_ASSETS must be 'default' or 'all'")
+endif()
+
 set(TERMUX_RENDER_ASSETS_DIR "" CACHE PATH "Runtime path for termux-render assets")
 if(NOT TERMUX_RENDER_ASSETS_DIR)
         set(TERMUX_RENDER_ASSETS_DIR "${CMAKE_INSTALL_FULL_DATADIR}/termux-render/assets")
@@ -22,15 +31,28 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 )
 install(TARGETS ${CMAKE_PROJECT_NAME} LIBRARY)
 install(FILES
-        ${CMAKE_SOURCE_DIR}/include/buffer.h
-        ${CMAKE_SOURCE_DIR}/include/render.h
-        ${CMAKE_SOURCE_DIR}/include/tlog.h
+        ${CMAKE_CURRENT_LIST_DIR}/include/buffer.h
+        ${CMAKE_CURRENT_LIST_DIR}/include/render.h
+        ${CMAKE_CURRENT_LIST_DIR}/include/tlog.h
         DESTINATION include/termux/render
 )
-install(DIRECTORY
-        ${CMAKE_SOURCE_DIR}/assets/
-        DESTINATION ${TERMUX_RENDER_ASSETS_INSTALL_DIR}
-)
+
+function(install_termux_render_asset_directory asset_dir)
+        install(DIRECTORY
+                "${TERMUX_RENDER_ASSETS_SOURCE_DIR}/${asset_dir}"
+                DESTINATION "${TERMUX_RENDER_ASSETS_INSTALL_DIR}"
+        )
+endfunction()
+
+if(TERMUX_RENDER_INSTALL_ASSETS STREQUAL "all")
+        install(DIRECTORY
+                "${TERMUX_RENDER_ASSETS_SOURCE_DIR}/"
+                DESTINATION "${TERMUX_RENDER_ASSETS_INSTALL_DIR}"
+        )
+else()
+        install_termux_render_asset_directory(animation_wayland)
+        install_termux_render_asset_directory(animation_x11)
+endif()
 
 add_executable(termux-render-sample main.c)
 target_compile_definitions(termux-render-sample PRIVATE
