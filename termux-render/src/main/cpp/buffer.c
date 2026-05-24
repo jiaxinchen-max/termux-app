@@ -52,6 +52,8 @@ typedef int (*AHardwareBuffer_unlock_fn)(AHardwareBuffer *buffer,
                                          int32_t *fence);
 typedef int (*AHardwareBuffer_recvHandleFromUnixSocket_fn)(int socketFd,
                                                            AHardwareBuffer **outBuffer);
+typedef int (*AHardwareBuffer_sendHandleToUnixSocket_fn)(const AHardwareBuffer *buffer,
+                                                         int socketFd);
 
 static void *
 libandroidSymbol(const char *name)
@@ -97,6 +99,8 @@ LIBANDROID_SYMBOL(AHardwareBuffer_lock, AHardwareBuffer_lock_fn)
 LIBANDROID_SYMBOL(AHardwareBuffer_unlock, AHardwareBuffer_unlock_fn)
 LIBANDROID_SYMBOL(AHardwareBuffer_recvHandleFromUnixSocket,
                   AHardwareBuffer_recvHandleFromUnixSocket_fn)
+LIBANDROID_SYMBOL(AHardwareBuffer_sendHandleToUnixSocket,
+                  AHardwareBuffer_sendHandleToUnixSocket_fn)
 
 static int
 androidSharedMemoryCreate(const char *name, size_t size)
@@ -192,6 +196,21 @@ androidHardwareBufferRecvHandleFromUnixSocket(int socketFd,
     return recvHandle(socketFd, outBuffer);
 }
 
+static int
+androidHardwareBufferSendHandleToUnixSocket(AHardwareBuffer *buffer,
+                                            int socketFd)
+{
+    AHardwareBuffer_sendHandleToUnixSocket_fn sendHandle =
+        AHardwareBuffer_sendHandleToUnixSocket_dynamic();
+
+    if (!sendHandle) {
+        errno = ENOSYS;
+        return -1;
+    }
+
+    return sendHandle(buffer, socketFd);
+}
+
 __attribute__((unused))
 static int memfd_create(const char *name, unsigned int flags) {
 #ifndef __NR_memfd_create
@@ -241,6 +260,25 @@ static int readFullFromSocket(int fd, void *buffer, size_t size) {
     }
 
     return 1;
+}
+
+static int writeFullToSocket(int fd, const void *buffer, size_t size) {
+    size_t offset = 0;
+
+    while (offset < size) {
+        ssize_t count = write(fd, (const char *) buffer + offset, size - offset);
+        if (count > 0) {
+            offset += count;
+            continue;
+        }
+        if (count < 0 && errno == EINTR)
+            continue;
+        tlog(LOG_ERR, "writeFullToSocket failed after %zu/%zu bytes: %s",
+             offset, size, strerror(errno));
+        return -1;
+    }
+
+    return 0;
 }
 
 #pragma clang diagnostic push
@@ -343,7 +381,7 @@ static LorieBuffer* allocate(int32_t width, int32_t stride, int32_t height, int8
     return buffer;
 }
 
-__LIBC_HIDDEN__ LorieBuffer* LorieBuffer_allocate(int32_t width, int32_t height, int8_t format, int8_t type) {
+LorieBuffer* LorieBuffer_allocate(int32_t width, int32_t height, int8_t format, int8_t type) {
     int fd = -1;
     size_t size = 0;
     AHardwareBuffer *ahardwarebuffer = NULL;
@@ -364,14 +402,91 @@ __LIBC_HIDDEN__ LorieBuffer* LorieBuffer_allocate(int32_t width, int32_t height,
     return allocate(width, width, height, format, type, ahardwarebuffer, fd, size, 0, true);
 }
 
-__LIBC_HIDDEN__ LorieBuffer* LorieBuffer_wrapFileDescriptor(int32_t width, int32_t stride, int32_t height, int8_t format, int fd, off_t offset) {
+LorieBuffer* LorieBuffer_wrapFileDescriptor(int32_t width, int32_t stride, int32_t height, int8_t format, int fd, off_t offset) {
     return allocate(width, stride, height, format, LORIEBUFFER_FD, NULL, fd, stride * height * sizeof(uint32_t), offset, false);
 }
 
-__LIBC_HIDDEN__ LorieBuffer* LorieBuffer_wrapAHardwareBuffer(AHardwareBuffer* buffer) {
+LorieBuffer* LorieBuffer_wrapAHardwareBuffer(AHardwareBuffer* buffer) {
     return allocate(0, 0, 0, 0, LORIEBUFFER_AHARDWAREBUFFER, buffer, -1, 0, 0, false);
 }
 
+void __LorieBuffer_free(LorieBuffer *buffer) {
+    if (!buffer)
+        return;
+
+    if (buffer->locked)
+        LorieBuffer_unlock(buffer);
+
+    switch (buffer->desc.type) {
+        case LORIEBUFFER_REGULAR:
+            free(buffer->desc.data);
+            break;
+        case LORIEBUFFER_FD:
+            if (buffer->desc.data && buffer->desc.data != MAP_FAILED)
+                munmap(buffer->desc.data, buffer->size);
+            if (buffer->fd >= 0)
+                close(buffer->fd);
+            break;
+        case LORIEBUFFER_AHARDWAREBUFFER:
+            if (buffer->desc.buffer)
+                androidHardwareBufferRelease(buffer->desc.buffer);
+            break;
+        default:
+            break;
+    }
+
+    xorg_list_del(&buffer->link);
+    free(buffer);
+}
+
+void LorieBuffer_convert(LorieBuffer *buffer, int8_t type, int8_t format) {
+    void *src, *dst = NULL;
+    LorieBuffer *converted;
+    const LorieBuffer_Desc *srcDesc;
+
+    if (!buffer || buffer->desc.type != LORIEBUFFER_REGULAR)
+        return;
+
+    if (type != LORIEBUFFER_FD && type != LORIEBUFFER_AHARDWAREBUFFER)
+        return;
+
+    if (format != AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM &&
+        format != AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM)
+        return;
+
+    converted = LorieBuffer_allocate(buffer->desc.width, buffer->desc.height,
+                                     format, type);
+    if (!converted)
+        return;
+
+    srcDesc = LorieBuffer_description(buffer);
+    src = buffer->desc.data;
+    if (LorieBuffer_lock(converted, &dst) != 0 || !dst) {
+        LorieBuffer_release(converted);
+        return;
+    }
+
+    for (int y = 0; y < srcDesc->height; y++) {
+        memcpy((char *) dst + y * converted->desc.stride * sizeof(uint32_t),
+               (char *) src + y * srcDesc->stride * sizeof(uint32_t),
+               srcDesc->width * sizeof(uint32_t));
+    }
+    LorieBuffer_unlock(converted);
+
+    free(buffer->desc.data);
+    buffer->desc = converted->desc;
+    buffer->fd = converted->fd;
+    buffer->size = converted->size;
+    buffer->offset = converted->offset;
+    buffer->locked = false;
+    buffer->lockedData = NULL;
+
+    converted->fd = -1;
+    converted->size = 0;
+    converted->desc.data = NULL;
+    converted->desc.buffer = NULL;
+    LorieBuffer_release(converted);
+}
 
 const LorieBuffer_Desc* LorieBuffer_description(LorieBuffer* buffer) {
     static const LorieBuffer_Desc none = {0};
@@ -423,7 +538,25 @@ int LorieBuffer_unlock(LorieBuffer* buffer) {
 }
 
 
-__LIBC_HIDDEN__ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuffer** outBuffer) {
+void LorieBuffer_sendHandleToUnixSocket(LorieBuffer* _Nonnull buffer, int socketFd) {
+    if (socketFd < 0 || !buffer)
+        return;
+
+    tlog(LOG_INFO, "Sending LorieBuffer payload sizeof(LorieBuffer)=%zu sizeof(desc)=%zu width=%d stride=%d height=%d format=%d type=%d id=%llu",
+         sizeof(*buffer), sizeof(buffer->desc), buffer->desc.width, buffer->desc.stride,
+         buffer->desc.height, buffer->desc.format, buffer->desc.type,
+         (unsigned long long) buffer->desc.id);
+
+    if (writeFullToSocket(socketFd, buffer, sizeof(*buffer)) != 0)
+        return;
+
+    if (buffer->desc.type == LORIEBUFFER_FD)
+        ancil_send_fd(socketFd, buffer->fd);
+    else if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER)
+        androidHardwareBufferSendHandleToUnixSocket(buffer->desc.buffer, socketFd);
+}
+
+void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuffer** outBuffer) {
     LorieBuffer buffer = {0}, *ret = NULL;
     // We should read buffer from socket despite outbuffer is NULL, otherwise we will get protocol error
     if (socketFd < 0)
@@ -444,6 +577,11 @@ __LIBC_HIDDEN__ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuf
         tlog(LOG_ERR, "Failed to receive LorieBuffer payload");
         return;
     }
+    buffer.refcount = 1;
+    buffer.locked = false;
+    buffer.lockedData = NULL;
+    buffer.fd = -1;
+    buffer.id = 0;
     buffer.image = NULL; // Only for process-local use
     tlog(LOG_INFO, "Received raw LorieBuffer desc width=%d stride=%d height=%d format=%d type=%d id=%llu fd=%d",
          buffer.desc.width, buffer.desc.stride, buffer.desc.height,
@@ -488,7 +626,7 @@ __LIBC_HIDDEN__ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuf
         if (buffer.desc.buffer)
             androidHardwareBufferRelease(buffer.desc.buffer);
         if (outBuffer)
-            outBuffer = NULL;
+            *outBuffer = NULL;
         tlog(LOG_ERR, "Failed to allocate client LorieBuffer copy");
         return;
     }
@@ -499,7 +637,83 @@ __LIBC_HIDDEN__ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuf
     tlog(LOG_INFO, "LorieBuffer receive completed out=%p", ret);
 }
 
-__LIBC_HIDDEN__ int ancil_recv_fd(int sock) {
+int LorieBuffer_getWidth(LorieBuffer *buffer) {
+    return LorieBuffer_description(buffer)->width;
+}
+
+int LorieBuffer_getHeight(LorieBuffer *buffer) {
+    return LorieBuffer_description(buffer)->height;
+}
+
+bool LorieBuffer_isRgba(LorieBuffer *buffer) {
+    return LorieBuffer_description(buffer)->format != AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM;
+}
+
+void LorieBuffer_addToList(LorieBuffer* _Nullable buffer, struct xorg_list* _Nullable list) {
+    if (buffer && list) {
+        xorg_list_del(&buffer->link);
+        xorg_list_add(&buffer->link, list);
+    }
+}
+
+void LorieBuffer_removeFromList(LorieBuffer* _Nullable buffer) {
+    if (buffer)
+        xorg_list_del(&buffer->link);
+}
+
+LorieBuffer* _Nullable LorieBufferList_first(struct xorg_list* _Nullable list) {
+    return !list || xorg_list_is_empty(list) ? NULL : xorg_list_first_entry(list, LorieBuffer, link);
+}
+
+LorieBuffer* _Nullable LorieBufferList_findById(struct xorg_list* _Nullable list, uint64_t id) {
+    LorieBuffer *buffer;
+
+    if (!list)
+        return NULL;
+
+    xorg_list_for_each_entry(buffer, list, link)
+        if (buffer->desc.id == id)
+            return buffer;
+    return NULL;
+}
+
+int ancil_send_fd(int sock, int fd) {
+    char nothing = '!';
+    struct iovec nothing_ptr = { .iov_base = &nothing, .iov_len = 1 };
+
+    struct {
+        struct cmsghdr align;
+        int fd[1];
+    } ancillary_data_buffer;
+
+    struct msghdr message_header = {
+            .msg_name = NULL,
+            .msg_namelen = 0,
+            .msg_iov = &nothing_ptr,
+            .msg_iovlen = 1,
+            .msg_flags = 0,
+            .msg_control = &ancillary_data_buffer,
+            .msg_controllen = sizeof(struct cmsghdr) + sizeof(int)
+    };
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "NullDereference"
+    struct cmsghdr* cmsg = CMSG_FIRSTHDR(&message_header);
+    cmsg->cmsg_len = message_header.msg_controllen;
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    ((int*) CMSG_DATA(cmsg))[0] = fd;
+#pragma clang diagnostic pop
+
+    if (sendmsg(sock, &message_header, 0) < 0) {
+        tlog(LOG_ERR, "ancil_send_fd failed: %s", strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
+int ancil_recv_fd(int sock) {
     char nothing = '!';
     struct iovec nothing_ptr = { .iov_base = &nothing, .iov_len = 1 };
 

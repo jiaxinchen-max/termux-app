@@ -206,6 +206,22 @@ static void waylandRegisterBuffer(int fd, LorieBuffer *buffer) {
     log(INFO, "Sent shared buffer width %d stride %d height %d format %d type %d id %llu",
         desc->width, desc->stride, desc->height, desc->format, desc->type, (unsigned long long) desc->id);
 }
+
+static void waylandRegisterClientBuffer(int fd) {
+    LorieBuffer *buffer = NULL;
+
+    LorieBuffer_recvHandleFromUnixSocket(fd, &buffer);
+    if (!buffer) {
+        log(ERROR, "EVENT_ADD_BUFFER did not contain a valid buffer");
+        return;
+    }
+
+    rendererAddBuffer(buffer);
+    const LorieBuffer_Desc *desc = LorieBuffer_description(buffer);
+    log(INFO, "Registered client buffer width %d stride %d height %d format %d type %d id %llu",
+        desc->width, desc->stride, desc->height, desc->format, desc->type,
+        (unsigned long long) desc->id);
+}
 static void cleanupSharedResources(JNIEnv *env);
 
 static void cleanupSharedResources(JNIEnv *env) {
@@ -317,6 +333,16 @@ static int process(JNIEnv *env, int fd) {
                     log(INFO, "Sent EVENT_SHARED_EVENT_FD fd=%d type=%s result=%d",
                         client[1], RENDER_INPUT_SOCKET_TYPE_NAME, ret);
                     close(client[1]);
+                    break;
+                }
+                case EVENT_ADD_BUFFER: {
+                    log(INFO, "Handling EVENT_ADD_BUFFER");
+                    waylandRegisterClientBuffer(fd);
+                    break;
+                }
+                case EVENT_REMOVE_BUFFER: {
+                    log(INFO, "Handling EVENT_REMOVE_BUFFER id=%lu", e.removeBuffer.id);
+                    rendererRemoveBuffer(e.removeBuffer.id);
                     break;
                 }
                 case EVENT_CLIENT_VERIFY_SUCCEED: {

@@ -361,6 +361,11 @@ __LIBC_HIDDEN__ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuf
     __sync_fetch_and_add(&buffer.refcount, 1); // refcount is the first object in the struct
 
     read(socketFd, &buffer, sizeof(buffer));
+    buffer.refcount = 1;
+    buffer.locked = false;
+    buffer.lockedData = NULL;
+    buffer.fd = -1;
+    buffer.id = 0;
     buffer.image = NULL; // Only for process-local use
     if (buffer.desc.type == LORIEBUFFER_FD) {
         size_t size = buffer.desc.stride * buffer.desc.height * sizeof(uint32_t);

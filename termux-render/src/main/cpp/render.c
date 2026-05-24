@@ -19,6 +19,7 @@
 static int event_fd = -1, conn_fd=-1, stateFd = -1;
 static int connect_retry = 0;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t control_write_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 static volatile int buffer_ready = 0;
 static volatile int event_loop_running = 0;
@@ -176,6 +177,25 @@ static int readFull(int fd, void *buffer, size_t size) {
     return 1;
 }
 
+static int writeFull(int fd, const void *buffer, size_t size) {
+    size_t offset = 0;
+
+    while (offset < size) {
+        ssize_t count = write(fd, (const char *) buffer + offset, size - offset);
+        if (count > 0) {
+            offset += count;
+            continue;
+        }
+
+        if (count < 0 && errno == EINTR)
+            continue;
+
+        return -1;
+    }
+
+    return 0;
+}
+
 static int readLorieEvent(int fd, lorieEvent *event) {
     memset(event, 0, sizeof(*event));
 #if TERMUX_RENDER_USE_SEQPACKET && defined(SOCK_SEQPACKET)
@@ -263,6 +283,46 @@ LorieBuffer *get_lorieBuffer(void) {
 
 struct lorie_shared_server_state *get_serverState(void) {
     return serverState;
+}
+
+int registerBufferToRender(LorieBuffer *buffer) {
+    lorieEvent event = {.type = EVENT_ADD_BUFFER};
+
+    if (!buffer || event_fd < 0 || handshake_phase != HANDSHAKE_COMPLETE) {
+        errno = ENOTCONN;
+        return -1;
+    }
+
+    pthread_mutex_lock(&control_write_mutex);
+    if (writeFull(event_fd, &event, sizeof(event)) != 0) {
+        pthread_mutex_unlock(&control_write_mutex);
+        return -1;
+    }
+    LorieBuffer_sendHandleToUnixSocket(buffer, event_fd);
+    pthread_mutex_unlock(&control_write_mutex);
+    return 0;
+}
+
+int unregisterBufferFromRender(LorieBuffer *buffer) {
+    const LorieBuffer_Desc *desc;
+    lorieEvent event = {0};
+
+    if (!buffer || event_fd < 0 || handshake_phase != HANDSHAKE_COMPLETE) {
+        errno = ENOTCONN;
+        return -1;
+    }
+
+    desc = LorieBuffer_description(buffer);
+    event.removeBuffer.t = EVENT_REMOVE_BUFFER;
+    event.removeBuffer.id = desc->id;
+
+    pthread_mutex_lock(&control_write_mutex);
+    if (writeFull(event_fd, &event, sizeof(event)) != 0) {
+        pthread_mutex_unlock(&control_write_mutex);
+        return -1;
+    }
+    pthread_mutex_unlock(&control_write_mutex);
+    return 0;
 }
 
 static void applyScreenBufferConfig(int format, int type) {

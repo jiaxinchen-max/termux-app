@@ -399,9 +399,11 @@ void rendererAddBuffer(LorieBuffer* buf) {
 void rendererRemoveBuffer(uint64_t id) {
     pthread_spin_lock(&bufferLock);
     LorieBuffer* buf = LorieBufferList_findById(&addedBuffers, id);
-    if (buf)
+    if (buf) {
         // Buffer was not attached to GL yet, it is safe to release it now.
+        LorieBuffer_removeFromList(buf);
         LorieBuffer_release(buf);
+    }
     else {
         buf = LorieBufferList_findById(&buffers, id);
         if (buf) {
@@ -419,6 +421,7 @@ void rendererRemoveAllBuffers(void) {
     pthread_spin_lock(&bufferLock);
     while ((buf = LorieBufferList_first(&addedBuffers))) {
         // These buffers are not yet attached to GL, it is safe to release them
+        LorieBuffer_removeFromList(buf);
         LorieBuffer_release(buf);
     }
     while ((buf = LorieBufferList_first(&buffers))) {
@@ -706,8 +709,10 @@ __noreturn static void* rendererThread(void) {
 
         pthread_spin_lock(&bufferLock);
         // Remove all buffers which were attached to GL.
-        while((buf = LorieBufferList_first(&removedBuffers)))
+        while((buf = LorieBufferList_first(&removedBuffers))) {
+            LorieBuffer_removeFromList(buf);
             LorieBuffer_release(buf);
+        }
         pthread_spin_unlock(&bufferLock);
         pthread_mutex_lock(&stateLock);
     }
