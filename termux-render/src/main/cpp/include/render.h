@@ -343,7 +343,21 @@ static int android_to_linux_keycode[304] = {
         [ 208  /* ANDROID_KEYCODE_CALENDAR */] = KEY_CALENDAR,
         [ 210  /* ANDROID_KEYCODE_CALCULATOR */] = KEY_CALC,
 };
-void setScreenConfig(int, int, int);
+void setScreenConfig(int, int, int, int, ...);
+#ifndef TERMUX_RENDER_NO_SET_SCREEN_CONFIG_MACRO
+#define TERMUX_RENDER_SET_SCREEN_CONFIG_SELECT(_1, _2, _3, _4, _5, NAME, ...) NAME
+#define TERMUX_RENDER_SET_SCREEN_CONFIG_3(width, height, framerate) \
+        setScreenConfig(width, height, framerate, 0)
+#define TERMUX_RENDER_SET_SCREEN_CONFIG_5(width, height, framerate, format, type) \
+        setScreenConfig(width, height, framerate, 2, format, type)
+#define setScreenConfig(...) \
+        TERMUX_RENDER_SET_SCREEN_CONFIG_SELECT(__VA_ARGS__, \
+                                               TERMUX_RENDER_SET_SCREEN_CONFIG_5, \
+                                               TERMUX_RENDER_SET_SCREEN_CONFIG_INVALID_4, \
+                                               TERMUX_RENDER_SET_SCREEN_CONFIG_3, \
+                                               TERMUX_RENDER_SET_SCREEN_CONFIG_INVALID_2, \
+                                               TERMUX_RENDER_SET_SCREEN_CONFIG_INVALID_1)(__VA_ARGS__)
+#endif
 int connectToRender();
 void setExitCallback(void (*callback)(void));
 void stopEventLoop(void);

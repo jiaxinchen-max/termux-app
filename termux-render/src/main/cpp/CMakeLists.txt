@@ -27,9 +27,10 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
         # List libraries link to the target library
-        android log m
+        dl log m
 )
-install(TARGETS ${CMAKE_PROJECT_NAME} LIBRARY)
+install(TARGETS ${CMAKE_PROJECT_NAME}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES
         ${CMAKE_CURRENT_LIST_DIR}/include/buffer.h
         ${CMAKE_CURRENT_LIST_DIR}/include/render.h
@@ -61,4 +62,15 @@ target_link_libraries(termux-render-sample
         ${CMAKE_PROJECT_NAME}
         )
 set_target_properties(termux-render-sample PROPERTIES LINK_FLAGS "-Wl,--allow-shlib-undefined")
-install(TARGETS termux-render-sample RUNTIME)
+install(TARGETS termux-render-sample
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+add_executable(termux-render-sample-cpp main.cpp)
+target_compile_definitions(termux-render-sample-cpp PRIVATE
+        TERMUX_RENDER_ASSETS_DIR="${TERMUX_RENDER_ASSETS_DIR}")
+target_link_libraries(termux-render-sample-cpp
+        ${CMAKE_PROJECT_NAME}
+        )
+set_target_properties(termux-render-sample-cpp PROPERTIES LINK_FLAGS "-Wl,--allow-shlib-undefined")
+install(TARGETS termux-render-sample-cpp
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

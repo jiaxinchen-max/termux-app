@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#include <dlfcn.h>
 #include <linux/memfd.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -37,6 +38,159 @@ struct LorieBuffer {
     EGLImage image;
     struct xorg_list link;
 };
+
+typedef int (*ASharedMemory_create_fn)(const char *name, size_t size);
+typedef int (*AHardwareBuffer_allocate_fn)(const AHardwareBuffer_Desc *desc,
+                                           AHardwareBuffer **outBuffer);
+typedef void (*AHardwareBuffer_describe_fn)(const AHardwareBuffer *buffer,
+                                            AHardwareBuffer_Desc *outDesc);
+typedef void (*AHardwareBuffer_release_fn)(AHardwareBuffer *buffer);
+typedef int (*AHardwareBuffer_lock_fn)(AHardwareBuffer *buffer,
+                                       uint64_t usage, int32_t fence,
+                                       const ARect *rect, void **outVirtualAddress);
+typedef int (*AHardwareBuffer_unlock_fn)(AHardwareBuffer *buffer,
+                                         int32_t *fence);
+typedef int (*AHardwareBuffer_recvHandleFromUnixSocket_fn)(int socketFd,
+                                                           AHardwareBuffer **outBuffer);
+
+static void *
+libandroidSymbol(const char *name)
+{
+    static void *handle;
+    static bool attempted;
+
+    if (!attempted) {
+        attempted = true;
+        handle = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
+        if (!handle)
+            tlog(LOG_WARNING, "dlopen libandroid.so failed: %s", dlerror());
+    }
+
+    if (!handle)
+        return NULL;
+
+    dlerror();
+    void *symbol = dlsym(handle, name);
+    if (!symbol)
+        tlog(LOG_WARNING, "dlsym %s failed: %s", name, dlerror());
+    return symbol;
+}
+
+#define LIBANDROID_SYMBOL(name, type) \
+static type \
+name##_dynamic(void) \
+{ \
+    static type symbol; \
+    static bool attempted; \
+    if (!attempted) { \
+        attempted = true; \
+        symbol = (type) libandroidSymbol(#name); \
+    } \
+    return symbol; \
+}
+
+LIBANDROID_SYMBOL(ASharedMemory_create, ASharedMemory_create_fn)
+LIBANDROID_SYMBOL(AHardwareBuffer_allocate, AHardwareBuffer_allocate_fn)
+LIBANDROID_SYMBOL(AHardwareBuffer_describe, AHardwareBuffer_describe_fn)
+LIBANDROID_SYMBOL(AHardwareBuffer_release, AHardwareBuffer_release_fn)
+LIBANDROID_SYMBOL(AHardwareBuffer_lock, AHardwareBuffer_lock_fn)
+LIBANDROID_SYMBOL(AHardwareBuffer_unlock, AHardwareBuffer_unlock_fn)
+LIBANDROID_SYMBOL(AHardwareBuffer_recvHandleFromUnixSocket,
+                  AHardwareBuffer_recvHandleFromUnixSocket_fn)
+
+static int
+androidSharedMemoryCreate(const char *name, size_t size)
+{
+    ASharedMemory_create_fn create = ASharedMemory_create_dynamic();
+
+    if (!create) {
+        errno = ENOSYS;
+        return -1;
+    }
+
+    return create(name, size);
+}
+
+static int
+androidHardwareBufferAllocate(const AHardwareBuffer_Desc *desc,
+                              AHardwareBuffer **outBuffer)
+{
+    AHardwareBuffer_allocate_fn allocate = AHardwareBuffer_allocate_dynamic();
+
+    if (!allocate) {
+        errno = ENOSYS;
+        return -1;
+    }
+
+    return allocate(desc, outBuffer);
+}
+
+static bool
+androidHardwareBufferDescribe(const AHardwareBuffer *buffer,
+                              AHardwareBuffer_Desc *outDesc)
+{
+    AHardwareBuffer_describe_fn describe = AHardwareBuffer_describe_dynamic();
+
+    if (!describe) {
+        errno = ENOSYS;
+        return false;
+    }
+
+    describe(buffer, outDesc);
+    return true;
+}
+
+static void
+androidHardwareBufferRelease(AHardwareBuffer *buffer)
+{
+    AHardwareBuffer_release_fn release = AHardwareBuffer_release_dynamic();
+
+    if (release)
+        release(buffer);
+}
+
+static int
+androidHardwareBufferLock(AHardwareBuffer *buffer, uint64_t usage,
+                          int32_t fence, const ARect *rect,
+                          void **outVirtualAddress)
+{
+    AHardwareBuffer_lock_fn lock = AHardwareBuffer_lock_dynamic();
+
+    if (!lock) {
+        errno = ENOSYS;
+        return -1;
+    }
+
+    return lock(buffer, usage, fence, rect, outVirtualAddress);
+}
+
+static int
+androidHardwareBufferUnlock(AHardwareBuffer *buffer, int32_t *fence)
+{
+    AHardwareBuffer_unlock_fn unlock = AHardwareBuffer_unlock_dynamic();
+
+    if (!unlock) {
+        errno = ENOSYS;
+        return -1;
+    }
+
+    return unlock(buffer, fence);
+}
+
+static int
+androidHardwareBufferRecvHandleFromUnixSocket(int socketFd,
+                                              AHardwareBuffer **outBuffer)
+{
+    AHardwareBuffer_recvHandleFromUnixSocket_fn recvHandle =
+        AHardwareBuffer_recvHandleFromUnixSocket_dynamic();
+
+    if (!recvHandle) {
+        errno = ENOSYS;
+        return -1;
+    }
+
+    return recvHandle(socketFd, outBuffer);
+}
 
 __attribute__((unused))
 static int memfd_create(const char *name, unsigned int flags) {
@@ -92,12 +246,12 @@ static int readFullFromSocket(int fd, void *buffer, size_t size) {
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "UnreachableCallsOfFunction"
 int LorieBuffer_createRegion(char const* name, size_t size) {
-    int fd = ASharedMemory_create(name, size);
-    if (fd)
+    int fd = androidSharedMemoryCreate(name, size);
+    if (fd >= 0)
         return fd;
 
     fd = memfd_create(name, MFD_CLOEXEC|MFD_ALLOW_SEALING);
-    if (fd) {
+    if (fd >= 0) {
         ftruncate (fd, size);
         return fd;
     }
@@ -154,7 +308,8 @@ static LorieBuffer* allocate(int32_t width, int32_t stride, int32_t height, int8
             if (!b.desc.buffer)
                 return NULL;
 
-            AHardwareBuffer_describe(b.desc.buffer, &desc);
+            if (!androidHardwareBufferDescribe(b.desc.buffer, &desc))
+                return NULL;
             b.desc.width = desc.width;
             b.desc.height = desc.height;
             b.desc.stride = desc.stride;
@@ -175,7 +330,7 @@ static LorieBuffer* allocate(int32_t width, int32_t stride, int32_t height, int8
                 close(b.fd);
                 break;
             case LORIEBUFFER_AHARDWAREBUFFER:
-                AHardwareBuffer_release(b.desc.buffer);
+                androidHardwareBufferRelease(b.desc.buffer);
                 break;
             default: break;
         }
@@ -201,7 +356,7 @@ __LIBC_HIDDEN__ LorieBuffer* LorieBuffer_allocate(int32_t width, int32_t height,
     } else if (type == LORIEBUFFER_AHARDWAREBUFFER) {
         AHardwareBuffer_Desc desc = { .width = width, .height = height, .format = format, .layers = 1,
                 .usage = AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN | AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE };
-        int err = AHardwareBuffer_allocate(&desc, &ahardwarebuffer);
+        int err = androidHardwareBufferAllocate(&desc, &ahardwarebuffer);
         if (err != 0)
             dprintf(2, "FATAL: failed to allocate AHardwareBuffer (width %d height %d format %d): error %d\n", width, height, format, err);
     }
@@ -238,7 +393,7 @@ const LorieBuffer_Desc* LorieBuffer_description(LorieBuffer* buffer) {
     if (buffer->desc.type == LORIEBUFFER_REGULAR || buffer->desc.type == LORIEBUFFER_FD)
         buffer->lockedData = buffer->desc.data;
     else if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER)
-        ret = AHardwareBuffer_lock(buffer->desc.buffer, AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN, -1, NULL, &buffer->lockedData);
+        ret = androidHardwareBufferLock(buffer->desc.buffer, AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN, -1, NULL, &buffer->lockedData);
 
     if (out)
         *out = buffer->lockedData;
@@ -259,7 +414,7 @@ int LorieBuffer_unlock(LorieBuffer* buffer) {
     }
 
     if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER)
-        ret = AHardwareBuffer_unlock(buffer->desc.buffer, NULL);
+        ret = androidHardwareBufferUnlock(buffer->desc.buffer, NULL);
 
     buffer->lockedData = NULL;
     buffer->locked = false;
@@ -311,7 +466,14 @@ __LIBC_HIDDEN__ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuf
             return;
         }
     } else if (buffer.desc.type == LORIEBUFFER_AHARDWAREBUFFER) {
-        AHardwareBuffer_recvHandleFromUnixSocket(socketFd, &buffer.desc.buffer);
+        if (androidHardwareBufferRecvHandleFromUnixSocket(socketFd,
+                                                          &buffer.desc.buffer) != 0) {
+            tlog(LOG_ERR, "Failed to receive AHardwareBuffer handle: %s",
+                 strerror(errno));
+            if (outBuffer)
+                *outBuffer = NULL;
+            return;
+        }
         tlog(LOG_INFO, "Received AHardwareBuffer handle=%p", buffer.desc.buffer);
     }
 
@@ -324,7 +486,7 @@ __LIBC_HIDDEN__ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuf
         if (buffer.fd >= 0)
             close(buffer.fd);
         if (buffer.desc.buffer)
-            AHardwareBuffer_release(buffer.desc.buffer);
+            androidHardwareBufferRelease(buffer.desc.buffer);
         if (outBuffer)
             outBuffer = NULL;
         tlog(LOG_ERR, "Failed to allocate client LorieBuffer copy");

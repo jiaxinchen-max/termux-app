@@ -12,7 +12,6 @@
 #include <android/looper.h>
 #include <sys/mman.h>
 #include <asm-generic/ioctls.h>
-#include <poll.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <stdio.h>
@@ -20,16 +19,18 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <signal.h>
-#include <sys/time.h>
 #include "waylandRenderServer.h"
 #include "buffer.h"
 #include "lorie.h"
 
 #define MAX_WAITING_CONNECT_CLIENTS 5
 #define SOCKET_DIR "/data/data/com.termux/files/home/tmp"
-#define SOCKET_PATH SOCKET_DIR "/wayland-0"
-#ifdef SOCK_SEQPACKET
+#define SOCKET_PATH SOCKET_DIR "/termux-render"
+#ifndef TERMUX_RENDER_USE_SEQPACKET
+#define TERMUX_RENDER_USE_SEQPACKET 0
+#endif
+
+#if TERMUX_RENDER_USE_SEQPACKET && defined(SOCK_SEQPACKET)
 #define RENDER_SOCKET_TYPE SOCK_SEQPACKET
 #define RENDER_SOCKET_TYPE_NAME "SOCK_SEQPACKET"
 #define RENDER_INPUT_SOCKET_TYPE SOCK_SEQPACKET
@@ -153,7 +154,7 @@ static int readFull(int fd, void *buffer, size_t size) {
 
 static int readLorieEvent(int fd, lorieEvent *event) {
     memset(event, 0, sizeof(*event));
-#ifdef SOCK_SEQPACKET
+#if TERMUX_RENDER_USE_SEQPACKET && defined(SOCK_SEQPACKET)
     ssize_t count;
     do {
         count = read(fd, event, sizeof(*event));
@@ -180,11 +181,6 @@ static int readLorieEvent(int fd, lorieEvent *event) {
 #endif
 }
 
-static bool renderConnectAlive(int fd) {
-    // Check if socket is closed or has errors.
-    struct pollfd p = { .fd = fd, .events = POLLIN | POLLHUP | POLLERR | POLLRDHUP };
-    return !(poll(&p, 1, 0) == 1 && (p.revents & (POLLERR | POLLNVAL | POLLRDHUP | POLLHUP)));
-}
 static void waylandSendSharedServerState(int fd, int memfd) {
     lorieEvent e = {.type = EVENT_SHARED_SERVER_STATE};
     log(INFO, "Sending EVENT_SHARED_SERVER_STATE memfd=%d sizeof(lorieEvent)=%zu", memfd, sizeof(lorieEvent));
@@ -211,14 +207,8 @@ static void waylandRegisterBuffer(int fd, LorieBuffer *buffer) {
         desc->width, desc->stride, desc->height, desc->format, desc->type, (unsigned long long) desc->id);
 }
 static void cleanupSharedResources(JNIEnv *env);
-static void connectionCheckHandler(int signum) {
-    connection_alive= renderConnectAlive(event_fd);
-}
 
 static void cleanupSharedResources(JNIEnv *env) {
-    struct itimerval timer = {0};
-    setitimer(ITIMER_REAL, &timer, NULL);
-
     connection_alive = 0;
 
     rendererSetSharedState(NULL);
@@ -242,153 +232,115 @@ static int process(JNIEnv *env, int fd) {
 
     connection_alive = 1;
 
-    struct sigaction sa;
-    sa.sa_handler = connectionCheckHandler;
-    sa.sa_flags = SA_RESTART;
-    sigemptyset(&sa.sa_mask);
-    sigaction(SIGALRM, &sa, NULL);
-
-    struct itimerval timer;
-    timer.it_value.tv_sec = 1;
-    timer.it_value.tv_usec = 0;
-    timer.it_interval.tv_sec = 1;
-    timer.it_interval.tv_usec = 0;
-    setitimer(ITIMER_REAL, &timer, NULL);
-
-    struct pollfd pfd;
-    pfd.fd = fd;
-    pfd.events = POLLIN;
     while (connection_alive) {
-        log(DEBUG,"poll");
-        int ret = poll(&pfd, 1, -1);
-        if (ret < 0) {
-            if (errno == EINTR) continue;
-            perror("poll");
-            cleanupSharedResources(env);
-            return -1;
-        }
-
-        if (!connection_alive) {
-                cleanupSharedResources(env);
-                log(DEBUG,"client killed");
-                return 0;
-        }
-
-        if (ret == 0) continue;
-
-        if (pfd.revents & POLLIN) {
-
-            while (1) {
-                lorieEvent e = {0};
-                int readStatus = readLorieEvent(fd, &e);
-                if (readStatus > 0) {
-                    log(INFO, "Received event type=%u (%s)", e.type, eventTypeName(e.type));
-                    switch (e.type) {
-                        case EVENT_APPLY_BUFFER: {
-                            log(INFO, "Handling EVENT_APPLY_BUFFER");
-                            lorieEvent e2 = {0};
-                            if (readLorieEvent(fd, &e2) <= 0) {
-                                log(ERROR, "Failed to read complete screen size event");
-                                cleanupSharedResources(env);
-                                return -1;
-                            }
-                            log(INFO, "Received EVENT_SCREEN_SIZE width=%d height=%d framerate=%d format=%d type=%d",
-                                e2.screenSize.width, e2.screenSize.height, e2.screenSize.framerate,
-                                e2.screenSize.format, e2.screenSize.type);
-                            LorieBuffer *buffer = LorieBuffer_allocate(e2.screenSize.width,
-                                                                       e2.screenSize.height,
-                                                                       e2.screenSize.format,
-                                                                       e2.screenSize.type);
-                            waylandRegisterBuffer(fd,buffer);
-                            break;
-                        }
-                        case EVENT_APPLY_SERVER_STATE: {
-                            log(INFO, "Handling EVENT_APPLY_SERVER_STATE");
-                            struct lorie_shared_server_state *state = NULL;
-                            int stateFd = LorieBuffer_createRegion("wayland", sizeof(*state));
-                            if (stateFd == -1) {
-                                log(ERROR, "FATAL: Failed to allocate server state.");
-                                _exit(1);
-                            }
-
-                            state = mmap(NULL, sizeof(*state), PROT_READ | PROT_WRITE, MAP_SHARED,
-                                         stateFd, 0);
-                            if (state == MAP_FAILED) {
-                                log(ERROR, "FATAL: Failed to map server state.");
-                                _exit(1);
-                            }
-
-                            // Initialize cross-process synchronization primitives
-                            pthread_mutexattr_t mutex_attr;
-                            pthread_condattr_t cond_attr;
-
-                            pthread_mutexattr_init(&mutex_attr);
-                            pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED);
-                            pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
-                            pthread_mutex_init(&state->lock, &mutex_attr);
-                            pthread_mutex_init(&state->cursor.lock, &mutex_attr);
-
-                            pthread_condattr_init(&cond_attr);
-                            pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED);
-                            pthread_cond_init(&state->cond, &cond_attr);
-
-                            pthread_mutexattr_destroy(&mutex_attr);
-                            pthread_condattr_destroy(&cond_attr);
-
-                            log(DEBUG, "lorie_shared_server_state:%p", state);
-                            state->rootWindowTextureID = textureId;
-                            waylandSendSharedServerState(fd,stateFd);
-                            shared_state = state;
-                            shared_state_fd = stateFd;
-                            rendererSetExternalBufferMode(true);
-                            rendererSetSharedState(state);
-                            break;
-                        }
-                        case EVENT_APPLY_EVENT_FD:{
-                            log(INFO, "Handling EVENT_APPLY_EVENT_FD");
-                            lorieEvent e1 = {.type = EVENT_SHARED_EVENT_FD};
-                            log(INFO, "Sending EVENT_SHARED_EVENT_FD");
-                            if (write(event_fd, &e1, sizeof(e1)) != sizeof(e1)) {
-                                log(ERROR, "Failed to send SHARED_EVENT_FD");
-                                _exit(1);
-                            }
-                            int client[2];
-                            if (socketpair(AF_UNIX, RENDER_INPUT_SOCKET_TYPE, 0, client) != 0) {
-                                log(ERROR, "Failed to create render input socketpair type=%s: %s",
-                                    RENDER_INPUT_SOCKET_TYPE_NAME, strerror(errno));
-                                _exit(1);
-                            }
-                            setRenderInputFd(client[0]);
-                            int ret = ancil_send_fd(fd,client[1]);
-                            log(INFO, "Sent EVENT_SHARED_EVENT_FD fd=%d type=%s result=%d",
-                                client[1], RENDER_INPUT_SOCKET_TYPE_NAME, ret);
-                            close(client[1]);
-                            break;
-                        }
-                        case EVENT_CLIENT_VERIFY_SUCCEED: {
-                            log(INFO, "Handling EVENT_CLIENT_VERIFY_SUCCEED");
-                            notifyRenderConnectionChanged(env);
-                            break;
-                        }
-                        case EVENT_STOP_RENDER: {
-                            cleanupSharedResources(env);
-                            return 0;
-                        }
-                        default:
-                            log(DEBUG, "Unknown event type: %d (%s)", e.type, eventTypeName(e.type));
-                            break;
+        lorieEvent e = {0};
+        int readStatus = readLorieEvent(fd, &e);
+        if (readStatus > 0) {
+            log(INFO, "Received event type=%u (%s)", e.type, eventTypeName(e.type));
+            switch (e.type) {
+                case EVENT_APPLY_BUFFER: {
+                    log(INFO, "Handling EVENT_APPLY_BUFFER");
+                    lorieEvent e2 = {0};
+                    if (readLorieEvent(fd, &e2) <= 0) {
+                        log(ERROR, "Failed to read complete screen size event");
+                        cleanupSharedResources(env);
+                        return -1;
                     }
-                } else if (readStatus == 0) {
+                    log(INFO, "Received EVENT_SCREEN_SIZE width=%d height=%d framerate=%d format=%d type=%d",
+                        e2.screenSize.width, e2.screenSize.height, e2.screenSize.framerate,
+                        e2.screenSize.format, e2.screenSize.type);
+                    LorieBuffer *buffer = LorieBuffer_allocate(e2.screenSize.width,
+                                                               e2.screenSize.height,
+                                                               e2.screenSize.format,
+                                                               e2.screenSize.type);
+                    waylandRegisterBuffer(fd,buffer);
+                    break;
+                }
+                case EVENT_APPLY_SERVER_STATE: {
+                    log(INFO, "Handling EVENT_APPLY_SERVER_STATE");
+                    struct lorie_shared_server_state *state = NULL;
+                    int stateFd = LorieBuffer_createRegion("wayland", sizeof(*state));
+                    if (stateFd == -1) {
+                        log(ERROR, "FATAL: Failed to allocate server state.");
+                        _exit(1);
+                    }
+
+                    state = mmap(NULL, sizeof(*state), PROT_READ | PROT_WRITE, MAP_SHARED,
+                                 stateFd, 0);
+                    if (state == MAP_FAILED) {
+                        log(ERROR, "FATAL: Failed to map server state.");
+                        _exit(1);
+                    }
+
+                    // Initialize cross-process synchronization primitives
+                    pthread_mutexattr_t mutex_attr;
+                    pthread_condattr_t cond_attr;
+
+                    pthread_mutexattr_init(&mutex_attr);
+                    pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED);
+                    pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+                    pthread_mutex_init(&state->lock, &mutex_attr);
+                    pthread_mutex_init(&state->cursor.lock, &mutex_attr);
+
+                    pthread_condattr_init(&cond_attr);
+                    pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED);
+                    pthread_cond_init(&state->cond, &cond_attr);
+
+                    pthread_mutexattr_destroy(&mutex_attr);
+                    pthread_condattr_destroy(&cond_attr);
+
+                    log(DEBUG, "lorie_shared_server_state:%p", state);
+                    state->rootWindowTextureID = textureId;
+                    waylandSendSharedServerState(fd,stateFd);
+                    shared_state = state;
+                    shared_state_fd = stateFd;
+                    rendererSetExternalBufferMode(true);
+                    rendererSetSharedState(state);
+                    break;
+                }
+                case EVENT_APPLY_EVENT_FD:{
+                    log(INFO, "Handling EVENT_APPLY_EVENT_FD");
+                    lorieEvent e1 = {.type = EVENT_SHARED_EVENT_FD};
+                    log(INFO, "Sending EVENT_SHARED_EVENT_FD");
+                    if (write(event_fd, &e1, sizeof(e1)) != sizeof(e1)) {
+                        log(ERROR, "Failed to send SHARED_EVENT_FD");
+                        _exit(1);
+                    }
+                    int client[2];
+                    if (socketpair(AF_UNIX, RENDER_INPUT_SOCKET_TYPE, 0, client) != 0) {
+                        log(ERROR, "Failed to create render input socketpair type=%s: %s",
+                            RENDER_INPUT_SOCKET_TYPE_NAME, strerror(errno));
+                        _exit(1);
+                    }
+                    setRenderInputFd(client[0]);
+                    int ret = ancil_send_fd(fd,client[1]);
+                    log(INFO, "Sent EVENT_SHARED_EVENT_FD fd=%d type=%s result=%d",
+                        client[1], RENDER_INPUT_SOCKET_TYPE_NAME, ret);
+                    close(client[1]);
+                    break;
+                }
+                case EVENT_CLIENT_VERIFY_SUCCEED: {
+                    log(INFO, "Handling EVENT_CLIENT_VERIFY_SUCCEED");
+                    notifyRenderConnectionChanged(env);
+                    break;
+                }
+                case EVENT_STOP_RENDER: {
                     cleanupSharedResources(env);
                     return 0;
-                } else if (readStatus == -2) {
-                    break;
-                } else {
-                    log(ERROR, "Failed to read complete event: %s", strerror(errno));
-                    cleanupSharedResources(env);
-                    return -1;
                 }
+                default:
+                    log(DEBUG, "Unknown event type: %d (%s)", e.type, eventTypeName(e.type));
+                    break;
             }
+        } else if (readStatus == 0) {
+            cleanupSharedResources(env);
+            return 0;
+        } else if (readStatus == -2) {
+            continue;
+        } else {
+            log(ERROR, "Failed to read complete event: %s", strerror(errno));
+            cleanupSharedResources(env);
+            return -1;
         }
     }
     cleanupSharedResources(env);
