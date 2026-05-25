@@ -42,6 +42,64 @@ struct LorieBuffer {
     struct xorg_list link;
 };
 
+static const char *eglErrorName(EGLint error) {
+    switch (error) {
+        case EGL_SUCCESS: return "EGL_SUCCESS";
+        case EGL_NOT_INITIALIZED: return "EGL_NOT_INITIALIZED";
+        case EGL_BAD_ACCESS: return "EGL_BAD_ACCESS";
+        case EGL_BAD_ALLOC: return "EGL_BAD_ALLOC";
+        case EGL_BAD_ATTRIBUTE: return "EGL_BAD_ATTRIBUTE";
+        case EGL_BAD_CONTEXT: return "EGL_BAD_CONTEXT";
+        case EGL_BAD_CONFIG: return "EGL_BAD_CONFIG";
+        case EGL_BAD_CURRENT_SURFACE: return "EGL_BAD_CURRENT_SURFACE";
+        case EGL_BAD_DISPLAY: return "EGL_BAD_DISPLAY";
+        case EGL_BAD_SURFACE: return "EGL_BAD_SURFACE";
+        case EGL_BAD_MATCH: return "EGL_BAD_MATCH";
+        case EGL_BAD_PARAMETER: return "EGL_BAD_PARAMETER";
+        case EGL_BAD_NATIVE_PIXMAP: return "EGL_BAD_NATIVE_PIXMAP";
+        case EGL_BAD_NATIVE_WINDOW: return "EGL_BAD_NATIVE_WINDOW";
+        case EGL_CONTEXT_LOST: return "EGL_CONTEXT_LOST";
+        default: return "EGL_UNKNOWN";
+    }
+}
+
+static const char *glErrorName(GLenum error) {
+    switch (error) {
+        case GL_NO_ERROR: return "GL_NO_ERROR";
+        case GL_INVALID_ENUM: return "GL_INVALID_ENUM";
+        case GL_INVALID_VALUE: return "GL_INVALID_VALUE";
+        case GL_INVALID_OPERATION: return "GL_INVALID_OPERATION";
+        case GL_OUT_OF_MEMORY: return "GL_OUT_OF_MEMORY";
+        case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";
+        default: return "GL_UNKNOWN";
+    }
+}
+
+static void logEglError(const char *op, LorieBuffer *buffer) {
+    EGLint error = eglGetError();
+
+    if (error == EGL_SUCCESS)
+        return;
+
+    const LorieBuffer_Desc *desc = LorieBuffer_description(buffer);
+    buffer_log(ERROR, "%s failed: %s(0x%x), buffer id=%llu type=%d format=%d size=%dx%d stride=%d ahb=%p data=%p",
+               op, eglErrorName(error), error, (unsigned long long) desc->id,
+               desc->type, desc->format, desc->width, desc->height, desc->stride,
+               desc->buffer, desc->data);
+}
+
+static void logGlErrors(const char *op, LorieBuffer *buffer) {
+    GLenum error;
+
+    while ((error = glGetError()) != GL_NO_ERROR) {
+        const LorieBuffer_Desc *desc = LorieBuffer_description(buffer);
+        buffer_log(ERROR, "%s failed: %s(0x%x), buffer id=%llu type=%d format=%d size=%dx%d stride=%d texture=%u image=%p",
+                   op, glErrorName(error), error, (unsigned long long) desc->id,
+                   desc->type, desc->format, desc->width, desc->height, desc->stride,
+                   buffer ? buffer->id : 0, buffer ? buffer->image : NULL);
+    }
+}
+
 __attribute__((unused))
 static int memfd_create(const char *name, unsigned int flags) {
 #ifndef __NR_memfd_create
@@ -408,23 +466,72 @@ __LIBC_HIDDEN__ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuf
 
 __LIBC_HIDDEN__ void LorieBuffer_attachToGL(LorieBuffer* buffer) {
     const EGLint imageAttributes[] = { EGL_IMAGE_PRESERVED_KHR, EGL_TRUE, EGL_NONE };
-    if (!eglGetCurrentDisplay() || !buffer)
+    EGLDisplay display = eglGetCurrentDisplay();
+    const LorieBuffer_Desc *desc;
+
+    if (!buffer)
         return;
 
-    if (buffer->image == NULL && buffer->desc.buffer)
-        buffer->image = eglCreateImageKHR(eglGetCurrentDisplay(), EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID, eglGetNativeClientBufferANDROID(buffer->desc.buffer), imageAttributes);
+    desc = LorieBuffer_description(buffer);
+    if (!display) {
+        buffer_log(ERROR, "LorieBuffer_attachToGL without current EGL display, buffer id=%llu type=%d format=%d size=%dx%d stride=%d",
+                   (unsigned long long) desc->id, desc->type, desc->format,
+                   desc->width, desc->height, desc->stride);
+        return;
+    }
+
+    buffer_log(INFO, "LorieBuffer_attachToGL id=%llu type=%d format=%d size=%dx%d stride=%d ahb=%p data=%p",
+               (unsigned long long) desc->id, desc->type, desc->format,
+               desc->width, desc->height, desc->stride, desc->buffer, desc->data);
+
+    logEglError("eglGetCurrentDisplay stale error", buffer);
+    logGlErrors("pre-attach stale GL error", buffer);
+
+    if (buffer->image == NULL && buffer->desc.buffer) {
+        EGLClientBuffer clientBuffer = eglGetNativeClientBufferANDROID(buffer->desc.buffer);
+        if (!clientBuffer) {
+            logEglError("eglGetNativeClientBufferANDROID", buffer);
+            buffer_log(ERROR, "eglGetNativeClientBufferANDROID returned NULL for buffer id=%llu",
+                       (unsigned long long) desc->id);
+            return;
+        }
+
+        buffer->image = eglCreateImageKHR(display, EGL_NO_CONTEXT,
+                                          EGL_NATIVE_BUFFER_ANDROID,
+                                          clientBuffer, imageAttributes);
+        if (buffer->image == EGL_NO_IMAGE_KHR || buffer->image == NULL) {
+            logEglError("eglCreateImageKHR(EGL_NATIVE_BUFFER_ANDROID)", buffer);
+            buffer->image = NULL;
+            return;
+        }
+    }
 
     glGenTextures(1, &buffer->id);
+    logGlErrors("glGenTextures", buffer);
+    if (!buffer->id) {
+        buffer_log(ERROR, "glGenTextures returned 0 for buffer id=%llu",
+                   (unsigned long long) desc->id);
+        return;
+    }
+
     glBindTexture(GL_TEXTURE_2D, buffer->id);
+    logGlErrors("glBindTexture", buffer);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    logGlErrors("glTexParameteri", buffer);
 
-    if (buffer->image)
+    if (buffer->image) {
         glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, buffer->image);
-    else if (buffer->desc.data && buffer->desc.width > 0 && buffer->desc.height > 0) {
+        logGlErrors("glEGLImageTargetTexture2DOES", buffer);
+    } else if (buffer->desc.data && buffer->desc.width > 0 && buffer->desc.height > 0) {
         int format = buffer->desc.format == AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM ? GL_BGRA_EXT : GL_RGBA;
         // The image will be updated in redraw call because of `drawRequested` flag, so we are not uploading pixels
         glTexImage2D(GL_TEXTURE_2D, 0, format, buffer->desc.stride, buffer->desc.height, 0, format, GL_UNSIGNED_BYTE, NULL);
+        logGlErrors("glTexImage2D", buffer);
+    } else {
+        buffer_log(ERROR, "LorieBuffer_attachToGL has no EGLImage or CPU data, buffer id=%llu type=%d format=%d size=%dx%d stride=%d",
+                   (unsigned long long) desc->id, desc->type, desc->format,
+                   desc->width, desc->height, desc->stride);
     }
 }
 

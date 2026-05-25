@@ -257,6 +257,11 @@ static int process(JNIEnv *env, int fd) {
                 case EVENT_APPLY_BUFFER: {
                     log(INFO, "Handling EVENT_APPLY_BUFFER");
                     lorieEvent e2 = {0};
+                    int width;
+                    int height;
+                    int expectedWidth = 0;
+                    int expectedHeight = 0;
+
                     if (readLorieEvent(fd, &e2) <= 0) {
                         log(ERROR, "Failed to read complete screen size event");
                         cleanupSharedResources(env);
@@ -265,8 +270,20 @@ static int process(JNIEnv *env, int fd) {
                     log(INFO, "Received EVENT_SCREEN_SIZE width=%d height=%d framerate=%d format=%d type=%d",
                         e2.screenSize.width, e2.screenSize.height, e2.screenSize.framerate,
                         e2.screenSize.format, e2.screenSize.type);
-                    LorieBuffer *buffer = LorieBuffer_allocate(e2.screenSize.width,
-                                                               e2.screenSize.height,
+
+                    width = e2.screenSize.width;
+                    height = e2.screenSize.height;
+                    rendererGetExpectedSize(&expectedWidth, &expectedHeight);
+                    if (expectedWidth > 0 && expectedHeight > 0 &&
+                        (expectedWidth != width || expectedHeight != height)) {
+                        log(INFO, "Using LorieView resolution %dx%d instead of requested %dx%d",
+                            expectedWidth, expectedHeight, width, height);
+                        width = expectedWidth;
+                        height = expectedHeight;
+                    }
+
+                    LorieBuffer *buffer = LorieBuffer_allocate(width,
+                                                               height,
                                                                e2.screenSize.format,
                                                                e2.screenSize.type);
                     waylandRegisterBuffer(fd,buffer);

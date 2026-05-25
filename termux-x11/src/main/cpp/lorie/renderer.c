@@ -495,6 +495,15 @@ void rendererSetViewport(__unused JNIEnv *env, __unused jclass clazz, int x, int
     pthread_mutex_unlock(&stateLock);
 }
 
+void rendererGetExpectedSize(int *width, int *height) {
+    pthread_mutex_lock(&stateLock);
+    if (width)
+        *width = expectedW;
+    if (height)
+        *height = expectedH;
+    pthread_mutex_unlock(&stateLock);
+}
+
 void rendererRefreshContext(void) {
     int width = pendingWin ? ANativeWindow_getWidth(pendingWin) : 0;
     int height = pendingWin ? ANativeWindow_getHeight(pendingWin) : 0;
