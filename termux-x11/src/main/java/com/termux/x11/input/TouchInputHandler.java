@@ -389,6 +389,18 @@ public class TouchInputHandler {
     public void handleHostSizeChanged(int w, int h) {
         mRenderData.imageWidth = w;
         mRenderData.imageHeight = h;
+        LorieView lorieView = mHost.getLorieView();
+        if (lorieView != null) {
+            mRenderData.viewportOffsetX = lorieView.screenInfo.offsetX;
+            mRenderData.viewportOffsetY = lorieView.screenInfo.offsetY;
+            mRenderData.viewportWidth = lorieView.screenInfo.imageWidth;
+            mRenderData.viewportHeight = lorieView.screenInfo.imageHeight;
+        } else {
+            mRenderData.viewportOffsetX = 0;
+            mRenderData.viewportOffsetY = 0;
+            mRenderData.viewportWidth = w;
+            mRenderData.viewportHeight = h;
+        }
 
         if (mTouchpadHandler != null)
             mTouchpadHandler.handleHostSizeChanged(w, h);
@@ -576,7 +588,7 @@ public class TouchInputHandler {
     /** Moves the cursor to the specified position on the screen. */
     private void moveCursorToScreenPoint(float screenX, float screenY) {
         if (mInputStrategy instanceof InputStrategyInterface.TrackpadInputStrategy || mInputStrategy instanceof InputStrategyInterface.SimulatedTouchInputStrategy) {
-            float[] imagePoint = {screenX * mRenderData.scale.x, screenY * mRenderData.scale.y};
+            float[] imagePoint = {mRenderData.mapScreenX(screenX), mRenderData.mapScreenY(screenY)};
             if (mRenderData.setCursorPosition(imagePoint[0], imagePoint[1]))
                 mInjector.sendCursorMove((int) imagePoint[0], imagePoint[1], false);
         }
@@ -763,12 +775,7 @@ public class TouchInputHandler {
 
         /** Determines whether the given screen point lies outside the desktop image. */
         private boolean screenPointLiesOutsideImageBoundary(float screenX, float screenY) {
-            float scaledX = screenX * mRenderData.scale.x, scaledY = screenY * mRenderData.scale.y;
-
-            float imageWidth = (float) mRenderData.imageWidth + EPSILON;
-            float imageHeight = (float) mRenderData.imageHeight + EPSILON;
-
-            return scaledX < -EPSILON || scaledX > imageWidth || scaledY < -EPSILON || scaledY > imageHeight;
+            return !mRenderData.isInsideViewport(screenX, screenY, EPSILON);
         }
     }
 

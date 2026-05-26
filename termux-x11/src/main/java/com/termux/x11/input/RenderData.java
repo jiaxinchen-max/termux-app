@@ -18,6 +18,10 @@ public class RenderData {
     public int imageHeight;
     public int offsetX;
     public int offsetY;
+    public int viewportOffsetX;
+    public int viewportOffsetY;
+    public int viewportWidth;
+    public int viewportHeight;
 
     /**
      * Specifies the position, in image coordinates, at which the cursor image will be drawn.
@@ -32,6 +36,25 @@ public class RenderData {
      */
     public PointF getCursorPosition() {
         return new PointF(mCursorPosition.x, mCursorPosition.y);
+    }
+
+    public float mapScreenX(float x) {
+        int width = viewportWidth > 0 ? viewportWidth : imageWidth;
+        return width > 0 ? (x - viewportOffsetX) * (float) screenWidth / width : x;
+    }
+
+    public float mapScreenY(float y) {
+        int height = viewportHeight > 0 ? viewportHeight : imageHeight;
+        return height > 0 ? (y - viewportOffsetY) * (float) screenHeight / height : y;
+    }
+
+    public boolean isInsideViewport(float x, float y, float epsilon) {
+        int width = viewportWidth > 0 ? viewportWidth : imageWidth;
+        int height = viewportHeight > 0 ? viewportHeight : imageHeight;
+        return x >= viewportOffsetX - epsilon &&
+            x <= viewportOffsetX + width + epsilon &&
+            y >= viewportOffsetY - epsilon &&
+            y <= viewportOffsetY + height + epsilon;
     }
 
     /**
