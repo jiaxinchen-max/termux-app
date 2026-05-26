@@ -97,6 +97,7 @@ import com.termux.view.TerminalView;
 import com.termux.view.TerminalViewClient;
 import com.termux.x11.TermuxScreenView;
 import com.termux.x11.LoriePreferences;
+import com.termux.x11.LorieView;
 import com.termux.x11.LorieViewRuntimeController;
 import com.termux.x11.controller.winhandler.ProcessInfo;
 
@@ -1948,6 +1949,9 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         b.setPositiveButton(android.R.string.yes, (dialog, id) -> {
             dialog.dismiss();
             openX11Preferences(false);
+            boolean externalServerKilled = LorieView.killExternalServer(15);
+            if (externalServerKilled)
+                LoriePreferences.handler.postDelayed(() -> LorieView.killExternalServer(9), 1500);
             LoriePreferences.handler.postDelayed(() -> {
                 getLorieViewRuntime().setX11DisplayConnected(false);
                 CommandUtils.exec(this, "stopserver", null);

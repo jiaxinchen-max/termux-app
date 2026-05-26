@@ -8,3 +8,4 @@
 void waylandRenderInit(JavaVM *vm);
 bool waylandRenderConnected(void);
 bool waylandRenderSendEvent(const lorieEvent *event, const void *payload, size_t payloadSize);
+bool waylandRenderKillExternalServer(int signal);

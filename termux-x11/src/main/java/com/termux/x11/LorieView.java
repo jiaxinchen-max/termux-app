@@ -1046,6 +1046,7 @@ public class LorieView extends SurfaceView implements InputStub {
     static native boolean connected();
     @CriticalNative
     static native boolean xConnected();
+    @FastNative public static native boolean killExternalServer(int signal);
     @FastNative static native void startLogcat(int fd);
     @FastNative static native void setClipboardSyncEnabled(boolean enabled, boolean ignored);
     @FastNative public native void sendClipboardAnnounce();

@@ -19,6 +19,8 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <signal.h>
 #include "waylandRenderServer.h"
 #include "buffer.h"
 #include "lorie.h"
@@ -51,6 +53,8 @@ static volatile int connection_alive = 1;
 static pthread_mutex_t render_connection_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t render_server_init_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool render_server_started = false;
+static pid_t render_client_pid = -1;
+static pid_t render_client_pgid = -1;
 
 static const char *eventTypeName(uint8_t type) {
     switch (type) {
@@ -101,6 +105,61 @@ bool waylandRenderConnected(void) {
     bool connected = event_fd != -1 && connection_alive;
     pthread_mutex_unlock(&render_connection_lock);
     return connected;
+}
+
+static void setRenderClientProcess(pid_t pid, pid_t pgid) {
+    pthread_mutex_lock(&render_connection_lock);
+    render_client_pid = pid;
+    render_client_pgid = pgid;
+    pthread_mutex_unlock(&render_connection_lock);
+}
+
+static void updateRenderClientProcess(int fd) {
+    struct ucred cred = {0};
+    socklen_t len = sizeof(cred);
+
+    cred.pid = -1;
+    if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &len) == -1) {
+        log(ERROR, "Failed to get render client credentials: %s", strerror(errno));
+        setRenderClientProcess(-1, -1);
+        return;
+    }
+
+    pid_t pgid = cred.pid > 0 ? getpgid(cred.pid) : -1;
+    if (pgid < 0)
+        log(ERROR, "Failed to get render client pgid pid=%d: %s", cred.pid, strerror(errno));
+
+    log(INFO, "Render client process pid=%d pgid=%d", cred.pid, pgid);
+    setRenderClientProcess(cred.pid, pgid);
+}
+
+bool waylandRenderKillExternalServer(int signal) {
+    pid_t pid;
+    pid_t pgid;
+    pid_t self_pgid = getpgrp();
+
+    pthread_mutex_lock(&render_connection_lock);
+    pid = render_client_pid;
+    pgid = render_client_pgid;
+    pthread_mutex_unlock(&render_connection_lock);
+
+    if (pgid > 1 && pgid != self_pgid) {
+        if (kill(-pgid, signal) == 0) {
+            log(INFO, "Sent signal %d to render client process group %d", signal, pgid);
+            return true;
+        }
+        log(ERROR, "Failed to signal render client process group %d: %s", pgid, strerror(errno));
+    }
+
+    if (pid > 1 && pid != getpid()) {
+        if (kill(pid, signal) == 0) {
+            log(INFO, "Sent signal %d to render client pid %d", signal, pid);
+            return true;
+        }
+        log(ERROR, "Failed to signal render client pid %d: %s", pid, strerror(errno));
+    }
+
+    return false;
 }
 
 bool waylandRenderSendEvent(const lorieEvent *event, const void *payload, size_t payloadSize) {
@@ -447,6 +506,7 @@ static void startRenderServer(JavaVM *vm) {
         if (count > 0) {
             if (!memcmp(buffer, MAGIC, count < (int) sizeof(MAGIC) ? count : (int) sizeof(MAGIC))) {
                 log(DEBUG, "New client connection!");
+                updateRenderClientProcess(client_fd);
                 lorieEvent e = {.type = EVENT_SERVER_VERIFY_SUCCEED};
                 write(client_fd, &e, sizeof(e));
                 event_fd = client_fd;
@@ -456,6 +516,7 @@ static void startRenderServer(JavaVM *vm) {
                 process(env, client_fd);
                 close(client_fd);
                 event_fd = -1;
+                setRenderClientProcess(-1, -1);
                 (*vm)->DetachCurrentThread(vm);
             } else {
                 close(client_fd);

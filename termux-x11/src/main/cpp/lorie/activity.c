@@ -264,6 +264,10 @@ static jboolean xConnected(__unused JNIEnv* env,__unused jclass clazz) {
     return conn_fd != -1;
 }
 
+static jboolean killExternalServer(__unused JNIEnv *env, __unused jclass clazz, jint signal) {
+    return waylandRenderKillExternalServer(signal);
+}
+
 static void startLogcat(JNIEnv *env, __unused jobject cls, jint fd) {
     log(DEBUG, "Starting logcat with output to given fd");
 
@@ -410,6 +414,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, __unused void *reserved) {
             {"connect", "(I)V", (void *)&connect_},
             {"connected", "()Z", (void *)&connected},
             {"xConnected", "()Z", (void *)&xConnected},
+            {"killExternalServer", "(I)Z", (void *)&killExternalServer},
             {"startLogcat", "(I)V", (void *)&startLogcat},
             {"setClipboardSyncEnabled", "(ZZ)V", (void *)&setClipboardSyncEnabled},
             {"sendClipboardAnnounce", "()V", (void *)&sendClipboardAnnounce},
