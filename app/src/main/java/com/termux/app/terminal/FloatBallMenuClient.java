@@ -272,8 +272,8 @@ public class FloatBallMenuClient {
         MenuItem settingItem = new MenuItem(mTermuxActivity.getDrawable(R.drawable.icon_menu_show_setting_shape)) {
             @Override
             public void action() {
-                mTermuxActivity.openX11Preferences(true);
-                toast(mTermuxActivity.getString(com.termux.x11.R.string.open_x11_settings));
+                if (mTermuxActivity.openFloatBallSettingsTarget())
+                    toast(mTermuxActivity.getString(com.termux.x11.R.string.open_x11_settings));
                 mFloatballManager.closeMenu();
             }
         };

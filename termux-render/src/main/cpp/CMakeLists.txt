@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-project("termux-render")
+project("termux-render" VERSION 0.1.0)
 
 include(GNUInstallDirs)
 
@@ -36,6 +36,16 @@ install(FILES
         ${CMAKE_CURRENT_LIST_DIR}/include/render.h
         ${CMAKE_CURRENT_LIST_DIR}/include/tlog.h
         DESTINATION include/termux/render
+)
+
+configure_file(
+        ${CMAKE_CURRENT_LIST_DIR}/termux-render.pc.in
+        ${CMAKE_CURRENT_BINARY_DIR}/termux-render.pc
+        @ONLY
+)
+install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/termux-render.pc
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
 
 function(install_termux_render_asset_directory asset_dir)

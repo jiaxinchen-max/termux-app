@@ -7,7 +7,7 @@
 static const char* level_names[] = {
         "EMERG", "ALERT", "CRIT", "ERROR", "WARN", "NOTICE", "INFO", "DEBUG"
 };
-static int current_level = LOG_DEBUG;
+static int current_level = LOG_INFO;
 
 void tlog(int priority, const char *format, ...) {
     if (priority > current_level)

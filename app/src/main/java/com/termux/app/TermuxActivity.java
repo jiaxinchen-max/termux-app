@@ -603,6 +603,26 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             getDrawer().openDrawer(GravityCompat.START);
     }
 
+    public boolean openFloatBallSettingsTarget() {
+        if (isDisplaySurfaceMode()) {
+            openX11Preferences(true);
+            return true;
+        }
+
+        openTerminalSessionListView();
+        return false;
+    }
+
+    private void openTerminalSessionListView() {
+        setDrawerSectionExpanded(
+            findViewById(R.id.terminal_sessions_list),
+            findViewById(R.id.toggle_session_list_button),
+            R.string.session_list_expanded,
+            R.string.session_list_collapsed,
+            true);
+        openStartDrawerExplicitly();
+    }
+
     public void showTerminalSurface() {
         lockDisplaySidePanels(false, 0);
         if (mTermuxTerminalViewClient != null) {
@@ -1413,10 +1433,17 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             return;
 
         boolean show = section.getVisibility() != View.VISIBLE;
-        section.setVisibility(show ? View.VISIBLE : View.GONE);
-        button.setAlpha(show ? 1f : 0.45f);
+        setDrawerSectionExpanded(section, button, expandedTextResId, collapsedTextResId, show);
+    }
+
+    private void setDrawerSectionExpanded(View section, View button, int expandedTextResId, int collapsedTextResId, boolean expanded) {
+        if (section == null || button == null)
+            return;
+
+        section.setVisibility(expanded ? View.VISIBLE : View.GONE);
+        button.setAlpha(expanded ? 1f : 0.45f);
         if (button instanceof TextView)
-            ((TextView) button).setText(show ? expandedTextResId : collapsedTextResId);
+            ((TextView) button).setText(expanded ? expandedTextResId : collapsedTextResId);
     }
 
     private void applyResponsiveLeftDrawerLayout() {
