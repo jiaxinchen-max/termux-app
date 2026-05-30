@@ -29,6 +29,13 @@
             app:title="@string/termux_terminal_view_landscape_overlay_width_title"
             app:updatesContinuously="true" />
 
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="toolbox_auto_close_sessions"
+            app:summaryOff="@string/termux_terminal_view_toolbox_auto_close_sessions_off"
+            app:summaryOn="@string/termux_terminal_view_toolbox_auto_close_sessions_on"
+            app:title="@string/termux_terminal_view_toolbox_auto_close_sessions_title" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>

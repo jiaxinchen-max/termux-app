@@ -190,6 +190,9 @@
     <!-- Startup Surface -->
     <string name="termux_terminal_view_startup_surface_title">Startup Surface</string>
     <string name="termux_terminal_view_landscape_overlay_width_title">Landscape terminal width</string>
+    <string name="termux_terminal_view_toolbox_auto_close_sessions_title">Auto close toolbox sessions</string>
+    <string name="termux_terminal_view_toolbox_auto_close_sessions_off">Toolbox sessions will stay in the session list after the command exits.</string>
+    <string name="termux_terminal_view_toolbox_auto_close_sessions_on">Toolbox sessions will be removed automatically after the command exits. (Default)</string>
 
 
     <!-- Termux:API App Preferences -->

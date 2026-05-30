@@ -198,6 +198,9 @@ public class ExecutionCommand {
     /** Whether to set {@link ExecutionCommand} shell environment. */
     public boolean setShellCommandShellEnvironment;
 
+    /** Whether to remove the terminal session automatically after the command exits. */
+    public boolean autoCloseOnExit;
+
 
 
 

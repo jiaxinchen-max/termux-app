@@ -108,6 +108,9 @@ public final class TermuxPreferenceConstants {
         public static final int MAX_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT = 100;
         public static final int DEFAULT_VALUE_LANDSCAPE_TERMINAL_OVERLAY_WIDTH_PERCENT = 80;
 
+        public static final String KEY_TOOLBOX_AUTO_CLOSE_SESSIONS = "toolbox_auto_close_sessions";
+        public static final boolean DEFAULT_VALUE_TOOLBOX_AUTO_CLOSE_SESSIONS = true;
+
 
         /**
          * Defines the key for whether to show terminal toolbar containing extra keys and text input field.

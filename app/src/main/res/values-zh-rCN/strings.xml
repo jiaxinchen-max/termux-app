@@ -105,6 +105,9 @@
     <string name="termux_terminal_view_terminal_margin_adjustment_on">将启用终端边距调整。\n应启用它以尝试修复软键盘覆盖部分额外按键/终端视图的问题。\n如果它导致您的设备屏幕闪烁，请禁用它。（默认）</string>
     <string name="termux_terminal_view_startup_surface_title">启动显示界面</string>
     <string name="termux_terminal_view_landscape_overlay_width_title">横屏终端宽度</string>
+    <string name="termux_terminal_view_toolbox_auto_close_sessions_title">自动关闭工具箱会话</string>
+    <string name="termux_terminal_view_toolbox_auto_close_sessions_off">工具箱命令退出后，会话会保留在列表中。</string>
+    <string name="termux_terminal_view_toolbox_auto_close_sessions_on">工具箱命令退出后，会话会自动从列表中移除。（默认）</string>
     <string name="termux_api_preferences_title">终端api偏好设定</string>
     <string name="termux_api_preferences_summary">应用程序偏好设置</string>
     <string name="termux_float_preferences_title">终端浮动偏好设置</string>

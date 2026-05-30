@@ -58,6 +58,9 @@ class TerminalViewPreferencesDataStore extends PreferenceDataStore {
             case "terminal_margin_adjustment":
                     mPreferences.setTerminalMarginAdjustment(value);
                 break;
+            case TERMUX_APP.KEY_TOOLBOX_AUTO_CLOSE_SESSIONS:
+                mPreferences.setAutoCloseToolboxSessions(value);
+                break;
             default:
                 break;
         }
@@ -98,6 +101,8 @@ class TerminalViewPreferencesDataStore extends PreferenceDataStore {
         switch (key) {
             case "terminal_margin_adjustment":
                 return mPreferences.isTerminalMarginAdjustmentEnabled();
+            case TERMUX_APP.KEY_TOOLBOX_AUTO_CLOSE_SESSIONS:
+                return mPreferences.shouldAutoCloseToolboxSessions();
             default:
                 return false;
         }

@@ -184,7 +184,7 @@ public class MenuEntryClient {
             return;
 
         String sessionName = TextUtils.isEmpty(entry.getTitlle()) ? entry.getFileName() : entry.getTitlle();
-        mTermuxTerminalSessionActivityClient.addNewSessionAndRunCommand(command, sessionName);
+        mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, sessionName);
     }
 
     private void showMenuItemDialog(MenuEntry.Entry entryToUpdate, int updateIndex) {

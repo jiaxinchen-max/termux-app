@@ -135,6 +135,19 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
             false);
     }
 
+    public boolean shouldAutoCloseToolboxSessions() {
+        return SharedPreferenceUtils.getBoolean(mSharedPreferences,
+            TERMUX_APP.KEY_TOOLBOX_AUTO_CLOSE_SESSIONS,
+            TERMUX_APP.DEFAULT_VALUE_TOOLBOX_AUTO_CLOSE_SESSIONS);
+    }
+
+    public void setAutoCloseToolboxSessions(boolean value) {
+        SharedPreferenceUtils.setBoolean(mSharedPreferences,
+            TERMUX_APP.KEY_TOOLBOX_AUTO_CLOSE_SESSIONS,
+            value,
+            false);
+    }
+
 
 
     public boolean isSoftKeyboardEnabled() {

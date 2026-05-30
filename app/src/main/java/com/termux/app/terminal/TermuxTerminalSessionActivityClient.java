@@ -17,7 +17,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.R;
+import com.termux.shared.shell.command.ExecutionCommand;
+import com.termux.shared.shell.command.ExecutionCommand.Runner;
 import com.termux.shared.interact.ShareUtils;
+import com.termux.shared.termux.shell.TermuxShellManager;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.shared.termux.interact.TextInputDialogUtils;
 import com.termux.app.TermuxActivity;
@@ -154,6 +157,10 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         TermuxSession termuxSession = service.getTermuxSession(index);
         if (termuxSession != null) {
             isPluginExecutionCommandWithPendingResult = termuxSession.getExecutionCommand().isPluginExecutionCommandWithPendingResult();
+            if (termuxSession.getExecutionCommand().autoCloseOnExit) {
+                removeFinishedSession(finishedSession);
+                return;
+            }
             if (isPluginExecutionCommandWithPendingResult)
                 Logger.logVerbose(LOG_TAG, "The \"" + finishedSession.mSessionName + "\" session will be force finished automatically since result in pending.");
         }
@@ -374,6 +381,41 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             return;
 
         newTerminalSession.write(command.endsWith("\n") ? command : command + "\n");
+    }
+
+    public void addNewAutoCloseSessionAndRunCommand(@Nullable String command, @Nullable String sessionName) {
+        if (TextUtils.isEmpty(command))
+            return;
+
+        if (!mActivity.getPreferences().shouldAutoCloseToolboxSessions()) {
+            addNewSessionAndRunCommand(command, sessionName);
+            return;
+        }
+
+        TermuxService service = mActivity.getTermuxService();
+        if (service == null) return;
+
+        if (service.getTermuxSessionsSize() >= MAX_SESSIONS) {
+            new AlertDialog.Builder(mActivity).setTitle(R.string.title_max_terminals_reached).setMessage(R.string.msg_max_terminals_reached)
+                .setPositiveButton(android.R.string.ok, null).show();
+            return;
+        }
+
+        TerminalSession currentSession = mActivity.getCurrentSession();
+        String workingDirectory = currentSession == null ? mActivity.getProperties().getDefaultWorkingDirectory() : currentSession.getCwd();
+
+        ExecutionCommand executionCommand = new ExecutionCommand(TermuxShellManager.getNextShellId(),
+            null, new String[]{"-c", command}, null,
+            workingDirectory, Runner.TERMINAL_SESSION.getName(), false);
+        executionCommand.shellName = sessionName;
+        executionCommand.commandLabel = TextUtils.isEmpty(sessionName) ? command : sessionName;
+        executionCommand.autoCloseOnExit = true;
+
+        TermuxSession newTermuxSession = service.createTermuxSession(executionCommand);
+        if (newTermuxSession == null) return;
+
+        setCurrentSession(newTermuxSession.getTerminalSession());
+        mActivity.getDrawer().closeDrawers();
     }
 
     @Nullable

@@ -100,7 +100,7 @@ public class StartEntryClient implements FileBrowser.FileSlectedAdapter{
                 command = entry.getPath();
             }
 
-            mTermuxTerminalSessionActivityClient.addNewSessionAndRunCommand(command, entry.getFileName());
+            mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, entry.getFileName());
         });
         mLaunchButton.setOnLongClickListener(l -> {
             mLaunchButton.setVisibility(View.GONE);
