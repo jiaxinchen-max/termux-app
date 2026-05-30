@@ -31,6 +31,8 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
     private final LayoutInflater inflater;
     private Timer timer;
     private final Object lock = new Object();
+    private int refreshSequence;
+    private int processInfoSequence;
 
     public TaskManagerDialog(LorieViewRuntimeApi.WinHandlerHost host) {
         super(host.getActivity(), R.layout.task_manager_dialog);
@@ -61,7 +63,9 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
     }
 
     private void update() {
+        final int refresh;
         synchronized (lock) {
+            refresh = ++refreshSequence;
             host.getWinHandler().listProcesses();
 
             final LinearLayout container = findViewById(R.id.LLProcessList);
@@ -74,8 +78,25 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
 
         }
 
+        findViewById(R.id.LLProcessList).postDelayed(() -> clearStaleProcessList(refresh), 800);
         updateCPUInfoView();
         updateMemoryInfoView();
+    }
+
+    private void clearStaleProcessList(int refresh) {
+        synchronized (lock) {
+            if (refreshSequence != refresh || processInfoSequence >= refresh) {
+                return;
+            }
+
+            final LinearLayout container = findViewById(R.id.LLProcessList);
+            container.removeAllViews();
+            listAndroidProcess();
+            if (container.getChildCount() == 0) {
+                findViewById(R.id.TVEmptyText).setVisibility(View.VISIBLE);
+                setBottomBarText(activity.getString(R.string.processes) + ": 0");
+            }
+        }
     }
 
     private void listAndroidProcess() {
@@ -85,7 +106,7 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         }
         int idx = 0;
         for (ProcessInfo processInfo : processInfoList) {
-            onGetProcessInfo(idx, processInfoList.size(), processInfo);
+            applyProcessInfo(idx, processInfoList.size(), processInfo);
             idx++;
         }
 //        ActivityManager activityManager = (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
@@ -154,35 +175,41 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
     public void onGetProcessInfo(int index, int numProcesses, ProcessInfo processInfo) {
         activity.runOnUiThread(() -> {
             synchronized (lock) {
-                final LinearLayout container = findViewById(R.id.LLProcessList);
-                setBottomBarText(activity.getString(R.string.processes) + ": " + numProcesses);
-
-                if (numProcesses == 0) {
-                    container.removeAllViews();
-                    findViewById(R.id.TVEmptyText).setVisibility(View.VISIBLE);
-                    return;
-                }
-
-                findViewById(R.id.TVEmptyText).setVisibility(View.GONE);
-
-                int childCount = container.getChildCount();
-                View itemView = index < childCount ? container.getChildAt(index) : inflater.inflate(R.layout.process_info_list_item, container, false);
-                ((TextView) itemView.findViewById(R.id.TVName)).setText(processInfo.name + (processInfo.wow64Process ? " *32" : ""));
-                ((TextView) itemView.findViewById(R.id.TVPID)).setText(String.valueOf(processInfo.pid));
-                ((TextView) itemView.findViewById(R.id.TVMemoryUsage)).setText(processInfo.getFormattedMemoryUsage());
-                itemView.findViewById(R.id.BTMenu).setOnClickListener((v) -> showListItemMenu(v, processInfo));
-
-                ImageView ivIcon = itemView.findViewById(R.id.IVIcon);
-                if (ivIcon != null)
-                    ivIcon.setImageResource(R.drawable.taskmgr_process);
-
-                if (index >= childCount) container.addView(itemView);
-
-                if (index == numProcesses - 1 && childCount > numProcesses) {
-                    for (int i = childCount - 1; i >= numProcesses; i--) container.removeViewAt(i);
-                }
+                applyProcessInfo(index, numProcesses, processInfo);
             }
         });
+    }
+
+    private void applyProcessInfo(int index, int numProcesses, ProcessInfo processInfo) {
+        processInfoSequence = refreshSequence;
+
+        final LinearLayout container = findViewById(R.id.LLProcessList);
+        setBottomBarText(activity.getString(R.string.processes) + ": " + numProcesses);
+
+        if (numProcesses == 0) {
+            container.removeAllViews();
+            findViewById(R.id.TVEmptyText).setVisibility(View.VISIBLE);
+            return;
+        }
+
+        findViewById(R.id.TVEmptyText).setVisibility(View.GONE);
+
+        int childCount = container.getChildCount();
+        View itemView = index < childCount ? container.getChildAt(index) : inflater.inflate(R.layout.process_info_list_item, container, false);
+        ((TextView) itemView.findViewById(R.id.TVName)).setText(processInfo.name + (processInfo.wow64Process ? " *32" : ""));
+        ((TextView) itemView.findViewById(R.id.TVPID)).setText(String.valueOf(processInfo.pid));
+        ((TextView) itemView.findViewById(R.id.TVMemoryUsage)).setText(processInfo.getFormattedMemoryUsage());
+        itemView.findViewById(R.id.BTMenu).setOnClickListener((v) -> showListItemMenu(v, processInfo));
+
+        ImageView ivIcon = itemView.findViewById(R.id.IVIcon);
+        if (ivIcon != null)
+            ivIcon.setImageResource(R.drawable.taskmgr_process);
+
+        if (index >= childCount) container.addView(itemView);
+
+        if (index == numProcesses - 1 && childCount > numProcesses) {
+            for (int i = childCount - 1; i >= numProcesses; i--) container.removeViewAt(i);
+        }
     }
 
     private void updateCPUInfoView() {

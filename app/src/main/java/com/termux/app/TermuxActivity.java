@@ -31,6 +31,7 @@ import android.util.TypedValue;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -46,6 +47,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -227,10 +229,13 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     private boolean mPendingDisplaySidePanelUnlockBack;
     private boolean mSuppressNextX11FocusGainFromFloatMenu;
     private boolean mX11DisplayConnected;
+    private boolean mFloatBallMenuDisabledForPictureInPicture;
+    private boolean mRestoreFloatBallMenuAfterPictureInPicture;
     private long mDisplaySidePanelUnlockBackPromptTime;
 
     private static final long DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS = 3000;
     private static final long DISPLAY_SIDE_PANEL_UNLOCK_IDLE_TIMEOUT_MS = 5000;
+    private static final long RESTORE_FLOAT_BALL_AFTER_PIP_DELAY_MS = 3000;
 
     private static List<ProcessInfo> collectTermuxProcessInfo() {
         File[] processDirs = new File("/proc").listFiles();
@@ -280,6 +285,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         }
 
         String name = null;
+        char state = 0;
         int uid = -1;
         long memoryUsage = 0;
         int affinityMask = defaultAffinityMask();
@@ -289,6 +295,8 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             while ((line = reader.readLine()) != null) {
                 if (line.startsWith("Name:")) {
                     name = line.substring("Name:".length()).trim();
+                } else if (line.startsWith("State:")) {
+                    state = parseProcState(line.substring("State:".length()));
                 } else if (line.startsWith("Uid:")) {
                     uid = parseFirstInt(line.substring("Uid:".length()), -1);
                 } else if (line.startsWith("VmRSS:")) {
@@ -301,10 +309,19 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             return null;
         }
 
-        if (uid != expectedUid || name == null || name.isEmpty()) {
+        if (uid != expectedUid || name == null || name.isEmpty() || isDeadProcState(state)) {
             return null;
         }
         return new ProcessInfo(pid, name, memoryUsage, affinityMask, false);
+    }
+
+    private static char parseProcState(String value) {
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? 0 : trimmed.charAt(0);
+    }
+
+    private static boolean isDeadProcState(char state) {
+        return state == 'Z' || state == 'X' || state == 'x';
     }
 
     private static int parseFirstInt(String value, int fallback) {
@@ -347,6 +364,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     }
 
     private final Runnable mClearPendingDisplaySidePanelUnlockBackRunnable = () -> mPendingDisplaySidePanelUnlockBack = false;
+    private final Runnable mRestoreFloatBallMenuAfterPictureInPictureRunnable = this::restoreFloatBallMenuAfterPictureInPicture;
     private final Runnable mDisplaySidePanelAutoLockRunnable = new Runnable() {
         @Override
         public void run() {
@@ -652,6 +670,62 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         return mMainSurfaceController != null && mMainSurfaceController.isDisplayMode();
     }
 
+    private boolean shouldPrepareX11PictureInPicture() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
+            return false;
+        if (!mX11DisplayConnected)
+            return false;
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        return preferences.getBoolean("PIP", false)
+            && LorieViewRuntimeController.hasPipPermission(this);
+    }
+
+    private void prepareX11PictureInPicture() {
+        if (!shouldPrepareX11PictureInPicture())
+            return;
+
+        disableFloatBallMenuForPictureInPicture();
+        lockDisplaySidePanels(false, 0);
+        getDrawer().closeDrawers();
+        showDisplaySurface();
+        updateTerminalToolbarVisibilityForSurface();
+    }
+
+    private void disableFloatBallMenuForPictureInPicture() {
+        LoriePreferences.handler.removeCallbacks(mRestoreFloatBallMenuAfterPictureInPictureRunnable);
+        if (mFloatBallMenuDisabledForPictureInPicture || mLorieViewRuntimeController == null)
+            return;
+
+        mFloatBallMenuDisabledForPictureInPicture = true;
+        mRestoreFloatBallMenuAfterPictureInPicture = getX11Prefs().enableFloatBallMenu.get();
+        if (mRestoreFloatBallMenuAfterPictureInPicture) {
+            getX11Prefs().enableFloatBallMenu.put(false);
+            getLorieViewRuntime().applyX11PreferenceChange("enableFloatBallMenu");
+        }
+    }
+
+    private void finishFloatBallMenuPictureInPictureSuppression() {
+        if (!mFloatBallMenuDisabledForPictureInPicture)
+            return;
+
+        mFloatBallMenuDisabledForPictureInPicture = false;
+        if (mRestoreFloatBallMenuAfterPictureInPicture)
+            LoriePreferences.handler.postDelayed(
+                mRestoreFloatBallMenuAfterPictureInPictureRunnable,
+                RESTORE_FLOAT_BALL_AFTER_PIP_DELAY_MS);
+    }
+
+    private void restoreFloatBallMenuAfterPictureInPicture() {
+        if (!mRestoreFloatBallMenuAfterPictureInPicture)
+            return;
+
+        mRestoreFloatBallMenuAfterPictureInPicture = false;
+        if (mLorieViewRuntimeController != null) {
+            getX11Prefs().enableFloatBallMenu.put(true);
+            getLorieViewRuntime().applyX11PreferenceChange("enableFloatBallMenu");
+        }
+    }
+
     private void updateMainSurfaceSettings() {
         if (mMainSurfaceController == null || mPreferences == null)
             return;
@@ -718,6 +792,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         setSettingsButtonView();
 
         setX11PreferenceBackButtonView();
+        setBackPressedCallback();
 
         setNewSessionButtonView();
 
@@ -1005,6 +1080,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     @Override
     public void onUserLeaveHint() {
         super.onUserLeaveHint();
+        prepareX11PictureInPicture();
         if (mLorieViewRuntimeController != null)
             mLorieViewRuntimeController.onUserLeaveHint();
     }
@@ -1014,6 +1090,10 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
         if (mLorieViewRuntimeController != null)
             mLorieViewRuntimeController.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        if (isInPictureInPictureMode)
+            disableFloatBallMenuForPictureInPicture();
+        else
+            finishFloatBallMenuPictureInPictureSuppression();
     }
 
     @Override
@@ -1379,12 +1459,42 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         });
     }
 
+    private void setBackPressedCallback() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                handleBackPressed();
+            }
+        });
+    }
+
     private void navigateX11PreferencesBack() {
         if (getSupportFragmentManager().getBackStackEntryCount() > 1) {
             getSupportFragmentManager().popBackStack();
         } else {
             openX11Preferences(false);
         }
+    }
+
+    private void handleBackPressed() {
+        if (getDrawer().isDrawerOpen(GravityCompat.START)) {
+            getDrawer().closeDrawers();
+        } else if (getDrawer().isDrawerOpen(GravityCompat.END)) {
+            navigateX11PreferencesBack();
+        } else {
+            handleDisplaySidePanelUnlockBackRequest();
+        }
+    }
+
+    @SuppressLint("RtlHardcoded")
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK && getDrawer().isDrawerOpen(GravityCompat.END)) {
+            if (event.getAction() == KeyEvent.ACTION_UP)
+                navigateX11PreferencesBack();
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     private void setNewSessionButtonView() {
@@ -1499,13 +1609,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     @SuppressLint({"RtlHardcoded", "MissingSuperCall"})
     @Override
     public void onBackPressed() {
-        if (getDrawer().isDrawerOpen(GravityCompat.START)) {
-            getDrawer().closeDrawers();
-        } else if (getDrawer().isDrawerOpen(GravityCompat.END)) {
-            navigateX11PreferencesBack();
-        } else {
-            handleDisplaySidePanelUnlockBackRequest();
-        }
+        handleBackPressed();
     }
 
     public void finishActivityIfNotFinishing() {

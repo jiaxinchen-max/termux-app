@@ -14,6 +14,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AppOpsManager;
+import android.app.PictureInPictureParams;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
@@ -21,11 +22,14 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Canvas;
+import android.graphics.drawable.AnimationDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.util.Rational;
 import android.view.Display;
 import android.view.DragEvent;
 import android.view.InputDevice;
@@ -42,6 +46,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
@@ -335,6 +340,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         mX11BroadcastRegistrar.register();
 
         mX11SoftKeyboardController.attach();
+        updateDisconnectedRadar(LorieView.connected());
 
         // Taken from Stackoverflow answer https://stackoverflow.com/questions/7417123/android-how-to-adjust-layout-in-full-screen-mode-when-softkeyboard-is-visible/7509285#
 //        FullscreenWorkaround.assistActivity(this);
@@ -903,9 +909,41 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
 
     public void onUserLeaveHint() {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(mActivity);
-        if (preferences.getBoolean("PIP", false) && hasPipPermission(mActivity)) {
-            mActivity.enterPictureInPictureMode();
+        if (Build.VERSION.SDK_INT >= VERSION_CODES.O
+            && preferences.getBoolean("PIP", false)
+            && hasPipPermission(mActivity)
+            && LorieView.connected()
+            && !mActivity.isInPictureInPictureMode()) {
+            PictureInPictureParams params = new PictureInPictureParams.Builder()
+                .setAspectRatio(getPictureInPictureAspectRatio())
+                .build();
+            mActivity.enterPictureInPictureMode(params);
         }
+    }
+
+    @NonNull
+    private Rational getPictureInPictureAspectRatio() {
+        LorieView lorieView = getLorieView();
+        int width = Math.max(1, lorieView.getWidth());
+        int height = Math.max(1, lorieView.getHeight());
+        float ratio = (float) width / height;
+
+        if (ratio > 2.39f)
+            return new Rational(239, 100);
+        if (ratio < 1f / 2.39f)
+            return new Rational(100, 239);
+
+        int gcd = gcd(width, height);
+        return new Rational(width / gcd, height / gcd);
+    }
+
+    private int gcd(int a, int b) {
+        while (b != 0) {
+            int remainder = a % b;
+            a = b;
+            b = remainder;
+        }
+        return Math.max(1, a);
     }
 
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, @NonNull Configuration newConfig) {
@@ -948,6 +986,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
             setTerminalToolbarView();
             findViewById(R.id.mouse_buttons).setVisibility(prefs.showMouseHelper.get() && "1".equals(prefs.touchMode.get()) && connected ? VISIBLE : View.GONE);
             findViewById(R.id.stub).setVisibility(connected ? View.INVISIBLE : VISIBLE);
+            updateDisconnectedRadar(connected);
             getLorieView().setVisibility(connected ? VISIBLE : View.INVISIBLE);
             updateInputControlsVisibilityForConnection(connected);
             mX11DisplayController.setConnected(connected);
@@ -966,6 +1005,45 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
 
     public static boolean isConnected() {
         return LorieView.connected();
+    }
+
+    private void updateDisconnectedRadar(boolean connected) {
+        View radarIcon = findViewById(R.id.x11_radar_icon);
+        ImageView radarDish = findViewById(R.id.x11_radar_dish);
+        if (radarIcon == null)
+            return;
+
+        if (connected) {
+            stopDisconnectedRadarAnimation();
+            radarIcon.setVisibility(View.GONE);
+        } else {
+            radarIcon.setVisibility(VISIBLE);
+            startDisconnectedRadarAnimation(radarDish);
+        }
+    }
+
+    private void startDisconnectedRadarAnimation(ImageView radarDish) {
+        if (radarDish == null)
+            return;
+
+        Drawable drawable = radarDish.getDrawable();
+        if (!(drawable instanceof AnimationDrawable)) {
+            radarDish.setImageResource(R.drawable.ic_x11_radar_dish);
+            drawable = radarDish.getDrawable();
+        }
+        if (drawable instanceof AnimationDrawable && !((AnimationDrawable) drawable).isRunning())
+            ((AnimationDrawable) drawable).start();
+    }
+
+    private void stopDisconnectedRadarAnimation() {
+        ImageView radarDish = findViewById(R.id.x11_radar_dish);
+        if (radarDish == null)
+            return;
+
+        Drawable drawable = radarDish.getDrawable();
+        if (drawable instanceof AnimationDrawable)
+            ((AnimationDrawable) drawable).stop();
+        radarDish.setImageResource(R.drawable.ic_x11_radar_frame_1);
     }
 
     public boolean shouldInterceptKeys() {

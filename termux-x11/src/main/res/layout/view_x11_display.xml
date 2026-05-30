@@ -34,14 +34,36 @@
             android:orientation="vertical"
             android:visibility="visible">
 
-            <ImageView
-                android:id="@+id/x11_image"
+            <FrameLayout
                 android:layout_width="130dp"
                 android:layout_height="130dp"
-                android:contentDescription="X Logo"
-                android:scaleType="fitCenter"
-                app:srcCompat="@drawable/ic_x11_icon"
-                tools:ignore="HardcodedText" />
+                tools:ignore="HardcodedText">
+
+                <ImageView
+                    android:id="@+id/x11_image"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="X Logo"
+                    android:scaleType="fitCenter"
+                    app:srcCompat="@drawable/ic_x11_icon" />
+
+                <FrameLayout
+                    android:id="@+id/x11_radar_icon"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginEnd="5dp"
+                    android:layout_marginBottom="30dp">
+
+                    <ImageView
+                        android:id="@+id/x11_radar_dish"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:contentDescription="@string/not_connected"
+                        android:scaleType="fitCenter"
+                        app:srcCompat="@drawable/ic_x11_radar_dish" />
+                </FrameLayout>
+            </FrameLayout>
 
             <Space
                 android:layout_width="match_parent"
