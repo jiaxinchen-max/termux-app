@@ -1,18 +1,21 @@
 #ifndef RENDER_H
 #define RENDER_H
 
-#include <android/hardware_buffer.h>
-#include <android/native_window_jni.h>
-#include <android/choreographer.h>
-#include <android/log.h>
-#include <stdbool.h>
-#include <jni.h>
 #include <errno.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <sys/socket.h>
 #include <time.h>
-#include <pthread.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
+
+#ifndef TERMUX_RENDER_FD_ONLY
+#include <android/choreographer.h>
+#include <android/log.h>
+#include <android/native_window_jni.h>
+#include <jni.h>
+#endif
 #include "linux/input-event-codes.h"
 #include "buffer.h"
 #include "tlog.h"

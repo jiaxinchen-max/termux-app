@@ -2,9 +2,35 @@
 #define BUFFER_H
 
 #include <fcntl.h>
-#include <linux/ashmem.h>
-#include <android/hardware_buffer.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/types.h>
+
+#ifndef __unused
+#define __unused __attribute__((unused))
+#endif
+
+#ifndef __always_inline
+#define __always_inline __attribute__((always_inline)) inline
+#endif
+
+#ifndef _Nullable
+#define _Nullable
+#endif
+
+#ifndef _Nonnull
+#define _Nonnull
+#endif
+
+#ifdef TERMUX_RENDER_FD_ONLY
+typedef struct AHardwareBuffer AHardwareBuffer;
+#ifndef AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM
+#define AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM 2
+#endif
+#else
+#include <android/hardware_buffer.h>
+#endif
 
 #define STATIC_INLINE static inline __always_inline
 

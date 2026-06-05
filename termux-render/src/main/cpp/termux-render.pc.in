@@ -7,4 +7,4 @@ Name: termux-render
 Description: Android surface-based rendering bridge for Termux ecosystem
 Version: @PROJECT_VERSION@
 Libs: -L${libdir} -ltermux-render
-Cflags: -I${includedir}/termux/render
+Cflags: -I${includedir}/termux/render @TERMUX_RENDER_PC_CFLAGS@

@@ -7,20 +7,37 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#ifndef TERMUX_RENDER_FD_ONLY
 #include <dlfcn.h>
+#endif
 #include <linux/memfd.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <errno.h>
+#ifndef TERMUX_RENDER_FD_ONLY
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <android/sharedmem.h>
+#include <linux/ashmem.h>
+#else
+typedef unsigned int GLuint;
+typedef void *EGLImage;
+#endif
 #include <unistd.h>
 #include "include/list.h"
 #include "include/buffer.h"
 #include "include/tlog.h"
+
+#ifndef MFD_CLOEXEC
+#define MFD_CLOEXEC 0x0001U
+#endif
+
+#ifndef MFD_ALLOW_SEALING
+#define MFD_ALLOW_SEALING 0x0002U
+#endif
 
 struct LorieBuffer {
     int16_t refcount;
@@ -39,6 +56,7 @@ struct LorieBuffer {
     struct xorg_list link;
 };
 
+#ifndef TERMUX_RENDER_FD_ONLY
 typedef int (*ASharedMemory_create_fn)(const char *name, size_t size);
 typedef int (*AHardwareBuffer_allocate_fn)(const AHardwareBuffer_Desc *desc,
                                            AHardwareBuffer **outBuffer);
@@ -210,9 +228,10 @@ androidHardwareBufferSendHandleToUnixSocket(AHardwareBuffer *buffer,
 
     return sendHandle(buffer, socketFd);
 }
+#endif
 
 __attribute__((unused))
-static int memfd_create(const char *name, unsigned int flags) {
+static int lorie_memfd_create(const char *name, unsigned int flags) {
 #ifndef __NR_memfd_create
 #if defined __i386__
 #define __NR_memfd_create 356
@@ -284,16 +303,21 @@ static int writeFullToSocket(int fd, const void *buffer, size_t size) {
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "UnreachableCallsOfFunction"
 int LorieBuffer_createRegion(char const* name, size_t size) {
+#ifndef TERMUX_RENDER_FD_ONLY
     int fd = androidSharedMemoryCreate(name, size);
     if (fd >= 0)
         return fd;
+#else
+    int fd = -1;
+#endif
 
-    fd = memfd_create(name, MFD_CLOEXEC|MFD_ALLOW_SEALING);
+    fd = lorie_memfd_create(name, MFD_CLOEXEC|MFD_ALLOW_SEALING);
     if (fd >= 0) {
         ftruncate (fd, size);
         return fd;
     }
 
+#ifndef TERMUX_RENDER_FD_ONLY
     fd = open("/dev/ashmem", O_RDWR);
     if (fd < 0)
         return fd;
@@ -312,11 +336,16 @@ int LorieBuffer_createRegion(char const* name, size_t size) {
     error:
     close(fd);
     return ret;
+#else
+    return fd;
+#endif
 }
 #pragma clang diagnostic pop
 
 static LorieBuffer* allocate(int32_t width, int32_t stride, int32_t height, int8_t format, int8_t type, AHardwareBuffer *buf, int fd, size_t size, off_t offset, bool takeFd) {
+#ifndef TERMUX_RENDER_FD_ONLY
     AHardwareBuffer_Desc desc = {0};
+#endif
     static uint64_t id = 0;
     bool acceptable = (format == AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM || format == AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM) && width > 0 && height > 0;
     LorieBuffer b = { .desc = { .width = width, .stride = stride, .height = height, .format = format, .type = type, .buffer = buf, .id = id++ }, .fd = takeFd ? fd : dup(fd), .size = size, .offset = offset };
@@ -343,6 +372,9 @@ static LorieBuffer* allocate(int32_t width, int32_t stride, int32_t height, int8
             }
             break;
         case LORIEBUFFER_AHARDWAREBUFFER: {
+#ifdef TERMUX_RENDER_FD_ONLY
+            return NULL;
+#else
             if (!b.desc.buffer)
                 return NULL;
 
@@ -353,6 +385,7 @@ static LorieBuffer* allocate(int32_t width, int32_t stride, int32_t height, int8
             b.desc.stride = desc.stride;
             b.desc.format = desc.format;
             break;
+#endif
         }
         default: return NULL;
     }
@@ -368,7 +401,9 @@ static LorieBuffer* allocate(int32_t width, int32_t stride, int32_t height, int8
                 close(b.fd);
                 break;
             case LORIEBUFFER_AHARDWAREBUFFER:
+#ifndef TERMUX_RENDER_FD_ONLY
                 androidHardwareBufferRelease(b.desc.buffer);
+#endif
                 break;
             default: break;
         }
@@ -392,11 +427,15 @@ LorieBuffer* LorieBuffer_allocate(int32_t width, int32_t height, int8_t format, 
         if (fd < 0)
             return NULL;
     } else if (type == LORIEBUFFER_AHARDWAREBUFFER) {
+#ifdef TERMUX_RENDER_FD_ONLY
+        return NULL;
+#else
         AHardwareBuffer_Desc desc = { .width = width, .height = height, .format = format, .layers = 1,
                 .usage = AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN | AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE };
         int err = androidHardwareBufferAllocate(&desc, &ahardwarebuffer);
         if (err != 0)
             dprintf(2, "FATAL: failed to allocate AHardwareBuffer (width %d height %d format %d): error %d\n", width, height, format, err);
+#endif
     }
 
     return allocate(width, width, height, format, type, ahardwarebuffer, fd, size, 0, true);
@@ -407,7 +446,12 @@ LorieBuffer* LorieBuffer_wrapFileDescriptor(int32_t width, int32_t stride, int32
 }
 
 LorieBuffer* LorieBuffer_wrapAHardwareBuffer(AHardwareBuffer* buffer) {
+#ifdef TERMUX_RENDER_FD_ONLY
+    (void)buffer;
+    return NULL;
+#else
     return allocate(0, 0, 0, 0, LORIEBUFFER_AHARDWAREBUFFER, buffer, -1, 0, 0, false);
+#endif
 }
 
 void __LorieBuffer_free(LorieBuffer *buffer) {
@@ -428,8 +472,10 @@ void __LorieBuffer_free(LorieBuffer *buffer) {
                 close(buffer->fd);
             break;
         case LORIEBUFFER_AHARDWAREBUFFER:
+#ifndef TERMUX_RENDER_FD_ONLY
             if (buffer->desc.buffer)
                 androidHardwareBufferRelease(buffer->desc.buffer);
+#endif
             break;
         default:
             break;
@@ -447,7 +493,11 @@ void LorieBuffer_convert(LorieBuffer *buffer, int8_t type, int8_t format) {
     if (!buffer || buffer->desc.type != LORIEBUFFER_REGULAR)
         return;
 
-    if (type != LORIEBUFFER_FD && type != LORIEBUFFER_AHARDWAREBUFFER)
+    if (type != LORIEBUFFER_FD
+#ifndef TERMUX_RENDER_FD_ONLY
+        && type != LORIEBUFFER_AHARDWAREBUFFER
+#endif
+    )
         return;
 
     if (format != AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM &&
@@ -507,8 +557,13 @@ const LorieBuffer_Desc* LorieBuffer_description(LorieBuffer* buffer) {
 
     if (buffer->desc.type == LORIEBUFFER_REGULAR || buffer->desc.type == LORIEBUFFER_FD)
         buffer->lockedData = buffer->desc.data;
+#ifndef TERMUX_RENDER_FD_ONLY
     else if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER)
         ret = androidHardwareBufferLock(buffer->desc.buffer, AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN, -1, NULL, &buffer->lockedData);
+#else
+    else if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER)
+        return ENOTSUP;
+#endif
 
     if (out)
         *out = buffer->lockedData;
@@ -528,8 +583,13 @@ int LorieBuffer_unlock(LorieBuffer* buffer) {
         return ENOENT;
     }
 
-    if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER)
+    if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER) {
+#ifndef TERMUX_RENDER_FD_ONLY
         ret = androidHardwareBufferUnlock(buffer->desc.buffer, NULL);
+#else
+        return ENOTSUP;
+#endif
+    }
 
     buffer->lockedData = NULL;
     buffer->locked = false;
@@ -552,8 +612,10 @@ void LorieBuffer_sendHandleToUnixSocket(LorieBuffer* _Nonnull buffer, int socket
 
     if (buffer->desc.type == LORIEBUFFER_FD)
         ancil_send_fd(socketFd, buffer->fd);
+#ifndef TERMUX_RENDER_FD_ONLY
     else if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER)
         androidHardwareBufferSendHandleToUnixSocket(buffer->desc.buffer, socketFd);
+#endif
 }
 
 void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuffer** outBuffer) {
@@ -604,6 +666,12 @@ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuffer** outBuffer)
             return;
         }
     } else if (buffer.desc.type == LORIEBUFFER_AHARDWAREBUFFER) {
+#ifdef TERMUX_RENDER_FD_ONLY
+        tlog(LOG_ERR, "Received AHardwareBuffer in fd-only build");
+        if (outBuffer)
+            *outBuffer = NULL;
+        return;
+#else
         if (androidHardwareBufferRecvHandleFromUnixSocket(socketFd,
                                                           &buffer.desc.buffer) != 0) {
             tlog(LOG_ERR, "Failed to receive AHardwareBuffer handle: %s",
@@ -613,6 +681,7 @@ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuffer** outBuffer)
             return;
         }
         tlog(LOG_INFO, "Received AHardwareBuffer handle=%p", buffer.desc.buffer);
+#endif
     }
 
 #pragma clang diagnostic push
@@ -623,8 +692,10 @@ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuffer** outBuffer)
     if (!ret) {
         if (buffer.fd >= 0)
             close(buffer.fd);
+#ifndef TERMUX_RENDER_FD_ONLY
         if (buffer.desc.buffer)
             androidHardwareBufferRelease(buffer.desc.buffer);
+#endif
         if (outBuffer)
             *outBuffer = NULL;
         tlog(LOG_ERR, "Failed to allocate client LorieBuffer copy");

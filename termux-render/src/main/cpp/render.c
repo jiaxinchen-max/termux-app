@@ -1,4 +1,6 @@
+#ifndef TERMUX_RENDER_FD_ONLY
 #include <jni.h>
+#endif
 #include <stdio.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -41,7 +43,11 @@ static int screen_width = 1080;
 static int screen_height = 720;
 static int screen_framerate = 10;
 static int screen_format = AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM;
+#ifdef TERMUX_RENDER_FD_ONLY
+static int screen_type = LORIEBUFFER_FD;
+#else
 static int screen_type = LORIEBUFFER_AHARDWAREBUFFER;
+#endif
 
 #define MAX_RETRY_TIMES 5
 
@@ -69,8 +75,11 @@ static bool isSupportedScreenFormat(int format) {
 }
 
 static bool isSupportedScreenType(int type) {
-    return type == LORIEBUFFER_FD ||
-           type == LORIEBUFFER_AHARDWAREBUFFER;
+    return type == LORIEBUFFER_FD
+#ifndef TERMUX_RENDER_FD_ONLY
+           || type == LORIEBUFFER_AHARDWAREBUFFER
+#endif
+           ;
 }
 
 static const char *eventTypeName(uint8_t type) {
@@ -258,12 +267,14 @@ static int readLorieEvent(int fd, lorieEvent *event) {
 #endif
 }
 
+#ifndef TERMUX_RENDER_FD_ONLY
 JNIEXPORT jstring JNICALL
 Java_com_termux_wayland_NativeLib_stringFromJNI(
         JNIEnv *env,
         jobject this) {
     return "hello";
 }
+#endif
 
 bool waylandConnectionAlive(void) {
     return event_fd != -1 && event_loop_running && lorieBuffer && serverState;

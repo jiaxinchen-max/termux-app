@@ -6,6 +6,7 @@ include(GNUInstallDirs)
 
 set(TERMUX_RENDER_ASSETS_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/termux-render/assets")
 set(TERMUX_RENDER_ASSETS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/assets")
+option(TERMUX_RENDER_FD_ONLY "Build a glibc/proot client without Android AHardwareBuffer support" OFF)
 set(INSTALL_ASSETS "default" CACHE STRING "Assets to install: default or all")
 set_property(CACHE INSTALL_ASSETS PROPERTY STRINGS default all)
 string(TOLOWER "${INSTALL_ASSETS}" TERMUX_RENDER_INSTALL_ASSETS)
@@ -19,15 +20,25 @@ if(NOT TERMUX_RENDER_ASSETS_DIR)
         set(TERMUX_RENDER_ASSETS_DIR "${CMAKE_INSTALL_FULL_DATADIR}/termux-render/assets")
 endif()
 
+set(TERMUX_RENDER_PC_CFLAGS "")
+if(TERMUX_RENDER_FD_ONLY)
+        set(TERMUX_RENDER_PC_CFLAGS "-DTERMUX_RENDER_FD_ONLY")
+endif()
+
 add_library(${CMAKE_PROJECT_NAME} SHARED
         # List C/C++ source files with relative paths to this CMakeLists.txt.
         tlog.c
         buffer.c
         render.c)
 
+target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC
+        $<$<BOOL:${TERMUX_RENDER_FD_ONLY}>:TERMUX_RENDER_FD_ONLY>
+)
+
 target_link_libraries(${CMAKE_PROJECT_NAME}
-        # List libraries link to the target library
-        dl log m
+        m
+        $<$<NOT:$<BOOL:${TERMUX_RENDER_FD_ONLY}>>:dl>
+        $<$<NOT:$<BOOL:${TERMUX_RENDER_FD_ONLY}>>:log>
 )
 install(TARGETS ${CMAKE_PROJECT_NAME}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -67,7 +78,8 @@ endif()
 
 add_executable(termux-render-sample main.c)
 target_compile_definitions(termux-render-sample PRIVATE
-        TERMUX_RENDER_ASSETS_DIR="${TERMUX_RENDER_ASSETS_DIR}")
+        TERMUX_RENDER_ASSETS_DIR="${TERMUX_RENDER_ASSETS_DIR}"
+        $<$<BOOL:${TERMUX_RENDER_FD_ONLY}>:TERMUX_RENDER_FD_ONLY>)
 target_link_libraries(termux-render-sample
         ${CMAKE_PROJECT_NAME}
         )
@@ -77,7 +89,8 @@ install(TARGETS termux-render-sample
 
 add_executable(termux-render-sample-cpp main.cpp)
 target_compile_definitions(termux-render-sample-cpp PRIVATE
-        TERMUX_RENDER_ASSETS_DIR="${TERMUX_RENDER_ASSETS_DIR}")
+        TERMUX_RENDER_ASSETS_DIR="${TERMUX_RENDER_ASSETS_DIR}"
+        $<$<BOOL:${TERMUX_RENDER_FD_ONLY}>:TERMUX_RENDER_FD_ONLY>)
 target_link_libraries(termux-render-sample-cpp
         ${CMAKE_PROJECT_NAME}
         )
