@@ -48,6 +48,7 @@ static int screen_type = LORIEBUFFER_FD;
 #else
 static int screen_type = LORIEBUFFER_AHARDWAREBUFFER;
 #endif
+static int keycode_format = LORIE_KEYCODE_XKB;
 
 #define MAX_RETRY_TIMES 5
 
@@ -348,6 +349,18 @@ static void applyScreenBufferConfig(int format, int type) {
         tlog(LOG_WARNING, "Ignoring unsupported screen buffer type=%d", type);
 }
 
+void setKeycodeFormat(int format) {
+    switch (format) {
+    case LORIE_KEYCODE_XKB:
+    case LORIE_KEYCODE_EVDEV:
+        keycode_format = format;
+        break;
+    default:
+        tlog(LOG_WARNING, "Ignoring unsupported keycode format=%d", format);
+        break;
+    }
+}
+
 void setScreenConfig(int width, int height, int framerate, int option_count, ...) {
     if (width > 0) screen_width = width;
     if (height > 0) screen_height = height;
@@ -370,9 +383,9 @@ void setScreenConfig(int width, int height, int framerate, int option_count, ...
     }
 
     tlog(LOG_INFO, "setScreenConfig width=%d height=%d framerate=%d "
-         "format=%d type=%d",
+         "format=%d type=%d keycode_format=%d",
          screen_width, screen_height, screen_framerate, screen_format,
-         screen_type);
+         screen_type, keycode_format);
 }
 
 static void waylandApplyBuffer() {
@@ -473,13 +486,24 @@ static void *eventLoopThread(void *arg) {
                         goto cleanup;
                     }
                     tlog(LOG_INFO, "Sent EVENT_APPLY_BUFFER");
-                    lorieEvent e2 = {.screenSize = {.t = EVENT_SCREEN_SIZE, .width = screen_width, .height = screen_height, .framerate = screen_framerate, .format = screen_format, .type = screen_type}};
+                    lorieEvent e2 = {
+                        .screenSize = {
+                            .t = EVENT_SCREEN_SIZE,
+                            .width = screen_width,
+                            .height = screen_height,
+                            .framerate = screen_framerate,
+                            .format = screen_format,
+                            .type = screen_type,
+                            .keycode_format = keycode_format,
+                        }
+                    };
                     if (write(event_fd, &e2, sizeof(e2)) != sizeof(e2)) {
                         tlog(LOG_ERR, "Failed to send BUFFER PROPERTIES");
                         goto cleanup;
                     }
-                    tlog(LOG_INFO, "Sent EVENT_SCREEN_SIZE width=%d height=%d framerate=%d format=%d type=%d",
-                         screen_width, screen_height, screen_framerate, screen_format, screen_type);
+                    tlog(LOG_INFO, "Sent EVENT_SCREEN_SIZE width=%d height=%d framerate=%d format=%d type=%d keycode_format=%d",
+                         screen_width, screen_height, screen_framerate, screen_format, screen_type,
+                         keycode_format);
                     handshake_phase = HANDSHAKE_WAIT_ADD_BUFFER;
                     break;
                 }

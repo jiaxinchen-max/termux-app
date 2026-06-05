@@ -94,6 +94,11 @@ typedef enum {
     EVENT_STOP_RENDER,
 } eventType;
 
+typedef enum {
+    LORIE_KEYCODE_XKB = 0,
+    LORIE_KEYCODE_EVDEV = 1,
+} lorieKeycodeFormat;
+
 typedef union {
     uint8_t type;
     struct {
@@ -103,6 +108,7 @@ typedef union {
         char *name;
         uint8_t format;
         uint8_t type;
+        uint8_t keycode_format;
     } screenSize;
     struct {
         uint8_t t;
@@ -347,6 +353,7 @@ static int android_to_linux_keycode[304] = {
         [ 210  /* ANDROID_KEYCODE_CALCULATOR */] = KEY_CALC,
 };
 void setScreenConfig(int, int, int, int, ...);
+void setKeycodeFormat(int);
 #ifndef TERMUX_RENDER_NO_SET_SCREEN_CONFIG_MACRO
 #define TERMUX_RENDER_SET_SCREEN_CONFIG_SELECT(_1, _2, _3, _4, _5, NAME, ...) NAME
 #define TERMUX_RENDER_SET_SCREEN_CONFIG_3(width, height, framerate) \
