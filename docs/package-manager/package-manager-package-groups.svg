@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980">
+  <defs>
+    <style>
+      .bg { fill: #07111a; }
+      .panel { fill: #0f172a; stroke: #334155; stroke-width: 2; rx: 18; }
+      .group { fill: #111827; stroke: #64748b; stroke-width: 2; rx: 16; }
+      .base { fill: #0f3b4d; stroke: #38bdf8; stroke-width: 2; rx: 16; }
+      .wine { fill: #3f1d4d; stroke: #c084fc; stroke-width: 2; rx: 16; }
+      .legacy { fill: #5c2418; stroke: #fb923c; stroke-width: 2; rx: 16; }
+      .root { fill: #1d4ed8; stroke: #93c5fd; stroke-width: 2; rx: 16; }
+      .text { fill: #e5e7eb; font-family: Menlo, Consolas, monospace; font-size: 20px; }
+      .small { fill: #cbd5e1; font-family: Menlo, Consolas, monospace; font-size: 16px; }
+      .tiny { fill: #cbd5e1; font-family: Menlo, Consolas, monospace; font-size: 14px; }
+      .arrow { stroke: #94a3b8; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .title { fill: #f8fafc; font-family: Menlo, Consolas, monospace; font-size: 28px; font-weight: 700; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1600" height="980"/>
+  <rect class="panel" x="30" y="30" width="1540" height="920" rx="24"/>
+  <text class="title" x="60" y="78">package 分组与文件根</text>
+
+  <rect class="base" x="70" y="120" width="470" height="330" rx="18"/>
+  <text class="text" x="100" y="160">base_packages</text>
+  <text class="small" x="100" y="195">box64-binaries</text>
+  <text class="small" x="100" y="225">dxvk</text>
+  <text class="small" x="100" y="255">glibc-prefix</text>
+  <text class="small" x="100" y="285">prefix-apps</text>
+  <text class="small" x="100" y="315">scripts</text>
+  <text class="small" x="100" y="345">turnip / virgl-mesa / wined3d</text>
+  <text class="small" x="100" y="375">libudev / en-ru-locale</text>
+  <text class="tiny" x="100" y="410">启动时始终同步</text>
+
+  <rect class="wine" x="565" y="120" width="470" height="330" rx="18"/>
+  <text class="text" x="595" y="160">wine_packages</text>
+  <text class="small" x="595" y="195">wine-9.0-staging-wow64</text>
+  <text class="small" x="595" y="225">wine-8.18-staging-wow64</text>
+  <text class="small" x="595" y="255">wine-8.18-vanilla-wow64</text>
+  <text class="small" x="595" y="285">wine-9.1-vanilla-wow64</text>
+  <text class="small" x="595" y="315">wine-9.2-vanilla-wow64</text>
+  <text class="small" x="595" y="345">wine-9.3-vanilla-wow64</text>
+  <text class="tiny" x="595" y="380">只有“已安装的 wine”才会被自动升级</text>
+
+  <rect class="legacy" x="1060" y="120" width="470" height="330" rx="18"/>
+  <text class="text" x="1090" y="160">outdated_packages</text>
+  <text class="small" x="1090" y="195">d3d</text>
+  <text class="small" x="1090" y="225">mesa</text>
+  <text class="small" x="1090" y="255">wine-ge-custom-8-25</text>
+  <text class="tiny" x="1090" y="290">每次 sync-all 先删除</text>
+
+  <rect class="group" x="90" y="520" width="410" height="330" rx="18"/>
+  <text class="text" x="120" y="560">glibc / prefix 相关</text>
+  <text class="small" x="120" y="600">box64-binaries</text>
+  <text class="small" x="120" y="630">glibc-prefix</text>
+  <text class="small" x="120" y="660">prefix-apps</text>
+  <text class="small" x="120" y="690">scripts</text>
+  <text class="small" x="120" y="720">libudev</text>
+  <text class="small" x="120" y="750">en-ru-locale</text>
+  <text class="tiny" x="120" y="785">文件根: glibc/bin, glibc/lib, glibc/opt</text>
+
+  <rect class="group" x="545" y="520" width="470" height="330" rx="18"/>
+  <text class="text" x="575" y="560">图形 / D3D / Mesa</text>
+  <text class="small" x="575" y="600">dxvk</text>
+  <text class="small" x="575" y="630">turnip</text>
+  <text class="small" x="575" y="660">virgl-mesa</text>
+  <text class="small" x="575" y="690">wined3d</text>
+  <text class="tiny" x="575" y="725">文件根: glibc/opt/libs, glibc/opt/prefix</text>
+  <text class="tiny" x="575" y="755">菜单项: glibc/opt/prefix/start/Install/*</text>
+
+  <rect class="group" x="1055" y="520" width="475" height="330" rx="18"/>
+  <text class="text" x="1085" y="560">Wine 运行时</text>
+  <text class="small" x="1085" y="600">wine-9.0-staging-wow64</text>
+  <text class="small" x="1085" y="630">wine-8.18-staging-wow64</text>
+  <text class="small" x="1085" y="660">wine-8.18-vanilla-wow64</text>
+  <text class="small" x="1085" y="690">wine-9.1-vanilla-wow64</text>
+  <text class="small" x="1085" y="720">wine-9.2-vanilla-wow64</text>
+  <text class="small" x="1085" y="750">wine-9.3-vanilla-wow64</text>
+  <text class="tiny" x="1085" y="785">文件根: glibc/wine-&lt;version&gt;/...</text>
+
+  <path class="arrow" d="M310 450 L310 515"/>
+  <path class="arrow" d="M800 450 L800 515"/>
+  <path class="arrow" d="M1290 450 L1290 515"/>
+  <path class="arrow" d="M500 690 L540 690"/>
+  <path class="arrow" d="M1015 690 L1050 690"/>
+  <text class="tiny" x="365" y="500">同步目标</text>
+  <text class="tiny" x="860" y="500">同步目标</text>
+  <text class="tiny" x="1330" y="500">清理目标</text>
+</svg>

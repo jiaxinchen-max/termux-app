@@ -1,4 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="terminal_surface_translucent_background">#CC000000</color>
+    <color name="termux_box_background">#EEF2F5</color>
+    <color name="termux_box_surface">#FFFFFF</color>
+    <color name="termux_box_surface_variant">#E6EDF3</color>
+    <color name="termux_box_surface_border">#D3DEE8</color>
+    <color name="termux_box_toolbar">#6F8794</color>
+    <color name="termux_box_toolbar_text">#FFFFFF</color>
+    <color name="termux_box_primary">#2D8CDB</color>
+    <color name="termux_box_primary_dark">#1D6FAF</color>
+    <color name="termux_box_text_primary">#24323F</color>
+    <color name="termux_box_text_secondary">#60707E</color>
+    <color name="termux_box_chip">#EAF0F6</color>
+    <color name="termux_box_chip_text">#31424F</color>
+    <color name="termux_box_status_ok">#2E7D32</color>
+    <color name="termux_box_status_warn">#C58E00</color>
+    <color name="termux_box_status_info">#3569C8</color>
 </resources>

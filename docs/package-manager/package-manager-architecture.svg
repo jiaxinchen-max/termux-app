@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="920" viewBox="0 0 1600 920">
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .panel { fill: #111827; stroke: #334155; stroke-width: 2; rx: 18; }
+      .box { fill: #1f2937; stroke: #64748b; stroke-width: 2; rx: 16; }
+      .accent { fill: #0b3a53; stroke: #38bdf8; stroke-width: 2; rx: 16; }
+      .state { fill: #1d4ed8; stroke: #93c5fd; stroke-width: 2; rx: 16; }
+      .warn { fill: #7c2d12; stroke: #fb923c; stroke-width: 2; rx: 16; }
+      .text { fill: #e5e7eb; font-family: Menlo, Consolas, monospace; font-size: 22px; }
+      .small { fill: #cbd5e1; font-family: Menlo, Consolas, monospace; font-size: 18px; }
+      .tiny { fill: #cbd5e1; font-family: Menlo, Consolas, monospace; font-size: 16px; }
+      .arrow { stroke: #94a3b8; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .dash { stroke-dasharray: 10 8; }
+      .title { fill: #f8fafc; font-family: Menlo, Consolas, monospace; font-size: 28px; font-weight: 700; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1600" height="920"/>
+  <rect class="panel" x="30" y="30" width="1540" height="860" rx="24"/>
+  <text class="title" x="60" y="78">package-manager 总体结构</text>
+
+  <rect class="box" x="80" y="150" width="320" height="180" rx="18"/>
+  <text class="text" x="110" y="192">调用方</text>
+  <text class="small" x="110" y="230">mobox</text>
+  <text class="small" x="110" y="260">mobox_menu</text>
+  <text class="small" x="110" y="290">configs.load_package-manager</text>
+
+  <rect class="accent" x="500" y="120" width="360" height="240" rx="18"/>
+  <text class="text" x="530" y="165">package-manager</text>
+  <text class="small" x="530" y="205">函数库 + 版本表</text>
+  <text class="small" x="530" y="240">sync-package / validate-package</text>
+  <text class="small" x="530" y="275">sync-all / validate-all</text>
+  <text class="small" x="530" y="310">remove-package</text>
+
+  <rect class="box" x="980" y="90" width="500" height="300" rx="18"/>
+  <text class="text" x="1010" y="135">远端来源</text>
+  <text class="small" x="1010" y="175">GitLab Raw API</text>
+  <text class="small" x="1010" y="210">project_id = 54240888</text>
+  <text class="small" x="1010" y="245">package archives: &lt;pkg&gt;.tar.xz</text>
+  <text class="tiny" x="1010" y="280">下载失败时保留旧版本</text>
+  <text class="tiny" x="1010" y="310">成功后才更新 installed/</text>
+
+  <rect class="state" x="90" y="470" width="420" height="270" rx="18"/>
+  <text class="text" x="120" y="515">本地状态库</text>
+  <text class="small" x="120" y="555">installed/&lt;pkg&gt;</text>
+  <text class="small" x="120" y="590">installed/&lt;pkg&gt;_lists</text>
+  <text class="small" x="120" y="625">installed/&lt;pkg&gt;_md5</text>
+  <text class="small" x="120" y="660">reset-*-triggered</text>
+  <text class="small" x="120" y="695">temp/</text>
+
+  <rect class="warn" x="610" y="470" width="360" height="270" rx="18"/>
+  <text class="text" x="640" y="515">安装目标</text>
+  <text class="small" x="640" y="555">$PREFIX/glibc/...</text>
+  <text class="small" x="640" y="590">glibc/bin</text>
+  <text class="small" x="640" y="625">glibc/lib</text>
+  <text class="small" x="640" y="660">glibc/opt</text>
+  <text class="small" x="640" y="695">glibc/wine-*</text>
+
+  <rect class="box" x="1050" y="470" width="440" height="270" rx="18"/>
+  <text class="text" x="1080" y="515">默认配置</text>
+  <text class="small" x="1080" y="555">default-conf/conf/*.conf</text>
+  <text class="small" x="1080" y="590">default-conf/conf/dynarec/*.conf</text>
+  <text class="small" x="1080" y="625">default-conf/dxvk.conf</text>
+  <text class="small" x="1080" y="660">default-conf/locale.conf</text>
+  <text class="small" x="1080" y="695">一次性迁移标记</text>
+
+  <path class="arrow" d="M400 240 L495 240"/>
+  <path class="arrow" d="M860 190 L975 190"/>
+  <path class="arrow" d="M615 360 L410 470"/>
+  <path class="arrow" d="M785 360 L780 470"/>
+  <path class="arrow" d="M845 260 L1050 260"/>
+  <path class="arrow dash" d="M290 430 L290 470"/>
+  <path class="arrow dash" d="M1350 390 L1280 470"/>
+  <text class="tiny" x="430" y="220">source / exec</text>
+  <text class="tiny" x="885" y="172">wget raw</text>
+  <text class="tiny" x="470" y="520">记录版本、清单、md5</text>
+  <text class="tiny" x="1060" y="430">copy defaults / source configs</text>
+</svg>

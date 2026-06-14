@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/termux_box_background">
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/termux_box_container_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:overScrollMode="ifContentScrolls"
+        android:paddingBottom="32dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/termux_box_surface"
+                app:cardCornerRadius="5dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/termux_box_surface_border"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="容器参数"
+                        android:textColor="@color/termux_box_text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <com.termux.app.activities.termuxbox.TermuxBoxDropdownField
+                        android:id="@+id/termux_box_container_name_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp" />
+
+                    <com.termux.app.activities.termuxbox.TermuxBoxDropdownField
+                        android:id="@+id/termux_box_gpu_driver_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp" />
+
+                    <com.termux.app.activities.termuxbox.TermuxBoxDropdownField
+                        android:id="@+id/termux_box_resolution_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp" />
+
+                    <com.termux.app.activities.termuxbox.TermuxBoxDropdownField
+                        android:id="@+id/termux_box_locale_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp" />
+
+                    <com.termux.app.activities.termuxbox.TermuxBoxDropdownField
+                        android:id="@+id/termux_box_gpu_accel_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp" />
+
+                    <com.termux.app.activities.termuxbox.TermuxBoxDropdownField
+                        android:id="@+id/termux_box_audio_driver_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp" />
+
+                    <CheckBox
+                        android:id="@+id/termux_box_fps_checkbox"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="显示帧数"
+                        android:textColor="@color/termux_box_text_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/termux_box_tabs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                app:tabBackground="@color/termux_box_surface"
+                app:tabGravity="fill"
+                app:tabIndicatorColor="@color/termux_box_primary"
+                app:tabIndicatorFullWidth="false"
+                app:tabMode="scrollable"
+                app:tabSelectedTextColor="@color/termux_box_primary"
+                app:tabTextColor="@color/termux_box_text_secondary" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:cardBackgroundColor="@color/termux_box_surface"
+                app:cardCornerRadius="5dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/termux_box_surface_border"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:id="@+id/termux_box_page_stack"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <LinearLayout
+                        android:id="@+id/termux_box_page_wine"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <LinearLayout
+                        android:id="@+id/termux_box_page_libraries"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/termux_box_page_env"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/termux_box_page_folders"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/termux_box_page_advanced"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:layout_marginBottom="4dp"
+                app:cardBackgroundColor="@color/termux_box_surface"
+                app:cardCornerRadius="5dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/termux_box_surface_border"
+                app:strokeWidth="1dp">
+
+                <TextView
+                    android:id="@+id/termux_box_container_note"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp"
+                    android:text="@string/termux_box_container_note"
+                    android:textColor="@color/termux_box_text_secondary"
+                    android:textSize="12sp" />
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/termux_box_fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:contentDescription="save"
+        app:backgroundTint="@color/termux_box_primary"
+        app:srcCompat="@drawable/ic_check_circle_fab" />
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

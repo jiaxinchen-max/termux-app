@@ -131,6 +131,12 @@
             android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
 
         <activity
+            android:name=".app.activities.TermuxBoxActivity"
+            android:exported="true"
+            android:label="@string/title_activity_termux_box"
+            android:theme="@style/Theme.TermuxBoxActivity.DayNight.NoActionBar" />
+
+        <activity
             android:name=".shared.activities.ReportActivity"
             android:documentLaunchMode="intoExisting"
             android:theme="@style/Theme.MarkdownViewActivity.DayNight" />

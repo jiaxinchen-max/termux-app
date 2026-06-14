@@ -122,6 +122,13 @@
     <!-- Termux Settings -->
     <string name="title_activity_termux_settings">&TERMUX_APP_NAME; Settings</string>
 
+    <!-- Termux Box -->
+    <string name="title_activity_termux_box">Termux Box</string>
+    <string name="termux_box_home_title">Termux Box</string>
+    <string name="termux_box_home_summary">状态、启动和快捷入口。</string>
+    <string name="termux_box_home_note">所有参数统一放到容器设置页。</string>
+    <string name="termux_box_container_note">先把外壳做成 Winlator 的交互密度，后续再补齐每个开关的真实写入逻辑。</string>
+
     <!-- Termux App Preferences -->
     <string name="termux_preferences_title">&TERMUX_APP_NAME;preference</string>
     <string name="termux_preferences_summary">Preferences for &TERMUX_APP_NAME; app</string>

@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="920" viewBox="0 0 1600 920">
+  <defs>
+    <style>
+      .bg { fill: #081018; }
+      .panel { fill: #101827; stroke: #334155; stroke-width: 2; rx: 18; }
+      .box { fill: #1f2937; stroke: #64748b; stroke-width: 2; rx: 14; }
+      .green { fill: #14532d; stroke: #4ade80; stroke-width: 2; rx: 14; }
+      .red { fill: #7f1d1d; stroke: #f87171; stroke-width: 2; rx: 14; }
+      .blue { fill: #1d4ed8; stroke: #93c5fd; stroke-width: 2; rx: 14; }
+      .text { fill: #e5e7eb; font-family: Menlo, Consolas, monospace; font-size: 22px; }
+      .small { fill: #cbd5e1; font-family: Menlo, Consolas, monospace; font-size: 18px; }
+      .tiny { fill: #cbd5e1; font-family: Menlo, Consolas, monospace; font-size: 16px; }
+      .arrow { stroke: #94a3b8; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .title { fill: #f8fafc; font-family: Menlo, Consolas, monospace; font-size: 28px; font-weight: 700; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1600" height="920"/>
+  <rect class="panel" x="30" y="30" width="1540" height="860" rx="24"/>
+  <text class="title" x="60" y="78">sync-package / validate-package 流程</text>
+
+  <rect class="box" x="90" y="150" width="250" height="120" rx="14"/>
+  <text class="text" x="120" y="195">读取本地版本</text>
+  <text class="small" x="120" y="230">installed/&lt;pkg&gt;</text>
+
+  <rect class="box" x="390" y="150" width="280" height="120" rx="14"/>
+  <text class="text" x="420" y="195">比较远端版本</text>
+  <text class="small" x="420" y="230">packages_list[&lt;pkg&gt;]</text>
+
+  <rect class="blue" x="740" y="120" width="320" height="150" rx="14"/>
+  <text class="text" x="770" y="165">需要更新</text>
+  <text class="small" x="770" y="200">下载 &lt;pkg&gt;.tar.xz</text>
+  <text class="small" x="770" y="235">解包到 temp/&lt;pkg&gt;</text>
+
+  <rect class="green" x="1120" y="120" width="380" height="150" rx="14"/>
+  <text class="text" x="1150" y="165">安装成功路径</text>
+  <text class="small" x="1150" y="200">remove-package 旧版本</text>
+  <text class="small" x="1150" y="235">复制 glibc/ 到 $PREFIX</text>
+
+  <rect class="box" x="90" y="360" width="320" height="170" rx="14"/>
+  <text class="text" x="120" y="405">生成清单</text>
+  <text class="small" x="120" y="440">find ... &gt; _lists</text>
+  <text class="small" x="120" y="475">md5deep -sr ... &gt; _md5</text>
+  <text class="small" x="120" y="510">写回 installed/&lt;pkg&gt;</text>
+
+  <rect class="red" x="500" y="360" width="320" height="170" rx="14"/>
+  <text class="text" x="530" y="405">验证失败</text>
+  <text class="small" x="530" y="440">md5sum -c 失败</text>
+  <text class="small" x="530" y="475">删 installed/&lt;pkg&gt;</text>
+  <text class="small" x="530" y="510">重新 sync-package</text>
+
+  <rect class="box" x="900" y="360" width="600" height="170" rx="14"/>
+  <text class="text" x="930" y="405">remove-package</text>
+  <text class="small" x="930" y="440">按 _lists 逐行删除 $PREFIX/&lt;path&gt;</text>
+  <text class="small" x="930" y="475">清理 installed/&lt;pkg&gt; / _lists / _md5</text>
+  <text class="small" x="930" y="510">Wine 包额外删除 $PREFIX/glibc/&lt;pkg&gt;</text>
+
+  <rect class="box" x="90" y="610" width="1410" height="170" rx="14"/>
+  <text class="text" x="120" y="655">validate-package</text>
+  <text class="small" x="120" y="690">1. 检查 _md5 是否存在</text>
+  <text class="small" x="120" y="725">2. 执行 md5sum --quiet -c</text>
+  <text class="small" x="120" y="760">3. 成功: 保留现状  |  失败: 删除版本标记并重装</text>
+
+  <path class="arrow" d="M340 210 L385 210"/>
+  <path class="arrow" d="M670 210 L735 210"/>
+  <path class="arrow" d="M1060 190 L1115 190"/>
+  <path class="arrow" d="M900 270 L250 360"/>
+  <path class="arrow" d="M1160 270 L1110 360"/>
+  <path class="arrow" d="M250 530 L250 605"/>
+  <path class="arrow" d="M660 530 L660 605"/>
+  <path class="arrow" d="M1200 530 L1200 605"/>
+  <text class="tiny" x="705" y="170">version gate</text>
+  <text class="tiny" x="1070" y="170">download + unpack</text>
+  <text class="tiny" x="340" y="585">success</text>
+  <text class="tiny" x="705" y="585">mismatch</text>
+</svg>
