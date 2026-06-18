@@ -46,7 +46,12 @@ public final class TermuxBoxRepository {
     private final File filesDir;
     private final File glibcDir;
     private final File optDir;
-    private final File confDir;
+    private final File termuxBoxDir;
+    private final File containersDir;
+    private final File defaultConfigDir;
+    private final File configDir;
+    private final File legacyConfDir;
+    private final File legacyDefaultConfDir;
     private final File dynarecDir;
     private final File packageManagerDir;
     private final File installedDir;
@@ -60,12 +65,17 @@ public final class TermuxBoxRepository {
         this.filesDir = new File(TermuxConstants.TERMUX_FILES_DIR_PATH);
         this.glibcDir = new File(filesDir, "usr/glibc");
         this.optDir = new File(glibcDir, "opt");
-        this.confDir = new File(optDir, "conf");
-        this.dynarecDir = new File(confDir, "dynarec");
-        this.packageManagerDir = new File(optDir, "package-manager");
+        this.termuxBoxDir = new File(glibcDir, "termux-box");
+        this.containersDir = new File(termuxBoxDir, "containers");
+        this.defaultConfigDir = new File(termuxBoxDir, "default-conf");
+        this.configDir = new File(termuxBoxDir, "config");
+        this.legacyConfDir = new File(optDir, "conf");
+        this.legacyDefaultConfDir = new File(optDir, "default-conf");
+        this.dynarecDir = new File(configDir, "dynarec");
+        this.packageManagerDir = new File(termuxBoxDir, "package-manager");
         this.installedDir = new File(packageManagerDir, "installed");
         this.tempDir = new File(packageManagerDir, "temp");
-        this.boxDir = new File(optDir, "box");
+        this.boxDir = new File(termuxBoxDir, "box");
         this.prefixDir = glibcDir;
         this.packages = Collections.unmodifiableList(Arrays.asList(
             new TermuxBoxPackageSpec("box64-binaries", 10, false),
@@ -140,36 +150,184 @@ public final class TermuxBoxRepository {
         return version != null && version >= spec.version;
     }
 
-    public String getCurrentWineContainerName() {
-        File conf = new File(confDir, "wine_path.conf");
-        if (!conf.isFile()) {
+    public List<TermuxBoxContainerSpec> getContainers() {
+        List<TermuxBoxContainerSpec> result = new ArrayList<>();
+        File[] dirs = containersDir.listFiles(File::isDirectory);
+        if (dirs == null) {
+            return result;
+        }
+        Arrays.sort(dirs, Comparator.comparing(File::getName));
+        for (File dir : dirs) {
+            File conf = new File(dir, "container.conf");
+            if (!conf.isFile()) {
+                continue;
+            }
+            TermuxBoxContainerSpec spec = readContainerSpec(dir.getName(), conf);
+            if (spec != null) {
+                result.add(spec);
+            }
+        }
+        return result;
+    }
+
+    public TermuxBoxContainerSpec findContainer(String idOrName) {
+        if (idOrName == null) {
             return null;
         }
+        for (TermuxBoxContainerSpec spec : getContainers()) {
+            if (spec.id.equals(idOrName) || spec.name.equals(idOrName)) {
+                return spec;
+            }
+        }
+        return null;
+    }
+
+    public TermuxBoxContainerSpec getCurrentContainer() {
+        return findContainer(readText(new File(termuxBoxDir, "current-container.conf"), "").trim());
+    }
+
+    public void setCurrentContainer(TermuxBoxContainerSpec spec) throws IOException {
+        ensureDir(termuxBoxDir);
+        writeFile(new File(termuxBoxDir, "current-container.conf"), spec.id + "\n");
+    }
+
+    public void clearCurrentContainer() throws IOException {
+        deleteFile(new File(termuxBoxDir, "current-container.conf"));
+    }
+
+    public TermuxBoxContainerSpec saveContainer(String name, String wineVersion, String resolution, String locale,
+                                                String gpuDriver, String gpuAccel, String audioDriver) throws IOException {
+        String safeName = name == null || name.trim().isEmpty() ? "Container 1" : name.trim();
+        String id = sanitizeId(safeName);
+        // Use explicitly selected wine version, or fall back to default / existing
+        String winePackage = (wineVersion != null && !wineVersion.trim().isEmpty())
+            ? wineVersion.trim()
+            : resolveDefaultWinePackage();
+        TermuxBoxContainerSpec existing = findContainer(id);
+        if (existing != null && !existing.winePackage.trim().isEmpty()) {
+            winePackage = existing.winePackage;
+        }
+        TermuxBoxContainerSpec spec = new TermuxBoxContainerSpec(
+            id,
+            safeName,
+            winePackage,
+            emptyToDefault(resolution, "1280x720"),
+            normalizeLocale(emptyToDefault(locale, "en_US")),
+            emptyToDefault(gpuDriver, "Turnip (Adreno)"),
+            emptyToDefault(gpuAccel, "DXVK"),
+            emptyToDefault(audioDriver, "ALSA")
+        );
+        File dir = getContainerDir(spec);
+        ensureDir(new File(dir, "prefix"));
+        writeContainerSpec(spec);
+        setCurrentContainer(spec);
+        return spec;
+    }
+
+    /**
+     * Returns true if the container's Wine prefix has been bootstrapped
+     * (i.e. the marker file .termux-box-bootstrap-done exists).
+     */
+    public boolean isContainerBootstrapped(TermuxBoxContainerSpec spec) {
+        return new File(getContainerDir(spec), "prefix/.termux-box-bootstrap-done").isFile();
+    }
+
+    /**
+     * Returns the path to the bootstrap script file for a container.
+     * The script is deployed from the app asset {@code bootstrap_termux_box.sh}.
+     */
+    public File getBootstrapScriptFile(TermuxBoxContainerSpec spec) {
+        return new File(getContainerDir(spec), "bootstrap.sh");
+    }
+
+    public void removeContainer(TermuxBoxContainerSpec spec) throws IOException {
+        deleteRecursively(getContainerDir(spec));
+        File current = new File(termuxBoxDir, "current-container.conf");
+        if (readText(current, "").trim().equals(spec.id)) {
+            deleteFile(current);
+        }
+    }
+
+    private TermuxBoxContainerSpec readContainerSpec(String fallbackId, File conf) {
         try {
             String text = readFile(conf);
-            int index = text.indexOf("/glibc/");
-            if (index < 0) {
-                return null;
-            }
-            String tail = text.substring(index + "/glibc/".length());
-            int end = tail.indexOf('\n');
-            if (end >= 0) {
-                tail = tail.substring(0, end);
-            }
-            if (tail.contains("/")) {
-                tail = tail.substring(0, tail.indexOf('/'));
-            }
-            return tail.trim().isEmpty() ? null : tail.trim();
-        } catch (IOException e) {
+            String id = emptyToDefault(readExportValue(text, "TERMUX_BOX_CONTAINER_ID"), fallbackId);
+            String name = emptyToDefault(readExportValue(text, "TERMUX_BOX_CONTAINER_NAME"), id);
+            String winePackage = emptyToDefault(readExportValue(text, "TERMUX_BOX_WINE_PACKAGE"), resolveDefaultWinePackage());
+            String resolution = emptyToDefault(readExportValue(text, "TERMUX_BOX_RESOLUTION"), "1280x720");
+            String locale = emptyToDefault(readExportValue(text, "LC_ALL"), "en_US.utf8");
+            String gpuDriver = emptyToDefault(readExportValue(text, "TERMUX_BOX_GPU_DRIVER"), "Turnip (Adreno)");
+            String gpuAccel = emptyToDefault(readExportValue(text, "TERMUX_BOX_GPU_ACCEL"), "DXVK");
+            String audioDriver = emptyToDefault(readExportValue(text, "TERMUX_BOX_AUDIO_DRIVER"), "ALSA");
+            return new TermuxBoxContainerSpec(id, name, winePackage, resolution, locale, gpuDriver, gpuAccel, audioDriver);
+        } catch (Exception e) {
             return null;
         }
     }
 
-    public void setWineContainer(TermuxBoxPackageSpec spec) throws IOException {
-        ensureParent(confDir);
-        writeFile(new File(confDir, "wine_path.conf"),
-            "export WINE_PATH=" + filesDir.getAbsolutePath() + "/usr/glibc/" + spec.name + "\n" +
-                "export WINEPREFIX=" + filesDir.getAbsolutePath() + "/usr/glibc/" + spec.name + "/.wine\n");
+    private void writeContainerSpec(TermuxBoxContainerSpec spec) throws IOException {
+        File dir = getContainerDir(spec);
+        ensureDir(dir);
+        writeFile(new File(dir, "container.conf"),
+            "export TERMUX_BOX_CONTAINER_ID=" + shellQuote(spec.id) + "\n" +
+                "export TERMUX_BOX_CONTAINER_NAME=" + shellQuote(spec.name) + "\n" +
+                "export TERMUX_BOX_CONTAINER_DIR=" + shellQuote(dir.getAbsolutePath()) + "\n" +
+                "export TERMUX_BOX_CONTAINER_PREFIX=" + shellQuote(new File(dir, "prefix").getAbsolutePath()) + "\n" +
+                "export TERMUX_BOX_WINE_PACKAGE=" + shellQuote(spec.winePackage) + "\n" +
+                "export TERMUX_BOX_RESOLUTION=" + shellQuote(spec.resolution) + "\n" +
+                "export TERMUX_BOX_GPU_DRIVER=" + shellQuote(spec.gpuDriver) + "\n" +
+                "export TERMUX_BOX_GPU_ACCEL=" + shellQuote(spec.gpuAccel) + "\n" +
+                "export TERMUX_BOX_AUDIO_DRIVER=" + shellQuote(spec.audioDriver) + "\n" +
+                "export LC_ALL=" + shellQuote(spec.locale) + "\n");
+    }
+
+    public File getContainerDir(TermuxBoxContainerSpec spec) {
+        return new File(containersDir, spec.id);
+    }
+
+    private String resolveDefaultWinePackage() {
+        for (TermuxBoxPackageSpec spec : getInstalledWinePackages()) {
+            return spec.name;
+        }
+        for (TermuxBoxPackageSpec spec : getWinePackages()) {
+            return spec.name;
+        }
+        return "wine-9.3-vanilla-wow64";
+    }
+
+    private String sanitizeId(String name) {
+        String value = name.trim().toLowerCase(Locale.US).replaceAll("[^a-z0-9._-]+", "-");
+        value = value.replaceAll("^-+", "").replaceAll("-+$", "");
+        return value.isEmpty() ? "container-1" : value;
+    }
+
+    private String normalizeLocale(String locale) {
+        String value = locale.trim();
+        return value.endsWith(".utf8") ? value : value + ".utf8";
+    }
+
+    private String emptyToDefault(String value, String defaultValue) {
+        return value == null || value.trim().isEmpty() ? defaultValue : value.trim();
+    }
+
+    private String readExportValue(String text, String key) {
+        for (String line : text.split("\\R")) {
+            String trimmed = line.trim();
+            String prefix = "export " + key + "=";
+            if (!trimmed.startsWith(prefix)) {
+                continue;
+            }
+            String value = trimmed.substring(prefix.length()).trim();
+            if ((value.startsWith("'") && value.endsWith("'")) || (value.startsWith("\"") && value.endsWith("\""))) {
+                value = value.substring(1, value.length() - 1);
+            }
+            return value.replace("'\\''", "'");
+        }
+        return "";
+    }
+
+    private String shellQuote(String value) {
+        return "'" + value.replace("'", "'\\''") + "'";
     }
 
     public void applyBox64Build(String buildName) throws IOException {
@@ -186,27 +344,27 @@ public final class TermuxBoxRepository {
     }
 
     public void setFallbackResolution(String resolution) throws IOException {
-        writeFile(new File(optDir, "last-resolution.conf"), resolution.trim() + "\n");
+        writeFile(new File(configDir, "last-resolution.conf"), resolution.trim() + "\n");
     }
 
     public String getFallbackResolution() {
-        return readText(new File(optDir, "last-resolution.conf"), "1280x720");
+        return readText(new File(configDir, "last-resolution.conf"), "1280x720");
     }
 
     public void setLocale(String locale) throws IOException {
         if (!locale.endsWith(".utf8")) {
             locale = locale + ".utf8";
         }
-        writeFile(new File(optDir, "locale.conf"), locale.trim() + "\n");
+        writeFile(new File(configDir, "locale.conf"), locale.trim() + "\n");
     }
 
     public String getLocale() {
-        String value = readText(new File(optDir, "locale.conf"), "en_US.utf8");
+        String value = readText(new File(configDir, "locale.conf"), "en_US.utf8");
         return value.trim();
     }
 
     public void setCorePreset(int primaryStart, int primaryEnd, int secondaryStart, int secondaryEnd) throws IOException {
-        writeFile(new File(confDir, "cores.conf"),
+        writeFile(new File(configDir, "cores.conf"),
             "export PRIMARY_CORES=" + primaryStart + "-" + primaryEnd + "\n" +
                 "export SECONDARY_CORES=" + secondaryStart + "-" + secondaryEnd + "\n");
     }
@@ -238,7 +396,7 @@ public final class TermuxBoxRepository {
     }
 
     public String getCorePresetSelection() {
-        String text = readText(new File(confDir, "cores.conf"), "");
+        String text = readText(new File(configDir, "cores.conf"), "");
         if (text.contains("PRIMARY_CORES=6-7") && text.contains("SECONDARY_CORES=0-5")) {
             return "2";
         }
@@ -282,11 +440,11 @@ public final class TermuxBoxRepository {
                 content = "export GALLIUM_HUD=simple,fps\nexport GALLIUM_HUD_PERIOD=1\nexport DXVK_HUD=version,fps,api,scale=0.7,devinfo,gpuload,frametimes\n";
                 break;
         }
-        writeFile(new File(confDir, "hud.conf"), content);
+        writeFile(new File(configDir, "hud.conf"), content);
     }
 
     public String getHudPresetSelection() {
-        String text = readText(new File(confDir, "hud.conf"), "");
+        String text = readText(new File(configDir, "hud.conf"), "");
         if (text.contains("DXVK_HUD=version,fps,api")) {
             return "Detailed";
         }
@@ -310,11 +468,11 @@ public final class TermuxBoxRepository {
                 content = "export TU_DEBUG=noconform,syncdraw,flushall\n";
                 break;
         }
-        writeFile(new File(confDir, "tu_debug.conf"), content);
+        writeFile(new File(configDir, "tu_debug.conf"), content);
     }
 
     public String getTuDebugPresetSelection() {
-        String text = readText(new File(confDir, "tu_debug.conf"), "");
+        String text = readText(new File(configDir, "tu_debug.conf"), "");
         if (text.contains("noconform,syncdraw,flushall")) {
             return "flushall";
         }
@@ -325,30 +483,31 @@ public final class TermuxBoxRepository {
     }
 
     public void resetSystemSettings() throws IOException {
-        copyFile(new File(confDir, "cores.conf"), new File(optDir, "default-conf/conf/cores.conf"));
-        copyFile(new File(confDir, "hud.conf"), new File(optDir, "default-conf/conf/hud.conf"));
-        copyFile(new File(confDir, "tu_debug.conf"), new File(optDir, "default-conf/conf/tu_debug.conf"));
-        copyFile(new File(confDir, "wsi_present.conf"), new File(optDir, "default-conf/conf/wsi_present.conf"));
-        copyFile(new File(confDir, "winedevice_startup.conf"), new File(optDir, "default-conf/conf/winedevice_startup.conf"));
-        copyFile(new File(confDir, "virgl.conf"), new File(optDir, "default-conf/conf/virgl.conf"));
-        copyFile(new File(confDir, "force_compatibility.conf"), new File(optDir, "default-conf/conf/force_compatibility.conf"));
-        copyFile(new File(confDir, "wineesync.conf"), new File(optDir, "default-conf/conf/wineesync.conf"));
-        copyFile(new File(confDir, "wsi_debug.conf"), new File(optDir, "default-conf/conf/wsi_debug.conf"));
-        copyFile(new File(confDir, "debug.conf"), new File(optDir, "default-conf/conf/debug.conf"));
-        copyFile(new File(confDir, "path.conf"), new File(optDir, "default-conf/conf/path.conf"));
-        copyFile(new File(optDir, "last-resolution.conf"), new File(optDir, "default-conf/last-resolution.conf"));
-        copyFile(new File(optDir, "locale.conf"), new File(optDir, "default-conf/locale.conf"));
-        copyFile(new File(optDir, "dxvk.conf"), new File(optDir, "default-conf/dxvk.conf"));
+        ensureDefaultConfigSnapshot();
+        copyFile(new File(defaultConfigDir, "conf/cores.conf"), new File(configDir, "cores.conf"));
+        copyFile(new File(defaultConfigDir, "conf/hud.conf"), new File(configDir, "hud.conf"));
+        copyFile(new File(defaultConfigDir, "conf/tu_debug.conf"), new File(configDir, "tu_debug.conf"));
+        copyFile(new File(defaultConfigDir, "conf/wsi_present.conf"), new File(configDir, "wsi_present.conf"));
+        copyFile(new File(defaultConfigDir, "conf/winedevice_startup.conf"), new File(configDir, "winedevice_startup.conf"));
+        copyFile(new File(defaultConfigDir, "conf/virgl.conf"), new File(configDir, "virgl.conf"));
+        copyFile(new File(defaultConfigDir, "conf/force_compatibility.conf"), new File(configDir, "force_compatibility.conf"));
+        copyFile(new File(defaultConfigDir, "conf/wineesync.conf"), new File(configDir, "wineesync.conf"));
+        copyFile(new File(defaultConfigDir, "conf/wsi_debug.conf"), new File(configDir, "wsi_debug.conf"));
+        copyFile(new File(defaultConfigDir, "conf/debug.conf"), new File(configDir, "debug.conf"));
+        copyFile(new File(defaultConfigDir, "conf/path.conf"), new File(configDir, "path.conf"));
+        copyFile(new File(defaultConfigDir, "last-resolution.conf"), new File(configDir, "last-resolution.conf"));
+        copyFile(new File(defaultConfigDir, "locale.conf"), new File(configDir, "locale.conf"));
+        copyFile(new File(defaultConfigDir, "dxvk.conf"), new File(configDir, "dxvk.conf"));
     }
 
     public void setDynarecPresetMode(int mode) throws IOException {
-        writeFile(new File(confDir, "dynarec_preset.conf"),
+        writeFile(new File(configDir, "dynarec_preset.conf"),
             "export DYNAREC_SETTINGS_SCRIPT=" + mode + "\n" +
                 "export DYNAREC_CURRENT_PRESET=" + (mode == 1 ? "none" : "4") + "\n");
     }
 
     public String getDynarecPresetSelection() {
-        String text = readText(new File(confDir, "dynarec_preset.conf"), "export DYNAREC_SETTINGS_SCRIPT=2\nexport DYNAREC_CURRENT_PRESET=4\n");
+        String text = readText(new File(configDir, "dynarec_preset.conf"), "export DYNAREC_SETTINGS_SCRIPT=2\nexport DYNAREC_CURRENT_PRESET=4\n");
         if (text.contains("DYNAREC_SETTINGS_SCRIPT=1") || text.contains("DYNAREC_CURRENT_PRESET=none")) {
             return "Manual";
         }
@@ -416,7 +575,7 @@ public final class TermuxBoxRepository {
                 writeFile(new File(dynarecDir, "ignoreint3.conf"), "unset BOX64_IGNOREINT3\n");
                 break;
         }
-        writeFile(new File(confDir, "dynarec_preset.conf"),
+        writeFile(new File(configDir, "dynarec_preset.conf"),
             "export DYNAREC_SETTINGS_SCRIPT=2\nexport DYNAREC_CURRENT_PRESET=" + preset + "\n");
     }
 
@@ -448,21 +607,22 @@ public final class TermuxBoxRepository {
     }
 
     public void resetDynarecToDefault() throws IOException {
-        copyFile(new File(dynarecDir, "aligned_atomics.conf"), new File(optDir, "default-conf/conf/dynarec/aligned_atomics.conf"));
-        copyFile(new File(dynarecDir, "bigblock.conf"), new File(optDir, "default-conf/conf/dynarec/bigblock.conf"));
-        copyFile(new File(dynarecDir, "fastnan.conf"), new File(optDir, "default-conf/conf/dynarec/fastnan.conf"));
-        copyFile(new File(dynarecDir, "fastround.conf"), new File(optDir, "default-conf/conf/dynarec/fastround.conf"));
-        copyFile(new File(dynarecDir, "safeflags.conf"), new File(optDir, "default-conf/conf/dynarec/safeflags.conf"));
-        copyFile(new File(dynarecDir, "strongmem.conf"), new File(optDir, "default-conf/conf/dynarec/strongmem.conf"));
-        copyFile(new File(dynarecDir, "wait.conf"), new File(optDir, "default-conf/conf/dynarec/wait.conf"));
-        copyFile(new File(dynarecDir, "x87double.conf"), new File(optDir, "default-conf/conf/dynarec/x87double.conf"));
-        copyFile(new File(dynarecDir, "callret.conf"), new File(optDir, "default-conf/conf/dynarec/callret.conf"));
-        copyFile(new File(dynarecDir, "ignoreint3.conf"), new File(optDir, "default-conf/conf/dynarec/ignoreint3.conf"));
-        copyFile(new File(confDir, "dynarec_preset.conf"), new File(optDir, "default-conf/conf/dynarec_preset.conf"));
+        ensureDefaultConfigSnapshot();
+        copyFile(new File(defaultConfigDir, "conf/dynarec/aligned_atomics.conf"), new File(dynarecDir, "aligned_atomics.conf"));
+        copyFile(new File(defaultConfigDir, "conf/dynarec/bigblock.conf"), new File(dynarecDir, "bigblock.conf"));
+        copyFile(new File(defaultConfigDir, "conf/dynarec/fastnan.conf"), new File(dynarecDir, "fastnan.conf"));
+        copyFile(new File(defaultConfigDir, "conf/dynarec/fastround.conf"), new File(dynarecDir, "fastround.conf"));
+        copyFile(new File(defaultConfigDir, "conf/dynarec/safeflags.conf"), new File(dynarecDir, "safeflags.conf"));
+        copyFile(new File(defaultConfigDir, "conf/dynarec/strongmem.conf"), new File(dynarecDir, "strongmem.conf"));
+        copyFile(new File(defaultConfigDir, "conf/dynarec/wait.conf"), new File(dynarecDir, "wait.conf"));
+        copyFile(new File(defaultConfigDir, "conf/dynarec/x87double.conf"), new File(dynarecDir, "x87double.conf"));
+        copyFile(new File(defaultConfigDir, "conf/dynarec/callret.conf"), new File(dynarecDir, "callret.conf"));
+        copyFile(new File(defaultConfigDir, "conf/dynarec/ignoreint3.conf"), new File(dynarecDir, "ignoreint3.conf"));
+        copyFile(new File(defaultConfigDir, "conf/dynarec_preset.conf"), new File(configDir, "dynarec_preset.conf"));
     }
 
     public String getDynarecPresetText() {
-        return readText(new File(confDir, "dynarec_preset.conf"), "export DYNAREC_SETTINGS_SCRIPT=2\nexport DYNAREC_CURRENT_PRESET=4\n");
+        return readText(new File(configDir, "dynarec_preset.conf"), "export DYNAREC_SETTINGS_SCRIPT=2\nexport DYNAREC_CURRENT_PRESET=4\n");
     }
 
     private String dynarecFileNameForKey(String key) throws IOException {
@@ -509,6 +669,25 @@ public final class TermuxBoxRepository {
         deleteRecursively(extractDir);
         deleteFile(archive);
         downloadArchive(spec.name + ".tar.xz", archive, listener);
+        installPackageFromArchive(spec, archive, extractDir, listener, true);
+    }
+
+    public void installPackageFromArchive(TermuxBoxPackageSpec spec, File archive, ProgressListener listener) throws IOException {
+        File extractDir = new File(tempDir, spec.name + "_local");
+        installPackageFromArchive(spec, archive, extractDir, listener, true);
+    }
+
+    public File newTempPackageArchive(String packageName) {
+        ensureDirs();
+        return new File(tempDir, packageName + "_local.tar.xz");
+    }
+
+    private void installPackageFromArchive(TermuxBoxPackageSpec spec, File archive, File extractDir, ProgressListener listener, boolean deleteArchive) throws IOException {
+        deleteRecursively(extractDir);
+        if (listener != null) {
+            listener.onMessage("Extracting " + spec.name);
+            listener.onProgress(0);
+        }
         extractTarXz(archive, extractDir);
         removePackage(spec);
         if (listener != null) {
@@ -519,7 +698,9 @@ public final class TermuxBoxRepository {
             copyDirectory(glibcSource, filesDir, listener);
         }
         writeInstalledMetadata(spec, extractDir);
-        deleteFile(archive);
+        if (deleteArchive) {
+            deleteFile(archive);
+        }
         deleteRecursively(extractDir);
     }
 
@@ -588,20 +769,6 @@ public final class TermuxBoxRepository {
         return result;
     }
 
-    public String getPatchNotes() {
-        return "Mar 3\n" +
-            "Updated box64, box64rc, dxvk.conf, locale.conf, path.conf\n" +
-            "Added en-ru-locale package that fixes unicode issues in wine\n" +
-            "Locale is set to en_US.utf8 by default\n" +
-            "Wine is 9.3 by default\n" +
-            "Added turnip v6.5, it's default now, no flickering, no mem leaks\n" +
-            "Removed turnip v5.5 and v6\n" +
-            "Fixed some games that needed nouboopt debug option\n" +
-            "Added feb 14 box64\n" +
-            "Updated glibc to 2.39\n" +
-            "Fixed GTA V memory leak";
-    }
-
     public File getBoxArchive(String buildName) {
         return new File(boxDir, buildName + ".tar.xz");
     }
@@ -609,6 +776,89 @@ public final class TermuxBoxRepository {
     public void ensureDirs() {
         ensureDir(installedDir);
         ensureDir(tempDir);
+        ensureDir(containersDir);
+        try {
+            ensureDefaultConfigSnapshot();
+        } catch (IOException ignored) {
+        }
+    }
+
+    private void ensureDefaultConfigSnapshot() throws IOException {
+        ensureDir(termuxBoxDir);
+        ensureDir(defaultConfigDir);
+        ensureDir(new File(defaultConfigDir, "conf"));
+        ensureDir(new File(defaultConfigDir, "conf/dynarec"));
+
+        copyIfMissing(new File(defaultConfigDir, "conf/wine_path.conf"), new File(configDir, "wine_path.conf"), new File(legacyConfDir, "wine_path.conf"), new File(legacyDefaultConfDir, "conf/wine_path.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/cores.conf"), new File(configDir, "cores.conf"), new File(legacyConfDir, "cores.conf"), new File(legacyDefaultConfDir, "conf/cores.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/hud.conf"), new File(configDir, "hud.conf"), new File(legacyConfDir, "hud.conf"), new File(legacyDefaultConfDir, "conf/hud.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/tu_debug.conf"), new File(configDir, "tu_debug.conf"), new File(legacyConfDir, "tu_debug.conf"), new File(legacyDefaultConfDir, "conf/tu_debug.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/wsi_present.conf"), new File(configDir, "wsi_present.conf"), new File(legacyConfDir, "wsi_present.conf"), new File(legacyDefaultConfDir, "conf/wsi_present.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/winedevice_startup.conf"), new File(configDir, "winedevice_startup.conf"), new File(legacyConfDir, "winedevice_startup.conf"), new File(legacyDefaultConfDir, "conf/winedevice_startup.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/virgl.conf"), new File(configDir, "virgl.conf"), new File(legacyConfDir, "virgl.conf"), new File(legacyDefaultConfDir, "conf/virgl.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/force_compatibility.conf"), new File(configDir, "force_compatibility.conf"), new File(legacyConfDir, "force_compatibility.conf"), new File(legacyDefaultConfDir, "conf/force_compatibility.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/wineesync.conf"), new File(configDir, "wineesync.conf"), new File(legacyConfDir, "wineesync.conf"), new File(legacyDefaultConfDir, "conf/wineesync.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/wsi_debug.conf"), new File(configDir, "wsi_debug.conf"), new File(legacyConfDir, "wsi_debug.conf"), new File(legacyDefaultConfDir, "conf/wsi_debug.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/debug.conf"), new File(configDir, "debug.conf"), new File(legacyConfDir, "debug.conf"), new File(legacyDefaultConfDir, "conf/debug.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/path.conf"), new File(configDir, "path.conf"), new File(legacyConfDir, "path.conf"), new File(legacyDefaultConfDir, "conf/path.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/dynarec/aligned_atomics.conf"), new File(dynarecDir, "aligned_atomics.conf"), new File(new File(legacyConfDir, "dynarec"), "aligned_atomics.conf"), new File(legacyDefaultConfDir, "conf/dynarec/aligned_atomics.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/dynarec/bigblock.conf"), new File(dynarecDir, "bigblock.conf"), new File(new File(legacyConfDir, "dynarec"), "bigblock.conf"), new File(legacyDefaultConfDir, "conf/dynarec/bigblock.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/dynarec/fastnan.conf"), new File(dynarecDir, "fastnan.conf"), new File(new File(legacyConfDir, "dynarec"), "fastnan.conf"), new File(legacyDefaultConfDir, "conf/dynarec/fastnan.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/dynarec/fastround.conf"), new File(dynarecDir, "fastround.conf"), new File(new File(legacyConfDir, "dynarec"), "fastround.conf"), new File(legacyDefaultConfDir, "conf/dynarec/fastround.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/dynarec/safeflags.conf"), new File(dynarecDir, "safeflags.conf"), new File(new File(legacyConfDir, "dynarec"), "safeflags.conf"), new File(legacyDefaultConfDir, "conf/dynarec/safeflags.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/dynarec/strongmem.conf"), new File(dynarecDir, "strongmem.conf"), new File(new File(legacyConfDir, "dynarec"), "strongmem.conf"), new File(legacyDefaultConfDir, "conf/dynarec/strongmem.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/dynarec/wait.conf"), new File(dynarecDir, "wait.conf"), new File(new File(legacyConfDir, "dynarec"), "wait.conf"), new File(legacyDefaultConfDir, "conf/dynarec/wait.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/dynarec/x87double.conf"), new File(dynarecDir, "x87double.conf"), new File(new File(legacyConfDir, "dynarec"), "x87double.conf"), new File(legacyDefaultConfDir, "conf/dynarec/x87double.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/dynarec/callret.conf"), new File(dynarecDir, "callret.conf"), new File(new File(legacyConfDir, "dynarec"), "callret.conf"), new File(legacyDefaultConfDir, "conf/dynarec/callret.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/dynarec/ignoreint3.conf"), new File(dynarecDir, "ignoreint3.conf"), new File(new File(legacyConfDir, "dynarec"), "ignoreint3.conf"), new File(legacyDefaultConfDir, "conf/dynarec/ignoreint3.conf"));
+        copyIfMissing(new File(defaultConfigDir, "conf/dynarec_preset.conf"), new File(configDir, "dynarec_preset.conf"), new File(legacyConfDir, "dynarec_preset.conf"), new File(legacyDefaultConfDir, "conf/dynarec_preset.conf"));
+        copyIfMissing(new File(defaultConfigDir, "last-resolution.conf"), new File(configDir, "last-resolution.conf"), new File(optDir, "last-resolution.conf"), new File(legacyDefaultConfDir, "last-resolution.conf"));
+        copyIfMissing(new File(defaultConfigDir, "locale.conf"), new File(configDir, "locale.conf"), new File(optDir, "locale.conf"), new File(legacyDefaultConfDir, "locale.conf"));
+        copyIfMissing(new File(defaultConfigDir, "dxvk.conf"), new File(configDir, "dxvk.conf"), new File(optDir, "dxvk.conf"), new File(legacyDefaultConfDir, "dxvk.conf"));
+
+        writeFile(new File(defaultConfigDir, "conf/path.conf"), buildPathConf());
+        File runtimePathConf = new File(configDir, "path.conf");
+        if (!runtimePathConf.isFile() || readText(runtimePathConf, "").contains("/glibc/opt/dxvk.conf") || !readText(runtimePathConf, "").contains("$PREFIX/glibc/termux-box/config/dxvk.conf")) {
+            writeFile(runtimePathConf, buildPathConf());
+        }
+    }
+
+    private void copyIfMissing(File target, File primarySource, File secondarySource, File tertiarySource) throws IOException {
+        if (target.isFile()) {
+            return;
+        }
+        if (primarySource != null && primarySource.isFile()) {
+            copyFile(target, primarySource);
+            return;
+        }
+        if (secondarySource != null && secondarySource.isFile()) {
+            copyFile(target, secondarySource);
+            return;
+        }
+        if (tertiarySource != null && tertiarySource.isFile()) {
+            copyFile(target, tertiarySource);
+        }
+    }
+
+    private String buildPathConf() {
+        return "export LOG_PATH=/sdcard/termux-box.log\n" +
+            "export VK_ICD_FILENAMES=$PREFIX/glibc/share/vulkan/icd.d/freedreno_icd.aarch64.json\n" +
+            "export DXVK_CONFIG_FILE=$PREFIX/glibc/termux-box/config/dxvk.conf\n" +
+            "export FONTCONFIG_PATH=$PREFIX/glibc/etc/fonts\n" +
+            "export BOX64_PATH=$PREFIX/glibc/bin\n" +
+            "export DXVK_ASYNC=1\n" +
+            "export VKD3D_FEATURE_LEVEL=12_0\n" +
+            "export BOX64_LD_LIBRARY_PATH=$WINE_PATH/lib64:$WINE_PATH/lib64/wine/x86_64-unix:$PREFIX/glibc/lib/x86_64-linux-gnu\n" +
+            "export BOX64_MMAP32=1\n" +
+            "export tu_allow_oob_indirect_ubo_loads=true\n";
+    }
+
+    /**
+     * Returns the path to the container start script file.
+     * The script is deployed from the app asset {@code start_termux_box.sh}.
+     */
+    public File getStartScriptFile(TermuxBoxContainerSpec spec) {
+        return new File(getContainerDir(spec), "start.sh");
     }
 
     private void downloadArchive(String fileName, File destination, ProgressListener listener) throws IOException {

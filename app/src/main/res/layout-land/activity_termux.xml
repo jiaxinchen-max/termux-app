@@ -149,6 +149,27 @@
                         android:layout_weight="1"
                         android:background="@drawable/toolbox_inline_background"
                         android:orientation="vertical" />
+
+                    <TextView
+                        android:id="@+id/toggle_container_manager_button"
+                        android:layout_width="match_parent"
+                        android:layout_height="18dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:gravity="center_vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:text="@string/container_manager_expanded"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:textSize="8sp" />
+
+                    <LinearLayout
+                        android:id="@+id/container_manager_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/toolbox_inline_background"
+                        android:orientation="vertical" />
                 </LinearLayout>
 
                 <LinearLayout

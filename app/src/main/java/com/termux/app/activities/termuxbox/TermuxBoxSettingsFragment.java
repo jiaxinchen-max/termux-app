@@ -17,6 +17,7 @@ import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.button.MaterialButton;
+import com.termux.R;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -44,8 +45,8 @@ public class TermuxBoxSettingsFragment extends Fragment {
         content.setPadding(dp(20), dp(20), dp(20), dp(20));
         root.addView(content, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        content.addView(sectionTitle("System Settings"));
-        content.addView(sectionSubtitle("These values are written directly to mobox config files."));
+        content.addView(sectionTitle(R.string.termux_box_settings_title));
+        content.addView(sectionSubtitle(R.string.termux_box_settings_summary));
 
         currentStateView = new TextView(requireContext());
         currentStateView.setTextColor(0xFFE0E0E0);
@@ -62,7 +63,7 @@ public class TermuxBoxSettingsFragment extends Fragment {
         statusView = new TextView(requireContext());
         statusView.setTextColor(0xFFBDBDBD);
         statusView.setTextSize(13f);
-        statusView.setText("Ready");
+        statusView.setText(R.string.termux_box_settings_ready);
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         statusParams.topMargin = dp(8);
         content.addView(statusView, statusParams);
@@ -79,17 +80,17 @@ public class TermuxBoxSettingsFragment extends Fragment {
     }
 
     private View buildResolutionSection() {
-        LinearLayout section = sectionBox("Fallback Resolution");
+        LinearLayout section = sectionBox(R.string.termux_box_settings_fallback_resolution);
         resolutionInput = input("1280x720", InputType.TYPE_CLASS_TEXT);
         section.addView(resolutionInput, boxChildParams());
-        MaterialButton save = actionButton("Save resolution", v ->
-            runTask("Saving resolution", listener -> repository.setFallbackResolution(textOf(resolutionInput))));
+        MaterialButton save = actionButton(R.string.termux_box_settings_save_resolution, v ->
+            runTask(R.string.termux_box_settings_saving_resolution, listener -> repository.setFallbackResolution(textOf(resolutionInput))));
         section.addView(save, boxChildParams());
         return section;
     }
 
     private View buildCoreSection() {
-        LinearLayout section = sectionBox("Primary Cores");
+        LinearLayout section = sectionBox(R.string.termux_box_settings_primary_cores);
         LinearLayout column = new LinearLayout(requireContext());
         column.setOrientation(LinearLayout.VERTICAL);
         section.addView(column, boxChildParams());
@@ -100,45 +101,45 @@ public class TermuxBoxSettingsFragment extends Fragment {
         addCoreButton(column, "6", 2, 7, 0, 1);
         addCoreButton(column, "7", 1, 7, 0, 1);
         addCoreButton(column, "8", 0, 7, 0, 1);
-        TextView hint = hint("Matches the shell presets: 2..8.");
+        TextView hint = hint(R.string.termux_box_settings_core_hint);
         section.addView(hint, boxChildParams());
         return section;
     }
 
     private View buildLocaleSection() {
-        LinearLayout section = sectionBox("Locale");
+        LinearLayout section = sectionBox(R.string.termux_box_settings_locale);
         localeInput = input("en_US", InputType.TYPE_CLASS_TEXT);
         section.addView(localeInput, boxChildParams());
-        section.addView(actionButton("Save locale", v ->
-            runTask("Saving locale", listener -> repository.setLocale(textOf(localeInput)))), boxChildParams());
+        section.addView(actionButton(R.string.termux_box_settings_save_locale, v ->
+            runTask(R.string.termux_box_settings_saving_locale, listener -> repository.setLocale(textOf(localeInput)))), boxChildParams());
         return section;
     }
 
     private View buildHudSection() {
-        LinearLayout section = sectionBox("HUD Presets");
+        LinearLayout section = sectionBox(R.string.termux_box_settings_hud_presets);
         section.addView(horizontalButtons(
-            new ButtonSpec("Off", v -> runTask("Saving HUD preset", listener -> repository.setHudPreset(1))),
-            new ButtonSpec("FPS", v -> runTask("Saving HUD preset", listener -> repository.setHudPreset(2))),
-            new ButtonSpec("Detailed", v -> runTask("Saving HUD preset", listener -> repository.setHudPreset(3)))
+            new ButtonSpec(getString(R.string.termux_box_settings_hud_off), v -> runTask(R.string.termux_box_settings_saving_hud_preset, listener -> repository.setHudPreset(1))),
+            new ButtonSpec(getString(R.string.termux_box_settings_hud_fps), v -> runTask(R.string.termux_box_settings_saving_hud_preset, listener -> repository.setHudPreset(2))),
+            new ButtonSpec(getString(R.string.termux_box_settings_hud_detailed), v -> runTask(R.string.termux_box_settings_saving_hud_preset, listener -> repository.setHudPreset(3)))
         ), boxChildParams());
         return section;
     }
 
     private View buildTuDebugSection() {
-        LinearLayout section = sectionBox("TU_DEBUG");
+        LinearLayout section = sectionBox(R.string.termux_box_settings_tu_debug);
         section.addView(horizontalButtons(
-            new ButtonSpec("noconform", v -> runTask("Saving TU_DEBUG", listener -> repository.setTuDebugPreset(1))),
-            new ButtonSpec("syncdraw", v -> runTask("Saving TU_DEBUG", listener -> repository.setTuDebugPreset(2))),
-            new ButtonSpec("flushall", v -> runTask("Saving TU_DEBUG", listener -> repository.setTuDebugPreset(3)))
+            new ButtonSpec("noconform", v -> runTask(R.string.termux_box_settings_saving_tu_debug, listener -> repository.setTuDebugPreset(1))),
+            new ButtonSpec("syncdraw", v -> runTask(R.string.termux_box_settings_saving_tu_debug, listener -> repository.setTuDebugPreset(2))),
+            new ButtonSpec("flushall", v -> runTask(R.string.termux_box_settings_saving_tu_debug, listener -> repository.setTuDebugPreset(3)))
         ), boxChildParams());
         return section;
     }
 
     private View buildActionSection() {
-        LinearLayout section = sectionBox("Actions");
-        section.addView(sectionHint("Dynarec 已并入容器设置 → 高级"), boxChildParams());
-        section.addView(actionButton("Reset to default", v ->
-            runTask("Resetting system settings", listener -> repository.resetSystemSettings())), boxChildParams());
+        LinearLayout section = sectionBox(R.string.termux_box_settings_actions);
+        section.addView(sectionHint(R.string.termux_box_settings_dynarec_hint), boxChildParams());
+        section.addView(actionButton(R.string.termux_box_settings_reset_default, v ->
+            runTask(R.string.termux_box_settings_resetting_system, listener -> repository.resetSystemSettings())), boxChildParams());
         return section;
     }
 
@@ -147,8 +148,9 @@ public class TermuxBoxSettingsFragment extends Fragment {
             return;
         }
         currentStateView.setText(
-            "Fallback resolution: " + repository.getFallbackResolution() + "\n" +
-            "Locale: " + repository.getLocale());
+            getString(R.string.termux_box_settings_state_format,
+                repository.getFallbackResolution(),
+                repository.getLocale()));
         if (resolutionInput != null) {
             resolutionInput.setText(repository.getFallbackResolution());
         }
@@ -161,8 +163,8 @@ public class TermuxBoxSettingsFragment extends Fragment {
         }
     }
 
-    private void runTask(String message, SettingsTask task) {
-        setStatus(message, 0);
+    private void runTask(int messageResId, SettingsTask task) {
+        setStatus(getString(messageResId), 0);
         executor.execute(() -> {
             try {
                 task.run(new TermuxBoxRepository.ProgressListener() {
@@ -176,9 +178,9 @@ public class TermuxBoxSettingsFragment extends Fragment {
                         setStatus(null, progress);
                     }
                 });
-                setStatus("Done", 100);
+                setStatus(getString(R.string.termux_box_settings_done), 100);
             } catch (Exception e) {
-                setStatus("Failed: " + e.getMessage(), 0);
+                setStatus(getString(R.string.termux_box_settings_failed, e.getMessage()), 0);
             } finally {
                 if (isAdded()) {
                     requireActivity().runOnUiThread(this::refreshState);
@@ -201,7 +203,7 @@ public class TermuxBoxSettingsFragment extends Fragment {
         });
     }
 
-    private LinearLayout sectionBox(String title) {
+    private LinearLayout sectionBox(int titleResId) {
         LinearLayout box = new LinearLayout(requireContext());
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(16), dp(16), dp(16), dp(16));
@@ -211,7 +213,7 @@ public class TermuxBoxSettingsFragment extends Fragment {
         box.setLayoutParams(params);
 
         TextView heading = new TextView(requireContext());
-        heading.setText(title);
+        heading.setText(titleResId);
         heading.setTextColor(0xFFFFFFFF);
         heading.setTextSize(16f);
         heading.setTypeface(Typeface.DEFAULT_BOLD);
@@ -219,18 +221,18 @@ public class TermuxBoxSettingsFragment extends Fragment {
         return box;
     }
 
-    private TextView sectionTitle(String text) {
+    private TextView sectionTitle(int textResId) {
         TextView view = new TextView(requireContext());
-        view.setText(text);
+        view.setText(textResId);
         view.setTextColor(0xFFFFFFFF);
         view.setTextSize(28f);
         view.setTypeface(Typeface.DEFAULT_BOLD);
         return view;
     }
 
-    private TextView sectionSubtitle(String text) {
+    private TextView sectionSubtitle(int textResId) {
         TextView view = new TextView(requireContext());
-        view.setText(text);
+        view.setText(textResId);
         view.setTextColor(0xFFBDBDBD);
         view.setTextSize(14f);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -239,17 +241,17 @@ public class TermuxBoxSettingsFragment extends Fragment {
         return view;
     }
 
-    private TextView hint(String text) {
+    private TextView hint(int textResId) {
         TextView view = new TextView(requireContext());
-        view.setText(text);
+        view.setText(textResId);
         view.setTextColor(0xFFBDBDBD);
         view.setTextSize(12f);
         return view;
     }
 
-    private TextView sectionHint(String text) {
+    private TextView sectionHint(int textResId) {
         TextView view = new TextView(requireContext());
-        view.setText(text);
+        view.setText(textResId);
         view.setTextColor(0xFFBDBDBD);
         view.setTextSize(12f);
         return view;
@@ -266,9 +268,9 @@ public class TermuxBoxSettingsFragment extends Fragment {
         return editText;
     }
 
-    private MaterialButton actionButton(String label, View.OnClickListener listener) {
+    private MaterialButton actionButton(int labelResId, View.OnClickListener listener) {
         MaterialButton button = new MaterialButton(requireContext());
-        button.setText(label);
+        button.setText(labelResId);
         button.setOnClickListener(listener);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.topMargin = dp(8);
@@ -281,18 +283,28 @@ public class TermuxBoxSettingsFragment extends Fragment {
         row.setOrientation(LinearLayout.VERTICAL);
         row.setGravity(Gravity.START);
         for (int i = 0; i < specs.length; i++) {
-            row.addView(actionButton(specs[i].label, specs[i].listener));
+            row.addView(actionButtonText(specs[i].label, specs[i].listener));
         }
         return row;
     }
 
     private void addCoreButton(LinearLayout row, String label, int primaryStart, int primaryEnd, int secondaryStart, int secondaryEnd) {
-        MaterialButton button = actionButton(label, v ->
-            runTask("Saving cores", listener -> repository.setCorePreset(primaryStart, primaryEnd, secondaryStart, secondaryEnd)));
+        MaterialButton button = actionButtonText(label, v ->
+            runTask(R.string.termux_box_settings_saving_cores, listener -> repository.setCorePreset(primaryStart, primaryEnd, secondaryStart, secondaryEnd)));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.topMargin = dp(8);
         button.setLayoutParams(params);
         row.addView(button);
+    }
+
+    private MaterialButton actionButtonText(String label, View.OnClickListener listener) {
+        MaterialButton button = new MaterialButton(requireContext());
+        button.setText(label);
+        button.setOnClickListener(listener);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(8);
+        button.setLayoutParams(params);
+        return button;
     }
 
     private LinearLayout.LayoutParams boxChildParams() {

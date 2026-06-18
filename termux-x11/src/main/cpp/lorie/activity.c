@@ -355,11 +355,30 @@ static void requestStylusEnabled(__unused JNIEnv *env, __unused jclass clazz, jb
     }
 }
 
+static int activeKeycodeFormat(void) {
+    if (conn_fd != -1)
+        return LORIE_KEYCODE_XKB;
+
+    return waylandRenderKeycodeFormat();
+}
+
+static int formatKeycode(int evdev_code, int format) {
+    switch (format) {
+    case LORIE_KEYCODE_EVDEV:
+        return evdev_code;
+    case LORIE_KEYCODE_XKB:
+    default:
+        return evdev_code + 8;
+    }
+}
+
 static jboolean sendKeyEvent(__unused JNIEnv* env, __unused jobject cls, jint scan_code, jint key_code, jboolean key_down, jint a) {
     if (conn_fd != -1 || waylandRenderConnected()) {
         int code = (scan_code) ?: android_to_linux_keycode[key_code];
-        log(DEBUG, "Sending key: %d (%d %d %d)", code + 8, scan_code, key_code, key_down);
-        lorieEvent e = { .key = { .t = EVENT_KEY, .key = code + 8, .state = key_down } };
+        int format = activeKeycodeFormat();
+        int formatted_code = formatKeycode(code, format);
+        log(DEBUG, "Sending key: %d (%d %d %d format=%d)", formatted_code, scan_code, key_code, key_down, format);
+        lorieEvent e = { .key = { .t = EVENT_KEY, .key = formatted_code, .state = key_down } };
         sendEventToActiveConnection(&e, NULL, 0);
     }
 

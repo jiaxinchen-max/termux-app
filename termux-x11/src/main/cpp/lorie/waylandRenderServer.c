@@ -52,6 +52,7 @@ static int shared_state_fd = -1;
 static volatile int connection_alive = 1;
 static pthread_mutex_t render_connection_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t render_server_init_lock = PTHREAD_MUTEX_INITIALIZER;
+static int render_keycode_format = LORIE_KEYCODE_XKB;
 static bool render_server_started = false;
 static pid_t render_client_pid = -1;
 static pid_t render_client_pgid = -1;
@@ -105,6 +106,13 @@ bool waylandRenderConnected(void) {
     bool connected = event_fd != -1 && connection_alive;
     pthread_mutex_unlock(&render_connection_lock);
     return connected;
+}
+
+int waylandRenderKeycodeFormat(void) {
+    pthread_mutex_lock(&render_connection_lock);
+    int format = render_keycode_format;
+    pthread_mutex_unlock(&render_connection_lock);
+    return format;
 }
 
 static void setRenderClientProcess(pid_t pid, pid_t pgid) {
@@ -287,6 +295,9 @@ static void cleanupSharedResources(JNIEnv *env) {
     connection_alive = 0;
 
     rendererSetSharedState(NULL);
+    pthread_mutex_lock(&render_connection_lock);
+    render_keycode_format = LORIE_KEYCODE_XKB;
+    pthread_mutex_unlock(&render_connection_lock);
     rendererSetExternalBufferMode(false);
     shared_state = NULL;
 
@@ -326,9 +337,16 @@ static int process(JNIEnv *env, int fd) {
                         cleanupSharedResources(env);
                         return -1;
                     }
-                    log(INFO, "Received EVENT_SCREEN_SIZE width=%d height=%d framerate=%d format=%d type=%d",
+                    int keycode_format = e2.screenSize.keycode_format == LORIE_KEYCODE_EVDEV
+                        ? LORIE_KEYCODE_EVDEV
+                        : LORIE_KEYCODE_XKB;
+                    pthread_mutex_lock(&render_connection_lock);
+                    render_keycode_format = keycode_format;
+                    pthread_mutex_unlock(&render_connection_lock);
+
+                    log(INFO, "Received EVENT_SCREEN_SIZE width=%d height=%d framerate=%d format=%d type=%d keycode_format=%d",
                         e2.screenSize.width, e2.screenSize.height, e2.screenSize.framerate,
-                        e2.screenSize.format, e2.screenSize.type);
+                        e2.screenSize.format, e2.screenSize.type, keycode_format);
 
                     width = e2.screenSize.width;
                     height = e2.screenSize.height;

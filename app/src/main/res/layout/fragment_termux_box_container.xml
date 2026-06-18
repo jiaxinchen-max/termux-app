@@ -37,7 +37,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="容器参数"
+                        android:text="@string/termux_box_container_params"
                         android:textColor="@color/termux_box_text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -47,6 +47,12 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp" />
+
+                    <com.termux.app.activities.termuxbox.TermuxBoxDropdownField
+                        android:id="@+id/termux_box_wine_version_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp" />
 
                     <com.termux.app.activities.termuxbox.TermuxBoxDropdownField
                         android:id="@+id/termux_box_gpu_driver_input"
@@ -83,7 +89,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="显示帧数"
+                        android:text="@string/termux_box_container_show_fps"
                         android:textColor="@color/termux_box_text_primary" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

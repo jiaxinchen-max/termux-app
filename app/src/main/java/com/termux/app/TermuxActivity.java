@@ -65,6 +65,7 @@ import com.termux.app.terminal.FloatBallMenuClient;
 import com.termux.app.terminal.MainSurfaceController;
 import com.termux.app.terminal.MenuEntryClient;
 import com.termux.app.terminal.StartEntryClient;
+import com.termux.app.terminal.TermuxBoxContainerManagerClient;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxSessionsListViewController;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
@@ -122,6 +123,7 @@ import java.util.List;
  * about memory leaks.
  */
 public class TermuxActivity extends AppCompatActivity implements ServiceConnection, LorieViewRuntimeApi.Host, PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
+
     private static final int FILE_REQUEST_BACKUP_CODE = 101;
     private static final int MAX_PROCESS_INFO_COUNT = 50;
 
@@ -223,6 +225,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
     private float mTerminalToolbarDefaultHeight;
     private MenuEntryClient mMenuEntryClient;
+    private TermuxBoxContainerManagerClient mTermuxBoxContainerManagerClient;
     private boolean mPendingTerminalExit;
     private boolean mPendingTerminalMoveToBack;
     private boolean mDisplaySidePanelsUnlocked;
@@ -799,6 +802,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         setToggleKeyboardView();
 
         mMenuEntryClient = new MenuEntryClient(this, mTermuxTerminalSessionActivityClient);
+        mTermuxBoxContainerManagerClient = new TermuxBoxContainerManagerClient(this, mTermuxTerminalSessionActivityClient);
         setLeftDrawerCollapseButtonViews();
         applyResponsiveLeftDrawerLayout();
 
@@ -981,6 +985,9 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
         if (mTermuxTerminalViewClient != null)
             mTermuxTerminalViewClient.onResume();
+
+        if (mTermuxBoxContainerManagerClient != null)
+            mTermuxBoxContainerManagerClient.refresh();
 
         // Check if a crash happened on last run of the app or if a plugin crashed and show a
         // notification with the crash details if it did
@@ -1284,7 +1291,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
                 if (!file.exists()) {
                     command = "termux-setup-storage;sleep 5s;tar -zcf /sdcard/termux-backup.tar.gz -C /data/data/com.termux/files ./home ./usr \n";
                 }
-                mTermuxTerminalSessionActivityClient.getCurrentStoredSessionOrLast().write(command);
+                mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, "termux-backup");
                 showTerminalSurface();
                 closeTerminalSessionListView();
             }
@@ -1523,6 +1530,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
     private void setLeftDrawerCollapseButtonViews() {
         View sessionListButton = findViewById(R.id.toggle_session_list_button);
+        View containerManagerButton = findViewById(R.id.toggle_container_manager_button);
         View toolboxButton = findViewById(R.id.toggle_toolbox_button);
 
         if (sessionListButton != null) {
@@ -1531,10 +1539,32 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
                 sessionList, sessionListButton, R.string.session_list_expanded, R.string.session_list_collapsed));
         }
 
+        if (containerManagerButton != null) {
+            View containerManager = findViewById(R.id.container_manager_container);
+            containerManagerButton.setOnClickListener(v -> toggleDrawerSection(
+                containerManager, containerManagerButton, R.string.container_manager_expanded, R.string.container_manager_collapsed));
+        }
+
         if (toolboxButton != null) {
             View toolbox = findViewById(R.id.toolbox_container);
             toolboxButton.setOnClickListener(v -> toggleDrawerSection(
                 toolbox, toolboxButton, R.string.toolbox_expanded, R.string.toolbox_collapsed));
+        }
+
+        // All sections collapsed by default
+        collapseSectionIfExists(R.id.terminal_sessions_list, R.id.toggle_session_list_button, R.string.session_list_collapsed);
+        collapseSectionIfExists(R.id.toolbox_container, R.id.toggle_toolbox_button, R.string.toolbox_collapsed);
+        collapseSectionIfExists(R.id.container_manager_container, R.id.toggle_container_manager_button, R.string.container_manager_collapsed);
+    }
+
+    private void collapseSectionIfExists(int sectionId, int buttonId, int collapsedTextResId) {
+        View section = findViewById(sectionId);
+        View button = findViewById(buttonId);
+        if (section != null && button != null) {
+            section.setVisibility(View.GONE);
+            button.setAlpha(0.45f);
+            if (button instanceof TextView)
+                ((TextView) button).setText(collapsedTextResId);
         }
     }
 
@@ -1560,6 +1590,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         boolean landscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
 
         setVisibleIfExists(R.id.toggle_session_list_button, true);
+        setVisibleIfExists(R.id.toggle_container_manager_button, true);
         setVisibleIfExists(R.id.toggle_toolbox_button, true);
 
         setViewHeight(R.id.left_drawer_header, landscape ? dp(40) : ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -1822,22 +1853,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         }
     }
 
-    public void reInstallCustomStartScript(Integer mode) {
-        runOnUiThread(() -> {
-            FileUtils.copyAssetsFile2Phone(this, "setMoBoxEnv", ".termux/bin");
-            FileUtils.copyAssetsFile2Phone(this, "winhandler.exe", ".termux/tmp");
-            FileUtils.copyAssetsFile2Phone(this, "wfm.exe", ".termux/tmp");
-            FileUtils.copyAssetsFile2Phone(this, "wine.tar", ".termux/tmp");
-            new File(TERMUX_HOME_DIR_PATH, ".termux/bin/setMoBoxEnv").setExecutable(true, true);
-            String command = TERMUX_HOME_DIR_PATH + "/.termux/bin/setMoBoxEnv ";
-            if (mode != null) {
-                command = command + mode;
-            }
-            command = command + "\n";
-            mTermuxTerminalSessionActivityClient.getCurrentStoredSessionOrLast().write(command);
-        });
-    }
-
     private void onRequestLoadBackFile(int requestCode, int resultCode, @Nullable Intent data) {
         if (resultCode == RESULT_OK) {
             Uri uri = data.getData();
@@ -1859,7 +1874,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
                     if (file.exists()) {
                         command = "tar -zxf " + realPath + " -C " + TERMUX_FILES_DIR_PATH + " --recursive-unlink" + " --preserve-permissions && exit \n";
                     }
-                    mTermuxTerminalSessionActivityClient.getCurrentStoredSessionOrLast().write(command);
+                    mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, "termux-restore");
                 }
             });
             showTerminalSurface();

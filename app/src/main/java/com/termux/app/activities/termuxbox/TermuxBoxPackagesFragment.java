@@ -1,6 +1,8 @@
 package com.termux.app.activities.termuxbox;
 
 import android.graphics.Typeface;
+import android.text.TextUtils;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -11,6 +13,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.widget.NestedScrollView;
@@ -25,37 +29,36 @@ import com.google.android.material.chip.ChipGroup;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 
 public class TermuxBoxPackagesFragment extends Fragment {
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private ActivityResultLauncher<String[]> localInstallLauncher;
 
     private TermuxBoxRepository repository;
     private LinearLayout packageListContainer;
-    private TextView statusView;
-    private ProgressBar progressBar;
-    private TextView selectedTitleView;
-    private TextView selectedSummaryView;
-    private ChipGroup selectedStateChips;
-    private MaterialButton installButton;
-    private MaterialButton verifyButton;
-    private MaterialButton uninstallButton;
-    private MaterialButton verifyAllButton;
-    private MaterialButton refreshButton;
-    private MaterialButton selectWineButton;
+    private String pendingLocalInstallPackageName;
     private String selectedPackageName;
+    private String activeTaskTarget;
+    private String activeTaskMessage;
+    private int activeTaskProgress = -1;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        localInstallLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(),
+            this::handleLocalInstallDocument);
+    }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull android.view.LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         repository = navigator().getRepository();
         repository.ensureDirs();
-        if (selectedPackageName == null) {
-            String currentWine = repository.getCurrentWineContainerName();
-            if (currentWine != null && repository.findPackage(currentWine) != null) {
-                selectedPackageName = currentWine;
-            }
-        }
 
         NestedScrollView root = new NestedScrollView(requireContext());
         root.setBackgroundColor(0xFFEFF3F6);
@@ -66,10 +69,9 @@ public class TermuxBoxPackagesFragment extends Fragment {
         content.setPadding(dp(16), dp(16), dp(16), dp(16));
         root.addView(content, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        content.addView(sectionTitle("软件包"));
-        content.addView(sectionSubtitle("安装、校验、卸载由上方共享操作完成，下面只负责选包和看状态。"));
-        content.addView(buildStatusCard());
-        content.addView(buildSelectedActionCard());
+        content.addView(sectionTitle(R.string.termux_box_packages_title));
+        content.addView(sectionSubtitle(R.string.termux_box_packages_summary));
+        content.addView(buildBox64Card());
         content.addView(buildPackageListHeader());
 
         packageListContainer = new LinearLayout(requireContext());
@@ -82,7 +84,7 @@ public class TermuxBoxPackagesFragment extends Fragment {
         return root;
     }
 
-    private View buildStatusCard() {
+    private View buildBox64Card() {
         MaterialCardView card = baseCard();
 
         LinearLayout body = new LinearLayout(requireContext());
@@ -91,102 +93,34 @@ public class TermuxBoxPackagesFragment extends Fragment {
         card.addView(body, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView headline = new TextView(requireContext());
-        headline.setText("状态");
+        headline.setText(R.string.termux_box_packages_box64_title);
         headline.setTextColor(0xFF24323F);
         headline.setTypeface(Typeface.DEFAULT_BOLD);
         headline.setTextSize(15f);
         body.addView(headline);
 
-        progressBar = new ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal);
-        progressBar.setMax(100);
-        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        progressParams.topMargin = dp(12);
-        body.addView(progressBar, progressParams);
+        TextView summary = new TextView(requireContext());
+        summary.setTextColor(0xFF60707E);
+        summary.setTextSize(13f);
+        summary.setText(R.string.termux_box_packages_box64_summary);
+        LinearLayout.LayoutParams summaryParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        summaryParams.topMargin = dp(6);
+        body.addView(summary, summaryParams);
 
-        statusView = new TextView(requireContext());
-        statusView.setTextColor(0xFF60707E);
-        statusView.setTextSize(13f);
-        statusView.setText("Ready");
-        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        statusParams.topMargin = dp(8);
-        body.addView(statusView, statusParams);
+        View taskInfo = buildTaskInfoView("box64");
+        LinearLayout.LayoutParams taskInfoParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        taskInfoParams.topMargin = dp(10);
+        body.addView(taskInfo, taskInfoParams);
 
-        return card;
-    }
+        LinearLayout actions = new LinearLayout(requireContext());
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        actionsParams.topMargin = dp(12);
+        body.addView(actions, actionsParams);
 
-    private View buildSelectedActionCard() {
-        MaterialCardView card = baseCard();
-
-        LinearLayout body = new LinearLayout(requireContext());
-        body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(dp(14), dp(14), dp(14), dp(14));
-        card.addView(body, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        TextView title = new TextView(requireContext());
-        title.setText("当前选中");
-        title.setTextColor(0xFF24323F);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setTextSize(15f);
-        body.addView(title);
-
-        selectedTitleView = new TextView(requireContext());
-        selectedTitleView.setTextColor(0xFF24323F);
-        selectedTitleView.setTypeface(Typeface.DEFAULT_BOLD);
-        selectedTitleView.setTextSize(20f);
-        selectedTitleView.setPadding(0, dp(8), 0, 0);
-        body.addView(selectedTitleView);
-
-        selectedSummaryView = new TextView(requireContext());
-        selectedSummaryView.setTextColor(0xFF60707E);
-        selectedSummaryView.setTextSize(13f);
-        selectedSummaryView.setPadding(0, dp(6), 0, 0);
-        body.addView(selectedSummaryView);
-
-        selectedStateChips = new ChipGroup(requireContext());
-        selectedStateChips.setChipSpacing(dp(8));
-        selectedStateChips.setSingleLine(true);
-        LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        chipParams.topMargin = dp(10);
-        body.addView(selectedStateChips, chipParams);
-
-        LinearLayout primaryActions = new LinearLayout(requireContext());
-        primaryActions.setOrientation(LinearLayout.HORIZONTAL);
-        primaryActions.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams primaryParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        primaryParams.topMargin = dp(14);
-        body.addView(primaryActions, primaryParams);
-
-        installButton = actionButton("安装", v -> runSelectedPackageTask("安装", (spec, listener) -> repository.syncPackage(spec, false, listener)));
-        verifyButton = actionButton("校验", v -> runSelectedPackageTask("校验", (spec, listener) -> repository.validatePackage(spec, listener)));
-        uninstallButton = actionButton("卸载", v -> runSelectedPackageTask("卸载", (spec, listener) -> repository.removePackage(spec)));
-
-        primaryActions.addView(installButton, weightedParams());
-        primaryActions.addView(space(dp(10)), fixedParams(dp(10), 1));
-        primaryActions.addView(verifyButton, weightedParams());
-        primaryActions.addView(space(dp(10)), fixedParams(dp(10), 1));
-        primaryActions.addView(uninstallButton, weightedParams());
-
-        LinearLayout secondaryActions = new LinearLayout(requireContext());
-        secondaryActions.setOrientation(LinearLayout.HORIZONTAL);
-        secondaryActions.setGravity(Gravity.START);
-        LinearLayout.LayoutParams secondaryParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        secondaryParams.topMargin = dp(10);
-        body.addView(secondaryActions, secondaryParams);
-
-        refreshButton = actionButtonSmall("刷新", v -> renderPackages());
-        verifyAllButton = actionButtonSmall("全部校验", v -> runTask("Validating packages", listener -> repository.validateAll(listener)));
-        selectWineButton = actionButtonSmall("设为当前容器", v -> {
-            TermuxBoxPackageSpec spec = selectedSpec();
-            if (spec != null && spec.wine) {
-                runSelectedPackageTask("选择容器", (target, listener) -> repository.setWineContainer(target));
-            }
-        });
-
-        secondaryActions.addView(refreshButton);
-        secondaryActions.addView(space(dp(10)), fixedParams(dp(10), 1));
-        secondaryActions.addView(verifyAllButton);
-        secondaryActions.addView(space(dp(10)), fixedParams(dp(10), 1));
-        secondaryActions.addView(selectWineButton);
+        actions.addView(actionButton("MAR3", v -> runTask(R.string.termux_box_packages_applying_build, "box64", listener -> repository.applyBox64Build("mar3"))), weightedParams());
+        actions.addView(space(dp(10)), fixedParams(dp(10), 1));
+        actions.addView(actionButton("FEB14", v -> runTask(R.string.termux_box_packages_applying_build, "box64", listener -> repository.applyBox64Build("feb14"))), weightedParams());
 
         return card;
     }
@@ -196,13 +130,18 @@ public class TermuxBoxPackagesFragment extends Fragment {
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.setPadding(0, dp(16), 0, dp(6));
+        header.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView title = new TextView(requireContext());
-        title.setText("全部包");
+        title.setText(R.string.termux_box_packages_all);
         title.setTextColor(0xFF24323F);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setTextSize(15f);
-        header.addView(title);
+
+        MaterialButton refresh = actionButtonSmall(R.string.termux_box_packages_refresh, v -> renderPackages());
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        header.addView(title, titleParams);
+        header.addView(refresh);
 
         return header;
     }
@@ -218,17 +157,17 @@ public class TermuxBoxPackagesFragment extends Fragment {
         for (TermuxBoxPackageSpec spec : packages) {
             packageListContainer.addView(buildPackageRow(spec));
         }
-        refreshSelectionPanel();
     }
 
     private View buildPackageRow(TermuxBoxPackageSpec spec) {
         boolean selected = spec.name.equals(selectedPackageName);
+        boolean installed = repository.isInstalled(spec);
+        boolean upToDate = repository.isUpToDate(spec);
         MaterialCardView card = baseCard();
         card.setCardBackgroundColor(0xFFFFFFFF);
-        card.setStrokeColor(selected ? 0xFF2D8CDB : 0xFFD3DEE8);
         card.setStrokeWidth(dp(1));
         card.setOnClickListener(v -> {
-            selectedPackageName = spec.name;
+            selectedPackageName = selected ? null : spec.name;
             renderPackages();
         });
 
@@ -250,110 +189,113 @@ public class TermuxBoxPackagesFragment extends Fragment {
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         titleRow.addView(title, titleParams);
 
-        if (selected) {
-            Chip selectedChip = stateChip("已选", 0xFFEAF2FF, 0xFF2D8CDB);
-            titleRow.addView(selectedChip);
-        }
+        LinearLayout details = new LinearLayout(requireContext());
+        details.setOrientation(LinearLayout.VERTICAL);
+        details.setVisibility(selected ? View.VISIBLE : View.GONE);
+        LinearLayout.LayoutParams detailsParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        detailsParams.topMargin = dp(10);
+        body.addView(details, detailsParams);
 
         TextView summary = new TextView(requireContext());
         summary.setTextColor(0xFF60707E);
         summary.setTextSize(12f);
-        summary.setPadding(0, dp(6), 0, 0);
         summary.setText(packageStatus(spec));
-        body.addView(summary);
+        details.addView(summary);
 
         ChipGroup chips = new ChipGroup(requireContext());
         chips.setChipSpacing(dp(8));
         chips.setSingleLine(true);
         LinearLayout.LayoutParams chipsParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         chipsParams.topMargin = dp(10);
-        body.addView(chips, chipsParams);
+        details.addView(chips, chipsParams);
 
         chips.addView(stateChip("v" + spec.version, 0xFFF2F5F7, 0xFF60707E));
-        chips.addView(stateChip(repository.isInstalled(spec) ? "已安装" : "未安装",
-            repository.isInstalled(spec) ? 0xFFE8F5E9 : 0xFFF9E2E2,
-            repository.isInstalled(spec) ? 0xFF2E7D32 : 0xFFC62828));
+        chips.addView(stateChip(installed ? getString(R.string.termux_box_packages_installed, repository.getInstalledVersionText(spec))
+                : getString(R.string.termux_box_packages_not_installed),
+            installed ? 0xFFE8F5E9 : 0xFFF9E2E2,
+            installed ? 0xFF2E7D32 : 0xFFC62828));
         if (spec.wine) {
             chips.addView(stateChip("WINE", 0xFFF3ECFF, 0xFF7B4BD8));
         }
 
+        View taskInfo = buildTaskInfoView(spec.name);
+        LinearLayout.LayoutParams taskInfoParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        taskInfoParams.topMargin = dp(10);
+        details.addView(taskInfo, taskInfoParams);
+
+        LinearLayout actions = new LinearLayout(requireContext());
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        actionsParams.topMargin = dp(12);
+        details.addView(actions, actionsParams);
+
+        actions.addView(actionButtonCompact(installed && !upToDate ? R.string.termux_box_packages_update : R.string.termux_box_packages_network_install, v -> runTask(installed && !upToDate ? R.string.termux_box_packages_updating : R.string.termux_box_packages_installing, spec.name,
+            listener -> repository.syncPackage(spec, false, listener))), weightedParams());
+        actions.addView(space(dp(8)), fixedParams(dp(8), 1));
+        actions.addView(actionButtonCompact(R.string.termux_box_packages_local_install, v -> {
+            pendingLocalInstallPackageName = spec.name;
+            localInstallLauncher.launch(new String[] {"*/*"});
+        }), weightedParams());
+        actions.addView(space(dp(8)), fixedParams(dp(8), 1));
+        actions.addView(actionButtonCompact(R.string.termux_box_packages_verify, v -> runTask(R.string.termux_box_packages_verifying, spec.name, listener -> repository.validatePackage(spec, listener))), weightedParams());
+        actions.addView(space(dp(8)), fixedParams(dp(8), 1));
+        actions.addView(actionButtonCompact(R.string.termux_box_packages_uninstall, v -> runTask(R.string.termux_box_packages_uninstalling, spec.name, listener -> repository.removePackage(spec))), weightedParams());
+
         return card;
-    }
-
-    private void refreshSelectionPanel() {
-        TermuxBoxPackageSpec spec = selectedSpec();
-        if (spec == null) {
-            selectedTitleView.setText("未选择");
-            selectedSummaryView.setText("请选择一个包再执行操作。");
-            selectedStateChips.removeAllViews();
-            installButton.setEnabled(false);
-            verifyButton.setEnabled(false);
-            uninstallButton.setEnabled(false);
-            selectWineButton.setVisibility(View.GONE);
-            return;
-        }
-
-        boolean installed = repository.isInstalled(spec);
-        boolean upToDate = repository.isUpToDate(spec);
-        selectedTitleView.setText(spec.name);
-        selectedSummaryView.setText((installed ? "已安装 " + repository.getInstalledVersionText(spec) : "未安装")
-            + " · " + (upToDate ? "已是最新" : "有可更新版本"));
-
-        selectedStateChips.removeAllViews();
-        selectedStateChips.addView(stateChip("v" + spec.version, 0xFFF2F5F7, 0xFF60707E));
-        selectedStateChips.addView(stateChip(installed ? "已安装" : "未安装",
-            installed ? 0xFFE8F5E9 : 0xFFF9E2E2,
-            installed ? 0xFF2E7D32 : 0xFFC62828));
-        if (spec.wine) {
-            selectedStateChips.addView(stateChip("WINE", 0xFFF3ECFF, 0xFF7B4BD8));
-        }
-
-        installButton.setText(installed && !upToDate ? "更新" : "安装");
-        installButton.setEnabled(true);
-        verifyButton.setEnabled(true);
-        uninstallButton.setEnabled(true);
-        selectWineButton.setVisibility(spec.wine ? View.VISIBLE : View.GONE);
     }
 
     private String packageStatus(TermuxBoxPackageSpec spec) {
         StringBuilder state = new StringBuilder();
-        state.append(repository.isInstalled(spec) ? "installed " + repository.getInstalledVersionText(spec) : "not installed");
-        if (spec.wine) {
-            String currentWine = repository.getCurrentWineContainerName();
-            if (currentWine != null && currentWine.equals(spec.name)) {
-                state.append(" · current");
-            }
-        }
+        state.append(repository.isInstalled(spec)
+            ? getString(R.string.termux_box_packages_installed, repository.getInstalledVersionText(spec))
+            : getString(R.string.termux_box_packages_not_installed));
         return state.toString();
     }
 
-    private void runSelectedPackageTask(String initialMessage, PackageAction task) {
-        TermuxBoxPackageSpec spec = selectedSpec();
-        if (spec == null) {
-            Toast.makeText(requireContext(), "没有可操作的包", Toast.LENGTH_SHORT).show();
+    private void handleLocalInstallDocument(@Nullable Uri uri) {
+        if (uri == null) {
+            pendingLocalInstallPackageName = null;
             return;
         }
-        runTask(initialMessage + " " + spec.name, listener -> task.run(spec, listener));
+        String packageName = pendingLocalInstallPackageName;
+        pendingLocalInstallPackageName = null;
+        if (TextUtils.isEmpty(packageName)) {
+            Toast.makeText(requireContext(), R.string.termux_box_packages_no_target, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        TermuxBoxPackageSpec spec = repository.findPackage(packageName);
+        if (spec == null) {
+            Toast.makeText(requireContext(), R.string.termux_box_packages_target_missing, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        runTask(R.string.termux_box_packages_local_installing, spec.name, listener -> {
+            File archive = repository.newTempPackageArchive(spec.name);
+            copyUriToFile(uri, archive);
+            repository.installPackageFromArchive(spec, archive, listener);
+        });
     }
 
-    private void runTask(String initialMessage, ProgressTask task) {
-        setStatus(initialMessage, 0);
+    private void runTask(int initialMessageResId, @Nullable String target, ProgressTask task) {
+        updateTaskState(target, getString(initialMessageResId), 0);
         executor.execute(() -> {
             try {
                 task.run(new TermuxBoxRepository.ProgressListener() {
                     @Override
                     public void onMessage(String message) {
-                        setStatus(message, -1);
+                        updateTaskState(target, message, -1);
                     }
 
                     @Override
                     public void onProgress(int progress) {
-                        setStatus(null, progress);
+                        updateTaskState(target, null, progress);
                     }
                 });
-                setStatus("Done", 100);
+                clearTaskState(target);
+                showTaskToast(R.string.termux_box_packages_done);
             } catch (Exception e) {
-                setStatus("Failed: " + e.getMessage(), 0);
+                clearTaskState(target);
+                showTaskToast(getString(R.string.termux_box_packages_failed, e.getMessage()));
             } finally {
                 if (isAdded()) {
                     requireActivity().runOnUiThread(this::renderPackages);
@@ -362,33 +304,96 @@ public class TermuxBoxPackagesFragment extends Fragment {
         });
     }
 
+    private View buildTaskInfoView(@NonNull String target) {
+        LinearLayout info = new LinearLayout(requireContext());
+        info.setOrientation(LinearLayout.VERTICAL);
+        info.setVisibility(isTaskVisible(target) ? View.VISIBLE : View.GONE);
+
+        TextView message = new TextView(requireContext());
+        message.setTextColor(0xFF60707E);
+        message.setTextSize(13f);
+        message.setText(isTaskVisible(target) ? activeTaskMessage : "");
+        info.addView(message);
+
+        ProgressBar bar = new ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal);
+        bar.setMax(100);
+        LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        barParams.topMargin = dp(8);
+        info.addView(bar, barParams);
+        bar.setVisibility(isTaskVisible(target) ? View.VISIBLE : View.GONE);
+        if (isTaskVisible(target) && activeTaskProgress >= 0) {
+            bar.setProgress(activeTaskProgress);
+        }
+
+        return info;
+    }
+
+    private void copyUriToFile(@NonNull Uri uri, @NonNull File destination) throws Exception {
+        try (InputStream input = requireContext().getContentResolver().openInputStream(uri);
+             FileOutputStream output = new FileOutputStream(destination, false)) {
+            if (input == null) {
+                throw new IllegalStateException(getString(R.string.termux_box_packages_cannot_open_file));
+            }
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+        }
+    }
+
     private void ensureSelection() {
-        if (selectedPackageName != null && repository.findPackage(selectedPackageName) != null) {
+        if (selectedPackageName == null) {
             return;
         }
-        List<TermuxBoxPackageSpec> packages = repository.getPackages();
-        if (!packages.isEmpty()) {
-            selectedPackageName = packages.get(0).name;
+        if (repository.findPackage(selectedPackageName) == null) {
+            selectedPackageName = null;
         }
     }
 
-    private TermuxBoxPackageSpec selectedSpec() {
-        ensureSelection();
-        return selectedPackageName == null ? null : repository.findPackage(selectedPackageName);
-    }
-
-    private void setStatus(@Nullable String message, int progress) {
+    private void updateTaskState(@Nullable String target, @Nullable String message, int progress) {
         if (!isAdded()) {
             return;
         }
         requireActivity().runOnUiThread(() -> {
-            if (message != null && statusView != null) {
-                statusView.setText(message);
+            activeTaskTarget = target;
+            if (message != null) {
+                activeTaskMessage = message;
             }
-            if (progressBar != null && progress >= 0) {
-                progressBar.setProgress(progress);
+            if (progress >= 0) {
+                activeTaskProgress = progress;
             }
+            renderPackages();
         });
+    }
+
+    private void clearTaskState(@Nullable String target) {
+        if (!isAdded()) {
+            return;
+        }
+        requireActivity().runOnUiThread(() -> {
+            if (target == null || target.equals(activeTaskTarget)) {
+                activeTaskTarget = null;
+                activeTaskMessage = null;
+                activeTaskProgress = -1;
+            }
+            renderPackages();
+        });
+    }
+
+    private boolean isTaskVisible(@NonNull String target) {
+        return target.equals(activeTaskTarget);
+    }
+
+    private void showTaskToast(@NonNull String message) {
+        if (!isAdded()) {
+            return;
+        }
+        requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show());
+    }
+
+    private void showTaskToast(int messageResId) {
+        showTaskToast(getString(messageResId));
     }
 
     private MaterialButton actionButton(String label, View.OnClickListener listener) {
@@ -397,6 +402,7 @@ public class TermuxBoxPackagesFragment extends Fragment {
         button.setAllCaps(false);
         button.setOnClickListener(listener);
         button.setCornerRadius(dp(5));
+        button.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return button;
     }
 
@@ -406,7 +412,28 @@ public class TermuxBoxPackagesFragment extends Fragment {
         button.setAllCaps(false);
         button.setOnClickListener(listener);
         button.setCornerRadius(dp(5));
+        button.setMinHeight(0);
+        button.setTextSize(12f);
+        button.setPadding(dp(10), dp(6), dp(10), dp(6));
         return button;
+    }
+
+    private MaterialButton actionButtonCompact(String label, View.OnClickListener listener) {
+        MaterialButton button = actionButtonSmall(label, listener);
+        button.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        return button;
+    }
+
+    private MaterialButton actionButton(int labelResId, View.OnClickListener listener) {
+        return actionButton(getString(labelResId), listener);
+    }
+
+    private MaterialButton actionButtonSmall(int labelResId, View.OnClickListener listener) {
+        return actionButtonSmall(getString(labelResId), listener);
+    }
+
+    private MaterialButton actionButtonCompact(int labelResId, View.OnClickListener listener) {
+        return actionButtonCompact(getString(labelResId), listener);
     }
 
     private Chip stateChip(String label, int backgroundColor, int textColor) {
@@ -430,12 +457,12 @@ public class TermuxBoxPackagesFragment extends Fragment {
         return space;
     }
 
-    private LinearLayout.LayoutParams weightedParams() {
-        return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-    }
-
     private LinearLayout.LayoutParams fixedParams(int width, int height) {
         return new LinearLayout.LayoutParams(width, height);
+    }
+
+    private LinearLayout.LayoutParams weightedParams() {
+        return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
     }
 
     private MaterialCardView baseCard() {
@@ -452,18 +479,18 @@ public class TermuxBoxPackagesFragment extends Fragment {
         return card;
     }
 
-    private TextView sectionTitle(String text) {
+    private TextView sectionTitle(int textResId) {
         TextView view = new TextView(requireContext());
-        view.setText(text);
+        view.setText(textResId);
         view.setTextColor(0xFF24323F);
         view.setTextSize(24f);
         view.setTypeface(Typeface.DEFAULT_BOLD);
         return view;
     }
 
-    private TextView sectionSubtitle(String text) {
+    private TextView sectionSubtitle(int textResId) {
         TextView view = new TextView(requireContext());
-        view.setText(text);
+        view.setText(textResId);
         view.setTextColor(0xFF60707E);
         view.setTextSize(13f);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -485,9 +512,5 @@ public class TermuxBoxPackagesFragment extends Fragment {
 
     private interface ProgressTask {
         void run(TermuxBoxRepository.ProgressListener listener) throws Exception;
-    }
-
-    private interface PackageAction {
-        void run(TermuxBoxPackageSpec spec, TermuxBoxRepository.ProgressListener listener) throws Exception;
     }
 }

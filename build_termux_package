@@ -45,7 +45,6 @@ cp stopserver $PREFIX/bin/
 cp startxserver $PREFIX/bin/
 
 cp install $ASSETS_PATH
-cp setMoBoxEnv $ASSETS_PATH
 
 mkdir -p $CONTROL_DIR
 cat <<EOF >$CONTROL_DIR/control

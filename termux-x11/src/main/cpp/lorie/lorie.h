@@ -116,6 +116,11 @@ typedef enum {
     EVENT_STOP_RENDER,
 } eventType;
 
+typedef enum {
+    LORIE_KEYCODE_XKB = 0,
+    LORIE_KEYCODE_EVDEV = 1,
+} lorieKeycodeFormat;
+
 typedef union {
     uint8_t type;
     struct {
@@ -125,6 +130,7 @@ typedef union {
         char *name;
         uint8_t format;
         uint8_t type;
+        uint8_t keycode_format;
     } screenSize;
     struct {
         uint8_t t;

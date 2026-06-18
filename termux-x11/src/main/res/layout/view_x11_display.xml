@@ -61,7 +61,7 @@
                         android:layout_height="match_parent"
                         android:contentDescription="@string/not_connected"
                         android:scaleType="fitCenter"
-                        app:srcCompat="@drawable/ic_x11_radar_dish" />
+                        app:srcCompat="@drawable/ic_x11_radar_frame_4" />
                 </FrameLayout>
             </FrameLayout>
 

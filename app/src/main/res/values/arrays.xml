@@ -9,4 +9,98 @@
         <item>terminal</item>
         <item>termux_screen</item>
     </string-array>
+
+    <string-array name="termux_box_container_resolution_entries">
+        <item>1920x1080 (16:9)</item>
+        <item>1600x900 (16:9)</item>
+        <item>1366x768 (16:9)</item>
+        <item>1280x720 (16:9)</item>
+        <item>960x540 (16:9)</item>
+    </string-array>
+
+    <string-array name="termux_box_container_gpu_driver_entries">
+        <item>Turnip</item>
+        <item>VirGL</item>
+        <item>PanVK</item>
+        <item>Zink</item>
+        <item>W3D</item>
+    </string-array>
+
+    <string-array name="termux_box_container_gpu_accel_entries">
+        <item>DXVK</item>
+        <item>VKD3D</item>
+        <item>W3D</item>
+        <item>Off</item>
+    </string-array>
+
+    <string-array name="termux_box_container_audio_driver_entries">
+        <item>ALSA</item>
+        <item>PulseAudio</item>
+        <item>PipeWire</item>
+        <item>OpenAL</item>
+    </string-array>
+
+    <string-array name="termux_box_container_theme_entries">
+        <item>Light</item>
+        <item>Dark</item>
+        <item>System</item>
+    </string-array>
+
+    <string-array name="termux_box_container_background_entries">
+        <item>Image</item>
+        <item>Solid</item>
+        <item>Desktop</item>
+    </string-array>
+
+    <string-array name="termux_box_container_font_entries">
+        <item>Tahoma</item>
+        <item>Segoe</item>
+        <item>Noto</item>
+        <item>Libre</item>
+    </string-array>
+
+    <string-array name="termux_box_container_library_entries">
+        <item>Third</item>
+        <item>Built-in</item>
+        <item>Off</item>
+    </string-array>
+
+    <string-array name="termux_box_container_box64_preset_entries">
+        <item>Balance</item>
+        <item>Perf</item>
+        <item>Compat</item>
+    </string-array>
+
+    <string-array name="termux_box_container_box64_startup_entries">
+        <item>Basic</item>
+        <item>Desktop</item>
+        <item>CLI</item>
+    </string-array>
+
+    <string-array name="termux_box_container_windows_version_entries">
+        <item>Win7</item>
+        <item>Win10</item>
+        <item>Win11</item>
+    </string-array>
+
+    <string-array name="termux_box_container_locale_entries">
+        <item>en_US</item>
+        <item>zh_CN</item>
+        <item>ja_JP</item>
+        <item>ko_KR</item>
+    </string-array>
+
+    <string-array name="termux_box_container_cursor_entries">
+        <item>Off</item>
+        <item>Abs</item>
+        <item>Rel</item>
+    </string-array>
+
+    <string-array name="termux_box_container_dynarec_preset_entries">
+        <item>P1</item>
+        <item>P2</item>
+        <item>P3</item>
+        <item>P4</item>
+        <item>Manual</item>
+    </string-array>
 </resources>

@@ -96,6 +96,19 @@ public class TermuxBoxDropdownField extends LinearLayout {
         inputView.setText(resolveDefaultValue(value), false);
     }
 
+    /** When editable, the user can type a custom value instead of only picking from the dropdown. */
+    public void setEditable(boolean editable) {
+        if (editable) {
+            inputView.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+            inputView.setKeyListener(android.text.method.TextKeyListener.getInstance());
+            inputView.setCursorVisible(true);
+        } else {
+            inputView.setInputType(android.text.InputType.TYPE_NULL);
+            inputView.setKeyListener(null);
+            inputView.setCursorVisible(false);
+        }
+    }
+
     private String resolveDefaultValue(@Nullable String value) {
         if (TextUtils.isEmpty(value)) {
             return labels.length > 0 ? labels[0] : "";

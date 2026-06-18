@@ -1026,13 +1026,15 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         if (radarDish == null)
             return;
 
-        Drawable drawable = radarDish.getDrawable();
-        if (!(drawable instanceof AnimationDrawable)) {
-            radarDish.setImageResource(R.drawable.ic_x11_radar_dish);
-            drawable = radarDish.getDrawable();
-        }
-        if (drawable instanceof AnimationDrawable && !((AnimationDrawable) drawable).isRunning())
-            ((AnimationDrawable) drawable).start();
+        // Animation disabled — use static frame instead
+        // Drawable drawable = radarDish.getDrawable();
+        // if (!(drawable instanceof AnimationDrawable)) {
+        //     radarDish.setImageResource(R.drawable.ic_x11_radar_dish);
+        //     drawable = radarDish.getDrawable();
+        // }
+        // if (drawable instanceof AnimationDrawable && !((AnimationDrawable) drawable).isRunning())
+        //     ((AnimationDrawable) drawable).start();
+        radarDish.setImageResource(R.drawable.ic_x11_radar_frame_4);
     }
 
     private void stopDisconnectedRadarAnimation() {
@@ -1040,10 +1042,11 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         if (radarDish == null)
             return;
 
-        Drawable drawable = radarDish.getDrawable();
-        if (drawable instanceof AnimationDrawable)
-            ((AnimationDrawable) drawable).stop();
-        radarDish.setImageResource(R.drawable.ic_x11_radar_frame_1);
+        // Animation disabled — use static frame instead
+        // Drawable drawable = radarDish.getDrawable();
+        // if (drawable instanceof AnimationDrawable)
+        //     ((AnimationDrawable) drawable).stop();
+        radarDish.setImageResource(R.drawable.ic_x11_radar_frame_4);
     }
 
     public boolean shouldInterceptKeys() {
