@@ -12,7 +12,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 
-public class ExternalController {
+public class ExternalController implements GamepadSlot {
     public static final byte IDX_BUTTON_A = 0;
     public static final byte IDX_BUTTON_B = 1;
     public static final byte IDX_BUTTON_X = 2;
@@ -26,10 +26,14 @@ public class ExternalController {
     public static final byte IDX_BUTTON_L2 = 10;
     public static final byte IDX_BUTTON_R2 = 11;
     private String name;
+    private short vendorId;
+    private short productId;
     private String id;
     private int deviceId = -1;
     private final ArrayList<ExternalControllerBinding> controllerBindings = new ArrayList<>();
     public final GamepadState state = new GamepadState();
+    private GamepadVibration vibration;
+    private boolean processTriggerButtonOnMotionEvent = true;
 
     public String getName() {
         return name;
@@ -37,6 +41,24 @@ public class ExternalController {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    @Override
+    public short getVendorId() {
+        return vendorId;
+    }
+
+    public void setVendorId(short vendorId) {
+        this.vendorId = vendorId;
+    }
+
+    @Override
+    public short getProductId() {
+        return productId;
+    }
+
+    public void setProductId(short productId) {
+        this.productId = productId;
     }
 
     public String getId() {
@@ -66,6 +88,17 @@ public class ExternalController {
             if (device != null && device.getDescriptor().equals(id)) return true;
         }
         return false;
+    }
+
+    @Override
+    public GamepadState getGamepadState() {
+        return state;
+    }
+
+    @Override
+    public GamepadVibration getGamepadVibration() {
+        if (vibration == null) vibration = new GamepadVibration(id);
+        return vibration;
     }
 
     public ExternalControllerBinding getControllerBinding(int keyCode) {
@@ -136,13 +169,22 @@ public class ExternalController {
     }
 
     private void processTriggerButton(MotionEvent event) {
-        state.setPressed(IDX_BUTTON_L2, event.getAxisValue(MotionEvent.AXIS_LTRIGGER) == 1.0f || event.getAxisValue(MotionEvent.AXIS_BRAKE) == 1.0f);
-        state.setPressed(IDX_BUTTON_R2, event.getAxisValue(MotionEvent.AXIS_RTRIGGER) == 1.0f || event.getAxisValue(MotionEvent.AXIS_GAS) == 1.0f);
+        state.triggerL = Math.max(event.getAxisValue(MotionEvent.AXIS_LTRIGGER), event.getAxisValue(MotionEvent.AXIS_BRAKE));
+        state.triggerR = Math.max(event.getAxisValue(MotionEvent.AXIS_RTRIGGER), event.getAxisValue(MotionEvent.AXIS_GAS));
+        // Clamp to [0, 1] with epsilon threshold
+        final float epsilon = 0.001f;
+        if (state.triggerL < epsilon) state.triggerL = 0f;
+        if (state.triggerL > 1.0f) state.triggerL = 1.0f;
+        if (state.triggerR < epsilon) state.triggerR = 0f;
+        if (state.triggerR > 1.0f) state.triggerR = 1.0f;
+        // Update button bits for compatibility
+        state.setPressed(IDX_BUTTON_L2, state.triggerL >= 0.5f);
+        state.setPressed(IDX_BUTTON_R2, state.triggerR >= 0.5f);
     }
 
     public boolean updateStateFromMotionEvent(MotionEvent event) {
         if (isJoystickDevice(event)) {
-            processTriggerButton(event);
+            if (processTriggerButtonOnMotionEvent) processTriggerButton(event);
             int historySize = event.getHistorySize();
             for (int i = 0; i < historySize; i++) processJoystickInput(event, i);
             processJoystickInput(event, -1);
@@ -156,6 +198,7 @@ public class ExternalController {
         int keyCode = event.getKeyCode();
         int buttonIdx = getButtonIdxByKeyCode(keyCode);
         if (buttonIdx != -1) {
+            if (buttonIdx == IDX_BUTTON_L2 || buttonIdx == IDX_BUTTON_R2) processTriggerButtonOnMotionEvent = false;
             state.setPressed(buttonIdx, pressed);
             return true;
         }
@@ -186,6 +229,8 @@ public class ExternalController {
                 ExternalController controller = new ExternalController();
                 controller.setId(device.getDescriptor());
                 controller.setName(device.getName());
+                controller.setVendorId((short)device.getVendorId());
+                controller.setProductId((short)device.getProductId());
                 controllers.add(controller);
             }
         }
@@ -206,12 +251,53 @@ public class ExternalController {
                     ExternalController controller = new ExternalController();
                     controller.setId(device.getDescriptor());
                     controller.setName(device.getName());
+                    controller.setVendorId((short)device.getVendorId());
+                    controller.setProductId((short)device.getProductId());
                     controller.deviceId = deviceIds[i];
                     return controller;
                 }
             }
         }
         return null;
+    }
+
+    public static void updateConnectedControllers(ArrayList<ExternalController> connectedControllers) {
+        int[] deviceIds = InputDevice.getDeviceIds();
+        // Remove disconnected controllers
+        for (int i = connectedControllers.size()-1; i >= 0; i--) {
+            ExternalController controller = connectedControllers.get(i);
+            boolean connected = false;
+            for (int id : deviceIds) {
+                if (id == controller.deviceId) {
+                    connected = true;
+                    break;
+                }
+            }
+            if (!connected) connectedControllers.remove(i);
+        }
+
+        // Add newly connected controllers
+        for (int deviceId : deviceIds) {
+            boolean skip = false;
+            for (ExternalController controller : connectedControllers) {
+                if (controller.deviceId == deviceId) {
+                    skip = true;
+                    break;
+                }
+            }
+            if (skip) continue;
+
+            InputDevice device = InputDevice.getDevice(deviceId);
+            if (isGameController(device)) {
+                ExternalController controller = new ExternalController();
+                controller.deviceId = deviceId;
+                controller.setId(device.getDescriptor());
+                controller.setName(device.getName());
+                controller.setVendorId((short)device.getVendorId());
+                controller.setProductId((short)device.getProductId());
+                connectedControllers.add(controller);
+            }
+        }
     }
 
     public static boolean isGameController(InputDevice device) {

@@ -10,53 +10,112 @@
         <item>termux_screen</item>
     </string-array>
 
-    <string-array name="termux_box_container_resolution_entries">
-        <item>1920x1080 (16:9)</item>
-        <item>1600x900 (16:9)</item>
-        <item>1366x768 (16:9)</item>
+    <!-- Aligned with Winlator screen_size_entries -->
+    <string-array name="termux_box_container_screen_size_entries">
+        <item>Custom</item>
+        <item>640x360 (16:9)</item>
+        <item>640x480 (4:3)</item>
+        <item>800x600 (4:3)</item>
+        <item>854x480 (16:9)</item>
+        <item>960x544 (16:9)</item>
+        <item>1024x768 (4:3)</item>
         <item>1280x720 (16:9)</item>
-        <item>960x540 (16:9)</item>
+        <item>1280x800 (16:10)</item>
+        <item>1280x1024 (5:4)</item>
+        <item>1366x768 (16:9)</item>
+        <item>1440x900 (16:10)</item>
+        <item>1600x900 (16:9)</item>
+        <item>1920x1080 (16:9)</item>
     </string-array>
 
-    <string-array name="termux_box_container_gpu_driver_entries">
+    <!-- Aligned with Winlator: Vortek + Turnip (Vulkan drivers) -->
+    <string-array name="termux_box_container_graphics_driver_entries">
+        <item>Vortek</item>
         <item>Turnip</item>
-        <item>VirGL</item>
-        <item>PanVK</item>
-        <item>Zink</item>
-        <item>W3D</item>
     </string-array>
 
-    <string-array name="termux_box_container_gpu_accel_entries">
+    <!-- Aligned with Winlator dxwrapper entries: WineD3D, DXVK -->
+    <string-array name="termux_box_container_dxwrapper_entries">
+        <item>WineD3D</item>
         <item>DXVK</item>
-        <item>VKD3D</item>
-        <item>W3D</item>
-        <item>Off</item>
     </string-array>
 
+    <!-- Aligned with Winlator audio_driver_entries: only ALSA, PulseAudio -->
     <string-array name="termux_box_container_audio_driver_entries">
         <item>ALSA</item>
         <item>PulseAudio</item>
-        <item>PipeWire</item>
-        <item>OpenAL</item>
+    </string-array>
+
+    <!-- Aligned with Winlator dinput_mapper_type_entries -->
+    <string-array name="termux_box_container_gamepad_mapper_entries">
+        <item>Standard</item>
+        <item>XInput</item>
+    </string-array>
+
+    <!-- Aligned with Winlator startup_selection_entries -->
+    <string-array name="termux_box_container_startup_selection_entries">
+        <item>Normal (Load all services)</item>
+        <item>Essential (Load only essential services)</item>
+        <item>Aggressive (Load minimal services)</item>
+    </string-array>
+
+    <!-- Aligned with Winlator hud_mode_entries -->
+    <string-array name="termux_box_container_hud_mode_entries">
+        <item>Disabled</item>
+        <item>Simple (FPS)</item>
+        <item>Full</item>
+    </string-array>
+
+    <!-- Aligned with Winlator box64 preset IDs (via Box64Preset.java) -->
+    <string-array name="termux_box_container_box64_preset_entries">
+        <item>Stability</item>
+        <item>Conservative</item>
+        <item>Intermediate</item>
+        <item>Performance</item>
+    </string-array>
+
+    <string-array name="termux_box_container_box64_preset_values">
+        <item>STABILITY</item>
+        <item>CONSERVATIVE</item>
+        <item>INTERMEDIATE</item>
+        <item>PERFORMANCE</item>
+    </string-array>
+
+    <!-- Aligned with Winlator language_entries (UI language, not game locale) -->
+    <string-array name="termux_box_container_language_entries">
+        <item>English</item>
+        <item>Português</item>
+        <item>Русский</item>
     </string-array>
 
     <string-array name="termux_box_container_theme_entries">
         <item>Light</item>
         <item>Dark</item>
-        <item>System</item>
     </string-array>
 
     <string-array name="termux_box_container_background_entries">
         <item>Image</item>
-        <item>Solid</item>
-        <item>Desktop</item>
+        <item>Solid color</item>
     </string-array>
 
     <string-array name="termux_box_container_font_entries">
+        <item>Arial</item>
+        <item>Andale Mono</item>
+        <item>Comic Sans MS</item>
+        <item>Courier New</item>
+        <item>Georgia</item>
+        <item>Impact</item>
         <item>Tahoma</item>
-        <item>Segoe</item>
-        <item>Noto</item>
-        <item>Libre</item>
+        <item>Times New Roman</item>
+        <item>Trebuchet MS</item>
+        <item>Verdana</item>
+    </string-array>
+
+    <!-- Legacy arrays still used by existing UI code -->
+    <string-array name="termux_box_container_cursor_entries">
+        <item>Off</item>
+        <item>Abs</item>
+        <item>Rel</item>
     </string-array>
 
     <string-array name="termux_box_container_library_entries">
@@ -65,42 +124,18 @@
         <item>Off</item>
     </string-array>
 
-    <string-array name="termux_box_container_box64_preset_entries">
-        <item>Balance</item>
-        <item>Perf</item>
-        <item>Compat</item>
+    <!-- Winlator ddraw_wrapper_entries for legacy DirectDraw -->
+    <string-array name="termux_box_container_ddraw_wrapper_entries">
+        <item>WineD3D</item>
+        <item>CNC DDraw</item>
+        <item>D7VK</item>
     </string-array>
 
-    <string-array name="termux_box_container_box64_startup_entries">
-        <item>Basic</item>
-        <item>Desktop</item>
-        <item>CLI</item>
+    <!-- Winlator box64 preset entries for preset management -->
+    <string-array name="termux_box_container_box64_log_levels">
+        <item>Disable</item>
+        <item>Minimal</item>
+        <item>Trace</item>
     </string-array>
 
-    <string-array name="termux_box_container_windows_version_entries">
-        <item>Win7</item>
-        <item>Win10</item>
-        <item>Win11</item>
-    </string-array>
-
-    <string-array name="termux_box_container_locale_entries">
-        <item>en_US</item>
-        <item>zh_CN</item>
-        <item>ja_JP</item>
-        <item>ko_KR</item>
-    </string-array>
-
-    <string-array name="termux_box_container_cursor_entries">
-        <item>Off</item>
-        <item>Abs</item>
-        <item>Rel</item>
-    </string-array>
-
-    <string-array name="termux_box_container_dynarec_preset_entries">
-        <item>P1</item>
-        <item>P2</item>
-        <item>P3</item>
-        <item>P4</item>
-        <item>Manual</item>
-    </string-array>
 </resources>

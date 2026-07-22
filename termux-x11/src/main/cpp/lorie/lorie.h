@@ -29,12 +29,16 @@ void lorieHandleClipboardAnnounce(void);
 void lorieHandleClipboardData(const char* data);
 void lorieSetStylusEnabled(Bool enabled);
 void lorieWakeServer(void);
+void lorieRecheckGpuCopies(void);
 void lorieChoreographerFrameCallback(__unused long t, AChoreographer* d);
 void lorieActivityConnected(void);
 void lorieSendSharedServerState(int memfd);
 void lorieRegisterBuffer(LorieBuffer* buffer);
 void lorieUnregisterBuffer(LorieBuffer* buffer);
 bool lorieConnectionAlive(void);
+extern bool lorieDebugEnabled; // Set in activity.c's startLogcat, only called when TERMUX_X11_DEBUG=1.
+void lorieSetRendererWakeupCond(int fd);
+int rendererGetWakeupCondFd(void);
 
 __unused void rendererInit(JNIEnv* env);
 __unused void rendererSetFiltering(JNIEnv* env, jobject self, jint filtering);
@@ -42,6 +46,7 @@ __unused void rendererSetExternalBufferMode(bool enabled);
 __unused void rendererTestCapabilities(int* legacy_drawing);
 __unused void rendererSetWindow(JNIEnv *env, jobject thiz, jobject sfc);
 __unused void rendererSetViewport(JNIEnv *env, jclass clazz, int x, int y, int w, int h, int ew, int eh);
+__unused void rendererSetZoom(JNIEnv *env, jclass clazz, int percent);
 __unused void rendererGetExpectedSize(int *width, int *height);
 __unused void rendererSetSharedState(struct lorie_shared_server_state* newState);
 __unused void rendererAddBuffer(LorieBuffer* buf);
@@ -107,6 +112,8 @@ typedef enum {
     EVENT_CLIPBOARD_REQUEST,
     EVENT_CLIPBOARD_SEND,
     EVENT_WINDOW_FOCUS_CHANGED,
+    EVENT_RENDERER_WAKEUP_COND,
+    EVENT_GPU_COPY_DONE,
     EVENT_APPLY_SERVER_STATE,
     EVENT_APPLY_BUFFER,
     EVENT_APPLY_EVENT_FD,
@@ -175,6 +182,20 @@ typedef union {
     } clipboardSend;
 } lorieEvent;
 
+typedef struct { int16_t x1, y1, x2, y2; } LorieGpuCopyRect;
+
+#define LORIE_GPU_COPY_MAX_RECTS 16
+#define LORIE_GPU_COPY_QUEUE_CAPACITY 8
+
+typedef struct {
+    uint64_t serial;
+    uint64_t srcBufferId;
+    uint64_t dstBufferId;
+    int16_t xOff, yOff;
+    uint16_t numRects;
+    LorieGpuCopyRect rects[LORIE_GPU_COPY_MAX_RECTS];
+} LorieGpuCopyEntry;
+
 struct lorie_shared_server_state {
     /*
      * Renderer and X server are separated into 2 different processes.
@@ -186,9 +207,16 @@ struct lorie_shared_server_state {
     pid_t lockingPid;
 
     /*
-     * Renderer thread sleeps when it is idle so we must explicitly wake it up.
+     * Single-producer (X server, present_execute_copy)/single-consumer (renderer) ring buffer
+     * of deferred GPU copies to be applied to the root window texture before it is drawn to screen.
+     * X server only ever advances writeIndex, renderer only ever advances readIndex and completedSerial.
      */
-    pthread_cond_t cond; // initialized at X server side.
+    struct {
+        volatile uint32_t writeIndex;
+        volatile uint32_t readIndex;
+        volatile uint64_t completedSerial;
+        LorieGpuCopyEntry entries[LORIE_GPU_COPY_QUEUE_CAPACITY];
+    } gpuCopyQueue;
 
     /* ID of root window texture to be drawn. */
     uint64_t rootWindowTextureID;

@@ -2,12 +2,9 @@ package com.termux.app;
 
 import com.termux.x11.LorieViewRuntimeApi;
 
-import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
 import static com.termux.shared.termux.TermuxConstants.TERMUX_FILES_DIR_PATH;
-import static com.termux.shared.termux.TermuxConstants.TERMUX_HOME_DIR_PATH;
 
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
@@ -41,7 +38,6 @@ import android.view.WindowManager;
 import android.view.autofill.AutofillManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -66,6 +62,8 @@ import com.termux.app.terminal.MainSurfaceController;
 import com.termux.app.terminal.MenuEntryClient;
 import com.termux.app.terminal.StartEntryClient;
 import com.termux.app.terminal.TermuxBoxContainerManagerClient;
+import com.termux.app.terminal.TermuxX11ActivityIntegration;
+import com.termux.app.terminal.TermuxX11HostClient;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxSessionsListViewController;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
@@ -74,7 +72,6 @@ import com.termux.app.terminal.io.TerminalToolbarViewPager;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
 import com.termux.app.terminal.utils.CommandUtils;
 import com.termux.app.terminal.utils.FilePathUtils;
-import com.termux.app.terminal.utils.FileUtils;
 import com.termux.app.terminal.utils.ScreenUtils;
 import com.termux.shared.activities.ReportActivity;
 import com.termux.shared.activity.ActivityUtils;
@@ -102,15 +99,9 @@ import com.termux.x11.TermuxScreenView;
 import com.termux.x11.LoriePreferences;
 import com.termux.x11.LorieView;
 import com.termux.x11.LorieViewRuntimeController;
-import com.termux.x11.controller.winhandler.ProcessInfo;
-
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * A terminal emulator activity.
@@ -122,13 +113,13 @@ import java.util.List;
  * </ul>
  * about memory leaks.
  */
-public class TermuxActivity extends AppCompatActivity implements ServiceConnection, LorieViewRuntimeApi.Host, PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
+public class TermuxActivity extends AppCompatActivity implements ServiceConnection, PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
 
     private static final int FILE_REQUEST_BACKUP_CODE = 101;
-    private static final int MAX_PROCESS_INFO_COUNT = 50;
 
     private MainSurfaceController mMainSurfaceController;
     private LorieViewRuntimeController mLorieViewRuntimeController;
+    private TermuxX11HostClient mX11HostClient;
     /**
      * The connection to the {@link TermuxService}. Requested in {@link #onCreate(Bundle)} with a call to
      * {@link #bindService(Intent, ServiceConnection, int)}, and obtained and stored in
@@ -240,132 +231,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     private static final long DISPLAY_SIDE_PANEL_UNLOCK_IDLE_TIMEOUT_MS = 5000;
     private static final long RESTORE_FLOAT_BALL_AFTER_PIP_DELAY_MS = 3000;
 
-    private static List<ProcessInfo> collectTermuxProcessInfo() {
-        File[] processDirs = new File("/proc").listFiles();
-        if (processDirs == null) {
-            return null;
-        }
-
-        int uid = android.os.Process.myUid();
-        ArrayList<ProcessInfo> processInfoList = new ArrayList<>();
-        for (File processDir : processDirs) {
-            if (!isPidDirectory(processDir)) {
-                continue;
-            }
-
-            ProcessInfo processInfo = readProcStatus(processDir, uid);
-            if (processInfo != null) {
-                processInfoList.add(processInfo);
-            }
-        }
-
-        processInfoList.sort((left, right) -> Long.compare(right.memoryUsage, left.memoryUsage));
-        if (processInfoList.size() > MAX_PROCESS_INFO_COUNT) {
-            return new ArrayList<>(processInfoList.subList(0, MAX_PROCESS_INFO_COUNT));
-        }
-        return processInfoList.isEmpty() ? null : processInfoList;
-    }
-
-    private static boolean isPidDirectory(File file) {
-        String name = file.getName();
-        if (name.isEmpty()) {
-            return false;
-        }
-        for (int i = 0; i < name.length(); i++) {
-            if (!Character.isDigit(name.charAt(i))) {
-                return false;
-            }
-        }
-        return file.isDirectory();
-    }
-
-    private static ProcessInfo readProcStatus(File processDir, int expectedUid) {
-        int pid;
-        try {
-            pid = Integer.parseInt(processDir.getName());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-
-        String name = null;
-        char state = 0;
-        int uid = -1;
-        long memoryUsage = 0;
-        int affinityMask = defaultAffinityMask();
-        File statusFile = new File(processDir, "status");
-        try (BufferedReader reader = new BufferedReader(new FileReader(statusFile))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.startsWith("Name:")) {
-                    name = line.substring("Name:".length()).trim();
-                } else if (line.startsWith("State:")) {
-                    state = parseProcState(line.substring("State:".length()));
-                } else if (line.startsWith("Uid:")) {
-                    uid = parseFirstInt(line.substring("Uid:".length()), -1);
-                } else if (line.startsWith("VmRSS:")) {
-                    memoryUsage = parseFirstLong(line.substring("VmRSS:".length()), 0) * 1024L;
-                } else if (line.startsWith("Cpus_allowed:")) {
-                    affinityMask = parseCpuMask(line.substring("Cpus_allowed:".length()));
-                }
-            }
-        } catch (IOException e) {
-            return null;
-        }
-
-        if (uid != expectedUid || name == null || name.isEmpty() || isDeadProcState(state)) {
-            return null;
-        }
-        return new ProcessInfo(pid, name, memoryUsage, affinityMask, false);
-    }
-
-    private static char parseProcState(String value) {
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? 0 : trimmed.charAt(0);
-    }
-
-    private static boolean isDeadProcState(char state) {
-        return state == 'Z' || state == 'X' || state == 'x';
-    }
-
-    private static int parseFirstInt(String value, int fallback) {
-        long result = parseFirstLong(value, fallback);
-        return result > Integer.MAX_VALUE ? fallback : (int) result;
-    }
-
-    private static long parseFirstLong(String value, long fallback) {
-        String trimmed = value.trim();
-        if (trimmed.isEmpty()) {
-            return fallback;
-        }
-        String[] parts = trimmed.split("\\s+");
-        try {
-            return Long.parseLong(parts[0]);
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
-    }
-
-    private static int parseCpuMask(String value) {
-        String mask = value.replace(",", "").trim();
-        if (mask.isEmpty()) {
-            return defaultAffinityMask();
-        }
-        if (mask.length() > 8) {
-            mask = mask.substring(mask.length() - 8);
-        }
-        try {
-            int parsed = (int) Long.parseLong(mask, 16);
-            return parsed == 0 ? defaultAffinityMask() : parsed;
-        } catch (NumberFormatException e) {
-            return defaultAffinityMask();
-        }
-    }
-
-    private static int defaultAffinityMask() {
-        int processors = Math.min(Runtime.getRuntime().availableProcessors(), 30);
-        return (1 << processors) - 1;
-    }
-
     private final Runnable mClearPendingDisplaySidePanelUnlockBackRunnable = () -> mPendingDisplaySidePanelUnlockBack = false;
     private final Runnable mRestoreFloatBallMenuAfterPictureInPictureRunnable = this::restoreFloatBallMenuAfterPictureInPicture;
     private final Runnable mDisplaySidePanelAutoLockRunnable = new Runnable() {
@@ -393,8 +258,16 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     private static final String LOG_TAG = "TermuxActivity";
     private FloatBallMenuClient mFloatBallMenuClient;
 
-    private LorieViewRuntimeController getLorieViewRuntime() {
+    public LorieViewRuntimeController getLorieViewRuntime() {
         return mLorieViewRuntimeController;
+    }
+
+    public TermuxX11HostClient getX11HostClient() {
+        return mX11HostClient;
+    }
+
+    public TermuxBoxContainerManagerClient getTermuxBoxContainerManagerClient() {
+        return mTermuxBoxContainerManagerClient;
     }
 
     public void onMenuOpen(boolean isOpen, int flag) {
@@ -407,49 +280,9 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
 
     @NonNull
-    @Override
-    public Activity getActivity() {
-        return this;
-    }
-
-    @Override
-    public void openX11Preferences(boolean open) {
-        if (open) {
-            if (mMainSurfaceController != null)
-                mMainSurfaceController.openEndDrawerExplicitly();
-            else
-                getDrawer().openDrawer(GravityCompat.END);
-        } else {
-            getDrawer().closeDrawer(GravityCompat.END);
-        }
-    }
-
-    @Override
-    public void requestX11Focus(boolean focused) {
-        if (mLorieViewRuntimeController != null)
-            mLorieViewRuntimeController.requestX11Focus(focused);
-    }
-
-    @Override
-    public void openSoftKeyboard() {
-        if (mLorieViewRuntimeController != null)
-            mLorieViewRuntimeController.openSoftKeyboard();
-    }
-
-    @Override
-    public void showProcessManager() {
-        if (mLorieViewRuntimeController != null)
-            mLorieViewRuntimeController.showProcessManager();
-    }
-
     public void showProcessManagerDialog() {
         if (mLorieViewRuntimeController != null)
             mLorieViewRuntimeController.showProcessManagerDialog();
-    }
-
-    public void showInputControlsDialog() {
-        if (mLorieViewRuntimeController != null)
-            mLorieViewRuntimeController.showInputControlsDialog();
     }
 
     public String toggleX11ForceOrientation() {
@@ -463,38 +296,42 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         return next;
     }
 
-    @Override
+    public void openX11Preferences(boolean open) {
+        mX11HostClient.openX11Preferences(open);
+    }
+
+    public void showInputControlsDialog() {
+        mX11HostClient.showInputControlsDialog();
+    }
+
+    public void openSoftKeyboard() {
+        mX11HostClient.openSoftKeyboard();
+    }
+
     public void stopDesktop() {
-        stopXserver();
+        mX11HostClient.stopDesktop();
     }
 
     @NonNull
-    @Override
     public com.termux.x11.Prefs getX11Prefs() {
-        return mLorieViewRuntimeController.getX11Prefs();
+        return mX11HostClient.getX11Prefs();
     }
 
     @Nullable
-    @Override
     public LorieViewRuntimeApi.ActivityIntegration getX11ActivityIntegration() {
-        return mLorieViewRuntimeController != null ? mLorieViewRuntimeController.getX11ActivityIntegration() : null;
+        return mX11HostClient.getX11ActivityIntegration();
     }
 
-    @Override
     public void openPreference(boolean open) {
-        openX11Preferences(open);
+        mX11HostClient.openPreference(open);
     }
 
-    @Override
     public void installX11ServerBridge() {
-        if (mLorieViewRuntimeController != null)
-            mLorieViewRuntimeController.installX11ServerBridge();
+        mX11HostClient.installX11ServerBridge();
     }
 
-    @Override
     public void onX11PreferenceChanged(String key) {
-        if (mLorieViewRuntimeController != null)
-            mLorieViewRuntimeController.applyX11PreferenceChange(key);
+        mX11HostClient.onX11PreferenceChanged(key);
     }
 
     private void showX11PreferenceFragment(PreferenceFragmentCompat fragment) {
@@ -517,11 +354,20 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         return mMainSurfaceController;
     }
 
+    @Nullable
+    public FloatBallMenuClient getFloatBallMenuClient() {
+        return mFloatBallMenuClient;
+    }
+
+    public void setFloatBallMenuClient(@Nullable FloatBallMenuClient client) {
+        mFloatBallMenuClient = client;
+    }
+
     private boolean isX11FloatBallMenuActive() {
         return getLorieViewRuntime().isX11FloatBallMenuEnabled();
     }
 
-    private void updateDisplaySidePanelPolicy() {
+    public void updateDisplaySidePanelPolicy() {
         if (mMainSurfaceController != null)
             mMainSurfaceController.setDisplaySidePanelPolicy(
                 isX11FloatBallMenuActive(),
@@ -541,7 +387,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
             LoriePreferences.handler.postDelayed(mDisplaySidePanelAutoLockRunnable, DISPLAY_SIDE_PANEL_UNLOCK_IDLE_TIMEOUT_MS);
     }
 
-    private void lockDisplaySidePanels(boolean showToast, int toastResId) {
+    public void lockDisplaySidePanels(boolean showToast, int toastResId) {
         boolean wasUnlocked = mDisplaySidePanelsUnlocked;
         mDisplaySidePanelsUnlocked = false;
         resetDisplaySidePanelUnlockBackState();
@@ -569,25 +415,25 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         lockDisplaySidePanels(true, R.string.x11_side_panels_locked_timeout);
     }
 
-    private boolean handleDisplaySidePanelUnlockBackRequest() {
+    public void handleDisplaySidePanelUnlockBackRequest() {
         long now = SystemClock.uptimeMillis();
 
         if (isDisplaySurfaceMode() && isX11FloatBallMenuActive()) {
             lockDisplaySidePanels(false, 0);
             Toast.makeText(this, R.string.x11_side_panels_float_ball_only, Toast.LENGTH_SHORT).show();
-            return true;
+            return;
         }
 
         if (mDisplaySidePanelsUnlocked) {
             scheduleDisplaySidePanelAutoLock();
             Toast.makeText(this, R.string.x11_side_panels_already_unlocked, Toast.LENGTH_SHORT).show();
-            return true;
+            return;
         }
 
         if (mPendingDisplaySidePanelUnlockBack
             && now - mDisplaySidePanelUnlockBackPromptTime <= DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS) {
             unlockDisplaySidePanels();
-            return true;
+            return;
         }
 
         mPendingDisplaySidePanelUnlockBack = true;
@@ -595,7 +441,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         LoriePreferences.handler.removeCallbacks(mClearPendingDisplaySidePanelUnlockBackRunnable);
         LoriePreferences.handler.postDelayed(mClearPendingDisplaySidePanelUnlockBackRunnable, DISPLAY_SIDE_PANEL_UNLOCK_BACK_TIMEOUT_MS);
         Toast.makeText(this, R.string.x11_side_panels_unlock_prompt, Toast.LENGTH_SHORT).show();
-        return true;
     }
 
     public void setTerminalCopyMode(boolean copyMode) {
@@ -754,7 +599,9 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
         setActivityTheme();
         super.onCreate(savedInstanceState);
-        mLorieViewRuntimeController = new LorieViewRuntimeController(this);
+        mX11HostClient = new TermuxX11HostClient(this);
+        LorieViewRuntimeApi.registerHost(mX11HostClient);
+        mLorieViewRuntimeController = new LorieViewRuntimeController(mX11HostClient);
         setContentView(R.layout.activity_termux_main);
 
         showX11PreferenceFragment(new LoriePreferences.LoriePreferenceFragment(null));
@@ -838,101 +685,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         // Send the {@link TermuxConstants#BROADCAST_TERMUX_OPENED} broadcast to notify apps that Termux
         // app has been opened.
         TermuxUtils.sendTermuxOpenedBroadcast(this);
-        getLorieViewRuntime().setX11ActivityIntegration(new LorieViewRuntimeApi.ActivityIntegration() {
-            @Override
-            public void onX11PreferenceSwitchChange(boolean isOpen) {
-                openX11Preferences(isOpen);
-            }
-
-            @Override
-            public void releaseSlider(boolean open) {
-                if (mMainSurfaceController != null && mMainSurfaceController.isDisplayMode() && open) {
-                    handleDisplaySidePanelUnlockBackRequest();
-                } else if (mMainSurfaceController != null) {
-                    mMainSurfaceController.restoreDrawerLockMode();
-                } else {
-                    getDrawer().setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, GravityCompat.END);
-                }
-            }
-
-            @Override
-            public void onChangeOrientation(int landscape) {
-                getLorieViewRuntime().reloadInputControlsProfiles(true);
-            }
-
-            @Override
-            public void reInstallX11StartScript(Activity activity) {
-                activity.runOnUiThread(() -> {
-                    FileUtils.copyAssetsFile2Phone(activity, "install", ".termux/tmp");
-                    new File(TERMUX_HOME_DIR_PATH, ".termux/tmp/install").setExecutable(true, true);
-                    FileUtils.copyAssetsFile2Phone(activity, "termux-x11-nightly-1.03.10-0-all.deb", ".termux/tmp");
-                    FileUtils.copyAssetsFile2Phone(activity, "xkeyboard-config_2.45_all.deb", ".termux/tmp");
-                    CommandUtils.execInPath(activity, "install", null, "/home/.termux/tmp/");
-                });
-            }
-
-            @Override
-            public void stopDesktop() {
-                stopXserver();
-            }
-
-            @Override
-            public void openSoftwareKeyboard() {
-                TermuxActivity.this.getLorieViewRuntime().openSoftKeyboard();
-            }
-
-            @Override
-            public void showProcessManager() {
-                TermuxActivity.this.getLorieViewRuntime().showProcessManager();
-            }
-
-            @Override
-            public void changePreference(String key) {
-                TermuxActivity.this.getLorieViewRuntime().applyX11PreferenceChange(key);
-            }
-
-            @Override
-            public List<ProcessInfo> collectProcessorInfo(String tag) {
-                if ("1".equals(tag)) {
-                    return null;
-                }
-                return collectTermuxProcessInfo();
-            }
-
-            @Override
-            public void setFloatBallMenu(boolean enableFloatBallMenu, boolean enableGlobalFloatBallMenu) {
-                if (mFloatBallMenuClient != null) {
-                    if (!enableFloatBallMenu) {
-                        mFloatBallMenuClient.onDestroy();
-                        mFloatBallMenuClient = null;
-                    } else {
-                        if (enableGlobalFloatBallMenu != mFloatBallMenuClient.isGlobalFloatBallMenu()) {
-                            mFloatBallMenuClient.onDestroy();
-                            mFloatBallMenuClient = null;
-                            if (enableFloatBallMenu) {
-                                LoriePreferences.handler.postDelayed(() -> {
-                                    mFloatBallMenuClient = new FloatBallMenuClient(TermuxActivity.this);
-                                    mFloatBallMenuClient.onCreate();
-                                }, 100);
-                            }
-
-                        }
-                    }
-                } else {
-                    if (enableFloatBallMenu) {
-                        mFloatBallMenuClient = new FloatBallMenuClient(TermuxActivity.this);
-                        mFloatBallMenuClient.onCreate();
-                    }
-                }
-                lockDisplaySidePanels(false, 0);
-                updateDisplaySidePanelPolicy();
-            }
-
-            @Override
-            public void onExitApp() {
-                TermuxActivity.this.handleDisplaySidePanelUnlockBackRequest();
-            }
-        });
+        getLorieViewRuntime().setX11ActivityIntegration(new TermuxX11ActivityIntegration(this));
     }
 
     private void setFloatBallMenuClient() {
@@ -1042,6 +795,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         if (mFloatBallMenuClient != null) {
             mFloatBallMenuClient.onDestroy();
         }
+        LorieViewRuntimeApi.unregisterHost();
     }
 
     @Override
@@ -2088,7 +1842,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         return intent;
     }
 
-    private void stopXserver(){
+    public void stopXserver(){
         final AlertDialog.Builder b = new AlertDialog.Builder(this );
         b.setIcon(android.R.drawable.ic_dialog_alert);
         b.setMessage(R.string.stop_desktop_title);

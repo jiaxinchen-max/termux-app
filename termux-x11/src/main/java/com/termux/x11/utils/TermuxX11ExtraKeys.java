@@ -190,6 +190,12 @@ public class TermuxX11ExtraKeys implements TermuxExtraKeysView.IExtraKeysView {
             mHost.toggleMouseAuxButtons();
         else if ("STYLUS_HELPER".equals(key))
             mHost.toggleStylusAuxButtons();
+        else if ("ZOOM_IN".equals(key))
+            mHost.getLorieView().adjustRendererZoom(25);
+        else if ("ZOOM_OUT".equals(key))
+            mHost.getLorieView().adjustRendererZoom(-25);
+        else if ("ZOOM_RESET".equals(key))
+            mHost.getLorieView().resetRendererZoom();
         else
             onTerminalExtraKeyButtonClick(view, key, ctrlDown, altDown, shiftDown, metaDown, fnDown);
     }

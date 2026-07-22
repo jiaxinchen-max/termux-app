@@ -47,11 +47,14 @@ public class TermuxBoxContainerFragment extends Fragment {
     private LinearLayout pageAdvanced;
     private TermuxBoxDropdownField containerNameInput;
     private TermuxBoxDropdownField wineVersionInput;
-    private TermuxBoxDropdownField gpuDriverInput;
-    private TermuxBoxDropdownField gpuAccelInput;
+    private TermuxBoxDropdownField graphicsDriverInput;
+    private TermuxBoxDropdownField dxwrapperInput;
     private TermuxBoxDropdownField audioDriverInput;
-    private TermuxBoxDropdownField localeInput;
     private TermuxBoxDropdownField resolutionInput;
+    private TermuxBoxDropdownField gamepadMapperInput;
+    private TermuxBoxDropdownField hudModeInput;
+    private TermuxBoxDropdownField startupSelectionInput;
+    private TermuxBoxDropdownField box64PresetInput;
     private int initialTab = 0;
 
     public static TermuxBoxContainerFragment newInstance(int initialTab) {
@@ -94,25 +97,21 @@ public class TermuxBoxContainerFragment extends Fragment {
         containerNameInput = root.findViewById(R.id.termux_box_container_name_input);
         wineVersionInput = root.findViewById(R.id.termux_box_wine_version_input);
         resolutionInput = root.findViewById(R.id.termux_box_resolution_input);
-        localeInput = root.findViewById(R.id.termux_box_locale_input);
-        gpuDriverInput = root.findViewById(R.id.termux_box_gpu_driver_input);
-        gpuAccelInput = root.findViewById(R.id.termux_box_gpu_accel_input);
+        graphicsDriverInput = root.findViewById(R.id.termux_box_gpu_driver_input);
+        dxwrapperInput = root.findViewById(R.id.termux_box_gpu_accel_input);
         audioDriverInput = root.findViewById(R.id.termux_box_audio_driver_input);
         if (containerNameInput != null) {
             containerNameInput.setLabel(s(R.string.termux_box_container_name));
             containerNameInput.setEditable(true);
         }
-        if (gpuDriverInput != null) {
-            gpuDriverInput.setLabel(s(R.string.termux_box_container_gpu_driver));
+        if (graphicsDriverInput != null) {
+            graphicsDriverInput.setLabel("GPU");
         }
         if (resolutionInput != null) {
             resolutionInput.setLabel(s(R.string.termux_box_container_resolution));
         }
-        if (localeInput != null) {
-            localeInput.setLabel(s(R.string.termux_box_container_locale));
-        }
-        if (gpuAccelInput != null) {
-            gpuAccelInput.setLabel(s(R.string.termux_box_container_gpu_accel));
+        if (dxwrapperInput != null) {
+            dxwrapperInput.setLabel("DX Wrapper");
         }
         if (audioDriverInput != null) {
             audioDriverInput.setLabel(s(R.string.termux_box_container_audio_driver));
@@ -138,18 +137,15 @@ public class TermuxBoxContainerFragment extends Fragment {
             containerNames.add(s(R.string.termux_box_container_placeholder_name_3));
         }
 
-        String[] resolutionOptions = a(R.array.termux_box_container_resolution_entries);
-        String[] gpuDriverOptions = a(R.array.termux_box_container_gpu_driver_entries);
-        String[] gpuAccelOptions = a(R.array.termux_box_container_gpu_accel_entries);
+        String[] resolutionOptions = a(R.array.termux_box_container_screen_size_entries);
+        String[] graphicsDriverOptions = a(R.array.termux_box_container_graphics_driver_entries);
+        String[] dxwrapperOptions = a(R.array.termux_box_container_dxwrapper_entries);
         String[] audioDriverOptions = a(R.array.termux_box_container_audio_driver_entries);
-        String[] localeOptions = a(R.array.termux_box_container_locale_entries);
-
         setDropdown(containerNameInput, containerNames.toArray(new String[0]),
             !TextUtils.isEmpty(currentContainerName) ? currentContainerName : containerNames.get(0));
-        setDropdown(resolutionInput, resolutionOptions, displayResolution(currentContainer == null ? repository.getFallbackResolution() : currentContainer.resolution));
-        setDropdown(localeInput, localeOptions, stripUtf8(currentContainer == null ? repository.getLocale() : currentContainer.locale));
-        setDropdown(gpuDriverInput, gpuDriverOptions, currentContainer == null ? gpuDriverOptions[0] : currentContainer.gpuDriver);
-        setDropdown(gpuAccelInput, gpuAccelOptions, currentContainer == null ? gpuAccelOptions[0] : currentContainer.gpuAccel);
+        setDropdown(resolutionInput, resolutionOptions, currentContainer == null ? "1280x720 (16:9)" : displayResolution(currentContainer.screenSize));
+        setDropdown(graphicsDriverInput, graphicsDriverOptions, currentContainer == null ? graphicsDriverOptions[0] : displayGraphicsDriver(currentContainer.graphicsDriver));
+        setDropdown(dxwrapperInput, dxwrapperOptions, currentContainer == null ? dxwrapperOptions[0] : currentContainer.dxwrapper);
         setDropdown(audioDriverInput, audioDriverOptions, currentContainer == null ? audioDriverOptions[0] : currentContainer.audioDriver);
 
         // Wine version: populated from actually installed wine packages
@@ -167,7 +163,7 @@ public class TermuxBoxContainerFragment extends Fragment {
                 wineVersionValues[i] = installedWines.get(i).name;
             }
         }
-        String currentWine = currentContainer == null ? wineVersionValues[0] : currentContainer.winePackage;
+        String currentWine = currentContainer == null ? wineVersionValues[0] : currentContainer.wineVersion;
         if (wineVersionInput != null) {
             wineVersionInput.setLabel(s(R.string.termux_box_container_wine_version));
             wineVersionInput.setOptions(wineVersionLabels, wineVersionValues, currentWine);
@@ -176,15 +172,40 @@ public class TermuxBoxContainerFragment extends Fragment {
         if (containerNameInput != null) {
             containerNameInput.setOnSelectionChangedListener((position, label, value) -> refreshState());
         }
-        if (gpuDriverInput != null) {
-            gpuDriverInput.setOnSelectionChangedListener((position, label, value) -> refreshState());
+        if (graphicsDriverInput != null) {
+            graphicsDriverInput.setOnSelectionChangedListener((position, label, value) -> refreshState());
         }
-        if (gpuAccelInput != null) {
-            gpuAccelInput.setOnSelectionChangedListener((position, label, value) -> refreshState());
+        if (dxwrapperInput != null) {
+            dxwrapperInput.setOnSelectionChangedListener((position, label, value) -> refreshState());
         }
         if (audioDriverInput != null) {
             audioDriverInput.setOnSelectionChangedListener((position, label, value) -> refreshState());
         }
+    }
+
+    private String displayGraphicsDriver(String raw) {
+        if (raw == null || raw.isEmpty()) return "Vortek";
+        String[] parts = raw.split(",");
+        if (parts.length > 0) {
+            String vk = parts[0].trim();
+            if (vk.equals("turnip")) return "Turnip";
+            if (vk.equals("vortek")) return "Vortek";
+        }
+        return "Vortek";
+    }
+
+    private String displayBox64Preset(String raw) {
+        if (raw == null) return "Intermediate";
+        String[] values = a(R.array.termux_box_container_box64_preset_values);
+        for (int i = 0; i < values.length; i++) {
+            if (values[i].equals(raw)) return a(R.array.termux_box_container_box64_preset_entries)[i];
+        }
+        return "Intermediate";
+    }
+
+    private String getBox64PresetValue(int index) {
+        String[] values = a(R.array.termux_box_container_box64_preset_values);
+        return index >= 0 && index < values.length ? values[index] : "INTERMEDIATE";
     }
 
     private void setupTabs() {
@@ -269,157 +290,48 @@ public class TermuxBoxContainerFragment extends Fragment {
             addCenteredAction(R.string.termux_box_container_add, v -> Toast.makeText(requireContext(), s(R.string.termux_box_container_adding_folder), Toast.LENGTH_SHORT).show());
         }));
 
-        pageAdvanced.addView(buildSectionHeader(R.string.termux_box_container_box64_title, R.string.termux_box_container_box64_summary));
+        pageAdvanced.addView(buildSectionHeader(s(R.string.termux_box_container_box64_title), ""));
         pageAdvanced.addView(buildCard(() -> {
-            addDropdownField(s(R.string.termux_box_container_box64_preset), a(R.array.termux_box_container_box64_preset_entries), a(R.array.termux_box_container_box64_preset_entries)[0]);
+            hudModeInput = new TermuxBoxDropdownField(requireContext());
+            hudModeInput.setLabel("HUD Mode");
+            hudModeInput.setOptions(a(R.array.termux_box_container_hud_mode_entries), "Disabled");
+            currentCardBody().addView(hudModeInput);
+
+            startupSelectionInput = new TermuxBoxDropdownField(requireContext());
+            startupSelectionInput.setLabel("Startup");
+            startupSelectionInput.setOptions(a(R.array.termux_box_container_startup_selection_entries), "Essential (Load only essential services)");
+            currentCardBody().addView(startupSelectionInput);
+
+            box64PresetInput = new TermuxBoxDropdownField(requireContext());
+            box64PresetInput.setLabel("Box64 Preset");
+            box64PresetInput.setOptions(a(R.array.termux_box_container_box64_preset_entries), "Intermediate");
+            currentCardBody().addView(box64PresetInput);
         }));
+
+        // ---- Gamepad input protocol ----
+        pageAdvanced.addView(buildSectionHeader(s(R.string.termux_box_container_gamepad), s(R.string.termux_box_container_gamepad_mapper_desc)));
         pageAdvanced.addView(buildCard(() -> {
-            addDropdownField(s(R.string.termux_box_container_box64_startup), a(R.array.termux_box_container_box64_startup_entries), a(R.array.termux_box_container_box64_startup_entries)[0]);
-            addDropdownField(s(R.string.termux_box_container_windows_version), a(R.array.termux_box_container_windows_version_entries), a(R.array.termux_box_container_windows_version_entries)[0]);
+            gamepadMapperInput = new TermuxBoxDropdownField(requireContext());
+            gamepadMapperInput.setLabel(s(R.string.termux_box_container_gamepad_mapper));
+            String[] mapperOptions = a(R.array.termux_box_container_gamepad_mapper_entries);
+            gamepadMapperInput.setOptions(mapperOptions, mapperOptions[1]); // Default: XInput
+            currentCardBody().addView(gamepadMapperInput);
         }));
-        pageAdvanced.addView(buildSectionHeader(R.string.termux_box_container_dynarec_title, R.string.termux_box_container_dynarec_summary));
+
+        // ---- Session lifecycle ----
+        pageAdvanced.addView(buildSectionHeader(s(R.string.termux_box_container_session_auto_close), s(R.string.termux_box_container_session_auto_close_summary)));
         pageAdvanced.addView(buildCard(() -> {
-            String[] dynarecPresetLabels = a(R.array.termux_box_container_dynarec_preset_entries);
-            addDropdownActionField(
-                s(R.string.termux_box_container_dynarec_preset),
-                s(R.string.termux_box_container_dynarec_hint),
-                new DropdownOption[] {
-                    option(dynarecPresetLabels[0], "1"),
-                    option(dynarecPresetLabels[1], "2"),
-                    option(dynarecPresetLabels[2], "3"),
-                    option(dynarecPresetLabels[3], "4"),
-                    option(dynarecPresetLabels[4], "manual")
-                },
-                repository.getDynarecPresetSelection(),
-                value -> {
-                    if ("manual".equals(value)) {
-                        repository.setDynarecPresetMode(1);
-                    } else {
-                        repository.applyDynarecPreset(Integer.parseInt(value));
-                    }
-                });
-        }));
-        pageAdvanced.addView(buildCard(() -> {
-            addText(R.string.termux_box_container_compatibility_flags);
-            addDropdownActionField(
-                "FASTNAN",
-                null,
-                new DropdownOption[] {
-                    option(s(R.string.termux_box_container_unset), "unset"),
-                    option("0", "0"),
-                    option("1", "1")
-                },
-                repository.getDynarecFlagValue("BOX64_DYNAREC_FASTNAN", "unset"),
-                value -> repository.setDynarecFlag("BOX64_DYNAREC_FASTNAN", value));
-            addDropdownActionField(
-                "X87DOUBLE",
-                null,
-                new DropdownOption[] {
-                    option(s(R.string.termux_box_container_unset), "unset"),
-                    option("0", "0"),
-                    option("1", "1")
-                },
-                repository.getDynarecFlagValue("BOX64_DYNAREC_X87DOUBLE", "unset"),
-                value -> repository.setDynarecFlag("BOX64_DYNAREC_X87DOUBLE", value));
-            addDropdownActionField(
-                "STRONGMEM",
-                null,
-                new DropdownOption[] {
-                    option(s(R.string.termux_box_container_unset), "unset"),
-                    option("1", "1"),
-                    option("2", "2"),
-                    option("3", "3")
-                },
-                repository.getDynarecFlagValue("BOX64_DYNAREC_STRONGMEM", "unset"),
-                value -> repository.setDynarecFlag("BOX64_DYNAREC_STRONGMEM", value));
-            addDropdownActionField(
-                "SAFEFLAGS",
-                null,
-                new DropdownOption[] {
-                    option(s(R.string.termux_box_container_unset), "unset"),
-                    option("0", "0"),
-                    option("2", "2")
-                },
-                repository.getDynarecFlagValue("BOX64_DYNAREC_SAFEFLAGS", "unset"),
-                value -> repository.setDynarecFlag("BOX64_DYNAREC_SAFEFLAGS", value));
-            addDropdownActionField(
-                "CALLRET",
-                null,
-                new DropdownOption[] {
-                    option(s(R.string.termux_box_container_unset), "unset"),
-                    option("0", "0"),
-                    option("1", "1")
-                },
-                repository.getDynarecFlagValue("BOX64_DYNAREC_CALLRET", "unset"),
-                value -> repository.setDynarecFlag("BOX64_DYNAREC_CALLRET", value));
-            addDropdownActionField(
-                "FASTROUND",
-                null,
-                new DropdownOption[] {
-                    option(s(R.string.termux_box_container_unset), "unset"),
-                    option("0", "0"),
-                    option("1", "1")
-                },
-                repository.getDynarecFlagValue("BOX64_DYNAREC_FASTROUND", "unset"),
-                value -> repository.setDynarecFlag("BOX64_DYNAREC_FASTROUND", value));
-            addDropdownActionField(
-                "BIGBLOCK",
-                null,
-                new DropdownOption[] {
-                    option(s(R.string.termux_box_container_unset), "unset"),
-                    option("0", "0"),
-                    option("2", "2")
-                },
-                repository.getDynarecFlagValue("BOX64_DYNAREC_BIGBLOCK", "unset"),
-                value -> repository.setDynarecFlag("BOX64_DYNAREC_BIGBLOCK", value));
-            addDropdownActionField(
-                "IGNOREINT3",
-                null,
-                new DropdownOption[] {
-                    option(s(R.string.termux_box_container_unset), "unset"),
-                    option("0", "0"),
-                    option("1", "1")
-                },
-                repository.getDynarecFlagValue("BOX64_IGNOREINT3", "unset"),
-                value -> repository.setDynarecFlag("BOX64_IGNOREINT3", value));
-            addCenteredAction(R.string.termux_box_container_restore_default, v -> runTask(R.string.termux_box_container_saving_dynarec, listener -> repository.resetDynarecToDefault()));
-        }));
-        pageAdvanced.addView(buildSectionHeader(R.string.termux_box_container_system_presets, R.string.termux_box_container_system_presets_summary));
-        pageAdvanced.addView(buildCard(() -> {
-            addDropdownActionField(
-                s(R.string.termux_box_container_cpu_cores),
-                s(R.string.termux_box_container_cpu_cores_values),
-                new DropdownOption[] {
-                    option("2", "2"),
-                    option("3", "3"),
-                    option("4", "4"),
-                    option("5", "5"),
-                    option("6", "6"),
-                    option("7", "7"),
-                    option("8", "8")
-                },
-                repository.getCorePresetSelection(),
-                value -> repository.setCorePresetByPreset(Integer.parseInt(value)));
-            addDropdownActionField(
-                s(R.string.termux_box_container_hud_preset),
-                s(R.string.termux_box_container_hud_values),
-                new DropdownOption[] {
-                    option(s(R.string.termux_box_container_hud_off), "1"),
-                    option(s(R.string.termux_box_container_hud_fps), "2"),
-                    option(s(R.string.termux_box_container_hud_detailed), "3")
-                },
-                repository.getHudPresetSelection(),
-                value -> repository.setHudPreset(Integer.parseInt(value)));
-            addDropdownActionField(
-                s(R.string.termux_box_container_tu_debug_title),
-                s(R.string.termux_box_container_tu_debug_summary),
-                new DropdownOption[] {
-                    option(s(R.string.termux_box_container_tu_debug_noconform), "1"),
-                    option(s(R.string.termux_box_container_tu_debug_syncdraw), "2"),
-                    option(s(R.string.termux_box_container_tu_debug_flushall), "3")
-                },
-                repository.getTuDebugPresetSelection(),
-                value -> repository.setTuDebugPreset(Integer.parseInt(value)));
+            SwitchMaterial sessionAutoCloseSwitch = new SwitchMaterial(requireContext());
+            sessionAutoCloseSwitch.setText(s(R.string.termux_box_container_session_auto_close));
+            sessionAutoCloseSwitch.setChecked(repository.getSessionAutoClose());
+            sessionAutoCloseSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                try {
+                    repository.setSessionAutoClose(isChecked);
+                } catch (Exception e) {
+                    Toast.makeText(requireContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+            currentCardBody().addView(sessionAutoCloseSwitch);
         }));
     }
 
@@ -612,6 +524,25 @@ public class TermuxBoxContainerFragment extends Fragment {
         addCenteredAction(s(textResId), listener);
     }
 
+    private SwitchMaterial addSwitchRow(String label) {
+        LinearLayout row = new LinearLayout(requireContext());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, 0, 0, dp(8));
+
+        TextView labelView = new TextView(requireContext());
+        labelView.setText(label);
+        labelView.setTextColor(0xFF5A6773);
+        labelView.setTextSize(12f);
+        row.addView(labelView, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        SwitchMaterial sw = new SwitchMaterial(requireContext());
+        row.addView(sw);
+
+        currentCardBody().addView(row);
+        return sw;
+    }
+
     private void addCenteredAction(String text, View.OnClickListener listener) {
         MaterialButton button = new MaterialButton(requireContext());
         button.setText(text);
@@ -708,22 +639,31 @@ public class TermuxBoxContainerFragment extends Fragment {
         TermuxBoxContainerSpec selected = containerMap.get(selectedName);
         if (selected != null) {
             if (wineVersionInput != null) {
-                wineVersionInput.setValue(selected.winePackage);
+                wineVersionInput.setValue(selected.wineVersion);
             }
             if (resolutionInput != null) {
-                resolutionInput.setValue(displayResolution(selected.resolution));
+                resolutionInput.setValue(displayResolution(selected.screenSize));
             }
-            if (localeInput != null) {
-                localeInput.setValue(stripUtf8(selected.locale));
+            if (graphicsDriverInput != null) {
+                graphicsDriverInput.setValue(displayGraphicsDriver(selected.graphicsDriver));
             }
-            if (gpuDriverInput != null) {
-                gpuDriverInput.setValue(selected.gpuDriver);
-            }
-            if (gpuAccelInput != null) {
-                gpuAccelInput.setValue(selected.gpuAccel);
+            if (dxwrapperInput != null) {
+                dxwrapperInput.setValue(selected.dxwrapper);
             }
             if (audioDriverInput != null) {
                 audioDriverInput.setValue(selected.audioDriver);
+            }
+            if (gamepadMapperInput != null) {
+                gamepadMapperInput.setValue(a(R.array.termux_box_container_gamepad_mapper_entries)[selected.dinputMapperType]);
+            }
+            if (hudModeInput != null) {
+                hudModeInput.setValue(a(R.array.termux_box_container_hud_mode_entries)[selected.hudMode]);
+            }
+            if (startupSelectionInput != null) {
+                startupSelectionInput.setValue(a(R.array.termux_box_container_startup_selection_entries)[selected.startupSelection]);
+            }
+            if (box64PresetInput != null) {
+                box64PresetInput.setValue(displayBox64Preset(selected.box64Preset));
             }
         }
     }
@@ -732,20 +672,26 @@ public class TermuxBoxContainerFragment extends Fragment {
         String containerName = safeText(containerNameInput);
         String wineVersion = safeText(wineVersionInput);
         String resolution = extractResolution(safeText(resolutionInput));
-        String locale = safeText(localeInput);
-        String gpuDriver = safeText(gpuDriverInput);
-        String gpuAccel = safeText(gpuAccelInput);
+        String graphicsDriver = safeText(graphicsDriverInput);
+        String dxwrapper = safeText(dxwrapperInput);
         String audioDriver = safeText(audioDriverInput);
+        byte dinputMapperType = (byte)(gamepadMapperInput != null ? gamepadMapperInput.getSelectedIndex() : 1);
+        byte hudMode = (byte)(hudModeInput != null ? hudModeInput.getSelectedIndex() : 0);
+        byte startupSelection = (byte)(startupSelectionInput != null ? startupSelectionInput.getSelectedIndex() : 1);
+        String box64Preset = box64PresetInput != null ? getBox64PresetValue(box64PresetInput.getSelectedIndex()) : "INTERMEDIATE";
 
         runTask(R.string.termux_box_container_applying_settings, listener -> {
             if (!TextUtils.isEmpty(containerName)) {
-                repository.saveContainer(containerName, wineVersion, resolution, locale, gpuDriver, gpuAccel, audioDriver);
+                repository.saveContainer(containerName, wineVersion, resolution,
+                    "",  // envVars (future)
+                    graphicsDriver, dxwrapper, audioDriver,
+                    "",  // wincomponents (future)
+                    hudMode, startupSelection, box64Preset,
+                    "",  // desktopTheme (future)
+                    dinputMapperType);
             }
             if (!TextUtils.isEmpty(resolution)) {
                 repository.setFallbackResolution(resolution);
-            }
-            if (!TextUtils.isEmpty(locale)) {
-                repository.setLocale(locale);
             }
         });
         refreshState();
@@ -853,7 +799,7 @@ public class TermuxBoxContainerFragment extends Fragment {
     }
 
     private String displayResolution(String value) {
-        String[] resolutionOptions = a(R.array.termux_box_container_resolution_entries);
+        String[] resolutionOptions = a(R.array.termux_box_container_screen_size_entries);
         if (TextUtils.isEmpty(value)) {
             return resolutionOptions[0];
         }

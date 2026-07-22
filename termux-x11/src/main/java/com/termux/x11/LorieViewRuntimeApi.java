@@ -20,6 +20,24 @@ public final class LorieViewRuntimeApi {
     private LorieViewRuntimeApi() {
     }
 
+    @Nullable
+    private static Host sRegisteredHost;
+
+    /** Register a Host for preferences and other components that need it. */
+    public static void registerHost(@NonNull Host host) {
+        sRegisteredHost = host;
+    }
+
+    /** Clear the registered host (call from onDestroy). */
+    public static void unregisterHost() {
+        sRegisteredHost = null;
+    }
+
+    @Nullable
+    public static Host getRegisteredHost() {
+        return sRegisteredHost;
+    }
+
     public interface ActivityIntegration {
         void onX11PreferenceSwitchChange(boolean isOpen);
 

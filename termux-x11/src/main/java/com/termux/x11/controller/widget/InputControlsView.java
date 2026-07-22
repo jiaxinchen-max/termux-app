@@ -702,7 +702,6 @@ public class InputControlsView extends View {
             int buttonIdx = binding.ordinal() - Binding.GAMEPAD_BUTTON_A.ordinal();
             if (buttonIdx <= 11) {
                 state.setPressed(buttonIdx, isActionDown);
-//                if (winHandler != null) winHandler.saveGamepadState(state);
             } else if (binding == Binding.GAMEPAD_LEFT_THUMB_UP || binding == Binding.GAMEPAD_LEFT_THUMB_DOWN) {
                 state.thumbLY = isActionDown ? offset : 0;
             } else if (binding == Binding.GAMEPAD_LEFT_THUMB_LEFT || binding == Binding.GAMEPAD_LEFT_THUMB_RIGHT) {
@@ -717,11 +716,13 @@ public class InputControlsView extends View {
             }
 
             if (winHandler != null) {
-                ExternalController controller = winHandler.getCurrentController();
-                if (controller != null) {
-                    controller.state.copy(state);
+                // Sync virtual gamepad state to physical controllers and send via GamepadHandler
+                ExternalController physController = winHandler.gamepadHandler.getCurrentController();
+                if (physController != null) {
+                    physController.state.copy(state);
                 }
-                winHandler.sendGamepadState();
+                // Send state for the virtual gamepad profile
+                winHandler.gamepadHandler.sendGamepadState(profile);
             }
         } else {
             if (binding == Binding.MOUSE_MOVE_LEFT || binding == Binding.MOUSE_MOVE_RIGHT) {

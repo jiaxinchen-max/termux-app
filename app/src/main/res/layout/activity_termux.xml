@@ -121,7 +121,7 @@
                         android:paddingEnd="8dp"
                         android:text="@string/session_list_expanded"
                         android:textColor="?android:attr/textColorSecondary"
-                        android:textSize="8sp" />
+                        android:textSize="12sp" />
 
                     <ListView
                         android:id="@+id/terminal_sessions_list"
@@ -141,7 +141,7 @@
                         android:paddingEnd="8dp"
                         android:text="@string/toolbox_expanded"
                         android:textColor="?android:attr/textColorSecondary"
-                        android:textSize="8sp" />
+                        android:textSize="12sp" />
 
                     <LinearLayout
                         android:id="@+id/toolbox_container"
@@ -162,7 +162,7 @@
                         android:paddingEnd="8dp"
                         android:text="@string/container_manager_expanded"
                         android:textColor="?android:attr/textColorSecondary"
-                        android:textSize="8sp" />
+                        android:textSize="12sp" />
 
                     <LinearLayout
                         android:id="@+id/container_manager_container"

@@ -105,6 +105,7 @@ public class TouchInputHandler {
     private static final int KEY_BACK = 158;
 
     private boolean keyIntercepting = false;
+    private boolean ignoreGamepadEvents = false;
 
     /**
      * Used for tracking swipe gestures. Only the Y-direction is needed for responding to swipe-up
@@ -272,13 +273,23 @@ public class TouchInputHandler {
         mTapDetector.setLongPressedDelay(delay);
     }
     boolean isDexEvent(MotionEvent event) {
-        int SOURCE_DEX = InputDevice.SOURCE_MOUSE | InputDevice.SOURCE_TOUCHSCREEN;
+        // Besides Samsung DeX, several external pointing devices (e.g. some
+        // Bluetooth keyboard+touchpad combos, see #1011) report their taps as
+        // SOURCE_MOUSE + TOOL_TYPE_FINGER (but not SOURCE_TOUCHPAD). Match those
+        // too so they go through the touchpad gesture path and tap-to-click /
+        // multi-finger taps work, instead of the hardware-mouse path which only
+        // forwards physical button state. Real mice use TOOL_TYPE_MOUSE and real
+        // touchpads report SOURCE_TOUCHPAD, so neither is affected.
+        int SOURCE_DEX = InputDevice.SOURCE_MOUSE;
         return ((event.getSource() & SOURCE_DEX) == SOURCE_DEX)
             && ((event.getSource() & InputDevice.SOURCE_TOUCHPAD) != InputDevice.SOURCE_TOUCHPAD)
             && (event.getToolType(event.getActionIndex()) == MotionEvent.TOOL_TYPE_FINGER);
     }
 
     public boolean handleTouchEvent(View view0, View view, MotionEvent event) {
+        if (ignoreGamepadEvents && (event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_JOYSTICK)))
+            return true;
+
         // Regular touchpads and Dex touchpad (in captured mode) send events as finger too,
         // but they should be handled as touchscreens with trackpad mode.
         if (mTouchpadHandler != null && ((event.getToolType(event.getActionIndex()) == MotionEvent.TOOL_TYPE_FINGER &&
@@ -483,6 +494,7 @@ public class TouchInputHandler {
             mHost.getLorieView().releasePointerCapture();
 
         keyIntercepting = !mInjector.pauseKeyInterceptingWithEsc || mHost.getLorieView().hasPointerCapture();
+        ignoreGamepadEvents = p.ignoreGamepadEvents.get();
         SamsungDexUtils.dexMetaKeyCapture(mActivity, mInjector.dexMetaKeyCapture && keyIntercepting);
 
         swipeUpAction = extractUserActionFromPreferences(p, "swipeUp");
@@ -802,6 +814,9 @@ public class TouchInputHandler {
     }
 
     public boolean sendKeyEvent(KeyEvent e) {
+        if (ignoreGamepadEvents && (e.isFromSource(InputDevice.SOURCE_GAMEPAD) || e.isFromSource(InputDevice.SOURCE_JOYSTICK)))
+            return true;
+
         int k = e.getKeyCode();
 
         if (!mHost.getX11DisplayController().isConnected()) {

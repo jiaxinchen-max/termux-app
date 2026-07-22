@@ -27,6 +27,7 @@ public class TermuxBoxDropdownField extends LinearLayout {
     private String[] labels = new String[0];
     private String[] values = new String[0];
     private OnSelectionChangedListener listener;
+    private int selectedIndex = -1;
 
     public TermuxBoxDropdownField(@NonNull Context context) {
         this(context, null);
@@ -77,6 +78,7 @@ public class TermuxBoxDropdownField extends LinearLayout {
         inputView.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, this.labels));
         inputView.setText(resolveDefaultValue(defaultValue), false);
         inputView.setOnItemClickListener((parent, view, position, id) -> {
+            selectedIndex = position;
             if (listener != null && position >= 0 && position < this.labels.length && position < this.values.length) {
                 listener.onSelectionChanged(position, this.labels[position], this.values[position]);
             }
@@ -90,6 +92,10 @@ public class TermuxBoxDropdownField extends LinearLayout {
     public String getValue() {
         CharSequence text = inputView.getText();
         return text == null ? "" : text.toString().trim();
+    }
+
+    public int getSelectedIndex() {
+        return selectedIndex >= 0 ? selectedIndex : 1; // Default to index 1 (XInput)
     }
 
     public void setValue(@Nullable String value) {

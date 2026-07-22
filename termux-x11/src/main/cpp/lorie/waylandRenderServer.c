@@ -392,12 +392,11 @@ static int process(JNIEnv *env, int fd) {
                     pthread_mutex_init(&state->lock, &mutex_attr);
                     pthread_mutex_init(&state->cursor.lock, &mutex_attr);
 
-                    pthread_condattr_init(&cond_attr);
-                    pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED);
-                    pthread_cond_init(&state->cond, &cond_attr);
-
                     pthread_mutexattr_destroy(&mutex_attr);
-                    pthread_condattr_destroy(&cond_attr);
+
+                    // The renderer cond var is created by the activity process (renderer.c)
+                    // and forwarded through connect_() → this process → the X server.
+                    // See handleLorieEvents() for EVENT_RENDERER_WAKEUP_COND handling.
 
                     log(DEBUG, "lorie_shared_server_state:%p", state);
                     state->rootWindowTextureID = textureId;
@@ -447,6 +446,18 @@ static int process(JNIEnv *env, int fd) {
                 case EVENT_STOP_RENDER: {
                     cleanupSharedResources(env);
                     return 0;
+                }
+                case EVENT_RENDERER_WAKEUP_COND: {
+                    int wakeupFd = ancil_recv_fd(fd);
+                    if (wakeupFd >= 0) {
+                        lorieEvent condEvent = { .type = EVENT_RENDERER_WAKEUP_COND };
+                        write(event_fd, &condEvent, sizeof(condEvent));
+                        ancil_send_fd(event_fd, wakeupFd);
+                        close(wakeupFd);
+                        log(INFO, "Forwarded EVENT_RENDERER_WAKEUP_COND fd=%d to X server", wakeupFd);
+                    } else
+                        log(ERROR, "EVENT_RENDERER_WAKEUP_COND did not contain a valid fd");
+                    break;
                 }
                 default:
                     log(DEBUG, "Unknown event type: %d (%s)", e.type, eventTypeName(e.type));

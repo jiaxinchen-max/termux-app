@@ -8,22 +8,25 @@ import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import android.os.Build;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -195,27 +198,42 @@ public final class TermuxBoxRepository {
         deleteFile(new File(termuxBoxDir, "current-container.conf"));
     }
 
-    public TermuxBoxContainerSpec saveContainer(String name, String wineVersion, String resolution, String locale,
-                                                String gpuDriver, String gpuAccel, String audioDriver) throws IOException {
+    public TermuxBoxContainerSpec saveContainer(String name, String wineVersion, String screenSize,
+                                                String envVars, String graphicsDriver, String dxwrapper,
+                                                String audioDriver, String wincomponents,
+                                                byte hudMode, byte startupSelection,
+                                                String box64Preset, String desktopTheme,
+                                                byte dinputMapperType) throws IOException {
         String safeName = name == null || name.trim().isEmpty() ? "Container 1" : name.trim();
         String id = sanitizeId(safeName);
-        // Use explicitly selected wine version, or fall back to default / existing
         String winePackage = (wineVersion != null && !wineVersion.trim().isEmpty())
             ? wineVersion.trim()
             : resolveDefaultWinePackage();
         TermuxBoxContainerSpec existing = findContainer(id);
-        if (existing != null && !existing.winePackage.trim().isEmpty()) {
-            winePackage = existing.winePackage;
+        if (existing != null && !existing.wineVersion.trim().isEmpty()) {
+            winePackage = existing.wineVersion;
         }
         TermuxBoxContainerSpec spec = new TermuxBoxContainerSpec(
             id,
             safeName,
             winePackage,
-            emptyToDefault(resolution, "1280x720"),
-            normalizeLocale(emptyToDefault(locale, "en_US")),
-            emptyToDefault(gpuDriver, "Turnip (Adreno)"),
-            emptyToDefault(gpuAccel, "DXVK"),
-            emptyToDefault(audioDriver, "ALSA")
+            emptyToDefault(screenSize, TermuxBoxContainerSpec.DEFAULT_SCREEN_SIZE),
+            emptyToDefault(envVars, TermuxBoxContainerSpec.DEFAULT_ENV_VARS),
+            emptyToDefault(graphicsDriver, TermuxBoxContainerSpec.DEFAULT_GRAPHICS_DRIVER),
+            emptyToDefault(dxwrapper, TermuxBoxContainerSpec.DEFAULT_DXWRAPPER),
+            "",  // dxwrapperConfig
+            "",  // graphicsDriverConfig
+            "",  // audioDriverConfig
+            emptyToDefault(audioDriver, TermuxBoxContainerSpec.DEFAULT_AUDIO_DRIVER),
+            emptyToDefault(wincomponents, TermuxBoxContainerSpec.DEFAULT_WINCOMPONENTS),
+            TermuxBoxContainerSpec.DEFAULT_DRIVES,
+            hudMode,
+            startupSelection,
+            null,  // cpuList
+            null,  // cpuListWoW64
+            emptyToDefault(box64Preset, TermuxBoxContainerSpec.DEFAULT_BOX64_PRESET),
+            emptyToDefault(desktopTheme, TermuxBoxContainerSpec.DEFAULT_DESKTOP_THEME),
+            dinputMapperType
         );
         File dir = getContainerDir(spec);
         ensureDir(new File(dir, "prefix"));
@@ -253,13 +271,31 @@ public final class TermuxBoxRepository {
             String text = readFile(conf);
             String id = emptyToDefault(readExportValue(text, "TERMUX_BOX_CONTAINER_ID"), fallbackId);
             String name = emptyToDefault(readExportValue(text, "TERMUX_BOX_CONTAINER_NAME"), id);
-            String winePackage = emptyToDefault(readExportValue(text, "TERMUX_BOX_WINE_PACKAGE"), resolveDefaultWinePackage());
-            String resolution = emptyToDefault(readExportValue(text, "TERMUX_BOX_RESOLUTION"), "1280x720");
-            String locale = emptyToDefault(readExportValue(text, "LC_ALL"), "en_US.utf8");
-            String gpuDriver = emptyToDefault(readExportValue(text, "TERMUX_BOX_GPU_DRIVER"), "Turnip (Adreno)");
-            String gpuAccel = emptyToDefault(readExportValue(text, "TERMUX_BOX_GPU_ACCEL"), "DXVK");
-            String audioDriver = emptyToDefault(readExportValue(text, "TERMUX_BOX_AUDIO_DRIVER"), "ALSA");
-            return new TermuxBoxContainerSpec(id, name, winePackage, resolution, locale, gpuDriver, gpuAccel, audioDriver);
+            String wineVersion = emptyToDefault(readExportValue(text, "TERMUX_BOX_WINE_PACKAGE"), resolveDefaultWinePackage());
+            String screenSize = emptyToDefault(readExportValue(text, "TERMUX_BOX_RESOLUTION"), TermuxBoxContainerSpec.DEFAULT_SCREEN_SIZE);
+            String envVars = emptyToDefault(readExportValue(text, "TERMUX_BOX_ENV_VARS"), TermuxBoxContainerSpec.DEFAULT_ENV_VARS);
+            String graphicsDriver = emptyToDefault(readExportValue(text, "TERMUX_BOX_GRAPHICS_DRIVER"), TermuxBoxContainerSpec.DEFAULT_GRAPHICS_DRIVER);
+            String dxwrapper = emptyToDefault(readExportValue(text, "TERMUX_BOX_DXWRAPPER"), TermuxBoxContainerSpec.DEFAULT_DXWRAPPER);
+            String dxwrapperConfig = emptyToDefault(readExportValue(text, "TERMUX_BOX_DXWRAPPER_CONFIG"), "");
+            String graphicsDriverConfig = emptyToDefault(readExportValue(text, "TERMUX_BOX_GRAPHICS_DRIVER_CONFIG"), "");
+            String audioDriverConfig = emptyToDefault(readExportValue(text, "TERMUX_BOX_AUDIO_DRIVER_CONFIG"), "");
+            String audioDriver = emptyToDefault(readExportValue(text, "TERMUX_BOX_AUDIO_DRIVER"), TermuxBoxContainerSpec.DEFAULT_AUDIO_DRIVER);
+            String wincomponents = emptyToDefault(readExportValue(text, "TERMUX_BOX_WINCOMPONENTS"), TermuxBoxContainerSpec.DEFAULT_WINCOMPONENTS);
+            String drives = emptyToDefault(readExportValue(text, "TERMUX_BOX_DRIVES"), TermuxBoxContainerSpec.DEFAULT_DRIVES);
+            byte hudMode = Byte.parseByte(emptyToDefault(readExportValue(text, "TERMUX_BOX_HUD_MODE"), "0"));
+            byte startupSelection = Byte.parseByte(emptyToDefault(readExportValue(text, "TERMUX_BOX_STARTUP_SELECTION"), "1"));
+            String cpuList = readExportValue(text, "TERMUX_BOX_CPU_LIST");
+            if (cpuList.isEmpty()) cpuList = null;
+            String cpuListWoW64 = readExportValue(text, "TERMUX_BOX_CPU_LIST_WOW64");
+            if (cpuListWoW64.isEmpty()) cpuListWoW64 = null;
+            String box64Preset = emptyToDefault(readExportValue(text, "TERMUX_BOX_BOX64_PRESET"), TermuxBoxContainerSpec.DEFAULT_BOX64_PRESET);
+            String desktopTheme = emptyToDefault(readExportValue(text, "TERMUX_BOX_DESKTOP_THEME"), TermuxBoxContainerSpec.DEFAULT_DESKTOP_THEME);
+            byte dinputMapperType = Byte.parseByte(emptyToDefault(readExportValue(text, "TERMUX_BOX_GAMEPAD_MAPPER"), "1"));
+            return new TermuxBoxContainerSpec(id, name, wineVersion, screenSize, envVars,
+                graphicsDriver, dxwrapper, dxwrapperConfig, graphicsDriverConfig,
+                audioDriverConfig, audioDriver, wincomponents, drives,
+                hudMode, startupSelection, cpuList, cpuListWoW64,
+                box64Preset, desktopTheme, dinputMapperType);
         } catch (Exception e) {
             return null;
         }
@@ -268,17 +304,31 @@ public final class TermuxBoxRepository {
     private void writeContainerSpec(TermuxBoxContainerSpec spec) throws IOException {
         File dir = getContainerDir(spec);
         ensureDir(dir);
-        writeFile(new File(dir, "container.conf"),
-            "export TERMUX_BOX_CONTAINER_ID=" + shellQuote(spec.id) + "\n" +
-                "export TERMUX_BOX_CONTAINER_NAME=" + shellQuote(spec.name) + "\n" +
-                "export TERMUX_BOX_CONTAINER_DIR=" + shellQuote(dir.getAbsolutePath()) + "\n" +
-                "export TERMUX_BOX_CONTAINER_PREFIX=" + shellQuote(new File(dir, "prefix").getAbsolutePath()) + "\n" +
-                "export TERMUX_BOX_WINE_PACKAGE=" + shellQuote(spec.winePackage) + "\n" +
-                "export TERMUX_BOX_RESOLUTION=" + shellQuote(spec.resolution) + "\n" +
-                "export TERMUX_BOX_GPU_DRIVER=" + shellQuote(spec.gpuDriver) + "\n" +
-                "export TERMUX_BOX_GPU_ACCEL=" + shellQuote(spec.gpuAccel) + "\n" +
-                "export TERMUX_BOX_AUDIO_DRIVER=" + shellQuote(spec.audioDriver) + "\n" +
-                "export LC_ALL=" + shellQuote(spec.locale) + "\n");
+        StringBuilder sb = new StringBuilder();
+        sb.append("export TERMUX_BOX_CONTAINER_ID=").append(shellQuote(spec.id)).append("\n");
+        sb.append("export TERMUX_BOX_CONTAINER_NAME=").append(shellQuote(spec.name)).append("\n");
+        sb.append("export TERMUX_BOX_CONTAINER_DIR=").append(shellQuote(dir.getAbsolutePath())).append("\n");
+        sb.append("export TERMUX_BOX_CONTAINER_PREFIX=").append(shellQuote(new File(dir, "prefix").getAbsolutePath())).append("\n");
+        sb.append("export TERMUX_BOX_WINE_PACKAGE=").append(shellQuote(spec.wineVersion)).append("\n");
+        sb.append("export TERMUX_BOX_RESOLUTION=").append(shellQuote(spec.screenSize)).append("\n");
+        sb.append("export TERMUX_BOX_ENV_VARS=").append(shellQuote(spec.envVars)).append("\n");
+        sb.append("export TERMUX_BOX_GRAPHICS_DRIVER=").append(shellQuote(spec.graphicsDriver)).append("\n");
+        sb.append("export TERMUX_BOX_DXWRAPPER=").append(shellQuote(spec.dxwrapper)).append("\n");
+        if (!spec.dxwrapperConfig.isEmpty()) sb.append("export TERMUX_BOX_DXWRAPPER_CONFIG=").append(shellQuote(spec.dxwrapperConfig)).append("\n");
+        if (!spec.graphicsDriverConfig.isEmpty()) sb.append("export TERMUX_BOX_GRAPHICS_DRIVER_CONFIG=").append(shellQuote(spec.graphicsDriverConfig)).append("\n");
+        if (!spec.audioDriverConfig.isEmpty()) sb.append("export TERMUX_BOX_AUDIO_DRIVER_CONFIG=").append(shellQuote(spec.audioDriverConfig)).append("\n");
+        sb.append("export TERMUX_BOX_AUDIO_DRIVER=").append(shellQuote(spec.audioDriver)).append("\n");
+        sb.append("export TERMUX_BOX_WINCOMPONENTS=").append(shellQuote(spec.wincomponents)).append("\n");
+        sb.append("export TERMUX_BOX_DRIVES=").append(shellQuote(spec.drives)).append("\n");
+        sb.append("export TERMUX_BOX_HUD_MODE=").append(spec.hudMode).append("\n");
+        sb.append("export TERMUX_BOX_STARTUP_SELECTION=").append(spec.startupSelection).append("\n");
+        if (spec.cpuList != null) sb.append("export TERMUX_BOX_CPU_LIST=").append(shellQuote(spec.cpuList)).append("\n");
+        if (spec.cpuListWoW64 != null) sb.append("export TERMUX_BOX_CPU_LIST_WOW64=").append(shellQuote(spec.cpuListWoW64)).append("\n");
+        sb.append("export TERMUX_BOX_BOX64_PRESET=").append(shellQuote(spec.box64Preset)).append("\n");
+        sb.append("export TERMUX_BOX_DESKTOP_THEME=").append(shellQuote(spec.desktopTheme)).append("\n");
+        sb.append("export TERMUX_BOX_GAMEPAD_MAPPER=").append(spec.dinputMapperType).append("\n");
+        sb.append("export LC_ALL=en_US.utf8\n");
+        writeFile(new File(dir, "container.conf"), sb.toString());
     }
 
     public File getContainerDir(TermuxBoxContainerSpec spec) {
@@ -361,6 +411,22 @@ public final class TermuxBoxRepository {
     public String getLocale() {
         String value = readText(new File(configDir, "locale.conf"), "en_US.utf8");
         return value.trim();
+    }
+
+    /**
+     * Returns whether sessions should be auto-closed after script execution.
+     * Defaults to false (session stays open after command completes).
+     */
+    public boolean getSessionAutoClose() {
+        String value = readText(new File(configDir, "session_auto_close.conf"), "1").trim();
+        return "1".equals(value);
+    }
+
+    /**
+     * Sets whether sessions should be auto-closed after script execution.
+     */
+    public void setSessionAutoClose(boolean autoClose) throws IOException {
+        writeFile(new File(configDir, "session_auto_close.conf"), autoClose ? "1\n" : "0\n");
     }
 
     public void setCorePreset(int primaryStart, int primaryEnd, int secondaryStart, int secondaryEnd) throws IOException {
@@ -742,7 +808,7 @@ public final class TermuxBoxRepository {
         File listFile = new File(installedDir, spec.name + "_lists");
         File md5File = new File(installedDir, spec.name + "_md5");
         if (listFile.isFile()) {
-            List<String> lines = Files.readAllLines(listFile.toPath(), StandardCharsets.UTF_8);
+            List<String> lines = readLines(listFile);
             for (String line : lines) {
                 String relative = line.trim();
                 if (relative.isEmpty()) {
@@ -908,11 +974,10 @@ public final class TermuxBoxRepository {
                 }
                 ensureParent(outFile);
                 if (entry.isSymbolicLink()) {
-                    Path link = outFile.toPath();
-                    Path target = Paths.get(entry.getLinkName());
                     try {
-                        Files.deleteIfExists(link);
-                        Files.createSymbolicLink(link, target);
+                        File target = resolveLinkTarget(outFile, entry.getLinkName());
+                        deleteIfExistsCompat(outFile);
+                        createSymlinkCompat(outFile, target);
                     } catch (Exception e) {
                         writeFile(outFile, entry.getLinkName() + "\n");
                     }
@@ -934,10 +999,10 @@ public final class TermuxBoxRepository {
         int total = Math.max(files.size(), 1);
         int index = 0;
         for (File source : files) {
-            String relative = sourceDir.toPath().relativize(source.toPath()).toString();
+            String relative = relativizePath(sourceDir, source);
             File target = new File(targetRoot, relative);
             ensureParent(target);
-            Files.copy(source.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, LinkOption.NOFOLLOW_LINKS);
+            copyFileNoFollowCompat(source, target);
             applyMode(target, source.canExecute() ? 0755 : 0644);
             index++;
             if (listener != null) {
@@ -954,7 +1019,7 @@ public final class TermuxBoxRepository {
         try (OutputStreamWriter listWriter = new OutputStreamWriter(new FileOutputStream(listFile, false), StandardCharsets.UTF_8);
              OutputStreamWriter md5Writer = new OutputStreamWriter(new FileOutputStream(md5File, false), StandardCharsets.UTF_8)) {
             for (File file : files) {
-                String relative = extractDir.toPath().relativize(file.toPath()).toString();
+                String relative = relativizePath(extractDir, file);
                 if (relative.isEmpty()) {
                     continue;
                 }
@@ -971,7 +1036,7 @@ public final class TermuxBoxRepository {
 
     private Map<String, String> readMd5File(File file) throws IOException {
         Map<String, String> result = new LinkedHashMap<>();
-        List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+        List<String> lines = readLines(file);
         for (String line : lines) {
             if (line.trim().isEmpty()) {
                 continue;
@@ -1032,7 +1097,7 @@ public final class TermuxBoxRepository {
         }
         Arrays.sort(children, Comparator.comparing(File::getName));
         for (File child : children) {
-            if (child.isDirectory() && !Files.isSymbolicLink(child.toPath())) {
+            if (child.isDirectory() && !isSymlinkCompat(child)) {
                 result.addAll(listFilesRecursively(child));
             } else {
                 result.add(child);
@@ -1043,7 +1108,7 @@ public final class TermuxBoxRepository {
 
     private void copyFile(File destination, File source) throws IOException {
         ensureParent(destination);
-        Files.copy(source.toPath(), destination.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        copyFileCompat(source, destination);
     }
 
     private void deleteFile(File file) {
@@ -1051,7 +1116,7 @@ public final class TermuxBoxRepository {
             return;
         }
         try {
-            Files.deleteIfExists(file.toPath());
+            deleteIfExistsCompat(file);
         } catch (IOException ignored) {
         }
     }
@@ -1060,7 +1125,7 @@ public final class TermuxBoxRepository {
         if (file == null || !file.exists()) {
             return;
         }
-        if (file.isDirectory() && !Files.isSymbolicLink(file.toPath())) {
+        if (file.isDirectory() && !isSymlinkCompat(file)) {
             File[] children = file.listFiles();
             if (children != null) {
                 for (File child : children) {
@@ -1119,5 +1184,99 @@ public final class TermuxBoxRepository {
         file.setReadable(true, false);
         file.setWritable(true, true);
         file.setExecutable(executable, false);
+    }
+
+    // ---- File helpers with API 21 fallbacks for java.nio.file.Files (API 26+) ----
+
+    /** Reads all lines from a file. Uses Files.readAllLines on API 26+, fallback on older. */
+    private List<String> readLines(File file) throws IOException {
+        if (Build.VERSION.SDK_INT >= 26) {
+            return Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+        }
+        List<String> lines = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) lines.add(line);
+        }
+        return lines;
+    }
+
+    /** Copies a file. Uses Files.copy on API 26+, fallback on older. */
+    private void copyFileCompat(File source, File dest) throws IOException {
+        if (Build.VERSION.SDK_INT >= 26) {
+            Files.copy(source.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            return;
+        }
+        ensureParent(dest);
+        try (InputStream in = new FileInputStream(source); OutputStream out = new FileOutputStream(dest)) {
+            byte[] buf = new byte[8192]; int n;
+            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+        }
+    }
+
+    /** Copies a file, following symlinks. Uses Files.copy on API 26+, fallback on older. */
+    private void copyFileNoFollowCompat(File source, File dest) throws IOException {
+        if (Build.VERSION.SDK_INT >= 26) {
+            Files.copy(source.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING, LinkOption.NOFOLLOW_LINKS);
+            return;
+        }
+        if (isSymlinkCompat(source)) {
+            createSymlinkCompat(dest, source);
+        } else {
+            copyFileCompat(source, dest);
+        }
+    }
+
+    /** Deletes a file if it exists. Uses Files.deleteIfExists on API 26+, fallback on older. */
+    private void deleteIfExistsCompat(File file) throws IOException {
+        if (Build.VERSION.SDK_INT >= 26) {
+            Files.deleteIfExists(file.toPath());
+            return;
+        }
+        if (file != null && file.exists()) file.delete();
+    }
+
+    /** Checks if a file is a symbolic link. Uses Files.isSymbolicLink on API 26+, fallback on older. */
+    private boolean isSymlinkCompat(File file) {
+        if (Build.VERSION.SDK_INT >= 26) {
+            return Files.isSymbolicLink(file.toPath());
+        }
+        if (file == null) return false;
+        try {
+            File canon = file.getParent() == null ? file : new File(file.getParentFile().getCanonicalFile(), file.getName());
+            return !canon.getCanonicalFile().equals(canon.getAbsoluteFile());
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /** Creates a symbolic link. Uses Files.createSymbolicLink on API 26+, fallback on older. */
+    private void createSymlinkCompat(File link, File target) throws IOException {
+        if (Build.VERSION.SDK_INT >= 26) {
+            Files.createSymbolicLink(link.toPath(), target.toPath());
+            return;
+        }
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"ln", "-sf", target.getAbsolutePath(), link.getAbsolutePath()});
+            p.waitFor();
+            if (p.exitValue() != 0) throw new IOException("ln failed: " + p.exitValue());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("ln interrupted", e);
+        }
+    }
+
+    /** Computes relative path between two files. Uses Path.relativize on API 26+, URI fallback on older. */
+    private static String relativizePath(File base, File child) {
+        if (Build.VERSION.SDK_INT >= 26) {
+            return base.toPath().relativize(child.toPath()).toString();
+        }
+        return base.toURI().relativize(child.toURI()).getPath();
+    }
+
+    /** Resolves a symlink target path relative to the link's parent directory. */
+    private static File resolveLinkTarget(File link, String linkName) {
+        if (linkName.startsWith("/")) return new File(linkName);
+        return new File(link.getParentFile(), linkName);
     }
 }

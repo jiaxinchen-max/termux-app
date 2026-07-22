@@ -153,6 +153,9 @@ public final class LoriePreferences {
         }
 
         private LorieViewRuntimeApi.Host getPreferenceHost() {
+            LorieViewRuntimeApi.Host host = LorieViewRuntimeApi.getRegisteredHost();
+            if (host != null)
+                return host;
             if (requireActivity() instanceof LorieViewRuntimeApi.Host)
                 return (LorieViewRuntimeApi.Host) requireActivity();
             throw new IllegalStateException("LoriePreferenceFragment requires an LorieViewRuntimeApi.Host");

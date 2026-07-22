@@ -67,12 +67,6 @@
                         android:layout_marginTop="6dp" />
 
                     <com.termux.app.activities.termuxbox.TermuxBoxDropdownField
-                        android:id="@+id/termux_box_locale_input"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp" />
-
-                    <com.termux.app.activities.termuxbox.TermuxBoxDropdownField
                         android:id="@+id/termux_box_gpu_accel_input"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -160,26 +154,6 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:layout_marginBottom="4dp"
-                app:cardBackgroundColor="@color/termux_box_surface"
-                app:cardCornerRadius="5dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/termux_box_surface_border"
-                app:strokeWidth="1dp">
-
-                <TextView
-                    android:id="@+id/termux_box_container_note"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="14dp"
-                    android:text="@string/termux_box_container_note"
-                    android:textColor="@color/termux_box_text_secondary"
-                    android:textSize="12sp" />
-            </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 

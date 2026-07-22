@@ -18,7 +18,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
-public class ControlsProfile implements Comparable<ControlsProfile> {
+public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot {
     public final int id;
     private String name;
     private float cursorSpeed = 1.0f;
@@ -30,6 +30,7 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
     private boolean virtualGamepad = false;
     private final Context context;
     private GamepadState gamepadState;
+    private GamepadVibration gamepadVibration;
 
     public ControlsProfile(Context context, int id) {
         this.context = context;
@@ -56,9 +57,26 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
         return virtualGamepad;
     }
 
+    @Override
+    public short getVendorId() {
+        return 0x0001;
+    }
+
+    @Override
+    public short getProductId() {
+        return 0x0001;
+    }
+
+    @Override
     public GamepadState getGamepadState() {
         if (gamepadState == null) gamepadState = new GamepadState();
         return gamepadState;
+    }
+
+    @Override
+    public GamepadVibration getGamepadVibration() {
+        if (gamepadVibration == null) gamepadVibration = new GamepadVibration(context);
+        return gamepadVibration;
     }
 
     public ExternalController addController(String id) {

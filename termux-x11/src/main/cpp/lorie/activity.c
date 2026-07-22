@@ -24,6 +24,7 @@
 #define log(prio, ...) __android_log_print(ANDROID_LOG_ ## prio, "LorieNative", __VA_ARGS__)
 
 extern volatile int conn_fd; // The only variable from shared with X server code.
+bool lorieDebugEnabled = false;
 
 struct {
     jclass self;
@@ -137,6 +138,8 @@ static void nativeInit(JNIEnv *env, jobject thiz) {
         LorieViewRuntimeRegistry.resetIme = FindMethodOrDie(env, (*env)->GetObjectClass(env, thiz), "resetIme", "()V", JNI_FALSE);
         LorieViewRuntimeRegistry.onRenderConnectionChanged = FindMethodOrDie(env, LorieViewRuntimeRegistry.self, "onRenderConnectionChanged", "()V", JNI_FALSE);
     }
+
+    rendererInit(env);
 
     (*env)->GetJavaVM(env, &vm);
     (*vm)->AttachCurrentThread(vm, &guienv, NULL);
@@ -252,6 +255,12 @@ static void connect_(__unused JNIEnv* env, __unused jobject cls, jint fd) {
 
     if ((conn_fd = fd) != -1) {
         ALooper_addFd(ALooper_forThread(), fd, 0, ALOOPER_EVENT_INPUT | ALOOPER_EVENT_ERROR | ALOOPER_EVENT_HANGUP, xcallback, NULL);
+
+        // Give the X server our renderer wakeup cond var fd, resent on every reconnect.
+        lorieEvent e = { .type = EVENT_RENDERER_WAKEUP_COND };
+        write(conn_fd, &e, sizeof(e));
+        ancil_send_fd(conn_fd, rendererGetWakeupCondFd());
+
         log(DEBUG, "XCB connection is successfull");
     }
 }
@@ -429,6 +438,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, __unused void *reserved) {
             {"nativeInit", "()V", (void *)&nativeInit},
             {"surfaceChanged", "(Landroid/view/Surface;)V", (void *)&rendererSetWindow},
             {"setViewport", "(IIIIII)V", (void *)&rendererSetViewport},
+            {"setRendererZoom", "(I)V", (void *)&rendererSetZoom},
             {"setFiltering", "(I)V", (void *)&rendererSetFiltering},
             {"connect", "(I)V", (void *)&connect_},
             {"connected", "()Z", (void *)&connected},
@@ -450,8 +460,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, __unused void *reserved) {
     (*vm)->AttachCurrentThread(vm, &env, NULL);
     jclass cls = (*env)->FindClass(env, "com/termux/x11/LorieView");
     (*env)->RegisterNatives(env, cls, methods, sizeof(methods)/sizeof(methods[0]));
-
-    rendererInit(env);
 
     return JNI_VERSION_1_6;
 }

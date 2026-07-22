@@ -77,6 +77,8 @@
     <string name="pref_transformCapturedPointer">Transform captured pointer movements</string>
     <string name="pref_capturedPointerSpeedFactor">Captured pointer speed factor, %</string>
     <string name="pref_tapToMove">Enable tap-to-move for touchpads</string>
+    <string name="pref_ignoreGamepadEvents">Ignore gamepad input events</string>
+    <string name="pref_ignoreGamepadEvents_summary">Prevent gamepad and joystick events from being forwarded to X server</string>
 
     <string name="pref_showAdditionalKbd">Show additional keyboard</string>
     <string name="pref_showAdditionalKbd_summary">Show keyboard with additional keys.</string>

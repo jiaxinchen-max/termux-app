@@ -19,7 +19,10 @@
 #include <android/native_window_jni.h>
 #include <android/log.h>
 #include <dlfcn.h>
+#include <math.h>
+#include <string.h>
 #include <sys/mman.h>
+#include <unistd.h>
 #include "list.h"
 #include "lorie.h"
 
@@ -123,25 +126,45 @@ static volatile bool externalBufferMode = false;
 static volatile struct lorie_shared_server_state* pendingState = NULL;
 static volatile ANativeWindow* pendingWin = NULL;
 static volatile int viewportX = 0, viewportY = 0, viewportW = 0, viewportH = 0, expectedW = 0, expectedH = 0;
+static volatile int zoomPercent = 100;
+static float zoomSourceLeft = 0.f, zoomSourceTop = 0.f;
+static JNIEnv* rendererEnv = NULL;
+static jclass lorieViewClass = NULL;
+static jmethodID setRendererViewportMethod = NULL;
+static int reportedViewportX = -1, reportedViewportY = -1, reportedViewportW = -1, reportedViewportH = -1;
+static float reportedSourceLeft = -1.f, reportedSourceTop = -1.f, reportedSourceWidth = -1.f, reportedSourceHeight = -1.f;
 
 static pthread_mutex_t stateLock;
-static pthread_cond_t stateCond;
+// Shared with the X server so it can signal us directly. Only this thread ever waits on it, so stateLock
+// (the companion mutex) doesn't need to be shared too.
+static pthread_cond_t* stateCond;
 static pthread_cond_t stateChangeFinishCond;
 static pthread_spinlock_t bufferLock;
+static int stateCondFd = -1;
 static volatile struct lorie_shared_server_state* state = NULL;
 static struct {
     GLuint id;
     bool cursorChanged;
 } cursor;
 
+// FBO used to blit deferred Present "copy" entries (see lorieTryScheduleGpuCopy) into the root texture.
+static GLuint gpuCopyFbo = 0;
+
+// The renderer's end of activity.c's socket to the X server; used to notify it immediately when a
+// GPU copy batch finishes instead of it waiting for the next vblank-tick poll.
+extern volatile int conn_fd;
+
+static void notifyGpuCopyDone(void) {
+    if (conn_fd != -1) {
+        lorieEvent e = { .type = EVENT_GPU_COPY_DONE };
+        write(conn_fd, &e, sizeof(e));
+    }
+}
+
 GLuint g_texture_program = 0, gv_pos = 0, gv_coords = 0;
 GLuint g_texture_program_bgra = 0, gv_pos_bgra = 0, gv_coords_bgra = 0;
 
 static void* rendererThread(void);
-
-static void pthreadCondVarProxyInit(void);
-static void* pthreadCondVarProxyThread(void* cookie);
-static void pthreadCondVarProxyListenOtherCondVar(pthread_cond_t* var);
 
 static inline __always_inline void bindTexture(GLuint id) {
     glBindTexture(GL_TEXTURE_2D, id);
@@ -149,6 +172,33 @@ static inline __always_inline void bindTexture(GLuint id) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+}
+
+static void reportRendererViewport(int dstX, int dstY, int dstW, int dstH, float left, float top, float width, float height) {
+    JNIEnv* env = rendererEnv;
+    if (!env || !lorieViewClass || !setRendererViewportMethod)
+        return;
+
+    if (reportedViewportX == dstX && reportedViewportY == dstY &&
+        reportedViewportW == dstW && reportedViewportH == dstH &&
+        reportedSourceLeft == left && reportedSourceTop == top &&
+        reportedSourceWidth == width && reportedSourceHeight == height)
+        return;
+
+    (*env)->CallStaticVoidMethod(env, lorieViewClass, setRendererViewportMethod, dstX, dstY, dstW, dstH, left, top, width, height);
+    if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+    } else {
+        reportedViewportX = dstX;
+        reportedViewportY = dstY;
+        reportedViewportW = dstW;
+        reportedViewportH = dstH;
+        reportedSourceLeft = left;
+        reportedSourceTop = top;
+        reportedSourceWidth = width;
+        reportedSourceHeight = height;
+    }
 }
 
 static EGLint configAttribs[] = {
@@ -171,7 +221,13 @@ static void onImageAvailable(void* context, AImageReader* reader) {
         AImage_delete(image);
 }
 
-int rendererInitThread(void) {
+int rendererInitThread(void* cookie) {
+    JavaVM* vm = cookie;
+    if ((*vm)->AttachCurrentThread(vm, &rendererEnv, NULL) != JNI_OK) {
+        log("Failed to attach renderer thread to JVM");
+        return 0;
+    }
+
     EGLint major, minor;
     EGLint numConfigs;
     EGLint *const alphaAttrib = &configAttribs[11];
@@ -250,18 +306,38 @@ int rendererInitThread(void) {
 
 void rendererInit(JNIEnv* env) {
     pthread_t t;
+    JavaVM* vm;
 
     if (ctx)
         return;
 
-    pthreadCondVarProxyInit();
+    (*env)->GetJavaVM(env, &vm);
+    jclass clazz = (*env)->FindClass(env, "com/termux/x11/LorieView");
+    lorieViewClass = (*env)->NewGlobalRef(env, clazz);
+    setRendererViewportMethod = (*env)->GetStaticMethodID(env, lorieViewClass, "setRendererViewport", "(IIIIFFFF)V");
 
     pthread_mutex_init(&stateLock, NULL);
-    pthread_cond_init(&stateCond, NULL);
+
+    // Created once, never recreated; only the fd is (re)sent to the X server whenever it (re)connects.
+    pthread_condattr_t cond_attr;
+    pthread_condattr_init(&cond_attr);
+    pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED);
+    stateCondFd = LorieBuffer_createRegion("renderer-cond", sizeof(pthread_cond_t));
+    stateCond = stateCondFd == -1 ? MAP_FAILED : mmap(NULL, sizeof(pthread_cond_t), PROT_READ|PROT_WRITE, MAP_SHARED, stateCondFd, 0);
+    if (stateCond == MAP_FAILED) {
+        loge("Failed to allocate renderer wakeup cond var, aborting");
+        abort();
+    }
+    pthread_cond_init(stateCond, &cond_attr);
+
     pthread_cond_init(&stateChangeFinishCond, NULL);
     pthread_spin_init(&bufferLock, false);
 
-    pthread_create(&t, NULL, (void*(*)(void*)) rendererInitThread, NULL);
+    pthread_create(&t, NULL, (void*(*)(void*)) rendererInitThread, vm);
+}
+
+int rendererGetWakeupCondFd(void) {
+    return stateCondFd;
 }
 
 void rendererSetFiltering(__unused JNIEnv* env, __unused jobject self, jint f) {
@@ -271,7 +347,7 @@ void rendererSetFiltering(__unused JNIEnv* env, __unused jobject self, jint f) {
 void rendererSetExternalBufferMode(bool enabled) {
     pthread_mutex_lock(&stateLock);
     externalBufferMode = enabled;
-    pthread_cond_signal(&stateCond);
+    pthread_cond_signal(stateCond);
     pthread_mutex_unlock(&stateLock);
 }
 
@@ -281,6 +357,7 @@ void rendererTestCapabilities(int* legacy_drawing) {
     EGLint numConfigs;
     EGLClientBuffer clientBuffer;
     EGLImageKHR img;
+    EGLint major, minor;
     AHardwareBuffer *new = NULL;
     int status;
     AHardwareBuffer_Desc d0 = {
@@ -296,6 +373,12 @@ void rendererTestCapabilities(int* legacy_drawing) {
         if (egl_display == EGL_NO_DISPLAY)
             return vprintEglError("Got no EGL display", __LINE__);
     }
+
+    if (eglInitialize(egl_display, &major, &minor) != EGL_TRUE)
+        return vprintEglError("Unable to initialize EGL", __LINE__);
+
+    loge("Xlorie: Initialized EGL version %d.%d\n", major, minor);
+    eglBindAPI(EGL_OPENGL_ES_API);
 
     status = AHardwareBuffer_allocate(&d0, &new);
     if (status != 0 || new == NULL) {
@@ -381,7 +464,7 @@ __unused void rendererSetSharedState(struct lorie_shared_server_state* newState)
     pthread_mutex_lock(&stateLock);
     pendingState = newState;
     stateChanged = true;
-    pthread_cond_signal(&stateCond);
+    pthread_cond_signal(stateCond);
 
     while(stateChanged)
         pthread_cond_wait(&stateChangeFinishCond, &stateLock);
@@ -392,7 +475,7 @@ __unused void rendererSetSharedState(struct lorie_shared_server_state* newState)
 void rendererAddBuffer(LorieBuffer* buf) {
     pthread_spin_lock(&bufferLock);
     LorieBuffer_addToList(buf, &addedBuffers);
-    pthread_cond_signal(&stateCond);
+    pthread_cond_signal(stateCond);
     pthread_spin_unlock(&bufferLock);
 }
 
@@ -451,7 +534,7 @@ void rendererSetWindow(JNIEnv *env, __unused jobject thiz, jobject jsfc) {
     windowChanged = TRUE;
     expectedW = expectedH = 0;
 
-    pthread_cond_signal(&stateCond);
+    pthread_cond_signal(stateCond);
 
     // We should wait until renderer destroys EGLSurface before SurfaceCallback::surfaceDestroyed finishes
     // Otherwise we will have weird errors like
@@ -489,9 +572,24 @@ void rendererSetViewport(__unused JNIEnv *env, __unused jclass clazz, int x, int
     viewportH = h;
     expectedW = ew;
     expectedH = eh;
+    reportedViewportX = reportedViewportY = reportedViewportW = reportedViewportH = -1;
+    reportedSourceLeft = reportedSourceTop = reportedSourceWidth = reportedSourceHeight = -1.f;
     if (state)
         state->drawRequested = true;
-    pthread_cond_signal(&stateCond);
+    pthread_cond_signal(stateCond);
+    pthread_mutex_unlock(&stateLock);
+}
+
+void rendererSetZoom(__unused JNIEnv *env, __unused jclass clazz, int percent) {
+    pthread_mutex_lock(&stateLock);
+    zoomPercent = percent < 100 ? 100 : (percent > 400 ? 400 : percent);
+    reportedViewportX = reportedViewportY = reportedViewportW = reportedViewportH = -1;
+    reportedSourceLeft = reportedSourceTop = reportedSourceWidth = reportedSourceHeight = -1.f;
+    if (zoomPercent == 100)
+        zoomSourceLeft = zoomSourceTop = 0.f;
+    if (state)
+        state->drawRequested = true;
+    pthread_cond_signal(stateCond);
     pthread_mutex_unlock(&stateLock);
 }
 
@@ -548,8 +646,159 @@ void rendererRefreshContext(void) {
     log("Xlorie: new surface applied: %p\n", sfc);
 }
 
-static void draw(GLuint id, float x0, float y0, float x1, float y1, float xfactor, uint8_t flip);
-static void drawCursor(float displayWidth, float displayHeight);
+static void drawRegion(GLuint id, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, uint8_t flip);
+static void drawCursor(float displayWidth, float displayHeight, float sourceLeft, float sourceTop);
+
+// Drains the deferred GPU copy queue (filled by present_execute_copy) into the root texture via
+// an FBO. Assumes the caller holds state->lock and will flush/fence before unlocking - returns
+// the highest drained serial WITHOUT publishing it to completedSerial, since the caller must only
+// do that after the fence confirms the GPU actually finished (not just submitted) the draws;
+// publishing early would let the client's next write race our still-in-flight read.
+// Looks up a registered buffer by id, waiting briefly (bounded) if it hasn't arrived over the
+// async registration socket yet instead of busy-spinning the outer loop.
+static LorieBuffer *rendererFindBufferWithRetry(uint64_t id) {
+    LorieBuffer *buf;
+    int attempt;
+
+    pthread_spin_lock(&bufferLock);
+    buf = LorieBufferList_findById(&buffers, id);
+    if (!buf && (buf = LorieBufferList_findById(&addedBuffers, id))) {
+        LorieBuffer_attachToGL(buf);
+        LorieBuffer_addToList(buf, &buffers);
+    }
+    pthread_spin_unlock(&bufferLock);
+
+    for (attempt = 0; attempt < 20 && !buf; attempt++) {
+        usleep(5000);
+        pthread_spin_lock(&bufferLock);
+        buf = LorieBufferList_findById(&buffers, id);
+        if (!buf && (buf = LorieBufferList_findById(&addedBuffers, id))) {
+            LorieBuffer_attachToGL(buf);
+            LorieBuffer_addToList(buf, &buffers);
+        }
+        pthread_spin_unlock(&bufferLock);
+    }
+    return buf;
+}
+
+static uint64_t rendererApplyPendingGpuCopiesLocked(void) {
+    bool fboSetUp = false;
+    uint64_t lastSerial = 0;
+    uint64_t boundDstId = 0;
+    GLint prevViewport[4];
+
+    if (!state || state->gpuCopyQueue.readIndex == state->gpuCopyQueue.writeIndex)
+        return 0;
+
+    while (state->gpuCopyQueue.readIndex != state->gpuCopyQueue.writeIndex) {
+        LorieGpuCopyEntry entry = state->gpuCopyQueue.entries[state->gpuCopyQueue.readIndex % LORIE_GPU_COPY_QUEUE_CAPACITY];
+        LorieBuffer *src = rendererFindBufferWithRetry(entry.srcBufferId);
+        LorieBuffer *dst = rendererFindBufferWithRetry(entry.dstBufferId);
+
+        if (!src)
+            log("rendererApplyPendingGpuCopies: source buffer %llu not found after waiting, skipping\n", (unsigned long long) entry.srcBufferId);
+        if (!dst)
+            log("rendererApplyPendingGpuCopies: destination buffer %llu not found after waiting, skipping\n", (unsigned long long) entry.dstBufferId);
+
+        if (src && dst) {
+            const LorieBuffer_Desc *srcDesc = LorieBuffer_description(src);
+            const LorieBuffer_Desc *dstDesc = LorieBuffer_description(dst);
+            int i;
+
+            if (!fboSetUp) {
+                glGetIntegerv(GL_VIEWPORT, prevViewport);
+                if (!gpuCopyFbo)
+                    glGenFramebuffers(1, &gpuCopyFbo);
+                glBindFramebuffer(GL_FRAMEBUFFER, gpuCopyFbo);
+                fboSetUp = true;
+            }
+            // Different entries can target different pixmaps (root, or a Composite-redirected
+            // window's own backing pixmap); only rebind the FBO's attachment when it changes.
+            if (boundDstId != entry.dstBufferId) {
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, LorieBuffer_getGLTextureId(dst), 0);
+                glViewport(0, 0, dstDesc->width, dstDesc->height);
+                boundDstId = entry.dstBufferId;
+
+                // Diagnostic: GLES2 has no glGetTexLevelParameteriv, so ask the AHardwareBuffer
+                // itself what it was actually allocated as, instead of trusting our own desc.
+                {
+                    static uint64_t dstSizeLogCount = 0;
+                    if (lorieDebugEnabled && (dstSizeLogCount++ & 15) == 0 && dstDesc->buffer) {
+                        AHardwareBuffer_Desc realDstDesc;
+                        AHardwareBuffer_describe(dstDesc->buffer, &realDstDesc);
+                        loge("gpucopy dst texId=%u real AHB size %ux%u stride=%u vs LorieBuffer desc %dx%d\n",
+                             LorieBuffer_getGLTextureId(dst), realDstDesc.width, realDstDesc.height,
+                             realDstDesc.stride, dstDesc->width, dstDesc->height);
+                    }
+                }
+            }
+
+            LorieBuffer_bindTexture(src);
+            {
+                static uint64_t srcSizeLogCount = 0;
+                if (lorieDebugEnabled && (srcSizeLogCount++ & 15) == 0 && srcDesc->buffer) {
+                    AHardwareBuffer_Desc realSrcDesc;
+                    AHardwareBuffer_describe(srcDesc->buffer, &realSrcDesc);
+                    loge("gpucopy src texId=%u real AHB size %ux%u stride=%u vs LorieBuffer desc %dx%d (stride=%d)\n",
+                         LorieBuffer_getGLTextureId(src), realSrcDesc.width, realSrcDesc.height,
+                         realSrcDesc.stride, srcDesc->width, srcDesc->height, srcDesc->stride);
+                }
+            }
+            for (i = 0; i < entry.numRects; i++) {
+                LorieGpuCopyRect r = entry.rects[i];
+                float x0 = 2.f * (float) (r.x1 + entry.xOff) / (float) dstDesc->width - 1.f;
+                float x1 = 2.f * (float) (r.x2 + entry.xOff) / (float) dstDesc->width - 1.f;
+                // FBO writes and on-screen draws use opposite y conventions here, unlike x.
+                float y0 = 1.f - 2.f * (float) (r.y1 + entry.yOff) / (float) dstDesc->height;
+                float y1 = 1.f - 2.f * (float) (r.y2 + entry.yOff) / (float) dstDesc->height;
+                // EGLImage-backed textures sample by logical width regardless of row stride;
+                // only our own CPU-uploaded LORIEBUFFER_FD texture is stride-wide.
+                float srcUvDivisor = srcDesc->type == LORIEBUFFER_FD ? (float) srcDesc->stride : (float) srcDesc->width;
+                float u0 = (float) r.x1 / srcUvDivisor;
+                float u1 = (float) r.x2 / srcUvDivisor;
+                float v0 = (float) r.y1 / (float) srcDesc->height;
+                float v1 = (float) r.y2 / (float) srcDesc->height;
+                // Only swap channels if src/dst storage formats actually differ.
+                uint8_t needsSwizzle = LorieBuffer_isRgba(src) != LorieBuffer_isRgba(dst);
+                log("rendererApplyPendingGpuCopies: rect (%d,%d)-(%d,%d) off=(%d,%d) -> ndc=(%.3f,%.3f)-(%.3f,%.3f) uv=(%.3f,%.3f)-(%.3f,%.3f) srcTex=%u dstTex=%u swizzle=%d\n",
+                    r.x1, r.y1, r.x2, r.y2, entry.xOff, entry.yOff, x0, y0, x1, y1, u0, v0, u1, v1,
+                    LorieBuffer_getGLTextureId(src), LorieBuffer_getGLTextureId(dst), needsSwizzle);
+                drawRegion(0, x0, y0, x1, y1, u0, v0, u1, v1, needsSwizzle);
+            }
+        }
+
+        lastSerial = entry.serial;
+        state->gpuCopyQueue.readIndex++;
+    }
+
+    if (fboSetUp) {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+    }
+    return lastSerial;
+}
+
+// Standalone entry point used by the renderer thread's main loop. Used when no redraw is going to
+// happen on this tick (rare for GPU copies in practice, since scheduling one also marks damage
+// non-empty - see lorieTryScheduleGpuCopy), so it has to take the lock and fence/unlock itself.
+static void rendererApplyPendingGpuCopies(void) {
+    uint64_t serial;
+    if (!state || state->gpuCopyQueue.readIndex == state->gpuCopyQueue.writeIndex)
+        return;
+    lorie_mutex_lock(&state->lock, &state->lockingPid);
+    serial = rendererApplyPendingGpuCopiesLocked();
+    if (serial) {
+        EGLSync fence = eglCreateSyncKHR(egl_display, EGL_SYNC_FENCE_KHR, NULL);
+        glFlush();
+        eglClientWaitSyncKHR(egl_display, fence, 0, EGL_FOREVER);
+        eglDestroySyncKHR(egl_display, fence);
+        // Only now that the GPU has actually finished (not just been told to start) is it safe to
+        // let present_execute_copy release/idle the source pixmap back to the client.
+        state->gpuCopyQueue.completedSerial = serial;
+        notifyGpuCopyDone();
+    }
+    lorie_mutex_unlock(&state->lock, &state->lockingPid);
+}
 
 void rendererRedrawLocked(bool* waitingForBuffers) {
     float xfactor = 1.f;
@@ -578,30 +827,98 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
         log("Buffer %llu is not of expected size, expecting %dx%d or %dx%d, got %dx%d",
             (unsigned long long) state->rootWindowTextureID, alignedExpectedW, expectedH, expectedW, expectedH,
             desc->width, desc->height);
+        // Otherwise rendererShouldWait sees drawRequested still set and busy-spins retrying this
+        // same mismatch instead of waiting for the next real trigger (e.g. the pending resize).
+        state->drawRequested = FALSE;
         return;
     }
 
     int surfaceW = ANativeWindow_getWidth(win);
     int surfaceH = ANativeWindow_getHeight(win);
-    glViewport(0, 0, surfaceW, surfaceH);
-    glDisable(GL_SCISSOR_TEST);
-    glClearColor(0, 0, 0, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
+    int renderViewportX = viewportX, renderViewportY = viewportY, renderViewportW = viewportW, renderViewportH = viewportH;
+    float destinationScaleX = 1.f, destinationScaleY = 1.f;
+    if (zoomPercent > 100 && viewportW > 0 && viewportH > 0) {
+        float requestedScale = (float) zoomPercent / 100.f;
+        float centerX = (float) viewportX + (float) viewportW / 2.f;
+        float centerY = (float) viewportY + (float) viewportH / 2.f;
+        float maxW = 2.f * fminf(centerX, (float) surfaceW - centerX);
+        float maxH = 2.f * fminf(centerY, (float) surfaceH - centerY);
+        destinationScaleX = fminf(requestedScale, maxW / (float) viewportW);
+        destinationScaleY = fminf(requestedScale, maxH / (float) viewportH);
+        if (destinationScaleX < 1.f)
+            destinationScaleX = 1.f;
+        if (destinationScaleY < 1.f)
+            destinationScaleY = 1.f;
 
-    int drawX = viewportW > 0 && viewportH > 0 ? viewportX : 0;
-    int drawY = viewportW > 0 && viewportH > 0 ? viewportY : 0;
-    int drawW = viewportW > 0 && viewportH > 0 ? viewportW : surfaceW;
-    int drawH = viewportW > 0 && viewportH > 0 ? viewportH : surfaceH;
-    glViewport(drawX, surfaceH - drawY - drawH, drawW, drawH);
+        renderViewportW = (int) ((float) viewportW * destinationScaleX + 0.5f);
+        renderViewportH = (int) ((float) viewportH * destinationScaleY + 0.5f);
+        renderViewportX = (int) (centerX - (float) renderViewportW / 2.f + 0.5f);
+        renderViewportY = (int) (centerY - (float) renderViewportH / 2.f + 0.5f);
+    }
+
+    glDisable(GL_SCISSOR_TEST);
+    glViewport(0, 0, surfaceW, surfaceH);
+    glClearColor(0.f, 0.f, 0.f, 1.f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(renderViewportX, surfaceH - renderViewportY - renderViewportH, renderViewportW, renderViewportH);
+    float sourceLeft = 0.f, sourceTop = 0.f;
+    float sourceWidth = (float) desc->width, sourceHeight = (float) desc->height;
+    float logicalSourceWidth = (float) expectedW, logicalSourceHeight = (float) expectedH;
+    if (zoomPercent > 100) {
+        float requestedScale = (float) zoomPercent / 100.f;
+        sourceWidth = (float) expectedW * destinationScaleX / requestedScale;
+        sourceHeight = (float) expectedH * destinationScaleY / requestedScale;
+        logicalSourceWidth = sourceWidth;
+        logicalSourceHeight = sourceHeight;
+        // Keep the zoomed region stable while the cursor stays inside the central 90%.
+        // Only pan when the cursor enters this 5% edge band near any side.
+        float edgeX = sourceWidth * 0.05f;
+        float edgeY = sourceHeight * 0.05f;
+        float cursorX = (float) state->cursor.x;
+        float cursorY = (float) state->cursor.y;
+
+        if (cursorX < zoomSourceLeft + edgeX)
+            zoomSourceLeft = cursorX - edgeX;
+        else if (cursorX > zoomSourceLeft + sourceWidth - edgeX)
+            zoomSourceLeft = cursorX - sourceWidth + edgeX;
+
+        if (cursorY < zoomSourceTop + edgeY)
+            zoomSourceTop = cursorY - edgeY;
+        else if (cursorY > zoomSourceTop + sourceHeight - edgeY)
+            zoomSourceTop = cursorY - sourceHeight + edgeY;
+
+        if (zoomSourceLeft < 0.f)
+            zoomSourceLeft = 0.f;
+        else if (zoomSourceLeft + sourceWidth > (float) expectedW)
+            zoomSourceLeft = (float) expectedW - sourceWidth;
+
+        if (zoomSourceTop < 0.f)
+            zoomSourceTop = 0.f;
+        else if (zoomSourceTop + sourceHeight > (float) expectedH)
+            zoomSourceTop = (float) expectedH - sourceHeight;
+
+        sourceLeft = zoomSourceLeft;
+        sourceTop = zoomSourceTop;
+    } else
+        zoomSourceLeft = zoomSourceTop = 0.f;
+
+    reportRendererViewport(renderViewportX, renderViewportY, renderViewportW, renderViewportH,
+                           sourceLeft, sourceTop, logicalSourceWidth, logicalSourceHeight);
 
     // We should signal X server to not use root window while we actively copy it
     lorie_mutex_lock(&state->lock, &state->lockingPid);
+    // Share this draw's flush+fence below instead of a separate round trip per frame.
+    uint64_t gpuCopySerial = rendererApplyPendingGpuCopiesLocked();
     state->drawRequested = FALSE;
 
     LorieBuffer_bindTexture(buffer);
     if (desc->type == LORIEBUFFER_FD)
         xfactor = (float) desc->width/(float) desc->stride;
-    draw(0, -1.f, -1.f, 1.f, 1.f, xfactor, LorieBuffer_isRgba(buffer));
+    drawRegion(0, -1.f, -1.f, 1.f, 1.f,
+               sourceLeft / (float) desc->width * xfactor, sourceTop / (float) desc->height,
+               (sourceLeft + sourceWidth) / (float) desc->width * xfactor,
+               (sourceTop + sourceHeight) / (float) desc->height,
+               LorieBuffer_isRgba(buffer));
     fence = eglCreateSyncKHR(egl_display, EGL_SYNC_FENCE_KHR, NULL);
     glFlush();
 
@@ -615,7 +932,7 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
     }
 
     state->cursor.moved = FALSE;
-    drawCursor((float) (LorieBuffer_getWidth(buffer)), (float) (LorieBuffer_getHeight(buffer)));
+    drawCursor(sourceWidth, sourceHeight, sourceLeft, sourceTop);
     glFlush();
 
     // Wait until root window drawing is finished before giving control back to X server
@@ -641,11 +958,12 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
 
 static inline __always_inline bool rendererShouldWait(bool *waitingForBuffers) {
     static uint64_t lastRequestedBufferId = 0;
-    bool buffersChanged;
+    bool buffersChanged, gpuCopyPending;
     pthread_spin_lock(&bufferLock);
     buffersChanged = !xorg_list_is_empty(&addedBuffers) || !xorg_list_is_empty(&removedBuffers);
     pthread_spin_unlock(&bufferLock);
-    if (stateChanged || windowChanged || buffersChanged)
+    gpuCopyPending = state && state->gpuCopyQueue.readIndex != state->gpuCopyQueue.writeIndex;
+    if (stateChanged || windowChanged || buffersChanged || gpuCopyPending)
         // If there are pending changes we should process them immediately.
         return false;
 
@@ -673,7 +991,7 @@ __noreturn static void* rendererThread(void) {
     bool waitingForBuffers = false;
     while (true) {
         while (rendererShouldWait(&waitingForBuffers)){
-            pthread_cond_wait(&stateCond, &stateLock);
+            pthread_cond_wait(stateCond, &stateLock);
         }
 
         if (stateChanged) {
@@ -694,7 +1012,6 @@ __noreturn static void* rendererThread(void) {
                 eglSwapBuffers(egl_display, sfc);
             }
 
-            pthreadCondVarProxyListenOtherCondVar(state ? &state->cond : NULL);
             if (oldState)
                 munmap(oldState, sizeof(*oldState));
         }
@@ -713,8 +1030,15 @@ __noreturn static void* rendererThread(void) {
 
         pthread_cond_signal(&stateChangeFinishCond);
         pthread_mutex_unlock(&stateLock);
-        if (state && state->surfaceAvailable && !state->waitForNextFrame && (state->drawRequested || state->cursor.moved || state->cursor.updated))
+
+        // Prefer a full redraw over the standalone apply below so a pending GPU copy shares one
+        // lock+fence with the root/cursor draw, instead of two GPU round trips per frame.
+        bool gpuCopyPending = state && state->gpuCopyQueue.readIndex != state->gpuCopyQueue.writeIndex;
+        if (state && state->surfaceAvailable && !state->waitForNextFrame &&
+            (state->drawRequested || state->cursor.moved || state->cursor.updated || gpuCopyPending))
             rendererRedrawLocked(&waitingForBuffers);
+        else if (gpuCopyPending)
+            rendererApplyPendingGpuCopies();
 
         pthread_spin_lock(&bufferLock);
         // Remove all buffers which were attached to GL.
@@ -781,12 +1105,12 @@ static GLuint createProgram(const char* p_vertex_source, const char* p_fragment_
     return 0;
 }
 
-static void draw(GLuint id, float x0, float y0, float x1, float y1, float xfactor, uint8_t flip) {
+static void drawRegion(GLuint id, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, uint8_t flip) {
     float coords[16] = {
-        x0, -y0, 0.f, 0.f,
-        x1, -y0, xfactor, 0.f,
-        x0, -y1, 0.f, 1.f,
-        x1, -y1, xfactor, 1.f,
+        x0, -y0, u0, v0,
+        x1, -y0, u1, v0,
+        x0, -y1, u0, v1,
+        x1, -y1, u1, v1,
     };
 
     GLuint p = flip ? gv_pos_bgra : gv_pos, c = flip ? gv_coords_bgra : gv_coords;
@@ -805,60 +1129,18 @@ static void draw(GLuint id, float x0, float y0, float x1, float y1, float xfacto
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); checkGlError();
 }
 
-__unused static void drawCursor(float displayWidth, float displayHeight) {
+__unused static void drawCursor(float displayWidth, float displayHeight, float sourceLeft, float sourceTop) {
     float x, y, w, h;
 
     if (!state->cursor.width || !state->cursor.height)
         return;
 
-    x = 2.f * ((float) state->cursor.x - (float) state->cursor.xhot) / displayWidth - 1.f;
-    y = 2.f * ((float) state->cursor.y - (float) state->cursor.yhot) / displayHeight - 1.f;
+    x = 2.f * ((float) state->cursor.x - sourceLeft - (float) state->cursor.xhot) / displayWidth - 1.f;
+    y = 2.f * ((float) state->cursor.y - sourceTop - (float) state->cursor.yhot) / displayHeight - 1.f;
     w = 2.f * (float) state->cursor.width / displayWidth;
     h = 2.f * (float) state->cursor.height / displayHeight;
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    draw(cursor.id, x, y, x + w, y + h, 1.f, false);
+    drawRegion(cursor.id, x, y, x + w, y + h, 0.f, 0.f, 1.f, 1.f, false);
     glDisable(GL_BLEND);
-}
-
-// auxillary pthread condition var proxy shenanigans
-static volatile struct {
-    pthread_mutex_t lock;
-    pthread_cond_t def, *current, *pending;
-    bool relocked;
-} proxy = { .current = &proxy.def };
-
-static void pthreadCondVarProxyInit(void) {
-    pthread_t t;
-    pthread_mutex_init(&proxy.lock, NULL);
-    pthread_cond_init(&proxy.def, NULL);
-    pthread_create(&t, NULL, pthreadCondVarProxyThread, NULL);
-}
-
-__noreturn static void* pthreadCondVarProxyThread(void* cookie) {
-    // We can not wait for two conditional variables simultaneously.
-    // But we are required to listen for both remote and local events.
-    // This thread waits for remote signals and proxies them to the local cond var.
-    pthread_setname_np(pthread_self(), "PthreadCondVarProxy");
-    pthread_mutex_lock(&proxy.lock);
-    log("pthreadCondVarProxyThread %ld started", pthread_self());
-    while (true) {
-        pthread_cond_wait(proxy.current, &proxy.lock);
-        if (proxy.pending) {
-            proxy.current = proxy.pending;
-            proxy.pending = NULL;
-        }
-        proxy.relocked = true;
-        pthread_cond_signal(&stateCond);
-    }
-}
-
-static void pthreadCondVarProxyListenOtherCondVar(pthread_cond_t* var) {
-    pthread_mutex_lock(&proxy.lock);
-    pthread_cond_broadcast(proxy.current);
-    proxy.pending = var ?: &proxy.def;
-    proxy.relocked = false;
-    while(!proxy.relocked)
-        pthread_cond_wait(&stateCond, &proxy.lock);
-    pthread_mutex_unlock(&proxy.lock);
 }

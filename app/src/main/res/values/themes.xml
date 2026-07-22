@@ -49,6 +49,7 @@
     <!-- TermuxBox DayNight NoActionBar theme. -->
     <style name="Theme.TermuxBoxActivity.DayNight.NoActionBar" parent="Theme.TermuxApp.DayNight.NoActionBar">
         <item name="colorPrimary">@color/termux_box_toolbar</item>
+        <item name="colorPrimaryDark">@color/termux_box_toolbar</item>
         <item name="colorPrimaryVariant">@color/termux_box_toolbar</item>
         <item name="android:windowBackground">@color/termux_box_background</item>
         <item name="android:windowSoftInputMode">adjustResize</item>

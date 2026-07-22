@@ -378,7 +378,8 @@ final class X11WinHandlerController {
     }
 
     void attach(@NonNull LorieView lorieView) {
-        detach();
+        if (mWinHandler != null)
+            return;
 
         WinHandler winHandler = new WinHandler(mHost);
         mWinHandler = winHandler;
@@ -399,6 +400,10 @@ final class X11WinHandlerController {
         if (mWinHandler == null)
             throw new IllegalStateException("WinHandler is not attached");
         return mWinHandler;
+    }
+
+    boolean isRunning() {
+        return mWinHandler != null;
     }
 
     void showProcessManagerDialog() {

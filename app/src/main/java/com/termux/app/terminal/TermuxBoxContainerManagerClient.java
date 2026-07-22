@@ -37,6 +37,9 @@ public class TermuxBoxContainerManagerClient {
     /** Tracks containers for which we've already started a bootstrap session (avoids duplicates). */
     private final java.util.Set<String> mBootstrappedContainers = new java.util.HashSet<>();
 
+    /** Number of active container start sessions. WinHandler only stops when this reaches 0. */
+    private int mActiveContainerSessionCount = 0;
+
     public TermuxBoxContainerManagerClient(TermuxActivity activity, TermuxTerminalSessionActivityClient termuxTerminalSessionActivityClient) {
         mTermuxActivity = activity;
         mTermuxTerminalSessionActivityClient = termuxTerminalSessionActivityClient;
@@ -107,7 +110,11 @@ public class TermuxBoxContainerManagerClient {
                 String command = "sh " + scriptFile.getAbsolutePath()
                     + " " + containerConf.getAbsolutePath() + "\n";
                 Log.i(LOG_TAG, "Starting bootstrap: " + command.trim());
-                mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, BOOTSTRAP_SESSION_NAME);
+                if (mRepository.getSessionAutoClose()) {
+                    mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, BOOTSTRAP_SESSION_NAME);
+                } else {
+                    mTermuxTerminalSessionActivityClient.addNewSessionAndRunCommand(command, BOOTSTRAP_SESSION_NAME);
+                }
             } catch (Exception e) {
                 Log.e(LOG_TAG, "Failed to deploy bootstrap script for: " + currentSpec.name, e);
                 mBootstrappedContainers.remove(currentSpec.id);
@@ -124,16 +131,10 @@ public class TermuxBoxContainerManagerClient {
         containerLayout.removeAllViews();
 
         LinearLayout header = new LinearLayout(mTermuxActivity);
-        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setGravity(Gravity.END);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setPadding(dp(6), dp(4), dp(6), dp(2));
         containerLayout.addView(header, new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
-
-        TextView title = new TextView(mTermuxActivity);
-        title.setText(R.string.container_manager_expanded);
-        title.setTextColor(0xFF24323F);
-        title.setTextSize(11);
-        header.addView(title, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1));
 
         ImageView createButton = new ImageView(mTermuxActivity);
         createButton.setImageResource(R.drawable.ic_add_simple);
@@ -184,13 +185,47 @@ public class TermuxBoxContainerManagerClient {
             String command = "sh " + scriptFile.getAbsolutePath()
                 + " " + containerConf.getAbsolutePath() + "\n";
             Log.i(LOG_TAG, "Starting container: " + command.trim());
-            mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, START_WINE_SESSION_NAME);
+            if (mRepository.getSessionAutoClose()) {
+                mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, START_WINE_SESSION_NAME);
+            } else {
+                mTermuxTerminalSessionActivityClient.addNewSessionAndRunCommand(command, START_WINE_SESSION_NAME);
+            }
+
+            // Keep WinHandler (gamepad control) alive for the lifetime of the container.
+            // The WinHandler should persist through activity lifecycle changes and only
+            // stop when ALL container sessions have ended.
+            mActiveContainerSessionCount++;
+            com.termux.x11.LorieViewRuntimeController lorieRuntime = mTermuxActivity.getLorieViewRuntime();
+            if (lorieRuntime != null) {
+                lorieRuntime.setKeepWinHandlerAlive(true);
+                // Apply container's gamepad mapper type (0=Standard/DInput, 1=XInput)
+                lorieRuntime.setGamepadMapperType(spec.dinputMapperType);
+                Log.i(LOG_TAG, "WinHandler keep-alive enabled, mapper type: " + spec.dinputMapperType
+                    + " (active sessions: " + mActiveContainerSessionCount + ")");
+            }
+
             refresh();
         } catch (Exception e) {
             Log.e(LOG_TAG, "Failed to start container: " + spec.name, e);
             Toast.makeText(mTermuxActivity,
                 mTermuxActivity.getString(R.string.termux_box_container_manager_start_failed, e.getMessage()),
                 Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Called when a wine container session finishes. Decrements the active session
+     * count and only stops the WinHandler when no container sessions are left running.
+     */
+    public void onContainerSessionFinished() {
+        mActiveContainerSessionCount = Math.max(0, mActiveContainerSessionCount - 1);
+        Log.i(LOG_TAG, "Container session ended (active sessions: " + mActiveContainerSessionCount + ")");
+        if (mActiveContainerSessionCount == 0) {
+            com.termux.x11.LorieViewRuntimeController lorieRuntime = mTermuxActivity.getLorieViewRuntime();
+            if (lorieRuntime != null) {
+                lorieRuntime.stopWinHandler();
+                Log.i(LOG_TAG, "WinHandler stopped (no active container sessions)");
+            }
         }
     }
 

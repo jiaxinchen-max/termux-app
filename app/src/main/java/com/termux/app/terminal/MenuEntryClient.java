@@ -51,8 +51,6 @@ public class MenuEntryClient {
     private final MenuEntry mMenuEntry;
     private LinearLayout mToolboxContainer;
     private GridLayout mGridLayout;
-    private CheckBox mDInputCheckBox;
-    private CheckBox mXInputCheckBox;
     private IconSelectionCallback mIconSelectionCallback;
 
     private interface IconSelectionCallback {
@@ -74,18 +72,6 @@ public class MenuEntryClient {
 
         mToolboxContainer = (LinearLayout) container;
         mToolboxContainer.removeAllViews();
-
-        LinearLayout inputModeRow = new LinearLayout(mTermuxActivity);
-        inputModeRow.setOrientation(LinearLayout.HORIZONTAL);
-        inputModeRow.setGravity(Gravity.CENTER_VERTICAL);
-        inputModeRow.setPadding(dp(4), 0, dp(4), 0);
-        mDInputCheckBox = new CheckBox(mTermuxActivity);
-        mDInputCheckBox.setText(R.string.set_dinput);
-        mXInputCheckBox = new CheckBox(mTermuxActivity);
-        mXInputCheckBox.setText(R.string.set_xinput);
-        inputModeRow.addView(mDInputCheckBox, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1));
-        inputModeRow.addView(mXInputCheckBox, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1));
-        mToolboxContainer.addView(inputModeRow, new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
         ScrollView toolboxScrollView = new ScrollView(mTermuxActivity);
         LinearLayout content = new LinearLayout(mTermuxActivity);
@@ -118,15 +104,6 @@ public class MenuEntryClient {
         LinearLayout addButton = createImageButton("add", mTermuxActivity.getString(com.termux.x11.R.string.add), DEFAULT_ICON_PATH, itemSize);
         addButton.setOnClickListener(v -> showMenuItemDialog(null, -1));
         mGridLayout.addView(addButton);
-    }
-
-    private Integer getSelectedInputModeFlags() {
-        int flags = 0;
-        if (mDInputCheckBox != null && mDInputCheckBox.isChecked())
-            flags |= 0b0001;
-        if (mXInputCheckBox != null && mXInputCheckBox.isChecked())
-            flags |= 0b0010;
-        return flags == 0 ? null : flags;
     }
 
     private void setToolboxItemActions(View button, MenuEntry.Entry entry, int index) {

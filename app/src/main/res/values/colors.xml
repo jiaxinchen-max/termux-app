@@ -5,7 +5,7 @@
     <color name="termux_box_surface">#FFFFFF</color>
     <color name="termux_box_surface_variant">#E6EDF3</color>
     <color name="termux_box_surface_border">#D3DEE8</color>
-    <color name="termux_box_toolbar">#6F8794</color>
+    <color name="termux_box_toolbar">#F44336</color>
     <color name="termux_box_toolbar_text">#FFFFFF</color>
     <color name="termux_box_primary">#2D8CDB</color>
     <color name="termux_box_primary_dark">#1D6FAF</color>

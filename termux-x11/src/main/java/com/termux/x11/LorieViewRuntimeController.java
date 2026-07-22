@@ -102,6 +102,8 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     private final X11BroadcastRegistrar mX11BroadcastRegistrar;
     private final X11SoftKeyboardController mX11SoftKeyboardController = new X11SoftKeyboardController(handler, this);
     private final X11WinHandlerController mX11WinHandlerController = new X11WinHandlerController(this);
+    private boolean mKeepWinHandlerAlive = false;
+    private byte mGamepadMapperType = 1; // Default: XInput
     private final X11WindowModeController mX11WindowModeController = new X11WindowModeController(this);
     private final X11PreferencesController mX11PreferencesController = new X11PreferencesController(handler, this);
     private View.OnKeyListener mLorieKeyListener;
@@ -374,11 +376,69 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
             lorieView.setLorieHost(null);
         }
         mX11DisplayController.detach();
-        mX11WinHandlerController.detach();
+        if (!mKeepWinHandlerAlive) {
+            mX11WinHandlerController.detach();
+        }
         mX11BroadcastRegistrar.unregister();
         liveInstanceCount.updateAndGet(count -> Math.max(0, count - 1));
         LorieViewRuntimeRegistry.unregister(this);
         KeyInterceptor.clearActivity(this);
+    }
+
+    /**
+     * Sets whether the WinHandler (gamepad control) should survive activity/X11 session
+     * destruction. When true, the WinHandler will keep running until explicitly stopped
+     * via {@link #stopWinHandler()}. This is used by TermuxBox containers so gamepad
+     * input continues working even when the activity is in the background.
+     */
+    public void setKeepWinHandlerAlive(boolean keepAlive) {
+        mKeepWinHandlerAlive = keepAlive;
+    }
+
+    /**
+     * Explicitly stops the WinHandler. Call this when the container stops and gamepad
+     * control is no longer needed.
+     */
+    public void stopWinHandler() {
+        mKeepWinHandlerAlive = false;
+        mX11WinHandlerController.detach();
+    }
+
+    /**
+     * Sets the gamepad mapper type for the WinHandler. Should be called before
+     * or after WinHandler creation. If WinHandler is already running, applies
+     * immediately; otherwise stores the value for when it becomes available.
+     *
+     * @param mapperType 0 = Standard (DInput), 1 = XInput
+     */
+    public void setGamepadMapperType(byte mapperType) {
+        mGamepadMapperType = mapperType;
+        if (mX11WinHandlerController.isRunning()) {
+            mX11WinHandlerController.getWinHandler().gamepadHandler.setDInputMapperType(mapperType);
+        }
+    }
+
+    /**
+     * Ensures the WinHandler is running, creating it if necessary.
+     * Safe to call multiple times.
+     */
+    public void ensureWinHandlerRunning(@NonNull LorieView lorieView) {
+        mX11WinHandlerController.attach(lorieView);
+        if (mX11WinHandlerController.isRunning()) {
+            mX11WinHandlerController.getWinHandler().gamepadHandler.setDInputMapperType(mGamepadMapperType);
+        }
+    }
+
+    @NonNull
+    public WinHandler requireWinHandler() {
+        return mX11WinHandlerController.getWinHandler();
+    }
+
+    /**
+     * Returns whether the WinHandler is currently running.
+     */
+    public boolean isWinHandlerRunning() {
+        return mX11WinHandlerController.isRunning();
     }
 
     @NonNull

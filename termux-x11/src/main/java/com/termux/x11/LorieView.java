@@ -52,6 +52,7 @@ import android.view.inputmethod.TextSnapshot;
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.math.MathUtils;
 
 import com.termux.x11.controller.core.CursorLocker;
 import com.termux.x11.controller.winhandler.WinHandler;
@@ -371,6 +372,7 @@ public class LorieView extends SurfaceView implements InputStub {
     private long lastClipboardTimestamp = System.currentTimeMillis();
     private static boolean clipboardSyncEnabled = false;
     private static boolean hardwareKbdScancodesWorkaround = false;
+    private static int rendererZoom = 100;
     private final InputMethodManager mIMM = (InputMethodManager)getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
     private Callback mCallback;
     @Nullable
@@ -1037,6 +1039,16 @@ public class LorieView extends SurfaceView implements InputStub {
         sendTextEvent(text.getBytes());
     }
 
+    @Keep
+    @SuppressWarnings("unused")
+    private static void setRendererViewport(int viewportLeft, int viewportTop, int viewportWidth, int viewportHeight,
+                                            float sourceLeft, float sourceTop, float sourceWidth, float sourceHeight) {
+        // Called from renderer thread to report the current viewport and source region.
+        // This is used to set up input coordinate transforms for zoom support.
+        // When zooming, the renderer renders a cropped section of the source, and this
+        // callback reports which section is visible so that touch inputs can be mapped correctly.
+    }
+
     @FastNative
     private native void nativeInit();
     @FastNative private native void surfaceChanged(Surface surface);
@@ -1053,6 +1065,17 @@ public class LorieView extends SurfaceView implements InputStub {
     @FastNative public native void sendClipboardEvent(byte[] text);
     @FastNative static native void sendWindowChange(int width, int height, int framerate, String name);
     @FastNative static native void setViewport(int x, int y, int width, int height, int expectedWidth, int expectedHeight);
+    @FastNative private static native void setRendererZoom(int percent);
+
+    public void adjustRendererZoom(int delta) {
+        rendererZoom = MathUtils.clamp(rendererZoom + delta, 100, 400);
+        setRendererZoom(rendererZoom);
+    }
+
+    public void resetRendererZoom() {
+        rendererZoom = 100;
+        setRendererZoom(rendererZoom);
+    }
     @FastNative public native void sendMouseEvent(float x, float y, int whichButton, boolean buttonDown, boolean relative);
     @FastNative public native void sendTouchEvent(int action, int id, int x, int y);
     @FastNative public native void sendStylusEvent(float x, float y, int pressure, int tiltX, int tiltY, int orientation, int buttons, boolean eraser, boolean mouseMode);

@@ -35,6 +35,7 @@
         <ListPreference app:key="transformCapturedPointer" app:defaultValue="no" app:entries="@array/transformCapturedPointerEntries" app:entryValues="@array/transformCapturedPointerValues" />
         <SeekBarPreference app:key="capturedPointerSpeedFactor" app:defaultValue="100" app:min="1" android:max="300" app:seekBarIncrement="1" app:showSeekBarValue="true" app:updatesContinuously="true" />
         <SwitchPreferenceCompat app:key="tapToMove" app:defaultValue="false" />
+        <SwitchPreferenceCompat app:key="ignoreGamepadEvents" app:defaultValue="false" />
         <SeekBarPreference app:defaultValue="1" app:key="touch_sensitivity" android:max="20" app:title="@string/touch_sensitivity" />
     </PreferenceScreen>
     <PreferenceScreen app:key="kbd">
@@ -67,7 +68,7 @@
         <Preference app:key="stop_desktop" android:title="@string/stop_desktop" />
     </PreferenceScreen>
     <PreferenceScreen app:key="ekbar">
-        <SwitchPreferenceCompat app:key="adjustHeightForEK" app:defaultValue="false" />
+        <SwitchPreferenceCompat app:key="adjustHeightForEK" app:defaultValue="true" />
         <SwitchPreferenceCompat app:key="useTermuxEKBarBehaviour" app:defaultValue="false" />
         <SeekBarPreference app:key="opacityEKBar" app:defaultValue="100" app:min="1" android:max="100" app:seekBarIncrement="1" app:showSeekBarValue="true" app:updatesContinuously="true" />
         <EditTextPreference app:key="extra_keys_config" />

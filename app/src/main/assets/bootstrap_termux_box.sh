@@ -35,6 +35,17 @@ source_conf() {
     fi
 }
 
+# Run command with CPU affinity if taskset is available and functional,
+# otherwise fall back to direct execution.
+run_with_affinity() {
+    _cores="${PRIMARY_CORES:-0-1}"
+    if taskset -c "$_cores" true 2>/dev/null; then
+        taskset -c "$_cores" "$@"
+    else
+        "$@"
+    fi
+}
+
 # ---- 1. Source container.conf (mandatory) ----
 echo "[bootstrap] Loading configuration..."
 . "$CONTAINER_CONF"
@@ -43,7 +54,7 @@ echo "[bootstrap] Loading configuration..."
 export WINE_PATH="$TERMUX_GLIBC_DIR/${TERMUX_BOX_WINE_PACKAGE:-wine-9.0-staging-wow64}"
 export WINEPREFIX="${TERMUX_BOX_CONTAINER_PREFIX:-${TERMUX_BOX_ROOT}/containers/container-1/prefix}"
 CONTAINER_NAME="${TERMUX_BOX_CONTAINER_NAME:-unknown}"
-export PRIMARY_CORES="${PRIMARY_CORES:-0-3}"
+export PRIMARY_CORES="${PRIMARY_CORES:-0-1}"
 
 # ---- 3. Hardcoded runtime defaults ----
 export BOX64_LD_LIBRARY_PATH="$WINE_PATH/lib64:$WINE_PATH/lib64/wine/x86_64-unix:$TERMUX_GLIBC_DIR/lib/x86_64-linux-gnu"
@@ -119,7 +130,7 @@ sleep 2
 # Step B: wineboot -u creates the prefix skeleton (directories, C: symlink, registry hives)
 echo "[bootstrap] Running wineboot (this may take several minutes)..."
 WINEDLLOVERRIDES="winegstreamer=disabled,mscoree=disabled" \
-    taskset -c ${PRIMARY_CORES:-0-3} "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" wineboot -u
+    run_with_affinity "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" wineboot -u
 WINEBOOT_EXIT=$?
 
 # Stop temporary X server
@@ -165,18 +176,18 @@ fi
 
 if [ -f "$TERMUX_OPT_DIR/prefix/user.reg" ]; then
     echo "[bootstrap] Importing user registry..."
-    taskset -c ${PRIMARY_CORES:-0-3} "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" regedit "$TERMUX_OPT_DIR/prefix/user.reg" 2>/dev/null || true
+    run_with_affinity "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" regedit "$TERMUX_OPT_DIR/prefix/user.reg" 2>/dev/null || true
 fi
 
 if [ -f "$TERMUX_OPT_DIR/prefix/system.reg" ]; then
     echo "[bootstrap] Importing system registry..."
-    taskset -c ${PRIMARY_CORES:-0-3} "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" regedit "$TERMUX_OPT_DIR/prefix/system.reg" 2>/dev/null || true
+    run_with_affinity "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" regedit "$TERMUX_OPT_DIR/prefix/system.reg" 2>/dev/null || true
 fi
 
 mkdir -p "$WINEPREFIX/termux-boxmeta"
 if [ -f "$TERMUX_OPT_DIR/prefix/fix-services.reg" ]; then
     echo "[bootstrap] Applying service fixes..."
-    taskset -c ${PRIMARY_CORES:-0-3} "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" regedit "$TERMUX_OPT_DIR/prefix/fix-services.reg" 2>/dev/null || true
+    run_with_affinity "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" regedit "$TERMUX_OPT_DIR/prefix/fix-services.reg" 2>/dev/null || true
 fi
 touch "$WINEPREFIX/termux-boxmeta/services-fix-applied"
 

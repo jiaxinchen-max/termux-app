@@ -99,8 +99,8 @@ public final class TermuxBoxHomeCardView {
 
         TextView state = text(context, context.getString(R.string.termux_box_home_state_format,
             spec.name,
-            spec.resolution,
-            stripUtf8(spec.locale)),
+            spec.screenSize,
+            "en_US"),
             compact ? 10 : 13, 0xFF24323F, false);
         state.setPadding(0, dp(context, compact ? 8 : 16), 0, 0);
         details.addView(state);
@@ -116,8 +116,8 @@ public final class TermuxBoxHomeCardView {
         chipsParams.topMargin = dp(context, compact ? 6 : 12);
         details.addView(chips, chipsParams);
 
-        chips.addView(chip(context, spec.resolution, compact));
-        chips.addView(chip(context, spec.gpuDriver, compact));
+        chips.addView(chip(context, spec.screenSize, compact));
+        chips.addView(chip(context, spec.graphicsDriver, compact));
         chips.addView(chip(context, spec.audioDriver, compact));
 
         View.OnClickListener toggle = v -> {

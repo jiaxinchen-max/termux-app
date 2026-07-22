@@ -43,6 +43,17 @@ source_conf() {
     fi
 }
 
+# Run command with CPU affinity if taskset is available and functional,
+# otherwise fall back to direct execution.
+run_with_affinity() {
+    _cores="${PRIMARY_CORES:-0-1}"
+    if taskset -c "$_cores" true 2>/dev/null; then
+        taskset -c "$_cores" "$@"
+    else
+        "$@"
+    fi
+}
+
 # ---- Load configuration ----
 # Design: container.conf is the SINGLE source of container-specific configuration.
 # All runtime defaults are hardcoded here. Files in config/ are optional overrides
@@ -51,7 +62,7 @@ load_configs() {
     # ---- 1. Source container.conf (mandatory — contains all container-specific config) ----
     . "$TERMUX_BOX_CONTAINER_CONF"
 
-    # ---- 2. Resolve container-specific variables (with defaults) ----
+    # ---- 2. Resolve container-specific variables (with defaults aligned to Winlator) ----
     export TERMUX_BOX_CONTAINER_DIR="${TERMUX_BOX_CONTAINER_DIR:-$TERMUX_BOX_ROOT/containers/container-1}"
     export TERMUX_BOX_CONTAINER_PREFIX="${TERMUX_BOX_CONTAINER_PREFIX:-$TERMUX_BOX_CONTAINER_DIR/prefix}"
     export WINE_PATH="$TERMUX_GLIBC_DIR/${TERMUX_BOX_WINE_PACKAGE:-wine-9.0-staging-wow64}"
@@ -59,19 +70,44 @@ load_configs() {
     export RESOLUTION="${TERMUX_BOX_RESOLUTION:-1280x720}"
     export LC_ALL="${LC_ALL:-en_US.utf8}"
 
-    # ---- 3. Hardcoded runtime defaults (no dependency on external config files) ----
+    # ---- 3. Apply container envVars (Winlator-aligned) ----
+    if [ -n "${TERMUX_BOX_ENV_VARS:-}" ]; then
+        for _env_pair in $TERMUX_BOX_ENV_VARS; do
+            case "$_env_pair" in
+                *=\ *) eval "export $_env_pair" ;;
+                *=*) eval "export ${_env_pair%%=*}='${_env_pair#*=}'" ;;
+            esac
+        done
+    fi
+
+    # ---- 4. Hardcoded runtime defaults ----
     export BOX64_LD_LIBRARY_PATH="$WINE_PATH/lib64:$WINE_PATH/lib64/wine/x86_64-unix:$TERMUX_GLIBC_DIR/lib/x86_64-linux-gnu"
     export VK_ICD_FILENAMES="$TERMUX_GLIBC_DIR/share/vulkan/icd.d/freedreno_icd.aarch64.json"
     export DXVK_CONFIG_FILE="$TERMUX_BOX_CONFIG_DIR/dxvk.conf"
     export FONTCONFIG_PATH="$TERMUX_GLIBC_DIR/etc/fonts"
     export BOX64_PATH="$TERMUX_GLIBC_DIR/bin"
-    export DXVK_ASYNC=1
-    export VKD3D_FEATURE_LEVEL=12_0
     export BOX64_MMAP32=1
     export tu_allow_oob_indirect_ubo_loads=true
-    export PRIMARY_CORES="${PRIMARY_CORES:-0-3}"
+    export PRIMARY_CORES="${PRIMARY_CORES:-0-1}"
 
-    # ---- 4. Optional: source user setting overrides from config/ directory ----
+    # Apply box64 preset (Winlator-aligned)
+    TERMUX_BOX_BOX64_PRESET="${TERMUX_BOX_BOX64_PRESET:-INTERMEDIATE}"
+    case "$TERMUX_BOX_BOX64_PRESET" in
+        STABILITY)     export BOX64_DYNAREC_SAFEFLAGS=2 BOX64_DYNAREC_FASTNAN=0 BOX64_DYNAREC_FASTROUND=0 BOX64_DYNAREC_X87DOUBLE=1 BOX64_DYNAREC_BIGBLOCK=0 BOX64_DYNAREC_STRONGMEM=2 BOX64_DYNAREC_FORWARD=128 BOX64_DYNAREC_CALLRET=0 ;;
+        CONSERVATIVE)  export BOX64_DYNAREC_SAFEFLAGS=2 BOX64_DYNAREC_FASTNAN=0 BOX64_DYNAREC_FASTROUND=0 BOX64_DYNAREC_X87DOUBLE=1 BOX64_DYNAREC_BIGBLOCK=1 BOX64_DYNAREC_STRONGMEM=1 BOX64_DYNAREC_FORWARD=128 BOX64_DYNAREC_CALLRET=0 ;;
+        INTERMEDIATE)  export BOX64_DYNAREC_SAFEFLAGS=2 BOX64_DYNAREC_FASTNAN=1 BOX64_DYNAREC_FASTROUND=0 BOX64_DYNAREC_X87DOUBLE=1 BOX64_DYNAREC_BIGBLOCK=2 BOX64_DYNAREC_STRONGMEM=0 BOX64_DYNAREC_FORWARD=128 BOX64_DYNAREC_CALLRET=0 ;;
+        PERFORMANCE)   export BOX64_DYNAREC_SAFEFLAGS=1 BOX64_DYNAREC_FASTNAN=1 BOX64_DYNAREC_FASTROUND=1 BOX64_DYNAREC_X87DOUBLE=0 BOX64_DYNAREC_BIGBLOCK=3 BOX64_DYNAREC_STRONGMEM=0 BOX64_DYNAREC_FORWARD=512 BOX64_DYNAREC_CALLRET=1 ;;
+    esac
+
+    # HUD mode (Winlator-aligned: 0=off, 1=simple fps, 2=full)
+    TERMUX_BOX_HUD_MODE="${TERMUX_BOX_HUD_MODE:-0}"
+    case "$TERMUX_BOX_HUD_MODE" in
+        0) unset MESA_LOADER_DRIVER_OVERRIDE ;;  # No overlay
+        1) export GALLIUM_HUD=fps ;;
+        2) export GALLIUM_HUD=simple,fps,cpu,VRAM-usage ;;
+    esac
+
+    # ---- 5. Optional: source user setting overrides from config/ directory ----
     source_conf "$TERMUX_BOX_CONFIG_DIR/cores.conf"
     source_conf "$TERMUX_BOX_CONFIG_DIR/debug.conf"
     source_conf "$TERMUX_BOX_CONFIG_DIR/force_compatibility.conf"
@@ -80,9 +116,7 @@ load_configs() {
     source_conf "$TERMUX_BOX_CONFIG_DIR/wsi_present.conf"
     source_conf "$TERMUX_BOX_CONFIG_DIR/wsi_debug.conf"
     source_conf "$TERMUX_BOX_CONFIG_DIR/virgl.conf"
-    source_conf "$TERMUX_BOX_CONFIG_DIR/hud.conf"
     source_conf "$TERMUX_BOX_CONFIG_DIR/tu_debug.conf"
-    source_conf "$TERMUX_BOX_CONFIG_DIR/dynarec_preset.conf"
 
     if [ -d "$TERMUX_BOX_CONFIG_DIR/dynarec" ]; then
         for i in "$TERMUX_BOX_CONFIG_DIR"/dynarec/*.conf; do
@@ -271,9 +305,22 @@ if [ -z "$LC_ALL" ]; then
     LC_ALL="en_US.utf8"
 fi
 
+# Build WINEDLLOVERRIDES from container gamepad mapper type
+# 0 = Standard (DInput), 1 = XInput
+WINE_DLL_OVERRIDES=""
+case "${TERMUX_BOX_GAMEPAD_MAPPER:-1}" in
+    0)
+        WINE_DLL_OVERRIDES="dinput=native;dinput8=native;"
+        ;;
+    1)
+        WINE_DLL_OVERRIDES="xinput1_1=native;xinput1_2=native;xinput1_3=native;xinput1_4=native;xinput9_1_0=native;xinputuap=native;"
+        ;;
+esac
+[ -n "$WINE_DLL_OVERRIDES" ] && export WINEDLLOVERRIDES || unset WINEDLLOVERRIDES
+
 # Start Wine (redirect output — wine produces massive fixme/err noise at default verbosity)
 echo "[4/4] Starting Wine container: ${TERMUX_BOX_CONTAINER_NAME:-unknown}"
-DISPLAY=:0 LC_ALL="$LC_ALL" taskset -c ${PRIMARY_CORES:-0-3} \
+DISPLAY=:0 LC_ALL="$LC_ALL" run_with_affinity \
     "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" explorer /desktop=shell,"$RESOLUTION" "$TERMUX_OPT_DIR/apps/tfm.exe" >/dev/null 2>&1 &
 WINE_PID=$!
 

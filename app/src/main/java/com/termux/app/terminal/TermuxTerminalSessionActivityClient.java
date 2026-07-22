@@ -165,6 +165,15 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
                 Logger.logVerbose(LOG_TAG, "The \"" + finishedSession.mSessionName + "\" session will be force finished automatically since result in pending.");
         }
 
+        // Notify TermuxBox container manager when a wine container session ends,
+        // so it can stop the WinHandler (gamepad control) lifecycle.
+        if ("termux-box-start-wine".equals(finishedSession.mSessionName)) {
+            TermuxBoxContainerManagerClient boxClient = mActivity.getTermuxBoxContainerManagerClient();
+            if (boxClient != null) {
+                boxClient.onContainerSessionFinished();
+            }
+        }
+
         if (mActivity.isVisible() && finishedSession != mActivity.getCurrentSession()) {
             // Show toast for non-current sessions that exit.
             // Verify that session was not removed before we got told about it finishing:
