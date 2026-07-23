@@ -92,6 +92,8 @@ typedef enum {
     EVENT_SERVER_VERIFY_SUCCEED,
     EVENT_CLIENT_VERIFY_SUCCEED,
     EVENT_STOP_RENDER,
+    EVENT_RENDERER_WAKEUP_COND,
+    EVENT_GPU_COPY_DONE,
 } eventType;
 
 typedef enum {
@@ -164,9 +166,21 @@ struct lorie_shared_server_state {
     pid_t lockingPid;
 
     /*
-     * Renderer thread sleeps when it is idle so we must explicitly wake it up.
+     * GPU copy queue for deferred Present copies (single-producer/single-consumer ring buffer).
      */
-    pthread_cond_t cond; // initialized at X server side.
+    struct {
+        volatile uint32_t writeIndex;
+        volatile uint32_t readIndex;
+        volatile uint64_t completedSerial;
+        struct {
+            uint64_t serial;
+            uint64_t srcBufferId;
+            uint64_t dstBufferId;
+            int16_t xOff, yOff;
+            uint16_t numRects;
+            struct { int16_t x1, y1, x2, y2; } rects[16];
+        } entries[8];
+    } gpuCopyQueue;
 
     /* ID of root window texture to be drawn. */
     uint64_t rootWindowTextureID;
@@ -377,5 +391,6 @@ int unregisterBufferFromRender(LorieBuffer *buffer);
 int get_conn_fd(void);
 LorieBuffer *get_lorieBuffer(void);
 struct lorie_shared_server_state *get_serverState(void);
+extern pthread_cond_t *rendererCond;
 
 #endif /* RENDER_H */

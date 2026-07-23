@@ -141,7 +141,8 @@ static int animate()
 
     serverState->waitForNextFrame = false;
     serverState->drawRequested = 1;
-    pthread_cond_signal(&serverState->cond);
+    if (rendererCond)
+        pthread_cond_signal(rendererCond);
     lorie_mutex_unlock(&serverState->lock, &serverState->lockingPid);
     ret = LorieBuffer_unlock(lorieBuffer);
     return ret;

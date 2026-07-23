@@ -441,6 +441,18 @@ static int process(JNIEnv *env, int fd) {
                 case EVENT_CLIENT_VERIFY_SUCCEED: {
                     log(INFO, "Handling EVENT_CLIENT_VERIFY_SUCCEED");
                     notifyRenderConnectionChanged(env);
+
+                    // Forward the renderer's process-shared cond var fd to the X server
+                    // now that the connection is fully established.
+                    // Use fd (event_fd ↔ control channel to X server), not render_input_fd (conn_fd ↔ input events).
+                    int rendererCondFd = rendererGetWakeupCondFd();
+                    if (rendererCondFd >= 0) {
+                        lorieEvent condEvent = { .type = EVENT_RENDERER_WAKEUP_COND };
+                        write(fd, &condEvent, sizeof(condEvent));
+                        ancil_send_fd(fd, rendererCondFd);
+                        log(INFO, "Forwarded renderer cond fd=%d to X server via fd", rendererCondFd);
+                    } else
+                        log(ERROR, "Failed to get renderer cond fd, X server won't be able to wake renderer");
                     break;
                 }
                 case EVENT_STOP_RENDER: {

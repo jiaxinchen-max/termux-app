@@ -82,6 +82,8 @@ static uint8_t* loadAndPreprocessFrame(int frameId, int bufferWidth, int bufferH
     return processedImage;
 }
 
+extern pthread_cond_t *rendererCond;
+
 static int animate(){
     int ret;
     void *shared_buffer;
@@ -133,7 +135,8 @@ static int animate(){
 
     serverState->waitForNextFrame = false;
     serverState->drawRequested = 1;
-    pthread_cond_signal(&serverState->cond);
+    if (rendererCond)
+        pthread_cond_signal(rendererCond);
     lorie_mutex_unlock(&serverState->lock, &serverState->lockingPid);
     ret = LorieBuffer_unlock(lorieBuffer);
     return ret;
