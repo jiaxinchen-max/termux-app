@@ -163,6 +163,19 @@
     <string name="termux_box_packages_uninstalling">Removing %1$s</string>
     <string name="termux_box_packages_selecting_container">Selecting container %1$s</string>
     <string name="termux_box_packages_local_installing">Local installing %1$s</string>
+    <string name="termux_box_packages_in_use">in use</string>
+    <string name="termux_box_packages_apply">Apply</string>
+    <string name="termux_box_packages_detection_path">path: %1$s</string>
+    <string name="termux_box_packages_wine_section">Wine Versions</string>
+    <string name="termux_box_packages_box64_version_section">Box64 Version</string>
+    <string name="termux_box_packages_add">Add</string>
+    <string name="termux_box_packages_download_box64_title">Download Box64 Package</string>
+    <string name="termux_box_packages_download_wine_title">Download Wine Package</string>
+    <string name="termux_box_packages_others_section">Others</string>
+    <string name="termux_box_packages_download_others_title">Download Other Package</string>
+    <string name="termux_box_packages_download">Download</string>
+    <string name="termux_box_packages_no_packages_available">No packages available</string>
+    <string name="termux_box_packages_select_local">Browse local</string>
 
     <string name="termux_box_settings_title">Settings</string>
     <string name="termux_box_settings_summary">Writes container config.</string>
@@ -219,8 +232,8 @@
     <string name="termux_box_container_cursor">Cursor</string>
     <string name="termux_box_container_mouse_offset">Mouse</string>
     <string name="termux_box_container_mouse_offset_summary">Mouse move</string>
-    <string name="termux_box_container_dx_title">DX</string>
-    <string name="termux_box_container_dx_summary">Library map</string>
+    <string name="termux_box_container_add_library">Add Library</string>
+    <string name="termux_box_container_library_name_hint">Library name</string>
     <string name="termux_box_container_env_title">Env</string>
     <string name="termux_box_container_env_summary">Switches</string>
     <string name="termux_box_container_folders_title">Folders</string>
@@ -270,6 +283,9 @@
     <string name="termux_box_container_library_directshow">DShow</string>
     <string name="termux_box_container_library_directplay">DPlay</string>
     <string name="termux_box_container_library_xaudio">XAudio</string>
+    <string name="termux_box_container_library_vcrun2005">VC++05</string>
+    <string name="termux_box_container_library_vcrun2010">VC++10</string>
+    <string name="termux_box_container_library_wmdecoder">WMDec</string>
     <string name="termux_box_container_drive_letter">Drive</string>
     <string name="termux_box_container_target_path">Path</string>
     <string name="termux_box_container_on">On</string>

@@ -40,8 +40,11 @@ public class TermuxBoxPackagesFragment extends Fragment {
 
     private TermuxBoxRepository repository;
     private LinearLayout packageListContainer;
+    private LinearLayout othersListContainer;
+    private LinearLayout wineProgressContainer;
+    private LinearLayout othersProgressContainer;
     private String pendingLocalInstallPackageName;
-    private String selectedPackageName;
+    private String pendingTaskTarget;
     private String activeTaskTarget;
     private String activeTaskMessage;
     private int activeTaskProgress = -1;
@@ -69,10 +72,15 @@ public class TermuxBoxPackagesFragment extends Fragment {
         content.setPadding(dp(16), dp(16), dp(16), dp(16));
         root.addView(content, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        content.addView(sectionTitle(R.string.termux_box_packages_title));
-        content.addView(sectionSubtitle(R.string.termux_box_packages_summary));
+        content.addView(buildBox64SectionHeader());
         content.addView(buildBox64Card());
-        content.addView(buildPackageListHeader());
+        content.addView(buildWineSectionHeader());
+
+        // Shared progress area for wine add operations
+        wineProgressContainer = new LinearLayout(requireContext());
+        wineProgressContainer.setOrientation(LinearLayout.VERTICAL);
+        wineProgressContainer.setVisibility(View.GONE);
+        content.addView(wineProgressContainer);
 
         packageListContainer = new LinearLayout(requireContext());
         packageListContainer.setOrientation(LinearLayout.VERTICAL);
@@ -80,68 +88,204 @@ public class TermuxBoxPackagesFragment extends Fragment {
         listParams.topMargin = dp(8);
         content.addView(packageListContainer, listParams);
 
+        // Others section
+        content.addView(buildOthersSectionHeader());
+
+        othersProgressContainer = new LinearLayout(requireContext());
+        othersProgressContainer.setOrientation(LinearLayout.VERTICAL);
+        othersProgressContainer.setVisibility(View.GONE);
+        content.addView(othersProgressContainer);
+
+        othersListContainer = new LinearLayout(requireContext());
+        othersListContainer.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams othersListParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        othersListParams.topMargin = dp(8);
+        content.addView(othersListContainer, othersListParams);
+
         renderPackages();
         return root;
     }
 
     private View buildBox64Card() {
+        boolean installed = repository.isBox64Installed();
+        String currentBuild = repository.getCurrentBox64Build();
+        List<String> availableBuilds = repository.getAvailableBox64Builds();
+
         MaterialCardView card = baseCard();
+        if (installed) {
+            card.setCardBackgroundColor(0xFFE8F5E9);
+            card.setStrokeWidth(dp(2));
+            card.setStrokeColor(0xFF4CAF50);
+        }
 
         LinearLayout body = new LinearLayout(requireContext());
         body.setOrientation(LinearLayout.VERTICAL);
         body.setPadding(dp(14), dp(14), dp(14), dp(14));
         card.addView(body, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        // Title row with installed status
+        LinearLayout titleRow = new LinearLayout(requireContext());
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        body.addView(titleRow);
+
         TextView headline = new TextView(requireContext());
         headline.setText(R.string.termux_box_packages_box64_title);
-        headline.setTextColor(0xFF24323F);
+        headline.setTextColor(installed ? 0xFF2E7D32 : 0xFF24323F);
         headline.setTypeface(Typeface.DEFAULT_BOLD);
         headline.setTextSize(15f);
-        body.addView(headline);
+        LinearLayout.LayoutParams headlineParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        titleRow.addView(headline, headlineParams);
 
-        TextView summary = new TextView(requireContext());
-        summary.setTextColor(0xFF60707E);
-        summary.setTextSize(13f);
-        summary.setText(R.string.termux_box_packages_box64_summary);
-        LinearLayout.LayoutParams summaryParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        summaryParams.topMargin = dp(6);
-        body.addView(summary, summaryParams);
+        // Status chips
+        ChipGroup chips = new ChipGroup(requireContext());
+        chips.setChipSpacing(dp(8));
+        chips.setSingleLine(true);
+        titleRow.addView(chips);
+
+        if (installed) {
+            chips.addView(stateChip(getString(R.string.termux_box_packages_in_use), 0xFFE8F5E9, 0xFF2E7D32));
+            if (currentBuild != null) {
+                chips.addView(stateChip(currentBuild, 0xFFE8F5E9, 0xFF2E7D32));
+            }
+        } else {
+            chips.addView(stateChip(getString(R.string.termux_box_packages_not_installed), 0xFFF9E2E2, 0xFFC62828));
+        }
+
+        // Available builds — dynamically show each build found in the box directory
+        if (!availableBuilds.isEmpty()) {
+            for (String build : availableBuilds) {
+                boolean isCurrent = build.equals(currentBuild);
+                MaterialCardView buildRow = buildCard();
+                LinearLayout buildBody = new LinearLayout(requireContext());
+                buildBody.setOrientation(LinearLayout.HORIZONTAL);
+                buildBody.setGravity(Gravity.CENTER_VERTICAL);
+                buildBody.setPadding(dp(10), dp(10), dp(10), dp(10));
+                buildRow.addView(buildBody, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+                TextView buildName = new TextView(requireContext());
+                buildName.setText(build);
+                buildName.setTextColor(isCurrent ? 0xFF2E7D32 : 0xFF24323F);
+                buildName.setTypeface(Typeface.DEFAULT_BOLD);
+                buildName.setTextSize(14f);
+                LinearLayout.LayoutParams buildNameParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                buildBody.addView(buildName, buildNameParams);
+
+                if (isCurrent) {
+                    buildBody.addView(stateChip(getString(R.string.termux_box_packages_in_use), 0xFFE8F5E9, 0xFF2E7D32));
+                } else {
+                    buildBody.addView(actionButtonSmall(R.string.termux_box_packages_apply,
+                        v -> runTask(R.string.termux_box_packages_applying_build, "box64",
+                            listener -> repository.applyBox64Build(build))));
+                }
+
+                body.addView(buildRow);
+            }
+        }
 
         View taskInfo = buildTaskInfoView("box64");
         LinearLayout.LayoutParams taskInfoParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         taskInfoParams.topMargin = dp(10);
         body.addView(taskInfo, taskInfoParams);
 
-        LinearLayout actions = new LinearLayout(requireContext());
-        actions.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        actionsParams.topMargin = dp(12);
-        body.addView(actions, actionsParams);
-
-        actions.addView(actionButton("MAR3", v -> runTask(R.string.termux_box_packages_applying_build, "box64", listener -> repository.applyBox64Build("mar3"))), weightedParams());
-        actions.addView(space(dp(10)), fixedParams(dp(10), 1));
-        actions.addView(actionButton("FEB14", v -> runTask(R.string.termux_box_packages_applying_build, "box64", listener -> repository.applyBox64Build("feb14"))), weightedParams());
-
         return card;
     }
 
-    private View buildPackageListHeader() {
+    private View buildBox64SectionHeader() {
         LinearLayout header = new LinearLayout(requireContext());
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setOrientation(LinearLayout.VERTICAL);
         header.setPadding(0, dp(16), 0, dp(6));
         header.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        LinearLayout titleRow = new LinearLayout(requireContext());
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+
         TextView title = new TextView(requireContext());
-        title.setText(R.string.termux_box_packages_all);
+        title.setText(R.string.termux_box_packages_box64_version_section);
         title.setTextColor(0xFF24323F);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setTextSize(15f);
 
-        MaterialButton refresh = actionButtonSmall(R.string.termux_box_packages_refresh, v -> renderPackages());
+        MaterialButton addButton = actionButtonSmall(R.string.termux_box_packages_add, v ->
+            showPackageDownloadDialog(repository.getBox64OnlyPackages(), "box64", R.string.termux_box_packages_download_box64_title));
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        header.addView(title, titleParams);
-        header.addView(refresh);
+        titleRow.addView(title, titleParams);
+        titleRow.addView(addButton);
+        header.addView(titleRow);
+
+        TextView path = new TextView(requireContext());
+        path.setTextColor(0xFF60707E);
+        path.setTextSize(12f);
+        path.setText(getString(R.string.termux_box_packages_detection_path, "usr/glibc/bin/"));
+        path.setPadding(0, dp(4), 0, 0);
+        header.addView(path);
+
+        return header;
+    }
+
+    private View buildWineSectionHeader() {
+        LinearLayout header = new LinearLayout(requireContext());
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setPadding(0, dp(16), 0, dp(6));
+        header.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout titleRow = new LinearLayout(requireContext());
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView title = new TextView(requireContext());
+        title.setText(R.string.termux_box_packages_wine_section);
+        title.setTextColor(0xFF24323F);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTextSize(15f);
+
+        MaterialButton addButton = actionButtonSmall(R.string.termux_box_packages_add, v ->
+            showPackageDownloadDialog(repository.getWinePackages(), "wine-add", R.string.termux_box_packages_download_wine_title));
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        titleRow.addView(title, titleParams);
+        titleRow.addView(addButton);
+        header.addView(titleRow);
+
+        TextView path = new TextView(requireContext());
+        path.setTextColor(0xFF60707E);
+        path.setTextSize(12f);
+        path.setText(getString(R.string.termux_box_packages_detection_path, "usr/glibc/"));
+        path.setPadding(0, dp(4), 0, 0);
+        header.addView(path);
+
+        return header;
+    }
+
+    private View buildOthersSectionHeader() {
+        LinearLayout header = new LinearLayout(requireContext());
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setPadding(0, dp(16), 0, dp(6));
+        header.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout titleRow = new LinearLayout(requireContext());
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView title = new TextView(requireContext());
+        title.setText(R.string.termux_box_packages_others_section);
+        title.setTextColor(0xFF24323F);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTextSize(15f);
+
+        MaterialButton addButton = actionButtonSmall(R.string.termux_box_packages_add, v ->
+            showPackageDownloadDialog(repository.getOtherPackages(), "others-add", R.string.termux_box_packages_download_others_title));
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        titleRow.addView(title, titleParams);
+        titleRow.addView(addButton);
+        header.addView(titleRow);
+
+        TextView path = new TextView(requireContext());
+        path.setTextColor(0xFF60707E);
+        path.setTextSize(12f);
+        path.setText(getString(R.string.termux_box_packages_detection_path, "usr/glibc/"));
+        path.setPadding(0, dp(4), 0, 0);
+        header.addView(path);
 
         return header;
     }
@@ -150,130 +294,207 @@ public class TermuxBoxPackagesFragment extends Fragment {
         if (packageListContainer == null || repository == null) {
             return;
         }
-        ensureSelection();
         packageListContainer.removeAllViews();
 
-        List<TermuxBoxPackageSpec> packages = repository.getPackages();
-        for (TermuxBoxPackageSpec spec : packages) {
-            packageListContainer.addView(buildPackageRow(spec));
+        // Determine the active wine package from the current container
+        TermuxBoxContainerSpec currentContainer = repository.getCurrentContainer();
+        String activeWinePackage = currentContainer != null ? currentContainer.wineVersion : null;
+
+        // Use getInstalledWinePackages() which checks the actual glibc/<wineName> directory
+        List<TermuxBoxPackageSpec> installedWines = repository.getInstalledWinePackages();
+        for (TermuxBoxPackageSpec spec : installedWines) {
+            boolean isActive = spec.name.equals(activeWinePackage);
+            packageListContainer.addView(buildPackageRow(spec, isActive));
+        }
+
+        if (installedWines.isEmpty()) {
+            packageListContainer.addView(buildEmptyHint());
+        }
+
+        // Update wine progress container for add operations
+        updateWineProgress();
+
+        // Render Others section
+        if (othersListContainer != null) {
+            othersListContainer.removeAllViews();
+            List<TermuxBoxPackageSpec> installedOthers = repository.getInstalledOtherPackages();
+            for (TermuxBoxPackageSpec spec : installedOthers) {
+                othersListContainer.addView(buildPackageRow(spec, false));
+            }
+            if (installedOthers.isEmpty()) {
+                othersListContainer.addView(buildEmptyHint());
+            }
+        }
+        updateOthersProgress();
+    }
+
+    private void updateWineProgress() {
+        if (wineProgressContainer == null) {
+            return;
+        }
+        wineProgressContainer.removeAllViews();
+        boolean active = "wine-add".equals(activeTaskTarget);
+        wineProgressContainer.setVisibility(active ? View.VISIBLE : View.GONE);
+        if (active) {
+            wineProgressContainer.addView(buildTaskInfoView("wine-add"));
         }
     }
 
-    private View buildPackageRow(TermuxBoxPackageSpec spec) {
-        boolean selected = spec.name.equals(selectedPackageName);
-        boolean installed = repository.isInstalled(spec);
-        boolean upToDate = repository.isUpToDate(spec);
+    private void updateOthersProgress() {
+        if (othersProgressContainer == null) {
+            return;
+        }
+        othersProgressContainer.removeAllViews();
+        boolean active = "others-add".equals(activeTaskTarget);
+        othersProgressContainer.setVisibility(active ? View.VISIBLE : View.GONE);
+        if (active) {
+            othersProgressContainer.addView(buildTaskInfoView("others-add"));
+        }
+    }
+
+    private View buildEmptyHint() {
+        TextView hint = new TextView(requireContext());
+        hint.setText(R.string.termux_box_packages_not_installed);
+        hint.setTextColor(0xFF60707E);
+        hint.setTextSize(13f);
+        hint.setGravity(Gravity.CENTER);
+        hint.setPadding(0, dp(24), 0, dp(24));
+        return hint;
+    }
+
+    private View buildPackageRow(TermuxBoxPackageSpec spec, boolean isActive) {
         MaterialCardView card = baseCard();
-        card.setCardBackgroundColor(0xFFFFFFFF);
-        card.setStrokeWidth(dp(1));
-        card.setOnClickListener(v -> {
-            selectedPackageName = selected ? null : spec.name;
-            renderPackages();
-        });
+        if (isActive) {
+            card.setCardBackgroundColor(0xFFE3F2FD);
+            card.setStrokeWidth(dp(2));
+            card.setStrokeColor(0xFF42A5F5);
+        } else {
+            card.setCardBackgroundColor(0xFFF5F5F5);
+            card.setStrokeWidth(dp(1));
+            card.setStrokeColor(0xFFD3DEE8);
+        }
 
         LinearLayout body = new LinearLayout(requireContext());
         body.setOrientation(LinearLayout.VERTICAL);
         body.setPadding(dp(14), dp(14), dp(14), dp(14));
         card.addView(body, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        LinearLayout titleRow = new LinearLayout(requireContext());
-        titleRow.setOrientation(LinearLayout.HORIZONTAL);
-        titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        body.addView(titleRow);
+        // Top row: name + in-use chip + remove button
+        LinearLayout topRow = new LinearLayout(requireContext());
+        topRow.setOrientation(LinearLayout.HORIZONTAL);
+        topRow.setGravity(Gravity.CENTER_VERTICAL);
+        body.addView(topRow);
 
         TextView title = new TextView(requireContext());
         title.setText(spec.name);
-        title.setTextColor(0xFF24323F);
+        title.setTextColor(isActive ? 0xFF1565C0 : 0xFF24323F);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setTextSize(16f);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        titleRow.addView(title, titleParams);
+        topRow.addView(title, titleParams);
 
-        LinearLayout details = new LinearLayout(requireContext());
-        details.setOrientation(LinearLayout.VERTICAL);
-        details.setVisibility(selected ? View.VISIBLE : View.GONE);
-        LinearLayout.LayoutParams detailsParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        detailsParams.topMargin = dp(10);
-        body.addView(details, detailsParams);
-
-        TextView summary = new TextView(requireContext());
-        summary.setTextColor(0xFF60707E);
-        summary.setTextSize(12f);
-        summary.setText(packageStatus(spec));
-        details.addView(summary);
-
-        ChipGroup chips = new ChipGroup(requireContext());
-        chips.setChipSpacing(dp(8));
-        chips.setSingleLine(true);
-        LinearLayout.LayoutParams chipsParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        chipsParams.topMargin = dp(10);
-        details.addView(chips, chipsParams);
-
-        chips.addView(stateChip("v" + spec.version, 0xFFF2F5F7, 0xFF60707E));
-        chips.addView(stateChip(installed ? getString(R.string.termux_box_packages_installed, repository.getInstalledVersionText(spec))
-                : getString(R.string.termux_box_packages_not_installed),
-            installed ? 0xFFE8F5E9 : 0xFFF9E2E2,
-            installed ? 0xFF2E7D32 : 0xFFC62828));
-        if (spec.wine) {
-            chips.addView(stateChip("WINE", 0xFFF3ECFF, 0xFF7B4BD8));
+        if (isActive) {
+            topRow.addView(stateChip(getString(R.string.termux_box_packages_in_use), 0xFFE3F2FD, 0xFF1565C0));
+            topRow.addView(space(dp(8)));
         }
 
+        topRow.addView(actionButtonSmall(R.string.termux_box_packages_uninstall, v -> runTask(R.string.termux_box_packages_uninstalling, spec.name, listener -> repository.removePackage(spec))));
+
+        // Task progress (for remove operations)
         View taskInfo = buildTaskInfoView(spec.name);
         LinearLayout.LayoutParams taskInfoParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        taskInfoParams.topMargin = dp(10);
-        details.addView(taskInfo, taskInfoParams);
-
-        LinearLayout actions = new LinearLayout(requireContext());
-        actions.setOrientation(LinearLayout.HORIZONTAL);
-        actions.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        actionsParams.topMargin = dp(12);
-        details.addView(actions, actionsParams);
-
-        actions.addView(actionButtonCompact(installed && !upToDate ? R.string.termux_box_packages_update : R.string.termux_box_packages_network_install, v -> runTask(installed && !upToDate ? R.string.termux_box_packages_updating : R.string.termux_box_packages_installing, spec.name,
-            listener -> repository.syncPackage(spec, false, listener))), weightedParams());
-        actions.addView(space(dp(8)), fixedParams(dp(8), 1));
-        actions.addView(actionButtonCompact(R.string.termux_box_packages_local_install, v -> {
-            pendingLocalInstallPackageName = spec.name;
-            localInstallLauncher.launch(new String[] {"*/*"});
-        }), weightedParams());
-        actions.addView(space(dp(8)), fixedParams(dp(8), 1));
-        actions.addView(actionButtonCompact(R.string.termux_box_packages_verify, v -> runTask(R.string.termux_box_packages_verifying, spec.name, listener -> repository.validatePackage(spec, listener))), weightedParams());
-        actions.addView(space(dp(8)), fixedParams(dp(8), 1));
-        actions.addView(actionButtonCompact(R.string.termux_box_packages_uninstall, v -> runTask(R.string.termux_box_packages_uninstalling, spec.name, listener -> repository.removePackage(spec))), weightedParams());
+        taskInfoParams.topMargin = dp(8);
+        body.addView(taskInfo, taskInfoParams);
 
         return card;
-    }
-
-    private String packageStatus(TermuxBoxPackageSpec spec) {
-        StringBuilder state = new StringBuilder();
-        state.append(repository.isInstalled(spec)
-            ? getString(R.string.termux_box_packages_installed, repository.getInstalledVersionText(spec))
-            : getString(R.string.termux_box_packages_not_installed));
-        return state.toString();
     }
 
     private void handleLocalInstallDocument(@Nullable Uri uri) {
         if (uri == null) {
             pendingLocalInstallPackageName = null;
+            pendingTaskTarget = null;
             return;
         }
         String packageName = pendingLocalInstallPackageName;
+        String taskTarget = pendingTaskTarget != null ? pendingTaskTarget : "wine-add";
         pendingLocalInstallPackageName = null;
+        pendingTaskTarget = null;
         if (TextUtils.isEmpty(packageName)) {
             Toast.makeText(requireContext(), R.string.termux_box_packages_no_target, Toast.LENGTH_SHORT).show();
             return;
         }
         TermuxBoxPackageSpec spec = repository.findPackage(packageName);
         if (spec == null) {
-            Toast.makeText(requireContext(), R.string.termux_box_packages_target_missing, Toast.LENGTH_SHORT).show();
+            spec = new TermuxBoxPackageSpec(packageName, 1, true);
+        }
+        final TermuxBoxPackageSpec finalSpec = spec;
+        final Uri finalUri = uri;
+        final String finalTarget = taskTarget;
+        runTask(R.string.termux_box_packages_local_installing, finalTarget, listener -> {
+            File archive = repository.newTempPackageArchive(finalSpec.name);
+            copyUriToFile(finalUri, archive);
+            repository.installPackageFromArchive(finalSpec, archive, listener);
+        });
+    }
+
+    private void showPackageDownloadDialog(List<TermuxBoxPackageSpec> packages, String taskTarget, int titleResId) {
+        if (packages.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.termux_box_packages_no_packages_available, Toast.LENGTH_SHORT).show();
             return;
         }
-        runTask(R.string.termux_box_packages_local_installing, spec.name, listener -> {
-            File archive = repository.newTempPackageArchive(spec.name);
-            copyUriToFile(uri, archive);
-            repository.installPackageFromArchive(spec, archive, listener);
+
+        final TermuxBoxPackageSpec[] specs = packages.toArray(new TermuxBoxPackageSpec[0]);
+        String[] names = new String[specs.length];
+        for (int i = 0; i < specs.length; i++) {
+            names[i] = specs[i].name + " (v" + specs[i].version + ")";
+        }
+
+        final android.widget.Spinner spinner = new android.widget.Spinner(requireContext());
+        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+            requireContext(), android.R.layout.simple_spinner_dropdown_item, names);
+        spinner.setAdapter(adapter);
+
+        MaterialButton browseButton = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        browseButton.setText(R.string.termux_box_packages_select_local);
+        browseButton.setAllCaps(false);
+        browseButton.setCornerRadius(dp(5));
+        browseButton.setTextSize(13f);
+
+        LinearLayout dialogLayout = new LinearLayout(requireContext());
+        dialogLayout.setOrientation(LinearLayout.VERTICAL);
+        dialogLayout.setPadding(dp(16), dp(20), dp(16), dp(8));
+        dialogLayout.addView(spinner);
+
+        LinearLayout.LayoutParams browseParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        browseParams.topMargin = dp(12);
+        dialogLayout.addView(browseButton, browseParams);
+
+        final android.app.AlertDialog[] dialogRef = {null};
+        browseButton.setOnClickListener(v -> {
+            int index = spinner.getSelectedItemPosition();
+            if (index >= 0 && index < specs.length) {
+                pendingLocalInstallPackageName = specs[index].name;
+                pendingTaskTarget = taskTarget;
+            }
+            if (dialogRef[0] != null) {
+                dialogRef[0].dismiss();
+            }
+            localInstallLauncher.launch(new String[]{"*/*"});
         });
+
+        dialogRef[0] = new android.app.AlertDialog.Builder(requireContext())
+            .setTitle(titleResId)
+            .setView(dialogLayout)
+            .setPositiveButton(R.string.termux_box_packages_download, (dialog, which) -> {
+                int index = spinner.getSelectedItemPosition();
+                if (index >= 0 && index < specs.length) {
+                    TermuxBoxPackageSpec selected = specs[index];
+                    runTask(R.string.termux_box_packages_installing, taskTarget,
+                        listener -> repository.syncPackage(selected, true, listener));
+                }
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
     }
 
     private void runTask(int initialMessageResId, @Nullable String target, ProgressTask task) {
@@ -339,15 +560,6 @@ public class TermuxBoxPackagesFragment extends Fragment {
             while ((read = input.read(buffer)) != -1) {
                 output.write(buffer, 0, read);
             }
-        }
-    }
-
-    private void ensureSelection() {
-        if (selectedPackageName == null) {
-            return;
-        }
-        if (repository.findPackage(selectedPackageName) == null) {
-            selectedPackageName = null;
         }
     }
 
@@ -472,6 +684,21 @@ public class TermuxBoxPackagesFragment extends Fragment {
         params.bottomMargin = dp(12);
         card.setLayoutParams(params);
         card.setCardBackgroundColor(0xFFFFFFFF);
+        card.setCardElevation(0f);
+        card.setRadius(dp(5));
+        card.setStrokeColor(0xFFD3DEE8);
+        card.setStrokeWidth(dp(1));
+        return card;
+    }
+
+    /** A compact card variant for inner rows (no bottom margin, tighter styling). */
+    private MaterialCardView buildCard() {
+        MaterialCardView card = new MaterialCardView(requireContext());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(8);
+        card.setLayoutParams(params);
+        card.setCardBackgroundColor(0xFFF8FAFC);
         card.setCardElevation(0f);
         card.setRadius(dp(5));
         card.setStrokeColor(0xFFD3DEE8);

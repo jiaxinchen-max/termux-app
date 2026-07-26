@@ -26,6 +26,7 @@ public class TermuxBoxActivity extends AppCompatActivity implements TermuxBoxNav
 
     public static final String EXTRA_INITIAL_SECTION = "termux_box_initial_section";
     public static final String SECTION_CONTAINERS = "containers";
+    public static final String SECTION_PACKAGES = "packages";
 
     private static final String STATE_SECTION = "termux_box_section";
 
@@ -141,6 +142,9 @@ public class TermuxBoxActivity extends AppCompatActivity implements TermuxBoxNav
         String section = intent == null ? null : intent.getStringExtra(EXTRA_INITIAL_SECTION);
         if (SECTION_CONTAINERS.equals(section)) {
             return TermuxBoxSection.CONTAINERS;
+        }
+        if (SECTION_PACKAGES.equals(section)) {
+            return TermuxBoxSection.PACKAGES;
         }
         return TermuxBoxSection.CONTAINERS;
     }

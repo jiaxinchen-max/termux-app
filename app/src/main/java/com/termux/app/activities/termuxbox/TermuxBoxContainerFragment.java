@@ -260,8 +260,9 @@ public class TermuxBoxContainerFragment extends Fragment {
             addSwitchField(s(R.string.termux_box_container_mouse_offset), s(R.string.termux_box_container_mouse_offset_summary));
         }));
 
-        pageLibraries.addView(buildSectionHeader(R.string.termux_box_container_dx_title, R.string.termux_box_container_dx_summary));
+        final LinearLayout[] libraryCardBodyRef = {null};
         pageLibraries.addView(buildCard(() -> {
+            libraryCardBodyRef[0] = currentCardBody();
             String[] libraryOptions = a(R.array.termux_box_container_library_entries);
             addLibraryRow(s(R.string.termux_box_container_library_d3d_direct3d), libraryOptions, libraryOptions[0]);
             addLibraryRow(s(R.string.termux_box_container_library_directsound), libraryOptions, libraryOptions[0]);
@@ -269,6 +270,11 @@ public class TermuxBoxContainerFragment extends Fragment {
             addLibraryRow(s(R.string.termux_box_container_library_directshow), libraryOptions, libraryOptions[1]);
             addLibraryRow(s(R.string.termux_box_container_library_directplay), libraryOptions, libraryOptions[1]);
             addLibraryRow(s(R.string.termux_box_container_library_xaudio), libraryOptions, libraryOptions[1]);
+            addLibraryRow(s(R.string.termux_box_container_library_vcrun2005), libraryOptions, libraryOptions[1]);
+            addLibraryRow(s(R.string.termux_box_container_library_vcrun2010), libraryOptions, libraryOptions[0]);
+            addLibraryRow(s(R.string.termux_box_container_library_wmdecoder), libraryOptions, libraryOptions[0]);
+            addCenteredAction(R.string.termux_box_container_add_library, v ->
+                showAddLibraryDialog(libraryCardBodyRef[0], libraryOptions));
         }));
 
         pageEnv.addView(buildSectionHeader(R.string.termux_box_container_env_title, R.string.termux_box_container_env_summary));
@@ -553,6 +559,39 @@ public class TermuxBoxContainerFragment extends Fragment {
         params.topMargin = dp(12);
         params.gravity = Gravity.CENTER_HORIZONTAL;
         currentCardBody().addView(button, params);
+    }
+
+    private void showAddLibraryDialog(LinearLayout cardBody, String[] libraryOptions) {
+        LinearLayout dialogLayout = new LinearLayout(requireContext());
+        dialogLayout.setOrientation(LinearLayout.VERTICAL);
+        dialogLayout.setPadding(dp(16), dp(16), dp(16), dp(16));
+
+        final android.widget.EditText nameInput = new android.widget.EditText(requireContext());
+        nameInput.setHint(R.string.termux_box_container_library_name_hint);
+        nameInput.setSingleLine(true);
+        dialogLayout.addView(nameInput);
+
+        final android.widget.Spinner spinner = new android.widget.Spinner(requireContext());
+        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+            requireContext(), android.R.layout.simple_spinner_dropdown_item, libraryOptions);
+        spinner.setAdapter(adapter);
+        spinner.setSelection(0);
+        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        spinnerParams.topMargin = dp(12);
+        dialogLayout.addView(spinner, spinnerParams);
+
+        new android.app.AlertDialog.Builder(requireContext())
+            .setTitle(R.string.termux_box_container_add_library)
+            .setView(dialogLayout)
+            .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                String name = nameInput.getText().toString().trim();
+                if (TextUtils.isEmpty(name)) return;
+                String defaultValue = libraryOptions[spinner.getSelectedItemPosition()];
+                addLibraryRow(name, libraryOptions, defaultValue);
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
     }
 
     private void addFullWidthButton(int textResId, View.OnClickListener listener) {

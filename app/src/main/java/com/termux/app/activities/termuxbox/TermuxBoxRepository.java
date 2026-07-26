@@ -114,6 +114,46 @@ public final class TermuxBoxRepository {
         return result;
     }
 
+    public List<TermuxBoxPackageSpec> getNonWinePackages() {
+        List<TermuxBoxPackageSpec> result = new ArrayList<>();
+        for (TermuxBoxPackageSpec spec : packages) {
+            if (!spec.wine) {
+                result.add(spec);
+            }
+        }
+        return result;
+    }
+
+    public List<TermuxBoxPackageSpec> getBox64OnlyPackages() {
+        List<TermuxBoxPackageSpec> result = new ArrayList<>();
+        for (TermuxBoxPackageSpec spec : packages) {
+            if (!spec.wine && spec.name.startsWith("box64")) {
+                result.add(spec);
+            }
+        }
+        return result;
+    }
+
+    public List<TermuxBoxPackageSpec> getOtherPackages() {
+        List<TermuxBoxPackageSpec> result = new ArrayList<>();
+        for (TermuxBoxPackageSpec spec : packages) {
+            if (!spec.wine && !spec.name.startsWith("box64")) {
+                result.add(spec);
+            }
+        }
+        return result;
+    }
+
+    public List<TermuxBoxPackageSpec> getInstalledOtherPackages() {
+        List<TermuxBoxPackageSpec> result = new ArrayList<>();
+        for (TermuxBoxPackageSpec spec : getOtherPackages()) {
+            if (isInstalled(spec)) {
+                result.add(spec);
+            }
+        }
+        return result;
+    }
+
     public TermuxBoxPackageSpec findPackage(String name) {
         for (TermuxBoxPackageSpec spec : packages) {
             if (spec.name.equals(name)) {
@@ -391,6 +431,34 @@ public final class TermuxBoxRepository {
         if (box64.isFile()) {
             box64.setExecutable(true, false);
         }
+        writeFile(new File(configDir, "box64-build.conf"), buildName + "\n");
+    }
+
+    /**
+     * Returns all available box64 builds by scanning the box directory for .tar.xz archives.
+     */
+    public List<String> getAvailableBox64Builds() {
+        List<String> builds = new ArrayList<>();
+        File[] files = boxDir.listFiles();
+        if (files == null) {
+            return builds;
+        }
+        for (File file : files) {
+            String name = file.getName();
+            if (file.isFile() && name.endsWith(".tar.xz")) {
+                builds.add(name.substring(0, name.length() - 7));
+            }
+        }
+        Collections.sort(builds, Collections.reverseOrder());
+        return builds;
+    }
+
+    /**
+     * Returns the name of the currently applied box64 build, or null if unknown.
+     */
+    public String getCurrentBox64Build() {
+        String value = readText(new File(configDir, "box64-build.conf"), "").trim();
+        return value.isEmpty() ? null : value;
     }
 
     public void setFallbackResolution(String resolution) throws IOException {
@@ -837,6 +905,27 @@ public final class TermuxBoxRepository {
 
     public File getBoxArchive(String buildName) {
         return new File(boxDir, buildName + ".tar.xz");
+    }
+
+    /**
+     * Returns whether box64 is currently installed (binary exists under glibc/bin).
+     */
+    public boolean isBox64Installed() {
+        return new File(glibcDir, "bin/box64").isFile();
+    }
+
+    /**
+     * Returns the detection path for box64 binary relative to the Termux files directory.
+     */
+    public String getBox64DetectionPath() {
+        return "usr/glibc/bin/box64";
+    }
+
+    /**
+     * Returns the detection path for a wine package directory relative to the Termux files directory.
+     */
+    public String getWineDetectionPath(TermuxBoxPackageSpec spec) {
+        return "usr/glibc/" + spec.name;
     }
 
     public void ensureDirs() {

@@ -13,7 +13,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.material.button.MaterialButton;
+
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.app.activities.TermuxBoxActivity;
@@ -131,10 +131,25 @@ public class TermuxBoxContainerManagerClient {
         containerLayout.removeAllViews();
 
         LinearLayout header = new LinearLayout(mTermuxActivity);
-        header.setGravity(Gravity.END);
+        header.setGravity(Gravity.CENTER_VERTICAL);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setPadding(dp(6), dp(4), dp(6), dp(2));
         containerLayout.addView(header, new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+
+        // Left: Packages button (wrench icon)
+        ImageView packagesButton = new ImageView(mTermuxActivity);
+        packagesButton.setImageResource(R.drawable.ic_wrench);
+        packagesButton.setBackgroundColor(0x00000000);
+        packagesButton.setPadding(dp(4), dp(4), dp(4), dp(4));
+        packagesButton.setClickable(true);
+        packagesButton.setFocusable(true);
+        packagesButton.setOnClickListener(v -> openPackagesEditor());
+        int btnSize = dp(28);
+        header.addView(packagesButton, new LinearLayout.LayoutParams(btnSize, btnSize));
+
+        // Spacer to push "+" button to the right
+        View spacer = new View(mTermuxActivity);
+        header.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1));
 
         ImageView createButton = new ImageView(mTermuxActivity);
         createButton.setImageResource(R.drawable.ic_add_simple);
@@ -143,7 +158,6 @@ public class TermuxBoxContainerManagerClient {
         createButton.setClickable(true);
         createButton.setFocusable(true);
         createButton.setOnClickListener(v -> openCreateEditor());
-        int btnSize = dp(28);
         header.addView(createButton, new LinearLayout.LayoutParams(btnSize, btnSize));
 
         ScrollView scrollView = new ScrollView(mTermuxActivity);
@@ -262,6 +276,12 @@ public class TermuxBoxContainerManagerClient {
             Toast.makeText(mTermuxActivity, e.getMessage(), Toast.LENGTH_SHORT).show();
         }
         openEditor();
+    }
+
+    private void openPackagesEditor() {
+        Intent intent = new Intent(mTermuxActivity, TermuxBoxActivity.class);
+        intent.putExtra(TermuxBoxActivity.EXTRA_INITIAL_SECTION, TermuxBoxActivity.SECTION_PACKAGES);
+        mTermuxActivity.startActivity(intent);
     }
 
     private int dp(int value) {
