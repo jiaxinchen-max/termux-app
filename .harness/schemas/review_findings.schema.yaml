@@ -1,0 +1,20 @@
+schema: schema_definition_v1
+target_schema: review_findings_v1
+required:
+  - schema
+  - change_id
+  - review
+  - status
+  - findings
+enums:
+  status:
+    - APPROVED
+    - REVISION_REQUIRED
+  findings.severity:
+    - MUST_FIX
+    - SHOULD_FIX
+    - LOW
+    - INFO
+  findings.status:
+    - Open
+    - Closed

@@ -1,0 +1,13 @@
+schema: schema_definition_v1
+target_schema: evidence_manifest_v1
+required:
+  - schema
+  - change_id
+  - evidence
+enums:
+  evidence.kind:
+    - command
+    - test-report
+    - device
+    - review
+    - artifact

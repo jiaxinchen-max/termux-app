@@ -1,0 +1,90 @@
+schema: protected_path_policy_v1
+policies:
+  - id: android-entry-critical
+    risk: Critical
+    paths:
+      - app/src/main/AndroidManifest.xml
+      - app/src/main/java/com/termux/app/TermuxActivity.java
+      - app/src/main/java/com/termux/app/TermuxApplication.java
+    required_design_topics:
+      - launcher and navigation impact
+      - activity and process lifecycle
+      - backward compatibility
+      - rollback
+  - id: termux-service-critical
+    risk: Critical
+    paths:
+      - app/src/main/java/com/termux/app/TermuxService.java
+      - app/src/main/java/com/termux/app/terminal/**
+      - termux-shared/src/main/java/com/termux/shared/shell/**
+    required_design_topics:
+      - process ownership
+      - session compatibility
+      - cancellation and cleanup
+      - failure recovery
+  - id: runtime-script-critical
+    risk: Critical
+    paths:
+      - app/src/main/assets/*.sh
+      - app/src/main/assets/termux-box-packages/**
+      - distribution/**
+    required_design_topics:
+      - shell quoting
+      - package integrity
+      - version compatibility
+      - rollback
+  - id: x11-input-critical
+    risk: Critical
+    paths:
+      - termux-x11/src/main/java/**
+      - termux-x11/src/main/res/**
+    required_design_topics:
+      - display lifecycle
+      - input routing
+      - orientation and background behavior
+      - device verification
+  - id: native-runtime-critical
+    risk: Critical
+    paths:
+      - app/src/main/cpp/**
+      - termux-x11/src/main/cpp/**
+      - termux-render/src/main/cpp/**
+    required_design_topics:
+      - ABI impact
+      - NDK build evidence
+      - memory and process safety
+      - rollback
+  - id: build-boundary-high
+    risk: High
+    paths:
+      - build.gradle
+      - settings.gradle
+      - gradle.properties
+      - app/build.gradle
+      - '*/build.gradle'
+    required_design_topics:
+      - dependency and plugin impact
+      - min target and compile SDK compatibility
+      - build command
+      - rollback
+  - id: harness-gate-critical
+    risk: Critical
+    paths:
+      - .harness/scripts/**
+      - .harness/schemas/**
+      - .harness/policies/**
+    required_design_topics:
+      - gate behavior
+      - negative test
+      - bypass policy
+      - rollback
+  - id: openspec-baseline-critical
+    risk: Critical
+    paths:
+      - openspec/config.yaml
+      - openspec/specs/**
+    required_design_topics:
+      - requirement source of truth
+      - compatibility
+      - review evidence
+      - rollback

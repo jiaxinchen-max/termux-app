@@ -1,0 +1,20 @@
+schema: spec-driven
+
+context: |
+  Termux App 是 Java 8 Android 多模块项目，compileSdk 34、minSdk 21，使用 AndroidX、XML/ViewBinding、TermuxService、terminal-emulator、Termux:X11 和 NDK。
+  本地游戏能力以 Termux 为隐藏执行环境，通过 Wine、Box64、图形驱动、音频和 X11 运行 Windows 游戏。
+
+rules:
+  proposal:
+    - 叙述正文必须使用中文。
+    - 必须说明目标、非目标、用户可见行为、兼容性、风险和回滚。
+  design:
+    - 叙述正文必须使用中文。
+    - 必须说明 Activity、Service、任务状态、shell、X11、输入、存储和组件下载边界。
+    - 触及 protected paths 时必须列出 policy id、验证和回滚。
+  specs:
+    - 叙述正文必须使用中文。
+    - 使用 Requirement / Scenario 描述外部可观察行为。
+  tasks:
+    - 叙述正文必须使用中文。
+    - 每个任务必须包含可验证完成条件。

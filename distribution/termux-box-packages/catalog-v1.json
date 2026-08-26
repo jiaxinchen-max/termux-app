@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-31T15:36:05Z",
+  "packages": [
+    {"id":"box64-binaries","category":"runtime","version":10,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/box64-binaries.tar.xz/raw?ref=main","size":22582612,"sha256":"0cd90bbedd0a166e8800ab0cb6d1ece0f9a8346f8603cef608f7bdae85f905d6"},
+    {"id":"dxvk","category":"runtime","version":2,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/dxvk.tar.xz/raw?ref=main","size":21541060,"sha256":"317ef13acdd7cec7af7af22f0772b4dcff919f9c8fd00402766d4625f5dfb080"},
+    {"id":"glibc-prefix","category":"runtime","version":2,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/glibc-prefix.tar.xz/raw?ref=main","size":56383776,"sha256":"4c7edae8a58e6cd3f67e1ed6244c7a2eacb78978f2fa2d199d6314a15f22a902"},
+    {"id":"prefix-apps","category":"runtime","version":2,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/prefix-apps.tar.xz/raw?ref=main","size":101877952,"sha256":"ac6f4ec638f27365a0fa03d305abc867b78f8599756b65de9e4ffa3716ed3b50"},
+    {"id":"scripts","category":"runtime","version":28,"url":"https://github.com/jiaxinchen-max/termux-box-packages/releases/download/scripts-v28/scripts.tar.xz","size":13323176,"sha256":"e8b9991025ad7a4124697ce54b11cf5fb765e4705dad760dcbd10e0a956582ff"},
+    {"id":"turnip","category":"runtime","version":8,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/turnip.tar.xz/raw?ref=main","size":9494276,"sha256":"31c5ee4eb2c7c5ee4abb95524c36bc707da092ee49200806efda06361f809d60"},
+    {"id":"virgl-mesa","category":"runtime","version":1,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/virgl-mesa.tar.xz/raw?ref=main","size":11480364,"sha256":"377914515f2f0bdcc2fd74408b5d4f7fe1c18bb3dd9d6bfa62a7240ba5d2483d"},
+    {"id":"wined3d","category":"runtime","version":1,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/wined3d.tar.xz/raw?ref=main","size":13637132,"sha256":"5f02f7fc7255cac90c315e0932fb97188e2c598c6d8335310897c54a0f9ea981"},
+    {"id":"wine-9.0-staging-wow64","category":"wine","version":1,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/wine-9.0-staging-wow64.tar.xz/raw?ref=main","size":55201720,"sha256":"5325cf0325e0f460911929e420f5f1d911f8ab758bd12cccbf0a5478a820ea16"},
+    {"id":"wine-8.18-staging-wow64","category":"wine","version":1,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/wine-8.18-staging-wow64.tar.xz/raw?ref=main","size":55065108,"sha256":"5abb98a3869315d4df628acbc7498bc4bd1ac865386d39114cfa6bba5734fe65"},
+    {"id":"wine-8.18-vanilla-wow64","category":"wine","version":1,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/wine-8.18-vanilla-wow64.tar.xz/raw?ref=main","size":53073316,"sha256":"913499a503918baf81c51868382d8f12c9773507860ed6cca094317a5a9d30c7"},
+    {"id":"wine-9.1-vanilla-wow64","category":"wine","version":2,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/wine-9.1-vanilla-wow64.tar.xz/raw?ref=main","size":53472252,"sha256":"53175ccf5d0cc2ea8746391db5cb28fbedc1f11f31cb6d678fd6856316880af2"},
+    {"id":"wine-9.2-vanilla-wow64","category":"wine","version":1,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/wine-9.2-vanilla-wow64.tar.xz/raw?ref=main","size":53702068,"sha256":"528b8794459e74f47df4139f0f2fd366b948b13e8f3ffb0ec9d9f7192ea5416a"},
+    {"id":"wine-9.3-vanilla-wow64","category":"wine","version":1,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/wine-9.3-vanilla-wow64.tar.xz/raw?ref=main","size":63769784,"sha256":"ab808331b466a380d3a09f8fda467d0e98334edfb60236e0139f4cfed53fb758"},
+    {"id":"libudev","category":"runtime","version":1,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/libudev.tar.xz/raw?ref=main","size":57424,"sha256":"8b6c9636ea63ed9ec401da89ac9a2db205a143a670e47d02ceac8d8ee1398acf"},
+    {"id":"en-ru-locale","category":"runtime","version":1,"url":"https://gitlab.com/api/v4/projects/54240888/repository/files/en-ru-locale.tar.xz/raw?ref=main","size":222208,"sha256":"f23344e21ee1efe6388255174aeccf60c792d3ca8f771269dd52b22ca64280fa"}
+  ]
+}

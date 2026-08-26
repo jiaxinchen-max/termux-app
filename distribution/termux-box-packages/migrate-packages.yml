@@ -1,0 +1,71 @@
+name: Migrate packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download, verify, and publish packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p downloads
+
+          while IFS=$'\t' read -r id version source_url expected_size expected_sha; do
+            archive="downloads/${id}.tar.xz"
+            tag="${id}-v${version}"
+
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Release already exists: $tag"
+              continue
+            fi
+
+            curl --fail --location --retry 5 --retry-delay 2 \
+              --output "${archive}.part" "$source_url"
+            mv "${archive}.part" "$archive"
+
+            actual_size="$(wc -c < "$archive" | tr -d ' ')"
+            actual_sha="$(sha256sum "$archive" | awk '{print $1}')"
+            test "$actual_size" = "$expected_size"
+            test "$actual_sha" = "$expected_sha"
+            tar -tf "$archive" | awk '
+              $0 !~ /^glibc(\/|$)/ { invalid = 1 }
+              END { exit invalid }
+            '
+
+            gh release create "$tag" "$archive" --target main \
+              --title "${id} v${version}" --notes "SHA-256: ${expected_sha}"
+            rm -f "$archive"
+          done < <(jq -r '.packages[] | [.id, (.version|tostring), .url, (.size|tostring), .sha256] | @tsv' catalog-v1.json)
+
+      - name: Publish package index
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p repository
+          jq --arg owner "${GITHUB_REPOSITORY_OWNER}" --arg repository "${GITHUB_REPOSITORY#*/}" '
+            .generatedAt = (now | todateiso8601)
+            | .packages |= map(
+                .url = ("https://github.com/" + $owner + "/" + $repository
+                  + "/releases/download/" + .id + "-v" + (.version|tostring)
+                  + "/" + .id + ".tar.xz")
+              )
+          ' catalog-v1.json > repository/index-v1.json
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add repository/index-v1.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish package index"
+            git push
+          fi

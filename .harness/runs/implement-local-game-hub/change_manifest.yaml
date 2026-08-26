@@ -1,0 +1,41 @@
+schema: change_manifest_v1
+change_id: implement-local-game-hub
+openspec_change: implement-local-game-hub
+protected_paths:
+  status: Pending
+  policies:
+    - android-entry-critical
+    - termux-service-critical
+    - runtime-script-critical
+    - x11-input-critical
+    - build-boundary-high
+  approvals: []
+product_docs:
+  status: Required
+  documents:
+    - docs/product/local-games.md
+  reason: "新增用户可见的本地游戏导入、配置、启动、运行和退出流程。"
+domain_model:
+  status: Required
+  concepts:
+    - Game
+    - RuntimeProfile
+    - Component
+    - LaunchTask
+    - GameSession
+    - SaveSnapshot
+  model_paths:
+    - docs/domain/local-game-runtime.md
+  invariants:
+    - Activity 销毁不结束任务
+    - 未校验组件不得安装
+    - RUNNING 同时需要进程和可操作 X11 会话
+    - local-games 不得依赖 app 或引用 com.termux.app
+  reason: "功能跨越 UI、任务、执行、显示、输入和组件多个 Owner 边界。"
+touched_files:
+  - .harness/**
+  - openspec/**
+  - docs/domain/local-game-runtime.md
+verification:
+  - .harness/scripts/verify.sh
+  - .harness/scripts/verify.sh --change-id implement-local-game-hub --strict-run
