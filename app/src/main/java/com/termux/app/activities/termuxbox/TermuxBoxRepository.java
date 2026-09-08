@@ -1,10 +1,16 @@
 package com.termux.app.activities.termuxbox;
 
+import android.content.Context;
+import android.os.Build;
+import android.system.Os;
+
 import com.termux.shared.termux.TermuxConstants;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -20,12 +26,9 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
-import android.os.Build;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.util.ArrayList;
@@ -44,8 +47,12 @@ public final class TermuxBoxRepository {
         void onProgress(int progress);
     }
 
-    private static final String PROJECT_ID = "54240888";
+    private static final String PACKAGE_INDEX_ASSET = "termux-box-packages/index-v1.json";
+    private static final String PACKAGE_INDEX_URL =
+        "https://raw.githubusercontent.com/jiaxinchen-max/termux-box-packages/main/repository/index-v1.json";
+    private static final int MAX_PACKAGE_INDEX_BYTES = 1024 * 1024;
 
+    private final Context context;
     private final File filesDir;
     private final File glibcDir;
     private final File optDir;
@@ -57,16 +64,19 @@ public final class TermuxBoxRepository {
     private final File legacyDefaultConfDir;
     private final File dynarecDir;
     private final File packageManagerDir;
+    private final File packageIndexFile;
     private final File installedDir;
     private final File tempDir;
     private final File boxDir;
     private final File prefixDir;
 
-    private final List<TermuxBoxPackageSpec> packages;
+    private volatile List<TermuxBoxPackageSpec> packages;
 
-    public TermuxBoxRepository() {
+    public TermuxBoxRepository(Context context) {
+        this.context = context.getApplicationContext();
         this.filesDir = new File(TermuxConstants.TERMUX_FILES_DIR_PATH);
-        this.glibcDir = new File(filesDir, "usr/glibc");
+        this.prefixDir = new File(filesDir, "usr");
+        this.glibcDir = new File(prefixDir, "glibc");
         this.optDir = new File(glibcDir, "opt");
         this.termuxBoxDir = new File(glibcDir, "termux-box");
         this.containersDir = new File(termuxBoxDir, "containers");
@@ -76,32 +86,97 @@ public final class TermuxBoxRepository {
         this.legacyDefaultConfDir = new File(optDir, "default-conf");
         this.dynarecDir = new File(configDir, "dynarec");
         this.packageManagerDir = new File(termuxBoxDir, "package-manager");
+        this.packageIndexFile = new File(packageManagerDir, "index-v1.json");
         this.installedDir = new File(packageManagerDir, "installed");
         this.tempDir = new File(packageManagerDir, "temp");
-        this.boxDir = new File(termuxBoxDir, "box");
-        this.prefixDir = glibcDir;
-        this.packages = Collections.unmodifiableList(Arrays.asList(
-            new TermuxBoxPackageSpec("box64-binaries", 10, false),
-            new TermuxBoxPackageSpec("dxvk", 2, false),
-            new TermuxBoxPackageSpec("glibc-prefix", 2, false),
-            new TermuxBoxPackageSpec("prefix-apps", 2, false),
-            new TermuxBoxPackageSpec("scripts", 27, false),
-            new TermuxBoxPackageSpec("turnip", 8, false),
-            new TermuxBoxPackageSpec("virgl-mesa", 1, false),
-            new TermuxBoxPackageSpec("wined3d", 1, false),
-            new TermuxBoxPackageSpec("wine-9.0-staging-wow64", 1, true),
-            new TermuxBoxPackageSpec("wine-8.18-staging-wow64", 1, true),
-            new TermuxBoxPackageSpec("wine-8.18-vanilla-wow64", 1, true),
-            new TermuxBoxPackageSpec("wine-9.1-vanilla-wow64", 2, true),
-            new TermuxBoxPackageSpec("wine-9.2-vanilla-wow64", 1, true),
-            new TermuxBoxPackageSpec("wine-9.3-vanilla-wow64", 1, true),
-            new TermuxBoxPackageSpec("libudev", 1, false),
-            new TermuxBoxPackageSpec("en-ru-locale", 1, false)
-        ));
+        // prefix-apps ships the selectable Mobox Box64 archives here.
+        this.boxDir = new File(optDir, "box");
+        this.packages = loadInitialPackageIndex();
     }
 
     public List<TermuxBoxPackageSpec> getPackages() {
         return packages;
+    }
+
+    public void refreshPackageIndex(ProgressListener listener) throws IOException {
+        ensureDirs();
+        File candidate = new File(packageManagerDir, "index-v1.json.new");
+        deleteFile(candidate);
+        downloadFile(PACKAGE_INDEX_URL, candidate, MAX_PACKAGE_INDEX_BYTES, listener);
+        List<TermuxBoxPackageSpec> parsed = parsePackageIndex(readFile(candidate));
+        deleteFile(packageIndexFile);
+        if (!candidate.renameTo(packageIndexFile)) {
+            copyFile(packageIndexFile, candidate);
+            deleteFile(candidate);
+        }
+        packages = parsed;
+    }
+
+    public void reloadPackageIndex() {
+        if (!packageIndexFile.isFile()) {
+            return;
+        }
+        try {
+            packages = parsePackageIndex(readFile(packageIndexFile));
+        } catch (Exception ignored) {
+        }
+    }
+
+    private List<TermuxBoxPackageSpec> loadInitialPackageIndex() {
+        if (packageIndexFile.isFile()) {
+            try {
+                return parsePackageIndex(readFile(packageIndexFile));
+            } catch (Exception ignored) {
+            }
+        }
+        try (InputStream input = context.getAssets().open(PACKAGE_INDEX_ASSET)) {
+            return parsePackageIndex(readStream(input, MAX_PACKAGE_INDEX_BYTES));
+        } catch (Exception e) {
+            throw new IllegalStateException("Unable to load built-in Termux Box package index", e);
+        }
+    }
+
+    private List<TermuxBoxPackageSpec> parsePackageIndex(String json) throws IOException {
+        try {
+            JSONObject root = new JSONObject(json);
+            // The :games module ships this asset path and it merges into this APK, so
+            // both readers must track the same schema. v2 adds presentation/compatibility
+            // fields that are ignored here; the delivery fields read below are the contract.
+            int schemaVersion = root.optInt("schemaVersion", 0);
+            if (schemaVersion != 1 && schemaVersion != 2) {
+                throw new IOException("Unsupported package index schema");
+            }
+            JSONArray entries = root.getJSONArray("packages");
+            List<TermuxBoxPackageSpec> result = new ArrayList<>();
+            Map<String, Boolean> names = new LinkedHashMap<>();
+            for (int i = 0; i < entries.length(); i++) {
+                JSONObject entry = entries.getJSONObject(i);
+                String name = entry.getString("id");
+                int version = entry.getInt("version");
+                String category = entry.getString("category");
+                String url = entry.getString("url");
+                long size = entry.getLong("size");
+                String sha256 = entry.getString("sha256").toLowerCase(Locale.US);
+                if (!name.matches("[A-Za-z0-9._-]+") || names.put(name, true) != null) {
+                    throw new IOException("Invalid or duplicate package id: " + name);
+                }
+                if (version < 1 || !("wine".equals(category) || "runtime".equals(category))) {
+                    throw new IOException("Invalid package metadata: " + name);
+                }
+                if (!url.startsWith("https://") || size <= 0 || !sha256.matches("[0-9a-f]{64}")) {
+                    throw new IOException("Invalid package source: " + name);
+                }
+                result.add(new TermuxBoxPackageSpec(name, version, category, url, size, sha256));
+            }
+            if (result.isEmpty()) {
+                throw new IOException("Package index is empty");
+            }
+            return Collections.unmodifiableList(result);
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException("Invalid package index", e);
+        }
     }
 
     public List<TermuxBoxPackageSpec> getWinePackages() {
@@ -238,21 +313,54 @@ public final class TermuxBoxRepository {
         deleteFile(new File(termuxBoxDir, "current-container.conf"));
     }
 
-    public TermuxBoxContainerSpec saveContainer(String name, String wineVersion, String screenSize,
+    public boolean isContainerNameAvailable(String name, String excludedContainerId) {
+        if (name == null || name.trim().isEmpty()) {
+            return false;
+        }
+        String candidateName = name.trim();
+        String candidateId = sanitizeId(candidateName);
+        for (TermuxBoxContainerSpec spec : getContainers()) {
+            if (excludedContainerId != null && excludedContainerId.equals(spec.id)) {
+                continue;
+            }
+            if (spec.name.equalsIgnoreCase(candidateName) || spec.id.equals(candidateId)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public String findAvailableContainerName(String nameFormat) {
+        String format = nameFormat == null || nameFormat.trim().isEmpty() ? "Container-%1$d" : nameFormat;
+        for (int index = 1; index < Integer.MAX_VALUE; index++) {
+            String candidate = String.format(Locale.getDefault(), format, index);
+            if (isContainerNameAvailable(candidate, null)) {
+                return candidate;
+            }
+        }
+        return "Container-" + System.currentTimeMillis();
+    }
+
+    public TermuxBoxContainerSpec saveContainer(String editingContainerId,
+                                                String name, String wineVersion, String screenSize,
                                                 String envVars, String graphicsDriver, String dxwrapper,
                                                 String audioDriver, String wincomponents,
                                                 byte hudMode, byte startupSelection,
                                                 String box64Preset, String desktopTheme,
-                                                byte dinputMapperType) throws IOException {
+                                                byte dinputMapperType,
+                                                String launchOrientation) throws IOException {
         String safeName = name == null || name.trim().isEmpty() ? "Container 1" : name.trim();
-        String id = sanitizeId(safeName);
+        TermuxBoxContainerSpec existing = editingContainerId == null ? null : findContainer(editingContainerId);
+        if (editingContainerId != null && existing == null) {
+            throw new IOException("Container not found: " + editingContainerId);
+        }
+        if (!isContainerNameAvailable(safeName, editingContainerId)) {
+            throw new IOException("Container name already exists: " + safeName);
+        }
+        String id = existing == null ? sanitizeId(safeName) : existing.id;
         String winePackage = (wineVersion != null && !wineVersion.trim().isEmpty())
             ? wineVersion.trim()
             : resolveDefaultWinePackage();
-        TermuxBoxContainerSpec existing = findContainer(id);
-        if (existing != null && !existing.wineVersion.trim().isEmpty()) {
-            winePackage = existing.wineVersion;
-        }
         TermuxBoxContainerSpec spec = new TermuxBoxContainerSpec(
             id,
             safeName,
@@ -273,7 +381,8 @@ public final class TermuxBoxRepository {
             null,  // cpuListWoW64
             emptyToDefault(box64Preset, TermuxBoxContainerSpec.DEFAULT_BOX64_PRESET),
             emptyToDefault(desktopTheme, TermuxBoxContainerSpec.DEFAULT_DESKTOP_THEME),
-            dinputMapperType
+            dinputMapperType,
+            emptyToDefault(launchOrientation, TermuxBoxContainerSpec.DEFAULT_LAUNCH_ORIENTATION)
         );
         File dir = getContainerDir(spec);
         ensureDir(new File(dir, "prefix"));
@@ -331,11 +440,12 @@ public final class TermuxBoxRepository {
             String box64Preset = emptyToDefault(readExportValue(text, "TERMUX_BOX_BOX64_PRESET"), TermuxBoxContainerSpec.DEFAULT_BOX64_PRESET);
             String desktopTheme = emptyToDefault(readExportValue(text, "TERMUX_BOX_DESKTOP_THEME"), TermuxBoxContainerSpec.DEFAULT_DESKTOP_THEME);
             byte dinputMapperType = Byte.parseByte(emptyToDefault(readExportValue(text, "TERMUX_BOX_GAMEPAD_MAPPER"), "1"));
+            String launchOrientation = emptyToDefault(readExportValue(text, "TERMUX_BOX_ORIENTATION"), TermuxBoxContainerSpec.DEFAULT_LAUNCH_ORIENTATION);
             return new TermuxBoxContainerSpec(id, name, wineVersion, screenSize, envVars,
                 graphicsDriver, dxwrapper, dxwrapperConfig, graphicsDriverConfig,
                 audioDriverConfig, audioDriver, wincomponents, drives,
                 hudMode, startupSelection, cpuList, cpuListWoW64,
-                box64Preset, desktopTheme, dinputMapperType);
+                box64Preset, desktopTheme, dinputMapperType, launchOrientation);
         } catch (Exception e) {
             return null;
         }
@@ -367,6 +477,7 @@ public final class TermuxBoxRepository {
         sb.append("export TERMUX_BOX_BOX64_PRESET=").append(shellQuote(spec.box64Preset)).append("\n");
         sb.append("export TERMUX_BOX_DESKTOP_THEME=").append(shellQuote(spec.desktopTheme)).append("\n");
         sb.append("export TERMUX_BOX_GAMEPAD_MAPPER=").append(spec.dinputMapperType).append("\n");
+        sb.append("export TERMUX_BOX_ORIENTATION=").append(shellQuote(spec.launchOrientation)).append("\n");
         sb.append("export LC_ALL=en_US.utf8\n");
         writeFile(new File(dir, "container.conf"), sb.toString());
     }
@@ -503,53 +614,45 @@ public final class TermuxBoxRepository {
                 "export SECONDARY_CORES=" + secondaryStart + "-" + secondaryEnd + "\n");
     }
 
+    /** Online CPUs, used so core presets never name a CPU this device does not have. */
+    public static int getAvailableCoreCount() {
+        int cores = Runtime.getRuntime().availableProcessors();
+        return cores < 1 ? 1 : cores;
+    }
+
+    /**
+     * Writes a core preset scaled to this device.
+     *
+     * <p>{@code preset} is how many cores the container should get. The presets were authored
+     * for 8-core phones, so on a 4-core device an unscaled preset would pin Wine to CPUs 6-7,
+     * which do not exist. Clamp to the real core count instead.
+     */
     public void setCorePresetByPreset(int preset) throws IOException {
-        switch (preset) {
-            case 2:
-                setCorePreset(6, 7, 0, 5);
-                return;
-            case 3:
-                setCorePreset(5, 7, 0, 4);
-                return;
-            case 4:
-                setCorePreset(4, 7, 0, 3);
-                return;
-            case 5:
-                setCorePreset(3, 7, 0, 2);
-                return;
-            case 6:
-                setCorePreset(2, 7, 0, 1);
-                return;
-            case 7:
-                setCorePreset(1, 7, 0, 1);
-                return;
-            case 8:
-            default:
-                setCorePreset(0, 7, 0, 1);
-        }
+        int cores = getAvailableCoreCount();
+        int primaryCount = Math.max(1, Math.min(preset, cores));
+        int primaryStart = cores - primaryCount;
+        int primaryEnd = cores - 1;
+        // Leave the remaining cores for background work; single-core devices share the one CPU.
+        int secondaryEnd = primaryStart > 0 ? primaryStart - 1 : primaryEnd;
+        setCorePreset(primaryStart, primaryEnd, 0, secondaryEnd);
     }
 
     public String getCorePresetSelection() {
         String text = readText(new File(configDir, "cores.conf"), "");
-        if (text.contains("PRIMARY_CORES=6-7") && text.contains("SECONDARY_CORES=0-5")) {
-            return "2";
+        // The stored range is scaled to this device, so derive the preset from its width
+        // rather than matching the 8-core literals the presets used to hardcode.
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+            .compile("PRIMARY_CORES=(\\d+)-(\\d+)").matcher(text);
+        if (matcher.find()) {
+            try {
+                int start = Integer.parseInt(matcher.group(1));
+                int end = Integer.parseInt(matcher.group(2));
+                if (end >= start) return String.valueOf(end - start + 1);
+            } catch (NumberFormatException ignored) {
+                // Fall through to the default below.
+            }
         }
-        if (text.contains("PRIMARY_CORES=5-7") && text.contains("SECONDARY_CORES=0-4")) {
-            return "3";
-        }
-        if (text.contains("PRIMARY_CORES=4-7") && text.contains("SECONDARY_CORES=0-3")) {
-            return "4";
-        }
-        if (text.contains("PRIMARY_CORES=3-7") && text.contains("SECONDARY_CORES=0-2")) {
-            return "5";
-        }
-        if (text.contains("PRIMARY_CORES=2-7") && text.contains("SECONDARY_CORES=0-1")) {
-            return "6";
-        }
-        if (text.contains("PRIMARY_CORES=1-7") && text.contains("SECONDARY_CORES=0-1")) {
-            return "7";
-        }
-        return "8";
+        return String.valueOf(getAvailableCoreCount());
     }
 
     public String readText(File file, String defaultValue) {
@@ -802,13 +905,33 @@ public final class TermuxBoxRepository {
         File extractDir = new File(tempDir, spec.name);
         deleteRecursively(extractDir);
         deleteFile(archive);
-        downloadArchive(spec.name + ".tar.xz", archive, listener);
-        installPackageFromArchive(spec, archive, extractDir, listener, true);
+        try {
+            downloadFile(spec.url, archive, spec.size, listener);
+            verifyDownloadedArchive(spec, archive, listener);
+            installPackageFromArchive(spec, archive, extractDir, listener, true);
+        } catch (IOException e) {
+            deleteFile(archive);
+            throw e;
+        }
     }
 
     public void installPackageFromArchive(TermuxBoxPackageSpec spec, File archive, ProgressListener listener) throws IOException {
         File extractDir = new File(tempDir, spec.name + "_local");
         installPackageFromArchive(spec, archive, extractDir, listener, true);
+    }
+
+    /**
+     * Installs a component already verified and safely extracted by the Games module.
+     * The caller retains ownership of the immutable source directory.
+     */
+    public void installPackageFromPreparedDirectory(TermuxBoxPackageSpec spec,
+                                                    File preparedDirectory,
+                                                    ProgressListener listener)
+        throws IOException {
+        if (spec == null || preparedDirectory == null || !preparedDirectory.isDirectory()) {
+            throw new IOException("Invalid prepared component directory");
+        }
+        installPreparedPackage(spec, preparedDirectory, listener);
     }
 
     public File newTempPackageArchive(String packageName) {
@@ -823,19 +946,27 @@ public final class TermuxBoxRepository {
             listener.onProgress(0);
         }
         extractTarXz(archive, extractDir);
-        removePackage(spec);
-        if (listener != null) {
-            listener.onMessage("Installing " + spec.name);
-        }
-        File glibcSource = new File(extractDir, "glibc");
-        if (glibcSource.exists()) {
-            copyDirectory(glibcSource, filesDir, listener);
-        }
-        writeInstalledMetadata(spec, extractDir);
+        installPreparedPackage(spec, extractDir, listener);
         if (deleteArchive) {
             deleteFile(archive);
         }
         deleteRecursively(extractDir);
+    }
+
+    private void installPreparedPackage(TermuxBoxPackageSpec spec, File preparedDirectory,
+                                        ProgressListener listener) throws IOException {
+        File glibcSource = new File(preparedDirectory, "glibc");
+        if (!glibcSource.isDirectory()) {
+            throw new IOException("Invalid package archive: missing glibc directory");
+        }
+        removePackage(spec);
+        if (listener != null) {
+            listener.onMessage("Installing " + spec.name);
+        }
+        // Package archives contain a top-level glibc/ directory and copy it into
+        // $PREFIX, so its contents must land under $PREFIX/glibc.
+        copyDirectory(glibcSource, glibcDir, listener);
+        writeInstalledMetadata(spec, glibcSource);
     }
 
     public boolean validatePackage(TermuxBoxPackageSpec spec, ProgressListener listener) throws IOException {
@@ -882,7 +1013,7 @@ public final class TermuxBoxRepository {
                 if (relative.isEmpty()) {
                     continue;
                 }
-                deleteFile(new File(filesDir, relative));
+                deleteFile(resolvePackagePath(relative));
             }
         }
         deleteFile(installedVersion);
@@ -1016,32 +1147,54 @@ public final class TermuxBoxRepository {
         return new File(getContainerDir(spec), "start.sh");
     }
 
-    private void downloadArchive(String fileName, File destination, ProgressListener listener) throws IOException {
-        String encoded = URLEncoder.encode(fileName, "UTF-8").replace("+", "%20");
-        String url = "https://gitlab.com/api/v4/projects/" + PROJECT_ID + "/repository/files/" + encoded + "/raw?ref=main";
+    private void downloadFile(String url, File destination, long maxBytes, ProgressListener listener) throws IOException {
         if (listener != null) {
-            listener.onMessage("Downloading " + fileName);
+            listener.onMessage("Downloading " + destination.getName());
             listener.onProgress(0);
         }
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setInstanceFollowRedirects(true);
         connection.setConnectTimeout(15000);
-        connection.setReadTimeout(15000);
+        connection.setReadTimeout(30000);
         if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
             throw new IOException("HTTP " + connection.getResponseCode());
         }
-        int length = connection.getContentLength();
+        long length = Build.VERSION.SDK_INT >= 24
+            ? connection.getContentLengthLong()
+            : connection.getContentLength();
+        if (maxBytes > 0 && length > maxBytes) {
+            throw new IOException("Download exceeds declared size");
+        }
+        ensureParent(destination);
         try (InputStream input = new BufferedInputStream(connection.getInputStream());
              OutputStream output = new BufferedOutputStream(new FileOutputStream(destination))) {
             byte[] buffer = new byte[8192];
             int read;
             long total = 0;
             while ((read = input.read(buffer)) != -1) {
-                output.write(buffer, 0, read);
                 total += read;
+                if (maxBytes > 0 && total > maxBytes) {
+                    throw new IOException("Download exceeds declared size");
+                }
+                output.write(buffer, 0, read);
                 if (listener != null && length > 0) {
                     listener.onProgress((int) ((total * 100L) / length));
                 }
             }
+        }
+    }
+
+    private void verifyDownloadedArchive(TermuxBoxPackageSpec spec, File archive,
+                                         ProgressListener listener) throws IOException {
+        if (listener != null) {
+            listener.onMessage("Verifying " + spec.name);
+        }
+        if (archive.length() != spec.size) {
+            throw new IOException("Size mismatch for " + spec.name);
+        }
+        String actualSha256 = getFileDigest(archive, "SHA-256");
+        if (!spec.sha256.equalsIgnoreCase(actualSha256)) {
+            throw new IOException("SHA-256 mismatch for " + spec.name);
         }
     }
 
@@ -1064,11 +1217,14 @@ public final class TermuxBoxRepository {
                 ensureParent(outFile);
                 if (entry.isSymbolicLink()) {
                     try {
-                        File target = resolveLinkTarget(outFile, entry.getLinkName());
+                        String target = entry.getLinkName();
+                        if (target == null || target.isEmpty()) {
+                            throw new IOException("Invalid empty symlink target: " + entry.getName());
+                        }
                         deleteIfExistsCompat(outFile);
                         createSymlinkCompat(outFile, target);
                     } catch (Exception e) {
-                        writeFile(outFile, entry.getLinkName() + "\n");
+                        throw new IOException("Cannot extract symlink: " + entry.getName(), e);
                     }
                     continue;
                 }
@@ -1092,7 +1248,9 @@ public final class TermuxBoxRepository {
             File target = new File(targetRoot, relative);
             ensureParent(target);
             copyFileNoFollowCompat(source, target);
-            applyMode(target, source.canExecute() ? 0755 : 0644);
+            if (!isSymlinkCompat(source)) {
+                applyMode(target, source.canExecute() ? 0755 : 0644);
+            }
             index++;
             if (listener != null) {
                 listener.onProgress((index * 100) / total);
@@ -1100,15 +1258,17 @@ public final class TermuxBoxRepository {
         }
     }
 
-    private void writeInstalledMetadata(TermuxBoxPackageSpec spec, File extractDir) throws IOException {
+    private void writeInstalledMetadata(TermuxBoxPackageSpec spec, File glibcSource)
+        throws IOException {
         ensureDirs();
         File listFile = new File(installedDir, spec.name + "_lists");
         File md5File = new File(installedDir, spec.name + "_md5");
-        List<File> files = listFilesRecursively(extractDir);
+        List<File> files = listFilesRecursively(glibcSource);
         try (OutputStreamWriter listWriter = new OutputStreamWriter(new FileOutputStream(listFile, false), StandardCharsets.UTF_8);
              OutputStreamWriter md5Writer = new OutputStreamWriter(new FileOutputStream(md5File, false), StandardCharsets.UTF_8)) {
             for (File file : files) {
-                String relative = relativizePath(extractDir, file);
+                String child = relativizePath(glibcSource, file);
+                String relative = child.isEmpty() ? "glibc" : "glibc/" + child;
                 if (relative.isEmpty()) {
                     continue;
                 }
@@ -1144,8 +1304,8 @@ public final class TermuxBoxRepository {
     private Map<String, String> computeMd5ForFiles(Iterable<String> relativePaths) throws IOException {
         Map<String, String> result = new LinkedHashMap<>();
         for (String relative : relativePaths) {
-            File file = new File(filesDir, relative);
-            if (!file.exists()) {
+            File file = resolvePackagePath(relative);
+            if (!file.exists() && !isSymlinkCompat(file)) {
                 result.put(relative, "");
                 continue;
             }
@@ -1154,9 +1314,43 @@ public final class TermuxBoxRepository {
         return result;
     }
 
+    private File resolvePackagePath(String relative) throws IOException {
+        if (relative == null || relative.isEmpty() || new File(relative).isAbsolute() || relative.indexOf('\\') >= 0) {
+            throw new IOException("Invalid package path: " + relative);
+        }
+        for (String segment : relative.split("/", -1)) {
+            if (segment.isEmpty() || ".".equals(segment) || "..".equals(segment)) {
+                throw new IOException("Invalid package path: " + relative);
+            }
+        }
+        // Do not canonicalize this path: glibc-prefix intentionally contains
+        // circular and dangling symlinks, and canonicalization dereferences them.
+        return new File(prefixDir, relative);
+    }
+
     private String getFileMd5(File file) throws IOException {
+        if (isSymlinkCompat(file)) {
+            try {
+                String target = Build.VERSION.SDK_INT >= 26
+                    ? Files.readSymbolicLink(file.toPath()).toString()
+                    : Os.readlink(file.getAbsolutePath());
+                MessageDigest digest = MessageDigest.getInstance("MD5");
+                byte[] bytes = digest.digest(target.getBytes(StandardCharsets.UTF_8));
+                StringBuilder result = new StringBuilder();
+                for (byte value : bytes) {
+                    result.append(String.format(Locale.US, "%02x", value));
+                }
+                return result.toString();
+            } catch (Exception e) {
+                throw new IOException("Cannot hash symlink: " + file, e);
+            }
+        }
+        return getFileDigest(file, "MD5");
+    }
+
+    private String getFileDigest(File file, String algorithm) throws IOException {
         try {
-            MessageDigest digest = MessageDigest.getInstance("MD5");
+            MessageDigest digest = MessageDigest.getInstance(algorithm);
             try (InputStream in = new FileInputStream(file)) {
                 byte[] buffer = new byte[8192];
                 int read;
@@ -1173,6 +1367,21 @@ public final class TermuxBoxRepository {
         } catch (Exception e) {
             throw new IOException(e);
         }
+    }
+
+    private String readStream(InputStream input, int maxBytes) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int read;
+        int total = 0;
+        while ((read = input.read(buffer)) != -1) {
+            total += read;
+            if (total > maxBytes) {
+                throw new IOException("Package index is too large");
+            }
+            output.write(buffer, 0, read);
+        }
+        return output.toString(StandardCharsets.UTF_8.name());
     }
 
     private List<File> listFilesRecursively(File root) {
@@ -1211,7 +1420,7 @@ public final class TermuxBoxRepository {
     }
 
     private void deleteRecursively(File file) {
-        if (file == null || !file.exists()) {
+        if (file == null || (!file.exists() && !isSymlinkCompat(file))) {
             return;
         }
         if (file.isDirectory() && !isSymlinkCompat(file)) {
@@ -1305,12 +1514,9 @@ public final class TermuxBoxRepository {
 
     /** Copies a file, following symlinks. Uses Files.copy on API 26+, fallback on older. */
     private void copyFileNoFollowCompat(File source, File dest) throws IOException {
-        if (Build.VERSION.SDK_INT >= 26) {
-            Files.copy(source.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING, LinkOption.NOFOLLOW_LINKS);
-            return;
-        }
         if (isSymlinkCompat(source)) {
-            createSymlinkCompat(dest, source);
+            deleteIfExistsCompat(dest);
+            createSymlinkCompat(dest, readSymlinkTargetCompat(source));
         } else {
             copyFileCompat(source, dest);
         }
@@ -1340,13 +1546,25 @@ public final class TermuxBoxRepository {
     }
 
     /** Creates a symbolic link. Uses Files.createSymbolicLink on API 26+, fallback on older. */
-    private void createSymlinkCompat(File link, File target) throws IOException {
+    private String readSymlinkTargetCompat(File link) throws IOException {
         if (Build.VERSION.SDK_INT >= 26) {
-            Files.createSymbolicLink(link.toPath(), target.toPath());
+            return Files.readSymbolicLink(link.toPath()).toString();
+        }
+        try {
+            return Os.readlink(link.getAbsolutePath());
+        } catch (Exception e) {
+            throw new IOException("Cannot read symlink: " + link, e);
+        }
+    }
+
+    /** Creates a symbolic link without rewriting a relative target as an absolute staging path. */
+    private void createSymlinkCompat(File link, String target) throws IOException {
+        if (Build.VERSION.SDK_INT >= 26) {
+            Files.createSymbolicLink(link.toPath(), new File(target).toPath());
             return;
         }
         try {
-            Process p = Runtime.getRuntime().exec(new String[]{"ln", "-sf", target.getAbsolutePath(), link.getAbsolutePath()});
+            Process p = Runtime.getRuntime().exec(new String[]{"ln", "-sf", target, link.getAbsolutePath()});
             p.waitFor();
             if (p.exitValue() != 0) throw new IOException("ln failed: " + p.exitValue());
         } catch (InterruptedException e) {
@@ -1363,9 +1581,4 @@ public final class TermuxBoxRepository {
         return base.toURI().relativize(child.toURI()).getPath();
     }
 
-    /** Resolves a symlink target path relative to the link's parent directory. */
-    private static File resolveLinkTarget(File link, String linkName) {
-        if (linkName.startsWith("/")) return new File(linkName);
-        return new File(link.getParentFile(), linkName);
-    }
 }

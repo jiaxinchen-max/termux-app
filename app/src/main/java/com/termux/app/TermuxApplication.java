@@ -4,6 +4,8 @@ import android.app.Application;
 import android.content.Context;
 
 import com.termux.BuildConfig;
+import com.termux.app.localgames.TermuxLocalGamesHostFactory;
+import com.termux.localgames.api.LocalGames;
 import com.termux.shared.errors.Error;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxBootstrap;
@@ -25,6 +27,9 @@ public class TermuxApplication extends Application {
         super.onCreate();
 
         Context context = getApplicationContext();
+
+        // Register the app-owned Termux runtime bridge for the independently packaged local-games feature.
+        LocalGames.install(new TermuxLocalGamesHostFactory());
 
         // Set crash handler for the app
         TermuxCrashUtils.setDefaultCrashHandler(this);

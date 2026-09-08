@@ -82,6 +82,10 @@ final class X11InputController {
         mTouchInputHandler.reloadPreferences(prefs);
     }
 
+    void setTouchSensitivity(int sensitivity) {
+        mTouchInputHandler.setLongPressedDelay(sensitivity);
+    }
+
     void performConfiguredAction(@NonNull Prefs prefs, @Nullable String actionName) {
         if (actionName == null)
             return;
@@ -257,8 +261,12 @@ final class X11ServerConnector {
     }
 
     boolean tryConnect() {
-        if (LorieView.xConnected())
+        if (LorieView.xConnected()) {
+            // The native connection is process-wide while more than one embedded host may have
+            // a registered receiver. Every host still needs to reconcile its own view state.
+            mHost.onX11ServerConnectionChanged();
             return false;
+        }
 
         if (mService == null) {
             LorieView.requestConnection();
@@ -414,9 +422,14 @@ final class X11WinHandlerController {
 final class X11WindowModeController {
     @NonNull
     private final LorieViewRuntimeApi.LorieHost mHost;
+    private boolean mManageHostOrientation = true;
 
     X11WindowModeController(@NonNull LorieViewRuntimeApi.LorieHost host) {
         mHost = host;
+    }
+
+    void setManageHostOrientation(boolean manageHostOrientation) {
+        mManageHostOrientation = manageHostOrientation;
     }
 
     void applyWindowPreferences(boolean hasFocus) {
@@ -433,7 +446,8 @@ final class X11WindowModeController {
         boolean reseed = prefs.Reseed.get();
 
         int requestedOrientation = getRequestedOrientation(prefs.forceOrientation.get());
-        boolean orientationChangeRequested = activity.getRequestedOrientation() != requestedOrientation;
+        boolean orientationChangeRequested = mManageHostOrientation &&
+            activity.getRequestedOrientation() != requestedOrientation;
         if (orientationChangeRequested)
             activity.setRequestedOrientation(requestedOrientation);
 
@@ -550,6 +564,10 @@ final class X11PreferencesController {
 
         mHandler.removeCallbacks(mApplyPreferencesRunnable);
         mHandler.postDelayed(mApplyPreferencesRunnable, 100);
+    }
+
+    void cancelPendingChanges() {
+        mHandler.removeCallbacks(mApplyPreferencesRunnable);
     }
 
     @SuppressLint("UnsafeIntentLaunch")

@@ -27,7 +27,6 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.SystemClock;
-import android.preference.PreferenceManager;
 import android.util.Log;
 import android.util.Rational;
 import android.view.Display;
@@ -96,6 +95,8 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     private final Activity mActivity;
     @NonNull
     private final Prefs prefs;
+    @NonNull
+    private final SharedPreferences runtimePreferences;
     protected final LorieViewRuntimeApi.DisplayController mX11DisplayController = new LorieViewRuntimeApi.DisplayController();
     protected final X11ServerConnector mX11ServerConnector = new X11ServerConnector(handler, this);
     protected X11InputController mX11InputController;
@@ -103,6 +104,10 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     private final X11SoftKeyboardController mX11SoftKeyboardController = new X11SoftKeyboardController(handler, this);
     private final X11WinHandlerController mX11WinHandlerController = new X11WinHandlerController(this);
     private boolean mKeepWinHandlerAlive = false;
+    private boolean mTerminalToolbarEnabled = true;
+    @Nullable
+    private LorieViewRuntimeApi.FirstFrameListener mFirstFrameListener;
+    private boolean mFirstFramePresented;
     private byte mGamepadMapperType = 1; // Default: XInput
     private final X11WindowModeController mX11WindowModeController = new X11WindowModeController(this);
     private final X11PreferencesController mX11PreferencesController = new X11PreferencesController(handler, this);
@@ -140,9 +145,27 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     private static final AtomicInteger liveInstanceCount = new AtomicInteger(0);
 
     public LorieViewRuntimeController(@NonNull LorieViewRuntimeApi.Host host) {
+        this(host, null);
+    }
+
+    /**
+     * Creates a runtime with an optional isolated preference namespace. The default constructor
+     * remains the integrated terminal-X11 behavior.
+     */
+    public LorieViewRuntimeController(@NonNull LorieViewRuntimeApi.Host host,
+                                      @Nullable String preferenceNamespace) {
         mHost = host;
         mActivity = host.getActivity();
-        prefs = new Prefs(mActivity);
+        if (preferenceNamespace == null || preferenceNamespace.isEmpty()) {
+            prefs = new Prefs(mActivity);
+        } else {
+            SharedPreferences primary = mActivity.getSharedPreferences(
+                preferenceNamespace, Context.MODE_PRIVATE);
+            SharedPreferences secondary = mActivity.getSharedPreferences(
+                preferenceNamespace + "_secondary", Context.MODE_PRIVATE);
+            prefs = new Prefs(mActivity, primary, secondary);
+        }
+        runtimePreferences = prefs.get();
         LoriePreferences.prefs = prefs;
         mX11BroadcastRegistrar = new X11BroadcastRegistrar(mActivity, this);
         liveInstanceCount.incrementAndGet();
@@ -248,8 +271,33 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         mX11DisplayController.setConnectionStateListener(listener);
     }
 
+    public void setX11FirstFrameListener(@Nullable LorieViewRuntimeApi.FirstFrameListener listener) {
+        mFirstFrameListener = listener;
+        if (listener != null && mFirstFramePresented) listener.onFirstFramePresented();
+    }
+
+    /** Lets an embedded host keep ownership of its manifest/profile orientation policy. */
+    public void setManageHostOrientation(boolean manageHostOrientation) {
+        mX11WindowModeController.setManageHostOrientation(manageHostOrientation);
+    }
+
+    /** Removes the terminal extra-keys presentation from standalone non-terminal hosts. */
+    public void setTerminalToolbarEnabled(boolean enabled) {
+        mTerminalToolbarEnabled = enabled;
+        if (mX11DisplayController.isAttached()) setTerminalToolbarView();
+    }
+
+    void onRendererFramePresented() {
+        runOnUiThread(() -> {
+            if (mFirstFramePresented || !mX11DisplayController.isAttached()) return;
+            mFirstFramePresented = true;
+            if (mFirstFrameListener != null) mFirstFrameListener.onFirstFramePresented();
+        });
+    }
+
     protected void initializeX11Display(@NonNull TermuxScreenView displayView) {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(mActivity);
+        mFirstFramePresented = false;
+        SharedPreferences preferences = runtimePreferences;
 
         LorieView previousLorieView = mX11DisplayController.getLorieView();
         if (previousLorieView != null) {
@@ -369,6 +417,10 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     }
 
     public void destroy() {
+        mFirstFrameListener = null;
+        // Preference application is posted asynchronously.  A standalone session can be
+        // unbound before that callback runs, at which point its LorieView no longer has a host.
+        mX11PreferencesController.cancelPendingChanges();
         mX11ServerConnector.detach();
         LorieView lorieView = mX11DisplayController.getLorieView();
         if (lorieView != null) {
@@ -381,8 +433,9 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         }
         mX11BroadcastRegistrar.unregister();
         liveInstanceCount.updateAndGet(count -> Math.max(0, count - 1));
-        LorieViewRuntimeRegistry.unregister(this);
+        LorieViewRuntimeController restoredRuntime = LorieViewRuntimeRegistry.unregister(this);
         KeyInterceptor.clearActivity(this);
+        if (restoredRuntime != null) KeyInterceptor.setActivity(restoredRuntime);
     }
 
     /**
@@ -416,6 +469,27 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         if (mX11WinHandlerController.isRunning()) {
             mX11WinHandlerController.getWinHandler().gamepadHandler.setDInputMapperType(mapperType);
         }
+    }
+
+    /** Applies a frozen Games input selection: xinput/dinput with an optional numeric touch profile id. */
+    public boolean applyGameInputProfile(@NonNull String selection) {
+        if (!selection.matches("(?:xinput|dinput)(?::[1-9][0-9]{0,5})?")) return false;
+        setGamepadMapperType((byte) (selection.startsWith("dinput") ? 0 : 1));
+        ensureWinHandlerRunning(getLorieView());
+        int separator = selection.indexOf(':');
+        if (separator < 0) {
+            hideInputControls();
+            return true;
+        }
+        int profileId;
+        try { profileId = Integer.parseInt(selection.substring(separator + 1)); }
+        catch (NumberFormatException error) { return false; }
+        ControlsProfile selected = inputControlsManager == null ? null : inputControlsManager.getProfile(profileId);
+        if (selected == null) return false;
+        profile = selected;
+        controlsProfile = selection;
+        showInputControls(selected);
+        return true;
     }
 
     /**
@@ -509,7 +583,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         frm.addView(touchpadView);
 
         inputControlsView = new InputControlsView(mActivity);
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(mActivity.getBaseContext());
+        SharedPreferences preferences = runtimePreferences;
         inputControlsView.setOverlayOpacity(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
         inputControlsView.setTouchpadView(touchpadView);
         inputControlsView.setXServer(xServer);
@@ -541,7 +615,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     //Register the needed events to handle stylus as left, middle and right click
     @SuppressLint("ClickableViewAccessibility")
     private void initStylusAuxButtons() {
-        SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(mActivity);
+        SharedPreferences p = runtimePreferences;
         boolean stylusMenuEnabled = p.getBoolean("showStylusClickOverride", false);
         final float menuUnselectedTrasparency = 0.66f;
         final float menuSelectedTrasparency = 1.0f;
@@ -647,7 +721,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         LinearLayout primaryLayer = findViewById(R.id.mouse_buttons);
         LinearLayout secondaryLayer = findViewById(R.id.mouse_buttons_secondary_layer);
 
-        SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(mActivity);
+        SharedPreferences p = runtimePreferences;
         boolean mouseHelperEnabled = p.getBoolean("showMouseHelper", false) && "1".equals(p.getString("touchMode", "1"));
         primaryLayer.setVisibility(mouseHelperEnabled ? VISIBLE : View.GONE);
 
@@ -768,6 +842,11 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         onPreferencesChanged(key);
     }
 
+    public void setTouchSensitivity(int sensitivity) {
+        if (mX11InputController != null)
+            mX11InputController.setTouchSensitivity(Math.max(1, Math.min(20, sensitivity)));
+    }
+
     @Override
     public void onX11PreferenceChanged(String key) {
         applyX11PreferenceChange(key);
@@ -868,6 +947,16 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     private void setTerminalToolbarView() {
         final ViewPager pager = getDisplayTerminalToolbarViewPager();
 
+        if (!mTerminalToolbarEnabled) {
+            pager.clearOnPageChangeListeners();
+            pager.setAdapter(null);
+            pager.setVisibility(View.GONE);
+            if (mExtraKeys != null) mExtraKeys.unsetSpecialKeys();
+            getLorieView().setContentInsets(0, 0, 0, 0);
+            getLorieView().requestFocus();
+            return;
+        }
+
         boolean showNow = LorieView.connected() && prefs.showAdditionalKbd.get() && prefs.additionalKbdVisible.get();
 
         pager.clearOnPageChangeListeners();
@@ -895,6 +984,10 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     }
 
     public void toggleExtraKeys(boolean visible, boolean saveState) {
+        if (!mTerminalToolbarEnabled) {
+            setTerminalToolbarView();
+            return;
+        }
         boolean enabled = prefs.showAdditionalKbd.get();
 
         if (enabled && LorieView.connected() && saveState)
@@ -926,7 +1019,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
 
         orientation = newConfig.orientation;
         if (termuxActivityListener != null) {
-            SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(mActivity);
+            SharedPreferences p = runtimePreferences;
             boolean forceLandscape = p.getBoolean("forceLandscape", false);
             if (!forceLandscape) {
                 termuxActivityListener.onChangeOrientation(newConfig.orientation);
@@ -968,7 +1061,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     }
 
     public void onUserLeaveHint() {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(mActivity);
+        SharedPreferences preferences = runtimePreferences;
         if (Build.VERSION.SDK_INT >= VERSION_CODES.O
             && preferences.getBoolean("PIP", false)
             && hasPipPermission(mActivity)

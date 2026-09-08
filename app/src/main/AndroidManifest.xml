@@ -102,6 +102,15 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <activity
+            android:name=".app.localgames.TermuxRestartActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:process=":restart"
+            android:taskAffinity="${TERMUX_PACKAGE_NAME}.restart"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <activity-alias
             android:name=".HomeActivity"
             android:exported="true"

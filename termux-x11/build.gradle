@@ -141,6 +141,9 @@ afterEvaluate {
         out << '  public Prefs(Context ctx) {\n'
         out << '    super(ctx);\n'
         out << '  }\n'
+        out << '  public Prefs(Context ctx, android.content.SharedPreferences builtIn, android.content.SharedPreferences secondary) {\n'
+        out << '    super(ctx, builtIn, secondary);\n'
+        out << '  }\n'
         out << '}\n'
     }
     android.sourceSets.main.java.srcDirs += 'build/generated/java'

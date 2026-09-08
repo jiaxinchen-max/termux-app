@@ -98,6 +98,10 @@ public final class LorieViewRuntimeApi {
         void onConnectionStateChanged(boolean connected);
     }
 
+    public interface FirstFrameListener {
+        void onFirstFramePresented();
+    }
+
     public static final class DisplayController {
         @Nullable
         private Host mHost;

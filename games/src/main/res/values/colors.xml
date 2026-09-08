@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="local_games_primary">#22C7E8</color>
+    <color name="local_games_primary_dark">#0799B8</color>
+    <color name="local_games_secondary">#69D8ED</color>
+    <color name="local_games_background">#070B12</color>
+    <color name="local_games_surface">#101720</color>
+    <color name="local_games_surface_elevated">#17212D</color>
+    <color name="local_games_surface_high">#1D2A38</color>
+    <color name="local_games_outline">#263543</color>
+    <color name="local_games_on_surface">#F4F7FA</color>
+    <color name="local_games_on_surface_secondary">#97A7B7</color>
+    <color name="local_games_success">#54D6A0</color>
+    <color name="local_games_warning">#F4B45F</color>
+    <color name="local_games_error">#FF717B</color>
+    <color name="local_games_scrim">#B3070B12</color>
+</resources>

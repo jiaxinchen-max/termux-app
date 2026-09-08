@@ -50,6 +50,7 @@
     <string name="action_toggle_keep_screen_on">屏幕常亮</string>
     <string name="action_open_help">帮助</string>
     <string name="action_open_settings">设置</string>
+    <string name="action_open_local_games">本地游戏</string>
     <string name="action_recover_storage">恢复</string>
     <string name="action_backup_storage">备份</string>
     <string name="action_report_issue">报告问题</string>
@@ -214,6 +215,8 @@
     <string name="termux_box_container_tab_env">Env</string>
     <string name="termux_box_container_tab_folders">文件夹</string>
     <string name="termux_box_container_tab_advanced">高级</string>
+    <string name="termux_box_container_launch_title">启动</string>
+    <string name="termux_box_container_launch_orientation">方向</string>
     <string name="termux_box_container_desktop_title">Desktop</string>
     <string name="termux_box_container_desktop_summary">主题/背景/字体/DPI</string>
     <string name="termux_box_container_theme">主题</string>
@@ -289,9 +292,9 @@
     <string name="termux_box_container_tu_debug_syncdraw">同步</string>
     <string name="termux_box_container_tu_debug_flushall">刷新</string>
     <string name="termux_box_container_dpi_value_format">%1$d dpi</string>
-    <string name="termux_box_container_placeholder_name_1">容器-1</string>
-    <string name="termux_box_container_placeholder_name_2">容器-2</string>
-    <string name="termux_box_container_placeholder_name_3">容器-3</string>
+    <string name="termux_box_container_default_name_format">容器-%1$d</string>
+    <string name="termux_box_container_name_required">请输入容器名称</string>
+    <string name="termux_box_container_name_in_use">容器名称已被使用</string>
     <string name="termux_box_toolbar_home_subtitle">概览</string>
     <string name="termux_box_toolbar_packages_subtitle">软件包</string>
     <string name="termux_box_toolbar_container_subtitle">参数</string>

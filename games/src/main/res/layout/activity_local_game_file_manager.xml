@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/local_games_background"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/local_game_file_manager_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="@color/local_games_background"
+        android:title="@string/local_game_file_manager_title"
+        app:navigationIcon="@drawable/local_games_ic_back"
+        app:navigationIconTint="@color/local_games_on_surface"
+        app:titleTextColor="@color/local_games_on_surface" />
+
+    <TextView
+        android:id="@+id/local_game_file_manager_location"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="middle"
+        android:maxLines="2"
+        android:paddingStart="28dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="8dp"
+        android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+        android:textColor="@color/local_games_on_surface_secondary" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:paddingTop="6dp"
+        android:paddingBottom="20dp">
+
+        <GridLayout
+            android:id="@+id/local_game_file_manager_items"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:alignmentMode="alignMargins"
+            android:columnCount="6"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:useDefaultMargins="false" />
+    </ScrollView>
+</LinearLayout>

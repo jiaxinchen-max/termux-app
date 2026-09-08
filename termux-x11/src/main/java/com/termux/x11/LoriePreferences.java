@@ -940,9 +940,18 @@ public final class LoriePreferences {
         } // No instantiation allowed
 
         protected PrefsProto(Context ctx) {
+            this(ctx,
+                PreferenceManager.getDefaultSharedPreferences(ctx),
+                ctx.getSharedPreferences("secondary", Context.MODE_PRIVATE));
+        }
+
+        /** Allows standalone X11 hosts to isolate their preferences from integrated terminal X11. */
+        protected PrefsProto(Context ctx,
+                             SharedPreferences builtInDisplayPreferences,
+                             SharedPreferences secondaryDisplayPreferences) {
             this.ctx = ctx;
-            builtInDisplayPreferences = PreferenceManager.getDefaultSharedPreferences(ctx);
-            secondaryDisplayPreferences = ctx.getSharedPreferences("secondary", Context.MODE_PRIVATE);
+            this.builtInDisplayPreferences = builtInDisplayPreferences;
+            this.secondaryDisplayPreferences = secondaryDisplayPreferences;
             recheckStoringSecondaryDisplayPreferences();
         }
 

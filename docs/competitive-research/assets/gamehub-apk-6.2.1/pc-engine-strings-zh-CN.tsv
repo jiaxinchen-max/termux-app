@@ -1,0 +1,176 @@
+module	type	key	value	encodedValue	source	line
+com.xiaoji.egggame.common.winemu_core	string	pc_cc_broken	已损坏 (点击重装)	5bey5o2f5Z2PICjngrnlh7vph43oo4Up	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	2
+com.xiaoji.egggame.common.winemu_core	string	pc_cc_cpu_core_no_limit	无限制	5peg6ZmQ5Yi2	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	3
+com.xiaoji.egggame.common.winemu_core	string	pc_cc_cpu_core	%1$d 核心	JTEkZCDmoLjlv4M=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	4
+com.xiaoji.egggame.common.winemu_core	string	pc_cc_dinput_disabled	禁用	56aB55So	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	5
+com.xiaoji.egggame.common.winemu_core	string	pc_cc_dinput_prefer_builtin	优先内置	5LyY5YWI5YaF572u	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	6
+com.xiaoji.egggame.common.winemu_core	string	pc_cc_dinput_prefer_native	优先原装	5LyY5YWI5Y6f6KOF	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	7
+com.xiaoji.egggame.common.winemu_core	string	pc_cc_disable	禁用	56aB55So	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	8
+com.xiaoji.egggame.common.winemu_core	string	pc_cc_enable	启用	5ZCv55So	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	9
+com.xiaoji.egggame.common.winemu_core	string	pc_cc_translation_param	转译参数	6L2s6K+R5Y+C5pWw	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	10
+com.xiaoji.egggame.common.winemu_core	string	pc_s_ht_close	关闭	5YWz6Zet	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	11
+com.xiaoji.egggame.common.winemu_core	string	pc_s_ht_full	完整	5a6M5pW0	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	12
+com.xiaoji.egggame.common.winemu_core	string	pc_s_ht_simplify	精简	57K+566A	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	13
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_component_extract_failed	组件%1$s解压失败	57uE5Lu2JTEkc+ino+WOi+Wksei0pQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	14
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_component_install_failed	组件%1$s安装失败	57uE5Lu2JTEkc+WuieijheWksei0pQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	15
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_container_install_failed_incomplete	安装失败 (未完成, 进度: %1$d)	5a6J6KOF5aSx6LSlICjmnKrlrozmiJAsIOi/m+W6pjogJTEkZCk=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	16
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_container_install_failed_with_code	安装失败 (错误码: %1$d)	5a6J6KOF5aSx6LSlICjplJnor6/noIE6ICUxJGQp	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	17
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_container_install_failed	容器安装失败	5a655Zmo5a6J6KOF5aSx6LSl	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	18
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_container_not_config	容器未配置	5a655Zmo5pyq6YWN572u	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	19
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_container_not_found	无该兼容层	5peg6K+l5YW85a655bGC	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	20
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_dep_component_download_failed	组件下载失败: %1$s	57uE5Lu25LiL6L295aSx6LSlOiAlMSRz	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	21
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_dep_component_install_failed	组件%1$s安装失败	57uE5Lu2JTEkc+WuieijheWksei0pQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	22
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_dep_component_install_incomplete	组件安装不完整，剩余%1$d个	57uE5Lu25a6J6KOF5LiN5a6M5pW077yM5Ymp5L2ZJTEkZOS4qg==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	23
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_game_config_download_failed	游戏配置文件下载失败: %1$s	5ri45oiP6YWN572u5paH5Lu25LiL6L295aSx6LSlOiAlMSRz	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	24
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_game_config_retrieve_failed	无法获取游戏配置，请检查网络后重试	5peg5rOV6I635Y+W5ri45oiP6YWN572u77yM6K+35qOA5p+l572R57uc5ZCO6YeN6K+V	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	25
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_imagefs_not_config	固件未配置	5Zu65Lu25pyq6YWN572u	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	26
+com.xiaoji.egggame.common.winemu_core	string	setup_exception_virtual_container_check_failed	虚拟容器检查失败	6Jma5ouf5a655Zmo5qOA5p+l5aSx6LSl	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	27
+com.xiaoji.egggame.common.winemu_core	string	tp_AlignedAtomicsDesc	仅生成对齐原子操作	5LuF55Sf5oiQ5a+56b2Q5Y6f5a2Q5pON5L2c	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	28
+com.xiaoji.egggame.common.winemu_core	string	tp_AlignedAtomicsTitle	AlignedAtomics (对齐原子操作)	QWxpZ25lZEF0b21pY3MgKOWvuem9kOWOn+WtkOaTjeS9nCk=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	29
+com.xiaoji.egggame.common.winemu_core	string	tp_BigBlockDesc	代码块构建策略	5Luj56CB5Z2X5p6E5bu6562W55Wl	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	30
+com.xiaoji.egggame.common.winemu_core	string	tp_BigBlockTitle	BigBlock (大块代码优化)	QmlnQmxvY2sgKOWkp+Wdl+S7o+eggeS8mOWMlik=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	31
+com.xiaoji.egggame.common.winemu_core	string	tp_Box64AVXDesc	AVX指令集支持级别	QVZY5oyH5Luk6ZuG5pSv5oyB57qn5Yir	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	32
+com.xiaoji.egggame.common.winemu_core	string	tp_Box64AVXTitle	Box64AVX (AVX指令集)	Qm94NjRBVlggKEFWWOaMh+S7pOmbhik=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	33
+com.xiaoji.egggame.common.winemu_core	string	tp_CallRetDesc	函数调用优化	5Ye95pWw6LCD55So5LyY5YyW	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	34
+com.xiaoji.egggame.common.winemu_core	string	tp_CallRetTitle	CallRet (调用返回优化)	Q2FsbFJldCAo6LCD55So6L+U5Zue5LyY5YyWKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	35
+com.xiaoji.egggame.common.winemu_core	string	tp_CpuTypeDesc	模拟的CPU厂商	5qih5ouf55qEQ1BV5Y6C5ZWG	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	36
+com.xiaoji.egggame.common.winemu_core	string	tp_CpuTypeTitle	CpuType (CPU类型)	Q3B1VHlwZSAoQ1BV57G75Z6LKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	37
+com.xiaoji.egggame.common.winemu_core	string	tp_DFDesc	延迟标志处理优化	5bu26L+f5qCH5b+X5aSE55CG5LyY5YyW	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	38
+com.xiaoji.egggame.common.winemu_core	string	tp_DFTitle	DF (方向标志)	REYgKOaWueWQkeagh+W/lyk=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	39
+com.xiaoji.egggame.common.winemu_core	string	tp_DIV0Desc	生成除零异常	55Sf5oiQ6Zmk6Zu25byC5bi4	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	40
+com.xiaoji.egggame.common.winemu_core	string	tp_DIV0Title	DIV0 (除零异常)	RElWMCAo6Zmk6Zu25byC5bi4KQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	41
+com.xiaoji.egggame.common.winemu_core	string	tp_DirtyDesc	脏页面处理策略	6ISP6aG16Z2i5aSE55CG562W55Wl	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	42
+com.xiaoji.egggame.common.winemu_core	string	tp_DirtyTitle	Dirty (脏页处理)	RGlydHkgKOiEj+mhteWkhOeQhik=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	43
+com.xiaoji.egggame.common.winemu_core	string	tp_DynarecDesc	启用动态重编译器	5ZCv55So5Yqo5oCB6YeN57yW6K+R5Zmo	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	44
+com.xiaoji.egggame.common.winemu_core	string	tp_DynarecTitle	Dynarec (动态重编译)	RHluYXJlYyAo5Yqo5oCB6YeN57yW6K+RKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	45
+com.xiaoji.egggame.common.winemu_core	string	tp_FastNanDesc	快速NaN值处理，性能优先	5b+r6YCfTmFO5YC85aSE55CG77yM5oCn6IO95LyY5YWI	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	46
+com.xiaoji.egggame.common.winemu_core	string	tp_FastNanTitle	FastNan (快速NaN处理)	RmFzdE5hbiAo5b+r6YCfTmFO5aSE55CGKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	47
+com.xiaoji.egggame.common.winemu_core	string	tp_FastRoundDesc	快速浮点舍入处理	5b+r6YCf5rWu54K56IiN5YWl5aSE55CG	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	48
+com.xiaoji.egggame.common.winemu_core	string	tp_FastRoundTitle	FastRound (快速舍入)	RmFzdFJvdW5kICjlv6vpgJ/oiI3lhaUp	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	49
+com.xiaoji.egggame.common.winemu_core	string	tp_HalfBarrierTSOEnabledDesc	未对齐加载存储半屏障原子	5pyq5a+56b2Q5Yqg6L295a2Y5YKo5Y2K5bGP6Zqc5Y6f5a2Q	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	50
+com.xiaoji.egggame.common.winemu_core	string	tp_HalfBarrierTSOEnabledTitle	HalfBarrierTSOEnabled (半屏障TSO)	SGFsZkJhcnJpZXJUU09FbmFibGVkICjljYrlsY/pmpxUU08p	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	51
+com.xiaoji.egggame.common.winemu_core	string	tp_HideHypervisorBitDesc	隐藏虚拟化CPUID位	6ZqQ6JeP6Jma5ouf5YyWQ1BVSUTkvY0=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	52
+com.xiaoji.egggame.common.winemu_core	string	tp_HideHypervisorBitTitle	HideHypervisorBit (隐藏虚拟机位)	SGlkZUh5cGVydmlzb3JCaXQgKOmakOiXj+iZmuaLn+acuuS9jSk=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	53
+com.xiaoji.egggame.common.winemu_core	string	tp_IgnoreINT3Desc	静默跳过INT3指令	6Z2Z6buY6Lez6L+HSU5UM+aMh+S7pA==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	54
+com.xiaoji.egggame.common.winemu_core	string	tp_IgnoreINT3Title	IgnoreINT3 (忽略断点)	SWdub3JlSU5UMyAo5b+955Wl5pat54K5KQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	55
+com.xiaoji.egggame.common.winemu_core	string	tp_MaxInstDesc	限制最大指令数，0为无限制	6ZmQ5Yi25pyA5aSn5oyH5Luk5pWw77yMMOS4uuaXoOmZkOWItg==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	56
+com.xiaoji.egggame.common.winemu_core	string	tp_MaxInstTitle	MaxInst (最大指令数)	TWF4SW5zdCAo5pyA5aSn5oyH5Luk5pWwKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	57
+com.xiaoji.egggame.common.winemu_core	string	tp_MemcpySetTSOEnabledDesc	内存拷贝操作TSO原子性	5YaF5a2Y5ou36LSd5pON5L2cVFNP5Y6f5a2Q5oCn	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	58
+com.xiaoji.egggame.common.winemu_core	string	tp_MemcpySetTSOEnabledTitle	MemcpySetTSOEnabled (内存拷贝TSO)	TWVtY3B5U2V0VFNPRW5hYmxlZCAo5YaF5a2Y5ou36LSdVFNPKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	59
+com.xiaoji.egggame.common.winemu_core	string	tp_MonoHacksDesc	Mono检测时启用SMC钩子	TW9ub+ajgOa1i+aXtuWQr+eUqFNNQ+mSqeWtkA==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	60
+com.xiaoji.egggame.common.winemu_core	string	tp_MonoHacksTitle	MonoHacks (Mono优化)	TW9ub0hhY2tzIChNb25v5LyY5YyWKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	61
+com.xiaoji.egggame.common.winemu_core	string	tp_MultiblockDesc	控制多块代码编译优化	5o6n5Yi25aSa5Z2X5Luj56CB57yW6K+R5LyY5YyW	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	62
+com.xiaoji.egggame.common.winemu_core	string	tp_MultiblockTitle	Multiblock (多块编译)	TXVsdGlibG9jayAo5aSa5Z2X57yW6K+RKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	63
+com.xiaoji.egggame.common.winemu_core	string	tp_NativeFlagDesc	使用ARM原生标志处理	5L2/55SoQVJN5Y6f55Sf5qCH5b+X5aSE55CG	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	64
+com.xiaoji.egggame.common.winemu_core	string	tp_NativeFlagTitle	NativeFlags (原生标志)	TmF0aXZlRmxhZ3MgKOWOn+eUn+agh+W/lyk=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	65
+com.xiaoji.egggame.common.winemu_core	string	tp_PauseDesc	PAUSE指令处理方式	UEFVU0XmjIfku6TlpITnkIbmlrnlvI8=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	66
+com.xiaoji.egggame.common.winemu_core	string	tp_PauseTitle	Pause (暂停指令)	UGF1c2UgKOaaguWBnOaMh+S7pCk=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	67
+com.xiaoji.egggame.common.winemu_core	string	tp_RDTSC1GHZDesc	1GHz精度时间戳	MUdIeueyvuW6puaXtumXtOaIsw==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	68
+com.xiaoji.egggame.common.winemu_core	string	tp_RDTSC1GHZTitle	RDTSC1GHZ (时间戳计数器)	UkRUU0MxR0haICjml7bpl7TmiLPorqHmlbDlmagp	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	69
+com.xiaoji.egggame.common.winemu_core	string	tp_SMCChecksDesc	代码修改检测方式	5Luj56CB5L+u5pS55qOA5rWL5pa55byP	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	70
+com.xiaoji.egggame.common.winemu_core	string	tp_SMCChecksTitle	SMCChecks (自修改代码检查)	U01DQ2hlY2tzICjoh6rkv67mlLnku6PnoIHmo4Dmn6Up	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	71
+com.xiaoji.egggame.common.winemu_core	string	tp_SmallTSCScaleDesc	低频系统时间戳缩放	5L2O6aKR57O757uf5pe26Ze05oiz57yp5pS+	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	72
+com.xiaoji.egggame.common.winemu_core	string	tp_SmallTSCScaleTitle	SmallTSCScale (小时间戳缩放)	U21hbGxUU0NTY2FsZSAo5bCP5pe26Ze05oiz57yp5pS+KQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	73
+com.xiaoji.egggame.common.winemu_core	string	tp_TSOEnabledDesc	控制TSO内存一致性，多线程程序必需	5o6n5Yi2VFNP5YaF5a2Y5LiA6Ie05oCn77yM5aSa57q/56iL56iL5bqP5b+F6ZyA	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	74
+com.xiaoji.egggame.common.winemu_core	string	tp_TSOEnabledTitle	TSOEnabled (TSO内存模型)	VFNPRW5hYmxlZCAoVFNP5YaF5a2Y5qih5Z6LKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	75
+com.xiaoji.egggame.common.winemu_core	string	tp_VectorTSOEnabledDesc	向量操作TSO原子性	5ZCR6YeP5pON5L2cVFNP5Y6f5a2Q5oCn	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	76
+com.xiaoji.egggame.common.winemu_core	string	tp_VectorTSOEnabledTitle	VectorTSOEnabled (向量TSO)	VmVjdG9yVFNPRW5hYmxlZCAo5ZCR6YePVFNPKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	77
+com.xiaoji.egggame.common.winemu_core	string	tp_VolatileMetadataBox64Desc	使用PE文件易失性元数据	5L2/55SoUEXmlofku7bmmJPlpLHmgKflhYPmlbDmja4=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	78
+com.xiaoji.egggame.common.winemu_core	string	tp_VolatileMetadataBox64Title	VolatileMetadataBox64 (Box64易失性元数据)	Vm9sYXRpbGVNZXRhZGF0YUJveDY0IChCb3g2NOaYk+WkseaAp+WFg+aVsOaNrik=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	79
+com.xiaoji.egggame.common.winemu_core	string	tp_VolatileMetadataDesc	PE文件元数据指导TSO	UEXmlofku7blhYPmlbDmja7mjIflr7xUU08=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	80
+com.xiaoji.egggame.common.winemu_core	string	tp_VolatileMetadataTitle	VolatileMetadata (易失性元数据)	Vm9sYXRpbGVNZXRhZGF0YSAo5piT5aSx5oCn5YWD5pWw5o2uKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	81
+com.xiaoji.egggame.common.winemu_core	string	tp_WaitDesc	等待动态重编译完成	562J5b6F5Yqo5oCB6YeN57yW6K+R5a6M5oiQ	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	82
+com.xiaoji.egggame.common.winemu_core	string	tp_WaitTitle	Wait (等待代码块)	V2FpdCAo562J5b6F5Luj56CB5Z2XKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	83
+com.xiaoji.egggame.common.winemu_core	string	tp_WeakBarrierDesc	内存屏障优化级别	5YaF5a2Y5bGP6Zqc5LyY5YyW57qn5Yir	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	84
+com.xiaoji.egggame.common.winemu_core	string	tp_WeakBarrierTitle	WeakBarrier (弱内存屏障)	V2Vha0JhcnJpZXIgKOW8seWGheWtmOWxj+manCk=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	85
+com.xiaoji.egggame.common.winemu_core	string	tp_X87DoubleDesc	X87 FPU双精度模式	WDg3IEZQVeWPjOeyvuW6puaooeW8jw==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	86
+com.xiaoji.egggame.common.winemu_core	string	tp_X87DoubleTitle	X87Double (X87双精度)	WDg3RG91YmxlIChYODflj4znsr7luqYp	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	87
+com.xiaoji.egggame.common.winemu_core	string	tp_X87ReducedPrecisionDesc	降低X87精度提升性能	6ZmN5L2OWDg357K+5bqm5o+Q5Y2H5oCn6IO9	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	88
+com.xiaoji.egggame.common.winemu_core	string	tp_X87ReducedPrecisionTitle	X87ReducedPrecision (X87降精度)	WDg3UmVkdWNlZFByZWNpc2lvbiAoWDg36ZmN57K+5bqmKQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	89
+com.xiaoji.egggame.common.winemu_core	string	tp_aligned_atomics_0	0: 处理未对齐原子 [默认]	MDog5aSE55CG5pyq5a+56b2Q5Y6f5a2QIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	90
+com.xiaoji.egggame.common.winemu_core	string	tp_aligned_atomics_1	1: 仅对齐原子(更快但可能SIGBUS)	MTog5LuF5a+56b2Q5Y6f5a2QKOabtOW/q+S9huWPr+iDvVNJR0JVUyk=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	91
+com.xiaoji.egggame.common.winemu_core	string	tp_avx_0	0: 禁用AVX [默认]	MDog56aB55SoQVZYIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	92
+com.xiaoji.egggame.common.winemu_core	string	tp_avx_1	1: 基础AVX支持	MTog5Z+656GAQVZY5pSv5oyB	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	93
+com.xiaoji.egggame.common.winemu_core	string	tp_avx_2	2: 完整AVX2支持	Mjog5a6M5pW0QVZYMuaUr+aMgQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	94
+com.xiaoji.egggame.common.winemu_core	string	tp_big_block_0	0: 小块，适合多线程程序	MDog5bCP5Z2X77yM6YCC5ZCI5aSa57q/56iL56iL5bqP	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	95
+com.xiaoji.egggame.common.winemu_core	string	tp_big_block_1	1: 标准大块	MTog5qCH5YeG5aSn5Z2X	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	96
+com.xiaoji.egggame.common.winemu_core	string	tp_big_block_2	2: 更大块，仅elf内存 [默认]	Mjog5pu05aSn5Z2X77yM5LuFZWxm5YaF5a2YIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	97
+com.xiaoji.egggame.common.winemu_core	string	tp_big_block_3	3: 最大块，适合Wine	Mzog5pyA5aSn5Z2X77yM6YCC5ZCIV2luZQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	98
+com.xiaoji.egggame.common.winemu_core	string	tp_call_ret_0	0: 使用跳转表 [默认]	MDog5L2/55So6Lez6L2s6KGoIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	99
+com.xiaoji.egggame.common.winemu_core	string	tp_call_ret_1	1: 跳过跳转表	MTog6Lez6L+H6Lez6L2s6KGo	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	100
+com.xiaoji.egggame.common.winemu_core	string	tp_cpu_type_0	0: Intel CPU [默认]	MDogSW50ZWwgQ1BVIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	101
+com.xiaoji.egggame.common.winemu_core	string	tp_cpu_type_1	1: AMD CPU	MTogQU1EIENQVQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	102
+com.xiaoji.egggame.common.winemu_core	string	tp_dirty_0	0: 安全模式 [默认]	MDog5a6J5YWo5qih5byPIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	103
+com.xiaoji.egggame.common.winemu_core	string	tp_dirty_1	1: 允许脏块运行	MTog5YWB6K646ISP5Z2X6L+Q6KGM	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	104
+com.xiaoji.egggame.common.winemu_core	string	tp_dirty_2	2: 热页面优化	Mjog54Ot6aG16Z2i5LyY5YyW	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	105
+com.xiaoji.egggame.common.winemu_core	string	tp_fast_nan_0	0: 精确x86 NaN模拟	MDog57K+56GueDg2IE5hTuaooeaLnw==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	106
+com.xiaoji.egggame.common.winemu_core	string	tp_fast_nan_1	1: 快速处理 [默认]	MTog5b+r6YCf5aSE55CGIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	107
+com.xiaoji.egggame.common.winemu_core	string	tp_fast_round_0	0: 精确舍入模拟	MDog57K+56Gu6IiN5YWl5qih5ouf	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	108
+com.xiaoji.egggame.common.winemu_core	string	tp_fast_round_1	1: 快速处理 [默认]	MTog5b+r6YCf5aSE55CGIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	109
+com.xiaoji.egggame.common.winemu_core	string	tp_pause_0	0: 忽略 [默认]	MDog5b+955WlIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	110
+com.xiaoji.egggame.common.winemu_core	string	tp_pause_1	1: YIELD模拟	MTogWUlFTETmqKHmi58=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	111
+com.xiaoji.egggame.common.winemu_core	string	tp_pause_2	2: WFI模拟	MjogV0ZJ5qih5ouf	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	112
+com.xiaoji.egggame.common.winemu_core	string	tp_pause_3	3: SEVL+WFE模拟	MzogU0VWTCtXRkXmqKHmi58=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	113
+com.xiaoji.egggame.common.winemu_core	string	tp_safe_falgs_desc	控制函数调用标志位处理方式	5o6n5Yi25Ye95pWw6LCD55So5qCH5b+X5L2N5aSE55CG5pa55byP	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	114
+com.xiaoji.egggame.common.winemu_core	string	tp_safe_falgs_title	SafeFlags (安全标志处理)	U2FmZUZsYWdzICjlronlhajmoIflv5flpITnkIYp	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	115
+com.xiaoji.egggame.common.winemu_core	string	tp_safe_flags_0	0: 不处理标志位 (最快)	MDog5LiN5aSE55CG5qCH5b+X5L2NICjmnIDlv6sp	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	116
+com.xiaoji.egggame.common.winemu_core	string	tp_safe_flags_1	1: 平衡处理 [默认]	MTog5bmz6KGh5aSE55CGIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	117
+com.xiaoji.egggame.common.winemu_core	string	tp_safe_flags_2	2: 完整处理 (最安全)	Mjog5a6M5pW05aSE55CGICjmnIDlronlhagp	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	118
+com.xiaoji.egggame.common.winemu_core	string	tp_smc_checks_full	full: 每次验证(慢)	ZnVsbDog5q+P5qyh6aqM6K+BKOaFoik=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	119
+com.xiaoji.egggame.common.winemu_core	string	tp_smc_checks_mtrack	mtrack: 页面跟踪 [默认]	bXRyYWNrOiDpobXpnaLot5/ouKogW+m7mOiupF0=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	120
+com.xiaoji.egggame.common.winemu_core	string	tp_smc_checks_none	none: 无检查	bm9uZTog5peg5qOA5p+l	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	121
+com.xiaoji.egggame.common.winemu_core	string	tp_strong_mem_0	0: 无特殊处理 [默认]	MDog5peg54m55q6K5aSE55CGIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	122
+com.xiaoji.egggame.common.winemu_core	string	tp_strong_mem_1	1: 基础内存屏障	MTog5Z+656GA5YaF5a2Y5bGP6Zqc	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	123
+com.xiaoji.egggame.common.winemu_core	string	tp_strong_mem_2	2: 增加SIMD屏障	Mjog5aKe5YqgU0lNROWxj+manA==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	124
+com.xiaoji.egggame.common.winemu_core	string	tp_strong_mem_3	3: 最强屏障	Mzog5pyA5by65bGP6Zqc	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	125
+com.xiaoji.egggame.common.winemu_core	string	tp_strong_mem_desc	x86内存模型模拟强度	eDg25YaF5a2Y5qih5Z6L5qih5ouf5by65bqm	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	126
+com.xiaoji.egggame.common.winemu_core	string	tp_strong_mem_title	StrongMem (强内存模型)	U3Ryb25nTWVtICjlvLrlhoXlrZjmqKHlnosp	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	127
+com.xiaoji.egggame.common.winemu_core	string	tp_wait_0	0: 不等待，用解释器	MDog5LiN562J5b6F77yM55So6Kej6YeK5Zmo	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	128
+com.xiaoji.egggame.common.winemu_core	string	tp_wait_1	1: 等待完成 [默认]	MTog562J5b6F5a6M5oiQIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	129
+com.xiaoji.egggame.common.winemu_core	string	tp_weak_barrier_0	0: 常规屏障	MDog5bi46KeE5bGP6Zqc	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	130
+com.xiaoji.egggame.common.winemu_core	string	tp_weak_barrier_1	1: 弱屏障优化 [默认]	MTog5byx5bGP6Zqc5LyY5YyWIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	131
+com.xiaoji.egggame.common.winemu_core	string	tp_weak_barrier_2	2: 禁用写屏障	Mjog56aB55So5YaZ5bGP6Zqc	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	132
+com.xiaoji.egggame.common.winemu_core	string	tp_x87_double_0	0: 智能精度 [默认]	MDog5pm66IO957K+5bqmIFvpu5jorqRd	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	133
+com.xiaoji.egggame.common.winemu_core	string	tp_x87_double_1	1: 强制双精度	MTog5by65Yi25Y+M57K+5bqm	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	134
+com.xiaoji.egggame.common.winemu_core	string	validator_error_container_name_empty	容器名称不能为空	5a655Zmo5ZCN56ew5LiN6IO95Li656m6	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	135
+com.xiaoji.egggame.common.winemu_core	string	validator_error_file_path_empty	%1$s路径不能为空	JTEkc+i3r+W+hOS4jeiDveS4uuepug==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	136
+com.xiaoji.egggame.common.winemu_core	string	validator_error_game_id_empty	gameId不能为空	Z2FtZUlk5LiN6IO95Li656m6	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	137
+com.xiaoji.egggame.common.winemu_core	string	validator_error_invalid_exe_path	无效的exe路径: %1$s	5peg5pWI55qEZXhl6Lev5b6EOiAlMSRz	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	138
+com.xiaoji.egggame.common.winemu_core	string	winemu_container_state_check	检查容器安装状态	5qOA5p+l5a655Zmo5a6J6KOF54q25oCB	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	139
+com.xiaoji.egggame.common.winemu_core	string	winemu_custom	自定义	6Ieq5a6a5LmJ	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	140
+com.xiaoji.egggame.common.winemu_core	string	winemu_download_fail_tips	下载失败	5LiL6L295aSx6LSl	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	141
+com.xiaoji.egggame.common.winemu_core	string	winemu_game_preset	游戏预设	5ri45oiP6aKE6K6+	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	142
+com.xiaoji.egggame.common.winemu_core	string	winemu_imagefs_installation	正在安装固件	5q2j5Zyo5a6J6KOF5Zu65Lu2	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	143
+com.xiaoji.egggame.common.winemu_core	string	winemu_language_auto	自动	6Ieq5Yqo	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	144
+com.xiaoji.egggame.common.winemu_core	string	winemu_setting_v_fastest	最快	5pyA5b+r	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	145
+com.xiaoji.egggame.common.winemu_core	string	winemu_setting_v_fast	快	5b+r	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	146
+com.xiaoji.egggame.common.winemu_core	string	winemu_setting_v_normal	一般	5LiA6Iis	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	147
+com.xiaoji.egggame.common.winemu_core	string	winemu_setting_v_slowest	最慢	5pyA5oWi	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	148
+com.xiaoji.egggame.common.winemu_core	string	winemu_setting_v_slow	慢	5oWi	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	149
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_all_complete	全部完成	5YWo6YOo5a6M5oiQ	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	150
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_applying_game_settings	正在应用推荐游戏设置…	5q2j5Zyo5bqU55So5o6o6I2Q5ri45oiP6K6+572u4oCm	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	151
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_cancelled	安装已取消	5a6J6KOF5bey5Y+W5raI	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	152
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_cannot_add_tasks_while_running	运行中无法添加任务	6L+Q6KGM5Lit5peg5rOV5re75Yqg5Lu75Yqh	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	153
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_cannot_clear_while_running	运行中无法清空任务	6L+Q6KGM5Lit5peg5rOV5riF56m65Lu75Yqh	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	154
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_check_common_component	检查通用组件	5qOA5p+l6YCa55So57uE5Lu2	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	155
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_check_dep_component_state_tips	检查组件是否需要安装	5qOA5p+l57uE5Lu25piv5ZCm6ZyA6KaB5a6J6KOF	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	156
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_check_steam_client	检查 Steam 客户端	5qOA5p+lIFN0ZWFtIOWuouaIt+errw==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	157
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_check_steam_component	检查 Steam 组件	5qOA5p+lIFN0ZWFtIOe7hOS7tg==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	158
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_check_virtual_container	正在检查虚拟容器…	5q2j5Zyo5qOA5p+l6Jma5ouf5a655Zmo4oCm	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	159
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_download_complete_tips	下载完成	5LiL6L295a6M5oiQ	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	160
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_downloading_info	正在下载 %1$s	5q2j5Zyo5LiL6L29ICUxJHM=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	161
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_downloading_tips	下载中	5LiL6L295Lit	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	162
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_failed	安装失败	5a6J6KOF5aSx6LSl	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	163
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_game_settings_applied	已应用游戏设置	5bey5bqU55So5ri45oiP6K6+572u	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	164
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_install_component	安装 %1$s 组件	5a6J6KOFICUxJHMg57uE5Lu2	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	165
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_install_depcomponent_all_succ_tips	正在启动游戏…	5q2j5Zyo5ZCv5Yqo5ri45oiP4oCm	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	166
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_install_dep	正在安装组件…	5q2j5Zyo5a6J6KOF57uE5Lu24oCm	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	167
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_install_env_tips	正在检查环境和固件…	5q2j5Zyo5qOA5p+l546v5aKD5ZKM5Zu65Lu24oCm	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	168
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_task_failed_with_detail	任务“%1$s”失败：%2$s	5Lu75Yqh4oCcJTEkc+KAneWksei0pe+8miUyJHM=	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	169
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_task_failed	任务“%1$s”失败	5Lu75Yqh4oCcJTEkc+KAneWksei0pQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	170
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_tasks_already_running	任务正在运行中	5Lu75Yqh5q2j5Zyo6L+Q6KGM5Lit	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	171
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_unexpected_error	发生异常：%1$s	5Y+R55Sf5byC5bi477yaJTEkcw==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	172
+com.xiaoji.egggame.common.winemu_core	string	winemu_setup_unknown_error	未知错误	5pyq55+l6ZSZ6K+v	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	173
+com.xiaoji.egggame.common.winemu_core	string	winemu_uninstall_clear_download_files_failed	清理下载文件失败	5riF55CG5LiL6L295paH5Lu25aSx6LSl	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	174
+com.xiaoji.egggame.common.winemu_core	string	winemu_uninstall_clear_pc_emulator_core_failed	清理 PC 模拟器核心失败	5riF55CGIFBDIOaooeaLn+WZqOaguOW/g+Wksei0pQ==	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	175
+com.xiaoji.egggame.common.winemu_core	string	winemu_uninstall_remove_imagefs_failed	删除固件失败	5Yig6Zmk5Zu65Lu25aSx6LSl	com.xiaoji.egggame.common.winemu_core/values-zh-rCN/strings.commonMain.cvr	176

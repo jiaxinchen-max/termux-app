@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/local_games_bg_dialog"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="@string/local_game_actions_title"
+            android:textColor="@color/local_games_on_surface"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/game_actions_close"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="36dp"
+            android:layout_height="28dp"
+            android:contentDescription="@string/local_games_close"
+            android:text="×"
+            android:textColor="@color/local_games_on_surface_secondary"
+            android:textSize="20sp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="12dp"
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:alignmentMode="alignMargins"
+        android:columnCount="3"
+        android:useDefaultMargins="true">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/game_actions_engine"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="68dp"
+            android:layout_columnWeight="1"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="true"
+            android:maxLines="1"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="@string/local_game_action_engine"
+            android:textAllCaps="false"
+            android:textSize="10sp"
+            app:cornerRadius="12dp"
+            app:icon="@drawable/local_games_ic_settings"
+            app:iconGravity="textTop"
+            app:iconPadding="4dp"
+            app:iconSize="24dp"
+            app:iconTint="@color/local_games_primary"
+            app:strokeColor="@color/local_games_outline" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/game_actions_edit"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="68dp"
+            android:layout_columnWeight="1"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="true"
+            android:maxLines="1"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="@string/local_game_action_edit"
+            android:textAllCaps="false"
+            android:textSize="10sp"
+            app:cornerRadius="12dp"
+            app:icon="@drawable/local_games_ic_component"
+            app:iconGravity="textTop"
+            app:iconPadding="4dp"
+            app:iconSize="24dp"
+            app:iconTint="@color/local_games_primary"
+            app:strokeColor="@color/local_games_outline" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/game_actions_assets"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="68dp"
+            android:layout_columnWeight="1"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="true"
+            android:maxLines="1"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="@string/local_game_action_assets"
+            android:textAllCaps="false"
+            android:textSize="10sp"
+            app:cornerRadius="12dp"
+            app:icon="@drawable/local_games_ic_download"
+            app:iconGravity="textTop"
+            app:iconPadding="4dp"
+            app:iconSize="24dp"
+            app:iconTint="@color/local_games_primary"
+            app:strokeColor="@color/local_games_outline" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/game_actions_input"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="68dp"
+            android:layout_columnWeight="1"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="true"
+            android:maxLines="1"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="@string/local_game_action_input"
+            android:textAllCaps="false"
+            android:textSize="10sp"
+            app:cornerRadius="12dp"
+            app:icon="@drawable/local_games_ic_library"
+            app:iconGravity="textTop"
+            app:iconPadding="4dp"
+            app:iconSize="24dp"
+            app:iconTint="@color/local_games_primary"
+            app:strokeColor="@color/local_games_outline" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/game_actions_reauthorize"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="68dp"
+            android:layout_columnWeight="1"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="true"
+            android:maxLines="1"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="@string/local_game_action_reauthorize"
+            android:textAllCaps="false"
+            android:textSize="10sp"
+            app:cornerRadius="12dp"
+            app:icon="@drawable/local_games_ic_library"
+            app:iconGravity="textTop"
+            app:iconPadding="4dp"
+            app:iconSize="24dp"
+            app:iconTint="@color/local_games_primary"
+            app:strokeColor="@color/local_games_outline" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/game_actions_remove"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="68dp"
+            android:layout_columnWeight="1"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="true"
+            android:maxLines="1"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="@string/local_game_action_remove"
+            android:textAllCaps="false"
+            android:textColor="@color/local_games_error"
+            android:textSize="10sp"
+            app:cornerRadius="12dp"
+            app:icon="@drawable/local_games_ic_delete"
+            app:iconGravity="textTop"
+            app:iconPadding="4dp"
+            app:iconSize="24dp"
+            app:iconTint="@color/local_games_error"
+            app:strokeColor="@color/local_games_error" />
+    </GridLayout>
+    </ScrollView>
+</LinearLayout>

@@ -23,6 +23,7 @@ public final class TermuxBoxContainerSpec {
         "D:/storage/emulated/0/DownloadE:/storage/emulated/0";
     public static final String DEFAULT_BOX64_PRESET = "INTERMEDIATE";
     public static final String DEFAULT_DESKTOP_THEME = "LIGHT,IMAGE,#0277bd";
+    public static final String DEFAULT_LAUNCH_ORIENTATION = "landscape";
 
     // ---- Startup selection constants (matching Winlator Container.java) ----
     public static final byte STARTUP_SELECTION_NORMAL = 0;
@@ -50,6 +51,7 @@ public final class TermuxBoxContainerSpec {
     public final String box64Preset;          // Winlator: box64Preset
     public final String desktopTheme;         // Winlator: desktopTheme
     public final byte   dinputMapperType;     // Winlator: dinputMapperType (0=Standard, 1=XInput)
+    public final String launchOrientation;    // Android/X11 launch orientation
 
     public TermuxBoxContainerSpec(@NonNull String id,
                                   @NonNull String name,
@@ -70,7 +72,8 @@ public final class TermuxBoxContainerSpec {
                                   String cpuListWoW64,
                                   @NonNull String box64Preset,
                                   @NonNull String desktopTheme,
-                                  byte dinputMapperType) {
+                                  byte dinputMapperType,
+                                  @NonNull String launchOrientation) {
         this.id = id;
         this.name = name;
         this.wineVersion = wineVersion;
@@ -91,5 +94,6 @@ public final class TermuxBoxContainerSpec {
         this.box64Preset = box64Preset;
         this.desktopTheme = desktopTheme;
         this.dinputMapperType = dinputMapperType;
+        this.launchOrientation = launchOrientation;
     }
 }

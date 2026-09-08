@@ -27,23 +27,20 @@ public class TermuxBoxContainerManagerClient {
 
     private static final String LOG_TAG = "TermuxBoxManager";
     private static final String START_WINE_SESSION_NAME = "termux-box-start-wine";
-    private static final String BOOTSTRAP_SESSION_NAME = "termux-box-bootstrap";
 
     private final TermuxActivity mTermuxActivity;
     private final TermuxTerminalSessionActivityClient mTermuxTerminalSessionActivityClient;
     private final TermuxBoxRepository mRepository;
 
     private LinearLayout mContent;
-    /** Tracks containers for which we've already started a bootstrap session (avoids duplicates). */
-    private final java.util.Set<String> mBootstrappedContainers = new java.util.HashSet<>();
-
     /** Number of active container start sessions. WinHandler only stops when this reaches 0. */
     private int mActiveContainerSessionCount = 0;
+    private String mOrientationBeforeContainerStart;
 
     public TermuxBoxContainerManagerClient(TermuxActivity activity, TermuxTerminalSessionActivityClient termuxTerminalSessionActivityClient) {
         mTermuxActivity = activity;
         mTermuxTerminalSessionActivityClient = termuxTerminalSessionActivityClient;
-        mRepository = new TermuxBoxRepository();
+        mRepository = new TermuxBoxRepository(activity);
         setContainerManagerView();
     }
 
@@ -51,6 +48,7 @@ public class TermuxBoxContainerManagerClient {
         if (mContent == null)
             return;
 
+        mRepository.reloadPackageIndex();
         mContent.removeAllViews();
         List<TermuxBoxContainerSpec> containers = mRepository.getContainers();
         if (containers.isEmpty()) {
@@ -86,40 +84,6 @@ public class TermuxBoxContainerManagerClient {
             mContent.addView(card, params);
         }
 
-        // After populating cards, check if the current container needs Wine prefix bootstrapping.
-        // The bootstrap script is a pre-written asset (bootstrap_termux_box.sh) that is copied
-        // to the container directory and executed via a terminal session so the user can watch.
-        TermuxBoxContainerSpec currentSpec = mRepository.getCurrentContainer();
-        if (currentSpec != null && !mRepository.isContainerBootstrapped(currentSpec)
-                && !mBootstrappedContainers.contains(currentSpec.id)) {
-            mBootstrappedContainers.add(currentSpec.id);
-            Log.i(LOG_TAG, "Container needs bootstrapping: " + currentSpec.name);
-            try {
-                java.io.File scriptFile = mRepository.getBootstrapScriptFile(currentSpec);
-                scriptFile.getParentFile().mkdirs();
-                try (java.io.InputStream in = mTermuxActivity.getAssets().open("bootstrap_termux_box.sh");
-                     java.io.OutputStream out = new java.io.FileOutputStream(scriptFile)) {
-                    byte[] buf = new byte[8192];
-                    int n;
-                    while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
-                }
-                scriptFile.setExecutable(true, false);
-
-                java.io.File containerConf = new java.io.File(
-                    mRepository.getContainerDir(currentSpec), "container.conf");
-                String command = "sh " + scriptFile.getAbsolutePath()
-                    + " " + containerConf.getAbsolutePath() + "\n";
-                Log.i(LOG_TAG, "Starting bootstrap: " + command.trim());
-                if (mRepository.getSessionAutoClose()) {
-                    mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, BOOTSTRAP_SESSION_NAME);
-                } else {
-                    mTermuxTerminalSessionActivityClient.addNewSessionAndRunCommand(command, BOOTSTRAP_SESSION_NAME);
-                }
-            } catch (Exception e) {
-                Log.e(LOG_TAG, "Failed to deploy bootstrap script for: " + currentSpec.name, e);
-                mBootstrappedContainers.remove(currentSpec.id);
-            }
-        }
     }
 
     private void setContainerManagerView() {
@@ -171,6 +135,8 @@ public class TermuxBoxContainerManagerClient {
     }
 
     private void startContainer(TermuxBoxContainerSpec spec) {
+        String orientationBeforeStart = null;
+        boolean sessionStarted = false;
         try {
             if (mTermuxActivity.getTermuxService() == null) {
                 Log.e(LOG_TAG, "Cannot start container: TermuxService is null");
@@ -182,6 +148,13 @@ public class TermuxBoxContainerManagerClient {
             Log.i(LOG_TAG, "Starting container: " + spec.name + " (" + spec.id + ")");
             mRepository.ensureDirs();
             mRepository.setCurrentContainer(spec);
+
+            orientationBeforeStart = mTermuxActivity.getX11Prefs().forceOrientation.get();
+            if (mActiveContainerSessionCount == 0) {
+                mOrientationBeforeContainerStart = orientationBeforeStart;
+            }
+            applyOrientation(spec.launchOrientation);
+            com.termux.x11.LorieViewRuntimeController lorieRuntime = mTermuxActivity.getLorieViewRuntime();
 
             // Deploy the start script from assets to the container directory
             java.io.File scriptFile = mRepository.getStartScriptFile(spec);
@@ -196,8 +169,24 @@ public class TermuxBoxContainerManagerClient {
 
             java.io.File containerConf = new java.io.File(
                 mRepository.getContainerDir(spec), "container.conf");
-            String command = "sh " + scriptFile.getAbsolutePath()
-                + " " + containerConf.getAbsolutePath() + "\n";
+            String command;
+            if (mRepository.isContainerBootstrapped(spec)) {
+                command = "sh " + scriptFile.getAbsolutePath()
+                    + " " + containerConf.getAbsolutePath() + "\n";
+            } else {
+                java.io.File bootstrapFile = mRepository.getBootstrapScriptFile(spec);
+                try (java.io.InputStream in = mTermuxActivity.getAssets()
+                         .open("bootstrap_termux_box.sh");
+                     java.io.OutputStream out = new java.io.FileOutputStream(bootstrapFile)) {
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+                }
+                bootstrapFile.setExecutable(true, false);
+                command = "sh " + bootstrapFile.getAbsolutePath() + " "
+                    + containerConf.getAbsolutePath() + " && sh "
+                    + scriptFile.getAbsolutePath() + " " + containerConf.getAbsolutePath() + "\n";
+            }
             Log.i(LOG_TAG, "Starting container: " + command.trim());
             if (mRepository.getSessionAutoClose()) {
                 mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, START_WINE_SESSION_NAME);
@@ -209,7 +198,7 @@ public class TermuxBoxContainerManagerClient {
             // The WinHandler should persist through activity lifecycle changes and only
             // stop when ALL container sessions have ended.
             mActiveContainerSessionCount++;
-            com.termux.x11.LorieViewRuntimeController lorieRuntime = mTermuxActivity.getLorieViewRuntime();
+            sessionStarted = true;
             if (lorieRuntime != null) {
                 lorieRuntime.setKeepWinHandlerAlive(true);
                 // Apply container's gamepad mapper type (0=Standard/DInput, 1=XInput)
@@ -220,6 +209,12 @@ public class TermuxBoxContainerManagerClient {
 
             refresh();
         } catch (Exception e) {
+            if (!sessionStarted && orientationBeforeStart != null) {
+                applyOrientation(orientationBeforeStart);
+                if (mActiveContainerSessionCount == 0) {
+                    mOrientationBeforeContainerStart = null;
+                }
+            }
             Log.e(LOG_TAG, "Failed to start container: " + spec.name, e);
             Toast.makeText(mTermuxActivity,
                 mTermuxActivity.getString(R.string.termux_box_container_manager_start_failed, e.getMessage()),
@@ -240,7 +235,26 @@ public class TermuxBoxContainerManagerClient {
                 lorieRuntime.stopWinHandler();
                 Log.i(LOG_TAG, "WinHandler stopped (no active container sessions)");
             }
+            restoreOrientation();
         }
+    }
+
+    private void applyOrientation(String orientation) {
+        mTermuxActivity.getX11Prefs().forceOrientation.put(orientation);
+        com.termux.x11.LorieViewRuntimeController lorieRuntime = mTermuxActivity.getLorieViewRuntime();
+        if (lorieRuntime != null) {
+            lorieRuntime.applyX11PreferenceChange("forceOrientation");
+        }
+    }
+
+    private void restoreOrientation() {
+        if (mOrientationBeforeContainerStart == null) {
+            return;
+        }
+        String orientation = mOrientationBeforeContainerStart;
+        mOrientationBeforeContainerStart = null;
+        applyOrientation(orientation);
+        Log.i(LOG_TAG, "Restored screen orientation: " + orientation);
     }
 
     private void openEditor(TermuxBoxContainerSpec spec) {

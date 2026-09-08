@@ -46,6 +46,7 @@ android {
 
         implementation project(":terminal-view")
         implementation project(":termux-shared")
+        implementation project(":games")
 //        implementation project(":termux-x11")
         implementation (project(':termux-x11')){
             exclude group: 'androidx.preference'
@@ -56,6 +57,7 @@ android {
         applicationId "com.termux"
         minSdkVersion project.properties.minSdkVersion.toInteger()
         targetSdkVersion project.properties.targetSdkVersion.toInteger()
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         versionCode 118
         versionName "0.118.0"
 
@@ -146,6 +148,10 @@ android {
     }
     buildToolsVersion '34.0.0'
 
+    adbOptions {
+        installOptions '-g'
+    }
+
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
             if (variant.buildType.name == "debug") {
@@ -170,6 +176,9 @@ dependencies {
     implementation project(':float-ball')
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.robolectric:robolectric:4.10"
+    androidTestImplementation "androidx.test.ext:junit:1.1.5"
+    androidTestImplementation "androidx.test:core:1.5.0"
+    androidTestImplementation "androidx.test:runner:1.5.2"
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:1.1.5"
 }
 

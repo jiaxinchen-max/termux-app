@@ -23,7 +23,6 @@ import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.android.material.tabs.TabLayout;
 import com.termux.R;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +54,8 @@ public class TermuxBoxContainerFragment extends Fragment {
     private TermuxBoxDropdownField hudModeInput;
     private TermuxBoxDropdownField startupSelectionInput;
     private TermuxBoxDropdownField box64PresetInput;
+    private TermuxBoxDropdownField launchOrientationInput;
+    private String editingContainerId;
     private int initialTab = 0;
 
     public static TermuxBoxContainerFragment newInstance(int initialTab) {
@@ -120,29 +121,22 @@ public class TermuxBoxContainerFragment extends Fragment {
 
     private void setupDropdowns() {
         containerMap.clear();
-        List<String> containerNames = new ArrayList<>();
-        for (TermuxBoxContainerSpec spec : repository.getContainers()) {
-            containerMap.put(spec.name, spec);
-            containerNames.add(spec.name);
-        }
-
         TermuxBoxContainerSpec currentContainer = repository.getCurrentContainer();
-        String currentContainerName = currentContainer == null ? "" : currentContainer.name;
-        if (!TextUtils.isEmpty(currentContainerName) && !containerMap.containsKey(currentContainerName)) {
-            containerNames.add(0, currentContainerName);
-        }
-        if (containerNames.isEmpty()) {
-            containerNames.add(s(R.string.termux_box_container_placeholder_name_1));
-            containerNames.add(s(R.string.termux_box_container_placeholder_name_2));
-            containerNames.add(s(R.string.termux_box_container_placeholder_name_3));
+        editingContainerId = currentContainer == null ? null : currentContainer.id;
+        String currentContainerName;
+        if (currentContainer == null) {
+            currentContainerName = repository.findAvailableContainerName(
+                s(R.string.termux_box_container_default_name_format));
+        } else {
+            currentContainerName = currentContainer.name;
+            containerMap.put(currentContainer.name, currentContainer);
         }
 
         String[] resolutionOptions = a(R.array.termux_box_container_screen_size_entries);
         String[] graphicsDriverOptions = a(R.array.termux_box_container_graphics_driver_entries);
         String[] dxwrapperOptions = a(R.array.termux_box_container_dxwrapper_entries);
         String[] audioDriverOptions = a(R.array.termux_box_container_audio_driver_entries);
-        setDropdown(containerNameInput, containerNames.toArray(new String[0]),
-            !TextUtils.isEmpty(currentContainerName) ? currentContainerName : containerNames.get(0));
+        setDropdown(containerNameInput, new String[] {currentContainerName}, currentContainerName);
         setDropdown(resolutionInput, resolutionOptions, currentContainer == null ? "1280x720 (16:9)" : displayResolution(currentContainer.screenSize));
         setDropdown(graphicsDriverInput, graphicsDriverOptions, currentContainer == null ? graphicsDriverOptions[0] : displayGraphicsDriver(currentContainer.graphicsDriver));
         setDropdown(dxwrapperInput, dxwrapperOptions, currentContainer == null ? dxwrapperOptions[0] : currentContainer.dxwrapper);
@@ -294,6 +288,17 @@ public class TermuxBoxContainerFragment extends Fragment {
             addFolderRow("D:", "/storage/emulated/0/Download");
             addFolderRow("E:", "/data/data/com.termux/files/usr/glibc");
             addCenteredAction(R.string.termux_box_container_add, v -> Toast.makeText(requireContext(), s(R.string.termux_box_container_adding_folder), Toast.LENGTH_SHORT).show());
+        }));
+
+        pageAdvanced.addView(buildSectionHeader(s(R.string.termux_box_container_launch_title), ""));
+        pageAdvanced.addView(buildCard(() -> {
+            launchOrientationInput = new TermuxBoxDropdownField(requireContext());
+            launchOrientationInput.setLabel(s(R.string.termux_box_container_launch_orientation));
+            launchOrientationInput.setOptions(
+                a(R.array.termux_box_container_launch_orientation_entries),
+                a(R.array.termux_box_container_launch_orientation_values),
+                TermuxBoxContainerSpec.DEFAULT_LAUNCH_ORIENTATION);
+            currentCardBody().addView(launchOrientationInput);
         }));
 
         pageAdvanced.addView(buildSectionHeader(s(R.string.termux_box_container_box64_title), ""));
@@ -704,11 +709,22 @@ public class TermuxBoxContainerFragment extends Fragment {
             if (box64PresetInput != null) {
                 box64PresetInput.setValue(displayBox64Preset(selected.box64Preset));
             }
+            if (launchOrientationInput != null) {
+                launchOrientationInput.setValue(selected.launchOrientation);
+            }
         }
     }
 
     private void applyTopSettings() {
         String containerName = safeText(containerNameInput);
+        if (TextUtils.isEmpty(containerName)) {
+            Toast.makeText(requireContext(), R.string.termux_box_container_name_required, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!repository.isContainerNameAvailable(containerName, editingContainerId)) {
+            Toast.makeText(requireContext(), R.string.termux_box_container_name_in_use, Toast.LENGTH_SHORT).show();
+            return;
+        }
         String wineVersion = safeText(wineVersionInput);
         String resolution = extractResolution(safeText(resolutionInput));
         String graphicsDriver = safeText(graphicsDriverInput);
@@ -718,16 +734,21 @@ public class TermuxBoxContainerFragment extends Fragment {
         byte hudMode = (byte)(hudModeInput != null ? hudModeInput.getSelectedIndex() : 0);
         byte startupSelection = (byte)(startupSelectionInput != null ? startupSelectionInput.getSelectedIndex() : 1);
         String box64Preset = box64PresetInput != null ? getBox64PresetValue(box64PresetInput.getSelectedIndex()) : "INTERMEDIATE";
+        String[] launchOrientationValues = a(R.array.termux_box_container_launch_orientation_values);
+        int launchOrientationIndex = launchOrientationInput == null ? 0 : launchOrientationInput.getSelectedIndex();
+        String launchOrientation = launchOrientationIndex >= 0 && launchOrientationIndex < launchOrientationValues.length
+            ? launchOrientationValues[launchOrientationIndex]
+            : TermuxBoxContainerSpec.DEFAULT_LAUNCH_ORIENTATION;
 
         runTask(R.string.termux_box_container_applying_settings, listener -> {
             if (!TextUtils.isEmpty(containerName)) {
-                repository.saveContainer(containerName, wineVersion, resolution,
+                repository.saveContainer(editingContainerId, containerName, wineVersion, resolution,
                     "",  // envVars (future)
                     graphicsDriver, dxwrapper, audioDriver,
                     "",  // wincomponents (future)
                     hudMode, startupSelection, box64Preset,
                     "",  // desktopTheme (future)
-                    dinputMapperType);
+                    dinputMapperType, launchOrientation);
             }
             if (!TextUtils.isEmpty(resolution)) {
                 repository.setFallbackResolution(resolution);
@@ -815,7 +836,7 @@ public class TermuxBoxContainerFragment extends Fragment {
     }
 
     private String s(int resId, Object... args) {
-        return getString(resId, args);
+        return args == null || args.length == 0 ? getString(resId) : getString(resId, args);
     }
 
     private String[] a(int arrayResId) {

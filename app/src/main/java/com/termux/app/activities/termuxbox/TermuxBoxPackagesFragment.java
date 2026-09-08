@@ -4,6 +4,7 @@ import android.graphics.Typeface;
 import android.text.TextUtils;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,6 +35,8 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 
 public class TermuxBoxPackagesFragment extends Fragment {
+
+    private static final String LOG_TAG = "TermuxBoxPackages";
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private ActivityResultLauncher<String[]> localInstallLauncher;
@@ -103,7 +106,21 @@ public class TermuxBoxPackagesFragment extends Fragment {
         content.addView(othersListContainer, othersListParams);
 
         renderPackages();
+        refreshRemotePackageIndex();
         return root;
+    }
+
+    private void refreshRemotePackageIndex() {
+        executor.execute(() -> {
+            try {
+                repository.refreshPackageIndex(null);
+                if (isAdded()) {
+                    requireActivity().runOnUiThread(this::renderPackages);
+                }
+            } catch (Exception e) {
+                Log.w(LOG_TAG, "Using cached or built-in package index", e);
+            }
+        });
     }
 
     private View buildBox64Card() {

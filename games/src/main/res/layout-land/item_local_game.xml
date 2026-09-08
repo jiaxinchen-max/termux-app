@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="220dp"
+    android:layout_height="wrap_content"
+    android:focusable="false"
+    android:orientation="vertical">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="136dp"
+        app:cardBackgroundColor="@color/local_games_surface"
+        app:cardCornerRadius="22dp"
+        app:cardElevation="0dp"
+        app:strokeColor="@color/local_games_outline"
+        app:strokeWidth="1dp">
+
+        <ImageView
+            android:id="@+id/local_game_cover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/local_games_bg_cover"
+            android:contentDescription="@string/local_game_cover_content_description"
+            android:padding="42dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/local_games_cover_placeholder" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:id="@+id/local_game_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/local_games_on_surface"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/local_game_executable"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:ellipsize="middle"
+        android:singleLine="true"
+        android:textColor="@color/local_games_on_surface_secondary"
+        android:textSize="11sp" />
+
+    <TextView
+        android:id="@+id/local_game_access_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/local_games_success"
+        android:textSize="11sp" />
+
+    <TextView
+        android:id="@+id/local_game_last_played"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/local_games_on_surface_secondary"
+        android:textSize="10sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/local_game_details"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:text="@string/local_game_card_details"
+            android:textAllCaps="false"
+            android:textColor="@color/local_games_on_surface"
+            app:backgroundTint="@color/local_games_surface_elevated"
+            app:cornerRadius="16dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/local_game_more"
+            android:layout_width="52dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@string/local_game_card_more"
+            android:text="⋯"
+            android:textColor="@color/local_games_on_surface"
+            android:textSize="21sp"
+            app:backgroundTint="@color/local_games_surface_elevated"
+            app:cornerRadius="16dp" />
+    </LinearLayout>
+</LinearLayout>

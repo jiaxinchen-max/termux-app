@@ -37,27 +37,49 @@ mkdir -p /sdcard/Android/data/com.termux/files/Download
 mkdir -p "$TERMUX_BOX_ROOT" "$TERMUX_BOX_RUN_DIR"
 
 # ---- Helpers ----
-source_conf() {
-    if [ -f "$1" ]; then
-        . "$1"
+# Run command with CPU affinity if taskset is available and functional,
+# otherwise fall back to direct execution.
+default_primary_cores() {
+    _core_count=$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)
+    case "$_core_count" in ''|*[!0-9]*|0) _core_count=1 ;; esac
+    if [ "$_core_count" -le 1 ]; then
+        printf '0\n'
+    else
+        printf '%s-%s\n' "$((_core_count / 2))" "$((_core_count - 1))"
     fi
 }
 
-# Run command with CPU affinity if taskset is available and functional,
-# otherwise fall back to direct execution.
 run_with_affinity() {
-    _cores="${PRIMARY_CORES:-0-1}"
-    if taskset -c "$_cores" true 2>/dev/null; then
-        taskset -c "$_cores" "$@"
-    else
-        "$@"
+    _configured_cores="${PRIMARY_CORES:-}"
+    _fallback_cores=$(default_primary_cores)
+    if command -v taskset >/dev/null 2>&1; then
+        if [ -n "$_configured_cores" ] && taskset -c "$_configured_cores" true 2>/dev/null; then
+            taskset -c "$_configured_cores" "$@"
+            return
+        fi
+        if taskset -c "$_fallback_cores" true 2>/dev/null; then
+            taskset -c "$_fallback_cores" "$@"
+            return
+        fi
     fi
+    "$@"
 }
 
 # ---- Load configuration ----
 # Design: container.conf is the SINGLE source of container-specific configuration.
 # All runtime defaults are hardcoded here. Files in config/ are optional overrides
 # managed by the settings UI and are sourced only if they exist.
+apply_container_env_vars() {
+    if [ -n "${TERMUX_BOX_ENV_VARS:-}" ]; then
+        for _env_pair in $TERMUX_BOX_ENV_VARS; do
+            case "$_env_pair" in
+                *=\ *) eval "export $_env_pair" ;;
+                *=*) eval "export ${_env_pair%%=*}='${_env_pair#*=}'" ;;
+            esac
+        done
+    fi
+}
+
 load_configs() {
     # ---- 1. Source container.conf (mandatory — contains all container-specific config) ----
     . "$TERMUX_BOX_CONTAINER_CONF"
@@ -68,25 +90,24 @@ load_configs() {
     export WINE_PATH="$TERMUX_GLIBC_DIR/${TERMUX_BOX_WINE_PACKAGE:-wine-9.0-staging-wow64}"
     export WINEPREFIX="$TERMUX_BOX_CONTAINER_PREFIX"
     export RESOLUTION="${TERMUX_BOX_RESOLUTION:-1280x720}"
+    if [ -z "${LC_ALL:-}" ] && [ -f "$TERMUX_OPT_DIR/locale.conf" ]; then
+        LC_ALL=$(sed -n '1p' "$TERMUX_OPT_DIR/locale.conf")
+    fi
     export LC_ALL="${LC_ALL:-en_US.utf8}"
+    export PREFIX="${PREFIX:-$TERMUX_FILES_DIR/usr}"
 
     # ---- 3. Apply container envVars (Winlator-aligned) ----
-    if [ -n "${TERMUX_BOX_ENV_VARS:-}" ]; then
-        for _env_pair in $TERMUX_BOX_ENV_VARS; do
-            case "$_env_pair" in
-                *=\ *) eval "export $_env_pair" ;;
-                *=*) eval "export ${_env_pair%%=*}='${_env_pair#*=}'" ;;
-            esac
-        done
-    fi
+    apply_container_env_vars
 
     # ---- 4. Hardcoded runtime defaults ----
-    export BOX64_LD_LIBRARY_PATH="$WINE_PATH/lib64:$WINE_PATH/lib64/wine/x86_64-unix:$TERMUX_GLIBC_DIR/lib/x86_64-linux-gnu"
+    export BOX64_LD_LIBRARY_PATH="$WINE_PATH/lib64:$WINE_PATH/lib64/wine/x86_64-unix:$WINE_PATH/lib:$WINE_PATH/lib/wine/x86_64-unix:$TERMUX_GLIBC_DIR/lib/x86_64-linux-gnu"
     export VK_ICD_FILENAMES="$TERMUX_GLIBC_DIR/share/vulkan/icd.d/freedreno_icd.aarch64.json"
-    export DXVK_CONFIG_FILE="$TERMUX_BOX_CONFIG_DIR/dxvk.conf"
+    export DXVK_CONFIG_FILE="$TERMUX_OPT_DIR/dxvk.conf"
     export FONTCONFIG_PATH="$TERMUX_GLIBC_DIR/etc/fonts"
     export BOX64_PATH="$TERMUX_GLIBC_DIR/bin"
-    export BOX64_MMAP32=1
+    export BOX64_MMAP32="${BOX64_MMAP32:-1}"
+    export DXVK_ASYNC="${DXVK_ASYNC:-1}"
+    export VKD3D_FEATURE_LEVEL="${VKD3D_FEATURE_LEVEL:-12_0}"
     export tu_allow_oob_indirect_ubo_loads=true
     export PRIMARY_CORES="${PRIMARY_CORES:-0-1}"
 
@@ -107,22 +128,27 @@ load_configs() {
         2) export GALLIUM_HUD=simple,fps,cpu,VRAM-usage ;;
     esac
 
-    # ---- 5. Optional: source user setting overrides from config/ directory ----
-    source_conf "$TERMUX_BOX_CONFIG_DIR/cores.conf"
-    source_conf "$TERMUX_BOX_CONFIG_DIR/debug.conf"
-    source_conf "$TERMUX_BOX_CONFIG_DIR/force_compatibility.conf"
-    source_conf "$TERMUX_BOX_CONFIG_DIR/winedevice_startup.conf"
-    source_conf "$TERMUX_BOX_CONFIG_DIR/wineesync.conf"
-    source_conf "$TERMUX_BOX_CONFIG_DIR/wsi_present.conf"
-    source_conf "$TERMUX_BOX_CONFIG_DIR/wsi_debug.conf"
-    source_conf "$TERMUX_BOX_CONFIG_DIR/virgl.conf"
-    source_conf "$TERMUX_BOX_CONFIG_DIR/tu_debug.conf"
-
-    if [ -d "$TERMUX_BOX_CONFIG_DIR/dynarec" ]; then
-        for i in "$TERMUX_BOX_CONFIG_DIR"/dynarec/*.conf; do
-            [ -f "$i" ] && . "$i"
+    # ---- 5. Load package-provided Mobox settings, then Termux-box overrides ----
+    for config_dir in "$TERMUX_OPT_DIR/conf" "$TERMUX_BOX_CONFIG_DIR"; do
+        [ -d "$config_dir" ] || continue
+        for config_file in "$config_dir"/*.conf; do
+            [ -f "$config_file" ] || continue
+            case "$(basename "$config_file")" in
+                cores.conf|debug.conf|dynarec_preset.conf|force_compatibility.conf|hud.conf|\
+                tu_debug.conf|virgl.conf|winedevice_startup.conf|wineesync.conf|\
+                wsi_debug.conf|wsi_present.conf) . "$config_file" ;;
+            esac
         done
-    fi
+    done
+    for config_dir in "$TERMUX_OPT_DIR/conf/dynarec" "$TERMUX_BOX_CONFIG_DIR/dynarec"; do
+        [ -d "$config_dir" ] || continue
+        for config_file in "$config_dir"/*.conf; do
+            [ -f "$config_file" ] && . "$config_file"
+        done
+    done
+
+    # Container-specific values are authoritative over package defaults.
+    apply_container_env_vars
 }
 
 # ---- Debug mode ----

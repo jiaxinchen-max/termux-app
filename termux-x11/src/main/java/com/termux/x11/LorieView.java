@@ -1049,6 +1049,13 @@ public class LorieView extends SurfaceView implements InputStub {
         // callback reports which section is visible so that touch inputs can be mapped correctly.
     }
 
+    @Keep
+    @SuppressWarnings("unused")
+    private static void onRendererFramePresented() {
+        LorieViewRuntimeRegistry registry = LorieViewRuntimeRegistry.getInstance();
+        if (registry != null) registry.onFramePresented();
+    }
+
     @FastNative
     private native void nativeInit();
     @FastNative private native void surfaceChanged(Surface surface);

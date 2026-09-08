@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/local_games_action_help"
+        android:contentDescription="@string/local_games_help"
+        android:icon="@drawable/local_games_ic_help"
+        android:title="@string/local_games_help"
+        app:showAsAction="always" />
+</menu>

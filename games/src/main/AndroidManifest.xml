@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-sdk tools:overrideLibrary="com.termux.x11" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <application>
+        <activity
+            android:name=".activity.LocalGamesActivity"
+            android:exported="false"
+            android:label="@string/local_games_title"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".activity.GameImportActivity"
+            android:exported="false"
+            android:label="@string/local_game_import_title"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".activity.GameFileManagerActivity"
+            android:exported="false"
+            android:label="@string/local_game_file_manager_title"
+            android:resizeableActivity="true"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".activity.GameDetailActivity"
+            android:exported="false"
+            android:label="@string/local_game_detail_title"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".activity.GameRuntimeProfileActivity"
+            android:exported="false"
+            android:label="@string/local_game_runtime_profile_title"
+            android:resizeableActivity="true"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".activity.GameAssetsActivity"
+            android:exported="false"
+            android:label="@string/local_game_assets_title"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".activity.RuntimeBackupActivity"
+            android:exported="false"
+            android:label="@string/local_games_runtime_backup_title"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".activity.GameLaunchActivity"
+            android:exported="false"
+            android:label="@string/local_game_launch_title"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".activity.GameSessionActivity"
+            android:exported="false"
+            android:label="@string/local_game_session_title"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|density|screenLayout|keyboard|keyboardHidden|navigation"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+
+        <service
+            android:name=".service.ComponentTaskForegroundService"
+            android:exported="false"
+            android:label="@string/local_games_component_notification_title" />
+
+        <service
+            android:name=".service.LocalGameOrchestratorService"
+            android:exported="false"
+            android:label="@string/local_game_launch_notification_title" />
+
+        <service
+            android:name=".service.RootfsProvisionForegroundService"
+            android:exported="false"
+            android:label="@string/local_games_runtime_provision_title" />
+
+        <service
+            android:name=".service.PrefixProvisionForegroundService"
+            android:exported="false"
+            android:label="@string/local_games_prefix_provision_title" />
+    </application>
+
+</manifest>

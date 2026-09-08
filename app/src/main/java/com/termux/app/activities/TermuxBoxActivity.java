@@ -30,7 +30,7 @@ public class TermuxBoxActivity extends AppCompatActivity implements TermuxBoxNav
 
     private static final String STATE_SECTION = "termux_box_section";
 
-    private final TermuxBoxRepository repository = new TermuxBoxRepository();
+    private TermuxBoxRepository repository;
     private MaterialToolbar toolbar;
     private FloatingActionButton fab;
     private TermuxBoxSection currentSection = TermuxBoxSection.CONTAINERS;
@@ -38,6 +38,7 @@ public class TermuxBoxActivity extends AppCompatActivity implements TermuxBoxNav
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        repository = new TermuxBoxRepository(this);
         AppCompatActivityUtils.setNightMode(this, NightMode.getAppNightMode().getName(), true);
         setContentView(R.layout.activity_termux_box);
         toolbar = findViewById(R.id.termux_box_toolbar);

@@ -40,6 +40,16 @@
         <item>OpenAL</item>
     </string-array>
 
+    <string-array name="termux_box_container_launch_orientation_entries">
+        <item>横屏</item>
+        <item>竖屏</item>
+    </string-array>
+
+    <string-array name="termux_box_container_launch_orientation_values">
+        <item>landscape</item>
+        <item>portrait</item>
+    </string-array>
+
     <string-array name="termux_box_container_theme_entries">
         <item>浅色</item>
         <item>深色</item>

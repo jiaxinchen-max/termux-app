@@ -94,13 +94,13 @@ public class TermuxBoxSettingsFragment extends Fragment {
         LinearLayout column = new LinearLayout(requireContext());
         column.setOrientation(LinearLayout.VERTICAL);
         section.addView(column, boxChildParams());
-        addCoreButton(column, "2", 6, 7, 0, 5);
-        addCoreButton(column, "3", 5, 7, 0, 4);
-        addCoreButton(column, "4", 4, 7, 0, 3);
-        addCoreButton(column, "5", 3, 7, 0, 2);
-        addCoreButton(column, "6", 2, 7, 0, 1);
-        addCoreButton(column, "7", 1, 7, 0, 1);
-        addCoreButton(column, "8", 0, 7, 0, 1);
+        // Offer only cores this device actually has: pinning Wine to CPUs that do not exist
+        // (the presets used to assume 8) leaves the container unable to start.
+        int cores = TermuxBoxRepository.getAvailableCoreCount();
+        for (int count = 2; count <= cores; count++) {
+            addCoreButton(column, String.valueOf(count), count);
+        }
+        if (cores < 2) addCoreButton(column, "1", 1);
         TextView hint = hint(R.string.termux_box_settings_core_hint);
         section.addView(hint, boxChildParams());
         return section;
@@ -288,9 +288,10 @@ public class TermuxBoxSettingsFragment extends Fragment {
         return row;
     }
 
-    private void addCoreButton(LinearLayout row, String label, int primaryStart, int primaryEnd, int secondaryStart, int secondaryEnd) {
+    private void addCoreButton(LinearLayout row, String label, int coreCount) {
         MaterialButton button = actionButtonText(label, v ->
-            runTask(R.string.termux_box_settings_saving_cores, listener -> repository.setCorePreset(primaryStart, primaryEnd, secondaryStart, secondaryEnd)));
+            runTask(R.string.termux_box_settings_saving_cores,
+                listener -> repository.setCorePresetByPreset(coreCount)));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.topMargin = dp(8);
         button.setLayoutParams(params);

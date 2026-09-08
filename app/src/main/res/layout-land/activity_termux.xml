@@ -84,6 +84,15 @@
                         app:tint="?attr/termuxActivityDrawerImageTint" />
 
                     <ImageButton
+                        android:id="@+id/local_games_button"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="@null"
+                        android:contentDescription="@string/action_open_local_games"
+                        android:src="@drawable/ic_local_games"
+                        app:tint="?attr/termuxActivityDrawerImageTint" />
+
+                    <ImageButton
                         android:id="@+id/recover_button"
                         android:layout_width="40dp"
                         android:layout_height="40dp"
@@ -118,7 +127,7 @@
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp"
                         android:text="@string/session_list_expanded"
-                        android:textColor="?android:attr/textColorSecondary"
+                        android:textColor="@android:color/black"
                         android:textSize="8sp" />
 
                     <ListView
@@ -138,7 +147,7 @@
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp"
                         android:text="@string/toolbox_expanded"
-                        android:textColor="?android:attr/textColorSecondary"
+                        android:textColor="@android:color/black"
                         android:textSize="8sp" />
 
                     <LinearLayout
@@ -159,7 +168,7 @@
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp"
                         android:text="@string/container_manager_expanded"
-                        android:textColor="?android:attr/textColorSecondary"
+                        android:textColor="@android:color/black"
                         android:textSize="8sp" />
 
                     <LinearLayout

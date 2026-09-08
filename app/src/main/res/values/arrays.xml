@@ -52,6 +52,16 @@
         <item>XInput</item>
     </string-array>
 
+    <string-array name="termux_box_container_launch_orientation_entries">
+        <item>Landscape</item>
+        <item>Portrait</item>
+    </string-array>
+
+    <string-array name="termux_box_container_launch_orientation_values">
+        <item>landscape</item>
+        <item>portrait</item>
+    </string-array>
+
     <!-- Aligned with Winlator startup_selection_entries -->
     <string-array name="termux_box_container_startup_selection_entries">
         <item>Normal (Load all services)</item>

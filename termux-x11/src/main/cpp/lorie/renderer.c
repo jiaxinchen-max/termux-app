@@ -131,6 +131,8 @@ static float zoomSourceLeft = 0.f, zoomSourceTop = 0.f;
 static JNIEnv* rendererEnv = NULL;
 static jclass lorieViewClass = NULL;
 static jmethodID setRendererViewportMethod = NULL;
+static jmethodID onRendererFramePresentedMethod = NULL;
+static bool firstFrameReported = true;
 static int reportedViewportX = -1, reportedViewportY = -1, reportedViewportW = -1, reportedViewportH = -1;
 static float reportedSourceLeft = -1.f, reportedSourceTop = -1.f, reportedSourceWidth = -1.f, reportedSourceHeight = -1.f;
 
@@ -315,6 +317,7 @@ void rendererInit(JNIEnv* env) {
     jclass clazz = (*env)->FindClass(env, "com/termux/x11/LorieView");
     lorieViewClass = (*env)->NewGlobalRef(env, clazz);
     setRendererViewportMethod = (*env)->GetStaticMethodID(env, lorieViewClass, "setRendererViewport", "(IIIIFFFF)V");
+    onRendererFramePresentedMethod = (*env)->GetStaticMethodID(env, lorieViewClass, "onRendererFramePresented", "()V");
 
     pthread_mutex_init(&stateLock, NULL);
 
@@ -619,6 +622,7 @@ void rendererRefreshContext(void) {
     windowChanged = FALSE;
 
     if (!win) {
+        firstFrameReported = true;
         win = defaultWin;
         eglMakeCurrent(egl_display, defaultSfc, defaultSfc, ctx);
         if (state)
@@ -637,6 +641,7 @@ void rendererRefreshContext(void) {
     }
 
     eglSwapInterval(egl_display, 0);
+    firstFrameReported = false;
 
     // We should redraw image at least once right after surface change
     if (state)
@@ -943,6 +948,14 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
 
     if (eglSwapBuffers(egl_display, sfc) != EGL_TRUE)
         printEglError("Failed to swap buffers", __LINE__);
+    else if (!firstFrameReported && rendererEnv && lorieViewClass && onRendererFramePresentedMethod) {
+        firstFrameReported = true;
+        (*rendererEnv)->CallStaticVoidMethod(rendererEnv, lorieViewClass, onRendererFramePresentedMethod);
+        if ((*rendererEnv)->ExceptionCheck(rendererEnv)) {
+            (*rendererEnv)->ExceptionDescribe(rendererEnv);
+            (*rendererEnv)->ExceptionClear(rendererEnv);
+        }
+    }
     // Perform a little drawing operation to make sure the next buffer is ready on the next invocation of drawing
     glEnable(GL_SCISSOR_TEST);
     glScissor(0, 0, 1, 1);

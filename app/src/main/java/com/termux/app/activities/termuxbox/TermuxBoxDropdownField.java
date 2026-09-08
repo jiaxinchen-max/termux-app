@@ -76,7 +76,8 @@ public class TermuxBoxDropdownField extends LinearLayout {
         this.labels = labels.clone();
         this.values = values.clone();
         inputView.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, this.labels));
-        inputView.setText(resolveDefaultValue(defaultValue), false);
+        selectedIndex = resolveDefaultIndex(defaultValue);
+        inputView.setText(selectedIndex >= 0 ? this.labels[selectedIndex] : "", false);
         inputView.setOnItemClickListener((parent, view, position, id) -> {
             selectedIndex = position;
             if (listener != null && position >= 0 && position < this.labels.length && position < this.values.length) {
@@ -95,11 +96,12 @@ public class TermuxBoxDropdownField extends LinearLayout {
     }
 
     public int getSelectedIndex() {
-        return selectedIndex >= 0 ? selectedIndex : 1; // Default to index 1 (XInput)
+        return selectedIndex >= 0 ? selectedIndex : 0;
     }
 
     public void setValue(@Nullable String value) {
-        inputView.setText(resolveDefaultValue(value), false);
+        selectedIndex = resolveDefaultIndex(value);
+        inputView.setText(selectedIndex >= 0 ? labels[selectedIndex] : "", false);
     }
 
     /** When editable, the user can type a custom value instead of only picking from the dropdown. */
@@ -115,16 +117,16 @@ public class TermuxBoxDropdownField extends LinearLayout {
         }
     }
 
-    private String resolveDefaultValue(@Nullable String value) {
+    private int resolveDefaultIndex(@Nullable String value) {
         if (TextUtils.isEmpty(value)) {
-            return labels.length > 0 ? labels[0] : "";
+            return labels.length > 0 ? 0 : -1;
         }
         for (int i = 0; i < labels.length && i < values.length; i++) {
             if (TextUtils.equals(labels[i], value) || TextUtils.equals(values[i], value)) {
-                return labels[i];
+                return i;
             }
         }
-        return labels.length > 0 ? labels[0] : value;
+        return labels.length > 0 ? 0 : -1;
     }
 
     private int dp(int value) {

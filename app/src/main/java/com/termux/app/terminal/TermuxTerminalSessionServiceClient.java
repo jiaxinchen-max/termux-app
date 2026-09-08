@@ -5,6 +5,7 @@ import android.app.Service;
 import androidx.annotation.NonNull;
 
 import com.termux.app.TermuxService;
+import com.termux.app.localgames.TermuxGamesProvisionTerminalRegistry;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.shared.termux.terminal.TermuxTerminalSessionClientBase;
 import com.termux.terminal.TerminalSession;
@@ -26,6 +27,15 @@ public class TermuxTerminalSessionServiceClient extends TermuxTerminalSessionCli
         TermuxSession termuxSession = mService.getTermuxSessionForTerminalSession(terminalSession);
         if (termuxSession != null)
             termuxSession.getExecutionCommand().mPid = pid;
+    }
+
+    @Override
+    public void onSessionFinished(@NonNull TerminalSession finishedSession) {
+        // There is no Activity client when Games is foregrounded. Remove its completed
+        // provisioning session here, equivalent to the Enter-key path in TermuxActivity.
+        if (TermuxGamesProvisionTerminalRegistry.isProvisionSession(finishedSession.mSessionName)) {
+            mService.removeTermuxSession(finishedSession);
+        }
     }
 
 }

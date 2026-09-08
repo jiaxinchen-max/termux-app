@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/local_games_navigation_library" android:icon="@drawable/local_games_ic_library" android:title="@string/local_games_tab_library" />
+    <item android:id="@+id/local_games_navigation_import" android:icon="@drawable/local_games_ic_add" android:title="@string/local_games_navigation_import" />
+    <item android:id="@+id/local_games_navigation_tools" android:icon="@drawable/local_games_ic_settings" android:title="@string/local_games_navigation_tools" />
+</menu>

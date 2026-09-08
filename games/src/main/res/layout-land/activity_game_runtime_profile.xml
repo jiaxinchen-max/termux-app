@@ -1,0 +1,565 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/local_games_background"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/runtime_profile_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:background="@color/local_games_background"
+        android:title="@string/local_game_engine_settings_title"
+        app:navigationIcon="@drawable/local_games_ic_back"
+        app:navigationIconTint="@color/local_games_on_surface"
+        app:titleTextColor="@color/local_games_on_surface" />
+
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/runtime_profile_progress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        app:indicatorColor="@color/local_games_primary"
+        app:trackColor="@color/local_games_surface_high" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:paddingStart="32dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="32dp"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="250dp"
+            android:layout_height="match_parent"
+            android:background="@drawable/local_games_bg_panel"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <TextView
+                android:id="@+id/runtime_profile_game_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:paddingStart="8dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="4dp"
+                android:textColor="@color/local_games_on_surface"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:fillViewport="true"
+                android:overScrollMode="never"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/runtime_profile_category_input"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:includeFontPadding="true"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:gravity="start|center_vertical"
+                android:drawableEnd="@drawable/local_games_ic_chevron_right"
+                android:text="@string/local_game_engine_menu_input"
+                android:textAllCaps="false"
+                android:textColor="@color/local_games_on_surface"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/runtime_profile_category_general"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:includeFontPadding="true"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:gravity="start|center_vertical"
+                android:drawableEnd="@drawable/local_games_ic_chevron_right"
+                android:text="@string/local_game_engine_menu_general"
+                android:textAllCaps="false"
+                android:textColor="@color/local_games_on_surface_secondary"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/runtime_profile_category_container"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:includeFontPadding="true"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:gravity="start|center_vertical"
+                android:drawableEnd="@drawable/local_games_ic_chevron_right"
+                android:text="@string/local_game_engine_menu_container"
+                android:textAllCaps="false"
+                android:textColor="@color/local_games_on_surface_secondary"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/runtime_profile_category_graphics"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:includeFontPadding="true"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:gravity="start|center_vertical"
+                android:drawableEnd="@drawable/local_games_ic_chevron_right"
+                android:text="@string/local_game_engine_menu_graphics"
+                android:textAllCaps="false"
+                android:textColor="@color/local_games_on_surface_secondary"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/runtime_profile_category_compatibility"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:includeFontPadding="true"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:gravity="start|center_vertical"
+                android:drawableEnd="@drawable/local_games_ic_chevron_right"
+                android:text="@string/local_game_engine_menu_compatibility"
+                android:textAllCaps="false"
+                android:textColor="@color/local_games_on_surface_secondary"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/runtime_profile_category_backup"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:includeFontPadding="true"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:drawableEnd="@drawable/local_games_ic_chevron_right"
+                android:gravity="start|center_vertical"
+                android:text="@string/local_game_engine_menu_backup"
+                android:textAllCaps="false"
+                android:textColor="@color/local_games_on_surface_secondary"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/runtime_profile_category_components"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:includeFontPadding="true"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:drawableEnd="@drawable/local_games_ic_chevron_right"
+                android:gravity="start|center_vertical"
+                android:text="@string/local_game_engine_menu_components"
+                android:textAllCaps="false"
+                android:textColor="@color/local_games_on_surface_secondary"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/runtime_profile_category_developer"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:includeFontPadding="true"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:drawableEnd="@drawable/local_games_ic_chevron_right"
+                android:gravity="start|center_vertical"
+                android:text="@string/local_game_engine_menu_developer"
+                android:textAllCaps="false"
+                android:textColor="@color/local_games_on_surface_secondary"
+                android:textSize="14sp" />
+                </LinearLayout>
+            </ScrollView>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:fillViewport="true"
+                android:overScrollMode="never">
+
+                <LinearLayout
+                    android:id="@+id/runtime_profile_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:id="@+id/runtime_profile_group_general"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/local_games_bg_panel"
+                        android:orientation="vertical"
+                        android:padding="10dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/runtime_profile_preset_recommended"
+                            android:layout_width="wrap_content"
+                            android:layout_height="52dp"
+                            android:layout_gravity="end"
+                            android:background="@drawable/local_games_bg_primary_action"
+                            android:text="@string/local_game_engine_recommended"
+                            android:textAllCaps="false"
+                            android:textColor="@color/local_games_on_surface"
+                            app:backgroundTint="@null" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/runtime_profile_preset_stable"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/local_game_runtime_profile_stable" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/runtime_profile_preset_compatibility"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:text="@string/local_game_runtime_profile_compatibility" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/runtime_profile_preset_custom"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:text="@string/local_game_runtime_profile_custom" />
+                        </LinearLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/runtime_profile_legacy_layout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:hint="@string/local_game_runtime_profile_legacy">
+                            <AutoCompleteTextView
+                                android:id="@+id/runtime_profile_legacy"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/runtime_profile_apply_legacy"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/local_game_runtime_profile_apply_legacy" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:hint="@string/local_game_runtime_profile_backend"
+                            app:helperText="@string/local_game_runtime_profile_backend_hint">
+                            <AutoCompleteTextView
+                                android:id="@+id/runtime_profile_backend"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/runtime_profile_rootfs_layout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:hint="@string/local_game_runtime_profile_rootfs"
+                            android:visibility="gone">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/runtime_profile_rootfs"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:hint="@string/local_game_runtime_profile_execution_mode"
+                            app:helperText="@string/local_game_runtime_profile_execution_mode_hint">
+                            <AutoCompleteTextView
+                                android:id="@+id/runtime_profile_execution_mode"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/runtime_profile_environment_layout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:hint="@string/local_game_runtime_profile_environment"
+                            app:helperText="@string/local_game_runtime_profile_environment_hint">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/runtime_profile_environment"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="monospace"
+                                android:inputType="textMultiLine"
+                                android:minLines="3" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/runtime_profile_group_graphics"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/local_games_bg_panel"
+                        android:orientation="vertical"
+                        android:padding="10dp"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/local_game_runtime_profile_graphics">
+                            <AutoCompleteTextView
+                                android:id="@+id/runtime_profile_graphics"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:hint="@string/local_game_runtime_profile_dx">
+                            <AutoCompleteTextView
+                                android:id="@+id/runtime_profile_dx"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:hint="@string/local_game_runtime_profile_resolution">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/runtime_profile_resolution"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/runtime_profile_group_compatibility"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/local_games_bg_panel"
+                        android:orientation="vertical"
+                        android:padding="10dp"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/local_game_runtime_profile_wine">
+                            <AutoCompleteTextView
+                                android:id="@+id/runtime_profile_wine"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:hint="@string/local_game_runtime_profile_audio">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/runtime_profile_audio"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:hint="@string/local_game_runtime_profile_box64">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/runtime_profile_box64"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/runtime_profile_group_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/local_games_bg_panel"
+                        android:orientation="vertical"
+                        android:padding="10dp"
+                        android:visibility="gone">
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/local_game_runtime_profile_input">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/runtime_profile_input"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/runtime_profile_group_diagnostics"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/local_games_bg_panel"
+                        android:orientation="vertical"
+                        android:padding="10dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:id="@+id/runtime_profile_preflight_status"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/local_games_on_surface"
+                            android:textSize="19sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:id="@+id/runtime_profile_storage_budget"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:textColor="@color/local_games_on_surface_secondary" />
+                        <TextView
+                            android:id="@+id/runtime_profile_preflight_issues"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:textColor="@color/local_games_on_surface_secondary" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="20dp"
+                            android:text="@string/local_game_runtime_profile_changes"
+                            android:textColor="@color/local_games_on_surface"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:id="@+id/runtime_profile_changes"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:textColor="@color/local_games_on_surface_secondary" />
+                    </LinearLayout>
+                </LinearLayout>
+            </ScrollView>
+
+            <TextView
+                android:id="@+id/runtime_profile_error"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/local_games_error"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="32dp"
+                android:layout_marginTop="4dp"
+                android:gravity="end|center_vertical"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/runtime_profile_restore_default"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                android:text="@string/local_game_runtime_profile_restore_default_short"
+                    android:textSize="10sp"
+                    android:visibility="gone" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/runtime_profile_restore_success"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                android:text="@string/local_game_runtime_profile_restore_success_short"
+                    android:textSize="10sp"
+                    android:visibility="gone" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/runtime_profile_check"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="62dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="6dp"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                android:text="@string/local_game_runtime_profile_check_short"
+                    android:textSize="10sp"
+                    android:visibility="gone" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/runtime_profile_save"
+                    android:layout_width="78dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/local_games_bg_primary_action"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:text="@string/local_game_runtime_profile_save_short"
+                    android:textColor="@color/local_games_on_surface"
+                    android:textSize="10sp"
+                    app:backgroundTint="@null" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

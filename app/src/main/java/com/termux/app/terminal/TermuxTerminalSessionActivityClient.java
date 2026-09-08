@@ -155,6 +155,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         // The plugin can handle/show errors itself.
         boolean isPluginExecutionCommandWithPendingResult = false;
         TermuxSession termuxSession = service.getTermuxSession(index);
+        notifyTermuxBoxSessionFinished(finishedSession);
         if (termuxSession != null) {
             isPluginExecutionCommandWithPendingResult = termuxSession.getExecutionCommand().isPluginExecutionCommandWithPendingResult();
             if (termuxSession.getExecutionCommand().autoCloseOnExit) {
@@ -163,15 +164,6 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             }
             if (isPluginExecutionCommandWithPendingResult)
                 Logger.logVerbose(LOG_TAG, "The \"" + finishedSession.mSessionName + "\" session will be force finished automatically since result in pending.");
-        }
-
-        // Notify TermuxBox container manager when a wine container session ends,
-        // so it can stop the WinHandler (gamepad control) lifecycle.
-        if ("termux-box-start-wine".equals(finishedSession.mSessionName)) {
-            TermuxBoxContainerManagerClient boxClient = mActivity.getTermuxBoxContainerManagerClient();
-            if (boxClient != null) {
-                boxClient.onContainerSessionFinished();
-            }
         }
 
         if (mActivity.isVisible() && finishedSession != mActivity.getCurrentSession()) {
@@ -193,6 +185,16 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             if (finishedSession.getExitStatus() == 0 || finishedSession.getExitStatus() == 130 || isPluginExecutionCommandWithPendingResult) {
                 removeFinishedSession(finishedSession);
             }
+        }
+    }
+
+    private void notifyTermuxBoxSessionFinished(TerminalSession finishedSession) {
+        if (!"termux-box-start-wine".equals(finishedSession.mSessionName)) {
+            return;
+        }
+        TermuxBoxContainerManagerClient boxClient = mActivity.getTermuxBoxContainerManagerClient();
+        if (boxClient != null) {
+            boxClient.onContainerSessionFinished();
         }
     }
 
