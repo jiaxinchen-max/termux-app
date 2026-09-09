@@ -13,6 +13,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -38,6 +39,7 @@ final class ComponentTaskConsoleDialog extends Dialog {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView output;
     private TextView state;
+    private ProgressBar progress;
     private MaterialButton hide;
     private boolean dismissed;
 
@@ -77,6 +79,15 @@ final class ComponentTaskConsoleDialog extends Dialog {
         stateParams.topMargin = dp(8);
         content.addView(state, stateParams);
 
+        progress = new ProgressBar(getContext(), null,
+            android.R.attr.progressBarStyleHorizontal);
+        progress.setMax(100);
+        progress.setIndeterminate(true);
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(5));
+        progressParams.topMargin = dp(10);
+        content.addView(progress, progressParams);
+
         output = new TextView(getContext());
         output.setTextColor(Color.WHITE);
         output.setTextSize(13);
@@ -108,6 +119,16 @@ final class ComponentTaskConsoleDialog extends Dialog {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        Window window = getWindow();
+        if (window == null) return;
+        int width = Math.round(getContext().getResources().getDisplayMetrics().widthPixels * .82f);
+        int height = Math.round(getContext().getResources().getDisplayMetrics().heightPixels * .64f);
+        window.setLayout(width, height);
+    }
+
+    @Override
     public void dismiss() {
         dismissed = true;
         handler.removeCallbacksAndMessages(null);
@@ -119,8 +140,21 @@ final class ComponentTaskConsoleDialog extends Dialog {
         ComponentTask task = readTask();
         output.setText(readLog());
         boolean terminal = task == null || isFinished(task.getState());
-        if (task == null) state.setText(R.string.local_games_component_console_missing);
-        else state.setText(ComponentTaskConsoleLog.stateLine(task));
+        if (task == null) {
+            state.setText(R.string.local_games_component_console_missing);
+            progress.setIndeterminate(false);
+            progress.setProgress(0);
+        } else {
+            state.setText(ComponentTaskConsoleLog.stateLine(task));
+            if (task.getExpectedSize() > 0) {
+                progress.setIndeterminate(false);
+                progress.setProgress((int) Math.min(100L,
+                    task.getDownloadedBytes() * 100L / task.getExpectedSize()));
+            } else {
+                progress.setIndeterminate(!terminal);
+                progress.setProgress(terminal ? 100 : 0);
+            }
+        }
         hide.setText(terminal ? R.string.local_games_runtime_provision_console_close
             : R.string.local_games_component_console_hide);
         if (!terminal) handler.postDelayed(this::refresh, 500);

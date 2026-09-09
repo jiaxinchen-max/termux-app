@@ -67,8 +67,8 @@ public class GameRuntimeBackendTest {
         File files = temporary.newFolder("files");
         GameStoragePaths paths = new GameStoragePaths(files);
 
-        File glibc = new GlibcTermuxBoxBackend().resolvePrefix(paths, "game-1");
-        File rootfs = new RootfsProotBackend().resolvePrefix(paths, "game-1");
+        File glibc = new GlibcTermuxBoxBackend().resolvePrefix(paths, glibcProfile());
+        File rootfs = new RootfsProotBackend().resolvePrefix(paths, rootfsProfile());
 
         assertFalse(glibc.equals(rootfs));
         assertTrue(rootfs.getPath().contains("rootfs_proot"));

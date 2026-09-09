@@ -4,7 +4,7 @@ package com.termux.localgames.runtime;
 public final class RootfsProvisionRecipe {
     public static final String DEFAULT_PACKAGE = "debian-13-games-rootfs";
     public static final String DEFAULT_SOURCE = "hangover-11.9-debian13-source";
-    public static final int DEFAULT_VERSION = 3;
+    public static final int DEFAULT_VERSION = 4;
 
     private final String packageName;
     private final int version;

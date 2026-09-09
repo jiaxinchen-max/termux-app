@@ -27,8 +27,8 @@ public class ComponentIndexParserTest {
         }
 
         assertEquals(2, index.getSchemaVersion());
-        assertEquals("2026-08-31T00:00:00Z", index.getGeneratedAt());
-        assertEquals(17, index.getComponents().size());
+        assertEquals("2026-09-03T00:00:00Z", index.getGeneratedAt());
+        assertEquals(18, index.getComponents().size());
         ComponentDescriptor glibc = index.find("glibc-prefix").get();
         assertEquals("runtime", glibc.getCategory());
         assertEquals(ComponentType.RUNTIME_SUPPORT, glibc.getType());
@@ -100,6 +100,25 @@ public class ComponentIndexParserTest {
     public void rejectsNonHttpsSources() throws Exception {
         expectInvalid(index(packageValue("dxvk", "dx_wrapper", "dxvk")
             .replace("https://", "http://")));
+    }
+
+    @Test
+    public void rejectsDebComponentsOutsideRootfsProot() throws Exception {
+        expectInvalid(index(packageValue("box64", "translator", "box64")
+            .replace("a.tar.xz", "box64.deb")));
+    }
+
+    @Test
+    public void acceptsDebComponentsForRootfsProotOnly() throws Exception {
+        String rootfsDeb = packageValue("box64", "translator", "box64")
+            .replace("\"framework\":\"GLIBC\"", "\"framework\":\"ROOTFS\"")
+            .replace("\"runtimeBackends\":[\"glibc_termux_box\"]",
+                "\"runtimeBackends\":[\"rootfs_proot\"]")
+            .replace("a.tar.xz", "box64.deb");
+        ComponentIndex index = new ComponentIndexParser().parse(new ByteArrayInputStream(
+            index(rootfsDeb).getBytes(StandardCharsets.UTF_8)));
+        assertTrue(index.find("box64").get().supportsBackend(
+            GameRuntimeBackendType.ROOTFS_PROOT));
     }
 
     @Test

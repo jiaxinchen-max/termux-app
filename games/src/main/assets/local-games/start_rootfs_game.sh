@@ -261,7 +261,7 @@ case "$RUNTIME_TRANSLATOR" in
         ;;
     box64)
         case "$WINE_PACKAGE" in box64-wine*) ;; *) terminal_failure runtime_translator_package_mismatch null true ;; esac
-        GUEST_COMMAND=/usr/bin/box64
+        GUEST_COMMAND=/usr/local/bin/box64
         GUEST_WINE=/opt/box64-wine/bin/wine
         GUEST_WINEBOOT=/opt/box64-wine/bin/wineboot
         [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || terminal_failure rootfs_box64_missing null true

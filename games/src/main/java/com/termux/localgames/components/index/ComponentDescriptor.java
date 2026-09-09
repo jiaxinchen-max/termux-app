@@ -74,6 +74,10 @@ public final class ComponentDescriptor {
         }
         this.runtimeBackends = Collections.unmodifiableSet(
             new LinkedHashSet<>(runtimeBackends));
+        if (isDebArtifact(url) && !(this.runtimeBackends.size() == 1 &&
+            this.runtimeBackends.contains(GameRuntimeBackendType.ROOTFS_PROOT))) {
+            throw new IllegalArgumentException("deb components require the RootFS PRoot backend");
+        }
         if (!this.profileValue.isEmpty() && !isSelectableType(type)) {
             throw new IllegalArgumentException("profileValue not supported for component type");
         }
@@ -112,6 +116,15 @@ public final class ComponentDescriptor {
             }
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException("invalid component source", e);
+        }
+    }
+
+    private static boolean isDebArtifact(String value) {
+        try {
+            return new URL(value).getPath().toLowerCase(Locale.US).endsWith(".deb");
+        } catch (MalformedURLException ignored) {
+            // validateUrl() rejects malformed URLs before this method is reached.
+            return false;
         }
     }
 

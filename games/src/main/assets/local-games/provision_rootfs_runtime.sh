@@ -159,6 +159,7 @@ printf '{"schemaVersion":1,"taskId":"%s","state":"BUILDING"}\n' "$TASK_ID" >> "$
 
 runtime_complete() {
     [ -x "$ROOTFS/usr/bin/env" ] &&
+        [ -x "$ROOTFS/usr/local/bin/box64" ] &&
         [ -x "$ROOTFS/usr/bin/wine" ] &&
         [ -x "$ROOTFS/usr/bin/wineboot" ] &&
         [ -f "$ROOTFS/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" ] &&
