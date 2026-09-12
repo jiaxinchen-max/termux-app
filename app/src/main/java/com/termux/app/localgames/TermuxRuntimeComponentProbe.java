@@ -71,6 +71,7 @@ final class TermuxRuntimeComponentProbe {
             case "glibc-prefix":
                 return nonEmpty(new File(glibcDirectory, "lib/libc.so.6"));
             case "box64-binaries":
+            case "box64-proot-v0.4.4":
                 return nonEmpty(new File(glibcDirectory, "bin/box64"));
             case "prefix-apps":
                 return new File(glibcDirectory, "opt/prefix").isDirectory();

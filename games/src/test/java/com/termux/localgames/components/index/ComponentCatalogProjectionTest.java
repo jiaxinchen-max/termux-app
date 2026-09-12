@@ -43,6 +43,9 @@ public class ComponentCatalogProjectionTest {
         assertEquals(ComponentType.DX_WRAPPER, index.find("dxvk").get().getType());
         assertEquals(ComponentType.DX_WRAPPER, index.find("wined3d").get().getType());
         assertEquals(ComponentType.TRANSLATOR, index.find("box64-binaries").get().getType());
+        assertEquals(ComponentType.TRANSLATOR,
+            index.find("box64-proot-v0.4.4").get().getType());
+        assertFalse(index.find("box64-proot-v0.4.4").get().isBase());
         assertEquals(ComponentType.IMAGE_FS,
             index.find("hangover-11.9-debian13-source").get().getType());
         assertEquals(ComponentType.RUNTIME_SUPPORT, index.find("scripts").get().getType());

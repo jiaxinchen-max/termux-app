@@ -20,14 +20,18 @@ public class TermuxRuntimeComponentProbeTest {
     public void recognizesLegacyMetadataOnlyWhenRuntimeCapabilityExists() throws Exception {
         File files = temporary.newFolder("files");
         installMetadata(files, "opt/package-manager/installed", "box64-binaries", "10");
+        installMetadata(files, "opt/package-manager/installed", "box64-proot-v0.4.4", "1");
         TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);
 
         assertFalse(probe.isAvailable("box64-binaries"));
+        assertFalse(probe.isAvailable("box64-proot-v0.4.4"));
 
         write(new File(files, "usr/glibc/bin/box64"), "binary");
         assertTrue(probe.isAvailable("box64-binaries"));
         assertTrue(probe.isAvailable("box64-binaries", 10));
         assertFalse(probe.isAvailable("box64-binaries", 9));
+        assertTrue(probe.isAvailable("box64-proot-v0.4.4"));
+        assertTrue(probe.isAvailable("box64-proot-v0.4.4", 1));
     }
 
     @Test
