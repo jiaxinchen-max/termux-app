@@ -1,0 +1,19 @@
+schema: change_manifest_v1
+change_id: CHANGE_ID
+openspec_change: CHANGE_ID
+protected_paths:
+  status: N/A
+  policies: []
+  approvals: []
+product_docs:
+  status: N/A
+  documents: []
+  reason: ""
+domain_model:
+  status: N/A
+  concepts: []
+  model_paths: []
+  invariants: []
+  reason: ""
+touched_files: []
+verification: []

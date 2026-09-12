@@ -1,0 +1,25 @@
+schema: run_state_v1
+change_id: implement-local-game-hub
+current_stage: 2
+stage_statuses:
+  - {stage: 1, name: Requirement Analysis, status: Done}
+  - {stage: 2, name: Requirement Review, status: In Progress}
+  - {stage: 3, name: Coding Implementation, status: Not Started}
+  - {stage: 4, name: Code Review, status: Not Started}
+  - {stage: 5, name: Test Writing, status: Not Started}
+  - {stage: 6, name: Test Review, status: Not Started}
+  - {stage: 7, name: Pre-merge Packaging, status: Not Started}
+  - {stage: 8, name: CI Validation, status: Not Started}
+  - {stage: 9, name: Device Verification, status: Not Started}
+  - {stage: 10, name: User Confirmation and Archive, status: Not Started}
+review_rounds:
+  requirement: 2
+  code: 0
+  test: 0
+human_approvals:
+  requirements: Pending
+  protected_paths: Pending
+  pre_merge: Pending
+  device_verification: Pending
+  final_archive: Pending
+blocked_reason: "等待用户确认 proposal/design/specs/tasks。"
