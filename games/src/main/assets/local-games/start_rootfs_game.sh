@@ -351,6 +351,53 @@ run_rootfs_command() {
     fi
 }
 
+run_rootfs_wine() {
+    if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
+        run_rootfs_command "$GUEST_WINE" "$@"
+    else
+        run_rootfs_command "$GUEST_COMMAND" "$GUEST_WINE" "$@"
+    fi
+}
+
+apply_rootfs_game_options() {
+    case "${GAMES_SHOW_FPS:-0}" in 1) export GALLIUM_HUD=fps ;; esac
+    case "${GAMES_WINE_DPI:-}" in
+        96|120|144|192) run_rootfs_wine reg add 'HKCU\Control Panel\Desktop' /v LogPixels \
+            /t REG_DWORD /d "$GAMES_WINE_DPI" /f >> "$LOG_PATH" 2>&1 || true ;;
+    esac
+    case "${GAMES_WINE_FONT:-}" in
+        Tahoma|Arial|'Segoe UI') run_rootfs_wine reg add \
+            'HKCU\Software\Microsoft\Windows NT\CurrentVersion\FontSubstitutes' \
+            /v 'MS Shell Dlg' /t REG_SZ /d "$GAMES_WINE_FONT" /f >> "$LOG_PATH" 2>&1 || true ;;
+    esac
+    case "${GAMES_WINE_BACKGROUND:-}" in
+        '') ;;
+        *) run_rootfs_wine reg add 'HKCU\Control Panel\Desktop' /v Wallpaper /t REG_SZ \
+            /d "$GAMES_WINE_BACKGROUND" /f >> "$LOG_PATH" 2>&1 || true ;;
+    esac
+    case "${GAMES_WINE_THEME:-}" in
+        light|dark) run_rootfs_wine reg add \
+            'HKCU\Software\Microsoft\Windows\CurrentVersion\ThemeManager' /v AppsUseLightTheme \
+            /t REG_DWORD /d "$( [ "$GAMES_WINE_THEME" = light ] && echo 1 || echo 0 )" \
+            /f >> "$LOG_PATH" 2>&1 || true ;;
+    esac
+    case "${GAMES_MOUSE_WARP:-}" in
+        disable|force) run_rootfs_wine reg add 'HKCU\Software\Wine\X11 Driver' \
+            /v MouseWarpOverride /t REG_SZ /d "$GAMES_MOUSE_WARP" /f >> "$LOG_PATH" 2>&1 || true ;;
+    esac
+    case "${GAMES_WINDOWS_VERSION:-}" in
+        'Windows 7'|'Windows 10'|'Windows 11') run_rootfs_wine reg add 'HKCU\Software\Wine' \
+            /v Version /t REG_SZ /d "$GAMES_WINDOWS_VERSION" /f >> "$LOG_PATH" 2>&1 || true ;;
+    esac
+    for drive in D E; do
+        eval target='${GAMES_DRIVE_'$drive':-}'
+        case "$target" in ''|*'..'*) continue ;; esac
+        [ -d "$target" ] || continue
+        rm -f "$PREFIX_PATH/dosdevices/$(printf '%s' "$drive" | tr A-Z a-z):" 2>/dev/null || true
+        ln -s "$target" "$PREFIX_PATH/dosdevices/$(printf '%s' "$drive" | tr A-Z a-z):" || true
+    done
+}
+
 emit RUNNING STARTING_DISPLAY 45 null '' false starting_display
 case "$GRAPHICS_DRIVER" in
     rootfs-virgl-mesa)
@@ -447,6 +494,13 @@ if [ "$CURRENT_ROOTFS_LOCALE_MARKER" != "$EXPECTED_ROOTFS_LOCALE_MARKER" ]; then
 else
     GUEST_LOCALE=zh_CN.UTF-8
 fi
+
+# English uses the always-present C.UTF-8 locale; Chinese uses the locale
+# provisioned above. This remains a game-level override.
+case "${GAMES_LOCALE:-}" in
+    en_US.UTF-8|en_US.utf8) GUEST_LOCALE=C.UTF-8 ;;
+    zh_CN.UTF-8|zh_CN.utf8) GUEST_LOCALE=zh_CN.UTF-8 ;;
+esac
 
 GUEST_CJK_FONT=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 if [ ! -f "$ROOTFS_CANONICAL$GUEST_CJK_FONT" ]; then
@@ -633,6 +687,13 @@ case "$DX_WRAPPER" in
     *) terminal_failure rootfs_dx_wrapper_missing null true ;;
 esac
 
+apply_rootfs_game_options
+[ -n "${GAMES_DLL_D3D:-}" ] && export WINEDLLOVERRIDES="d3d8,d3d9,d3d10core,d3d11,dxgi=${GAMES_DLL_D3D}"
+[ -n "${GAMES_DLL_DSOUND:-}" ] && export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}dsound=${GAMES_DLL_DSOUND}"
+[ -n "${GAMES_DLL_DMUSIC:-}" ] && export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}dmusic=${GAMES_DLL_DMUSIC}"
+[ -n "${GAMES_DLL_DSHOW:-}" ] && export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}quartz=${GAMES_DLL_DSHOW}"
+[ -n "${GAMES_DLL_DPLAY:-}" ] && export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}dplayx=${GAMES_DLL_DPLAY}"
+
 [ ! -e "$CANCEL_PATH" ] || CANCELLED=1
 if [ "$CANCELLED" = 1 ]; then
     emit CANCELLED COMPLETE 100 null cancelled false cancelled
@@ -649,7 +710,18 @@ if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
 else
     set -- "$GUEST_WINE" explorer "/desktop=games,$RESOLUTION" "$GUEST_EXECUTABLE" "$@"
 fi
-run_rootfs_command "$GUEST_COMMAND" "$@" >> "$LOG_PATH" 2>&1 &
+GAMES_EFFECTIVE_CPU_CORES="${GAMES_CPU_CORES:-${GAMES_CPU_CORES_32:-}}"
+if [ -n "$GAMES_EFFECTIVE_CPU_CORES" ]; then
+    case "$GAMES_EFFECTIVE_CPU_CORES" in *[!0-9,-]*|'') terminal_failure invalid_cpu_affinity ;; esac
+    if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
+        set -- -c "$GAMES_EFFECTIVE_CPU_CORES" "$GUEST_WINE" "$@"
+    else
+        set -- -c "$GAMES_EFFECTIVE_CPU_CORES" "$GUEST_COMMAND" "$@"
+    fi
+    run_rootfs_command /usr/bin/taskset "$@" >> "$LOG_PATH" 2>&1 &
+else
+    run_rootfs_command "$GUEST_COMMAND" "$@" >> "$LOG_PATH" 2>&1 &
+fi
 PROOT_PID=$!
 emit RUNNING WAITING_FIRST_FRAME 90 null '' false waiting_first_frame
 

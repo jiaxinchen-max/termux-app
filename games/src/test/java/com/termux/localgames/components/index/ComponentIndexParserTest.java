@@ -27,19 +27,19 @@ public class ComponentIndexParserTest {
         }
 
         assertEquals(2, index.getSchemaVersion());
-        assertEquals("2026-09-03T00:00:00Z", index.getGeneratedAt());
-        assertEquals(18, index.getComponents().size());
-        ComponentDescriptor glibc = index.find("glibc-prefix").get();
+        assertEquals("2026-09-13T01:00:00Z", index.getGeneratedAt());
+        assertEquals(19, index.getComponents().size());
+        ComponentDescriptor glibc = index.find("termux-glibc-runtime").get();
         assertEquals("runtime", glibc.getCategory());
         assertEquals(ComponentType.RUNTIME_SUPPORT, glibc.getType());
         assertEquals("Termux GLIBC Runtime", glibc.getDisplayName());
         assertTrue(glibc.isBase());
-        assertEquals(2, glibc.getVersion());
-        assertEquals(56383776L, glibc.getSize());
-        assertEquals("4c7edae8a58e6cd3f67e1ed6244c7a2eacb78978f2fa2d199d6314a15f22a902",
+        assertEquals(1, glibc.getVersion());
+        assertEquals(1L, glibc.getSize());
+        assertEquals("0000000000000000000000000000000000000000000000000000000000000000",
             glibc.getSha256());
         ComponentDescriptor source = index.find("hangover-11.9-debian13-source").get();
-        assertEquals(ComponentType.IMAGE_FS, source.getType());
+        assertEquals(ComponentType.RUNTIME_SUPPORT, source.getType());
         assertTrue(source.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
         assertEquals(273571840L, source.getSize());
         assertEquals("896918679daa53d6d3a6a1c40132cd35a1d9edc7afdbc643f9bbb3e22b114348",

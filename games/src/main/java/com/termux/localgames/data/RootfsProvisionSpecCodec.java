@@ -18,6 +18,7 @@ public final class RootfsProvisionSpecCodec {
         text(value, "packageName", task.getPackageName());
         value.append("version=").append(task.getVersion()).append('\n');
         value.append("recipeSha256=").append(task.getRecipeSha256()).append('\n');
+        text(value, "containerId", task.getContainerId());
         text(value, "containerName", task.getContainerName());
         text(value, "buildContext", canonical(buildContext));
         text(value, "recipeDirectory", canonical(recipeDirectory));

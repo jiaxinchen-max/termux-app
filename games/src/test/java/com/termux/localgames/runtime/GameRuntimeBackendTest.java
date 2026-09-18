@@ -47,7 +47,7 @@ public class GameRuntimeBackendTest {
         Set<String> components = backend.requiredComponentIds(rootfsProfile());
 
         assertEquals(Collections.singleton("hangover-11.9-debian13-source"), components);
-        assertFalse(components.contains("glibc-prefix"));
+        assertFalse(components.contains(GlibcTermuxBoxBackend.TERMUX_GLIBC_RUNTIME_COMPONENT));
         assertEquals(3, backend.requiredHostCapabilityIds(rootfsProfile()).size());
         assertTrue(backend.requiredHostCapabilityIds(rootfsProfile()).contains("termux-x11"));
         assertTrue(backend.requiredHostCapabilityIds(rootfsProfile()).contains("proot"));
@@ -78,8 +78,8 @@ public class GameRuntimeBackendTest {
     public void rootfsResolvesOnlyActiveTermuxBuiltContainer() throws Exception {
         File files = temporary.newFolder("component-files");
         ComponentStoragePaths componentPaths = new ComponentStoragePaths(files);
-        File packageRoot = new File(new GameStoragePaths(files).getRootfsRuntimeDirectory(),
-            "debian-13-games-rootfs");
+        File packageRoot = new File(new GameStoragePaths(files).getRootfsRuntimeDirectory(
+            rootfsProfile().getContainerId()), "debian-13-games-rootfs");
         File rootfs = new File(new GameStoragePaths(files).getProotDistroContainersDirectory(),
             "games-debian13-hangover119-v1/rootfs");
         assertTrue(rootfs.mkdirs());
@@ -202,7 +202,7 @@ public class GameRuntimeBackendTest {
             "rootfs-wined3d", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
             Collections.emptyMap(), GameRuntimeBackendType.ROOTFS_PROOT,
-            "debian-13-games-rootfs");
+            "debian-13-games-rootfs", "container-game-1");
     }
 
     private static RuntimeProfile glibcProfile() {

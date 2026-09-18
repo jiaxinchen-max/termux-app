@@ -45,6 +45,9 @@
     <string name="local_game_detail_assets">Storage and recovery</string>
     <string name="local_game_detail_runtime_action">Runtime</string>
     <string name="local_game_detail_assets_action">Storage</string>
+    <string name="local_game_detail_side_panel_loading">Loading…</string>
+    <string name="local_game_detail_side_panel_unavailable">Content is unavailable.</string>
+    <string name="local_game_detail_side_panel_row">%1$s\n%2$s</string>
     <string name="local_game_assets_title">Storage and recovery</string>
     <string name="local_game_assets_total">Private storage: %1$s</string>
     <string name="local_game_assets_external_protected">External game files and saves are protected. They are never included in cleanup or snapshots.</string>
@@ -166,13 +169,17 @@
     <string name="local_games_runtime_backup_view_process">View archive process</string>
     <string name="local_games_runtime_backup_copying_output">Writing the archive to the selected location…</string>
     <string name="local_games_runtime_backup_copying_output_progress">Writing the archive to the selected location… %1$d%%</string>
-    <string name="local_games_components_image_fs">ImageFS</string>
-    <string name="local_games_components_container">Container</string>
-    <string name="local_games_components_gpu">GPU driver</string>
-    <string name="local_games_components_dx">DXVK</string>
+    <string name="local_games_components_image_fs">RootFS</string>
+    <string name="local_games_components_container">Wine</string>
+    <string name="local_games_components_gpu">Graphics</string>
+    <string name="local_games_components_dx">Direct3D</string>
     <string name="local_games_components_translator">Box64</string>
-    <string name="local_games_components_general">Additional components</string>
+    <string name="local_games_components_general">Shared components</string>
     <string name="local_games_components_support">Runtime support</string>
+    <string name="local_games_component_section_collapsed">› %1$s</string>
+    <string name="local_games_component_section_expanded">⌄ %1$s</string>
+    <string name="local_games_component_section_expand">Expand %1$s</string>
+    <string name="local_games_component_section_collapse">Collapse %1$s</string>
     <string name="local_games_components_unavailable">Not currently delivered: VKD3D, FEX and Steam Client. Mono, Gecko, fonts and PhysX remain inside the verified prefix-apps bundle; audio is selected as a backend capability.</string>
     <string name="local_games_components_load_failed">Unable to read component state: %1$s</string>
     <string name="local_games_component_metadata">%1$s · %2$s · %3$s · %4$s</string>
@@ -189,13 +196,14 @@
     <string name="local_games_component_summary_prefix_apps">Shared Windows applications delivered as one verified package; it is not split into fake subcomponents.</string>
     <string name="local_games_component_summary_libudev">Device discovery compatibility library required by the runtime.</string>
     <string name="local_games_component_summary_locale">English and Russian locale data used by Wine applications.</string>
-    <string name="local_games_component_summary_glibc">Base GLIBC userspace shared by local Windows games.</string>
+    <string name="local_games_component_summary_glibc">Official GLIBC runtime installed from the Termux glibc repository.</string>
     <string name="local_games_component_summary_scripts">Launcher and environment scripts used by the GLIBC backend.</string>
     <string name="local_games_component_active_version">Installed version %1$d</string>
     <string name="local_games_component_not_installed">Not installed</string>
     <string name="local_games_component_update_available">Update available · installed version %1$d</string>
     <string name="local_games_component_progress_value">%1$s · %2$d%%</string>
     <string name="local_games_component_download">Download</string>
+    <string name="local_games_component_install">Install</string>
     <string name="local_games_component_reinstall">Reinstall</string>
     <string name="local_games_component_view_process">View installation process</string>
     <string name="local_games_component_console_title">Component installation</string>
@@ -250,8 +258,6 @@
     <string name="local_games_runtime_rollback_complete">Runtime rolled back to version %1$d</string>
     <string name="local_game_runtime_profile_title">Runtime configuration</string>
     <string name="local_game_runtime_profile_help">Runtime backend is saved per game and does not change the app interaction mode. Terminal session keeps a named Termux session for live logs. Environment variables accept KEY=value entries separated by spaces or lines; quoted values may contain spaces.</string>
-    <string name="local_game_runtime_profile_check">Run preflight again</string>
-    <string name="local_game_runtime_profile_check_short">Check</string>
     <string name="local_game_runtime_profile_presets">Presets</string>
     <string name="local_game_runtime_profile_recommended">Recommended</string>
     <string name="local_game_runtime_profile_stable">Stable</string>
@@ -286,11 +292,10 @@
     <string name="local_game_runtime_profile_no_changes">No changes from the saved configuration.</string>
     <string name="local_game_runtime_profile_change_item">%1$s: %2$s → %3$s</string>
     <string name="local_game_runtime_profile_save">Save runtime configuration</string>
-    <string name="local_game_runtime_profile_restore_default">Restore recommended defaults</string>
-    <string name="local_game_runtime_profile_restore_success">Restore last successful configuration</string>
     <string name="local_game_runtime_profile_save_short">Save</string>
-    <string name="local_game_runtime_profile_restore_default_short">Defaults</string>
-    <string name="local_game_runtime_profile_restore_success_short">Last</string>
+    <string name="local_game_runtime_profile_exit_save_title">Save changes?</string>
+    <string name="local_game_runtime_profile_exit_save_message">Save the runtime configuration before leaving?</string>
+    <string name="local_game_runtime_profile_discard">Discard</string>
     <string name="local_game_runtime_profile_saved">Runtime configuration saved</string>
     <string name="local_game_runtime_profile_saved_initializing">Runtime configuration saved; container initialization started</string>
     <string name="local_game_runtime_profile_load_failed">Unable to load runtime configuration: %1$s</string>
@@ -389,7 +394,6 @@
     <string name="local_game_launch_description_empty">No description</string>
     <string name="local_game_launch_layout">Controls and layout</string>
     <string name="local_game_actions_title">More</string>
-    <string name="local_game_action_engine">Engine</string>
     <string name="local_game_action_edit">Edit</string>
     <string name="local_game_action_remove">Remove</string>
     <string name="local_game_action_reauthorize">Access</string>
@@ -451,4 +455,5 @@
     <string name="local_game_session_touch_sensitivity">Touch sensitivity</string>
     <string name="local_game_session_keyboard_summary">Open the system soft keyboard without leaving the game.</string>
     <string name="local_game_session_keyboard_open">Open keyboard</string>
+    <string name="local_game_action_engine">Engine</string>
 </resources>

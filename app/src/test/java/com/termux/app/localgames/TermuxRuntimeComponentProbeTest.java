@@ -46,6 +46,22 @@ public class TermuxRuntimeComponentProbeTest {
     }
 
     @Test
+    public void recognizesOfficialTermuxGlibcRuntimeWithoutComponentMetadata() throws Exception {
+        File files = temporary.newFolder("glibc-files");
+        TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);
+
+        assertFalse(probe.isAvailable("termux-glibc-runtime"));
+        write(new File(files, "usr/glibc/lib/ld-linux-aarch64.so.1"), "loader");
+        write(new File(files, "usr/glibc/lib/libc.so.6"), "libc");
+        File runner = new File(files, "usr/bin/grun");
+        write(runner, "runner");
+        assertTrue(runner.setExecutable(true, false));
+
+        assertTrue(probe.isAvailable("termux-glibc-runtime"));
+        assertTrue(probe.isAvailable("termux-glibc-runtime", 1));
+    }
+
+    @Test
     public void rejectsIncompleteMetadataAndInvalidId() throws Exception {
         File files = temporary.newFolder("files");
         File installed = new File(files,

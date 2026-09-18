@@ -7,7 +7,11 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.FrameLayout;
 import android.widget.Toast;
+import android.text.format.Formatter;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -29,6 +33,10 @@ import com.termux.localgames.domain.Game;
 import com.termux.localgames.importer.GameImportValidation;
 import com.termux.localgames.importer.LaunchArguments;
 import com.termux.localgames.importer.SafGameAccessProbe;
+import com.termux.localgames.recovery.GameAssetCategory;
+import com.termux.localgames.recovery.GameAssetInventory;
+import com.termux.localgames.recovery.GameAssetInventoryScanner;
+import com.termux.localgames.recovery.GameAssetUsage;
 import com.termux.localgames.recovery.GameUninstallPlan;
 import com.termux.localgames.recovery.GameUninstaller;
 
@@ -48,6 +56,10 @@ public final class GameDetailActivity extends AppCompatActivity {
     private static final String STATE_NAME = "game_detail.name";
     private static final String STATE_WORKING_DIRECTORY = "game_detail.working_directory";
     private static final String STATE_ARGUMENTS = "game_detail.arguments";
+    private static final String STATE_SIDE_PANEL = "game_detail.side_panel";
+    private static final String SIDE_PANEL_EDITOR = "editor";
+    private static final String SIDE_PANEL_STORAGE = "storage";
+    private static final String SIDE_PANEL_RUNTIME = "runtime";
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "GamesDetailIo"));
@@ -57,12 +69,6 @@ public final class GameDetailActivity extends AppCompatActivity {
             if (result.getResultCode() == Activity.RESULT_OK && data != null &&
                 data.getData() != null) replaceCover(data.getData());
         });
-    private final ActivityResultLauncher<Intent> reauthorizeLauncher = registerForActivityResult(
-        new ActivityResultContracts.StartActivityForResult(), result -> {
-            if (result.getResultCode() == Activity.RESULT_OK) loadGame(true);
-            else refreshAccess();
-        });
-
     private ActivityGameDetailBinding binding;
     private GameRepository gameRepository;
     private SafGameAccessProbe accessProbe;
@@ -76,6 +82,9 @@ public final class GameDetailActivity extends AppCompatActivity {
     private String restoredName;
     private String restoredWorkingDirectory;
     private String restoredArguments;
+    private String sidePanel = SIDE_PANEL_EDITOR;
+    private int sidePanelGeneration;
+    private GameRuntimeOptionsView runtimeOptionsView;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -89,9 +98,6 @@ public final class GameDetailActivity extends AppCompatActivity {
         artworkStore = new GameArtworkStore(getFilesDir());
         artworkLoader = new GameArtworkLoader(artworkStore);
 
-        binding.gameDetailToolbar.setNavigationOnClickListener(view -> finish());
-        GamesHelpDialog.attach(binding.gameDetailToolbar, R.string.local_game_detail_title,
-            R.string.local_game_detail_edit_help);
         binding.gameDetailChangeCover.setOnClickListener(view -> coverPicker.launch(
             new Intent(Intent.ACTION_OPEN_DOCUMENT)
                 .addCategory(Intent.CATEGORY_OPENABLE)
@@ -99,28 +105,17 @@ public final class GameDetailActivity extends AppCompatActivity {
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)));
         binding.gameDetailRemoveCover.setOnClickListener(view -> removeCover());
         binding.gameDetailSave.setOnClickListener(view -> saveDetails());
-        binding.gameDetailRuntimeProfile.setOnClickListener(view -> {
-            if (game != null) startActivity(LocalGames.createRuntimeProfileIntent(this, game.getId()));
-        });
-        binding.gameDetailAssets.setOnClickListener(view -> {
-            if (game != null) startActivity(LocalGames.createGameAssetsIntent(this, game.getId()));
-        });
+        binding.gameDetailRuntimeProfile.setOnClickListener(view -> openRuntime());
+        binding.gameDetailAssets.setOnClickListener(view -> openStorage());
         binding.gameDetailLaunch.setOnClickListener(view -> {
             if (game != null) startActivity(LocalGames.createGameLaunchIntent(this, game.getId()));
         });
         binding.gameDetailDelete.setOnClickListener(view -> confirmDelete());
-        binding.gameDetailReauthorize.setOnClickListener(view -> {
-            if (game != null) {
-                captureFormForRestore();
-                reauthorizeLauncher.launch(
-                    LocalGames.createReauthorizeIntent(this, game.getRootUri()));
-            }
-        });
-
         if (savedInstanceState != null) {
             restoredName = savedInstanceState.getString(STATE_NAME);
             restoredWorkingDirectory = savedInstanceState.getString(STATE_WORKING_DIRECTORY);
             restoredArguments = savedInstanceState.getString(STATE_ARGUMENTS);
+            sidePanel = savedInstanceState.getString(STATE_SIDE_PANEL, SIDE_PANEL_EDITOR);
         }
         if (TextUtils.isEmpty(gameId)) {
             Toast.makeText(this, R.string.local_game_detail_missing, Toast.LENGTH_SHORT).show();
@@ -137,6 +132,7 @@ public final class GameDetailActivity extends AppCompatActivity {
             outState.putString(STATE_WORKING_DIRECTORY,
                 textOf(binding.gameDetailWorkingDirectory));
             outState.putString(STATE_ARGUMENTS, textOf(binding.gameDetailArguments));
+            outState.putString(STATE_SIDE_PANEL, sidePanel);
         }
         super.onSaveInstanceState(outState);
     }
@@ -204,57 +200,159 @@ public final class GameDetailActivity extends AppCompatActivity {
         restoredName = null;
         restoredWorkingDirectory = null;
         restoredArguments = null;
-        renderAccess();
         renderCover(cover);
         binding.gameDetailRemoveCover.setVisibility(
             game.getArtworkUri().isEmpty() ? View.GONE : View.VISIBLE);
         binding.gameDetailLaunch.setEnabled(accessState == GameAccessState.ACCESSIBLE);
         setFormEnabled(true);
         clearErrors();
+        if (SIDE_PANEL_STORAGE.equals(sidePanel)) showStoragePanel();
+        else if (SIDE_PANEL_RUNTIME.equals(sidePanel)) showRuntimePanel();
+        else showEditorPanel();
     }
 
-    private void renderAccess() {
-        int title;
-        int message;
-        boolean reauthorize;
-        switch (accessState) {
-            case ACCESSIBLE:
-                title = R.string.local_game_accessible;
-                message = R.string.local_game_detail_accessible_message;
-                reauthorize = false;
-                break;
-            case PERMISSION_LOST:
-                title = R.string.local_game_permission_lost;
-                message = R.string.local_game_detail_permission_lost_message;
-                reauthorize = true;
-                break;
-            default:
-                title = R.string.local_game_provider_unavailable;
-                message = R.string.local_game_detail_provider_unavailable_message;
-                reauthorize = true;
-                break;
-        }
-        binding.gameDetailAccessStatus.setText(title);
-        binding.gameDetailAccessStatus.setTextColor(ContextCompat.getColor(this,
-            accessState == GameAccessState.ACCESSIBLE
-                ? R.color.local_games_success : R.color.local_games_error));
-        binding.gameDetailAccessMessage.setText(message);
-        binding.gameDetailReauthorize.setVisibility(reauthorize ? View.VISIBLE : View.GONE);
-    }
-
-    private void refreshAccess() {
+    private void openRuntime() {
         Game current = game;
         if (current == null) return;
-        int generation = ++operationGeneration;
+        if (hasEmbeddedSidePanels()) {
+            showRuntimePanel();
+        } else {
+            startActivity(LocalGames.createRuntimeOptionsIntent(this, current.getId()));
+        }
+    }
+
+    private void openStorage() {
+        if (game == null) return;
+        if (hasEmbeddedSidePanels()) {
+            showStoragePanel();
+        } else {
+            startActivity(LocalGames.createGameAssetsIntent(this, game.getId()));
+        }
+    }
+
+    private boolean hasEmbeddedSidePanels() {
+        return findViewById(R.id.game_detail_editor_panel) != null;
+    }
+
+    private void showEditorPanel() {
+        if (!hasEmbeddedSidePanels()) return;
+        sidePanel = SIDE_PANEL_EDITOR;
+        setSidePanelVisibility(View.VISIBLE, View.GONE, View.GONE);
+    }
+
+    private void showStoragePanel() {
+        if (game == null || !hasEmbeddedSidePanels()) return;
+        sidePanel = SIDE_PANEL_STORAGE;
+        setSidePanelVisibility(View.GONE, View.VISIBLE, View.GONE);
+        TextView total = findViewById(R.id.game_detail_storage_total);
+        TextView error = findViewById(R.id.game_detail_storage_error);
+        LinearLayout categories = findViewById(R.id.game_detail_storage_categories);
+        total.setText(R.string.local_game_detail_side_panel_loading);
+        error.setVisibility(View.GONE);
+        categories.removeAllViews();
+        int generation = ++sidePanelGeneration;
+        String currentGameId = game.getId();
+        binding.gameDetailProgress.show();
         ioExecutor.execute(() -> {
-            GameAccessState state = accessProbe.check(current);
+            GameAssetInventory inventory = null;
+            String failure = null;
+            try {
+                inventory = new GameAssetInventoryScanner(getFilesDir()).scan(currentGameId);
+            } catch (IOException | RuntimeException loadError) {
+                failure = safeMessage(loadError);
+            }
+            GameAssetInventory loaded = inventory;
+            String errorMessage = failure;
             runOnUiThread(() -> {
-                if (!isCurrent(generation) || game == null ||
-                    !game.getId().equals(current.getId())) return;
-                accessState = state;
-                renderAccess();
+                if (!isCurrentSidePanel(generation, SIDE_PANEL_STORAGE)) return;
+                binding.gameDetailProgress.hide();
+                renderStoragePanel(loaded, errorMessage);
             });
         });
+    }
+
+    private void renderStoragePanel(@Nullable GameAssetInventory inventory,
+                                    @Nullable String errorMessage) {
+        TextView total = findViewById(R.id.game_detail_storage_total);
+        TextView error = findViewById(R.id.game_detail_storage_error);
+        LinearLayout categories = findViewById(R.id.game_detail_storage_categories);
+        categories.removeAllViews();
+        if (inventory == null) {
+            total.setText(R.string.local_game_detail_side_panel_unavailable);
+            error.setText(getString(R.string.local_game_assets_operation_failed,
+                errorMessage == null ? "unknown" : errorMessage));
+            error.setVisibility(View.VISIBLE);
+            return;
+        }
+        total.setText(getString(R.string.local_game_assets_total,
+            Formatter.formatFileSize(this, inventory.getPrivateBytes())));
+        error.setVisibility(View.GONE);
+        for (GameAssetUsage usage : inventory.getUsages()) {
+            if (usage.getCategory() == GameAssetCategory.EXTERNAL_CONTENT) continue;
+            int quantity = (int) Math.min(Integer.MAX_VALUE, usage.getFiles());
+            addSidePanelRow(categories, getString(assetCategoryLabel(usage.getCategory())),
+                getString(R.string.local_game_assets_category,
+                    getString(assetCategoryLabel(usage.getCategory())),
+                    Formatter.formatFileSize(this, usage.getBytes()),
+                    getResources().getQuantityString(R.plurals.local_game_assets_file_count,
+                        quantity, usage.getFiles()),
+                    usage.isIncomplete()
+                        ? getString(R.string.local_game_assets_incomplete) : ""));
+        }
+    }
+
+    private void showRuntimePanel() {
+        if (game == null || !hasEmbeddedSidePanels()) return;
+        sidePanel = SIDE_PANEL_RUNTIME;
+        setSidePanelVisibility(View.GONE, View.GONE, View.VISIBLE);
+        if (runtimeOptionsView != null) return;
+        FrameLayout panel = findViewById(R.id.game_detail_runtime_panel);
+        runtimeOptionsView = new GameRuntimeOptionsView(this, game.getId(), this::closeRuntimePanel);
+        runtimeOptionsView.setShowHeader(false);
+        panel.addView(runtimeOptionsView, new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+    }
+
+    private void setSidePanelVisibility(int editorVisibility, int storageVisibility,
+                                        int runtimeVisibility) {
+        findViewById(R.id.game_detail_editor_panel).setVisibility(editorVisibility);
+        findViewById(R.id.game_detail_storage_panel).setVisibility(storageVisibility);
+        findViewById(R.id.game_detail_runtime_panel).setVisibility(runtimeVisibility);
+    }
+
+    private void closeRuntimePanel() {
+        if (runtimeOptionsView != null) {
+            FrameLayout panel = findViewById(R.id.game_detail_runtime_panel);
+            panel.removeView(runtimeOptionsView);
+            runtimeOptionsView.release();
+            runtimeOptionsView = null;
+        }
+        if (!destroyed) showEditorPanel();
+    }
+
+    private boolean isCurrentSidePanel(int generation, String expectedPanel) {
+        return !destroyed && generation == sidePanelGeneration && expectedPanel.equals(sidePanel);
+    }
+
+    private void addSidePanelRow(LinearLayout target, String label, String value) {
+        TextView row = new TextView(this);
+        row.setPadding(0, dp(8), 0, dp(8));
+        row.setText(getString(R.string.local_game_detail_side_panel_row, label,
+            TextUtils.isEmpty(value) ? "—" : value));
+        row.setTextColor(ContextCompat.getColor(this, R.color.local_games_on_surface));
+        row.setTextSize(13);
+        target.addView(row, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+    }
+
+    private int assetCategoryLabel(GameAssetCategory category) {
+        switch (category) {
+            case PREFIX: return R.string.local_game_assets_prefix;
+            case CACHE: return R.string.local_game_assets_cache;
+            case LOGS: return R.string.local_game_assets_logs;
+            case CONFIGURATION: return R.string.local_game_assets_configuration;
+            default: return R.string.local_game_assets_external;
+        }
     }
 
     private void saveDetails() {
@@ -459,7 +557,6 @@ public final class GameDetailActivity extends AppCompatActivity {
         binding.gameDetailRuntimeProfile.setEnabled(enabled);
         binding.gameDetailAssets.setEnabled(enabled);
         binding.gameDetailDelete.setEnabled(enabled);
-        binding.gameDetailReauthorize.setEnabled(enabled);
     }
 
     private void clearErrors() {
@@ -502,9 +599,26 @@ public final class GameDetailActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        if (hasEmbeddedSidePanels() && SIDE_PANEL_RUNTIME.equals(sidePanel) &&
+            runtimeOptionsView != null) {
+            runtimeOptionsView.navigateBack();
+            return;
+        }
+        if (hasEmbeddedSidePanels() && !SIDE_PANEL_EDITOR.equals(sidePanel)) {
+            ++sidePanelGeneration;
+            showEditorPanel();
+            return;
+        }
+        super.onBackPressed();
+    }
+
+    @Override
     protected void onDestroy() {
         destroyed = true;
         ++operationGeneration;
+        ++sidePanelGeneration;
+        if (runtimeOptionsView != null) runtimeOptionsView.release();
         ioExecutor.shutdownNow();
         binding = null;
         super.onDestroy();

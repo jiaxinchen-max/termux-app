@@ -135,6 +135,22 @@ public final class ComponentDeliveryCoordinator {
         return repository.find(taskId);
     }
 
+    /** Persists a host-managed package task that has no downloadable archive. */
+    public ComponentTask transitionHostManagedTask(String taskId, ComponentTaskState state,
+                                                   String errorCode, String errorMessage,
+                                                   ComponentTaskListener listener)
+        throws IOException {
+        ComponentTask task = requiredTask(taskId);
+        if (task.getState().isTerminal()) return task;
+        ComponentTask updated = task.transition(state,
+            state == ComponentTaskState.INSTALLING || state == ComponentTaskState.INSTALLED
+                ? task.getExpectedSize() : task.getDownloadedBytes(),
+            task.getEtag(), task.getLastModified(), errorCode, errorMessage);
+        repository.save(updated);
+        notifyListener(listener, updated);
+        return updated;
+    }
+
     public InstalledComponent rollback(String packageName) throws IOException {
         return installer.rollback(packageName);
     }

@@ -1323,8 +1323,8 @@ public final class TermuxBoxRepository {
                 throw new IOException("Invalid package path: " + relative);
             }
         }
-        // Do not canonicalize this path: glibc-prefix intentionally contains
-        // circular and dangling symlinks, and canonicalization dereferences them.
+        // Do not canonicalize this path: runtime archives can contain circular and
+        // dangling symlinks, and canonicalization dereferences them.
         return new File(prefixDir, relative);
     }
 

@@ -237,6 +237,17 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
         public void startRuntimeProvision(RuntimeProvisionRequest request)
             throws LaunchHostException {
             prepareLaunchRuntime();
+            startTrustedTerminalScript(request, "runtime_provision_host_start_failed");
+        }
+
+        @Override
+        public void startTermuxPackageInstall(RuntimeProvisionRequest request)
+            throws LaunchHostException {
+            startTrustedTerminalScript(request, "termux_package_install_host_start_failed");
+        }
+
+        private void startTrustedTerminalScript(RuntimeProvisionRequest request, String failureCode)
+            throws LaunchHostException {
             try {
                 requirePrivatePath(request.getScriptPath());
                 requirePrivatePath(request.getSpecPath());
@@ -250,7 +261,7 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
                     applicationContext.startService(intent);
                 }
             } catch (IOException | RuntimeException error) {
-                String code = "runtime_provision_host_start_failed";
+                String code = failureCode;
                 if ("termux_shell_missing".equals(error.getMessage())) code = error.getMessage();
                 throw new LaunchHostException(code, true, error);
             }

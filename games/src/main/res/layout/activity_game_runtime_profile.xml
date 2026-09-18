@@ -74,14 +74,6 @@
                         android:layout_marginTop="6dp"
                         android:textAppearance="@style/TextAppearance.MaterialComponents.Body2" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/runtime_profile_check"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/local_game_runtime_profile_check"
-                    android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -325,30 +317,6 @@
                 android:textColor="?attr/colorError"
                 android:visibility="gone" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/runtime_profile_save"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:text="@string/local_game_runtime_profile_save" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/runtime_profile_restore_default"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/local_game_runtime_profile_restore_default"
-                android:visibility="gone" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/runtime_profile_restore_success"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/local_game_runtime_profile_restore_success"
-                android:visibility="gone" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

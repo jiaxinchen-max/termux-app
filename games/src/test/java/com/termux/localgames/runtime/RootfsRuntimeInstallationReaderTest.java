@@ -38,6 +38,26 @@ public class RootfsRuntimeInstallationReaderTest {
     }
 
     @Test
+    public void resolvesEachRootfsFromItsOwnContainerMetadata() throws Exception {
+        File files = temporary.newFolder("separate-container-files");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        String first = "container-game-a";
+        String second = "container-game-b";
+        File firstRootfs = new File(paths.getProotDistroContainersDirectory(), first + "/rootfs");
+        File secondRootfs = new File(paths.getProotDistroContainersDirectory(), second + "/rootfs");
+        assertTrue(firstRootfs.mkdirs());
+        assertTrue(secondRootfs.mkdirs());
+        writeMetadata(paths, first, "v1-first", 1);
+        writeMetadata(paths, second, "v2-second", 2);
+
+        RootfsRuntimeInstallationReader reader = new RootfsRuntimeInstallationReader(paths);
+
+        assertEquals(firstRootfs.getCanonicalPath(), reader.readActive(first,
+            "debian-13-games-rootfs").get().getRootfsDirectory().getCanonicalPath());
+        assertEquals(2, reader.readActive(second, "debian-13-games-rootfs").get().getVersion());
+    }
+
+    @Test
     public void rejectsContainerTraversalInReceipt() throws Exception {
         File files = temporary.newFolder("traversal-files");
         GameStoragePaths paths = new GameStoragePaths(files);
@@ -89,12 +109,23 @@ public class RootfsRuntimeInstallationReaderTest {
     }
 
     private static void writeMetadata(GameStoragePaths paths, String container) throws Exception {
-        File packageRoot = new File(paths.getRootfsRuntimeDirectory(), "debian-13-games-rootfs");
+        writeMetadata(paths.getRootfsRuntimeDirectory(), container, "v1-aaaaaaaaaaaa", 1);
+    }
+
+    private static void writeMetadata(GameStoragePaths paths, String container, String selected,
+                                      int version) throws Exception {
+        writeMetadata(paths.getRootfsRuntimeDirectory(container), container, selected, version);
+    }
+
+    private static void writeMetadata(File metadataRoot, String container, String selected,
+                                      int version) throws Exception {
+        File packageRoot = new File(metadataRoot, "debian-13-games-rootfs");
         write(new File(packageRoot, "active.properties"), props(
-            "schemaVersion", "1", "active", "v1-aaaaaaaaaaaa"));
-        write(new File(packageRoot, "versions/v1-aaaaaaaaaaaa.properties"), props(
+            "schemaVersion", "1", "active", selected));
+        write(new File(packageRoot, "versions/" + selected + ".properties"), props(
             "schemaVersion", "1", "packageName", "debian-13-games-rootfs",
-            "version", "1", "recipeSha256", SHA, "containerName", container));
+            "version", String.valueOf(version), "recipeSha256", SHA,
+            "containerName", container));
     }
 
     private static Properties props(String... pairs) {

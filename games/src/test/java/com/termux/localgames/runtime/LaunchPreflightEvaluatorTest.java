@@ -39,7 +39,7 @@ public class LaunchPreflightEvaluatorTest {
             GameAccessState.ACCESSIBLE, true, 2L * 1024 * 1024 * 1024, installed);
 
         assertTrue(result.isReady());
-        assertEquals(9, result.getRequirements().size());
+        assertEquals(10, result.getRequirements().size());
         assertEquals(LaunchPreflightEvaluator.DEFAULT_PREFIX_RESERVE_BYTES,
             result.getStorageBudget().getRequiredBytes());
     }
@@ -182,8 +182,9 @@ public class LaunchPreflightEvaluatorTest {
     }
 
     private static ComponentIndex index() throws Exception {
-        String[] ids = {"scripts", "glibc-prefix", "box64-binaries", "prefix-apps",
-            "libudev", "en-ru-locale", "turnip", "dxvk", "wine-9.3-vanilla-wow64"};
+        String[] ids = {"termux-glibc-runtime", "scripts", "box64-binaries", "prefix-apps",
+            "libudev", "en-ru-locale", "wine-fonts", "turnip", "dxvk",
+            "wine-9.3-vanilla-wow64"};
         return index(ids);
     }
 

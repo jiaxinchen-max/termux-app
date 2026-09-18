@@ -22,6 +22,7 @@ import com.termux.localgames.api.ComponentTasks;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.LocalGamesHost;
 import com.termux.localgames.api.RuntimeComponentActivation;
+import com.termux.localgames.api.RuntimeProvisionRequest;
 import com.termux.localgames.components.ComponentDownloader;
 import com.termux.localgames.components.ComponentStoragePaths;
 import com.termux.localgames.components.DefaultHttpConnectionFactory;
@@ -36,14 +37,21 @@ import com.termux.localgames.components.install.InstalledComponent;
 import com.termux.localgames.domain.GameRuntimeBackendType;
 import com.termux.localgames.data.ComponentTaskRepository;
 import com.termux.localgames.data.FileComponentTaskRepository;
+import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.ComponentTask;
 import com.termux.localgames.domain.ComponentTaskState;
+import com.termux.localgames.runtime.GlibcTermuxBoxBackend;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -59,6 +67,8 @@ public final class ComponentTaskForegroundService extends Service {
     private static final String CHANNEL_ID = "games_component_delivery";
     private static final int NOTIFICATION_ID = 23091;
     private static final String INDEX_ASSET = "termux-box-packages/index-v1.json";
+    private static final long TERMUX_GLIBC_INSTALL_TIMEOUT_MS = 30L * 60L * 1000L;
+    private static final long TERMUX_GLIBC_INSTALL_POLL_MS = 250L;
     /**
      * Runtime packages are built for the Termux GLIBC prefix and ship symbolic links that point
      * there absolutely; those links only resolve once the package is activated into that prefix.
@@ -141,9 +151,14 @@ public final class ComponentTaskForegroundService extends Service {
                 current.enqueue(descriptor, requiredIdentifier(taskId, "taskId"));
                 ComponentTaskConsoleLog.append(getFilesDir(), taskId,
                     "Queued component " + descriptor.getDisplayName());
-                ComponentTaskConsoleLog.append(getFilesDir(), taskId,
-                    "GET " + descriptor.getUrl() + " · expected " + descriptor.getSize() +
-                        " bytes · sha256 " + descriptor.getSha256());
+                if (isTermuxGlibcRuntime(descriptor)) {
+                    ComponentTaskConsoleLog.append(getFilesDir(), taskId,
+                        "Starting Termux package installation: glibc-repo, glibc, glibc-runner.");
+                } else {
+                    ComponentTaskConsoleLog.append(getFilesDir(), taskId,
+                        "GET " + descriptor.getUrl() + " · expected " + descriptor.getSize() +
+                            " bytes · sha256 " + descriptor.getSha256());
+                }
                 executeTask(taskId);
             } else if (ComponentTasks.ACTION_PAUSE.equals(action)) {
                 current.requestPause(requiredIdentifier(taskId, "taskId"), this::publishTask);
@@ -208,9 +223,16 @@ public final class ComponentTaskForegroundService extends Service {
             }
         }
         try {
-            ComponentTaskConsoleLog.append(getFilesDir(), taskId,
-                "Starting download, verification, extraction and activation pipeline.");
-            current.execute(taskId, this::publishTask);
+            ComponentTask task = current.find(taskId).orElseThrow(
+                () -> new IOException("component_task_missing"));
+            ComponentDescriptor descriptor = requiredDescriptor(task.getPackageName());
+            if (isTermuxGlibcRuntime(descriptor)) {
+                executeTermuxGlibcRuntimeTask(current, taskId);
+            } else {
+                ComponentTaskConsoleLog.append(getFilesDir(), taskId,
+                    "Starting download, verification, extraction and activation pipeline.");
+                current.execute(taskId, this::publishTask);
+            }
         } catch (Exception error) {
             ComponentTaskConsoleLog.append(getFilesDir(), taskId,
                 "Task failed: " + stableMessage(error));
@@ -220,6 +242,93 @@ public final class ComponentTaskForegroundService extends Service {
                 runningTasks.remove(taskId);
             }
         }
+    }
+
+    /** Runs the official repository install in a real Termux terminal and mirrors its output. */
+    private void executeTermuxGlibcRuntimeTask(ComponentDeliveryCoordinator current, String taskId)
+        throws Exception {
+        try {
+            ComponentTask task = current.find(taskId).orElseThrow(
+                () -> new IOException("component_task_missing"));
+            if (task.getState() == ComponentTaskState.INSTALLED) return;
+
+            current.transitionHostManagedTask(taskId, ComponentTaskState.INSTALLING, "", "",
+                this::publishTask);
+            GameStoragePaths paths = new GameStoragePaths(getFilesDir());
+            File script = new LaunchScriptInstaller(this, paths).installTermuxGlibcRuntime();
+            File specification = new File(paths.getRuntimeProvisionSpecsDirectory(),
+                "termux-glibc-" + taskId + ".conf");
+            File event = new File(paths.getRuntimeProvisionEventsDirectory(),
+                "termux-glibc-" + taskId + ".event");
+            if (event.exists() && !event.delete()) throw new IOException("glibc_event_cleanup_failed");
+            writeTermuxGlibcSpecification(specification, taskId,
+                ComponentTaskConsoleLog.file(getFilesDir(), taskId), event);
+
+            LocalGamesHost host = LocalGames.requireHost(this);
+            host.startTermuxPackageInstall(new RuntimeProvisionRequest(taskId,
+                script.getCanonicalPath(), specification.getCanonicalPath(),
+                paths.getRuntimeDirectory().getCanonicalPath()));
+            String eventState = waitForTermuxGlibcEvent(event);
+            if ("SUCCEEDED".equals(eventState) && host.isRuntimeComponentAvailable(
+                GlibcTermuxBoxBackend.TERMUX_GLIBC_RUNTIME_COMPONENT)) {
+                current.transitionHostManagedTask(taskId, ComponentTaskState.INSTALLED, "", "",
+                    this::publishTask);
+                return;
+            }
+            throw new IOException("SUCCEEDED".equals(eventState)
+                ? "glibc_runtime_verification_failed" : "glibc_package_install_failed");
+        } catch (Exception error) {
+            String message = stableMessage(error);
+            current.transitionHostManagedTask(taskId, ComponentTaskState.FAILED, message, message,
+                this::publishTask);
+            throw error;
+        }
+    }
+
+    private String waitForTermuxGlibcEvent(File event) throws IOException {
+        long deadline = System.currentTimeMillis() + TERMUX_GLIBC_INSTALL_TIMEOUT_MS;
+        while (System.currentTimeMillis() < deadline) {
+            String state = readFirstLine(event);
+            if ("SUCCEEDED".equals(state) || "FAILED".equals(state)) return state;
+            try {
+                Thread.sleep(TERMUX_GLIBC_INSTALL_POLL_MS);
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+                throw new IOException("glibc_package_install_interrupted", error);
+            }
+        }
+        throw new IOException("glibc_package_install_timeout");
+    }
+
+    private static void writeTermuxGlibcSpecification(File file, String taskId, File log,
+                                                       File event) throws IOException {
+        File parent = file.getParentFile();
+        if (!parent.isDirectory() && !parent.mkdirs()) {
+            throw new IOException("glibc_spec_directory_failed");
+        }
+        try (Writer output = new OutputStreamWriter(new FileOutputStream(file, false),
+            StandardCharsets.UTF_8)) {
+            output.write("TERMUX_GLIBC_TASK_ID=" + shellValue(taskId) + "\n");
+            output.write("TERMUX_GLIBC_LOG_FILE=" + shellValue(log.getCanonicalPath()) + "\n");
+            output.write("TERMUX_GLIBC_EVENT_FILE=" + shellValue(event.getCanonicalPath()) + "\n");
+        }
+    }
+
+    private static String readFirstLine(File file) throws IOException {
+        if (!file.isFile()) return "";
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String value = reader.readLine();
+            return value == null ? "" : value.trim();
+        }
+    }
+
+    private static String shellValue(String value) {
+        return "'" + value.replace("'", "'\\\"'\\\"'") + "'";
+    }
+
+    private static boolean isTermuxGlibcRuntime(ComponentDescriptor descriptor) {
+        return descriptor != null && GlibcTermuxBoxBackend.TERMUX_GLIBC_RUNTIME_COMPONENT
+            .equals(descriptor.getId());
     }
 
     private synchronized ComponentDeliveryCoordinator requireCoordinator() throws IOException {

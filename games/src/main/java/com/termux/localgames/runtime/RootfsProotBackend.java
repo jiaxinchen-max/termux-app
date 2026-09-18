@@ -25,7 +25,6 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
         if ("hangover-11.9".equals(profile.getWinePackage())) {
             result.add("hangover-11.9-debian13-source");
         }
-        result.addAll(profile.getComponentVersions().keySet());
         return result;
     }
 
@@ -54,7 +53,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
                                      RuntimeProfile profile) throws IOException {
         requireProfile(profile);
         RootfsRuntimeInstallation active = new RootfsRuntimeInstallationReader(paths)
-            .readActive(profile.getRootfsPackage())
+            .readActive(profile.getContainerId(), profile.getRootfsPackage())
             .orElseThrow(() -> new IOException("rootfs_provision_required"));
         File rootfs = active.getRootfsDirectory().getCanonicalFile();
         if (!rootfs.isDirectory()) throw new IOException("rootfs_content_missing");

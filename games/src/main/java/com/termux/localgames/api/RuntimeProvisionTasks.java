@@ -19,17 +19,21 @@ public final class RuntimeProvisionTasks {
     public static final String ACTION_ROLLBACK = "com.termux.localgames.action.ROLLBACK_RUNTIME";
     public static final String EXTRA_TASK_ID = "com.termux.localgames.extra.PROVISION_TASK_ID";
     public static final String EXTRA_PACKAGE_NAME = "com.termux.localgames.extra.ROOTFS_PACKAGE";
+    public static final String EXTRA_CONTAINER_ID = "com.termux.localgames.extra.ROOTFS_CONTAINER_ID";
 
     private RuntimeProvisionTasks() {}
 
     @NonNull
-    public static String enqueue(@NonNull Context context, @NonNull String packageName) {
+    public static String enqueue(@NonNull Context context, @NonNull String packageName,
+                                 @NonNull String containerId) {
         requireId(packageName, "packageName");
+        requireId(containerId, "containerId");
         String taskId = "provision-" + UUID.randomUUID().toString();
         Intent intent = new Intent(context, RootfsProvisionForegroundService.class)
             .setAction(ACTION_ENQUEUE)
             .putExtra(EXTRA_TASK_ID, taskId)
-            .putExtra(EXTRA_PACKAGE_NAME, packageName);
+            .putExtra(EXTRA_PACKAGE_NAME, packageName)
+            .putExtra(EXTRA_CONTAINER_ID, containerId);
         start(context, intent);
         return taskId;
     }
@@ -50,10 +54,13 @@ public final class RuntimeProvisionTasks {
             .setAction(ACTION_RECONCILE_ALL);
     }
 
-    public static void rollback(@NonNull Context context, @NonNull String packageName) {
+    public static void rollback(@NonNull Context context, @NonNull String packageName,
+                                @NonNull String containerId) {
         requireId(packageName, "packageName");
+        requireId(containerId, "containerId");
         start(context, new Intent(context, RootfsProvisionForegroundService.class)
-            .setAction(ACTION_ROLLBACK).putExtra(EXTRA_PACKAGE_NAME, packageName));
+            .setAction(ACTION_ROLLBACK).putExtra(EXTRA_PACKAGE_NAME, packageName)
+            .putExtra(EXTRA_CONTAINER_ID, containerId));
     }
 
     private static void start(Context context, Intent intent) {

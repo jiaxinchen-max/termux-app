@@ -84,11 +84,12 @@ public final class RootfsProvisionForegroundService extends Service {
         String action = intent.getAction();
         String taskId = intent.getStringExtra(RuntimeProvisionTasks.EXTRA_TASK_ID);
         String packageName = intent.getStringExtra(RuntimeProvisionTasks.EXTRA_PACKAGE_NAME);
+        String containerId = intent.getStringExtra(RuntimeProvisionTasks.EXTRA_CONTAINER_ID);
         pendingCommands.incrementAndGet();
         executor.execute(() -> {
             try {
                 if (RuntimeProvisionTasks.ACTION_ENQUEUE.equals(action)) {
-                    enqueue(requiredId(taskId), requiredId(packageName));
+                    enqueue(requiredId(taskId), requiredId(packageName), requiredId(containerId));
                 } else if (RuntimeProvisionTasks.ACTION_RECONCILE.equals(action)) {
                     reconcile(requiredTask(requiredId(taskId)));
                 } else if (RuntimeProvisionTasks.ACTION_RECONCILE_ALL.equals(action)) {
@@ -96,7 +97,7 @@ public final class RootfsProvisionForegroundService extends Service {
                 } else if (RuntimeProvisionTasks.ACTION_ROLLBACK.equals(action)) {
                     RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), null);
                     RootfsRuntimeInstallation active = new RootfsRuntimeActivationStore(paths)
-                        .rollback(requiredId(packageName));
+                        .rollback(requiredId(containerId), requiredId(packageName));
                     publishMessage(getString(R.string.local_games_runtime_rollback_complete,
                         active.getVersion()));
                 }
@@ -118,8 +119,11 @@ public final class RootfsProvisionForegroundService extends Service {
         super.onDestroy();
     }
 
-    private void enqueue(String taskId, String packageName) throws Exception {
+    private void enqueue(String taskId, String packageName, String containerId) throws Exception {
         if (tasks.find(taskId).isPresent()) return;
+        if (com.termux.localgames.domain.GameContainer.DEFAULT_ID.equals(containerId)) {
+            throw new IOException("rootfs_container_must_be_independent");
+        }
         RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), taskId);
         RootfsProvisionRecipe recipe = RootfsProvisionRecipe.require(packageName);
         InstalledComponent source = components.read(recipe.getSourceComponentId()).getActive()
@@ -127,10 +131,10 @@ public final class RootfsProvisionForegroundService extends Service {
                 recipe.getSourceComponentId()));
         RootfsProvisionAssetInstaller.Installed assets =
             new RootfsProvisionAssetInstaller(this, paths).install(recipe, source.getSha256());
-        String containerName = recipe.getContainerPrefix() + assets.recipeSha256.substring(0, 12);
+        String containerName = containerId;
         RuntimeProvisionTask task = RuntimeProvisionTask.queued(taskId, packageName,
             recipe.getVersion(), assets.recipeSha256, recipe.getSourceComponentId(),
-            containerName, System.currentTimeMillis());
+            containerId, containerName, System.currentTimeMillis());
         tasks.save(task);
         prepareAndStart(task, source, assets);
     }
@@ -160,7 +164,8 @@ public final class RootfsProvisionForegroundService extends Service {
             File log = new File(paths.getRuntimeProvisionLogsDirectory(), task.getTaskId() + ".log");
             File context = new File(paths.getRuntimeProvisionStagingDirectory(), task.getTaskId());
             new RootfsProvisionSpecCodec().write(spec, preparing, assets.recipeDirectory,
-                source.getDirectory(), context, paths.getRootfsRuntimeDirectory(), events, log);
+                source.getDirectory(), context,
+                paths.getRootfsRuntimeDirectory(task.getContainerId()), events, log);
             host.startRuntimeProvision(new RuntimeProvisionRequest(task.getTaskId(),
                 assets.script.getCanonicalPath(), spec.getCanonicalPath(),
                 paths.getRuntimeProvisionDirectory().getCanonicalPath()));
@@ -217,7 +222,7 @@ public final class RootfsProvisionForegroundService extends Service {
     private boolean activeMatches(RuntimeProvisionTask task) {
         try {
             RootfsRuntimeInstallation active = new RootfsRuntimeInstallationReader(paths)
-                .readActive(task.getPackageName()).orElse(null);
+                .readActive(task.getContainerId(), task.getPackageName()).orElse(null);
             return active != null && active.getVersion() == task.getVersion() &&
                 active.getRecipeSha256().equals(task.getRecipeSha256()) &&
                 active.getContainerName().equals(task.getContainerName());

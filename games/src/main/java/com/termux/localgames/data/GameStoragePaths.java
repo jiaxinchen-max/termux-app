@@ -63,6 +63,10 @@ public final class GameStoragePaths {
     public File getRootfsRuntimeDirectory() {
         return new File(libraryDirectory.getParentFile(), "runtimes/rootfs");
     }
+    /** Each PRoot container owns its own activation metadata and installed RootFS. */
+    public File getRootfsRuntimeDirectory(String containerId) {
+        return new File(getRootfsRuntimeDirectory(), requireId(containerId));
+    }
     public File getRuntimeProvisionDirectory() {
         return new File(libraryDirectory.getParentFile(), "runtime/provision");
     }

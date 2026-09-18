@@ -23,7 +23,7 @@ public class FileRuntimeProvisionTaskRepositoryTest {
             new FileRuntimeProvisionTaskRepository(directory);
         RuntimeProvisionTask queued = RuntimeProvisionTask.queued("task-1",
             "debian-13-games-rootfs", 1, SHA, "hangover-11.9-debian13-source",
-            "games-debian13-v1-aaaaaaaaaaaa", 10);
+            "container-game-a", "container-game-a", 10);
         first.save(queued.transition(RuntimeProvisionTaskState.BUILDING, "", 20));
 
         RuntimeProvisionTask restored = new FileRuntimeProvisionTaskRepository(directory)
@@ -31,7 +31,8 @@ public class FileRuntimeProvisionTaskRepositoryTest {
 
         assertEquals(RuntimeProvisionTaskState.BUILDING, restored.getState());
         assertEquals(SHA, restored.getRecipeSha256());
-        assertEquals("games-debian13-v1-aaaaaaaaaaaa", restored.getContainerName());
+        assertEquals("container-game-a", restored.getContainerId());
+        assertEquals("container-game-a", restored.getContainerName());
         assertTrue(new java.io.File(directory, "task-1.properties").isFile());
     }
 }

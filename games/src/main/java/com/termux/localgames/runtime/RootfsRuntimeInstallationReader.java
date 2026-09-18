@@ -20,17 +20,29 @@ public final class RootfsRuntimeInstallationReader {
     }
 
     public Optional<RootfsRuntimeInstallation> readActive(String packageName) throws IOException {
-        return readSelected(packageName, "active");
+        return readSelected(paths.getRootfsRuntimeDirectory(), packageName, "active");
     }
 
     public Optional<RootfsRuntimeInstallation> readPrevious(String packageName) throws IOException {
-        return readSelected(packageName, "previous");
+        return readSelected(paths.getRootfsRuntimeDirectory(), packageName, "previous");
     }
 
-    private Optional<RootfsRuntimeInstallation> readSelected(String packageName, String key)
+    /** Reads the RootFS owned by one independent game container. */
+    public Optional<RootfsRuntimeInstallation> readActive(String containerId, String packageName)
+        throws IOException {
+        return readSelected(paths.getRootfsRuntimeDirectory(containerId), packageName, "active");
+    }
+
+    public Optional<RootfsRuntimeInstallation> readPrevious(String containerId, String packageName)
+        throws IOException {
+        return readSelected(paths.getRootfsRuntimeDirectory(containerId), packageName, "previous");
+    }
+
+    private Optional<RootfsRuntimeInstallation> readSelected(File metadataRoot, String packageName,
+                                                              String key)
         throws IOException {
         requireId(packageName, "packageName");
-        File packageDirectory = new File(paths.getRootfsRuntimeDirectory(), packageName);
+        File packageDirectory = new File(metadataRoot, packageName);
         File pointerFile = recoverableFile(new File(packageDirectory, "active.properties"));
         if (pointerFile == null) return Optional.empty();
         Properties pointer = read(pointerFile);

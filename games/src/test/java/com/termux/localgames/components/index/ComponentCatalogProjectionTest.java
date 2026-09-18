@@ -46,10 +46,14 @@ public class ComponentCatalogProjectionTest {
         assertEquals(ComponentType.TRANSLATOR,
             index.find("box64-proot-v0.4.4").get().getType());
         assertFalse(index.find("box64-proot-v0.4.4").get().isBase());
-        assertEquals(ComponentType.IMAGE_FS,
+        assertEquals("Box64 0.2.7", index.find("box64-binaries").get().getDisplayName());
+        assertEquals("Box64 0.4.4",
+            index.find("box64-proot-v0.4.4").get().getDisplayName());
+        assertEquals(ComponentType.RUNTIME_SUPPORT,
             index.find("hangover-11.9-debian13-source").get().getType());
         assertEquals(ComponentType.RUNTIME_SUPPORT, index.find("scripts").get().getType());
-        assertEquals(ComponentType.RUNTIME_SUPPORT, index.find("glibc-prefix").get().getType());
+        assertEquals(ComponentType.RUNTIME_SUPPORT,
+            index.find("termux-glibc-runtime").get().getType());
     }
 
     @Test

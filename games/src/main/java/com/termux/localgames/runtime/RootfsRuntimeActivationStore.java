@@ -20,10 +20,28 @@ public final class RootfsRuntimeActivationStore {
     }
 
     public synchronized RootfsRuntimeInstallation rollback(String packageName) throws IOException {
+        return rollback(paths.getRootfsRuntimeDirectory(), packageName, null);
+    }
+
+    /** Rolls back only the selected independent RootFS container. */
+    public synchronized RootfsRuntimeInstallation rollback(String containerId, String packageName)
+        throws IOException {
+        return rollback(paths.getRootfsRuntimeDirectory(containerId), packageName, containerId);
+    }
+
+    private RootfsRuntimeInstallation rollback(File metadataRoot, String packageName,
+                                               String containerId) throws IOException {
         RootfsRuntimeInstallationReader reader = new RootfsRuntimeInstallationReader(paths);
-        reader.readActive(packageName).orElseThrow(() -> new IOException("rootfs_active_missing"));
-        reader.readPrevious(packageName).orElseThrow(() -> new IOException("rootfs_rollback_unavailable"));
-        File packageDirectory = new File(paths.getRootfsRuntimeDirectory(), packageName);
+        if (containerId == null) {
+            reader.readActive(packageName).orElseThrow(() -> new IOException("rootfs_active_missing"));
+            reader.readPrevious(packageName).orElseThrow(() -> new IOException("rootfs_rollback_unavailable"));
+        } else {
+            reader.readActive(containerId, packageName)
+                .orElseThrow(() -> new IOException("rootfs_active_missing"));
+            reader.readPrevious(containerId, packageName)
+                .orElseThrow(() -> new IOException("rootfs_rollback_unavailable"));
+        }
+        File packageDirectory = new File(metadataRoot, packageName);
         File pointerFile = new File(packageDirectory, "active.properties");
         Properties pointer = read(pointerFile);
         if (!"1".equals(pointer.getProperty("schemaVersion"))) {
@@ -36,7 +54,11 @@ public final class RootfsRuntimeActivationStore {
         swapped.setProperty("active", previous);
         swapped.setProperty("previous", active);
         writeAtomic(pointerFile, swapped);
-        return reader.readActive(packageName)
+        if (containerId == null) {
+            return reader.readActive(packageName)
+                .orElseThrow(() -> new IOException("rootfs_rollback_activation_failed"));
+        }
+        return reader.readActive(containerId, packageName)
             .orElseThrow(() -> new IOException("rootfs_rollback_activation_failed"));
     }
 

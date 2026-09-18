@@ -10,6 +10,7 @@ TASK_ID=
 PACKAGE_NAME=
 VERSION=
 RECIPE_SHA256=
+CONTAINER_ID=
 CONTAINER_NAME=
 BUILD_CONTEXT=
 RECIPE_DIRECTORY=
@@ -49,6 +50,7 @@ while IFS='=' read -r key value; do
         packageName) PACKAGE_NAME=$value ;;
         version) VERSION=$value ;;
         recipeSha256) RECIPE_SHA256=$value ;;
+        containerId) CONTAINER_ID=$value ;;
         containerName) CONTAINER_NAME=$value ;;
         buildContext) BUILD_CONTEXT=$value ;;
         recipeDirectory) RECIPE_DIRECTORY=$value ;;
@@ -61,7 +63,7 @@ while IFS='=' read -r key value; do
     esac
 done < "$SPEC_PATH"
 
-for value in "$TASK_ID" "$PACKAGE_NAME" "$CONTAINER_NAME"; do
+for value in "$TASK_ID" "$PACKAGE_NAME" "$CONTAINER_ID" "$CONTAINER_NAME"; do
     case "$value" in ''|*[!A-Za-z0-9._-]*) fail invalid_provision_identifier 64 ;; esac
 done
 case "$VERSION" in ''|*[!0-9]*|0*) fail invalid_provision_version 64 ;; esac

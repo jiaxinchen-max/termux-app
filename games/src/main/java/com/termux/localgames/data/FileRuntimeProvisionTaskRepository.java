@@ -34,6 +34,7 @@ public final class FileRuntimeProvisionTaskRepository implements RuntimeProvisio
         value.setProperty("version", String.valueOf(task.getVersion()));
         value.setProperty("recipeSha256", task.getRecipeSha256());
         value.setProperty("sourceComponentId", task.getSourceComponentId());
+        value.setProperty("containerId", task.getContainerId());
         value.setProperty("containerName", task.getContainerName());
         value.setProperty("state", task.getState().name());
         value.setProperty("errorCode", task.getErrorCode());
@@ -87,12 +88,15 @@ public final class FileRuntimeProvisionTaskRepository implements RuntimeProvisio
             value.load(input);
         }
         try {
-            if (!"1".equals(value.getProperty("schemaVersion"))) {
+            String schemaVersion = value.getProperty("schemaVersion");
+            if (!"1".equals(schemaVersion) && !"2".equals(schemaVersion)) {
                 throw new IOException("provision_task_schema_unsupported");
             }
             return new RuntimeProvisionTask(required(value, "taskId"),
                 required(value, "packageName"), Integer.parseInt(required(value, "version")),
                 required(value, "recipeSha256"), required(value, "sourceComponentId"),
+                "2".equals(schemaVersion) ? required(value, "containerId") :
+                    required(value, "containerName"),
                 required(value, "containerName"),
                 RuntimeProvisionTaskState.valueOf(required(value, "state")),
                 value.getProperty("errorCode", ""),

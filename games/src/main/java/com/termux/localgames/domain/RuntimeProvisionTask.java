@@ -2,13 +2,14 @@ package com.termux.localgames.domain;
 
 /** Immutable state for an on-device Termux runtime build. */
 public final class RuntimeProvisionTask {
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
 
     private final String taskId;
     private final String packageName;
     private final int version;
     private final String recipeSha256;
     private final String sourceComponentId;
+    private final String containerId;
     private final String containerName;
     private final RuntimeProvisionTaskState state;
     private final String errorCode;
@@ -17,11 +18,12 @@ public final class RuntimeProvisionTask {
 
     public RuntimeProvisionTask(String taskId, String packageName, int version,
                                 String recipeSha256, String sourceComponentId,
-                                String containerName, RuntimeProvisionTaskState state,
+                                String containerId, String containerName, RuntimeProvisionTaskState state,
                                 String errorCode, long createdAt, long updatedAt) {
         this.taskId = requireId(taskId, "taskId");
         this.packageName = requireId(packageName, "packageName");
         this.sourceComponentId = requireId(sourceComponentId, "sourceComponentId");
+        this.containerId = requireId(containerId, "containerId");
         this.containerName = requireId(containerName, "containerName");
         if (version < 1 || state == null || createdAt < 0 || updatedAt < createdAt) {
             throw new IllegalArgumentException("invalid runtime provision task");
@@ -42,9 +44,10 @@ public final class RuntimeProvisionTask {
 
     public static RuntimeProvisionTask queued(String taskId, String packageName, int version,
                                               String recipeSha256, String sourceComponentId,
-                                              String containerName, long now) {
+                                              String containerId, String containerName, long now) {
         return new RuntimeProvisionTask(taskId, packageName, version, recipeSha256,
-            sourceComponentId, containerName, RuntimeProvisionTaskState.QUEUED, "", now, now);
+            sourceComponentId, containerId, containerName, RuntimeProvisionTaskState.QUEUED,
+            "", now, now);
     }
 
     public RuntimeProvisionTask transition(RuntimeProvisionTaskState next, String error, long now) {
@@ -53,7 +56,7 @@ public final class RuntimeProvisionTask {
             throw new IllegalArgumentException("invalid provision transition");
         }
         return new RuntimeProvisionTask(taskId, packageName, version, recipeSha256,
-            sourceComponentId, containerName, next, error, createdAt, now);
+            sourceComponentId, containerId, containerName, next, error, createdAt, now);
     }
 
     public String getTaskId() { return taskId; }
@@ -61,6 +64,7 @@ public final class RuntimeProvisionTask {
     public int getVersion() { return version; }
     public String getRecipeSha256() { return recipeSha256; }
     public String getSourceComponentId() { return sourceComponentId; }
+    public String getContainerId() { return containerId; }
     public String getContainerName() { return containerName; }
     public RuntimeProvisionTaskState getState() { return state; }
     public String getErrorCode() { return errorCode; }

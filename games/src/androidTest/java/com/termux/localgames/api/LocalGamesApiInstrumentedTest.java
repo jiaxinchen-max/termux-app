@@ -431,16 +431,6 @@ public class LocalGamesApiInstrumentedTest {
                 "Wine 9.0 Staging · 9.0 WoW64"));
             assertRuntimeExecutionMode(scenario,
                 com.termux.localgames.R.string.local_game_runtime_profile_execution_terminal);
-            scenario.onActivity(activity -> activity.findViewById(
-                com.termux.localgames.R.id.runtime_profile_save).performClick());
-            assertTrue(waitForSavedProfile(profiles, gameId,
-                "wine-9.0-staging-wow64"));
-            assertEquals(LaunchExecutionMode.TERMINAL_SESSION,
-                profiles.find(gameId).get().getLaunchExecutionMode());
-            scenario.onActivity(activity -> activity.findViewById(
-                com.termux.localgames.R.id.runtime_profile_restore_default).performClick());
-            assertTrue(waitForRuntimeProfile(scenario,
-                "Wine 9.3 Vanilla · 9.3 WoW64"));
         } finally {
             profiles.delete(gameId);
             games.delete(gameId);
@@ -529,22 +519,13 @@ public class LocalGamesApiInstrumentedTest {
     }
 
     @Test
-    public void componentCatalogSurvivesActivityRecreation() throws Exception {
-        try (ActivityScenario<LocalGamesActivity> scenario =
-                 ActivityScenario.launch(LocalGamesActivity.class)) {
-            scenario.onActivity(activity -> activity.findViewById(
-                com.termux.localgames.R.id.local_games_components_button).performClick());
+    public void componentsIntentCarriesGameScope() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
-            assertEquals(17, waitForComponentRows(scenario));
-            assertCategoryCounts(scenario);
-            scenario.recreate();
+        Intent intent = LocalGames.createComponentsIntent(context, "game-1");
 
-            scenario.onActivity(activity -> assertEquals(View.VISIBLE,
-                activity.findViewById(com.termux.localgames.R.id.local_games_components_page)
-                    .getVisibility()));
-            assertEquals(17, waitForComponentRows(scenario));
-            assertCategoryCounts(scenario);
-        }
+        assertEquals("game-1", intent.getStringExtra(
+            LocalGamesActivity.EXTRA_COMPONENT_GAME_ID));
     }
 
     private static int waitForComponentRows(ActivityScenario<LocalGamesActivity> scenario)

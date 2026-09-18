@@ -15,8 +15,10 @@ import java.util.Set;
 /** Existing TermuxBox runtime preserved as the default backend. */
 public final class GlibcTermuxBoxBackend implements GameRuntimeBackend {
 
+    public static final String TERMUX_GLIBC_RUNTIME_COMPONENT = "termux-glibc-runtime";
+
     private static final Set<String> BASE_COMPONENTS = new LinkedHashSet<>(Arrays.asList(
-        "scripts", "glibc-prefix", "box64-binaries", "prefix-apps", "libudev",
+        TERMUX_GLIBC_RUNTIME_COMPONENT, "scripts", "box64-binaries", "prefix-apps", "libudev",
         "en-ru-locale", "wine-fonts"));
 
     @Override

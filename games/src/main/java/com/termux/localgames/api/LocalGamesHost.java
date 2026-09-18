@@ -78,6 +78,12 @@ public interface LocalGamesHost {
         throw new UnsupportedOperationException("runtime_provision_host_not_supported");
     }
 
+    /** Runs a trusted Termux package installation in a visible terminal session. */
+    default void startTermuxPackageInstall(RuntimeProvisionRequest request)
+        throws LaunchHostException {
+        throw new UnsupportedOperationException("termux_package_install_host_not_supported");
+    }
+
     /** Returns the visible terminal session owned by an active provisioning task, if ready. */
     @Nullable
     default TerminalSession getRuntimeProvisionTerminal(String taskId) { return null; }

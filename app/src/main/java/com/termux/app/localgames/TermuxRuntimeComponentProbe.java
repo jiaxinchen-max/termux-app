@@ -45,6 +45,11 @@ final class TermuxRuntimeComponentProbe {
             return executable(new File(glibcDirectory,
                 "opt/virgl/libvirgl_test_server.so"));
         }
+        if ("termux-glibc-runtime".equals(componentId)) {
+            return nonEmpty(new File(glibcDirectory, "lib/ld-linux-aarch64.so.1")) &&
+                nonEmpty(new File(glibcDirectory, "lib/libc.so.6")) &&
+                executable(new File(termuxFilesDirectory, "usr/bin/grun"));
+        }
         return hasInstallMetadata(componentId, expectedVersion) &&
             hasRuntimeCapability(componentId);
     }
@@ -68,8 +73,6 @@ final class TermuxRuntimeComponentProbe {
         switch (componentId) {
             case "scripts":
                 return new File(glibcDirectory, "opt/scripts").isDirectory();
-            case "glibc-prefix":
-                return nonEmpty(new File(glibcDirectory, "lib/libc.so.6"));
             case "box64-binaries":
             case "box64-proot-v0.4.4":
                 return nonEmpty(new File(glibcDirectory, "bin/box64"));

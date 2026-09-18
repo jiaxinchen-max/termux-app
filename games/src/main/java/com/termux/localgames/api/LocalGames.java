@@ -9,6 +9,7 @@ import com.termux.localgames.activity.GameImportActivity;
 import com.termux.localgames.activity.GameFileManagerActivity;
 import com.termux.localgames.activity.GameDetailActivity;
 import com.termux.localgames.activity.GameRuntimeProfileActivity;
+import com.termux.localgames.activity.GameRuntimeOptionsActivity;
 import com.termux.localgames.activity.GameAssetsActivity;
 import com.termux.localgames.activity.GameLaunchActivity;
 import com.termux.localgames.activity.RuntimeBackupActivity;
@@ -37,11 +38,11 @@ public final class LocalGames {
         return new Intent(context, LocalGamesActivity.class);
     }
 
-    /** Opens the runtime component catalog directly. */
+    /** Opens the component view scoped to one game's selected runtime backend. */
     @NonNull
-    public static Intent createComponentsIntent(@NonNull Context context) {
+    public static Intent createComponentsIntent(@NonNull Context context, @NonNull String gameId) {
         return new Intent(context, LocalGamesActivity.class)
-            .putExtra(LocalGamesActivity.EXTRA_OPEN_COMPONENTS, true);
+            .putExtra(LocalGamesActivity.EXTRA_COMPONENT_GAME_ID, gameId);
     }
 
     /** Creates an explicit intent for the SAF game-directory import flow. */
@@ -77,6 +78,14 @@ public final class LocalGames {
                                                      @NonNull String gameId) {
         return new Intent(context, GameRuntimeProfileActivity.class)
             .putExtra(GameRuntimeProfileActivity.EXTRA_GAME_ID, gameId);
+    }
+
+    /** Opens the per-game launch parameter editor. */
+    @NonNull
+    public static Intent createRuntimeOptionsIntent(@NonNull Context context,
+                                                    @NonNull String gameId) {
+        return new Intent(context, GameRuntimeOptionsActivity.class)
+            .putExtra(GameRuntimeOptionsActivity.EXTRA_GAME_ID, gameId);
     }
 
     /** Opens read-only private asset inventory for one game. */

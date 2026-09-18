@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="32dp"
         android:background="@color/local_games_background"
-        android:title="@string/local_game_engine_settings_title"
+        android:title="@string/local_game_detail_runtime_profile"
         app:navigationIcon="@drawable/local_games_ic_back"
         app:navigationIconTint="@color/local_games_on_surface"
         app:titleTextColor="@color/local_games_on_surface" />
@@ -35,6 +35,7 @@
         android:paddingBottom="8dp">
 
         <LinearLayout
+            android:id="@+id/runtime_profile_category_menu"
             android:layout_width="250dp"
             android:layout_height="match_parent"
             android:background="@drawable/local_games_bg_panel"
@@ -196,6 +197,7 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/runtime_profile_category_content"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginStart="12dp"
@@ -506,60 +508,6 @@
                 android:textColor="@color/local_games_error"
                 android:visibility="gone" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="32dp"
-                android:layout_marginTop="4dp"
-                android:gravity="end|center_vertical"
-                android:orientation="horizontal">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/runtime_profile_restore_default"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="32dp"
-                    android:minHeight="0dp"
-                    android:minWidth="0dp"
-                android:text="@string/local_game_runtime_profile_restore_default_short"
-                    android:textSize="10sp"
-                    android:visibility="gone" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/runtime_profile_restore_success"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="32dp"
-                    android:minHeight="0dp"
-                    android:minWidth="0dp"
-                android:text="@string/local_game_runtime_profile_restore_success_short"
-                    android:textSize="10sp"
-                    android:visibility="gone" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/runtime_profile_check"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="62dp"
-                    android:layout_height="32dp"
-                    android:layout_marginStart="6dp"
-                    android:minHeight="0dp"
-                    android:minWidth="0dp"
-                android:text="@string/local_game_runtime_profile_check_short"
-                    android:textSize="10sp"
-                    android:visibility="gone" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/runtime_profile_save"
-                    android:layout_width="78dp"
-                    android:layout_height="32dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/local_games_bg_primary_action"
-                    android:minHeight="0dp"
-                    android:minWidth="0dp"
-                    android:text="@string/local_game_runtime_profile_save_short"
-                    android:textColor="@color/local_games_on_surface"
-                    android:textSize="10sp"
-                    app:backgroundTint="@null" />
-            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

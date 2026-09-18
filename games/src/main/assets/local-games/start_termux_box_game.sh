@@ -483,6 +483,15 @@ unset LD_PRELOAD
 # The selected translator belongs to this container. Missing optional resources
 # fail explicitly instead of silently falling back to Box64.
 run_container_wine() {
+    GAMES_EFFECTIVE_CPU_CORES="${GAMES_CPU_CORES:-${GAMES_CPU_CORES_32:-}}"
+    if [ -n "$GAMES_EFFECTIVE_CPU_CORES" ] && command -v taskset >/dev/null 2>&1; then
+        case "$GAMES_EFFECTIVE_CPU_CORES" in *[!0-9,-]*|'') echo "Invalid CPU affinity: $GAMES_EFFECTIVE_CPU_CORES"; return 2 ;; esac
+        case "$TERMUX_BOX_TRANSLATOR" in
+            box64) taskset -c "$GAMES_EFFECTIVE_CPU_CORES" "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" "$@"; return $? ;;
+            hangover) taskset -c "$GAMES_EFFECTIVE_CPU_CORES" "$TERMUX_GLIBC_DIR/bin/hangover" "$GLIBC_BIN/wine" "$@"; return $? ;;
+            fex) taskset -c "$GAMES_EFFECTIVE_CPU_CORES" "$TERMUX_GLIBC_DIR/bin/FEXInterpreter" "$GLIBC_BIN/wine" "$@"; return $? ;;
+        esac
+    fi
     case "$TERMUX_BOX_TRANSLATOR" in
         box64) "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" "$@" ;;
         hangover)
@@ -504,6 +513,54 @@ run_container_wine() {
     esac
 }
 
+apply_game_options() {
+    case "${GAMES_SHOW_FPS:-0}" in
+        1) export GALLIUM_HUD=fps ;;
+        *) ;;
+    esac
+
+    case "${GAMES_MOUSE_WARP:-}" in
+        disable|force)
+            run_container_wine reg add 'HKCU\Software\Wine\X11 Driver' /v MouseWarpOverride \
+                /t REG_SZ /d "$GAMES_MOUSE_WARP" /f >/dev/null 2>&1 || true
+            ;;
+    esac
+    case "${GAMES_WINE_DPI:-}" in
+        96|120|144|192)
+            run_container_wine reg add 'HKCU\Control Panel\Desktop' /v LogPixels \
+                /t REG_DWORD /d "$GAMES_WINE_DPI" /f >/dev/null 2>&1 || true
+            ;;
+    esac
+    case "${GAMES_WINE_FONT:-}" in
+        Tahoma|Arial|'Segoe UI')
+            run_container_wine reg add 'HKCU\Software\Microsoft\Windows NT\CurrentVersion\FontSubstitutes' \
+                /v 'MS Shell Dlg' /t REG_SZ /d "$GAMES_WINE_FONT" /f >/dev/null 2>&1 || true
+            ;;
+    esac
+    case "${GAMES_WINE_BACKGROUND:-}" in
+        '') ;;
+        *) run_container_wine reg add 'HKCU\Control Panel\Desktop' /v Wallpaper /t REG_SZ \
+            /d "$GAMES_WINE_BACKGROUND" /f >/dev/null 2>&1 || true ;;
+    esac
+    case "${GAMES_WINE_THEME:-}" in
+        light|dark) run_container_wine reg add 'HKCU\Software\Microsoft\Windows\CurrentVersion\ThemeManager' \
+            /v AppsUseLightTheme /t REG_DWORD /d "$( [ "$GAMES_WINE_THEME" = light ] && echo 1 || echo 0 )" \
+            /f >/dev/null 2>&1 || true ;;
+    esac
+    case "${GAMES_WINDOWS_VERSION:-}" in
+        'Windows 7'|'Windows 10'|'Windows 11')
+            run_container_wine reg add 'HKCU\Software\Wine' /v Version /t REG_SZ \
+                /d "$GAMES_WINDOWS_VERSION" /f >/dev/null 2>&1 || true ;;
+    esac
+    for drive in D E; do
+        eval target='${GAMES_DRIVE_'$drive':-}'
+        case "$target" in ''|*'..'*) continue ;; esac
+        [ -d "$target" ] || continue
+        rm -f "$WINEPREFIX/dosdevices/$(printf '%s' "$drive" | tr A-Z a-z):" 2>/dev/null || true
+        ln -s "$target" "$WINEPREFIX/dosdevices/$(printf '%s' "$drive" | tr A-Z a-z):" || true
+    done
+}
+
 # Check that container was bootstrapped
 echo "[3/4] Checking container initialization"
 if [ ! -e "$WINEPREFIX/.termux-box-bootstrap-done" ]; then
@@ -513,6 +570,14 @@ if [ ! -e "$WINEPREFIX/.termux-box-bootstrap-done" ]; then
 fi
 ensure_games_wine_fonts || exit 1
 ensure_games_cjk_locale
+apply_game_options
+
+# The game profile may override the runtime locale without changing the shared
+# Termux GLIBC locale setting.
+case "${GAMES_LOCALE:-}" in
+    en_US.UTF-8|en_US.utf8) export LANG=en_US.utf8 LC_ALL=en_US.utf8 ;;
+    zh_CN.UTF-8|zh_CN.utf8) export LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8 ;;
+esac
 
 export PULSE_SERVER=127.0.0.1
 
@@ -536,6 +601,11 @@ case "${TERMUX_BOX_GAMEPAD_MAPPER:-1}" in
         WINE_DLL_OVERRIDES="xinput1_1=native;xinput1_2=native;xinput1_3=native;xinput1_4=native;xinput9_1_0=native;xinputuap=native;"
         ;;
 esac
+[ -n "${GAMES_DLL_D3D:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}d3d8,d3d9,d3d10core,d3d11,dxgi=${GAMES_DLL_D3D};"
+[ -n "${GAMES_DLL_DSOUND:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}dsound=${GAMES_DLL_DSOUND};"
+[ -n "${GAMES_DLL_DMUSIC:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}dmusic=${GAMES_DLL_DMUSIC};"
+[ -n "${GAMES_DLL_DSHOW:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}quartz=${GAMES_DLL_DSHOW};"
+[ -n "${GAMES_DLL_DPLAY:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}dplayx=${GAMES_DLL_DPLAY};"
 [ -n "$WINE_DLL_OVERRIDES" ] && export WINEDLLOVERRIDES || unset WINEDLLOVERRIDES
 
 # Mount the imported root below Z:, which is the mapping established by the

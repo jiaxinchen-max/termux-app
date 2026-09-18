@@ -43,7 +43,7 @@
     <string name="local_game_detail_saved">游戏详情已保存</string>
     <string name="local_game_detail_runtime_profile">运行配置</string>
     <string name="local_game_detail_assets">存储与恢复</string>
-    <string name="local_game_detail_runtime_action">运行配置</string>
+    <string name="local_game_detail_runtime_action">运行参数</string>
     <string name="local_game_detail_assets_action">存储恢复</string>
     <string name="local_game_assets_title">存储与恢复</string>
     <string name="local_game_assets_total">私有存储占用：%1$s</string>
@@ -128,13 +128,17 @@
     <string name="local_games_components_description">按 PC 引擎中的实际用途管理组件，离开此页面后下载仍会继续。</string>
     <string name="local_games_start">开始</string>
     <string name="local_games_runtime_backup_summary">GLIBC 与 PRootFS 运行环境归档</string>
-    <string name="local_games_components_image_fs">ImageFS</string>
-    <string name="local_games_components_container">容器</string>
-    <string name="local_games_components_gpu">GPU 驱动</string>
-    <string name="local_games_components_dx">DXVK</string>
+    <string name="local_games_components_image_fs">RootFS</string>
+    <string name="local_games_components_container">Wine</string>
+    <string name="local_games_components_gpu">图形</string>
+    <string name="local_games_components_dx">Direct3D</string>
     <string name="local_games_components_translator">Box64</string>
-    <string name="local_games_components_general">附加组件</string>
+    <string name="local_games_components_general">共享组件</string>
     <string name="local_games_components_support">运行支持</string>
+    <string name="local_games_component_section_collapsed">› %1$s</string>
+    <string name="local_games_component_section_expanded">⌄ %1$s</string>
+    <string name="local_games_component_section_expand">展开%1$s</string>
+    <string name="local_games_component_section_collapse">折叠%1$s</string>
     <string name="local_games_components_unavailable">暂未接入：VKD3D、FEX、Steam Client。Mono、Gecko、字体、PhysX 仍随已校验的 prefix-apps 整包交付；音频按运行后端选择。</string>
     <string name="local_games_components_load_failed">无法读取组件状态：%1$s</string>
     <string name="local_games_component_metadata">%1$s · %2$s · %3$s · %4$s</string>
@@ -151,13 +155,14 @@
     <string name="local_games_component_summary_prefix_apps">以单个已校验归档交付的 Windows 通用程序包，不虚假拆成独立子组件。</string>
     <string name="local_games_component_summary_libudev">运行环境使用的设备发现兼容库。</string>
     <string name="local_games_component_summary_locale">Wine 应用使用的英文和俄文区域数据。</string>
-    <string name="local_games_component_summary_glibc">本地 Windows 游戏共享的基础 GLIBC 用户空间。</string>
+    <string name="local_games_component_summary_glibc">通过 Termux GLIBC 软件源安装和维护的官方运行时。</string>
     <string name="local_games_component_summary_scripts">GLIBC 后端使用的启动和环境脚本。</string>
     <string name="local_games_component_active_version">已安装版本 %1$d</string>
     <string name="local_games_component_not_installed">未安装</string>
     <string name="local_games_component_update_available">可更新 · 已安装版本 %1$d</string>
     <string name="local_games_component_progress_value">%1$s · %2$d%%</string>
     <string name="local_games_component_download">下载</string>
+    <string name="local_games_component_install">安装</string>
     <string name="local_games_component_reinstall">重新安装</string>
     <string name="local_games_component_activate">激活</string>
     <string name="local_games_component_activation_required">已下载 · 需要激活到运行环境</string>
@@ -207,8 +212,6 @@
     <string name="local_games_runtime_rollback_complete">运行环境已回滚到版本 %1$d</string>
     <string name="local_game_runtime_profile_title">运行配置</string>
     <string name="local_game_runtime_profile_help">运行后端按游戏保存，不影响 App 的终端/游戏交互模式。终端会话会保留一个具名 Termux 会话用于实时日志。环境变量支持以空格或换行分隔的 KEY=value；引号内可以包含空格。</string>
-    <string name="local_game_runtime_profile_check">重新执行预检</string>
-    <string name="local_game_runtime_profile_check_short">预检</string>
     <string name="local_game_runtime_profile_presets">配置预设</string>
     <string name="local_game_runtime_profile_recommended">推荐</string>
     <string name="local_game_runtime_profile_stable">稳定</string>
@@ -238,11 +241,10 @@
     <string name="local_game_runtime_profile_no_changes">与已保存配置一致。</string>
     <string name="local_game_runtime_profile_change_item">%1$s：%2$s → %3$s</string>
     <string name="local_game_runtime_profile_save">保存运行配置</string>
-    <string name="local_game_runtime_profile_restore_default">恢复推荐默认配置</string>
-    <string name="local_game_runtime_profile_restore_success">恢复上次成功配置</string>
     <string name="local_game_runtime_profile_save_short">保存</string>
-    <string name="local_game_runtime_profile_restore_default_short">默认</string>
-    <string name="local_game_runtime_profile_restore_success_short">上次</string>
+    <string name="local_game_runtime_profile_exit_save_title">保存修改？</string>
+    <string name="local_game_runtime_profile_exit_save_message">退出前是否保存运行配置？</string>
+    <string name="local_game_runtime_profile_discard">放弃修改</string>
     <string name="local_game_runtime_profile_saved">运行配置已保存</string>
     <string name="local_game_runtime_profile_saved_initializing">运行配置已保存，已开始初始化容器</string>
     <string name="local_game_runtime_profile_load_failed">无法加载运行配置：%1$s</string>
@@ -341,7 +343,6 @@
     <string name="local_game_launch_description_empty">暂无描述</string>
     <string name="local_game_launch_layout">按键与布局</string>
     <string name="local_game_actions_title">更多</string>
-    <string name="local_game_action_engine">引擎</string>
     <string name="local_game_action_edit">编辑</string>
     <string name="local_game_action_remove">移除</string>
     <string name="local_game_action_reauthorize">授权</string>
@@ -403,4 +404,5 @@
     <string name="local_game_session_touch_sensitivity">触控灵敏度</string>
     <string name="local_game_session_keyboard_summary">不离开游戏，直接打开系统软键盘。</string>
     <string name="local_game_session_keyboard_open">打开键盘</string>
+    <string name="local_game_action_engine">引擎</string>
 </resources>

@@ -9,6 +9,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.text.format.Formatter;
 import android.view.Gravity;
@@ -47,6 +48,7 @@ import com.termux.localgames.components.index.ComponentType;
 import com.termux.localgames.components.install.ComponentInstallationReader;
 import com.termux.localgames.data.FileComponentTaskRepository;
 import com.termux.localgames.data.FileGameRepository;
+import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.FileRuntimeProvisionTaskRepository;
 import com.termux.localgames.data.GameAccessState;
 import com.termux.localgames.data.GameLibraryItem;
@@ -60,7 +62,9 @@ import com.termux.localgames.databinding.ItemLocalGamesComponentSectionBinding;
 import com.termux.localgames.databinding.ItemLocalGameBinding;
 import com.termux.localgames.domain.ComponentTask;
 import com.termux.localgames.domain.Game;
+import com.termux.localgames.domain.GameRuntimeBackendType;
 import com.termux.localgames.domain.RuntimeProvisionTask;
+import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.importer.SafGameAccessProbe;
 import com.termux.localgames.recovery.GameUninstallPlan;
 import com.termux.localgames.recovery.GameUninstaller;
@@ -78,9 +82,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Root Activity owned by the standalone games feature module. */
 public final class LocalGamesActivity extends AppCompatActivity {
 
-    public static final String EXTRA_OPEN_COMPONENTS =
-        "com.termux.localgames.extra.OPEN_COMPONENTS";
+    public static final String EXTRA_COMPONENT_GAME_ID =
+        "com.termux.localgames.extra.COMPONENT_GAME_ID";
     private static final String INDEX_ASSET = "termux-box-packages/index-v1.json";
+    private static final String TERMUX_GLIBC_RUNTIME_COMPONENT = "termux-glibc-runtime";
     private static final String STATE_SELECTED_TAB = "local_games.selected_tab";
     private static final int TAB_LIBRARY = 0;
     private static final int TAB_COMPONENTS = 1;
@@ -117,6 +122,9 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private int libraryColumns = 2;
     private RuntimeProvisionTask latestRuntimeProvisionTask;
     private boolean rootfsRuntimeInstalled;
+    @Nullable private String componentGameId;
+    @Nullable private String componentContainerId;
+    @Nullable private GameRuntimeBackendType componentBackend;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -124,9 +132,10 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding = ActivityLocalGamesBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         configureResponsiveLibrary();
+        componentGameId = getIntent().getStringExtra(EXTRA_COMPONENT_GAME_ID);
 
         selectedTab = savedInstanceState == null
-            ? (getIntent().getBooleanExtra(EXTRA_OPEN_COMPONENTS, false)
+            ? (!TextUtils.isEmpty(componentGameId)
                 ? TAB_COMPONENTS : TAB_LIBRARY)
             : savedInstanceState.getInt(STATE_SELECTED_TAB, TAB_LIBRARY);
         binding.localGamesToolbar.setNavigationOnClickListener(view -> {
@@ -151,11 +160,9 @@ public final class LocalGamesActivity extends AppCompatActivity {
             startActivity(LocalGames.createFileManagerIntent(this)));
         binding.localGamesFileManagerButton.setOnClickListener(view ->
             startActivity(LocalGames.createFileManagerIntent(this)));
-        binding.localGamesComponentsButton.setOnClickListener(view -> showPage(TAB_COMPONENTS));
         binding.localGamesComponentTaskConsole.setOnClickListener(view ->
             showActiveInstallationConsole());
         binding.localGamesSettingsButton.setOnClickListener(view -> showPage(TAB_SETTINGS));
-        binding.localGamesToolsButton.setOnClickListener(view -> showTools());
         configureOrientationButton();
         binding.localGamesNavigation.setOnItemSelectedListener(item -> {
             if (item.getItemId() == R.id.local_games_navigation_import) {
@@ -211,8 +218,16 @@ public final class LocalGamesActivity extends AppCompatActivity {
             catalogRepository = new ComponentCatalogRepository(index,
                 new FileComponentTaskRepository(paths.getTasksDirectory()),
                 new ComponentInstallationReader(paths.getInstallDirectory()));
+            GameStoragePaths gamePaths = new GameStoragePaths(getFilesDir());
             runtimeProvisionTaskRepository = new FileRuntimeProvisionTaskRepository(
-                new GameStoragePaths(getFilesDir()).getRuntimeProvisionTasksDirectory());
+                gamePaths.getRuntimeProvisionTasksDirectory());
+            if (!TextUtils.isEmpty(componentGameId)) {
+                RuntimeProfile profile = new FileRuntimeProfileRepository(
+                    gamePaths.getProfilesDirectory()).find(componentGameId).orElseThrow(() ->
+                        new IOException("component_game_runtime_profile_missing"));
+                componentBackend = profile.getRuntimeBackendType();
+                componentContainerId = profile.getContainerId();
+            }
         } catch (IOException error) {
             catalogInitializationError = safeMessage(error);
         }
@@ -257,6 +272,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void showPage(int tab) {
+        if (tab == TAB_COMPONENTS && TextUtils.isEmpty(componentGameId)) tab = TAB_LIBRARY;
         selectedTab = tab == TAB_COMPONENTS ? TAB_COMPONENTS :
             (tab == TAB_SETTINGS ? TAB_SETTINGS : TAB_LIBRARY);
         boolean showComponents = selectedTab == TAB_COMPONENTS;
@@ -291,15 +307,13 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private void showTools() {
         CharSequence[] actions = {
-            getString(R.string.local_games_shortcut_components),
             getString(R.string.local_games_shortcut_settings),
             getString(R.string.local_games_open_terminal)
         };
         new MaterialAlertDialogBuilder(this)
             .setTitle(R.string.local_games_tools_title)
             .setItems(actions, (dialog, which) -> {
-                if (which == 0) showPage(TAB_COMPONENTS);
-                else if (which == 1) showPage(TAB_SETTINGS);
+                if (which == 0) showPage(TAB_SETTINGS);
                 else if (appHost != null) appHost.openTerminal();
             })
             .show();
@@ -717,20 +731,23 @@ public final class LocalGamesActivity extends AppCompatActivity {
             boolean runtimeInstalled = false;
             try {
                 items = catalogRepository.load();
+                items = filterScopedComponents(items);
             } catch (IOException loadError) {
                 error = safeMessage(loadError);
             }
-            try {
-                provisionTask = latestRuntimeProvisionTask();
-            } catch (IOException ignored) {
-                // A damaged task record must not hide the component catalog or reinstall action.
-            }
-            try {
-                runtimeInstalled = new RootfsRuntimeInstallationReader(
-                    new GameStoragePaths(getFilesDir()))
-                    .readActive("debian-13-games-rootfs").isPresent();
-            } catch (IOException | RuntimeException ignored) {
-                // Missing or stale activation metadata is rendered as not installed.
+            if (componentBackend == GameRuntimeBackendType.ROOTFS_PROOT) {
+                try {
+                    provisionTask = latestRuntimeProvisionTask();
+                } catch (IOException ignored) {
+                    // A damaged task record must not hide the component catalog or reinstall action.
+                }
+                try {
+                    runtimeInstalled = new RootfsRuntimeInstallationReader(
+                        new GameStoragePaths(getFilesDir()))
+                        .readActive(componentContainerId, "debian-13-games-rootfs").isPresent();
+                } catch (IOException | RuntimeException ignored) {
+                    // Missing or stale activation metadata is rendered as not installed.
+                }
             }
             List<ComponentCatalogItem> loadedItems = items;
             String loadedError = error;
@@ -756,13 +773,24 @@ public final class LocalGamesActivity extends AppCompatActivity {
         RuntimeProvisionTask latest = null;
         for (RuntimeProvisionTask task : runtimeProvisionTaskRepository.list()) {
             if (!"debian-13-games-rootfs".equals(task.getPackageName())) continue;
+            if (!task.getContainerId().equals(componentContainerId)) continue;
             if (latest == null || task.getCreatedAt() > latest.getCreatedAt()) latest = task;
         }
         return latest;
     }
 
+    private List<ComponentCatalogItem> filterScopedComponents(List<ComponentCatalogItem> items)
+        throws IOException {
+        if (componentBackend == null) throw new IOException("component_runtime_scope_missing");
+        List<ComponentCatalogItem> result = new java.util.ArrayList<>();
+        for (ComponentCatalogItem item : items) {
+            if (item.getDescriptor().supportsBackend(componentBackend)) result.add(item);
+        }
+        return result;
+    }
+
     private void renderCatalog(List<ComponentCatalogItem> items) {
-        binding.localGamesComponentsLoading.hide();
+        binding.localGamesComponentsLoading.setVisibility(View.GONE);
         binding.localGamesComponentsError.setVisibility(View.GONE);
         renderActiveInstallationConsoleAction();
         ensureComponentRows(items);
@@ -787,7 +815,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 if (section == null) {
                     section = ItemLocalGamesComponentSectionBinding.inflate(
                         getLayoutInflater(), binding.localGamesComponentSections, false);
-                    section.localGamesComponentSectionTitle.setText(componentTypeLabel(type));
+                    configureComponentSection(section, type);
                     binding.localGamesComponentSections.addView(section.getRoot());
                 }
                 ItemLocalGamesComponentBinding row = ItemLocalGamesComponentBinding.inflate(
@@ -796,6 +824,26 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 componentRows.put(item.getDescriptor().getId(), row);
             }
         }
+    }
+
+    private void configureComponentSection(ItemLocalGamesComponentSectionBinding section,
+                                           ComponentType type) {
+        setComponentSectionExpanded(section, type, false);
+        section.localGamesComponentSectionTitle.setOnClickListener(view ->
+            setComponentSectionExpanded(section, type,
+                section.localGamesComponentSectionItems.getVisibility() != View.VISIBLE));
+    }
+
+    private void setComponentSectionExpanded(ItemLocalGamesComponentSectionBinding section,
+                                             ComponentType type, boolean expanded) {
+        int label = componentTypeLabel(type);
+        section.localGamesComponentSectionTitle.setText(getString(expanded
+            ? R.string.local_games_component_section_expanded
+            : R.string.local_games_component_section_collapsed, getString(label)));
+        section.localGamesComponentSectionTitle.setContentDescription(getString(expanded
+            ? R.string.local_games_component_section_collapse
+            : R.string.local_games_component_section_expand, getString(label)));
+        section.localGamesComponentSectionItems.setVisibility(expanded ? View.VISIBLE : View.GONE);
     }
 
     private void renderComponent(ItemLocalGamesComponentBinding row,
@@ -862,7 +910,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 return getString(R.string.local_games_component_summary_libudev);
             case "en-ru-locale":
                 return getString(R.string.local_games_component_summary_locale);
-            case "glibc-prefix":
+            case "termux-glibc-runtime":
                 return getString(R.string.local_games_component_summary_glibc);
             case "scripts":
                 return getString(R.string.local_games_component_summary_scripts);
@@ -883,7 +931,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
             row.localGamesComponentPrimaryAction.setText(
                 R.string.local_games_component_view_process);
             row.localGamesComponentPrimaryAction.setOnClickListener(view ->
-                ComponentTaskConsoleDialog.show(this, task.getTaskId()));
+                showComponentInstallationConsole(task));
             row.localGamesComponentPrimaryAction.setEnabled(true);
             row.localGamesComponentPrimaryAction.setVisibility(View.VISIBLE);
             return;
@@ -917,7 +965,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 row.localGamesComponentPrimaryAction.setOnClickListener(view -> {
                     if (showActiveInstallationConsole()) return;
                     disableActions(row);
-                    String taskId = RuntimeProvisionTasks.enqueue(this, "debian-13-games-rootfs");
+                    String taskId = RuntimeProvisionTasks.enqueue(this,
+                        "debian-13-games-rootfs", componentContainerId);
                     RuntimeProvisionConsoleDialog.show(this, taskId);
                     scheduleCatalogRefresh(150);
                 });
@@ -930,7 +979,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
             row.localGamesComponentPrimaryAction.setOnClickListener(view -> {
                 if (showActiveInstallationConsole()) return;
                 disableActions(row);
-                String taskId = RuntimeProvisionTasks.enqueue(this, "debian-13-games-rootfs");
+                String taskId = RuntimeProvisionTasks.enqueue(this,
+                    "debian-13-games-rootfs", componentContainerId);
                 RuntimeProvisionConsoleDialog.show(this, taskId);
                 Toast.makeText(this, getString(R.string.local_games_runtime_provision_started,
                     taskId), Toast.LENGTH_SHORT).show();
@@ -943,12 +993,17 @@ public final class LocalGamesActivity extends AppCompatActivity {
         switch (item.getState()) {
             case NOT_INSTALLED:
             case UPDATE_AVAILABLE:
-                title = R.string.local_games_component_download;
+                title = isTermuxGlibcRuntime(item.getDescriptor()) &&
+                    isRuntimeComponentAvailable(item.getDescriptor())
+                    ? R.string.local_games_component_reinstall
+                    : isTermuxGlibcRuntime(item.getDescriptor())
+                        ? R.string.local_games_component_install
+                        : R.string.local_games_component_download;
                 action = view -> {
                     if (showActiveInstallationConsole()) return;
                     disableActions(row);
                     String taskId = ComponentTasks.enqueue(this, item.getDescriptor().getId());
-                    ComponentTaskConsoleDialog.show(this, taskId);
+                    showComponentInstallationConsole(item.getDescriptor().getId(), taskId);
                     scheduleCatalogRefresh(150);
                 };
                 break;
@@ -958,7 +1013,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                     if (showActiveInstallationConsole()) return;
                     disableActions(row);
                     String taskId = ComponentTasks.enqueue(this, item.getDescriptor().getId());
-                    ComponentTaskConsoleDialog.show(this, taskId);
+                    showComponentInstallationConsole(item.getDescriptor().getId(), taskId);
                     scheduleCatalogRefresh(150);
                 };
                 break;
@@ -988,7 +1043,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                     if (showActiveInstallationConsole()) return;
                     disableActions(row);
                     ComponentTasks.resume(this, task.getTaskId());
-                    ComponentTaskConsoleDialog.show(this, task.getTaskId());
+                    showComponentInstallationConsole(task);
                     scheduleCatalogRefresh(150);
                 };
                 break;
@@ -1002,7 +1057,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                     if (showActiveInstallationConsole()) return;
                     disableActions(row);
                     ComponentTasks.retry(this, task.getTaskId());
-                    ComponentTaskConsoleDialog.show(this, task.getTaskId());
+                    showComponentInstallationConsole(task);
                     scheduleCatalogRefresh(150);
                 };
                 break;
@@ -1026,7 +1081,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private boolean showActiveInstallationConsole() {
         ComponentTask component = findActiveComponentTask();
         if (component != null) {
-            ComponentTaskConsoleDialog.show(this, component.getTaskId());
+            showComponentInstallationConsole(component);
             return true;
         }
         RuntimeProvisionTask provision = findActiveProvisionTask();
@@ -1035,6 +1090,19 @@ public final class LocalGamesActivity extends AppCompatActivity {
             return true;
         }
         return false;
+    }
+
+    private void showComponentInstallationConsole(ComponentTask task) {
+        showComponentInstallationConsole(task.getPackageName(), task.getTaskId());
+    }
+
+    private void showComponentInstallationConsole(String componentId, String taskId) {
+        if (TERMUX_GLIBC_RUNTIME_COMPONENT.equals(componentId)) {
+            RuntimeProvisionConsoleDialog.show(this, taskId,
+                R.string.local_games_component_console_title);
+        } else {
+            ComponentTaskConsoleDialog.show(this, taskId);
+        }
     }
 
     @Nullable
@@ -1078,6 +1146,20 @@ public final class LocalGamesActivity extends AppCompatActivity {
         }
     }
 
+    private boolean isRuntimeComponentAvailable(ComponentDescriptor descriptor) {
+        if (appHost == null) return false;
+        try {
+            return appHost.isRuntimeComponentAvailable(descriptor.getId(),
+                descriptor.getVersion(), descriptor.getSha256());
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isTermuxGlibcRuntime(ComponentDescriptor descriptor) {
+        return descriptor != null && TERMUX_GLIBC_RUNTIME_COMPONENT.equals(descriptor.getId());
+    }
+
     private static void disableActions(ItemLocalGamesComponentBinding row) {
         row.localGamesComponentPrimaryAction.setEnabled(false);
     }
@@ -1088,7 +1170,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void renderCatalogError(String message) {
-        binding.localGamesComponentsLoading.hide();
+        binding.localGamesComponentsLoading.setVisibility(View.GONE);
         binding.localGamesComponentsError.setText(
             getString(R.string.local_games_components_load_failed, message));
         binding.localGamesComponentsError.setVisibility(View.VISIBLE);

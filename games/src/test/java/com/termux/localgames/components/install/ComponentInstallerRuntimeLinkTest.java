@@ -45,13 +45,13 @@ public class ComponentInstallerRuntimeLinkTest {
 
     @Test
     public void installsPackageWhoseLinksPointAtTheRuntimePrefix() throws Exception {
-        File archive = archiveWithSymlink("glibc-prefix.tar.xz",
+        File archive = archiveWithSymlink("runtime-links.tar.xz",
             "glibc/lib/libc.so.6", RUNTIME_ROOT + "glibc/lib/libc-2.38.so");
         Fixture fixture = fixture(Collections.singletonList(RUNTIME_ROOT));
 
-        InstalledComponent installed = install(fixture, archive, "glibc-prefix");
+        InstalledComponent installed = install(fixture, archive, "runtime-links");
 
-        assertEquals("glibc-prefix", installed.getPackageName());
+        assertEquals("runtime-links", installed.getPackageName());
         assertEquals(ComponentTaskState.INSTALLED,
             fixture.repository.find(taskId()).get().getState());
     }
@@ -62,7 +62,7 @@ public class ComponentInstallerRuntimeLinkTest {
             "glibc/lib/passwd", "/etc/passwd");
         Fixture fixture = fixture(Collections.singletonList(RUNTIME_ROOT));
 
-        expectFailure(fixture, archive, "glibc-prefix", "link_traversal");
+        expectFailure(fixture, archive, "runtime-links", "link_traversal");
     }
 
     @Test
@@ -71,7 +71,7 @@ public class ComponentInstallerRuntimeLinkTest {
             "glibc/lib/libc.so.6", RUNTIME_ROOT + "glibc/lib/libc-2.38.so");
         Fixture fixture = fixture(Collections.emptyList());
 
-        expectFailure(fixture, archive, "glibc-prefix", "link_traversal");
+        expectFailure(fixture, archive, "runtime-links", "link_traversal");
     }
 
     @Test
@@ -80,24 +80,24 @@ public class ComponentInstallerRuntimeLinkTest {
             "glibc/lib/escape", "../../../../etc/passwd");
         Fixture fixture = fixture(Collections.singletonList(RUNTIME_ROOT));
 
-        expectFailure(fixture, archive, "glibc-prefix", "link_traversal");
+        expectFailure(fixture, archive, "runtime-links", "link_traversal");
     }
 
     @Test
     public void failsTheTaskWhenTheComponentCannotReachTheLauncherRuntime() throws Exception {
-        File archive = archiveWithSymlink("glibc-prefix.tar.xz",
+        File archive = archiveWithSymlink("runtime-links.tar.xz",
             "glibc/lib/libc.so.6", RUNTIME_ROOT + "glibc/lib/libc-2.38.so");
         Fixture fixture = fixture(Collections.singletonList(RUNTIME_ROOT));
         fixture.installer.setRuntimeComponentActivator((task, directory) -> {
             throw new ComponentInstallException("runtime_activation_failed", "no runtime");
         });
 
-        expectFailure(fixture, archive, "glibc-prefix", "runtime_activation_failed");
+        expectFailure(fixture, archive, "runtime-links", "runtime_activation_failed");
     }
 
     @Test
     public void handsTheVerifiedArchiveToTheActivator() throws Exception {
-        File archive = archiveWithSymlink("glibc-prefix.tar.xz",
+        File archive = archiveWithSymlink("runtime-links.tar.xz",
             "glibc/lib/libc.so.6", RUNTIME_ROOT + "glibc/lib/libc-2.38.so");
         Fixture fixture = fixture(Collections.singletonList(RUNTIME_ROOT));
         List<String> activated = new ArrayList<>();
@@ -109,9 +109,9 @@ public class ComponentInstallerRuntimeLinkTest {
             activated.add(task.getPackageName());
         });
 
-        install(fixture, archive, "glibc-prefix");
+        install(fixture, archive, "runtime-links");
 
-        assertEquals(Collections.singletonList("glibc-prefix"), activated);
+        assertEquals(Collections.singletonList("runtime-links"), activated);
     }
 
     private InstalledComponent install(Fixture fixture, File archive, String packageName)
