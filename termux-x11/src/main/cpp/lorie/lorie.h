@@ -40,6 +40,18 @@ extern bool lorieDebugEnabled; // Set in activity.c's startLogcat, only called w
 void lorieSetRendererWakeupCond(int fd);
 int rendererGetWakeupCondFd(void);
 
+typedef struct LorieVulkanWindowBuffer LorieVulkanWindowBuffer;
+
+/** Xorg-main-thread-only helpers used by the Bionic Vulkan broker. */
+bool lorieVulkanBrokerCreateWindowBuffer(XID windowId, bool bgra8888,
+                                         LorieVulkanWindowBuffer **outWindowBuffer,
+                                         AHardwareBuffer **outBuffer,
+                                         uint32_t *outWidth, uint32_t *outHeight);
+void lorieVulkanBrokerDestroyWindowBuffer(LorieVulkanWindowBuffer *windowBuffer);
+bool lorieVulkanBrokerPresentWindowBuffer(XID windowId,
+                                          LorieVulkanWindowBuffer *windowBuffer);
+bool lorieVulkanBrokerGetWindowSize(XID windowId, uint32_t *outWidth, uint32_t *outHeight);
+
 __unused void rendererInit(JNIEnv* env);
 __unused void rendererSetFiltering(JNIEnv* env, jobject self, jint filtering);
 __unused void rendererSetExternalBufferMode(bool enabled);

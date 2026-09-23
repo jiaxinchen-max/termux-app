@@ -16,6 +16,8 @@
 #include <arpa/inet.h>
 #include <poll.h>
 #include "lorie.h"
+#include "vulkan_broker.h"
+#include "vortek_backend.h"
 #include "waylandRenderServer.h"
 
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
@@ -273,6 +275,58 @@ static jboolean xConnected(__unused JNIEnv* env,__unused jclass clazz) {
     return conn_fd != -1;
 }
 
+static jboolean vulkanBrokerNativeStart(JNIEnv *env, __unused jclass clazz, jstring socketPath) {
+    if (!socketPath) return JNI_FALSE;
+    const char *path = (*env)->GetStringUTFChars(env, socketPath, NULL);
+    if (!path) return JNI_FALSE;
+    bool started = vortekBackendInitialize(env) && vulkanBrokerStart(path);
+    (*env)->ReleaseStringUTFChars(env, socketPath, path);
+    return started ? JNI_TRUE : JNI_FALSE;
+}
+
+static void vulkanBrokerNativeStop(__unused JNIEnv *env, __unused jclass clazz) {
+    vulkanBrokerStop();
+}
+
+static jboolean vulkanBrokerNativeIsRunning(__unused JNIEnv *env, __unused jclass clazz) {
+    return vulkanBrokerIsRunning() ? JNI_TRUE : JNI_FALSE;
+}
+
+static jint vortekGetWindowWidth(__unused JNIEnv *env, __unused jobject self, jint windowId) {
+    uint32_t width = 0;
+    uint32_t height = 0;
+    return vulkanBrokerGetWindowSize((uint32_t) windowId, &width, &height) ? (jint) width : 0;
+}
+
+static jint vortekGetWindowHeight(__unused JNIEnv *env, __unused jobject self, jint windowId) {
+    uint32_t width = 0;
+    uint32_t height = 0;
+    return vulkanBrokerGetWindowSize((uint32_t) windowId, &width, &height) ? (jint) height : 0;
+}
+
+static jlong vortekGetWindowHardwareBuffer(__unused JNIEnv *env, __unused jobject self,
+                                           jint windowId, jboolean bgra8888) {
+    AHardwareBuffer *buffer = NULL;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    if (!vulkanBrokerAcquireWindowBuffer((uint32_t) windowId, bgra8888 == JNI_TRUE,
+                                         &buffer, &width, &height)) {
+        return 0;
+    }
+    return (jlong) (uintptr_t) buffer;
+}
+
+static void vortekReleaseWindowHardwareBuffer(__unused JNIEnv *env, __unused jobject self,
+                                              jlong buffer) {
+    vulkanBrokerReleaseWindowBuffer((AHardwareBuffer *) (uintptr_t) buffer);
+}
+
+static void vortekUpdateWindowContent(__unused JNIEnv *env, __unused jobject self, jint windowId,
+                                      jlong buffer) {
+    vulkanBrokerNotifyWindowContent((uint32_t) windowId,
+                                    (AHardwareBuffer *) (uintptr_t) buffer);
+}
+
 static jboolean killExternalServer(__unused JNIEnv *env, __unused jclass clazz, jint signal) {
     return waylandRenderKillExternalServer(signal);
 }
@@ -460,6 +514,26 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, __unused void *reserved) {
     (*vm)->AttachCurrentThread(vm, &env, NULL);
     jclass cls = (*env)->FindClass(env, "com/termux/x11/LorieView");
     (*env)->RegisterNatives(env, cls, methods, sizeof(methods)/sizeof(methods[0]));
+
+    static JNINativeMethod brokerMethods[] = {
+            {"nativeStart", "(Ljava/lang/String;)Z", (void *)&vulkanBrokerNativeStart},
+            {"nativeStop", "()V", (void *)&vulkanBrokerNativeStop},
+            {"nativeIsRunning", "()Z", (void *)&vulkanBrokerNativeIsRunning},
+    };
+    jclass brokerClass = (*env)->FindClass(env, "com/termux/x11/VulkanBroker");
+    (*env)->RegisterNatives(env, brokerClass, brokerMethods,
+        sizeof(brokerMethods)/sizeof(brokerMethods[0]));
+
+    static JNINativeMethod vortekMethods[] = {
+            {"getWindowWidth", "(I)I", (void *)&vortekGetWindowWidth},
+            {"getWindowHeight", "(I)I", (void *)&vortekGetWindowHeight},
+            {"getWindowHardwareBuffer", "(IZ)J", (void *)&vortekGetWindowHardwareBuffer},
+            {"releaseWindowHardwareBuffer", "(J)V", (void *)&vortekReleaseWindowHardwareBuffer},
+            {"updateWindowContent", "(IJ)V", (void *)&vortekUpdateWindowContent},
+    };
+    jclass vortekClass = (*env)->FindClass(env, "com/termux/x11/VortekServerCallbacks");
+    (*env)->RegisterNatives(env, vortekClass, vortekMethods,
+        sizeof(vortekMethods)/sizeof(vortekMethods[0]));
 
     return JNI_VERSION_1_6;
 }

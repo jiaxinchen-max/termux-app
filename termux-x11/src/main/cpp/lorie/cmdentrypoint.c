@@ -12,6 +12,7 @@
 #include <android/native_window_jni.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/prctl.h>
 #include <sys/ioctl.h>
 #include <libgen.h>
@@ -24,6 +25,8 @@
 #include <arpa/inet.h>
 #include <poll.h>
 #include "lorie.h"
+#include "vulkan_broker.h"
+#include "vortek_backend.h"
 
 #define log(prio, ...) __android_log_print(ANDROID_LOG_ ## prio, "LorieNative", __VA_ARGS__)
 
@@ -43,6 +46,26 @@ struct xorg_list registeredBuffers;
 static void* startServer(__unused void* cookie) {
     char* envp[] = { NULL };
     exit(dix_main(argc, (char**) argv, envp));
+}
+
+static void startVulkanBrokerFromEnvironment(JNIEnv *env) {
+    const char *configuredPath = getenv("TERMUX_VULKAN_BROKER_SOCKET");
+    char defaultPath[sizeof(((struct sockaddr_un *) 0)->sun_path)];
+    const char *socketPath = configuredPath;
+
+    if (!socketPath || socketPath[0] == '\0') {
+        const char *tmpdir = getenv("TMPDIR");
+        if (!tmpdir || tmpdir[0] == '\0') return;
+        snprintf(defaultPath, sizeof(defaultPath), "%s/.vortek/V0", tmpdir);
+        socketPath = defaultPath;
+    }
+
+    if (!vortekBackendInitialize(env)) {
+        log(WARN, "Vortek Vulkan RPC backend disabled");
+    }
+    if (!vulkanBrokerStart(socketPath)) {
+        log(WARN, "Vulkan broker disabled: cannot listen on %s", socketPath);
+    }
 }
 
 static Bool detectTracer(void)
@@ -204,6 +227,7 @@ Java_com_termux_x11_CmdEntryPoint_start(JNIEnv *env, __unused jclass cls, jobjec
     AChoreographer_postFrameCallback(choreographer, (AChoreographer_frameCallback) lorieChoreographerFrameCallback, choreographer);
 
     xorg_list_init(&registeredBuffers);
+    startVulkanBrokerFromEnvironment(env);
     pthread_create(&t, NULL, startServer, vm);
     return JNI_TRUE;
 }

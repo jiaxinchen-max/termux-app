@@ -281,11 +281,29 @@ add_library(Xlorie SHARED
         "lorie/InputXKB.c"
         "lorie/renderer.c"
         "lorie/buffer.c"
+        "lorie/vulkan_broker.c"
+        "lorie/vortek_backend.c"
         "lorie/activity.c"
-        "lorie/waylandRenderServer.c")
-target_include_directories(Xlorie PRIVATE ${inc} "libxcvt/include")
+        "lorie/waylandRenderServer.c"
+        "third_party/vortek/vortekrenderer/src/vk_object.c"
+        "third_party/vortek/vortekrenderer/src/request_handler.c"
+        "third_party/vortek/vortekrenderer/src/vulkan_helper.c"
+        "third_party/vortek/vortekrenderer/src/vk_context.c"
+        "third_party/vortek/vortekrenderer/src/resource_memory.c"
+        "third_party/vortek/vortekrenderer/src/xwindow_swapchain.c"
+        "third_party/vortek/vortekrenderer/src/texture_decoder.c"
+        "third_party/vortek/vortekrenderer/src/shader_inspector.c"
+        "third_party/vortek/vortekrenderer/src/async_pipeline_creator.c"
+        "third_party/vortek/vortekrenderer/src/timeline_semaphore.c"
+        "third_party/vortek/winlator/src/arrays.c"
+        "third_party/vortek/winlator/src/ring_buffer.c"
+        "third_party/vortek/winlator/src/sysvshared_memory.c")
+target_include_directories(Xlorie PRIVATE ${inc} "libxcvt/include"
+        "third_party/vortek/vortekrenderer/include"
+        "third_party/vortek/winlator/include")
 target_link_options(Xlorie PRIVATE "-Wl,--as-needed" "-Wl,--no-undefined" "-fvisibility=hidden")
 target_link_libraries(Xlorie "-Wl,--whole-archive" ${XSERVER_LIBS} "-Wl,--no-whole-archive" android mediandk log m z EGL GLESv2)
 target_compile_options(Xlorie PRIVATE ${compile_options})
+target_compile_definitions(Xlorie PRIVATE VT_SERVER VK_USE_PLATFORM_ANDROID_KHR)
 target_apply_patch(Xlorie "${CMAKE_CURRENT_SOURCE_DIR}/xserver" "${CMAKE_CURRENT_SOURCE_DIR}/patches/xserver.patch")
 target_apply_patch(Xlorie "${CMAKE_CURRENT_SOURCE_DIR}/libepoxy" "${CMAKE_CURRENT_SOURCE_DIR}/patches/libepoxy.patch")

@@ -535,7 +535,13 @@ void rendererSetWindow(JNIEnv *env, __unused jobject thiz, jobject jsfc) {
 
     pendingWin = newWin;
     windowChanged = TRUE;
-    expectedW = expectedH = 0;
+    /*
+     * The Java view owns the logical X11 viewport.  A Surface recreation is
+     * common while the embedded server reconnects, and does not necessarily
+     * result in another viewport callback.  Keep the last known size so a
+     * newly connected server allocates its root buffer for the same drawable
+     * area instead of the full Surface (which includes the terminal toolbar).
+     */
 
     pthread_cond_signal(stateCond);
 

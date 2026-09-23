@@ -312,6 +312,8 @@ emit RUNNING PREPARING_PREFIX 25 null '' false preparing_prefix
 export WINEPREFIX="$GUEST_PREFIX"
 export DISPLAY=:0
 export PULSE_SERVER=127.0.0.1
+# Xorg runs on the Termux host while the GLIBC client sees its tmpfs at /tmp.
+export TERMUX_VULKAN_BROKER_SOCKET="$TERMUX_FILES_DIR/usr/tmp/.vortek/V0"
 export RESOLUTION
 export GAMES_RUNTIME_PACKAGE="$WINE_PACKAGE"
 export GAMES_DX_WRAPPER="$DX_WRAPPER"

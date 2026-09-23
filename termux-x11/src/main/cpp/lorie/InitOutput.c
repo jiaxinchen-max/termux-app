@@ -115,15 +115,19 @@ typedef struct {
 #define LORIE_PIXMAP_PRIV_FROM_PIXMAP(pixmap) (pixmap ? ((LoriePixmapPriv*) exaGetPixmapDriverPrivate(pixmap)) : NULL)
 #define LORIE_BUFFER_FROM_PIXMAP(pixmap) (pixmap ? ((LoriePixmapPriv*) exaGetPixmapDriverPrivate(pixmap))->buffer : NULL)
 
-static LorieBuffer *lorieEnsureGpuSampleable(PixmapPtr pixmap, int8_t type) {
+static LorieBuffer *lorieEnsureGpuSampleable(PixmapPtr pixmap, int8_t type, int8_t format) {
     LoriePixmapPriv *priv = LORIE_PIXMAP_PRIV_FROM_PIXMAP(pixmap);
     const LorieBuffer_Desc *desc;
-    if (!priv || !priv->buffer || priv->mem)
+    if (!priv || !priv->buffer)
         return NULL;
 
     desc = LorieBuffer_description(priv->buffer);
+    if (desc->type == type)
+        return priv->buffer;
+    if (priv->mem)
+        return NULL;
     if (desc->type == LORIEBUFFER_REGULAR) {
-        LorieBuffer_convert(priv->buffer, type, AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM);
+        LorieBuffer_convert(priv->buffer, type, format);
         if (desc->type != LORIEBUFFER_REGULAR) {
             // LorieBuffer_convert does not report status but it does not let the type change in the case of error.
             pScreenPtr->ModifyPixmapHeader(pixmap, 0, 0, 0, 0, desc->stride * 4, NULL);
@@ -132,6 +136,100 @@ static LorieBuffer *lorieEnsureGpuSampleable(PixmapPtr pixmap, int8_t type) {
     }
 
     return desc->type == type ? priv->buffer : NULL;
+}
+
+struct LorieVulkanWindowBuffer {
+    LorieBuffer *source;
+    uint32_t width;
+    uint32_t height;
+};
+
+bool lorieVulkanBrokerCreateWindowBuffer(XID windowId, bool bgra8888,
+                                         LorieVulkanWindowBuffer **outWindowBuffer,
+                                         AHardwareBuffer **outBuffer,
+                                         uint32_t *outWidth, uint32_t *outHeight) {
+    WindowPtr window = NULL;
+    AHardwareBuffer *hardwareBuffer = NULL;
+    AHardwareBuffer_Desc description = {
+        .layers = 1,
+        .usage = AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT |
+                 AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE |
+                 AHARDWAREBUFFER_USAGE_GPU_FRAMEBUFFER,
+        /*
+         * Vortek advertises VK_FORMAT_R8G8B8A8_UNORM for its default
+         * surface.  RGBX is not its Vulkan equivalent on Android and the
+         * resulting import is interpreted as tiled garbage by the emulator's
+         * host driver.  Keep the allocation format identical to the Vulkan
+         * surface format; the compositor already treats both as RGBA.
+         */
+        .format = bgra8888 ? AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM
+                           : AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+    };
+    LorieVulkanWindowBuffer *windowBuffer;
+
+    if (!outWindowBuffer || !outBuffer || !outWidth || !outHeight) return false;
+    *outWindowBuffer = NULL;
+    *outBuffer = NULL;
+    *outWidth = *outHeight = 0;
+    if (dixLookupResourceByType((void **) &window, windowId, RT_WINDOW, serverClient,
+                                DixReadAccess) != Success || !window) {
+        return false;
+    }
+
+    description.width = (uint32_t) window->drawable.width;
+    description.height = (uint32_t) window->drawable.height;
+    if (description.width == 0 || description.height == 0 ||
+        AHardwareBuffer_allocate(&description, &hardwareBuffer) != 0 || !hardwareBuffer)
+        return false;
+
+    windowBuffer = calloc(1, sizeof(*windowBuffer));
+    if (!windowBuffer) {
+        AHardwareBuffer_release(hardwareBuffer);
+        return false;
+    }
+    windowBuffer->source = LorieBuffer_wrapAHardwareBuffer(hardwareBuffer);
+    if (!windowBuffer->source) {
+        free(windowBuffer);
+        return false;
+    }
+    lorieRegisterBuffer(windowBuffer->source);
+    AHardwareBuffer_describe(hardwareBuffer, &description);
+    AHardwareBuffer_acquire(hardwareBuffer); // Reference owned by the Vortek image.
+    windowBuffer->width = description.width;
+    windowBuffer->height = description.height;
+    *outWindowBuffer = windowBuffer;
+    *outBuffer = hardwareBuffer;
+    *outWidth = description.width;
+    *outHeight = description.height;
+    return true;
+}
+
+void lorieVulkanBrokerDestroyWindowBuffer(LorieVulkanWindowBuffer *windowBuffer) {
+    if (!windowBuffer) return;
+    if (windowBuffer->source) {
+        lorieUnregisterBuffer(windowBuffer->source);
+        LorieBuffer_release(windowBuffer->source);
+    }
+    free(windowBuffer);
+}
+
+bool lorieVulkanBrokerGetWindowSize(XID windowId, uint32_t *outWidth, uint32_t *outHeight) {
+    WindowPtr window = NULL;
+    PixmapPtr pixmap;
+
+    if (!outWidth || !outHeight) return false;
+    *outWidth = *outHeight = 0;
+    if (dixLookupResourceByType((void **) &window, windowId, RT_WINDOW, serverClient,
+                                DixReadAccess) != Success || !window) {
+        return false;
+    }
+
+    pixmap = window->drawable.pScreen->GetWindowPixmap(window);
+    if (!pixmap || window->drawable.width <= 0 || window->drawable.height <= 0)
+        return false;
+    *outWidth = (uint32_t) window->drawable.width;
+    *outHeight = (uint32_t) window->drawable.height;
+    return true;
 }
 
 static Bool lorieServerDebugEnabled = FALSE;
@@ -785,6 +883,10 @@ void InitOutput(ScreenInfo * screen_info, int argc, char **argv) {
     screen_info->numPixmapFormats = ARRAY_SIZE(depths);
 
     rendererTestCapabilities(&pvfb->root.legacyDrawing);
+    if (getenv("TERMUX_X11_FORCE_AHARDWAREBUFFER")) {
+        pvfb->root.legacyDrawing = FALSE;
+        log(WARN, "Forcing AHardwareBuffer backing despite renderer capability fallback");
+    }
     xorgGlxCreateVendor();
     lorieInitClipboard();
 
@@ -869,8 +971,10 @@ Bool lorieTryScheduleGpuCopy(PixmapPtr pixmap, PixmapPtr dst, RegionPtr update, 
         return FALSE;
     }
 
-    if (!(srcBuffer = lorieEnsureGpuSampleable(pixmap, LORIEBUFFER_AHARDWAREBUFFER)) ||
-        !(dstBuffer = lorieEnsureGpuSampleable(dst, LORIEBUFFER_AHARDWAREBUFFER))) {
+    if (!(srcBuffer = lorieEnsureGpuSampleable(pixmap, LORIEBUFFER_AHARDWAREBUFFER,
+                                                 AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM)) ||
+        !(dstBuffer = lorieEnsureGpuSampleable(dst, LORIEBUFFER_AHARDWAREBUFFER,
+                                                 AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM))) {
         gpuCopyAttempts++;
         return FALSE;
     }
@@ -945,6 +1049,61 @@ void lorieGpuCopyAck(PixmapPtr pixmap, void *dst_buffer) {
         LorieBuffer_release(priv->buffer);
     if (dst_buffer)
         LorieBuffer_release((LorieBuffer *) dst_buffer);
+}
+
+bool lorieVulkanBrokerPresentWindowBuffer(XID windowId,
+                                          LorieVulkanWindowBuffer *windowBuffer) {
+    WindowPtr window = NULL;
+    PixmapPtr destination;
+    LorieBuffer *destinationBuffer;
+    const LorieBuffer_Desc *sourceDescription;
+    const LorieBuffer_Desc *destinationDescription;
+    uint32_t writeIndex, readIndex;
+
+    if (!windowBuffer || !windowBuffer->source || !lorieConnectionAlive() ||
+        pvfb->gpuPresentDisabled || pvfb->root.legacyDrawing)
+        return false;
+    if (dixLookupResourceByType((void **) &window, windowId, RT_WINDOW, serverClient,
+                                DixReadAccess) != Success || !window)
+        return false;
+
+    destination = window->drawable.pScreen->GetWindowPixmap(window);
+    destinationBuffer = lorieEnsureGpuSampleable(destination, LORIEBUFFER_AHARDWAREBUFFER,
+                                                  AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM);
+    sourceDescription = LorieBuffer_description(windowBuffer->source);
+    if (!destinationBuffer || !sourceDescription ||
+        sourceDescription->type != LORIEBUFFER_AHARDWAREBUFFER || !sourceDescription->buffer)
+        return false;
+    destinationDescription = LorieBuffer_description(destinationBuffer);
+    if (!destinationDescription ||
+        destinationDescription->type != LORIEBUFFER_AHARDWAREBUFFER || !destinationDescription->buffer)
+        return false;
+
+    writeIndex = pvfb->state->gpuCopyQueue.writeIndex;
+    readIndex = pvfb->state->gpuCopyQueue.readIndex;
+    if (writeIndex - readIndex >= LORIE_GPU_COPY_QUEUE_CAPACITY)
+        return false;
+
+    LorieGpuCopyEntry *entry = &pvfb->state->gpuCopyQueue.entries[
+        writeIndex % LORIE_GPU_COPY_QUEUE_CAPACITY];
+    entry->serial = ++pvfb->gpuCopySerialCounter;
+    entry->srcBufferId = sourceDescription->id;
+    entry->dstBufferId = destinationDescription->id;
+    entry->xOff = (int16_t) window->drawable.x;
+    entry->yOff = (int16_t) window->drawable.y;
+    entry->numRects = 1;
+    entry->rects[0] = (LorieGpuCopyRect) {
+        .x1 = 0,
+        .y1 = 0,
+        .x2 = (int16_t) windowBuffer->width,
+        .y2 = (int16_t) windowBuffer->height,
+    };
+    __sync_synchronize();
+    pvfb->state->gpuCopyQueue.writeIndex = writeIndex + 1;
+    pthread_cond_signal(rendererCond);
+    DamageDamageRegion(&window->drawable, &window->borderSize);
+    lorieWakeServer();
+    return true;
 }
 
 Bool loriePresentFlip(__unused RRCrtcPtr crtc, __unused uint64_t event_id, __unused uint64_t target_msc, PixmapPtr pixmap, __unused Bool sync_flip) {

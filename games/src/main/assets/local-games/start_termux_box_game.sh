@@ -132,6 +132,8 @@ load_configs() {
     export WINEPREFIX="$TERMUX_BOX_CONTAINER_PREFIX"
     export RESOLUTION="${TERMUX_BOX_RESOLUTION:-1280x720}"
     export TERMUX_BOX_TRANSLATOR="${TERMUX_BOX_TRANSLATOR:-box64}"
+    # The Android/Bionic Vulkan broker is hosted by termux-x11.
+    export TERMUX_VULKAN_BROKER_SOCKET="$TERMUX_GLIBC_DIR/tmp/.vortek/V0"
     if [ -z "${LC_ALL:-}" ] && [ -f "$TERMUX_OPT_DIR/locale.conf" ]; then
         LC_ALL=$(sed -n '1p' "$TERMUX_OPT_DIR/locale.conf")
     fi
@@ -143,7 +145,12 @@ load_configs() {
 
     # ---- 4. Hardcoded runtime defaults ----
     export BOX64_LD_LIBRARY_PATH="$WINE_PATH/lib64:$WINE_PATH/lib64/wine/x86_64-unix:$WINE_PATH/lib:$WINE_PATH/lib/wine/x86_64-unix:$TERMUX_GLIBC_DIR/lib/x86_64-linux-gnu"
-    export VK_ICD_FILENAMES="$TERMUX_GLIBC_DIR/share/vulkan/icd.d/freedreno_icd.aarch64.json"
+    VORTEK_ICD="$TERMUX_GLIBC_DIR/share/vulkan/icd.d/vortek_icd.aarch64.json"
+    if [ -f "$VORTEK_ICD" ]; then
+        export VK_ICD_FILENAMES="$VORTEK_ICD"
+    else
+        export VK_ICD_FILENAMES="$TERMUX_GLIBC_DIR/share/vulkan/icd.d/freedreno_icd.aarch64.json"
+    fi
     export DXVK_CONFIG_FILE="$TERMUX_OPT_DIR/dxvk.conf"
     export FONTCONFIG_PATH="$TERMUX_GLIBC_DIR/etc/fonts"
     export BOX64_PATH="$TERMUX_GLIBC_DIR/bin"
