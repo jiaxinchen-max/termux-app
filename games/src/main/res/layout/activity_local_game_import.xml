@@ -113,6 +113,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/local_game_import_name_layout"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
@@ -128,6 +129,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/local_game_import_working_directory_layout"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
@@ -145,6 +147,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/local_game_import_arguments_layout"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
@@ -162,6 +165,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/local_game_import_container_layout"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"

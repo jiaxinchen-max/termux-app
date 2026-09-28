@@ -295,6 +295,11 @@ public final class GameImportActivity extends AppCompatActivity {
 
         binding.localGameImportError.setVisibility(View.GONE);
         binding.localGameImportForm.setVisibility(View.VISIBLE);
+        // loadContainerChoices() may have set this field's text while the form was
+        // still View.GONE, which leaves the TextInputLayout hint stuck unfloated on
+        // top of the value. Re-apply the current text now that the form is visible
+        // so the hint recalculates correctly regardless of which finished first.
+        binding.localGameImportContainer.setText(binding.localGameImportContainer.getText(), false);
         candidateIndexes.clear();
         binding.localGameImportCandidateGroup.removeAllViews();
         int restoredIndex = 0;
