@@ -21,88 +21,31 @@
   ShmRegisterFuncs(ScreenPtr pScreen, ShmFuncsPtr funcs);
  
 +++ ./dix/dixutils.c
-@@ -506,18 +506,25 @@
+@@ -504,6 +504,11 @@
+  * sleeps for input.
+  */
  
++#define ClearWorkQueue _ClearWorkQueue
++#define ProcessWorkQueue _ProcessWorkQueue
++#define ProcessWorkQueueZombies _ProcessWorkQueueZombies
++#define QueueWorkProc _QueueWorkProc
++
  WorkQueuePtr workQueue;
  static WorkQueuePtr *workQueueLast = &workQueue;
-+static pthread_spinlock_t workQueueLock;
-+
-+__attribute__((constructor)) static void workQueueLockInit (void) {
-+    pthread_spin_init(&workQueueLock, FALSE);
-+}
  
- void
- ClearWorkQueue(void)
- {
-     WorkQueuePtr q, *p;
- 
-+    pthread_spin_lock(&workQueueLock);
-     p = &workQueue;
-     while ((q = *p)) {
-         *p = q->next;
-         free(q);
-     }
-     workQueueLast = p;
-+    pthread_spin_unlock(&workQueueLock);
- }
- 
- void
-@@ -525,6 +532,7 @@
- {
-     WorkQueuePtr q, *p;
- 
-+    pthread_spin_lock(&workQueueLock);
-     p = &workQueue;
-     /*
-      * Scan the work queue once, calling each function.  Those
-@@ -533,16 +541,20 @@
-      * QueueWorkProc.
-      */
-     while ((q = *p)) {
-+        pthread_spin_unlock(&workQueueLock);
-         if ((*q->function) (q->client, q->closure)) {
-+            pthread_spin_lock(&workQueueLock);
-             /* remove q from the list */
-             *p = q->next;       /* don't fetch until after func called */
-             free(q);
-         }
-         else {
-+            pthread_spin_lock(&workQueueLock);
-             p = &q->next;       /* don't fetch until after func called */
-         }
-     }
-     workQueueLast = p;
-+    pthread_spin_unlock(&workQueueLock);
- }
- 
- void
-@@ -550,6 +562,7 @@
- {
-     WorkQueuePtr q, *p;
- 
-+    pthread_spin_lock(&workQueueLock);
-     p = &workQueue;
-     while ((q = *p)) {
-         if (q->client && q->client->clientGone) {
-@@ -563,6 +576,7 @@
-         }
-     }
-     workQueueLast = p;
-+    pthread_spin_unlock(&workQueueLock);
- }
- 
- Bool
-@@ -578,8 +592,10 @@
-     q->client = client;
-     q->closure = closure;
-     q->next = NULL;
-+    pthread_spin_lock(&workQueueLock);
-     *workQueueLast = q;
-     workQueueLast = &q->next;
-+    pthread_spin_unlock(&workQueueLock);
+@@ -583,6 +588,11 @@
      return TRUE;
  }
  
++#undef ClearWorkQueue
++#undef ProcessWorkQueue
++#undef ProcessWorkQueueZombies
++#undef QueueWorkProc
++
+ /*
+  * Manage a queue of sleeping clients, awakening them
+  * when requested, by using the OS functions IgnoreClient
+
 +++ ./dix/enterleave.c
 @@ -1541,6 +1541,8 @@
      }
@@ -180,6 +123,19 @@
  _XFUNCPROTOBEGIN
  
  extern _X_EXPORT char *XkbIndentText(unsigned   /* size */
++++ ./os/connection.c
+@@ -185,9 +185,10 @@
+ {
+ #if !defined(WIN32)
+     OsSigHandlerPtr handler;
++    const char *notifyParent = getenv("TERMUX_X11_NOTIFY_PARENT");
+ 
+     handler = OsSignal(SIGUSR1, SIG_IGN);
+-    if (handler == SIG_IGN)
++    if (handler == SIG_IGN || (notifyParent && !strcmp(notifyParent, "1")))
+         RunFromSmartParent = TRUE;
+     OsSignal(SIGUSR1, handler);
+     ParentProcess = getppid();
 +++ ./os/osinit.c
 @@ -170,13 +170,11 @@
  #endif
@@ -225,23 +181,86 @@
          if (haslock) {
              /*
               * We're done.
-@@ -1421,6 +1423,10 @@
+@@ -1421,12 +1423,45 @@
      int pid;
  } *pidlist;
  
++#include <fcntl.h>
++#include <android/log.h>
++
 +extern char* xkbcomp_argv[];
 +extern int xkbcomp_argc;
 +int xkbcomp_main(int argc, char *argv[]);
 +
++static int xkbcomp_output_fd = -1;
++
++/* xkbcomp complains about every keysym missing from the xorgproto it was built with, and
++ * the client never sees those keys anyway, so only a failed keymap reaches the terminal. */
++static void
++ReportXkbcompOutput(Bool failed)
++{
++    static char output[65536];
++    int cap = sizeof(output) - 1, len = 0, r;
++
++    if (xkbcomp_output_fd < 0)
++        return;
++
++    while (len < cap && (r = read(xkbcomp_output_fd, output + len, cap - len)) > 0)
++        len += r;
++    output[len] = 0;
++    close(xkbcomp_output_fd);
++    xkbcomp_output_fd = -1;
++
++    if (failed)
++        fputs(output, stderr);
++    else
++        for (char *line = strtok(output, "\n"); line; line = strtok(NULL, "\n"))
++            __android_log_write(ANDROID_LOG_DEBUG, "xkbcomp", line);
++}
++
  void *
  Popen(const char *command, const char *type)
  {
-@@ -1484,8 +1490,11 @@
+     struct pid *cur;
+     FILE *iop;
+-    int pdes[2], pid;
++    int pdes[2], odes[2] = { -1, -1 }, pid;
+ 
+     if (command == NULL || type == NULL)
+         return NULL;
+@@ -1442,6 +1477,10 @@
+         return NULL;
+     }
+ 
++    if (pipe(odes) == 0)
++        /* Nothing drains this one until xkbcomp is done, so a full pipe must not block it. */
++        fcntl(odes[1], F_SETFL, O_NONBLOCK);
++
+     /* Ignore the smart scheduler while this is going on */
+ #ifdef HAVE_SETITIMER
+     if (SmartSchedulePause() < 0) {
+@@ -1457,6 +1496,8 @@
+     case -1:                   /* error */
+         close(pdes[0]);
+         close(pdes[1]);
++        close(odes[0]);
++        close(odes[1]);
+         free(cur);
+ #ifdef HAVE_SETITIMER
+         if (SmartScheduleEnable() < 0)
+@@ -1484,14 +1525,29 @@
              }
              close(pdes[1]);
          }
 -        execl("/bin/sh", "sh", "-c", command, (char *) NULL);
 -        _exit(127);
++
++        if (odes[1] >= 0) {
++            close(odes[0]);
++            dup2(odes[1], 1);
++            dup2(odes[1], 2);
++            close(odes[1]);
++        }
 +
 +        for(int j=1; j<= SIGUNUSED; j++)
 +            signal(j, SIG_DFL);
@@ -250,7 +269,27 @@
      }
  
      /* Avoid EINTR during stdio calls */
-++++ ./present/present.h
+     OsBlockSignals();
+ 
+     /* parent */
++    if (odes[1] >= 0) {
++        close(odes[1]);
++        xkbcomp_output_fd = odes[0];
++    }
++
+     if (*type == 'r') {
+         iop = fdopen(pdes[0], type);
+         close(pdes[1]);
+@@ -1628,6 +1684,8 @@
+         pid = waitpid(cur->pid, &pstat, 0);
+     } while (pid == -1 && errno == EINTR);
+ 
++    ReportXkbcompOutput(pid == -1 || !WIFEXITED(pstat) || WEXITSTATUS(pstat) != 0);
++
+     if (last == NULL)
+         pidlist = cur->next;
+     else
++++ ./present/present.h
 @@ -93,6 +93,9 @@
                                    uint64_t target_msc,
                                    PixmapPtr pixmap,
@@ -269,8 +308,17 @@
      present_unflip_ptr                  unflip;
      present_check_flip2_ptr             check_flip2;
  
-++++ ./present/present_execute.c
-@@ -67,6 +67,11 @@
++++ ./present/present_execute.c
+@@ -34,5 +34,7 @@
+     ScreenPtr               screen = vblank->screen;
+     present_screen_priv_ptr screen_priv = present_screen_priv(screen);
+-
++    /* lorie: disarm, or miSyncTriggerFence()'s restart-scan re-fires this callback. */
++    present_fence_set_callback(vblank->wait_fence, NULL, NULL);
++
+     screen_priv->re_execute(vblank);
+ }
+@@ -67,6 +69,14 @@
      WindowPtr                   window = vblank->window;
      ScreenPtr                   screen = window->drawable.pScreen;
      present_screen_priv_ptr screen_priv = present_screen_priv(screen);
@@ -279,18 +327,20 @@
 +    PixmapPtr                   gpuCopyDst = screen->GetWindowPixmap(window);
 +    int16_t                     gpuCopyXOff = (int16_t) (vblank->x_off + window->drawable.x - gpuCopyDst->screen_x);
 +    int16_t                     gpuCopyYOff = (int16_t) (vblank->y_off + window->drawable.y - gpuCopyDst->screen_y);
-
++    /* lorie: renderer can be connected but still unable to ever finish a pending GPU copy
++     * (e.g. activity backgrounded, no surface) - completedSerial won't advance either way. */
++    Bool                         gpuCopyStalled = !lorieConnectionAlive() || !lorieRendererAvailable();
+ 
      /* If present_flip failed, we may have to requeue for the next MSC */
      if (vblank->exec_msc == crtc_msc + 1 &&
-@@ -79,12 +84,53 @@
+@@ -79,12 +95,59 @@
          return;
      }
-
+ 
 -    present_copy_region(&window->drawable, vblank->pixmap, vblank->update, vblank->x_off, vblank->y_off);
-+    /* lorie: a GPU copy was already scheduled; poll for completion instead of blocking. Give up
-+     * and treat it as done if the renderer connection died (completedSerial would never advance). */
++    /* lorie: a GPU copy was already scheduled; poll for completion instead of blocking. */
 +    if (vblank->gpu_copy_pending && !lorieGpuCopyIsDone(vblank->gpu_copy_serial) &&
-+        lorieConnectionAlive() &&
++        !gpuCopyStalled &&
 +        Success == screen_priv->queue_vblank(screen, window, vblank->crtc, vblank->event_id, crtc_msc + 1)) {
 +        vblank->queued = TRUE;
 +        return;
@@ -299,6 +349,13 @@
 +    if (vblank->gpu_copy_pending) {
 +        lorieGpuCopyAck(vblank->pixmap, vblank->gpu_copy_dst_buffer);
 +        vblank->gpu_copy_pending = FALSE;
++        if (gpuCopyStalled && !lorieGpuCopyIsDone(vblank->gpu_copy_serial)) {
++            /* lorie: the renderer never actually finished this copy - tell the client it was
++             * skipped instead of falsely reporting it as presented. */
++            present_vblank_scrap(vblank);
++            screen_priv->flush(window);
++            return;
++        }
 +    } else if (lorieTryScheduleGpuCopy(vblank->pixmap, gpuCopyDst, vblank->update, gpuCopyXOff, gpuCopyYOff,
 +                                        &vblank->gpu_copy_serial, &vblank->gpu_copy_dst_buffer)) {
 +        /* lorie: our GPU blit writes the destination pixmap directly, bypassing the normal GC
@@ -333,24 +390,24 @@
 +         */
 +        vblank->update = NULL;
 +    }
-
+ 
 -    /* present_copy_region sticks the region into a scratch GC,
 -     * which is then freed, freeing the region
 -     */
 -    vblank->update = NULL;
      screen_priv->flush(window);
-
+ 
      present_pixmap_idle(vblank->pixmap, vblank->window, vblank->serial, vblank->idle_fence);
-++++ ./present/present_priv.h
++++ ./present/present_priv.h
 @@ -24,6 +24,7 @@
  #define _PRESENT_PRIV_H_
-
+ 
  #include "dix-config.h"
 +#include <stdbool.h>
  #include <X11/X.h>
  #include "scrnintstr.h"
  #include "misc.h"
-@@ -90,8 +91,27 @@
+@@ -90,8 +91,31 @@
      Bool                abort_flip;     /* aborting this flip */
      PresentFlipReason   reason;         /* reason for which flip is not possible */
      Bool                has_suboptimal; /* whether client can support SuboptimalCopy mode */
@@ -361,7 +418,7 @@
 +    uint64_t            gpu_copy_serial;
 +    void                *gpu_copy_dst_buffer; /* opaque LorieBuffer*, held for lorieGpuCopyAck */
  };
-
+ 
 +/* lorie: hooks implemented in lorie/InitOutput.c, used by present_execute_copy() to offload the
 + * pixmap->dst copy (dst being whatever GetWindowPixmap(window) is - root, or a Composite-redirected
 + * window's own backing pixmap) to the renderer's GPU context instead of a CPU CopyArea. */
@@ -371,27 +428,33 @@
 +extern void lorieGpuCopyAck(PixmapPtr pixmap, void *dst_buffer);
 +/* lorie: implemented in lorie/cmdentrypoint.c. Avoids waiting forever on a GPU copy that a dead renderer will never finish. */
 +extern bool lorieConnectionAlive(void);
++/* lorie: implemented in lorie/InitOutput.c. Renderer can be connected but still unable to
++ * draw (e.g. activity backgrounded, no surface) - same "give up on this GPU copy" cases as
++ * lorieConnectionAlive() need to check this too. */
++extern bool lorieRendererAvailable(void);
 +
 +/* lorie: implemented in present_scmd.c; re-executes any vblank whose GPU copy has finished. */
 +extern void lorieRecheckGpuCopies(void);
 +
  typedef struct present_screen_priv present_screen_priv_rec, *present_screen_priv_ptr;
  typedef struct present_window_priv present_window_priv_rec, *present_window_priv_ptr;
-
-++++ ./present/present_scmd.c
-@@ -252,6 +252,19 @@
+ 
++++ ./present/present_scmd.c
+@@ -252,6 +252,21 @@
      }
  }
-
-+/* lorie: called when the renderer notifies that a GPU copy batch finished, instead of waiting
-+ * for the next vblank poll. _safe iteration since present_re_execute() may destroy the vblank. */
+ 
++/* lorie: called when the renderer notifies that a GPU copy batch finished, or that it just lost
++ * its surface, instead of waiting for the next vblank poll. _safe iteration since
++ * present_re_execute() may destroy the vblank. */
 +void
 +lorieRecheckGpuCopies(void)
 +{
 +    present_vblank_ptr vblank, tmp;
++    Bool gpuCopyStalled = !lorieConnectionAlive() || !lorieRendererAvailable();
 +
 +    xorg_list_for_each_entry_safe(vblank, tmp, &present_exec_queue, event_queue) {
-+        if (vblank->gpu_copy_pending && lorieGpuCopyIsDone(vblank->gpu_copy_serial))
++        if (vblank->gpu_copy_pending && (lorieGpuCopyIsDone(vblank->gpu_copy_serial) || gpuCopyStalled))
 +            present_re_execute(vblank);
 +    }
 +}
@@ -399,16 +462,46 @@
  static void
  present_flip_idle(ScreenPtr screen)
  {
-@@ -599,6 +612,8 @@
+@@ -599,6 +614,8 @@
                      damage = &window->clipList;
-
+ 
                  DamageDamageRegion(&vblank->window->drawable, damage);
 +
 +                screen_priv->info->after_flip(vblank->crtc, vblank->event_id, ust, vblank->target_msc, vblank->pixmap);
                  return;
              }
-
-++++ ./xkb/ddxLoad.c
+ 
++++ ./present/present_vblank.c
+@@ -188,6 +188,14 @@
+                   vblank->pixmap->drawable.id, vblank->window->drawable.id,
+                   vblank->crtc));
+ 
++    /* lorie: an offloaded copy into vblank->pixmap may still be in flight - ack it now, while
++     * the pixmap is still valid, or the extra buffer references lorieTryScheduleGpuCopy took
++     * leak forever. */
++    if (vblank->gpu_copy_pending) {
++        lorieGpuCopyAck(vblank->pixmap, vblank->gpu_copy_dst_buffer);
++        vblank->gpu_copy_pending = FALSE;
++    }
++
+     present_pixmap_idle(vblank->pixmap, vblank->window, vblank->serial, vblank->idle_fence);
+     present_fence_destroy(vblank->idle_fence);
+     dixDestroyPixmap(vblank->pixmap, vblank->pixmap->drawable.id);
+@@ -200,6 +208,13 @@
+ void
+ present_vblank_destroy(present_vblank_ptr vblank)
+ {
++    /* lorie: same as in present_vblank_scrap() - must run before vblank->pixmap is dropped below,
++     * for the destroy paths that reach a still-pending vblank without going through scrap first. */
++    if (vblank->gpu_copy_pending) {
++        lorieGpuCopyAck(vblank->pixmap, vblank->gpu_copy_dst_buffer);
++        vblank->gpu_copy_pending = FALSE;
++    }
++
+     /* Remove vblank from window and screen lists */
+     xorg_list_del(&vblank->window_list);
+     /* Also make sure vblank is removed from event queue (wnmd) */
++++ ./xkb/ddxLoad.c
 @@ -56,6 +56,9 @@
  #define PATHSEPARATOR "/"
  #endif
