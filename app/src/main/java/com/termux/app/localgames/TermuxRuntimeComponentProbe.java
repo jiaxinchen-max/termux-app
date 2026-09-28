@@ -46,9 +46,15 @@ final class TermuxRuntimeComponentProbe {
                 "opt/virgl/libvirgl_test_server.so"));
         }
         if ("termux-glibc-runtime".equals(componentId)) {
+            // Wine's X11 driver needs libX11/libXrender/FreeType beyond the base glibc
+            // loader to render a visible window against Xlorie; require them here so an
+            // incomplete runtime is reported as not-ready instead of appearing available.
             return nonEmpty(new File(glibcDirectory, "lib/ld-linux-aarch64.so.1")) &&
                 nonEmpty(new File(glibcDirectory, "lib/libc.so.6")) &&
-                executable(new File(termuxFilesDirectory, "usr/bin/grun"));
+                executable(new File(termuxFilesDirectory, "usr/bin/grun")) &&
+                nonEmpty(new File(glibcDirectory, "lib/libX11.so.6")) &&
+                nonEmpty(new File(glibcDirectory, "lib/libXrender.so.1")) &&
+                nonEmpty(new File(glibcDirectory, "lib/libfreetype.so.6"));
         }
         return hasInstallMetadata(componentId, expectedVersion) &&
             hasRuntimeCapability(componentId);
@@ -88,8 +94,13 @@ final class TermuxRuntimeComponentProbe {
                 return nonEmpty(new File(glibcDirectory,
                     "share/fonts/NotoSansCJK-Regular.ttc"));
             case "turnip":
-                return nonEmpty(new File(glibcDirectory,
-                    "share/vulkan/icd.d/freedreno_icd.aarch64.json"));
+                // The catalog release bundles several driver builds as nested .7z archives
+                // (7-Zip's ARM64 filter, which Apache Commons Compress cannot decode) meant for
+                // an interactive in-guest installer. This launcher publishes that bundle as-is;
+                // bootstrap_termux_box.sh extracts the selected build with the real `7z` binary
+                // once the GLIBC runtime is available, so activation only requires the bundle
+                // itself to be present.
+                return new File(glibcDirectory, "opt/libs/mesa").isDirectory();
             case "virgl-mesa":
                 return nonEmpty(new File(glibcDirectory,
                     "opt/virgl/libvirgl_test_server.so"));

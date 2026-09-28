@@ -57,6 +57,14 @@ public class TermuxRuntimeComponentProbeTest {
         write(runner, "runner");
         assertTrue(runner.setExecutable(true, false));
 
+        // Wine's X11 driver also needs libX11/libXrender/FreeType to render a visible
+        // window; the base loader alone is not a ready runtime.
+        assertFalse(probe.isAvailable("termux-glibc-runtime"));
+        write(new File(files, "usr/glibc/lib/libX11.so.6"), "x11");
+        write(new File(files, "usr/glibc/lib/libXrender.so.1"), "xrender");
+        assertFalse(probe.isAvailable("termux-glibc-runtime"));
+        write(new File(files, "usr/glibc/lib/libfreetype.so.6"), "freetype");
+
         assertTrue(probe.isAvailable("termux-glibc-runtime"));
         assertTrue(probe.isAvailable("termux-glibc-runtime", 1));
     }
@@ -96,6 +104,21 @@ public class TermuxRuntimeComponentProbeTest {
         assertFalse(probe.isAvailable("virgl-server"));
         assertTrue(server.setExecutable(true, false));
         assertTrue(probe.isAvailable("virgl-server"));
+    }
+
+    @Test
+    public void turnipActivatesOnceTheBundledDriverArchiveIsPresent() throws Exception {
+        File files = temporary.newFolder("turnip-files");
+        installMetadata(files, "termux-box/package-manager/installed", "turnip", "8");
+        TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);
+
+        assertFalse(probe.isAvailable("turnip", 8));
+
+        // The catalog release only contains .7z-bundled driver builds; extraction happens later
+        // in bootstrap_termux_box.sh with the real `7z` binary, so activation only requires the
+        // bundle directory to be published, not an already-extracted driver.
+        write(new File(files, "usr/glibc/opt/libs/mesa/turnip-v6.5.7z"), "bundle");
+        assertTrue(probe.isAvailable("turnip", 8));
     }
 
     @Test

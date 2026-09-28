@@ -331,6 +331,35 @@ elif [ -f "$TERMUX_OPT_DIR/prefix/directx.7z" ]; then
     7z x "$TERMUX_OPT_DIR/prefix/directx.7z" -o"$WINEPREFIX/drive_c" -y >/dev/null 2>&1
 fi
 
+# The Turnip catalog release only ships driver builds packed inside .7z archives (using
+# 7-Zip's ARM64 filter, which Apache Commons Compress cannot decode), so the component
+# installer publishes that bundle as-is; extract the selected build here with the real
+# `7z` binary and write the Vulkan ICD manifest the loader needs to find it.
+TURNIP_ICD="$TERMUX_GLIBC_DIR/share/vulkan/icd.d/freedreno_icd.aarch64.json"
+TURNIP_BUNDLE="$TERMUX_GLIBC_DIR/opt/libs/mesa/turnip-v6.5.7z"
+if [ ! -f "$TURNIP_ICD" ] && [ -f "$TURNIP_BUNDLE" ]; then
+    echo "[bootstrap] Extracting Turnip Vulkan driver..."
+    command -v 7z >/dev/null 2>&1 || {
+        echo "ERROR: Turnip driver bundle was staged but p7zip is unavailable."
+        exit 1
+    }
+    mkdir -p "$TERMUX_GLIBC_DIR/share/vulkan/icd.d"
+    if 7z x "$TURNIP_BUNDLE" -o"$TERMUX_GLIBC_DIR" -y "lib/libvulkan_freedreno.so" \
+        >/dev/null 2>&1 && [ -f "$TERMUX_GLIBC_DIR/lib/libvulkan_freedreno.so" ]; then
+        cat >"$TURNIP_ICD" <<'EOF'
+{
+    "file_format_version": "1.0.0",
+    "ICD": {
+        "library_path": "../../../lib/libvulkan_freedreno.so",
+        "api_version": "1.3.255"
+    }
+}
+EOF
+    else
+        echo "ERROR: Unable to extract Turnip Vulkan driver from bundle."
+    fi
+fi
+
 # Step D: Set up extra dosdevices drive mappings
 echo "[bootstrap] Setting up drive mappings..."
 rm -rf "$WINEPREFIX/dosdevices/z:" 2>/dev/null || true

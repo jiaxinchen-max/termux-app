@@ -129,6 +129,13 @@ public final class ComponentInstaller {
                 }
             }
 
+            // Some upstream releases (e.g. Mesa Turnip) bundle several driver builds as nested
+            // .7z archives meant for an interactive in-guest installer. Extracting those with
+            // ARM64-filtered LZMA2 (a 7-Zip feature Apache Commons Compress does not implement)
+            // is not attempted here; the raw bundle is published as-is and the prefix
+            // provisioning shell script extracts the selected build with the real `7z` binary
+            // once the GLIBC runtime is available.
+
             // Publish into the launcher-visible runtime before the active pointer moves.
             // The catalog reports INSTALLED purely from that pointer, so activating first keeps
             // a component that never reached the launcher from showing up as installed.

@@ -41,9 +41,21 @@ run "$PACKAGE_MANAGER" install -y glibc-repo || { emit FAILED; exit 1; }
 run "$PACKAGE_MANAGER" update || { emit FAILED; exit 1; }
 run "$PACKAGE_MANAGER" install -y glibc glibc-runner || { emit FAILED; exit 1; }
 
+# Wine's X11 driver (winex11.drv) links these native libraries to talk to the Xlorie X
+# server; without them Wine can start but never render a visible window (it silently
+# falls back through "Error initializing native lib*.so" and either shows an empty
+# desktop or nothing at all).
+run "$PACKAGE_MANAGER" install -y \
+    libx11-glibc libxext-glibc libxrender-glibc libxfixes-glibc libxcursor-glibc \
+    libxi-glibc libxcomposite-glibc libxinerama-glibc libxxf86vm-glibc \
+    freetype-glibc fontconfig-glibc libgnutls-glibc || { emit FAILED; exit 1; }
+
 if [ ! -f "$PREFIX/glibc/lib/ld-linux-aarch64.so.1" ] || \
    [ ! -f "$PREFIX/glibc/lib/libc.so.6" ] || \
-   [ ! -x "$PREFIX/bin/grun" ]; then
+   [ ! -x "$PREFIX/bin/grun" ] || \
+   [ ! -f "$PREFIX/glibc/lib/libX11.so.6" ] || \
+   [ ! -f "$PREFIX/glibc/lib/libXrender.so.1" ] || \
+   [ ! -f "$PREFIX/glibc/lib/libfreetype.so.6" ]; then
     printf '%s\n' 'Termux GLIBC package verification failed.' | tee -a "$TERMUX_GLIBC_LOG_FILE"
     emit FAILED
     exit 1
