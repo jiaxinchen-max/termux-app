@@ -285,6 +285,7 @@ add_library(Xlorie SHARED
         "lorie/vortek_backend.c"
         "lorie/activity.c"
         "lorie/waylandRenderServer.c"
+        "lorie/workqueue.cpp"
         "third_party/vortek/vortekrenderer/src/vk_object.c"
         "third_party/vortek/vortekrenderer/src/request_handler.c"
         "third_party/vortek/vortekrenderer/src/vulkan_helper.c"
