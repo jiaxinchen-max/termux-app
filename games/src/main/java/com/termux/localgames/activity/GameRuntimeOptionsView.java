@@ -17,16 +17,24 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
+import com.termux.localgames.api.LocalGames;
+import com.termux.localgames.data.FileGameContainerRepository;
 import com.termux.localgames.data.FileGameRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
+import com.termux.localgames.data.GameContainerRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.data.RuntimeProfileRepository;
 import com.termux.localgames.domain.Game;
+import com.termux.localgames.domain.GameContainer;
+import com.termux.localgames.domain.GameRuntimeBackendType;
 import com.termux.localgames.domain.LaunchExecutionMode;
 import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.domain.RuntimeProfileDiff;
 import com.termux.localgames.domain.RuntimeProfilePreset;
 import com.termux.localgames.domain.RuntimeProfilePresets;
+import com.termux.localgames.importer.LaunchArguments;
+import com.termux.localgames.runtime.GameContainerFactory;
+import com.termux.localgames.runtime.GameContainerProfileResolver;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,6 +42,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -47,6 +56,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         new Thread(runnable, "GamesRuntimeOptionsIo"));
     private RuntimeProfileRepository profileRepository;
     private FileGameRepository gameRepository;
+    private GameContainerRepository containerRepository;
     private LinearLayout content;
     private TextView title;
     private LinearLayout header;
@@ -56,13 +66,14 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private final String gameId;
     private final Listener listener;
     private Game game;
+    private Game gameBaseline;
     private RuntimeProfile baseline;
     private RuntimeProfile profile;
     private Page page = Page.ROOT;
     private boolean destroyed;
 
     private enum Page {
-        ROOT, BASE, WINE, LIBRARIES, ENVIRONMENT, FOLDERS, ADVANCED
+        ROOT, GENERAL, CONTAINER, BASE, WINE, LIBRARIES, ENVIRONMENT, FOLDERS, ADVANCED
     }
 
     public interface Listener {
@@ -76,6 +87,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         GameStoragePaths paths = new GameStoragePaths(getContext().getFilesDir());
         gameRepository = new FileGameRepository(paths.getLibraryDirectory());
         profileRepository = new FileRuntimeProfileRepository(paths.getProfilesDirectory());
+        containerRepository = new FileGameContainerRepository(paths.getContainersDirectory());
         addView(createContent(), new LinearLayout.LayoutParams(
             LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         if (gameId == null || gameId.trim().isEmpty()) {
@@ -132,6 +144,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 post(() -> {
                     if (destroyed) return;
                     game = foundGame.get();
+                    gameBaseline = game;
                     baseline = loaded;
                     profile = loaded;
                     progressHost.setVisibility(View.GONE);
@@ -152,6 +165,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private void render() {
         content.removeAllViews();
         switch (page) {
+            case GENERAL: renderGeneral(); break;
+            case CONTAINER: renderContainer(); break;
             case BASE: renderBase(); break;
             case WINE: renderWine(); break;
             case LIBRARIES: renderLibraries(); break;
@@ -165,6 +180,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     private void renderRoot() {
         title.setText(game.getName() + " · Runtime");
+        addMenu("General", game.getWorkingDirectory() + " · " + game.getExecutable(), Page.GENERAL);
+        addMenu("Runtime backend", runtimeBackendLabel(profile.getRuntimeBackendType()), Page.CONTAINER);
         addMenu("Common", profile.getResolution() + " · "
             + profile.getGraphicsDriver() + " · " + profile.getDxWrapper(), Page.BASE);
         addMenu("Wine configuration", "Theme, background, font, DPI and mouse overlay", Page.WINE);
@@ -174,6 +191,97 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             profile.getEnvironment().size() + " overrides", Page.ENVIRONMENT);
         addMenu("Set folders", "Drive letters and target paths", Page.FOLDERS);
         addMenu("Advanced", "Box64, startup option, Windows version and CPU cores", Page.ADVANCED);
+    }
+
+    private void renderGeneral() {
+        pageTitle("General");
+        addEdit("Game name", game.getName(), false, value -> {
+            String trimmed = value.trim();
+            if (!trimmed.isEmpty()) game = game.withLaunchDetails(trimmed,
+                game.getWorkingDirectory(), game.getArguments());
+        });
+        addEdit("Working directory", game.getWorkingDirectory(), false, value -> {
+            String trimmed = value.trim();
+            game = game.withLaunchDetails(game.getName(), trimmed.isEmpty() ? "." : trimmed,
+                game.getArguments());
+        });
+        addEdit("Launch arguments", LaunchArguments.format(game.getArguments()), false, value -> {
+            try {
+                game = game.withLaunchDetails(game.getName(), game.getWorkingDirectory(),
+                    LaunchArguments.parse(value));
+            } catch (IllegalArgumentException error) {
+                Toast.makeText(getContext(), "Launch arguments are invalid", Toast.LENGTH_LONG).show();
+            }
+        });
+        addReadOnly("Executable", game.getExecutable());
+    }
+
+    private void renderContainer() {
+        pageTitle("Runtime backend");
+        String[] backendLabels = { runtimeBackendLabel(GameRuntimeBackendType.GLIBC_TERMUX_BOX),
+            runtimeBackendLabel(GameRuntimeBackendType.ROOTFS_PROOT) };
+        int checked = profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT ? 1 : 0;
+        addChoice("Runtime backend", backendLabels, checked, which -> {
+            android.util.Log.d("GameRuntimeOptionsDebug", "backend choice which=" + which
+                + " checked=" + checked);
+            if (which == checked) return;
+            try {
+                if (which == 1) switchToRootfs(); else switchToGlibc();
+                android.util.Log.d("GameRuntimeOptionsDebug", "after switch profile.backend="
+                    + profile.getRuntimeBackendType() + " containerId=" + profile.getContainerId());
+            } catch (RuntimeException error) {
+                android.util.Log.e("GameRuntimeOptionsDebug", "switch backend failed", error);
+            }
+        });
+        if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
+            addReadOnly("Rootfs package", profile.getRootfsPackage());
+        }
+        addReadOnly("Container id", profile.getContainerId());
+        addRow("Components", "Manage installed runtime components", true, view ->
+            getContext().startActivity(LocalGames.createComponentsIntent(getContext(), game.getId())));
+        addRow("Backup runtime", "Export or restore GLIBC / RootFS runtimes", true, view ->
+            getContext().startActivity(LocalGames.createRuntimeBackupIntent(getContext())));
+    }
+
+    private String runtimeBackendLabel(GameRuntimeBackendType type) {
+        return getContext().getString(type == GameRuntimeBackendType.ROOTFS_PROOT
+            ? R.string.local_game_runtime_profile_backend_rootfs
+            : R.string.local_game_runtime_profile_backend_glibc);
+    }
+
+    /**
+     * Rootfs only sticks if a real independent container is created and bound; leaving
+     * containerId at "default" lets resolveContainer() silently force the backend back to
+     * GLIBC on the next load or launch (the bug this page exists to fix).
+     */
+    private void switchToRootfs() {
+        String containerId = "container-" + UUID.randomUUID().toString().substring(0, 8);
+        RuntimeProfile draft = new RuntimeProfile(profile.getId(), "hangover-11.9",
+            "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", profile.getResolution(),
+            profile.getBox64Preset(), profile.getEnvironment(), profile.getInputProfileId(),
+            profile.getLaunchExecutionMode(), profile.getComponentVersions(),
+            GameRuntimeBackendType.ROOTFS_PROOT, GameContainer.ROOTFS_RUNTIME_PACKAGE, containerId);
+        android.util.Log.d("GameRuntimeOptionsDebug", "switchToRootfs draft built, containerId="
+            + containerId);
+        GameContainer container = GameContainerFactory.fromProfile(draft);
+        android.util.Log.d("GameRuntimeOptionsDebug", "container built id=" + container.getId()
+            + " backend=" + container.getBackendType());
+        try {
+            containerRepository.save(container);
+            android.util.Log.d("GameRuntimeOptionsDebug", "container saved to repository");
+        } catch (IOException error) {
+            android.util.Log.e("GameRuntimeOptionsDebug", "containerRepository.save failed", error);
+            Toast.makeText(getContext(), "Unable to create rootfs container", Toast.LENGTH_LONG).show();
+            return;
+        }
+        profile = new GameContainerProfileResolver().resolve(draft, container);
+        android.util.Log.d("GameRuntimeOptionsDebug", "profile field reassigned, backend="
+            + profile.getRuntimeBackendType());
+    }
+
+    private void switchToGlibc() {
+        profile = profile.withRuntimeBackend(GameRuntimeBackendType.GLIBC_TERMUX_BOX, "")
+            .withContainerId(GameContainer.DEFAULT_ID);
     }
 
     private void renderBase() {
@@ -539,7 +647,12 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             render();
             return;
         }
-        if (baseline != null && !RuntimeProfileDiff.between(baseline, profile).isEmpty()) {
+        boolean profileChanged = baseline != null && !RuntimeProfileDiff.between(baseline, profile).isEmpty();
+        android.util.Log.d("GameRuntimeOptionsDebug", "navigateBack at ROOT profileChanged="
+            + profileChanged + " gameChanged=" + gameChanged() + " baseline.backend="
+            + (baseline == null ? "null" : baseline.getRuntimeBackendType())
+            + " profile.backend=" + profile.getRuntimeBackendType());
+        if (profileChanged || gameChanged()) {
             new MaterialAlertDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
                 .setTitle("Save runtime parameters?")
                 .setMessage("Changes apply only to " + game.getName() + ".")
@@ -552,15 +665,28 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         close();
     }
 
+    private boolean gameChanged() {
+        return gameBaseline != null && (!gameBaseline.getName().equals(game.getName()) ||
+            !gameBaseline.getWorkingDirectory().equals(game.getWorkingDirectory()) ||
+            !gameBaseline.getArguments().equals(game.getArguments()));
+    }
+
     private void saveAndFinish() {
         RuntimeProfile toSave = profile;
+        Game gameToSave = game;
+        boolean saveGame = gameChanged();
+        android.util.Log.d("GameRuntimeOptionsDebug", "saveAndFinish toSave.backend="
+            + toSave.getRuntimeBackendType() + " containerId=" + toSave.getContainerId());
         ioExecutor.execute(() -> {
             try {
                 profileRepository.save(toSave);
+                android.util.Log.d("GameRuntimeOptionsDebug", "profileRepository.save completed");
+                if (saveGame) gameRepository.save(gameToSave);
                 post(() -> {
                     if (!destroyed) close();
                 });
             } catch (IOException | RuntimeException error) {
+                android.util.Log.e("GameRuntimeOptionsDebug", "save failed", error);
                 post(() -> Toast.makeText(getContext(), "Unable to save runtime parameters",
                     Toast.LENGTH_LONG).show());
             }

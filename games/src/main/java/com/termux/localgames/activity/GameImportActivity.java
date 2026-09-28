@@ -10,7 +10,6 @@ import android.text.format.Formatter;
 import android.view.View;
 import android.widget.RadioButton;
 import android.widget.Toast;
-import android.widget.ArrayAdapter;
 
 import androidx.annotation.Nullable;
 import androidx.activity.result.ActivityResultLauncher;
@@ -23,14 +22,12 @@ import com.termux.localgames.R;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.LocalGamesHost;
 import com.termux.localgames.data.FileGameRepository;
-import com.termux.localgames.data.FileGameContainerRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.GameRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.data.RuntimeProfileRepository;
 import com.termux.localgames.databinding.ActivityLocalGameImportBinding;
 import com.termux.localgames.domain.Game;
-import com.termux.localgames.domain.GameContainer;
 import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.domain.RuntimeProfilePreset;
 import com.termux.localgames.domain.RuntimeProfilePresets;
@@ -39,10 +36,8 @@ import com.termux.localgames.importer.ExecutableCandidate;
 import com.termux.localgames.importer.FileGameDocumentTree;
 import com.termux.localgames.importer.GameDirectoryScanner;
 import com.termux.localgames.importer.GameDocumentTree;
-import com.termux.localgames.importer.GameImportValidation;
 import com.termux.localgames.importer.GameScanLimits;
 import com.termux.localgames.importer.GameScanResult;
-import com.termux.localgames.importer.LaunchArguments;
 import com.termux.localgames.importer.SafGameDocumentTree;
 import com.termux.localgames.importer.SafGameRootUri;
 import com.termux.localgames.importer.SafPermissionManager;
@@ -67,10 +62,6 @@ public final class GameImportActivity extends AppCompatActivity {
 
     private static final String STATE_TREE_URI = "local_game_import.tree_uri";
     private static final String STATE_EXECUTABLE = "local_game_import.executable";
-    private static final String STATE_NAME = "local_game_import.name";
-    private static final String STATE_WORKING_DIRECTORY = "local_game_import.working_directory";
-    private static final String STATE_ARGUMENTS = "local_game_import.arguments";
-    private static final String STATE_CONTAINER_ID = "local_game_import.container_id";
 
     private final ExecutorService importExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "GamesDirectoryImport"));
@@ -88,7 +79,6 @@ public final class GameImportActivity extends AppCompatActivity {
     private ActivityLocalGameImportBinding binding;
     private GameRepository gameRepository;
     private RuntimeProfileRepository profileRepository;
-    private FileGameContainerRepository containerRepository;
     private LocalGamesHost appHost;
     private Uri treeUri;
     private GameScanResult scanResult;
@@ -97,11 +87,6 @@ public final class GameImportActivity extends AppCompatActivity {
     private boolean destroyed;
 
     private String restoredExecutable;
-    private String restoredName;
-    private String restoredWorkingDirectory;
-    private String restoredArguments;
-    private String restoredContainerId;
-    private final Map<String, String> containerChoiceIds = new HashMap<>();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -111,7 +96,6 @@ public final class GameImportActivity extends AppCompatActivity {
         GameStoragePaths gamePaths = new GameStoragePaths(getFilesDir());
         gameRepository = new FileGameRepository(gamePaths.getLibraryDirectory());
         profileRepository = new FileRuntimeProfileRepository(gamePaths.getProfilesDirectory());
-        containerRepository = new FileGameContainerRepository(gamePaths.getContainersDirectory());
         appHost = LocalGames.requireHost(this);
 
         binding.localGameImportToolbar.setNavigationOnClickListener(view -> finish());
@@ -124,15 +108,10 @@ public final class GameImportActivity extends AppCompatActivity {
             String uri = savedInstanceState.getString(STATE_TREE_URI);
             if (!TextUtils.isEmpty(uri)) treeUri = Uri.parse(uri);
             restoredExecutable = savedInstanceState.getString(STATE_EXECUTABLE);
-            restoredName = savedInstanceState.getString(STATE_NAME);
-            restoredWorkingDirectory = savedInstanceState.getString(STATE_WORKING_DIRECTORY);
-            restoredArguments = savedInstanceState.getString(STATE_ARGUMENTS);
-            restoredContainerId = savedInstanceState.getString(STATE_CONTAINER_ID);
         } else {
             String uri = getIntent().getStringExtra(EXTRA_TREE_URI);
             if (!TextUtils.isEmpty(uri)) treeUri = Uri.parse(uri);
         }
-        loadContainerChoices();
         if (treeUri != null) {
             if (isLocalGameDirectory(treeUri)) {
                 if (isPosixAccessible(treeUri)) startScan(treeUri);
@@ -184,7 +163,7 @@ public final class GameImportActivity extends AppCompatActivity {
                 }
             }
             treeUri = selected;
-            clearRestoredForm();
+            restoredExecutable = null;
             if (isPosixAccessible(selected)) startScan(selected);
             else renderPosixAccessRequired();
         } catch (SecurityException | IOException error) {
@@ -198,52 +177,7 @@ public final class GameImportActivity extends AppCompatActivity {
         if (treeUri != null) outState.putString(STATE_TREE_URI, treeUri.toString());
         ExecutableCandidate candidate = selectedExecutable();
         if (candidate != null) outState.putString(STATE_EXECUTABLE, candidate.getRelativePath());
-        if (candidate != null) {
-            outState.putString(STATE_NAME, textOf(binding.localGameImportName));
-            outState.putString(STATE_WORKING_DIRECTORY,
-                textOf(binding.localGameImportWorkingDirectory));
-            outState.putString(STATE_ARGUMENTS, textOf(binding.localGameImportArguments));
-        }
-        String containerId = selectedContainerId();
-        if (containerId != null) outState.putString(STATE_CONTAINER_ID, containerId);
         super.onSaveInstanceState(outState);
-    }
-
-    private void loadContainerChoices() {
-        importExecutor.execute(() -> {
-            List<GameContainer> containers = Collections.emptyList();
-            try {
-                containers = containerRepository.list();
-            } catch (IOException ignored) { }
-            List<GameContainer> loaded = containers;
-            runOnUiThread(() -> {
-                if (destroyed || binding == null) return;
-                containerChoiceIds.clear();
-                List<String> labels = new ArrayList<>();
-                String global = getString(R.string.local_game_import_container_global);
-                labels.add(global);
-                containerChoiceIds.put(global, GameContainer.DEFAULT_ID);
-                for (GameContainer container : loaded) {
-                    if (GameContainer.DEFAULT_ID.equals(container.getId())) continue;
-                    String label = getString(R.string.local_game_import_container_independent,
-                        container.getName()) + " · " + container.getId();
-                    labels.add(label);
-                    containerChoiceIds.put(label, container.getId());
-                }
-                binding.localGameImportContainer.setAdapter(new ArrayAdapter<>(this,
-                    android.R.layout.simple_dropdown_item_1line, labels));
-                String selectedLabel = global;
-                if (restoredContainerId != null) {
-                    for (Map.Entry<String, String> choice : containerChoiceIds.entrySet()) {
-                        if (restoredContainerId.equals(choice.getValue())) {
-                            selectedLabel = choice.getKey();
-                            break;
-                        }
-                    }
-                }
-                binding.localGameImportContainer.setText(selectedLabel, false);
-            });
-        });
     }
 
     private void startScan(Uri selectedTree) {
@@ -296,10 +230,6 @@ public final class GameImportActivity extends AppCompatActivity {
         binding.localGameImportError.setVisibility(View.GONE);
         binding.localGameImportForm.setVisibility(View.VISIBLE);
         // loadContainerChoices() may have set this field's text while the form was
-        // still View.GONE, which leaves the TextInputLayout hint stuck unfloated on
-        // top of the value. Re-apply the current text now that the form is visible
-        // so the hint recalculates correctly regardless of which finished first.
-        binding.localGameImportContainer.setText(binding.localGameImportContainer.getText(), false);
         candidateIndexes.clear();
         binding.localGameImportCandidateGroup.removeAllViews();
         int restoredIndex = 0;
@@ -315,28 +245,13 @@ public final class GameImportActivity extends AppCompatActivity {
         }
         binding.localGameImportCandidateGroup.setOnCheckedChangeListener((group, checkedId) -> {
             Integer index = candidateIndexes.get(checkedId);
-            if (index != null) selectCandidate(index, false);
+            if (index != null) selectedCandidate = index;
         });
         RadioButton button = (RadioButton) binding.localGameImportCandidateGroup
             .getChildAt(restoredIndex);
         button.setChecked(true);
-        selectCandidate(restoredIndex, true);
-        clearRestoredForm();
-    }
-
-    private void selectCandidate(int index, boolean applyRestoredForm) {
-        selectedCandidate = index;
-        ExecutableCandidate candidate = scanResult.getCandidates().get(index);
-        String defaultName = defaultGameName(scanResult.getRootName(), candidate);
-        binding.localGameImportName.setText(applyRestoredForm && restoredName != null
-            ? restoredName : defaultName);
-        binding.localGameImportWorkingDirectory.setText(
-            applyRestoredForm && restoredWorkingDirectory != null
-                ? restoredWorkingDirectory : candidate.getWorkingDirectory());
-        if (applyRestoredForm && restoredArguments != null) {
-            binding.localGameImportArguments.setText(restoredArguments);
-        }
-        clearInputErrors();
+        selectedCandidate = restoredIndex;
+        restoredExecutable = null;
     }
 
     private void confirmImport() {
@@ -351,43 +266,13 @@ public final class GameImportActivity extends AppCompatActivity {
             renderPosixAccessRequired();
             return;
         }
-        clearInputErrors();
-        String name = textOf(binding.localGameImportName).trim();
-        String workingDirectory = textOf(binding.localGameImportWorkingDirectory).trim();
-        String containerId = selectedContainerId();
-        List<String> arguments;
-        boolean valid = true;
-        if (name.isEmpty()) {
-            binding.localGameImportNameLayout.setError(
-                getString(R.string.local_game_import_invalid_name));
-            valid = false;
-        }
-        if (!GameImportValidation.isSafeRelativeDirectory(workingDirectory)) {
-            binding.localGameImportWorkingDirectoryLayout.setError(
-                getString(R.string.local_game_import_invalid_working_directory));
-            valid = false;
-        }
-        if (containerId == null) {
-            binding.localGameImportContainerLayout.setError(
-                getString(R.string.local_game_import_invalid_container));
-            valid = false;
-        }
-        try {
-            arguments = LaunchArguments.parse(textOf(binding.localGameImportArguments));
-        } catch (IllegalArgumentException error) {
-            binding.localGameImportArgumentsLayout.setError(
-                getString(R.string.local_game_import_invalid_arguments));
-            arguments = new ArrayList<>();
-            valid = false;
-        }
-        if (!valid) return;
 
         int generation = ++operationGeneration;
         setFormEnabled(false);
         binding.localGameImportProgress.show();
         binding.localGameImportStatus.setText(R.string.local_game_import_saving);
-        List<String> launchArguments = arguments;
-        String selectedContainerId = containerId;
+        String name = defaultGameName(scanResult.getRootName(), candidate);
+        String workingDirectory = candidate.getWorkingDirectory();
         importExecutor.execute(() -> {
             String gameId = null;
             String error = null;
@@ -395,10 +280,11 @@ public final class GameImportActivity extends AppCompatActivity {
                 gameId = existingGameId(treeUri.toString(), candidate.getRelativePath());
                 if (gameId == null) gameId = UUID.randomUUID().toString();
                 gameRepository.save(new Game(gameId, name, treeUri.toString(),
-                    candidate.getRelativePath(), workingDirectory, launchArguments, "", 0));
-                RuntimeProfile profile = RuntimeProfilePresets.create(gameId,
-                    RuntimeProfilePreset.RECOMMENDED).withContainerId(selectedContainerId);
-                profileRepository.save(profile);
+                    candidate.getRelativePath(), workingDirectory, Collections.emptyList(), "", 0));
+                if (!profileRepository.find(gameId).isPresent()) {
+                    profileRepository.save(RuntimeProfilePresets.create(gameId,
+                        RuntimeProfilePreset.RECOMMENDED));
+                }
             } catch (IOException | RuntimeException saveError) {
                 error = safeMessage(saveError);
             }
@@ -417,8 +303,10 @@ public final class GameImportActivity extends AppCompatActivity {
                 }
                 setResult(Activity.RESULT_OK, new Intent().putExtra(
                     EXTRA_IMPORTED_GAME_ID, importedId));
-                Toast.makeText(this, R.string.local_game_import_complete,
-                    Toast.LENGTH_SHORT).show();
+                // Import only records sane defaults (name/working directory, GLIBC backend);
+                // the unified options screen is where the user reviews or tunes them, and it's
+                // the same screen reached later from the game detail page's "Runtime Profile".
+                startActivity(LocalGames.createRuntimeOptionsIntent(this, importedId));
                 finish();
             });
         });
@@ -544,25 +432,7 @@ public final class GameImportActivity extends AppCompatActivity {
         for (int index = 0; index < binding.localGameImportCandidateGroup.getChildCount(); index++) {
             binding.localGameImportCandidateGroup.getChildAt(index).setEnabled(enabled);
         }
-        binding.localGameImportName.setEnabled(enabled);
-        binding.localGameImportWorkingDirectory.setEnabled(enabled);
-        binding.localGameImportArguments.setEnabled(enabled);
-        binding.localGameImportContainer.setEnabled(enabled);
         binding.localGameImportConfirm.setEnabled(enabled);
-    }
-
-    private void clearInputErrors() {
-        binding.localGameImportNameLayout.setError(null);
-        binding.localGameImportWorkingDirectoryLayout.setError(null);
-        binding.localGameImportArgumentsLayout.setError(null);
-        binding.localGameImportContainerLayout.setError(null);
-    }
-
-    private void clearRestoredForm() {
-        restoredExecutable = null;
-        restoredName = null;
-        restoredWorkingDirectory = null;
-        restoredArguments = null;
     }
 
     private static String defaultGameName(String rootName, ExecutableCandidate candidate) {
@@ -572,15 +442,6 @@ public final class GameImportActivity extends AppCompatActivity {
         int slash = path.lastIndexOf('/');
         String fileName = slash < 0 ? path : path.substring(slash + 1);
         return fileName.length() > 4 ? fileName.substring(0, fileName.length() - 4) : fileName;
-    }
-
-    @Nullable
-    private String selectedContainerId() {
-        return containerChoiceIds.get(textOf(binding.localGameImportContainer));
-    }
-
-    private static String textOf(android.widget.TextView view) {
-        return view.getText() == null ? "" : view.getText().toString();
     }
 
     private static String safeMessage(Throwable error) {

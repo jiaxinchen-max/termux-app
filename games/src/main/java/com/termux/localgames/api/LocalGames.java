@@ -8,7 +8,6 @@ import androidx.annotation.NonNull;
 import com.termux.localgames.activity.GameImportActivity;
 import com.termux.localgames.activity.GameFileManagerActivity;
 import com.termux.localgames.activity.GameDetailActivity;
-import com.termux.localgames.activity.GameRuntimeProfileActivity;
 import com.termux.localgames.activity.GameRuntimeOptionsActivity;
 import com.termux.localgames.activity.GameAssetsActivity;
 import com.termux.localgames.activity.GameLaunchActivity;
@@ -70,14 +69,6 @@ public final class LocalGames {
                                                  @NonNull String gameId) {
         return new Intent(context, GameDetailActivity.class)
             .putExtra(GameDetailActivity.EXTRA_GAME_ID, gameId);
-    }
-
-    /** Opens the game-owned runtime profile editor and launch preflight. */
-    @NonNull
-    public static Intent createRuntimeProfileIntent(@NonNull Context context,
-                                                     @NonNull String gameId) {
-        return new Intent(context, GameRuntimeProfileActivity.class)
-            .putExtra(GameRuntimeProfileActivity.EXTRA_GAME_ID, gameId);
     }
 
     /** Opens the per-game launch parameter editor. */

@@ -45,4 +45,9 @@ public final class Game {
         return new Game(id, name, rootUri, executable, workingDirectory,
             arguments, artworkUri, playedAt);
     }
+
+    public Game withLaunchDetails(String name, String workingDirectory, List<String> arguments) {
+        return new Game(id, name, rootUri, executable, workingDirectory,
+            arguments, artworkUri, lastPlayedAt);
+    }
 }

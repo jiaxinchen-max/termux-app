@@ -16,10 +16,16 @@ import androidx.annotation.NonNull;
 
 import com.google.android.material.button.MaterialButton;
 import com.termux.localgames.R;
+import com.termux.localgames.data.FileRuntimeProvisionTaskRepository;
+import com.termux.localgames.data.GameStoragePaths;
+import com.termux.localgames.domain.RuntimeProvisionTask;
+import com.termux.localgames.domain.RuntimeProvisionTaskState;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 import com.termux.shared.termux.terminal.TermuxTerminalViewClientBase;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.TerminalView;
+
+import java.io.IOException;
 
 import android.os.Handler;
 import android.os.Looper;
@@ -32,7 +38,9 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TerminalSession consoleSession;
     private TerminalView terminalView;
+    private TextView status;
     private boolean dismissed;
+    private boolean provisionFailed;
     private int titleRes = R.string.local_games_runtime_provision_console_title;
 
     private RuntimeProvisionConsoleDialog(@NonNull Context context, @NonNull String taskId) {
@@ -70,6 +78,14 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
         content.addView(title, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        status = new TextView(getContext());
+        status.setTextColor(Color.rgb(170, 185, 210));
+        status.setTextSize(13);
+        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        statusParams.topMargin = dp(8);
+        content.addView(status, statusParams);
+
         terminalView = new TerminalView(getContext(), null);
         terminalView.setBackgroundColor(Color.BLACK);
         terminalView.setTerminalViewClient(new TermuxTerminalViewClientBase());
@@ -91,6 +107,7 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
 
         setContentView(content);
         terminalView.post(this::attachProvisionSession);
+        refreshStatus();
 
         Window window = getWindow();
         if (window != null) {
@@ -117,7 +134,7 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
     }
 
     private void attachProvisionSession() {
-        if (dismissed || !isShowing()) return;
+        if (dismissed || !isShowing() || provisionFailed) return;
         // TerminalView initializes its renderer from the configured text size.  Do not attach a
         // session until that initialization is observable on the UI queue.
         if (terminalView == null || terminalView.mRenderer == null) {
@@ -131,6 +148,7 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
             return;
         }
         consoleSession = session;
+        status.setVisibility(android.view.View.GONE);
         terminalView.attachSession(session);
         refreshTerminal();
     }
@@ -144,6 +162,37 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
             // A completed Termux session is normally removed by pressing Enter. The Games
             // dialog owns no interactive terminal chrome, so close it after the final frame.
             handler.postDelayed(this::dismiss, 180);
+        }
+    }
+
+    // The session only appears after a (potentially multi-minute) one-time X11 bridge install,
+    // so without this the dialog looks identical to a hang.
+    private void refreshStatus() {
+        if (dismissed || !isShowing() || consoleSession != null) return;
+        RuntimeProvisionTask task = readTask();
+        String preparing = getContext().getString(R.string.local_games_runtime_provision_preparing);
+        if (task == null) {
+            status.setText(preparing);
+        } else if (task.getState() == RuntimeProvisionTaskState.FAILED) {
+            provisionFailed = true;
+            status.setText(getContext().getString(R.string.local_games_runtime_provision_failed));
+            return;
+        } else if (task.getState() == RuntimeProvisionTaskState.CANCELLED) {
+            provisionFailed = true;
+            status.setText(RuntimeProvisionTaskState.CANCELLED.name());
+            return;
+        } else {
+            status.setText(preparing + " (" + task.getState().name() + ")");
+        }
+        handler.postDelayed(this::refreshStatus, 500);
+    }
+
+    private RuntimeProvisionTask readTask() {
+        try {
+            return new FileRuntimeProvisionTaskRepository(new GameStoragePaths(getContext()
+                .getFilesDir()).getRuntimeProvisionTasksDirectory()).find(taskId).orElse(null);
+        } catch (IOException | RuntimeException ignored) {
+            return null;
         }
     }
 

@@ -441,7 +441,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         row.getRoot().setOnClickListener(view -> showLaunchPresentation(item));
         row.getRoot().setFocusable(true);
         row.localGameDetails.setOnClickListener(view -> startActivity(
-            LocalGames.createRuntimeProfileIntent(this, game.getId())));
+            LocalGames.createRuntimeOptionsIntent(this, game.getId())));
         row.localGameMore.setOnClickListener(view -> showActionsTextMenu(item, view));
         if (!game.getArtworkUri().isEmpty()) {
             libraryExecutor.execute(() -> {
@@ -598,7 +598,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         switch (action) {
             case GAME_ACTION_ENGINE:
             case GAME_ACTION_CONTROLS:
-                startActivity(LocalGames.createRuntimeProfileIntent(this, game.getId()));
+                startActivity(LocalGames.createRuntimeOptionsIntent(this, game.getId()));
                 return;
             case GAME_ACTION_EDIT:
                 startActivity(LocalGames.createGameDetailIntent(this, game.getId()));

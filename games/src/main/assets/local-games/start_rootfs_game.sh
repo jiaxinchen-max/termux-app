@@ -708,9 +708,9 @@ emit RUNNING STARTING_GAME 80 null '' false starting_game
 # while keeping every game window inside the LaunchSpec resolution.
 printf 'Launching Wine virtual desktop at %s\n' "$RESOLUTION" >> "$LOG_PATH"
 if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
-    set -- explorer "/desktop=games,$RESOLUTION" "$GUEST_EXECUTABLE" "$@"
+    set -- explorer "/desktop=shell,$RESOLUTION" "$GUEST_EXECUTABLE" "$@"
 else
-    set -- "$GUEST_WINE" explorer "/desktop=games,$RESOLUTION" "$GUEST_EXECUTABLE" "$@"
+    set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION" "$GUEST_EXECUTABLE" "$@"
 fi
 GAMES_EFFECTIVE_CPU_CORES="${GAMES_CPU_CORES:-${GAMES_CPU_CORES_32:-}}"
 if [ -n "$GAMES_EFFECTIVE_CPU_CORES" ]; then

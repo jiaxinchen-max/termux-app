@@ -37,14 +37,6 @@
             android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
 
         <activity
-            android:name=".activity.GameRuntimeProfileActivity"
-            android:exported="false"
-            android:label="@string/local_game_runtime_profile_title"
-            android:resizeableActivity="true"
-            android:screenOrientation="landscape"
-            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
-
-        <activity
             android:name=".activity.GameRuntimeOptionsActivity"
             android:exported="false"
             android:label="@string/local_game_runtime_profile_title"

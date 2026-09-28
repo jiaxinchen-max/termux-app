@@ -29,7 +29,6 @@ import androidx.lifecycle.Lifecycle;
 import com.termux.localgames.activity.LocalGamesActivity;
 import com.termux.localgames.activity.GameImportActivity;
 import com.termux.localgames.activity.GameDetailActivity;
-import com.termux.localgames.activity.GameRuntimeProfileActivity;
 import com.termux.localgames.activity.GameAssetsActivity;
 import com.termux.localgames.activity.GameLaunchActivity;
 import com.termux.localgames.activity.GameSessionActivity;
@@ -149,20 +148,6 @@ public class LocalGamesApiInstrumentedTest {
         assertNotNull(intent.getComponent());
         assertEquals(GameDetailActivity.class.getName(), intent.getComponent().getClassName());
         assertEquals("game-1", intent.getStringExtra(GameDetailActivity.EXTRA_GAME_ID));
-        ActivityInfo info = context.getPackageManager().getActivityInfo(intent.getComponent(), 0);
-        assertFalse(info.exported);
-    }
-
-    @Test
-    public void runtimeProfileIntentTargetsPrivateActivity() throws Exception {
-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-
-        Intent intent = LocalGames.createRuntimeProfileIntent(context, "game-1");
-
-        assertNotNull(intent.getComponent());
-        assertEquals(GameRuntimeProfileActivity.class.getName(),
-            intent.getComponent().getClassName());
-        assertEquals("game-1", intent.getStringExtra(GameRuntimeProfileActivity.EXTRA_GAME_ID));
         ActivityInfo info = context.getPackageManager().getActivityInfo(intent.getComponent(), 0);
         assertFalse(info.exported);
     }
@@ -401,43 +386,6 @@ public class LocalGamesApiInstrumentedTest {
     }
 
     @Test
-    public void runtimeProfileDefaultsUnsavedFormAndSaveSurviveRecreation() throws Exception {
-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        String gameId = "instrumented-runtime-profile";
-        FileGameRepository games = repository(context);
-        FileRuntimeProfileRepository profiles = new FileRuntimeProfileRepository(
-            new GameStoragePaths(context.getFilesDir()).getProfilesDirectory());
-        games.delete(gameId);
-        profiles.delete(gameId);
-        games.save(game(gameId, "Runtime Profile Test", "content://missing/tree/profile"));
-        try (ActivityScenario<GameRuntimeProfileActivity> scenario = ActivityScenario.launch(
-            LocalGames.createRuntimeProfileIntent(context, gameId))) {
-            assertTrue(waitForRuntimeProfile(scenario,
-                "Wine 9.3 Vanilla · 9.3 WoW64"));
-            scenario.onActivity(activity -> {
-                ((android.widget.AutoCompleteTextView) activity.findViewById(
-                    com.termux.localgames.R.id.runtime_profile_wine)).setText(
-                    "Wine 9.0 Staging · 9.0 WoW64", false);
-                assertTrue(((android.widget.TextView) activity.findViewById(
-                    com.termux.localgames.R.id.runtime_profile_changes)).getText()
-                    .toString().contains("wine-9.0-staging-wow64"));
-            });
-            scenario.onActivity(activity -> ((android.widget.AutoCompleteTextView)
-                activity.findViewById(com.termux.localgames.R.id.runtime_profile_execution_mode))
-                .setText(activity.getString(com.termux.localgames.R.string
-                    .local_game_runtime_profile_execution_terminal), false));
-            scenario.recreate();
-            assertTrue(waitForRuntimeProfile(scenario,
-                "Wine 9.0 Staging · 9.0 WoW64"));
-            assertRuntimeExecutionMode(scenario,
-                com.termux.localgames.R.string.local_game_runtime_profile_execution_terminal);
-        } finally {
-            profiles.delete(gameId);
-            games.delete(gameId);
-        }
-    }
-
-    @Test
     public void detailDeleteRemovesOnlyPrivateRecordAndLeavesExternalMarker() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         String gameId = "instrumented-delete-game";
@@ -653,46 +601,6 @@ public class LocalGamesApiInstrumentedTest {
             Thread.sleep(50);
         }
         return false;
-    }
-
-    private static boolean waitForRuntimeProfile(
-        ActivityScenario<GameRuntimeProfileActivity> scenario, String wine)
-        throws InterruptedException {
-        AtomicBoolean found = new AtomicBoolean();
-        for (int attempt = 0; attempt < 100; attempt++) {
-            scenario.onActivity(activity -> {
-                android.widget.TextView name = activity.findViewById(
-                    com.termux.localgames.R.id.runtime_profile_game_name);
-                android.widget.TextView wineView = activity.findViewById(
-                    com.termux.localgames.R.id.runtime_profile_wine);
-                View content = activity.findViewById(
-                    com.termux.localgames.R.id.runtime_profile_content);
-                found.set(content.getVisibility() == View.VISIBLE &&
-                    "Runtime Profile Test".contentEquals(name.getText()) &&
-                    wine.contentEquals(wineView.getText()));
-            });
-            if (found.get()) return true;
-            Thread.sleep(50);
-        }
-        return false;
-    }
-
-    private static boolean waitForSavedProfile(FileRuntimeProfileRepository repository,
-                                               String gameId, String wine) throws Exception {
-        for (int attempt = 0; attempt < 100; attempt++) {
-            if (repository.find(gameId).filter(profile ->
-                wine.equals(profile.getWinePackage())).isPresent()) return true;
-            Thread.sleep(50);
-        }
-        return false;
-    }
-
-    private static void assertRuntimeExecutionMode(
-        ActivityScenario<GameRuntimeProfileActivity> scenario, int expectedString) {
-        scenario.onActivity(activity -> assertEquals(activity.getString(expectedString),
-            ((android.widget.AutoCompleteTextView) activity.findViewById(
-                com.termux.localgames.R.id.runtime_profile_execution_mode))
-                .getText().toString()));
     }
 
     private static boolean waitForGameDeletion(FileGameRepository repository, String gameId)
