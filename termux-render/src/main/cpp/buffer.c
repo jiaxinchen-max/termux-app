@@ -72,6 +72,39 @@ typedef int (*AHardwareBuffer_recvHandleFromUnixSocket_fn)(int socketFd,
                                                            AHardwareBuffer **outBuffer);
 typedef int (*AHardwareBuffer_sendHandleToUnixSocket_fn)(const AHardwareBuffer *buffer,
                                                          int socketFd);
+typedef void *(*platform_dlopen_fn)(const char *filename, int flags);
+
+static void *
+openSystemLibandroid(void)
+{
+    platform_dlopen_fn platformDlopen =
+        (platform_dlopen_fn) dlsym(RTLD_DEFAULT, "platform_dlopen");
+    if (!platformDlopen) {
+        static void *platformNamespaceHandle;
+        platformNamespaceHandle = dlopen("libtermux-platform-ns.so",
+                                         RTLD_NOW | RTLD_LOCAL);
+        if (platformNamespaceHandle) {
+            platformDlopen = (platform_dlopen_fn)
+                dlsym(platformNamespaceHandle, "platform_dlopen");
+        }
+    }
+    if (!platformDlopen) {
+        tlog(LOG_WARNING, "platform_dlopen is unavailable");
+        return NULL;
+    }
+
+#if defined(__LP64__)
+    const char *path = "/system/lib64/libandroid.so";
+#else
+    const char *path = "/system/lib/libandroid.so";
+#endif
+    void *handle = platformDlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (!handle)
+        tlog(LOG_WARNING, "platform_dlopen %s failed", path);
+    else
+        tlog(LOG_INFO, "Loaded Android platform library %s", path);
+    return handle;
+}
 
 static void *
 libandroidSymbol(const char *name)
@@ -81,7 +114,9 @@ libandroidSymbol(const char *name)
 
     if (!attempted) {
         attempted = true;
-        handle = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
+        handle = openSystemLibandroid();
+        if (!handle)
+            handle = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
         if (!handle)
             tlog(LOG_WARNING, "dlopen libandroid.so failed: %s", dlerror());
     }
@@ -431,7 +466,10 @@ LorieBuffer* LorieBuffer_allocate(int32_t width, int32_t height, int8_t format, 
         return NULL;
 #else
         AHardwareBuffer_Desc desc = { .width = width, .height = height, .format = format, .layers = 1,
-                .usage = AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN | AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE };
+                .usage = AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN |
+                         AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN |
+                         AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE |
+                         AHARDWAREBUFFER_USAGE_GPU_FRAMEBUFFER };
         int err = androidHardwareBufferAllocate(&desc, &ahardwarebuffer);
         if (err != 0)
             dprintf(2, "FATAL: failed to allocate AHardwareBuffer (width %d height %d format %d): error %d\n", width, height, format, err);
@@ -476,6 +514,8 @@ void __LorieBuffer_free(LorieBuffer *buffer) {
             if (buffer->desc.buffer)
                 androidHardwareBufferRelease(buffer->desc.buffer);
 #endif
+            if (buffer->fd >= 0)
+                close(buffer->fd);
             break;
         default:
             break;
@@ -558,8 +598,10 @@ const LorieBuffer_Desc* LorieBuffer_description(LorieBuffer* buffer) {
     if (buffer->desc.type == LORIEBUFFER_REGULAR || buffer->desc.type == LORIEBUFFER_FD)
         buffer->lockedData = buffer->desc.data;
 #ifndef TERMUX_RENDER_FD_ONLY
-    else if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER)
+    else if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER && buffer->desc.buffer)
         ret = androidHardwareBufferLock(buffer->desc.buffer, AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN, -1, NULL, &buffer->lockedData);
+    else if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER)
+        return ENOTSUP;
 #else
     else if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER)
         return ENOTSUP;
@@ -583,12 +625,14 @@ int LorieBuffer_unlock(LorieBuffer* buffer) {
         return ENOENT;
     }
 
-    if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER) {
+    if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER && buffer->desc.buffer) {
 #ifndef TERMUX_RENDER_FD_ONLY
         ret = androidHardwareBufferUnlock(buffer->desc.buffer, NULL);
 #else
         return ENOTSUP;
 #endif
+    } else if (buffer->desc.type == LORIEBUFFER_AHARDWAREBUFFER) {
+        return ENOTSUP;
     }
 
     buffer->lockedData = NULL;
@@ -672,15 +716,74 @@ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuffer** outBuffer)
             *outBuffer = NULL;
         return;
 #else
-        if (androidHardwareBufferRecvHandleFromUnixSocket(socketFd,
-                                                          &buffer.desc.buffer) != 0) {
-            tlog(LOG_ERR, "Failed to receive AHardwareBuffer handle: %s",
-                 strerror(errno));
+        const char *receiveMode = getenv("TERMUX_RENDER_AHB_RECEIVE");
+        if (receiveMode && strcmp(receiveMode, "native") == 0) {
+            if (androidHardwareBufferRecvHandleFromUnixSocket(socketFd,
+                                                              &buffer.desc.buffer) != 0) {
+                tlog(LOG_ERR, "Failed to receive native AHardwareBuffer handle: %s",
+                     strerror(errno));
+                if (outBuffer)
+                    *outBuffer = NULL;
+                return;
+            }
+            tlog(LOG_INFO, "Received native AHardwareBuffer handle=%p",
+                 buffer.desc.buffer);
+        } else {
+        enum { maxHardwareBufferFds = 128 };
+        char flattened[4096 * sizeof(int)];
+        char control[CMSG_SPACE(maxHardwareBufferFds * sizeof(int))];
+        struct iovec iov = {
+            .iov_base = flattened,
+            .iov_len = sizeof(flattened),
+        };
+        struct msghdr message = {
+            .msg_iov = &iov,
+            .msg_iovlen = 1,
+            .msg_control = control,
+            .msg_controllen = sizeof(control),
+        };
+        ssize_t received;
+        do {
+            received = recvmsg(socketFd, &message, 0);
+        } while (received < 0 && errno == EINTR);
+
+        int receivedFdCount = 0;
+        for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&message);
+             cmsg;
+             cmsg = CMSG_NXTHDR(&message, cmsg)) {
+            if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS
+                || cmsg->cmsg_len < CMSG_LEN(sizeof(int))) {
+                continue;
+            }
+
+            const size_t payloadSize = cmsg->cmsg_len - CMSG_LEN(0);
+            const int count = payloadSize / sizeof(int);
+            int *fds = (int *) CMSG_DATA(cmsg);
+            for (int i = 0; i < count; ++i) {
+                if (buffer.fd < 0)
+                    buffer.fd = fds[i];
+                else
+                    close(fds[i]);
+                ++receivedFdCount;
+            }
+        }
+
+        if (received <= 0 || (message.msg_flags & (MSG_CTRUNC | MSG_TRUNC))
+            || buffer.fd < 0) {
+            if (buffer.fd >= 0)
+                close(buffer.fd);
+            tlog(LOG_ERR,
+                 "Failed to receive raw AHardwareBuffer dma-buf: bytes=%zd fds=%d flags=%#x error=%s",
+                 received, receivedFdCount, message.msg_flags, strerror(errno));
             if (outBuffer)
                 *outBuffer = NULL;
             return;
         }
-        tlog(LOG_INFO, "Received AHardwareBuffer handle=%p", buffer.desc.buffer);
+        buffer.desc.buffer = NULL;
+        tlog(LOG_INFO,
+             "Received raw AHardwareBuffer dma-buf fd=%d fds=%d metadata=%zd bytes",
+             buffer.fd, receivedFdCount, received);
+        }
 #endif
     }
 
@@ -706,6 +809,15 @@ void LorieBuffer_recvHandleFromUnixSocket(int socketFd, LorieBuffer** outBuffer)
     xorg_list_init(&ret->link);
     *outBuffer = ret;
     tlog(LOG_INFO, "LorieBuffer receive completed out=%p", ret);
+}
+
+int LorieBuffer_dupDmaBufFd(const LorieBuffer *buffer) {
+    if (!buffer || buffer->fd < 0) {
+        errno = ENODEV;
+        return -1;
+    }
+
+    return fcntl(buffer->fd, F_DUPFD_CLOEXEC, 0);
 }
 
 int LorieBuffer_getWidth(LorieBuffer *buffer) {

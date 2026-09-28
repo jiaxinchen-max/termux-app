@@ -1,0 +1,24 @@
+# Games 双运行后端任务
+
+- [x] 补齐并确认 proposal、design、specs 和 tasks
+- [x] 增加 RuntimeProfile/LaunchSpec 后端字段和向后迁移
+- [x] 增加 GameRuntimeBackend SPI、registry 和 GLIBC 适配
+- [x] 增加 RootFS active component resolver、预检和独立脚本安装骨架
+- [x] 增加双后端 JVM/脚本测试
+- [x] 完成代码评审、测试评审和 Gradle 证据
+- [x] 删除 GLIBC 后端 Vortek/Gladio 到 Turnip 的伪映射并补稳定错误测试
+- [x] 删除完整 RootFS 下载边界，改为 Termux 内部 on-device recipe
+- [x] 增加 Hangover 官方源组件的断点续传、size/SHA-256 校验和 plain-tar 安装
+- [x] 增加 RuntimeProvisionTask 持久模型、Host AppShell adapter 和 provisioning Service
+- [x] 增加 PRoot-Distro 版本化容器 active receipt 和 RootFS 路径校验
+- [x] 将 RootFS 默认 profile 调整为真实 manifest 可声明的 Hangover + VirGL 组合
+- [x] 增加 PRoot prefix 初始化、DX wrapper 安装与能力校验
+- [x] 重新完成 JVM、shell、Gradle 和 Harness v3 证据
+- [x] ARM64 模拟器完成 `pkg/proot-distro install + login provisioning`、进程恢复和失败隔离验证
+- [x] ARM64 4K 模拟器完成 SAF 导入、RootFS/Hangover、llvmpipe X11 首帧、返回键控制中心和安全退出清理
+- [x] 将 GLIBC Wine Prefix 初始化从首次 launch 抽离为保存 profile 后的持久 PrefixProvisionTask
+- [x] 对齐 Mobox marker 判定、配置加载白名单、Pulse/X11 初始化与 AVD wineserver 收尾
+- [x] ARM64 API 30 AVD 完成 Wine 9.3 GLIBC PrefixProvision `SUCCEEDED`、marker 和进程所有权验证
+- [x] 完成第二、第三配方版本的 immutable container 与 active/previous 双向回滚验证
+- [ ] 完成物理 GPU VirGL/Turnip 与 16K page 真机验证
+- [ ] 用户接受后归档

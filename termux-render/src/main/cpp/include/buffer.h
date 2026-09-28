@@ -146,6 +146,14 @@ STATIC_INLINE void LorieBuffer_release(LorieBuffer *_Nullable buffer) {
 const LorieBuffer_Desc *_Nonnull LorieBuffer_description(LorieBuffer *_Nullable buffer);
 
 /**
+ * Duplicate the dma-buf file descriptor carried by this buffer.
+ *
+ * The caller owns the returned descriptor. Returns -1 if the buffer does not
+ * expose a dma-buf descriptor.
+ */
+int LorieBuffer_dupDmaBufFd(const LorieBuffer *_Nullable buffer);
+
+/**
  * Lock the AHardwareBuffer for direct CPU access.
  * See AHardwareBuffer_lock() description for details
  *

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(./gradlew :app:compileDebugJavaWithJavac)",
+      "Read(//Library/Java/JavaVirtualMachines/**)",
+      "Bash(/usr/libexec/java_home -V)",
+      "Bash(java -version)",
+      "Bash(JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ./gradlew :app:compileDebugJavaWithJavac)",
+      "Bash(JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ./gradlew :termux-x11:compileDebugJavaWithJavac)",
+      "Bash(grep -c \"错误:\" /dev/null 2>/dev/null; echo \"--- All remaining toPath/toFile/Paths references ---\"; grep -n \"\\\\.toPath\\(\\)\\\\|Paths\\\\.\\\\|Path \" /Users/chenjiaxin/StudioProjects/termux-app/app/src/main/java/com/termux/app/activities/termuxbox/TermuxBoxRepository.java | grep -v \"Build.VERSION\\\\|//.*helper\\\\|/\\\\\\\\*\\\\\\\\*\")",
+      "Read(//dev/**)",
+      "Bash(gh api *)",
+      "Bash(JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home /Users/chenjiaxin/StudioProjects/termux-app/gradlew assembleDebug)",
+      "Bash(JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ./gradlew assembleDebug)"
+    ]
+  }
+}
