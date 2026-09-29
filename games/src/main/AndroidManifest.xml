@@ -92,6 +92,11 @@
             android:name=".service.PrefixProvisionForegroundService"
             android:exported="false"
             android:label="@string/local_games_prefix_provision_title" />
+
+        <service
+            android:name=".service.ResetRuntimeForegroundService"
+            android:exported="false"
+            android:label="@string/local_games_reset_title" />
     </application>
 
 </manifest>

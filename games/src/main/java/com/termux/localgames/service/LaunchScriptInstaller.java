@@ -23,6 +23,10 @@ public final class LaunchScriptInstaller {
     private static final String PREFIX_PROVISION_ASSET = "local-games/provision_glibc_prefix.sh";
     private static final String TERMUX_GLIBC_INSTALL_ASSET =
         "local-games/install_termux_glibc_runtime.sh";
+    private static final String TERMUX_GLIBC_RESET_ASSET =
+        "local-games/reset_termux_glibc_runtime.sh";
+    private static final String ROOTFS_RESET_ASSET =
+        "local-games/reset_rootfs_runtime.sh";
     private static final String TERMUX_BOX_GAME_ASSET =
         "local-games/start_termux_box_game.sh";
 
@@ -56,6 +60,20 @@ public final class LaunchScriptInstaller {
     public File installTermuxGlibcRuntime() throws IOException {
         File script = new File(runtimeDirectory, "install_termux_glibc_runtime.sh");
         installAsset(TERMUX_GLIBC_INSTALL_ASSET, script);
+        return script;
+    }
+
+    /** Deploys the trusted terminal script that purges the GLIBC runtime back to not-installed. */
+    public File installResetTermuxGlibcRuntime() throws IOException {
+        File script = new File(runtimeDirectory, "reset_termux_glibc_runtime.sh");
+        installAsset(TERMUX_GLIBC_RESET_ASSET, script);
+        return script;
+    }
+
+    /** Deploys the trusted terminal script that removes one RootFS container's build + metadata. */
+    public File installResetRootfsRuntime() throws IOException {
+        File script = new File(runtimeDirectory, "reset_rootfs_runtime.sh");
+        installAsset(ROOTFS_RESET_ASSET, script);
         return script;
     }
 

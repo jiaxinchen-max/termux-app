@@ -59,34 +59,9 @@
                         android:textSize="11sp"
                         android:textStyle="bold" />
 
-                    <TextView
-                        android:id="@+id/local_games_runtime_status"
-                        android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:background="@drawable/local_games_bg_runtime_chip"
-                        android:gravity="center"
-                        android:maxWidth="150dp"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:singleLine="true"
-                        android:text="@string/local_games_runtime_checking"
-                        android:textColor="@color/local_games_status_text"
-                        android:textSize="11sp"
-                        android:textStyle="bold" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/local_games_orientation_button"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:layout_marginStart="4dp"
-                        android:minWidth="64dp"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="8dp"
-                        android:text="@string/local_games_switch_landscape"
-                        android:textAllCaps="false"
-                        android:textColor="@color/local_games_on_surface"
-                        android:textSize="12sp" />
+                    <include
+                        android:id="@+id/local_games_runtime_emblem"
+                        layout="@layout/view_runtime_emblem" />
 
                 </LinearLayout>
 

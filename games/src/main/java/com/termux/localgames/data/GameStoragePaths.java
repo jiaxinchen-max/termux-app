@@ -107,6 +107,21 @@ public final class GameStoragePaths {
     public File getProotDistroContainersDirectory() {
         return new File(getTermuxPrefixDirectory(), "var/lib/proot-distro/containers");
     }
+    public File getResetDirectory() {
+        return new File(libraryDirectory.getParentFile(), "runtime/reset");
+    }
+    public File getResetTasksDirectory() {
+        return new File(getResetDirectory(), "tasks");
+    }
+    public File getResetSpecsDirectory() {
+        return new File(getResetDirectory(), "specs");
+    }
+    public File getResetEventsDirectory() {
+        return new File(getResetDirectory(), "events");
+    }
+    public File getResetLogsDirectory() {
+        return new File(getResetDirectory(), "logs");
+    }
     public File getGamePrefixDirectory(String gameId) {
         return new File(getPrefixesDirectory(), requireId(gameId));
     }

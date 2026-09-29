@@ -47,7 +47,9 @@ import com.termux.localgames.components.index.ComponentDescriptor;
 import com.termux.localgames.components.index.ComponentType;
 import com.termux.localgames.components.install.ComponentInstallationReader;
 import com.termux.localgames.data.FileComponentTaskRepository;
+import com.termux.localgames.data.FileGameContainerRepository;
 import com.termux.localgames.data.FileGameRepository;
+import com.termux.localgames.data.FileResetTaskRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.FileRuntimeProvisionTaskRepository;
 import com.termux.localgames.data.GameAccessState;
@@ -62,7 +64,12 @@ import com.termux.localgames.databinding.ItemLocalGamesComponentSectionBinding;
 import com.termux.localgames.databinding.ItemLocalGameBinding;
 import com.termux.localgames.domain.ComponentTask;
 import com.termux.localgames.domain.Game;
+import com.termux.localgames.domain.GameContainer;
 import com.termux.localgames.domain.GameRuntimeBackendType;
+import com.termux.localgames.domain.ResetTarget;
+import com.termux.localgames.domain.ResetTask;
+import com.termux.localgames.api.ResetTasks;
+import com.termux.localgames.runtime.RuntimeEnvironmentStatus;
 import com.termux.localgames.domain.RuntimeProvisionTask;
 import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.importer.SafGameAccessProbe;
@@ -186,6 +193,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         int initialPage = selectedTab;
         binding.localGamesNavigation.setSelectedItemId(R.id.local_games_navigation_library);
         showPage(initialPage);
+        ResetTasks.reconcileAll(this);
         renderRuntimeStatus();
     }
 
@@ -196,6 +204,14 @@ public final class LocalGamesActivity extends AppCompatActivity {
         if (selectedTab == TAB_COMPONENTS) scheduleCatalogRefresh(0);
         else if (selectedTab == TAB_LIBRARY) loadLibraryAsync();
         else renderAppExperience();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // A reset runs behind RuntimeProvisionConsoleDialog and control returns here once it
+        // finishes -- re-check both environments so the emblem reflects the new state.
+        renderRuntimeStatus();
     }
 
     @Override
@@ -253,13 +269,11 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void configureOrientationButton() {
         boolean landscape = getResources().getConfiguration().orientation ==
             Configuration.ORIENTATION_LANDSCAPE;
-        binding.localGamesOrientationButton.setText(landscape
-            ? R.string.local_games_switch_portrait : R.string.local_games_switch_landscape);
-        binding.localGamesOrientationButton.setContentDescription(getString(landscape
-            ? R.string.local_games_switch_portrait_description
-            : R.string.local_games_switch_landscape_description));
-        binding.localGamesOrientationButton.setOnClickListener(view -> setRequestedOrientation(
-            landscape ? ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        binding.localGamesRuntimeEmblem.localGamesEmblemHubTap.setContentDescription(getString(
+            landscape ? R.string.local_games_switch_portrait_description
+                : R.string.local_games_switch_landscape_description));
+        binding.localGamesRuntimeEmblem.localGamesEmblemHubTap.setOnClickListener(view ->
+            setRequestedOrientation(landscape ? ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                 : ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE));
     }
 
@@ -1177,16 +1191,81 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void renderRuntimeStatus() {
+        binding.localGamesRuntimeEmblem.localGamesEmblemGlibcTap.setOnClickListener(view ->
+            confirmReset(ResetTarget.GLIBC, null));
+        libraryExecutor.execute(() -> {
+            GameStoragePaths paths = new GameStoragePaths(getFilesDir());
+            RuntimeEnvironmentStatus status = new RuntimeEnvironmentStatus(paths);
+            boolean glibcReady = status.isGlibcReady();
+            boolean rootfsReady = status.isRootfsReady();
+            ResetTask activeGlibcReset = findActiveResetTask(paths, ResetTarget.GLIBC);
+            ResetTask activeRootfsReset = findActiveResetTask(paths, ResetTarget.ROOTFS);
+            String rootfsContainerId = firstRootfsContainerId(paths);
+            mainHandler.post(() -> {
+                if (binding == null) return;
+                tintEmblemBlade(binding.localGamesRuntimeEmblem.localGamesEmblemGlibcOutline,
+                    activeGlibcReset != null, glibcReady);
+                tintEmblemBlade(binding.localGamesRuntimeEmblem.localGamesEmblemContainerOutline,
+                    activeRootfsReset != null, rootfsReady);
+                binding.localGamesRuntimeEmblem.localGamesEmblemContainerTap.setOnClickListener(
+                    view -> confirmReset(ResetTarget.ROOTFS, rootfsContainerId));
+            });
+        });
+    }
+
+    private void tintEmblemBlade(android.widget.ImageView outline, boolean resetting,
+                                 boolean ready) {
+        int colorRes = resetting ? R.color.local_games_warning
+            : ready ? R.color.local_games_success : R.color.local_games_error;
+        outline.setImageTintList(android.content.res.ColorStateList.valueOf(
+            ContextCompat.getColor(this, colorRes)));
+    }
+
+    @Nullable
+    private ResetTask findActiveResetTask(GameStoragePaths paths, ResetTarget target) {
         try {
-            LocalGamesHost host = LocalGames.requireHost(this);
-            boolean available = host.isRuntimeAvailable();
-            binding.localGamesRuntimeStatus.setText(available
-                ? R.string.local_games_runtime_ready : R.string.local_games_runtime_unavailable);
-            binding.localGamesRuntimeStatus.setActivated(available);
-        } catch (IllegalStateException error) {
-            binding.localGamesRuntimeStatus.setText(R.string.local_games_runtime_not_integrated);
-            binding.localGamesRuntimeStatus.setActivated(false);
+            for (ResetTask task : new FileResetTaskRepository(paths.getResetTasksDirectory())
+                .list()) {
+                if (task.getTarget() == target && !task.getState().isTerminal()) return task;
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // The service remains the final gate if task persistence cannot be read here.
         }
+        return null;
+    }
+
+    @Nullable
+    private String firstRootfsContainerId(GameStoragePaths paths) {
+        try {
+            for (GameContainer container : new FileGameContainerRepository(
+                paths.getContainersDirectory()).list()) {
+                if (container.getBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
+                    return container.getId();
+                }
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // Handled below: no container means nothing to reset yet.
+        }
+        return null;
+    }
+
+    private void confirmReset(ResetTarget target, @Nullable String containerId) {
+        if (target == ResetTarget.ROOTFS && TextUtils.isEmpty(containerId)) {
+            Toast.makeText(this, R.string.local_games_reset_rootfs_none, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        int messageRes = target == ResetTarget.GLIBC
+            ? R.string.local_games_reset_confirm_glibc : R.string.local_games_reset_confirm_rootfs;
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.local_games_reset_confirm_title)
+            .setMessage(messageRes)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.local_games_reset_action, (dialog, which) -> {
+                String taskId = ResetTasks.enqueue(this, target, containerId);
+                RuntimeProvisionConsoleDialog.show(this, taskId);
+                mainHandler.postDelayed(this::renderRuntimeStatus, 400);
+            })
+            .show();
     }
 
     private static String safeMessage(Exception error) {

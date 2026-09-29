@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Runtime Emblem base layer: hub (unchanged orientation-toggle axis) + both blade shapes'
+     dark metal fill + rivets. Coordinates are the approved mecha-emblem design, /10 scale.
+     The status color for each blade comes from a separate tintable outline drawable layered
+     on top (local_games_emblem_blade_glibc_outline.xml / _container_outline.xml) so this base
+     layer never needs to change. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="54dp"
+    android:viewportWidth="150"
+    android:viewportHeight="34">
+    <path
+        android:fillColor="#2A323A"
+        android:pathData="M30,3.6 L110,3.6 L90,18 L50,18 Z M60,25.2 L80,25.2 L90,32.4 L50,32.4 Z" />
+    <path
+        android:fillColor="#20262C"
+        android:pathData="M20,3.6 L50,25.2 L43,30.24 L13,8.64 L13,3.6 Z" />
+    <path
+        android:fillColor="#20262C"
+        android:pathData="M120,3.6 L90,25.2 L97,30.24 L127,8.64 L127,3.6 Z" />
+    <path
+        android:fillColor="#565F68"
+        android:pathData="M28.85,3.6 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M108.85,3.6 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M88.85,18 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M48.85,18 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M58.85,25.2 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M78.85,25.2 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M88.85,32.4 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M48.85,32.4 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M18.85,3.6 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M48.85,25.2 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M41.85,30.24 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M11.85,8.64 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M11.85,3.6 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M118.85,3.6 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M88.85,25.2 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M95.85,30.24 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M125.85,8.64 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z M125.85,3.6 a1.15,1.15 0 1,0 2.3,0 a1.15,1.15 0 1,0 -2.3,0 Z" />
+</vector>

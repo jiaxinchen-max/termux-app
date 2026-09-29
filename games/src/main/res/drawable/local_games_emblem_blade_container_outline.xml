@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tintable outline for the ROOTFS/container blade - mirror of
+     local_games_emblem_blade_glibc_outline.xml, same viewport/coordinates as the base layer. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="54dp"
+    android:viewportWidth="150"
+    android:viewportHeight="34">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.2"
+        android:pathData="M120,3.6 L90,25.2 L97,30.24 L127,8.64 L127,3.6 Z" />
+</vector>

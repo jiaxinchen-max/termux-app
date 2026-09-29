@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The "Runtime Emblem": a mecha-styled hub (orientation toggle, unchanged function) flanked
+     by two independently status-colored blades (GLIBC / ROOTFS), each tappable to reset that
+     environment. Layered from a static base (metal fill + rivets + hub) plus two runtime-tinted
+     outline overlays - see local_games_emblem_base.xml for the shared coordinate system. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="240dp"
+    android:layout_height="54dp">
+
+    <ImageView
+        android:layout_width="240dp"
+        android:layout_height="54dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/local_games_emblem_base" />
+
+    <ImageView
+        android:id="@+id/local_games_emblem_glibc_outline"
+        android:layout_width="240dp"
+        android:layout_height="54dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/local_games_emblem_blade_glibc_outline" />
+
+    <ImageView
+        android:id="@+id/local_games_emblem_container_outline"
+        android:layout_width="240dp"
+        android:layout_height="54dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/local_games_emblem_blade_container_outline" />
+
+    <ImageView
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:layout_gravity="start|top"
+        android:layout_marginStart="30dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/local_games_bg_emblem_icon"
+        android:importantForAccessibility="no"
+        android:padding="4dp"
+        android:src="@drawable/local_games_ic_chip" />
+
+    <ImageView
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:layout_gravity="start|top"
+        android:layout_marginStart="169dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/local_games_bg_emblem_icon"
+        android:importantForAccessibility="no"
+        android:padding="4dp"
+        android:src="@drawable/local_games_ic_cube" />
+
+    <ImageView
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_gravity="start|top"
+        android:layout_marginStart="97dp"
+        android:layout_marginTop="9dp"
+        android:background="@drawable/local_games_bg_emblem_icon"
+        android:importantForAccessibility="no"
+        android:padding="5dp"
+        android:src="@drawable/local_games_ic_orientation" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <View
+            android:id="@+id/local_games_emblem_glibc_tap"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/local_games_emblem_glibc_description" />
+
+        <View
+            android:id="@+id/local_games_emblem_hub_tap"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/local_games_switch_landscape_description" />
+
+        <View
+            android:id="@+id/local_games_emblem_container_tap"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/local_games_emblem_rootfs_description" />
+
+    </LinearLayout>
+
+</FrameLayout>
