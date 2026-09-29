@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tintable GLIBC blade: LocalGamesActivity sets the fill color and starts/stops a breathing
+     alpha animation on this ImageView per RuntimeReadinessState (see applyBladeState). Same
+     coordinate system as local_games_emblem_hub.xml / _blade_container.xml. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="130.6dp"
+    android:height="21.8dp"
+    android:viewportWidth="130.612"
+    android:viewportHeight="21.769">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M 3.810,0.000 L 34.285,0.000 Q 38.095,0.000 39.799,3.408 L 47.276,18.361 Q 48.980,21.769 45.170,21.769 L 14.694,21.769 Q 10.884,21.769 9.180,18.361 L 1.704,3.408 Q 0.000,0.000 3.810,0.000 Z" />
+</vector>

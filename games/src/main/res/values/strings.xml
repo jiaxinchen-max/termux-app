@@ -16,9 +16,10 @@
     <string name="local_games_reset_status">%1$s · %2$s</string>
     <string name="local_games_reset_confirm_title">Reset this environment?</string>
     <string name="local_games_reset_confirm_glibc">This removes the GLIBC runtime (Wine, X11, graphics drivers) and any downloaded components. You\'ll need to reinstall it before launching GLIBC games again.</string>
-    <string name="local_games_reset_confirm_rootfs">This removes the RootFS/PRoot container\'s Debian build. You\'ll need to rebuild it before launching RootFS games again.</string>
+    <string name="local_games_reset_confirm_rootfs">This resets the shared RootFS base runtime used to build new game containers. Games that are already installed keep working; only the next brand-new RootFS game will rebuild this base from scratch.</string>
     <string name="local_games_reset_action">Reset</string>
-    <string name="local_games_reset_rootfs_none">No RootFS container to reset yet.</string>
+    <string name="local_games_reset_rootfs_none">No RootFS runtime has been built yet.</string>
+    <string name="local_games_emblem_glibc_installing">Installing the GLIBC runtime…</string>
     <string name="local_games_emblem_glibc_description">GLIBC runtime -- tap to reset</string>
     <string name="local_games_emblem_rootfs_description">RootFS runtime -- tap to reset</string>
     <string name="local_games_empty_title">No local games</string>

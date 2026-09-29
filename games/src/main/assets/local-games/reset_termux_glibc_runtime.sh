@@ -41,11 +41,21 @@ fi
 # Purge through apt/dpkg first so its package database stays consistent with what's
 # actually on disk -- deleting $PREFIX/glibc directly first would leave dpkg believing
 # these packages are still fully installed, so a later re-install would silently no-op.
-run "$PACKAGE_MANAGER" remove --purge -y \
-    glibc glibc-runner glibc-repo \
-    libx11-glibc libxext-glibc libxrender-glibc libxfixes-glibc libxcursor-glibc \
-    libxi-glibc libxcomposite-glibc libxinerama-glibc libxxf86vm-glibc \
-    freetype-glibc fontconfig-glibc libgnutls-glibc || { emit FAILED; exit 1; }
+# The installer pulls in a full glibc userland (bash/coreutils/findutils/...-glibc and
+# their transitive deps), not just the X11/graphics set, so a fixed package list here
+# leaves dependents behind and apt refuses the removal -- query what is actually
+# installed instead.
+glibc_packages=$(dpkg-query -W -f='${Package}|${Status}\n' 2>/dev/null \
+    | awk -F'|' '$1 ~ /(^glibc$|^glibc-runner$|^glibc-repo$|-glibc$)/ && $2 ~ /installed$/ {print $1}')
+if [ -n "$glibc_packages" ]; then
+    # This purges the entire GLIBC userland (bash/coreutils/glibc itself), which apt marks
+    # essential and otherwise refuses to remove even with -y.
+    run "$PACKAGE_MANAGER" remove --purge -y --allow-remove-essential $glibc_packages \
+        || { emit FAILED; exit 1; }
+else
+    printf '%s\n' 'No apt-tracked glibc packages found; skipping package removal.' \
+        | tee -a "$TERMUX_GLIBC_LOG_FILE"
+fi
 
 # Anything left under $PREFIX/glibc at this point is a games-module component download
 # (Wine builds, turnip, DirectX overlay) rather than an apt-tracked package -- sweep it too.

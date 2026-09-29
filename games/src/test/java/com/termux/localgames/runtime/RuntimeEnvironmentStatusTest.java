@@ -1,12 +1,13 @@
 package com.termux.localgames.runtime;
 
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.termux.localgames.data.FileGameContainerRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.GameContainer;
 import com.termux.localgames.domain.GameRuntimeBackendType;
+import com.termux.localgames.domain.RuntimeReadinessState;
 import com.termux.localgames.domain.RuntimeTranslator;
 
 import org.junit.Rule;
@@ -27,7 +28,21 @@ public class RuntimeEnvironmentStatusTest {
     @Test
     public void glibcNotReadyWhenMarkerFilesAreMissing() throws Exception {
         GameStoragePaths paths = new GameStoragePaths(temporary.newFolder("files-empty"));
-        assertFalse(new RuntimeEnvironmentStatus(paths).isGlibcReady());
+        assertEquals(RuntimeReadinessState.NOT_READY,
+            new RuntimeEnvironmentStatus(paths).glibcState());
+    }
+
+    @Test
+    public void glibcIncompleteWhenSomeButNotAllMarkersExist() throws Exception {
+        File files = temporary.newFolder("files-glibc-partial");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        File glibc = new File(paths.getTermuxPrefixDirectory(), "glibc/lib");
+        assertTrue(glibc.mkdirs());
+        assertTrue(new File(glibc, "ld-linux-aarch64.so.1").createNewFile());
+        assertTrue(new File(glibc, "libc.so.6").createNewFile());
+
+        assertEquals(RuntimeReadinessState.INCOMPLETE,
+            new RuntimeEnvironmentStatus(paths).glibcState());
     }
 
     @Test
@@ -46,13 +61,29 @@ public class RuntimeEnvironmentStatusTest {
         assertTrue(grun.createNewFile());
         assertTrue(grun.setExecutable(true));
 
-        assertTrue(new RuntimeEnvironmentStatus(paths).isGlibcReady());
+        assertEquals(RuntimeReadinessState.READY,
+            new RuntimeEnvironmentStatus(paths).glibcState());
     }
 
     @Test
-    public void rootfsNotReadyWithoutAnyActivatedContainer() throws Exception {
+    public void rootfsNotReadyWithoutAnyContainer() throws Exception {
         GameStoragePaths paths = new GameStoragePaths(temporary.newFolder("files-rootfs-empty"));
-        assertFalse(new RuntimeEnvironmentStatus(paths).isRootfsReady());
+        assertEquals(RuntimeReadinessState.NOT_READY,
+            new RuntimeEnvironmentStatus(paths).rootfsState());
+    }
+
+    @Test
+    public void rootfsIncompleteWhenContainerExistsWithoutAnActiveBuild() throws Exception {
+        File files = temporary.newFolder("files-rootfs-partial");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        GameContainer container = new GameContainer("container-game-b", "Game B",
+            GameRuntimeBackendType.ROOTFS_PROOT, GameContainer.ROOTFS_RUNTIME_PACKAGE,
+            RuntimeTranslator.HANGOVER, "hangover-11.9", "rootfs-llvmpipe", "rootfs-wined3d",
+            "pulseaudio", "1280x720", "INTERMEDIATE", Collections.emptyMap());
+        new FileGameContainerRepository(paths.getContainersDirectory()).save(container);
+
+        assertEquals(RuntimeReadinessState.INCOMPLETE,
+            new RuntimeEnvironmentStatus(paths).rootfsState());
     }
 
     @Test
@@ -76,7 +107,8 @@ public class RuntimeEnvironmentStatusTest {
             "schemaVersion", "1", "packageName", GameContainer.ROOTFS_RUNTIME_PACKAGE,
             "version", "1", "recipeSha256", SHA, "containerName", containerId));
 
-        assertTrue(new RuntimeEnvironmentStatus(paths).isRootfsReady());
+        assertEquals(RuntimeReadinessState.READY,
+            new RuntimeEnvironmentStatus(paths).rootfsState());
     }
 
     private static Properties props(String... pairs) {

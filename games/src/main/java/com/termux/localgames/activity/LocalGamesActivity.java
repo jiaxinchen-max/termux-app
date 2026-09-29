@@ -46,8 +46,8 @@ import com.termux.localgames.components.index.ComponentIndexParser;
 import com.termux.localgames.components.index.ComponentDescriptor;
 import com.termux.localgames.components.index.ComponentType;
 import com.termux.localgames.components.install.ComponentInstallationReader;
+import com.termux.localgames.components.install.InstalledComponent;
 import com.termux.localgames.data.FileComponentTaskRepository;
-import com.termux.localgames.data.FileGameContainerRepository;
 import com.termux.localgames.data.FileGameRepository;
 import com.termux.localgames.data.FileResetTaskRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
@@ -64,12 +64,14 @@ import com.termux.localgames.databinding.ItemLocalGamesComponentSectionBinding;
 import com.termux.localgames.databinding.ItemLocalGameBinding;
 import com.termux.localgames.domain.ComponentTask;
 import com.termux.localgames.domain.Game;
-import com.termux.localgames.domain.GameContainer;
 import com.termux.localgames.domain.GameRuntimeBackendType;
 import com.termux.localgames.domain.ResetTarget;
 import com.termux.localgames.domain.ResetTask;
+import com.termux.localgames.domain.RuntimeReadinessState;
 import com.termux.localgames.api.ResetTasks;
+import com.termux.localgames.runtime.RootfsProvisionRecipe;
 import com.termux.localgames.runtime.RuntimeEnvironmentStatus;
+import com.termux.localgames.service.RootfsProvisionAssetInstaller;
 import com.termux.localgames.domain.RuntimeProvisionTask;
 import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.importer.SafGameAccessProbe;
@@ -129,6 +131,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private int libraryColumns = 2;
     private RuntimeProvisionTask latestRuntimeProvisionTask;
     private boolean rootfsRuntimeInstalled;
+    @Nullable private android.animation.ObjectAnimator glibcBladeBreathAnimator;
+    @Nullable private android.animation.ObjectAnimator containerBladeBreathAnimator;
     @Nullable private String componentGameId;
     @Nullable private String componentContainerId;
     @Nullable private GameRuntimeBackendType componentBackend;
@@ -1191,34 +1195,89 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void renderRuntimeStatus() {
-        binding.localGamesRuntimeEmblem.localGamesEmblemGlibcTap.setOnClickListener(view ->
-            confirmReset(ResetTarget.GLIBC, null));
         libraryExecutor.execute(() -> {
             GameStoragePaths paths = new GameStoragePaths(getFilesDir());
             RuntimeEnvironmentStatus status = new RuntimeEnvironmentStatus(paths);
-            boolean glibcReady = status.isGlibcReady();
-            boolean rootfsReady = status.isRootfsReady();
+            RuntimeReadinessState glibcState = status.glibcState();
+            RuntimeReadinessState rootfsState = status.rootfsState();
             ResetTask activeGlibcReset = findActiveResetTask(paths, ResetTarget.GLIBC);
             ResetTask activeRootfsReset = findActiveResetTask(paths, ResetTarget.ROOTFS);
-            String rootfsContainerId = firstRootfsContainerId(paths);
             mainHandler.post(() -> {
                 if (binding == null) return;
-                tintEmblemBlade(binding.localGamesRuntimeEmblem.localGamesEmblemGlibcOutline,
-                    activeGlibcReset != null, glibcReady);
-                tintEmblemBlade(binding.localGamesRuntimeEmblem.localGamesEmblemContainerOutline,
-                    activeRootfsReset != null, rootfsReady);
+                RuntimeReadinessState glibcVisual = activeGlibcReset != null
+                    ? RuntimeReadinessState.INCOMPLETE : glibcState;
+                RuntimeReadinessState rootfsVisual = activeRootfsReset != null
+                    ? RuntimeReadinessState.INCOMPLETE : rootfsState;
+                glibcBladeBreathAnimator = applyBladeState(
+                    binding.localGamesRuntimeEmblem.localGamesEmblemGlibcBlade,
+                    binding.localGamesRuntimeEmblem.localGamesEmblemGlibcIcon,
+                    glibcVisual, glibcBladeBreathAnimator);
+                containerBladeBreathAnimator = applyBladeState(
+                    binding.localGamesRuntimeEmblem.localGamesEmblemContainerBlade,
+                    binding.localGamesRuntimeEmblem.localGamesEmblemContainerIcon,
+                    rootfsVisual, containerBladeBreathAnimator);
+                binding.localGamesRuntimeEmblem.localGamesEmblemGlibcTap.setOnClickListener(view -> {
+                    if (glibcState == RuntimeReadinessState.NOT_READY) installGlibcRuntime();
+                    else confirmReset(ResetTarget.GLIBC, null);
+                });
                 binding.localGamesRuntimeEmblem.localGamesEmblemContainerTap.setOnClickListener(
-                    view -> confirmReset(ResetTarget.ROOTFS, rootfsContainerId));
+                    view -> confirmRootfsReset());
             });
         });
     }
 
-    private void tintEmblemBlade(android.widget.ImageView outline, boolean resetting,
-                                 boolean ready) {
-        int colorRes = resetting ? R.color.local_games_warning
-            : ready ? R.color.local_games_success : R.color.local_games_error;
-        outline.setImageTintList(android.content.res.ColorStateList.valueOf(
-            ContextCompat.getColor(this, colorRes)));
+    /** Triggers the same shared termux-glibc-runtime component install used by the per-game
+     *  Components list, without navigating there -- reasonable since the component itself is
+     *  not game-specific. */
+    private void installGlibcRuntime() {
+        ComponentTasks.enqueue(this, TERMUX_GLIBC_RUNTIME_COMPONENT);
+        Toast.makeText(this, R.string.local_games_emblem_glibc_installing, Toast.LENGTH_SHORT)
+            .show();
+        mainHandler.postDelayed(this::renderRuntimeStatus, 400);
+    }
+
+    /** Colors one blade + its icon for the given readiness state and starts/stops the
+     *  breathing alpha animation that flags "not settled yet". Returns the animator now
+     *  running on {@code blade}, or null if it is static (READY). */
+    @Nullable
+    private android.animation.ObjectAnimator applyBladeState(android.widget.ImageView blade,
+        android.widget.ImageView icon, RuntimeReadinessState state,
+        @Nullable android.animation.ObjectAnimator existingAnimator) {
+        if (existingAnimator != null) existingAnimator.cancel();
+        blade.setAlpha(1f);
+        int bladeColorRes;
+        int iconColorRes;
+        boolean breathing;
+        switch (state) {
+            case NOT_READY:
+                bladeColorRes = R.color.local_games_error;
+                iconColorRes = R.color.local_games_emblem_icon_dark;
+                breathing = true;
+                break;
+            case INCOMPLETE:
+                bladeColorRes = R.color.local_games_warning;
+                iconColorRes = R.color.local_games_emblem_icon_dark;
+                breathing = true;
+                break;
+            default:
+                bladeColorRes = R.color.local_games_emblem_neutral;
+                iconColorRes = R.color.local_games_on_surface;
+                breathing = false;
+                break;
+        }
+        blade.setImageTintList(android.content.res.ColorStateList.valueOf(
+            ContextCompat.getColor(this, bladeColorRes)));
+        icon.setImageTintList(android.content.res.ColorStateList.valueOf(
+            ContextCompat.getColor(this, iconColorRes)));
+        if (!breathing) return null;
+        android.animation.ObjectAnimator animator = android.animation.ObjectAnimator.ofFloat(
+            blade, View.ALPHA, 1f, 0.5f);
+        animator.setDuration(1100);
+        animator.setRepeatMode(android.animation.ObjectAnimator.REVERSE);
+        animator.setRepeatCount(android.animation.ObjectAnimator.INFINITE);
+        animator.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+        animator.start();
+        return animator;
     }
 
     @Nullable
@@ -1234,23 +1293,46 @@ public final class LocalGamesActivity extends AppCompatActivity {
         return null;
     }
 
-    @Nullable
-    private String firstRootfsContainerId(GameStoragePaths paths) {
-        try {
-            for (GameContainer container : new FileGameContainerRepository(
-                paths.getContainersDirectory()).list()) {
-                if (container.getBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
-                    return container.getId();
-                }
-            }
-        } catch (IOException | RuntimeException ignored) {
-            // Handled below: no container means nothing to reset yet.
-        }
-        return null;
+    /** Resetting RootFS tears down the shared rootfs template that new game containers are
+     *  hardlink-cloned from (see provision_rootfs_runtime.sh); already-cloned containers keep
+     *  their own copy and are unaffected. The template is identified by the current recipe's
+     *  content hash, which is global -- not tied to any specific game, so there is nothing to
+     *  pick here (unlike the old per-container reset). */
+    private void confirmRootfsReset() {
+        libraryExecutor.execute(() -> {
+            String recipeSha256 = resolveCurrentRootfsRecipeSha256();
+            mainHandler.post(() -> {
+                if (binding == null) return;
+                confirmReset(ResetTarget.ROOTFS, recipeSha256);
+            });
+        });
     }
 
-    private void confirmReset(ResetTarget target, @Nullable String containerId) {
-        if (target == ResetTarget.ROOTFS && TextUtils.isEmpty(containerId)) {
+    /** Mirrors RootfsProvisionForegroundService.enqueue()'s own recipeSha256 computation.
+     *  Returns null when no RootFS environment could possibly exist yet (no active box64/Wine
+     *  source component to build one from). */
+    @Nullable
+    private String resolveCurrentRootfsRecipeSha256() {
+        try {
+            GameStoragePaths paths = new GameStoragePaths(getFilesDir());
+            RootfsProvisionRecipe recipe = RootfsProvisionRecipe.require(
+                RootfsProvisionRecipe.DEFAULT_PACKAGE);
+            ComponentInstallationReader components = new ComponentInstallationReader(
+                new ComponentStoragePaths(getFilesDir()).getInstallDirectory());
+            java.util.Optional<InstalledComponent> source =
+                components.read(recipe.getSourceComponentId()).getActive();
+            if (!source.isPresent()) return null;
+            RootfsProvisionAssetInstaller.Installed assets =
+                new RootfsProvisionAssetInstaller(this, paths).install(recipe,
+                    source.get().getSha256());
+            return assets.getRecipeSha256();
+        } catch (IOException | RuntimeException error) {
+            return null;
+        }
+    }
+
+    private void confirmReset(ResetTarget target, @Nullable String resetKey) {
+        if (target == ResetTarget.ROOTFS && TextUtils.isEmpty(resetKey)) {
             Toast.makeText(this, R.string.local_games_reset_rootfs_none, Toast.LENGTH_SHORT).show();
             return;
         }
@@ -1261,7 +1343,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
             .setMessage(messageRes)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.local_games_reset_action, (dialog, which) -> {
-                String taskId = ResetTasks.enqueue(this, target, containerId);
+                String taskId = ResetTasks.enqueue(this, target, resetKey);
                 RuntimeProvisionConsoleDialog.show(this, taskId);
                 mainHandler.postDelayed(this::renderRuntimeStatus, 400);
             })
@@ -1280,6 +1362,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
     protected void onDestroy() {
         catalogExecutor.shutdownNow();
         libraryExecutor.shutdownNow();
+        if (glibcBladeBreathAnimator != null) glibcBladeBreathAnimator.cancel();
+        if (containerBladeBreathAnimator != null) containerBladeBreathAnimator.cancel();
         binding = null;
         super.onDestroy();
     }

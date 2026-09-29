@@ -26,8 +26,10 @@ run() {
 mkdir -p "$(dirname "$RESET_LOG_FILE")" "$(dirname "$RESET_EVENT_FILE")"
 
 for path in "$RESET_CONTAINER_DIR" "$RESET_METADATA_DIR"; do
+    [ -n "$path" ] || continue
     case "$path" in
         /data/data/com.termux/files/*) ;;
+        /data/user/[0-9]*/com.termux/files/*) ;;
         *) printf '%s\n' "Refusing to remove path outside private storage: $path" \
                | tee -a "$RESET_LOG_FILE"
            emit FAILED
@@ -37,12 +39,16 @@ done
 
 printf '%s\n' "Resetting RootFS container: $RESET_CONTAINER_ID" | tee -a "$RESET_LOG_FILE"
 
-# The Debian rootfs proot-distro built for this container.
+# The Debian rootfs proot-distro built for this container (or the shared template, when
+# resetting that instead of a specific game's already-cloned container).
 run rm -rf "$RESET_CONTAINER_DIR" || { emit FAILED; exit 1; }
 # This container's own activation metadata (active/previous rootfs package pointers).
-run rm -rf "$RESET_METADATA_DIR" || { emit FAILED; exit 1; }
+# The shared template has no metadata directory of its own, so this is skipped when unset.
+if [ -n "$RESET_METADATA_DIR" ]; then
+    run rm -rf "$RESET_METADATA_DIR" || { emit FAILED; exit 1; }
+fi
 
-if [ -e "$RESET_CONTAINER_DIR" ] || [ -e "$RESET_METADATA_DIR" ]; then
+if [ -e "$RESET_CONTAINER_DIR" ] || { [ -n "$RESET_METADATA_DIR" ] && [ -e "$RESET_METADATA_DIR" ]; }; then
     printf '%s\n' 'RootFS reset verification failed.' | tee -a "$RESET_LOG_FILE"
     emit FAILED
     exit 1

@@ -116,6 +116,16 @@ PROOT_DISTRO="$PREFIX/bin/proot-distro"
 CONTAINER_DIRECTORY="$PREFIX/var/lib/proot-distro/containers/$CONTAINER_NAME"
 ROOTFS="$CONTAINER_DIRECTORY/rootfs"
 BASE_IMAGE=debian:trixie-20260824
+# Every container built from the same recipe (same box64/Wine source component, same
+# provision-container.sh/games-runtime.properties, same version of this script -- that is
+# exactly what RECIPE_SHA256 hashes) would otherwise redo an identical multi-hundred-MB
+# download+unpack+apt-install. Build that once into a reserved "tmpl-" pseudo-container and
+# hardlink-clone it into every real container instead. "tmpl-" is never a real containerId
+# (those are generated, not user-chosen), so it never collides with, and is invisible to,
+# the reset/backup/asset-scanning code paths that key off real containerIds.
+TEMPLATE_CONTAINER_NAME="tmpl-${RECIPE_SHA256%${RECIPE_SHA256#????????????????}}"
+TEMPLATE_DIRECTORY="$PREFIX/var/lib/proot-distro/containers/$TEMPLATE_CONTAINER_NAME"
+TEMPLATE_ROOTFS="$TEMPLATE_DIRECTORY/rootfs"
 supports_container_provision() {
     [ -x "$PROOT_DISTRO" ] &&
         "$PROOT_DISTRO" install --help 2>&1 | grep -q -- '--name' &&
@@ -159,44 +169,81 @@ cp -al "$SOURCE_DIRECTORY"/. "$BUILD_CONTEXT/hangover-source"/ 2>/dev/null || \
 
 printf '{"schemaVersion":1,"taskId":"%s","state":"BUILDING"}\n' "$TASK_ID" >> "$EVENTS_PATH"
 
+# $1 = rootfs path to check (either a real container's or the shared template's).
 runtime_complete() {
-    [ -x "$ROOTFS/usr/bin/env" ] &&
-        [ -x "$ROOTFS/usr/local/bin/box64" ] &&
-        [ -x "$ROOTFS/usr/bin/wine" ] &&
-        [ -x "$ROOTFS/usr/bin/wineboot" ] &&
-        [ -f "$ROOTFS/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" ] &&
-        [ -f "$ROOTFS/etc/games-runtime.properties" ] &&
-        [ -d "$ROOTFS/mnt/games/game" ] &&
-        [ -d "$ROOTFS/mnt/games/prefix" ]
+    root=$1
+    [ -x "$root/usr/bin/env" ] &&
+        [ -x "$root/usr/local/bin/box64" ] &&
+        [ -x "$root/usr/bin/wine" ] &&
+        [ -x "$root/usr/bin/wineboot" ] &&
+        [ -f "$root/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" ] &&
+        [ -f "$root/etc/games-runtime.properties" ] &&
+        [ -d "$root/mnt/games/game" ] &&
+        [ -d "$root/mnt/games/prefix" ]
 }
+# $1 = container directory, $2 = its rootfs path.
 base_container_ready() {
-    [ -x "$ROOTFS/usr/bin/env" ] && [ -f "$CONTAINER_DIRECTORY/manifest.json" ]
+    directory=$1
+    root=$2
+    [ -x "$root/usr/bin/env" ] && [ -f "$directory/manifest.json" ]
 }
-if ! runtime_complete; then
-    if ! base_container_ready; then
+# Builds a fresh proot-distro container from the base image and runs the games
+# provisioning script inside it. $1 = container name, $2 = its directory, $3 = its rootfs.
+build_runtime_into() {
+    name=$1
+    directory=$2
+    root=$3
+    if ! base_container_ready "$directory" "$root"; then
         progress '==> [3/4] Downloading and unpacking Debian ImageFS'
-        if [ -d "$CONTAINER_DIRECTORY" ]; then
-            if ! run_logged "$PROOT_DISTRO" remove --quiet "$CONTAINER_NAME"; then
+        if [ -d "$directory" ]; then
+            if ! run_logged "$PROOT_DISTRO" remove --quiet "$name"; then
                 fail proot_distro_container_remove_failed 70
             fi
         fi
-        if ! run_logged "$PROOT_DISTRO" install --architecture aarch64 --name "$CONTAINER_NAME" \
+        if ! run_logged "$PROOT_DISTRO" install --architecture aarch64 --name "$name" \
             "$BASE_IMAGE"; then
             fail proot_distro_container_install_failed 70
         fi
     fi
-    if ! base_container_ready; then
+    if ! base_container_ready "$directory" "$root"; then
         fail proot_distro_base_container_invalid 70
     fi
     progress '==> [4/4] Installing game runtime packages in Debian'
-    if ! run_logged "$PROOT_DISTRO" login "$CONTAINER_NAME" --isolated \
+    if ! run_logged "$PROOT_DISTRO" login "$name" --isolated \
         --bind "$BUILD_CONTEXT:/run/games-provision" -- \
         /bin/sh /run/games-provision/provision-container.sh; then
         fail rootfs_guest_provision_failed 70
     fi
+}
+# Replaces $2 (container directory named $1) with a hardlinked clone of the already-built
+# $3 template directory -- near-instant and near-zero extra disk versus a fresh build.
+clone_template_into() {
+    name=$1
+    directory=$2
+    template=$3
+    if [ -d "$directory" ]; then
+        if ! run_logged "$PROOT_DISTRO" remove --quiet "$name"; then
+            fail proot_distro_container_remove_failed 70
+        fi
+    fi
+    mkdir -p "$(dirname "$directory")"
+    if ! run_logged cp -al "$template" "$directory"; then
+        fail rootfs_template_clone_failed 70
+    fi
+}
+
+if ! runtime_complete "$ROOTFS"; then
+    if runtime_complete "$TEMPLATE_ROOTFS"; then
+        progress '==> [3/4] Cloning the shared runtime template for this recipe (skips package install)'
+    else
+        build_runtime_into "$TEMPLATE_CONTAINER_NAME" "$TEMPLATE_DIRECTORY" "$TEMPLATE_ROOTFS"
+        runtime_complete "$TEMPLATE_ROOTFS" || fail rootfs_template_build_invalid 70
+        progress '==> Cloning the newly-built template into this container'
+    fi
+    clone_template_into "$CONTAINER_NAME" "$CONTAINER_DIRECTORY" "$TEMPLATE_DIRECTORY"
 fi
 
-if ! runtime_complete; then
+if ! runtime_complete "$ROOTFS"; then
     fail games_runtime_container_invalid 70
 fi
 

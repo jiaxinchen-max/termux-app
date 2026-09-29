@@ -71,12 +71,12 @@ public final class ResetRuntimeForegroundService extends Service {
         String action = intent.getAction();
         String taskId = intent.getStringExtra(ResetTasks.EXTRA_TASK_ID);
         String targetName = intent.getStringExtra(ResetTasks.EXTRA_TARGET);
-        String containerId = intent.getStringExtra(ResetTasks.EXTRA_CONTAINER_ID);
+        String resetKey = intent.getStringExtra(ResetTasks.EXTRA_RESET_KEY);
         pendingCommands.incrementAndGet();
         executor.execute(() -> {
             try {
                 if (ResetTasks.ACTION_ENQUEUE.equals(action)) {
-                    enqueue(requiredId(taskId), ResetTarget.valueOf(targetName), containerId);
+                    enqueue(requiredId(taskId), ResetTarget.valueOf(targetName), resetKey);
                 } else if (ResetTasks.ACTION_RECONCILE_ALL.equals(action)) {
                     reconcileAll();
                 }
@@ -101,14 +101,14 @@ public final class ResetRuntimeForegroundService extends Service {
         super.onDestroy();
     }
 
-    private void enqueue(String taskId, ResetTarget target, String containerId) throws Exception {
+    private void enqueue(String taskId, ResetTarget target, String resetKey) throws Exception {
         if (tasks.find(taskId).isPresent()) return;
-        ResetTask task = ResetTask.queued(taskId, target, containerId, System.currentTimeMillis());
+        ResetTask task = ResetTask.queued(taskId, target, resetKey, System.currentTimeMillis());
         tasks.save(task);
         transition(task, ResetTaskState.RUNNING, "");
         publish(task);
         if (target == ResetTarget.GLIBC) runGlibcReset(taskId);
-        else runRootfsReset(taskId, containerId);
+        else runRootfsReset(taskId, resetKey);
         transition(requiredTask(taskId), ResetTaskState.SUCCEEDED, "");
     }
 
@@ -130,22 +130,26 @@ public final class ResetRuntimeForegroundService extends Service {
         if (!"SUCCEEDED".equals(state)) throw new IOException("glibc_reset_failed");
     }
 
-    private void runRootfsReset(String taskId, String containerId) throws Exception {
-        String requiredContainerId = requiredId(containerId);
+    /** $2 is the current recipeSha256 (64 lowercase hex chars), not a game containerId --
+     *  resetting RootFS only tears down the shared rootfs template that new containers are
+     *  cloned from (see provision_rootfs_runtime.sh's TEMPLATE_CONTAINER_NAME, which this
+     *  must stay in sync with); already-cloned game containers are untouched and keep working. */
+    private void runRootfsReset(String taskId, String recipeSha256) throws Exception {
+        String requiredRecipeSha256 = requireRecipeSha256(recipeSha256);
+        String templateContainerName = "tmpl-" + requiredRecipeSha256.substring(0, 16);
         File script = new LaunchScriptInstaller(this, paths).installResetRootfsRuntime();
         File spec = new File(paths.getResetSpecsDirectory(), taskId + ".conf");
         File log = new File(paths.getResetLogsDirectory(), taskId + ".log");
         File event = new File(paths.getResetEventsDirectory(), taskId + ".event");
         if (event.exists() && !event.delete()) throw new IOException("reset_event_cleanup_failed");
-        File containerDirectory = new File(paths.getProotDistroContainersDirectory(),
-            requiredContainerId);
+        File templateDirectory = new File(paths.getProotDistroContainersDirectory(),
+            templateContainerName);
         writeShellSpec(spec, new String[][]{
             {"RESET_LOG_FILE", log.getCanonicalPath()},
             {"RESET_EVENT_FILE", event.getCanonicalPath()},
-            {"RESET_CONTAINER_ID", requiredContainerId},
-            {"RESET_CONTAINER_DIR", containerDirectory.getCanonicalPath()},
-            {"RESET_METADATA_DIR", paths.getRootfsRuntimeDirectory(requiredContainerId)
-                .getCanonicalPath()},
+            {"RESET_CONTAINER_ID", templateContainerName},
+            {"RESET_CONTAINER_DIR", templateDirectory.getCanonicalPath()},
+            {"RESET_METADATA_DIR", ""},
         });
         host.startRuntimeProvision(new RuntimeProvisionRequest(taskId,
             script.getCanonicalPath(), spec.getCanonicalPath(),
@@ -267,6 +271,13 @@ public final class ResetRuntimeForegroundService extends Service {
     private static String requiredId(String value) throws IOException {
         if (value == null || !value.matches("[A-Za-z0-9._-]{1,128}")) {
             throw new IOException("invalid_reset_identifier");
+        }
+        return value;
+    }
+
+    private static String requireRecipeSha256(String value) throws IOException {
+        if (value == null || !value.matches("[0-9a-f]{64}")) {
+            throw new IOException("invalid_recipe_sha256");
         }
         return value;
     }

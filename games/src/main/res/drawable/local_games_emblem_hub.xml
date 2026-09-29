@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Runtime Emblem hub: the static, always-neutral middle segment (orientation toggle). Its
+     fill/stroke match the neutral tone LocalGamesActivity applies to a "ready" blade, so a
+     fully-ready blade blends into the hub instead of standing out next to it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="130.6dp"
+    android:height="21.8dp"
+    android:viewportWidth="130.612"
+    android:viewportHeight="21.769">
+    <path
+        android:fillColor="#2A323A"
+        android:strokeColor="#8A95A0"
+        android:strokeWidth="0.5"
+        android:pathData="M 47.347,0.000 L 83.265,0.000 Q 87.075,0.000 85.371,3.408 L 77.894,18.361 Q 76.190,21.769 72.380,21.769 L 58.232,21.769 Q 54.422,21.769 52.718,18.361 L 45.241,3.408 Q 43.537,0.000 47.347,0.000 Z" />
+</vector>

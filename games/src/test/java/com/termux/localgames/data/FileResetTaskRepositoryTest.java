@@ -14,6 +14,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 public class FileResetTaskRepositoryTest {
+    private static final String RECIPE_SHA256 =
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
     @Rule public final TemporaryFolder temporary = new TemporaryFolder();
 
@@ -22,30 +24,30 @@ public class FileResetTaskRepositoryTest {
         java.io.File directory = temporary.newFolder("reset-tasks");
         FileResetTaskRepository first = new FileResetTaskRepository(directory);
         ResetTask queued = ResetTask.queued("reset-1", ResetTarget.ROOTFS,
-            "container-game-a", 10);
+            RECIPE_SHA256, 10);
         first.save(queued.transition(ResetTaskState.RUNNING, "", 20));
 
         ResetTask restored = new FileResetTaskRepository(directory).find("reset-1").get();
 
         assertEquals(ResetTaskState.RUNNING, restored.getState());
         assertEquals(ResetTarget.ROOTFS, restored.getTarget());
-        assertEquals("container-game-a", restored.getContainerId());
+        assertEquals(RECIPE_SHA256, restored.getResetKey());
         assertTrue(new java.io.File(directory, "reset-1.properties").isFile());
     }
 
     @Test
-    public void glibcResetHasNoContainerId() {
+    public void glibcResetHasNoResetKey() {
         ResetTask queued = ResetTask.queued("reset-2", ResetTarget.GLIBC, null, 5);
-        assertEquals("", queued.getContainerId());
+        assertEquals("", queued.getResetKey());
     }
 
     @Test
-    public void rootfsResetRequiresContainerId() {
+    public void rootfsResetRequiresResetKey() {
         try {
             ResetTask.queued("reset-3", ResetTarget.ROOTFS, null, 5);
             fail("expected IllegalArgumentException");
         } catch (IllegalArgumentException expected) {
-            assertEquals("rootfs_reset_requires_container", expected.getMessage());
+            assertEquals("rootfs_reset_requires_key", expected.getMessage());
         }
     }
 

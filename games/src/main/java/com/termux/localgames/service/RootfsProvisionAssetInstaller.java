@@ -16,20 +16,22 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Locale;
 
-/** Installs immutable bundled recipe inputs and computes their source-bound identity. */
-final class RootfsProvisionAssetInstaller {
+/** Installs immutable bundled recipe inputs and computes their source-bound identity. Public
+ *  because ResetRuntimeForegroundService/LocalGamesActivity also need to resolve the current
+ *  recipeSha256 (to know which shared rootfs template a "reset RootFS" action should target). */
+public final class RootfsProvisionAssetInstaller {
     private static final String[] RECIPE_FILES = {
         "provision-container.sh", "games-runtime.properties"
     };
     private final Context context;
     private final GameStoragePaths paths;
 
-    RootfsProvisionAssetInstaller(Context context, GameStoragePaths paths) {
+    public RootfsProvisionAssetInstaller(Context context, GameStoragePaths paths) {
         this.context = context.getApplicationContext();
         this.paths = paths;
     }
 
-    Installed install(RootfsProvisionRecipe recipe, String sourceSha256) throws IOException {
+    public Installed install(RootfsProvisionRecipe recipe, String sourceSha256) throws IOException {
         if (sourceSha256 == null || !sourceSha256.matches("[0-9a-f]{64}")) {
             throw new IOException("rootfs_source_digest_invalid");
         }
@@ -85,7 +87,7 @@ final class RootfsProvisionAssetInstaller {
         if (!file.isDirectory() && !file.mkdirs()) throw new IOException("rootfs_recipe_directory_failed");
     }
 
-    static final class Installed {
+    public static final class Installed {
         final File recipeDirectory;
         final File script;
         final String recipeSha256;
@@ -95,5 +97,7 @@ final class RootfsProvisionAssetInstaller {
             this.script = script;
             this.recipeSha256 = recipeSha256;
         }
+
+        public String getRecipeSha256() { return recipeSha256; }
     }
 }

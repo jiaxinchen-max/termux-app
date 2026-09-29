@@ -7,21 +7,21 @@ public final class ResetTask {
 
     private final String taskId;
     private final ResetTarget target;
-    private final String containerId;
+    private final String resetKey;
     private final ResetTaskState state;
     private final String errorCode;
     private final long createdAt;
     private final long updatedAt;
 
-    public ResetTask(String taskId, ResetTarget target, String containerId,
+    public ResetTask(String taskId, ResetTarget target, String resetKey,
                      ResetTaskState state, String errorCode, long createdAt, long updatedAt) {
         this.taskId = requireId(taskId, "taskId");
         if (target == null) throw new IllegalArgumentException("target required");
         this.target = target;
-        this.containerId = containerId == null ? "" : containerId;
-        if (!this.containerId.isEmpty()) requireId(this.containerId, "containerId");
-        if (target == ResetTarget.ROOTFS && this.containerId.isEmpty()) {
-            throw new IllegalArgumentException("rootfs_reset_requires_container");
+        this.resetKey = resetKey == null ? "" : resetKey;
+        if (!this.resetKey.isEmpty()) requireId(this.resetKey, "resetKey");
+        if (target == ResetTarget.ROOTFS && this.resetKey.isEmpty()) {
+            throw new IllegalArgumentException("rootfs_reset_requires_key");
         }
         if (state == null || createdAt < 0 || updatedAt < createdAt) {
             throw new IllegalArgumentException("invalid reset task");
@@ -35,8 +35,8 @@ public final class ResetTask {
         this.updatedAt = updatedAt;
     }
 
-    public static ResetTask queued(String taskId, ResetTarget target, String containerId, long now) {
-        return new ResetTask(taskId, target, containerId, ResetTaskState.QUEUED, "", now, now);
+    public static ResetTask queued(String taskId, ResetTarget target, String resetKey, long now) {
+        return new ResetTask(taskId, target, resetKey, ResetTaskState.QUEUED, "", now, now);
     }
 
     public ResetTask transition(ResetTaskState next, String error, long now) {
@@ -44,12 +44,12 @@ public final class ResetTask {
         if (next == null || next == ResetTaskState.QUEUED || now < updatedAt) {
             throw new IllegalArgumentException("invalid reset transition");
         }
-        return new ResetTask(taskId, target, containerId, next, error, createdAt, now);
+        return new ResetTask(taskId, target, resetKey, next, error, createdAt, now);
     }
 
     public String getTaskId() { return taskId; }
     public ResetTarget getTarget() { return target; }
-    public String getContainerId() { return containerId; }
+    public String getResetKey() { return resetKey; }
     public ResetTaskState getState() { return state; }
     public String getErrorCode() { return errorCode; }
     public long getCreatedAt() { return createdAt; }

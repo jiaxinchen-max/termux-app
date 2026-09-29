@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tintable ROOTFS/container blade: mirror of local_games_emblem_blade_glibc.xml, same
+     coordinate system as local_games_emblem_hub.xml. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="130.6dp"
+    android:height="21.8dp"
+    android:viewportWidth="130.612"
+    android:viewportHeight="21.769">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M 96.327,0.000 L 126.802,0.000 Q 130.612,0.000 128.908,3.408 L 121.432,18.361 Q 119.728,21.769 115.918,21.769 L 85.443,21.769 Q 81.633,21.769 83.337,18.361 L 90.813,3.408 Q 92.517,0.000 96.327,0.000 Z" />
+</vector>

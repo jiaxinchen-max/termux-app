@@ -32,7 +32,7 @@ public final class FileResetTaskRepository implements ResetTaskRepository {
         value.setProperty("schemaVersion", String.valueOf(ResetTask.SCHEMA_VERSION));
         value.setProperty("taskId", task.getTaskId());
         value.setProperty("target", task.getTarget().name());
-        value.setProperty("containerId", task.getContainerId());
+        value.setProperty("resetKey", task.getResetKey());
         value.setProperty("state", task.getState().name());
         value.setProperty("errorCode", task.getErrorCode());
         value.setProperty("createdAt", String.valueOf(task.getCreatedAt()));
@@ -90,7 +90,7 @@ public final class FileResetTaskRepository implements ResetTaskRepository {
             }
             return new ResetTask(required(value, "taskId"),
                 ResetTarget.valueOf(required(value, "target")),
-                value.getProperty("containerId", ""),
+                value.getProperty("resetKey", ""),
                 ResetTaskState.valueOf(required(value, "state")),
                 value.getProperty("errorCode", ""),
                 Long.parseLong(required(value, "createdAt")),

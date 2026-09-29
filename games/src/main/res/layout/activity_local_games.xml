@@ -6,19 +6,33 @@
     android:background="@color/local_games_background"
     android:orientation="vertical">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/local_games_toolbar"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:background="@color/local_games_background"
-        app:menu="@menu/local_games_help"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
-        android:title="@string/local_games_title"
-        app:navigationIcon="@drawable/local_games_ic_back"
-        app:navigationIconTint="@color/local_games_on_surface"
-        app:titleTextAppearance="@style/TextAppearance.MaterialComponents.Headline6"
-        app:titleTextColor="@color/local_games_on_surface" />
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/local_games_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:background="@color/local_games_background"
+            app:menu="@menu/local_games_help"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:title="@string/local_games_title"
+            app:navigationIcon="@drawable/local_games_ic_back"
+            app:navigationIconTint="@color/local_games_on_surface"
+            app:titleTextAppearance="@style/TextAppearance.MaterialComponents.Headline6"
+            app:titleTextColor="@color/local_games_on_surface" />
+
+        <include
+            android:id="@+id/local_games_runtime_emblem"
+            layout="@layout/view_runtime_emblem"
+            android:layout_width="130.6dp"
+            android:layout_height="21.8dp"
+            android:layout_gravity="center_horizontal|top"
+            android:layout_marginTop="19.1dp" />
+
+    </FrameLayout>
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -50,18 +64,13 @@
                     android:orientation="horizontal">
 
                     <TextView
-                        android:layout_width="0dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
                         android:letterSpacing="0.12"
                         android:text="@string/local_games_library_eyebrow"
                         android:textColor="@color/local_games_primary"
                         android:textSize="11sp"
                         android:textStyle="bold" />
-
-                    <include
-                        android:id="@+id/local_games_runtime_emblem"
-                        layout="@layout/view_runtime_emblem" />
 
                 </LinearLayout>
 

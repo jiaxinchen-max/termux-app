@@ -19,19 +19,19 @@ public final class ResetTasks {
         "com.termux.localgames.action.RECONCILE_ALL_RESET";
     public static final String EXTRA_TASK_ID = "com.termux.localgames.extra.RESET_TASK_ID";
     public static final String EXTRA_TARGET = "com.termux.localgames.extra.RESET_TARGET";
-    public static final String EXTRA_CONTAINER_ID = "com.termux.localgames.extra.RESET_CONTAINER_ID";
+    public static final String EXTRA_RESET_KEY = "com.termux.localgames.extra.RESET_KEY";
 
     private ResetTasks() {}
 
     @NonNull
     public static String enqueue(@NonNull Context context, @NonNull ResetTarget target,
-                                @Nullable String containerId) {
+                                @Nullable String resetKey) {
         String taskId = "reset-" + UUID.randomUUID().toString();
         Intent intent = new Intent(context, ResetRuntimeForegroundService.class)
             .setAction(ACTION_ENQUEUE)
             .putExtra(EXTRA_TASK_ID, taskId)
             .putExtra(EXTRA_TARGET, target.name());
-        if (containerId != null) intent.putExtra(EXTRA_CONTAINER_ID, containerId);
+        if (resetKey != null) intent.putExtra(EXTRA_RESET_KEY, resetKey);
         start(context, intent);
         return taskId;
     }

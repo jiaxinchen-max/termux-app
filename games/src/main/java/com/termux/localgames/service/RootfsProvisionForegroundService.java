@@ -133,7 +133,7 @@ public final class RootfsProvisionForegroundService extends Service {
             new RootfsProvisionAssetInstaller(this, paths).install(recipe, source.getSha256());
         String containerName = containerId;
         RuntimeProvisionTask task = RuntimeProvisionTask.queued(taskId, packageName,
-            recipe.getVersion(), assets.recipeSha256, recipe.getSourceComponentId(),
+            recipe.getVersion(), assets.getRecipeSha256(), recipe.getSourceComponentId(),
             containerId, containerName, System.currentTimeMillis());
         tasks.save(task);
         prepareAndStart(task, source, assets);
@@ -146,7 +146,7 @@ public final class RootfsProvisionForegroundService extends Service {
                 task.getSourceComponentId()));
         RootfsProvisionAssetInstaller.Installed assets =
             new RootfsProvisionAssetInstaller(this, paths).install(recipe, source.getSha256());
-        if (!task.getRecipeSha256().equals(assets.recipeSha256)) {
+        if (!task.getRecipeSha256().equals(assets.getRecipeSha256())) {
             throw new IOException("rootfs_recipe_changed");
         }
         prepareAndStart(task, source, assets);
