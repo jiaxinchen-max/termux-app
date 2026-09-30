@@ -1,6 +1,7 @@
 package com.termux.localgames.runtime;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.termux.localgames.data.FileGameContainerRepository;
@@ -73,7 +74,10 @@ public class RuntimeEnvironmentStatusTest {
     }
 
     @Test
-    public void rootfsIncompleteWhenContainerExistsWithoutAnActiveBuild() throws Exception {
+    public void rootfsNotReadyWhenNoTemplateExistsEvenIfAnUnrelatedContainerExists()
+        throws Exception {
+        // rootfsState() is about the shared template only -- an old container lying around
+        // (never even activated here) must not make it read as anything other than NOT_READY.
         File files = temporary.newFolder("files-rootfs-partial");
         GameStoragePaths paths = new GameStoragePaths(files);
         GameContainer container = new GameContainer("container-game-b", "Game B",
@@ -82,7 +86,7 @@ public class RuntimeEnvironmentStatusTest {
             "pulseaudio", "1280x720", "INTERMEDIATE", Collections.emptyMap());
         new FileGameContainerRepository(paths.getContainersDirectory()).save(container);
 
-        assertEquals(RuntimeReadinessState.INCOMPLETE,
+        assertEquals(RuntimeReadinessState.NOT_READY,
             new RuntimeEnvironmentStatus(paths).rootfsState());
     }
 
@@ -101,19 +105,78 @@ public class RuntimeEnvironmentStatusTest {
     }
 
     @Test
-    public void rootfsIncompleteWhenActiveContainerExistsButSharedTemplateWasReset()
+    public void rootfsReadyWhenTemplateIsIntactEvenWithoutAnyContainer() throws Exception {
+        // Mirror of the previous test with the container removed entirely -- proves READY is
+        // driven purely by the shared template, not by any container's existence.
+        File files = temporary.newFolder("files-rootfs-ready-no-container");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        createCompleteRootfsBuild(new File(paths.getProotDistroContainersDirectory(),
+            "tmpl-abcdef0123456789/rootfs"));
+
+        assertEquals(RuntimeReadinessState.READY,
+            new RuntimeEnvironmentStatus(paths).rootfsState());
+    }
+
+    @Test
+    public void rootfsIncompleteWhenTemplateDirectoryExistsButBuildIsUnfinished()
+        throws Exception {
+        File files = temporary.newFolder("files-rootfs-template-unfinished");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        assertTrue(new File(paths.getProotDistroContainersDirectory(),
+            "tmpl-abcdef0123456789/rootfs").mkdirs());
+
+        assertEquals(RuntimeReadinessState.INCOMPLETE,
+            new RuntimeEnvironmentStatus(paths).rootfsState());
+    }
+
+    @Test
+    public void rootfsNotReadyWhenActiveContainerExistsButSharedTemplateWasReset()
         throws Exception {
         // Reproduces the "reset RootFS" report: an already-installed, playable game container
         // keeps working (still has an active build), but the shared template it was cloned
-        // from has just been wiped -- new containers can't be built until it is rebuilt, so
-        // this should read as INCOMPLETE (amber/breathing), not READY (settled/static).
+        // from has just been wiped. New containers can't be built until it is rebuilt, so this
+        // reads as NOT_READY -- the old container's continued usability is a separate,
+        // per-container fact (see isRootfsContainerStale*) that must not keep rootfsState()
+        // artificially READY/INCOMPLETE.
         File files = temporary.newFolder("files-rootfs-template-reset");
         GameStoragePaths paths = new GameStoragePaths(files);
         activateContainer(paths, "container-game-a");
         // No tmpl-* directory at all -- as if it was just deleted by a reset.
 
-        assertEquals(RuntimeReadinessState.INCOMPLETE,
+        assertEquals(RuntimeReadinessState.NOT_READY,
             new RuntimeEnvironmentStatus(paths).rootfsState());
+    }
+
+    @Test
+    public void isRootfsContainerStaleWhenTemplateNoLongerExists() throws Exception {
+        File files = temporary.newFolder("files-stale-template-gone");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        activateContainer(paths, "container-game-a");
+        // No tmpl-<SHA prefix> directory -- the template this container was built from is gone.
+
+        assertTrue(new RuntimeEnvironmentStatus(paths)
+            .isRootfsContainerStale("container-game-a", GameContainer.ROOTFS_RUNTIME_PACKAGE));
+    }
+
+    @Test
+    public void isRootfsContainerStaleIsFalseWhenTemplateIsCurrent() throws Exception {
+        File files = temporary.newFolder("files-stale-template-current");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        activateContainer(paths, "container-game-a");
+        createCompleteRootfsBuild(new File(paths.getProotDistroContainersDirectory(),
+            "tmpl-" + SHA.substring(0, 16) + "/rootfs"));
+
+        assertFalse(new RuntimeEnvironmentStatus(paths)
+            .isRootfsContainerStale("container-game-a", GameContainer.ROOTFS_RUNTIME_PACKAGE));
+    }
+
+    @Test
+    public void isRootfsContainerStaleIsFalseWhenContainerHasNoActiveBuild() throws Exception {
+        File files = temporary.newFolder("files-stale-no-active-build");
+        GameStoragePaths paths = new GameStoragePaths(files);
+
+        assertFalse(new RuntimeEnvironmentStatus(paths)
+            .isRootfsContainerStale("container-game-a", GameContainer.ROOTFS_RUNTIME_PACKAGE));
     }
 
     private static void activateContainer(GameStoragePaths paths, String containerId)

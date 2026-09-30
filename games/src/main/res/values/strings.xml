@@ -21,6 +21,7 @@
     <string name="local_games_reset_rootfs_none">No RootFS runtime has been built yet.</string>
     <string name="local_games_install_confirm_title">Install this environment?</string>
     <string name="local_games_install_confirm_glibc">This downloads and installs the GLIBC runtime (Wine, X11, graphics drivers) needed to launch GLIBC games. It can take a few minutes.</string>
+    <string name="local_games_install_confirm_rootfs">This builds the shared RootFS base runtime (box64, Wine, and fonts) that new game containers are cloned from. It can take a few minutes.</string>
     <string name="local_games_install_action">Install</string>
     <string name="local_games_emblem_glibc_description">GLIBC runtime -- tap to reset</string>
     <string name="local_games_emblem_rootfs_description">RootFS runtime -- tap to reset</string>
@@ -30,6 +31,7 @@
     <string name="local_games_library_heading">Game library</string>
     <string name="local_games_library_load_failed">Unable to load the game library: %1$s</string>
     <string name="local_game_cover_content_description">Game cover</string>
+    <string name="local_game_stale_rootfs_base_description">This game\'s container was built from an older shared RootFS base. It still works normally.</string>
     <string name="local_game_accessible">Folder access available</string>
     <string name="local_game_permission_lost">Folder permission lost</string>
     <string name="local_game_provider_unavailable">Folder provider unavailable</string>

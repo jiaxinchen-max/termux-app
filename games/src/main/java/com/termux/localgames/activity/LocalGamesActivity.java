@@ -81,9 +81,13 @@ import com.termux.localgames.runtime.RootfsRuntimeInstallationReader;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -129,6 +133,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private int selectedTab;
     private int libraryGeneration;
     private int libraryColumns = 2;
+    private Set<String> staleRootfsGameIds = Collections.emptySet();
     private RuntimeProvisionTask latestRuntimeProvisionTask;
     private boolean rootfsRuntimeInstalled;
     @Nullable private android.animation.ObjectAnimator glibcBladeBreathAnimator;
@@ -391,20 +396,37 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding.localGamesLibraryError.setVisibility(View.GONE);
         libraryExecutor.execute(() -> {
             List<GameLibraryItem> items = null;
+            Set<String> stale = new HashSet<>();
             String error = null;
             try {
                 items = libraryRepository.load();
+                GameStoragePaths gamePaths = new GameStoragePaths(getFilesDir());
+                FileRuntimeProfileRepository profiles =
+                    new FileRuntimeProfileRepository(gamePaths.getProfilesDirectory());
+                RuntimeEnvironmentStatus status = new RuntimeEnvironmentStatus(gamePaths);
+                for (GameLibraryItem item : items) {
+                    profiles.find(item.getGame().getId()).ifPresent(profile -> {
+                        if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT &&
+                            status.isRootfsContainerStale(profile.getContainerId(),
+                                profile.getRootfsPackage())) {
+                            stale.add(item.getGame().getId());
+                        }
+                    });
+                }
             } catch (IOException loadError) {
                 error = safeMessage(loadError);
             }
             List<GameLibraryItem> loaded = items;
+            Set<String> loadedStale = stale;
             String failure = error;
             mainHandler.post(() -> {
                 libraryLoadInFlight.set(false);
                 if (!started || binding == null || selectedTab != TAB_LIBRARY ||
                     generation != libraryGeneration) return;
-                if (failure == null) renderLibrary(loaded, generation);
-                else renderLibraryError(failure);
+                if (failure == null) {
+                    staleRootfsGameIds = loadedStale;
+                    renderLibrary(loaded, generation);
+                } else renderLibraryError(failure);
             });
         });
     }
@@ -452,6 +474,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
         row.localGameAccessStatus.setTextColor(ContextCompat.getColor(this,
             item.getAccessState() == GameAccessState.ACCESSIBLE
                 ? R.color.local_games_success : R.color.local_games_error));
+        row.localGameStaleBadge.setVisibility(
+            staleRootfsGameIds.contains(game.getId()) ? View.VISIBLE : View.GONE);
         row.localGameLastPlayed.setText(game.getLastPlayedAt() == 0
             ? getString(R.string.local_game_never_played)
             : getString(R.string.local_game_last_played, DateUtils.formatDateTime(this,
@@ -1220,8 +1244,10 @@ public final class LocalGamesActivity extends AppCompatActivity {
                     if (glibcState == RuntimeReadinessState.NOT_READY) confirmGlibcInstall();
                     else confirmReset(ResetTarget.GLIBC, null);
                 });
-                binding.localGamesRuntimeEmblem.localGamesEmblemContainerTap.setOnClickListener(
-                    view -> confirmRootfsReset());
+                binding.localGamesRuntimeEmblem.localGamesEmblemContainerTap.setOnClickListener(view -> {
+                    if (rootfsState == RuntimeReadinessState.NOT_READY) confirmRootfsInstall();
+                    else confirmRootfsReset();
+                });
             });
         });
     }
@@ -1230,6 +1256,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
      *  Components list, without navigating there -- reasonable since the component itself is
      *  not game-specific. */
     private void confirmGlibcInstall() {
+        if (showActiveInstallationConsole()) return;
         new MaterialAlertDialogBuilder(this)
             .setTitle(R.string.local_games_install_confirm_title)
             .setMessage(R.string.local_games_install_confirm_glibc)
@@ -1241,6 +1268,34 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private void installGlibcRuntime() {
         String taskId = ComponentTasks.enqueue(this, TERMUX_GLIBC_RUNTIME_COMPONENT);
+        RuntimeProvisionConsoleDialog.show(this, taskId)
+            .setOnDismissListener(dialog -> renderRuntimeStatus());
+        mainHandler.postDelayed(this::renderRuntimeStatus, 400);
+    }
+
+    /** Builds the shared RootFS base runtime (box64, Wine, fonts) that new game containers are
+     *  hardlink-cloned from -- the same provisioning triggered from the per-game Components
+     *  list when no such container exists yet, without navigating there. */
+    private void confirmRootfsInstall() {
+        if (showActiveInstallationConsole()) return;
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.local_games_install_confirm_title)
+            .setMessage(R.string.local_games_install_confirm_rootfs)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.local_games_install_action, (dialog, which) ->
+                installRootfsRuntime())
+            .show();
+    }
+
+    private void installRootfsRuntime() {
+        // This blade is reachable with no specific game in context (componentContainerId may be
+        // unset), but RuntimeProvisionTasks.enqueue requires a real, non-DEFAULT_ID containerId
+        // for the activation/clone step even though the expensive shared-template build itself
+        // is containerId-independent. Use a disposable id instead of forcing a game context here
+        // -- it clones into an orphan proot-distro container nothing else ever references, but
+        // that's a small one-time disk cost versus every other container reaching this point.
+        String taskId = RuntimeProvisionTasks.enqueue(this, "debian-13-games-rootfs",
+            "shared-rebuild-" + UUID.randomUUID());
         RuntimeProvisionConsoleDialog.show(this, taskId)
             .setOnDismissListener(dialog -> renderRuntimeStatus());
         mainHandler.postDelayed(this::renderRuntimeStatus, 400);
@@ -1341,6 +1396,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void confirmReset(ResetTarget target, @Nullable String resetKey) {
+        if (showActiveInstallationConsole()) return;
         if (target == ResetTarget.ROOTFS && TextUtils.isEmpty(resetKey)) {
             Toast.makeText(this, R.string.local_games_reset_rootfs_none, Toast.LENGTH_SHORT).show();
             return;

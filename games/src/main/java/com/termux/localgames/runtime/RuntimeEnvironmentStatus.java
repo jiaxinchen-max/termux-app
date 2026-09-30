@@ -1,14 +1,11 @@
 package com.termux.localgames.runtime;
 
-import com.termux.localgames.data.FileGameContainerRepository;
-import com.termux.localgames.data.GameContainerRepository;
 import com.termux.localgames.data.GameStoragePaths;
-import com.termux.localgames.domain.GameContainer;
-import com.termux.localgames.domain.GameRuntimeBackendType;
 import com.termux.localgames.domain.RuntimeReadinessState;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Optional;
 
 /** Independent readiness checks for the two runtime backends -- replaces the single
  *  combined {@code LocalGamesHost.isRuntimeAvailable()} boolean, which cannot represent two
@@ -42,34 +39,34 @@ public final class RuntimeEnvironmentStatus {
         return RuntimeReadinessState.INCOMPLETE;
     }
 
-    /** READY when at least one independent container has an activated RootFS build *and* the
-     *  shared rootfs template (see provision_rootfs_runtime.sh) that new containers get cloned
-     *  from is itself intact; INCOMPLETE when either a container exists without a completed
-     *  activation (created but never finished, or interrupted), or every existing container
-     *  works but the template was reset and would need a full rebuild before any *new*
-     *  container could be created; NOT_READY when no container exists at all. */
+    /** READY when the shared rootfs template (see provision_rootfs_runtime.sh) that new
+     *  containers get cloned from is itself intact; INCOMPLETE when a template directory exists
+     *  but its build never finished (interrupted install); NOT_READY when no template exists at
+     *  all. Deliberately independent of whether any GameContainer already exists -- an
+     *  already-cloned container keeps working off its own files even after the shared template
+     *  it came from is reset or replaced (see isRootfsContainerStale for that per-container
+     *  case). */
     public RuntimeReadinessState rootfsState() {
-        GameContainerRepository containers = new FileGameContainerRepository(
-            paths.getContainersDirectory());
-        RootfsRuntimeInstallationReader reader = new RootfsRuntimeInstallationReader(paths);
-        boolean anyContainer = false;
-        boolean anyActive = false;
+        if (anyRootfsTemplateComplete()) return RuntimeReadinessState.READY;
+        return anyRootfsTemplateExists()
+            ? RuntimeReadinessState.INCOMPLETE : RuntimeReadinessState.NOT_READY;
+    }
+
+    /** Whether the given ROOTFS_PROOT container's active build was cloned from a template that
+     *  is no longer the live one (reset, or replaced by a different recipe). Purely
+     *  informational -- the container's own already-cloned files keep working regardless.
+     *  False if the container has no active build at all (nothing to compare). */
+    public boolean isRootfsContainerStale(String containerId, String rootfsPackage) {
         try {
-            for (GameContainer container : containers.list()) {
-                if (container.getBackendType() != GameRuntimeBackendType.ROOTFS_PROOT) continue;
-                anyContainer = true;
-                if (reader.readActive(container.getId(), container.getRootfsPackage()).isPresent()) {
-                    anyActive = true;
-                }
-            }
-        } catch (IOException ignored) {
-            return RuntimeReadinessState.NOT_READY;
+            Optional<RootfsRuntimeInstallation> installation =
+                new RootfsRuntimeInstallationReader(paths).readActive(containerId, rootfsPackage);
+            if (!installation.isPresent()) return false;
+            File template = new File(paths.getProotDistroContainersDirectory(),
+                "tmpl-" + installation.get().getRecipeSha256().substring(0, 16));
+            return !isRootfsBuildComplete(new File(template, "rootfs"));
+        } catch (IOException | RuntimeException ignored) {
+            return false;
         }
-        if (anyActive) {
-            return anyRootfsTemplateComplete()
-                ? RuntimeReadinessState.READY : RuntimeReadinessState.INCOMPLETE;
-        }
-        return anyContainer ? RuntimeReadinessState.INCOMPLETE : RuntimeReadinessState.NOT_READY;
     }
 
     /** Mirrors provision_rootfs_runtime.sh's own runtime_complete() check, applied to any
@@ -83,6 +80,15 @@ public final class RuntimeEnvironmentStatus {
         for (File entry : entries) {
             if (!entry.getName().startsWith("tmpl-")) continue;
             if (isRootfsBuildComplete(new File(entry, "rootfs"))) return true;
+        }
+        return false;
+    }
+
+    private boolean anyRootfsTemplateExists() {
+        File[] entries = paths.getProotDistroContainersDirectory().listFiles();
+        if (entries == null) return false;
+        for (File entry : entries) {
+            if (entry.getName().startsWith("tmpl-")) return true;
         }
         return false;
     }
