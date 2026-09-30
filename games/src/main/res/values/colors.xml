@@ -11,7 +11,6 @@
     <color name="local_games_on_surface">#F4F7FA</color>
     <color name="local_games_on_surface_secondary">#97A7B7</color>
     <color name="local_games_success">#54D6A0</color>
-    <color name="local_games_warning">#F4B45F</color>
     <color name="local_games_error">#FF717B</color>
     <color name="local_games_scrim">#B3070B12</color>
     <color name="local_games_emblem_neutral">#2A323A</color>

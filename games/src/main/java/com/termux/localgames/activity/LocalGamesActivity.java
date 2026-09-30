@@ -1260,12 +1260,11 @@ public final class LocalGamesActivity extends AppCompatActivity {
         boolean breathing;
         switch (state) {
             case NOT_READY:
-                bladeColorRes = R.color.local_games_error;
-                iconColorRes = R.color.local_games_emblem_icon_dark;
-                breathing = true;
-                break;
             case INCOMPLETE:
-                bladeColorRes = R.color.local_games_warning;
+                // Both "nothing built yet" and "built but not fully settled" read the same
+                // visually (red + breathing) -- a separate amber accent for INCOMPLETE wasn't
+                // worth the extra color to distinguish.
+                bladeColorRes = R.color.local_games_error;
                 iconColorRes = R.color.local_games_emblem_icon_dark;
                 breathing = true;
                 break;
