@@ -19,7 +19,9 @@
     <string name="local_games_reset_confirm_rootfs">This resets the shared RootFS base runtime used to build new game containers. Games that are already installed keep working; only the next brand-new RootFS game will rebuild this base from scratch.</string>
     <string name="local_games_reset_action">Reset</string>
     <string name="local_games_reset_rootfs_none">No RootFS runtime has been built yet.</string>
-    <string name="local_games_emblem_glibc_installing">Installing the GLIBC runtime…</string>
+    <string name="local_games_install_confirm_title">Install this environment?</string>
+    <string name="local_games_install_confirm_glibc">This downloads and installs the GLIBC runtime (Wine, X11, graphics drivers) needed to launch GLIBC games. It can take a few minutes.</string>
+    <string name="local_games_install_action">Install</string>
     <string name="local_games_emblem_glibc_description">GLIBC runtime -- tap to reset</string>
     <string name="local_games_emblem_rootfs_description">RootFS runtime -- tap to reset</string>
     <string name="local_games_empty_title">No local games</string>

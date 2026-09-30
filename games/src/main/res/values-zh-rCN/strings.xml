@@ -19,7 +19,9 @@
     <string name="local_games_reset_confirm_rootfs">这会重置用于构建新 RootFS 游戏容器的共享基础运行环境；已经装好的游戏不受影响，仍能正常运行，只有下一次全新构建 RootFS 游戏容器时才会重新走一遍完整安装。</string>
     <string name="local_games_reset_action">重置</string>
     <string name="local_games_reset_rootfs_none">目前还没有构建过 RootFS 运行环境。</string>
-    <string name="local_games_emblem_glibc_installing">正在安装 GLIBC 运行环境…</string>
+    <string name="local_games_install_confirm_title">安装这个环境？</string>
+    <string name="local_games_install_confirm_glibc">这会下载并安装启动 GLIBC 游戏所需的运行环境（Wine、X11、显卡驱动），可能需要几分钟。</string>
+    <string name="local_games_install_action">安装</string>
     <string name="local_games_emblem_glibc_description">GLIBC 运行环境——点击重置</string>
     <string name="local_games_emblem_rootfs_description">RootFS 运行环境——点击重置</string>
     <string name="local_games_empty_title">暂无本地游戏</string>

@@ -1217,7 +1217,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                     binding.localGamesRuntimeEmblem.localGamesEmblemContainerIcon,
                     rootfsVisual, containerBladeBreathAnimator);
                 binding.localGamesRuntimeEmblem.localGamesEmblemGlibcTap.setOnClickListener(view -> {
-                    if (glibcState == RuntimeReadinessState.NOT_READY) installGlibcRuntime();
+                    if (glibcState == RuntimeReadinessState.NOT_READY) confirmGlibcInstall();
                     else confirmReset(ResetTarget.GLIBC, null);
                 });
                 binding.localGamesRuntimeEmblem.localGamesEmblemContainerTap.setOnClickListener(
@@ -1229,10 +1229,20 @@ public final class LocalGamesActivity extends AppCompatActivity {
     /** Triggers the same shared termux-glibc-runtime component install used by the per-game
      *  Components list, without navigating there -- reasonable since the component itself is
      *  not game-specific. */
-    private void installGlibcRuntime() {
-        ComponentTasks.enqueue(this, TERMUX_GLIBC_RUNTIME_COMPONENT);
-        Toast.makeText(this, R.string.local_games_emblem_glibc_installing, Toast.LENGTH_SHORT)
+    private void confirmGlibcInstall() {
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.local_games_install_confirm_title)
+            .setMessage(R.string.local_games_install_confirm_glibc)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.local_games_install_action, (dialog, which) ->
+                installGlibcRuntime())
             .show();
+    }
+
+    private void installGlibcRuntime() {
+        String taskId = ComponentTasks.enqueue(this, TERMUX_GLIBC_RUNTIME_COMPONENT);
+        RuntimeProvisionConsoleDialog.show(this, taskId)
+            .setOnDismissListener(dialog -> renderRuntimeStatus());
         mainHandler.postDelayed(this::renderRuntimeStatus, 400);
     }
 
@@ -1344,7 +1354,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.local_games_reset_action, (dialog, which) -> {
                 String taskId = ResetTasks.enqueue(this, target, resetKey);
-                RuntimeProvisionConsoleDialog.show(this, taskId);
+                RuntimeProvisionConsoleDialog.show(this, taskId)
+                    .setOnDismissListener(consoleDialog -> renderRuntimeStatus());
                 mainHandler.postDelayed(this::renderRuntimeStatus, 400);
             })
             .show();

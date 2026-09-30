@@ -42,25 +42,59 @@ public final class RuntimeEnvironmentStatus {
         return RuntimeReadinessState.INCOMPLETE;
     }
 
-    /** READY when at least one independent container has an activated RootFS build;
-     *  INCOMPLETE when a container exists but none has completed activation (created but
-     *  never finished, or a build that was interrupted); NOT_READY when no container exists. */
+    /** READY when at least one independent container has an activated RootFS build *and* the
+     *  shared rootfs template (see provision_rootfs_runtime.sh) that new containers get cloned
+     *  from is itself intact; INCOMPLETE when either a container exists without a completed
+     *  activation (created but never finished, or interrupted), or every existing container
+     *  works but the template was reset and would need a full rebuild before any *new*
+     *  container could be created; NOT_READY when no container exists at all. */
     public RuntimeReadinessState rootfsState() {
         GameContainerRepository containers = new FileGameContainerRepository(
             paths.getContainersDirectory());
         RootfsRuntimeInstallationReader reader = new RootfsRuntimeInstallationReader(paths);
         boolean anyContainer = false;
+        boolean anyActive = false;
         try {
             for (GameContainer container : containers.list()) {
                 if (container.getBackendType() != GameRuntimeBackendType.ROOTFS_PROOT) continue;
                 anyContainer = true;
                 if (reader.readActive(container.getId(), container.getRootfsPackage()).isPresent()) {
-                    return RuntimeReadinessState.READY;
+                    anyActive = true;
                 }
             }
         } catch (IOException ignored) {
             return RuntimeReadinessState.NOT_READY;
         }
+        if (anyActive) {
+            return anyRootfsTemplateComplete()
+                ? RuntimeReadinessState.READY : RuntimeReadinessState.INCOMPLETE;
+        }
         return anyContainer ? RuntimeReadinessState.INCOMPLETE : RuntimeReadinessState.NOT_READY;
+    }
+
+    /** Mirrors provision_rootfs_runtime.sh's own runtime_complete() check, applied to any
+     *  "tmpl-<recipeSha256 prefix>" pseudo-container under proot-distro/containers -- recipes
+     *  change rarely enough in practice that a name-pattern scan (rather than resolving the
+     *  exact current recipeSha256, which needs Context + file I/O this class doesn't have) is
+     *  an acceptable approximation. */
+    private boolean anyRootfsTemplateComplete() {
+        File[] entries = paths.getProotDistroContainersDirectory().listFiles();
+        if (entries == null) return false;
+        for (File entry : entries) {
+            if (!entry.getName().startsWith("tmpl-")) continue;
+            if (isRootfsBuildComplete(new File(entry, "rootfs"))) return true;
+        }
+        return false;
+    }
+
+    private static boolean isRootfsBuildComplete(File root) {
+        return new File(root, "usr/bin/env").canExecute()
+            && new File(root, "usr/local/bin/box64").canExecute()
+            && new File(root, "usr/bin/wine").canExecute()
+            && new File(root, "usr/bin/wineboot").canExecute()
+            && new File(root, "usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc").isFile()
+            && new File(root, "etc/games-runtime.properties").isFile()
+            && new File(root, "mnt/games/game").isDirectory()
+            && new File(root, "mnt/games/prefix").isDirectory();
     }
 }

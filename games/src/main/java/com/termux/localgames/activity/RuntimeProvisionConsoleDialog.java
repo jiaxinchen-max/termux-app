@@ -50,14 +50,16 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
         setCanceledOnTouchOutside(false);
     }
 
-    static void show(@NonNull Context context, @NonNull String taskId) {
-        show(context, taskId, R.string.local_games_runtime_provision_console_title);
+    static RuntimeProvisionConsoleDialog show(@NonNull Context context, @NonNull String taskId) {
+        return show(context, taskId, R.string.local_games_runtime_provision_console_title);
     }
 
-    static void show(@NonNull Context context, @NonNull String taskId, int titleRes) {
+    static RuntimeProvisionConsoleDialog show(@NonNull Context context, @NonNull String taskId,
+                                              int titleRes) {
         RuntimeProvisionConsoleDialog dialog = new RuntimeProvisionConsoleDialog(context, taskId);
         dialog.titleRes = titleRes;
         dialog.show();
+        return dialog;
     }
 
     @Override
@@ -159,9 +161,10 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
         if (consoleSession.isRunning()) {
             handler.postDelayed(this::refreshTerminal, 100);
         } else {
-            // A completed Termux session is normally removed by pressing Enter. The Games
-            // dialog owns no interactive terminal chrome, so close it after the final frame.
-            handler.postDelayed(this::dismiss, 180);
+            // Give the user a moment to actually read the final log lines (SUCCEEDED/FAILED)
+            // before this closes itself -- a completed Termux session is normally dismissed by
+            // pressing Enter, but this dialog owns no interactive terminal chrome.
+            handler.postDelayed(this::dismiss, 2500);
         }
     }
 
