@@ -63,6 +63,17 @@ public final class ResetRuntimeForegroundService extends Service {
             new Thread(runnable, "GamesRuntimeReset"));
         createChannel();
         startForeground(NOTIFICATION_ID, notification(null));
+        pendingCommands.incrementAndGet();
+        executor.execute(() -> {
+            try {
+                reconcileAll();
+            } finally {
+                if (pendingCommands.decrementAndGet() == 0) {
+                    stopForeground(false);
+                    stopSelf();
+                }
+            }
+        });
     }
 
     @Override
@@ -103,6 +114,7 @@ public final class ResetRuntimeForegroundService extends Service {
 
     private void enqueue(String taskId, ResetTarget target, String resetKey) throws Exception {
         if (tasks.find(taskId).isPresent()) return;
+        RuntimeInstallationGate.requireResetSlot(getFilesDir(), taskId);
         ResetTask task = ResetTask.queued(taskId, target, resetKey, System.currentTimeMillis());
         tasks.save(task);
         transition(task, ResetTaskState.RUNNING, "");

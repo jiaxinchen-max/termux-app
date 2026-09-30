@@ -43,4 +43,20 @@ final class RuntimeInstallationGate {
             }
         }
     }
+
+    static void requireResetSlot(File filesDirectory, String selfTaskId) throws Exception {
+        for (ComponentTask task : new FileComponentTaskRepository(new ComponentStoragePaths(
+            filesDirectory).getTasksDirectory()).list()) {
+            if (task.getState().shouldRecoverAutomatically()) {
+                throw new Exception("runtime_installation_busy");
+            }
+        }
+        GameStoragePaths games = new GameStoragePaths(filesDirectory);
+        for (RuntimeProvisionTask task : new FileRuntimeProvisionTaskRepository(
+            games.getRuntimeProvisionTasksDirectory()).list()) {
+            if (!task.getState().isTerminal() && !task.getTaskId().equals(selfTaskId)) {
+                throw new Exception("runtime_installation_busy");
+            }
+        }
+    }
 }

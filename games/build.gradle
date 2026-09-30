@@ -40,6 +40,10 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
     sourceSets {
         test.resources.srcDir 'src/main/assets'
     }

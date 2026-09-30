@@ -1119,7 +1119,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding.localGamesComponentTaskConsole.setVisibility(active ? View.VISIBLE : View.GONE);
     }
 
-    /** @return true when another installation owns the single execution slot. */
+    /** @return true when another installation or reset owns the single execution slot. */
     private boolean showActiveInstallationConsole() {
         ComponentTask component = findActiveComponentTask();
         if (component != null) {
@@ -1130,6 +1130,14 @@ public final class LocalGamesActivity extends AppCompatActivity {
         if (provision != null) {
             RuntimeProvisionConsoleDialog.show(this, provision.getTaskId());
             return true;
+        }
+        GameStoragePaths paths = new GameStoragePaths(getFilesDir());
+        for (ResetTarget target : ResetTarget.values()) {
+            ResetTask reset = findActiveResetTask(paths, target);
+            if (reset != null) {
+                RuntimeProvisionConsoleDialog.show(this, reset.getTaskId());
+                return true;
+            }
         }
         return false;
     }
