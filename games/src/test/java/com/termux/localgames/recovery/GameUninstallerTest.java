@@ -10,9 +10,12 @@ import com.termux.localgames.data.FileLaunchTaskRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.Game;
+import com.termux.localgames.domain.GameRuntimeBackendType;
+import com.termux.localgames.domain.LaunchExecutionMode;
 import com.termux.localgames.domain.LaunchStage;
 import com.termux.localgames.domain.LaunchTask;
 import com.termux.localgames.domain.LaunchTaskState;
+import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.domain.RuntimeProfilePreset;
 import com.termux.localgames.domain.RuntimeProfilePresets;
 
@@ -75,6 +78,75 @@ public class GameUninstallerTest {
             assertEquals("game_asset_task_active", expected.getMessage());
         }
         assertTrue(games.find("game-3").isPresent());
+    }
+
+    @Test
+    public void uninstallDeletesBoundIndependentContainerRecord() throws Exception {
+        // deleteTree() needs Android's Os.lstat (unavailable on the host JVM, same limitation
+        // the other recovery tests hit), so this exercises only the record-level cascade: the
+        // rootfs/proot directories are left absent so their deletion is skipped, and we assert
+        // the independent container's inventory record is removed with the game.
+        File files = temporary.newFolder("indep-container-files");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        FileGameRepository games = new FileGameRepository(paths.getLibraryDirectory());
+        games.save(game("game-indep", "content://external/game-indep"));
+        String containerId = "container-indep01";
+        new FileRuntimeProfileRepository(paths.getProfilesDirectory())
+            .save(rootfsProfile("game-indep", containerId));
+        write(new File(paths.getContainersDirectory(), containerId + ".properties"), "id");
+
+        new GameUninstaller(files).execute(GameUninstallPlan.keepPrivateAssets("game-indep"));
+
+        assertFalse(games.find("game-indep").isPresent());
+        assertFalse(new File(paths.getContainersDirectory(), containerId + ".properties").exists());
+    }
+
+    @Test
+    public void uninstallKeepsContainerStillReferencedByAnotherGame() throws Exception {
+        File files = temporary.newFolder("shared-container-files");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        FileGameRepository games = new FileGameRepository(paths.getLibraryDirectory());
+        games.save(game("game-a", "content://external/game-a"));
+        games.save(game("game-b", "content://external/game-b"));
+        String containerId = "container-shared01";
+        FileRuntimeProfileRepository profiles =
+            new FileRuntimeProfileRepository(paths.getProfilesDirectory());
+        profiles.save(rootfsProfile("game-a", containerId));
+        profiles.save(rootfsProfile("game-b", containerId));
+        write(new File(paths.getContainersDirectory(), containerId + ".properties"), "id");
+
+        new GameUninstaller(files).execute(GameUninstallPlan.keepPrivateAssets("game-a"));
+
+        assertFalse(games.find("game-a").isPresent());
+        // game-b still uses it, so the shared container record must survive.
+        assertTrue(new File(paths.getContainersDirectory(), containerId + ".properties").exists());
+    }
+
+    @Test
+    public void uninstallKeepsTheSharedGlobalContainer() throws Exception {
+        // RECOMMENDED preset binds to GameContainer.DEFAULT_ID -- the global shared container
+        // must never be deleted when a GLIBC game is removed.
+        File files = temporary.newFolder("default-container-files");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        FileGameRepository games = new FileGameRepository(paths.getLibraryDirectory());
+        games.save(game("game-glibc", "content://external/game-glibc"));
+        new FileRuntimeProfileRepository(paths.getProfilesDirectory())
+            .save(RuntimeProfilePresets.create("game-glibc", RuntimeProfilePreset.RECOMMENDED));
+        write(new File(paths.getContainersDirectory(),
+            com.termux.localgames.domain.GameContainer.DEFAULT_ID + ".properties"), "id");
+
+        new GameUninstaller(files).execute(GameUninstallPlan.keepPrivateAssets("game-glibc"));
+
+        assertFalse(games.find("game-glibc").isPresent());
+        assertTrue(new File(paths.getContainersDirectory(),
+            com.termux.localgames.domain.GameContainer.DEFAULT_ID + ".properties").exists());
+    }
+
+    private static RuntimeProfile rootfsProfile(String gameId, String containerId) {
+        return new RuntimeProfile(gameId, "hangover-11.9", "rootfs-llvmpipe", "rootfs-wined3d",
+            "pulseaudio", "1280x720", "INTERMEDIATE", Collections.emptyMap(), "",
+            LaunchExecutionMode.TERMINAL_SESSION, Collections.emptyMap(),
+            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", containerId);
     }
 
     private Fixture fixture(String directory, String gameId) throws Exception {
