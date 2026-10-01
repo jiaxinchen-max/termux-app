@@ -35,6 +35,10 @@ on_exit() {
         printf '{"schemaVersion":1,"taskId":"%s","state":"FAILED","errorCode":"%s"}\n' \
             "$TASK_ID" "$FAILURE_CODE" >> "$EVENTS_PATH" 2>/dev/null || true
     fi
+    # The per-task build context holds a full copy of the source .debs (~hundreds of MB) and is
+    # only needed while the guest setup runs. Drop it on every exit (success or failure) so
+    # staging/ does not accumulate one dead copy per setup and fill the data partition.
+    [ -n "$BUILD_CONTEXT" ] && rm -rf "$BUILD_CONTEXT" 2>/dev/null || true
 }
 trap on_exit EXIT
 
@@ -263,6 +267,27 @@ extract_template_into() {
         fail rootfs_template_extract_failed 70
     fi
 }
+
+# Reclaim superseded recipes: a recipe bump (new source component, recipe files, or this
+# script) changes RECIPE_SHA256 and therefore the template name, orphaning the previous ~3GB
+# "tmpl-<oldSha>" directory and its cached archive forever. No game ever sets up against an old
+# recipe again (all games share the current one), so drop every template dir and archive that is
+# not the current recipe's before extracting -- otherwise each bump permanently leaks a full
+# rootfs and the data partition fills up.
+if [ -d "$PREFIX/var/lib/proot-distro/containers" ]; then
+    for old_template in "$PREFIX"/var/lib/proot-distro/containers/tmpl-*; do
+        [ -d "$old_template" ] || continue
+        case "$old_template" in */"$TEMPLATE_CONTAINER_NAME") continue ;; esac
+        run_logged rm -rf "$old_template"
+    done
+fi
+if [ -d "$TEMPLATE_CACHE_DIR" ]; then
+    for old_archive in "$TEMPLATE_CACHE_DIR"/tmpl-*.tar.*; do
+        [ -f "$old_archive" ] || continue
+        case "$old_archive" in "$TEMPLATE_ARCHIVE"|"$TEMPLATE_ARCHIVE.tmp") continue ;; esac
+        rm -f "$old_archive"
+    done
+fi
 
 if ! runtime_complete "$ROOTFS"; then
     if runtime_complete "$TEMPLATE_ROOTFS"; then
