@@ -251,8 +251,11 @@ public final class LocalGameOrchestratorService extends Service {
                     reconcile(task);
                 } catch (Exception error) {
                     Log.e(TAG, "Unable to reconcile launch: " + task.getTaskId(), error);
-                    failTask(task.getTaskId(), error instanceof IOException
-                        ? "launch_event_invalid" : stableError(error), true);
+                    // Surface the real stable error code (e.g. component_prepare_failed:turnip,
+                    // prefix_provision_timeout) instead of masking every IOException as the
+                    // generic launch_event_invalid -- stableError keeps event-parse and other
+                    // unclassifiable failures as a safe fallback code.
+                    failTask(task.getTaskId(), stableError(error), true);
                 }
             }
             if (!active && preparing.isEmpty()) {
