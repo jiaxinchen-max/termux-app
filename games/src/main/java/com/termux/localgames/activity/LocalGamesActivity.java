@@ -30,8 +30,8 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
 import com.termux.localgames.api.ComponentTasks;
-import com.termux.localgames.api.RuntimeProvisionTasks;
-import com.termux.localgames.api.PrefixProvisionTasks;
+import com.termux.localgames.api.RuntimeSetupTasks;
+import com.termux.localgames.api.PrefixSetupTasks;
 import com.termux.localgames.api.AppExperienceMode;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.LocalGamesHost;
@@ -51,7 +51,7 @@ import com.termux.localgames.data.FileComponentTaskRepository;
 import com.termux.localgames.data.FileGameRepository;
 import com.termux.localgames.data.FileResetTaskRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
-import com.termux.localgames.data.FileRuntimeProvisionTaskRepository;
+import com.termux.localgames.data.FileRuntimeSetupTaskRepository;
 import com.termux.localgames.data.GameAccessState;
 import com.termux.localgames.data.GameLibraryItem;
 import com.termux.localgames.data.GameLibraryRepository;
@@ -69,10 +69,10 @@ import com.termux.localgames.domain.ResetTarget;
 import com.termux.localgames.domain.ResetTask;
 import com.termux.localgames.domain.RuntimeReadinessState;
 import com.termux.localgames.api.ResetTasks;
-import com.termux.localgames.runtime.RootfsProvisionRecipe;
+import com.termux.localgames.runtime.RootfsSetupRecipe;
 import com.termux.localgames.runtime.RuntimeEnvironmentStatus;
-import com.termux.localgames.service.RootfsProvisionAssetInstaller;
-import com.termux.localgames.domain.RuntimeProvisionTask;
+import com.termux.localgames.service.RootfsSetupAssetInstaller;
+import com.termux.localgames.domain.RuntimeSetupTask;
 import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.importer.SafGameAccessProbe;
 import com.termux.localgames.recovery.GameUninstallPlan;
@@ -124,7 +124,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private ActivityLocalGamesBinding binding;
     private ComponentCatalogRepository catalogRepository;
-    private FileRuntimeProvisionTaskRepository runtimeProvisionTaskRepository;
+    private FileRuntimeSetupTaskRepository runtimeSetupTaskRepository;
     private GameLibraryRepository libraryRepository;
     private GameArtworkLoader artworkLoader;
     private LocalGamesHost appHost;
@@ -134,7 +134,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private int libraryGeneration;
     private int libraryColumns = 2;
     private Set<String> staleRootfsGameIds = Collections.emptySet();
-    private RuntimeProvisionTask latestRuntimeProvisionTask;
+    private RuntimeSetupTask latestRuntimeSetupTask;
     private boolean rootfsRuntimeInstalled;
     @Nullable private android.animation.ObjectAnimator glibcBladeBreathAnimator;
     @Nullable private android.animation.ObjectAnimator containerBladeBreathAnimator;
@@ -197,8 +197,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
         initializeCatalog();
         initializeLibrary();
         ComponentTasks.reconcile(this);
-        RuntimeProvisionTasks.reconcileAll(this);
-        PrefixProvisionTasks.reconcileAll(this);
+        RuntimeSetupTasks.reconcileAll(this);
+        PrefixSetupTasks.reconcileAll(this);
         int initialPage = selectedTab;
         binding.localGamesNavigation.setSelectedItemId(R.id.local_games_navigation_library);
         showPage(initialPage);
@@ -218,7 +218,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // A reset runs behind RuntimeProvisionConsoleDialog and control returns here once it
+        // A reset runs behind RuntimeSetupConsoleDialog and control returns here once it
         // finishes -- re-check both environments so the emblem reflects the new state.
         renderRuntimeStatus();
     }
@@ -244,8 +244,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 new FileComponentTaskRepository(paths.getTasksDirectory()),
                 new ComponentInstallationReader(paths.getInstallDirectory()));
             GameStoragePaths gamePaths = new GameStoragePaths(getFilesDir());
-            runtimeProvisionTaskRepository = new FileRuntimeProvisionTaskRepository(
-                gamePaths.getRuntimeProvisionTasksDirectory());
+            runtimeSetupTaskRepository = new FileRuntimeSetupTaskRepository(
+                gamePaths.getRuntimeSetupTasksDirectory());
             if (!TextUtils.isEmpty(componentGameId)) {
                 RuntimeProfile profile = new FileRuntimeProfileRepository(
                     gamePaths.getProfilesDirectory()).find(componentGameId).orElseThrow(() ->
@@ -769,7 +769,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         catalogExecutor.execute(() -> {
             List<ComponentCatalogItem> items = null;
             String error = null;
-            RuntimeProvisionTask provisionTask = null;
+            RuntimeSetupTask setupTask = null;
             boolean runtimeInstalled = false;
             try {
                 items = catalogRepository.load();
@@ -779,7 +779,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
             }
             if (componentBackend == GameRuntimeBackendType.ROOTFS_PROOT) {
                 try {
-                    provisionTask = latestRuntimeProvisionTask();
+                    setupTask = latestRuntimeSetupTask();
                 } catch (IOException ignored) {
                     // A damaged task record must not hide the component catalog or reinstall action.
                 }
@@ -793,13 +793,13 @@ public final class LocalGamesActivity extends AppCompatActivity {
             }
             List<ComponentCatalogItem> loadedItems = items;
             String loadedError = error;
-            RuntimeProvisionTask loadedProvisionTask = provisionTask;
+            RuntimeSetupTask loadedSetupTask = setupTask;
             boolean loadedRuntimeInstalled = runtimeInstalled;
             mainHandler.post(() -> {
                 loadInFlight.set(false);
                 if (!started || binding == null || selectedTab != TAB_COMPONENTS) return;
                 if (loadedError == null) {
-                    latestRuntimeProvisionTask = loadedProvisionTask;
+                    latestRuntimeSetupTask = loadedSetupTask;
                     rootfsRuntimeInstalled = loadedRuntimeInstalled;
                     renderCatalog(loadedItems);
                 }
@@ -810,10 +810,10 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     @Nullable
-    private RuntimeProvisionTask latestRuntimeProvisionTask() throws IOException {
-        if (runtimeProvisionTaskRepository == null) return null;
-        RuntimeProvisionTask latest = null;
-        for (RuntimeProvisionTask task : runtimeProvisionTaskRepository.list()) {
+    private RuntimeSetupTask latestRuntimeSetupTask() throws IOException {
+        if (runtimeSetupTaskRepository == null) return null;
+        RuntimeSetupTask latest = null;
+        for (RuntimeSetupTask task : runtimeSetupTaskRepository.list()) {
             if (!"debian-13-games-rootfs".equals(task.getPackageName())) continue;
             if (!task.getContainerId().equals(componentContainerId)) continue;
             if (latest == null || task.getCreatedAt() > latest.getCreatedAt()) latest = task;
@@ -897,9 +897,9 @@ public final class LocalGamesActivity extends AppCompatActivity {
             descriptor.getDisplayName(), componentSummary(descriptor)));
         boolean activationRequired = requiresRuntimeActivation(item);
         boolean rootfsSource = isRootfsSource(item);
-        RuntimeProvisionTask provisionTask = rootfsSource ? latestRuntimeProvisionTask : null;
+        RuntimeSetupTask setupTask = rootfsSource ? latestRuntimeSetupTask : null;
         ComponentTask task = item.getTask().orElse(null);
-        configurePrimaryAction(row, item, task, activationRequired, provisionTask);
+        configurePrimaryAction(row, item, task, activationRequired, setupTask);
     }
 
     private static boolean isRootfsSource(ComponentCatalogItem item) {
@@ -966,7 +966,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void configurePrimaryAction(ItemLocalGamesComponentBinding row,
                                         ComponentCatalogItem item, ComponentTask task,
                                         boolean activationRequired,
-                                        @Nullable RuntimeProvisionTask provisionTask) {
+                                        @Nullable RuntimeSetupTask setupTask) {
         int title;
         View.OnClickListener action;
         if (task != null && task.getState().shouldRecoverAutomatically()) {
@@ -992,24 +992,24 @@ public final class LocalGamesActivity extends AppCompatActivity {
         }
         if (item.getState() == ComponentCatalogState.INSTALLED &&
             isRootfsSource(item)) {
-            if (provisionTask != null && !provisionTask.getState().isTerminal()) {
+            if (setupTask != null && !setupTask.getState().isTerminal()) {
                 row.localGamesComponentPrimaryAction.setText(
-                    R.string.local_games_runtime_provision_view_log_action);
+                    R.string.local_games_runtime_setup_view_log_action);
                 row.localGamesComponentPrimaryAction.setOnClickListener(view ->
-                    RuntimeProvisionConsoleDialog.show(this, provisionTask.getTaskId()));
+                    RuntimeSetupConsoleDialog.show(this, setupTask.getTaskId()));
                 row.localGamesComponentPrimaryAction.setEnabled(true);
                 row.localGamesComponentPrimaryAction.setVisibility(View.VISIBLE);
                 return;
             }
             if (rootfsRuntimeInstalled) {
                 row.localGamesComponentPrimaryAction.setText(
-                    R.string.local_games_runtime_provision_reinstall_action);
+                    R.string.local_games_runtime_setup_reinstall_action);
                 row.localGamesComponentPrimaryAction.setOnClickListener(view -> {
                     if (showActiveInstallationConsole()) return;
                     disableActions(row);
-                    String taskId = RuntimeProvisionTasks.enqueue(this,
+                    String taskId = RuntimeSetupTasks.enqueue(this,
                         "debian-13-games-rootfs", componentContainerId);
-                    RuntimeProvisionConsoleDialog.show(this, taskId);
+                    RuntimeSetupConsoleDialog.show(this, taskId);
                     scheduleCatalogRefresh(150);
                 });
                 row.localGamesComponentPrimaryAction.setEnabled(true);
@@ -1017,14 +1017,14 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 return;
             }
             row.localGamesComponentPrimaryAction.setText(
-                R.string.local_games_runtime_provision_action);
+                R.string.local_games_runtime_setup_action);
             row.localGamesComponentPrimaryAction.setOnClickListener(view -> {
                 if (showActiveInstallationConsole()) return;
                 disableActions(row);
-                String taskId = RuntimeProvisionTasks.enqueue(this,
+                String taskId = RuntimeSetupTasks.enqueue(this,
                     "debian-13-games-rootfs", componentContainerId);
-                RuntimeProvisionConsoleDialog.show(this, taskId);
-                Toast.makeText(this, getString(R.string.local_games_runtime_provision_started,
+                RuntimeSetupConsoleDialog.show(this, taskId);
+                Toast.makeText(this, getString(R.string.local_games_runtime_setup_started,
                     taskId), Toast.LENGTH_SHORT).show();
                 scheduleCatalogRefresh(150);
             });
@@ -1115,7 +1115,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     /** The top action remains available after a user hides the modal console. */
     private void renderActiveInstallationConsoleAction() {
-        boolean active = findActiveComponentTask() != null || findActiveProvisionTask() != null;
+        boolean active = findActiveComponentTask() != null || findActiveSetupTask() != null;
         binding.localGamesComponentTaskConsole.setVisibility(active ? View.VISIBLE : View.GONE);
     }
 
@@ -1126,16 +1126,16 @@ public final class LocalGamesActivity extends AppCompatActivity {
             showComponentInstallationConsole(component);
             return true;
         }
-        RuntimeProvisionTask provision = findActiveProvisionTask();
-        if (provision != null) {
-            RuntimeProvisionConsoleDialog.show(this, provision.getTaskId());
+        RuntimeSetupTask setup = findActiveSetupTask();
+        if (setup != null) {
+            RuntimeSetupConsoleDialog.show(this, setup.getTaskId());
             return true;
         }
         GameStoragePaths paths = new GameStoragePaths(getFilesDir());
         for (ResetTarget target : ResetTarget.values()) {
             ResetTask reset = findActiveResetTask(paths, target);
             if (reset != null) {
-                RuntimeProvisionConsoleDialog.show(this, reset.getTaskId());
+                RuntimeSetupConsoleDialog.show(this, reset.getTaskId());
                 return true;
             }
         }
@@ -1148,7 +1148,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private void showComponentInstallationConsole(String componentId, String taskId) {
         if (TERMUX_GLIBC_RUNTIME_COMPONENT.equals(componentId)) {
-            RuntimeProvisionConsoleDialog.show(this, taskId,
+            RuntimeSetupConsoleDialog.show(this, taskId,
                 R.string.local_games_component_console_title);
         } else {
             ComponentTaskConsoleDialog.show(this, taskId);
@@ -1169,10 +1169,10 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     @Nullable
-    private RuntimeProvisionTask findActiveProvisionTask() {
+    private RuntimeSetupTask findActiveSetupTask() {
         try {
-            if (runtimeProvisionTaskRepository == null) return null;
-            for (RuntimeProvisionTask task : runtimeProvisionTaskRepository.list()) {
+            if (runtimeSetupTaskRepository == null) return null;
+            for (RuntimeSetupTask task : runtimeSetupTaskRepository.list()) {
                 if (!task.getState().isTerminal()) return task;
             }
         } catch (IOException | RuntimeException ignored) {
@@ -1276,13 +1276,13 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private void installGlibcRuntime() {
         String taskId = ComponentTasks.enqueue(this, TERMUX_GLIBC_RUNTIME_COMPONENT);
-        RuntimeProvisionConsoleDialog.show(this, taskId)
+        RuntimeSetupConsoleDialog.show(this, taskId)
             .setOnDismissListener(dialog -> renderRuntimeStatus());
         mainHandler.postDelayed(this::renderRuntimeStatus, 400);
     }
 
     /** Builds the shared RootFS base runtime (box64, Wine, fonts) that new game containers are
-     *  hardlink-cloned from -- the same provisioning triggered from the per-game Components
+     *  hardlink-cloned from -- the same setup triggered from the per-game Components
      *  list when no such container exists yet, without navigating there. */
     private void confirmRootfsInstall() {
         if (showActiveInstallationConsole()) return;
@@ -1297,14 +1297,14 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private void installRootfsRuntime() {
         // This blade is reachable with no specific game in context (componentContainerId may be
-        // unset), but RuntimeProvisionTasks.enqueue requires a real, non-DEFAULT_ID containerId
+        // unset), but RuntimeSetupTasks.enqueue requires a real, non-DEFAULT_ID containerId
         // for the activation/clone step even though the expensive shared-template build itself
         // is containerId-independent. Use a disposable id instead of forcing a game context here
         // -- it clones into an orphan proot-distro container nothing else ever references, but
         // that's a small one-time disk cost versus every other container reaching this point.
-        String taskId = RuntimeProvisionTasks.enqueue(this, "debian-13-games-rootfs",
+        String taskId = RuntimeSetupTasks.enqueue(this, "debian-13-games-rootfs",
             "shared-rebuild-" + UUID.randomUUID());
-        RuntimeProvisionConsoleDialog.show(this, taskId)
+        RuntimeSetupConsoleDialog.show(this, taskId)
             .setOnDismissListener(dialog -> renderRuntimeStatus());
         mainHandler.postDelayed(this::renderRuntimeStatus, 400);
     }
@@ -1366,7 +1366,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     /** Resetting RootFS tears down the shared rootfs template that new game containers are
-     *  hardlink-cloned from (see provision_rootfs_runtime.sh); already-cloned containers keep
+     *  hardlink-cloned from (see setup_rootfs_runtime.sh); already-cloned containers keep
      *  their own copy and are unaffected. The template is identified by the current recipe's
      *  content hash, which is global -- not tied to any specific game, so there is nothing to
      *  pick here (unlike the old per-container reset). */
@@ -1380,22 +1380,22 @@ public final class LocalGamesActivity extends AppCompatActivity {
         });
     }
 
-    /** Mirrors RootfsProvisionForegroundService.enqueue()'s own recipeSha256 computation.
+    /** Mirrors RootfsSetupForegroundService.enqueue()'s own recipeSha256 computation.
      *  Returns null when no RootFS environment could possibly exist yet (no active box64/Wine
      *  source component to build one from). */
     @Nullable
     private String resolveCurrentRootfsRecipeSha256() {
         try {
             GameStoragePaths paths = new GameStoragePaths(getFilesDir());
-            RootfsProvisionRecipe recipe = RootfsProvisionRecipe.require(
-                RootfsProvisionRecipe.DEFAULT_PACKAGE);
+            RootfsSetupRecipe recipe = RootfsSetupRecipe.require(
+                RootfsSetupRecipe.DEFAULT_PACKAGE);
             ComponentInstallationReader components = new ComponentInstallationReader(
                 new ComponentStoragePaths(getFilesDir()).getInstallDirectory());
             java.util.Optional<InstalledComponent> source =
                 components.read(recipe.getSourceComponentId()).getActive();
             if (!source.isPresent()) return null;
-            RootfsProvisionAssetInstaller.Installed assets =
-                new RootfsProvisionAssetInstaller(this, paths).install(recipe,
+            RootfsSetupAssetInstaller.Installed assets =
+                new RootfsSetupAssetInstaller(this, paths).install(recipe,
                     source.get().getSha256());
             return assets.getRecipeSha256();
         } catch (IOException | RuntimeException error) {
@@ -1417,7 +1417,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.local_games_reset_action, (dialog, which) -> {
                 String taskId = ResetTasks.enqueue(this, target, resetKey);
-                RuntimeProvisionConsoleDialog.show(this, taskId)
+                RuntimeSetupConsoleDialog.show(this, taskId)
                     .setOnDismissListener(consoleDialog -> renderRuntimeStatus());
                 mainHandler.postDelayed(this::renderRuntimeStatus, 400);
             })

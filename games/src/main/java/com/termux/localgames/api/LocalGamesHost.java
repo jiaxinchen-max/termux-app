@@ -73,20 +73,20 @@ public interface LocalGamesHost {
         throw new UnsupportedOperationException("launch_host_not_supported");
     }
 
-    /** Runs a trusted Games provisioning script in a visible Termux terminal session. */
-    default void startRuntimeProvision(RuntimeProvisionRequest request) throws LaunchHostException {
-        throw new UnsupportedOperationException("runtime_provision_host_not_supported");
+    /** Runs a trusted Games setup script in a visible Termux terminal session. */
+    default void startRuntimeSetup(RuntimeSetupRequest request) throws LaunchHostException {
+        throw new UnsupportedOperationException("runtime_setup_host_not_supported");
     }
 
     /** Runs a trusted Termux package installation in a visible terminal session. */
-    default void startTermuxPackageInstall(RuntimeProvisionRequest request)
+    default void startTermuxPackageInstall(RuntimeSetupRequest request)
         throws LaunchHostException {
         throw new UnsupportedOperationException("termux_package_install_host_not_supported");
     }
 
-    /** Returns the visible terminal session owned by an active provisioning task, if ready. */
+    /** Returns the visible terminal session owned by an active setup task, if ready. */
     @Nullable
-    default TerminalSession getRuntimeProvisionTerminal(String taskId) { return null; }
+    default TerminalSession getRuntimeSetupTerminal(String taskId) { return null; }
 
     /** Best-effort same-UID process liveness check used only during reconciliation. */
     default boolean isProcessAlive(long pid) { return false; }

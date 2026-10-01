@@ -5,12 +5,12 @@ import static org.junit.Assert.assertTrue;
 
 import com.termux.localgames.components.ComponentStoragePaths;
 import com.termux.localgames.data.FileComponentTaskRepository;
-import com.termux.localgames.data.FileRuntimeProvisionTaskRepository;
+import com.termux.localgames.data.FileRuntimeSetupTaskRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.ComponentTask;
 import com.termux.localgames.domain.ComponentTaskState;
-import com.termux.localgames.domain.RuntimeProvisionTask;
-import com.termux.localgames.domain.RuntimeProvisionTaskState;
+import com.termux.localgames.domain.RuntimeSetupTask;
+import com.termux.localgames.domain.RuntimeSetupTaskState;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,9 +35,9 @@ public class RuntimeInstallationGateTest {
     }
 
     @Test
-    public void requireResetSlotThrowsWhenARuntimeProvisionTaskIsActive() throws Exception {
-        File files = temporary.newFolder("reset-vs-provision");
-        saveProvisionTask(files, "other-task", RuntimeProvisionTaskState.BUILDING);
+    public void requireResetSlotThrowsWhenARuntimeSetupTaskIsActive() throws Exception {
+        File files = temporary.newFolder("reset-vs-setup");
+        saveSetupTask(files, "other-task", RuntimeSetupTaskState.BUILDING);
 
         assertThrows(Exception.class, () ->
             RuntimeInstallationGate.requireResetSlot(files, "self-task"));
@@ -46,7 +46,7 @@ public class RuntimeInstallationGateTest {
     @Test
     public void requireResetSlotIgnoresItsOwnTaskId() throws Exception {
         File files = temporary.newFolder("reset-self-exclusion");
-        saveProvisionTask(files, "self-task", RuntimeProvisionTaskState.BUILDING);
+        saveSetupTask(files, "self-task", RuntimeSetupTaskState.BUILDING);
 
         RuntimeInstallationGate.requireResetSlot(files, "self-task"); // must not throw
     }
@@ -55,15 +55,15 @@ public class RuntimeInstallationGateTest {
     public void requireResetSlotAllowsWhenEverythingIsTerminal() throws Exception {
         File files = temporary.newFolder("reset-all-clear");
         saveComponentTask(files, "done-task", ComponentTaskState.INSTALLED);
-        saveProvisionTask(files, "done-task-2", RuntimeProvisionTaskState.SUCCEEDED);
+        saveSetupTask(files, "done-task-2", RuntimeSetupTaskState.SUCCEEDED);
 
         RuntimeInstallationGate.requireResetSlot(files, "self-task"); // must not throw
     }
 
     @Test
-    public void requireComponentSlotThrowsWhenARuntimeProvisionTaskIsActive() throws Exception {
-        File files = temporary.newFolder("component-vs-provision");
-        saveProvisionTask(files, "other-task", RuntimeProvisionTaskState.BUILDING);
+    public void requireComponentSlotThrowsWhenARuntimeSetupTaskIsActive() throws Exception {
+        File files = temporary.newFolder("component-vs-setup");
+        saveSetupTask(files, "other-task", RuntimeSetupTaskState.BUILDING);
 
         assertThrows(Exception.class, () ->
             RuntimeInstallationGate.requireComponentSlot(files, "self-task"));
@@ -87,12 +87,12 @@ public class RuntimeInstallationGateTest {
         assertTrue(task.getState() == state);
     }
 
-    private static void saveProvisionTask(File files, String taskId,
-                                          RuntimeProvisionTaskState state) throws Exception {
-        RuntimeProvisionTask task = RuntimeProvisionTask.queued(taskId, "debian-13-games-rootfs",
+    private static void saveSetupTask(File files, String taskId,
+                                          RuntimeSetupTaskState state) throws Exception {
+        RuntimeSetupTask task = RuntimeSetupTask.queued(taskId, "debian-13-games-rootfs",
             1, "a".repeat(64), "hangover-11.9-debian13-source", "container-a", "container-a", 1L)
             .transition(state, "", 2L);
-        new FileRuntimeProvisionTaskRepository(
-            new GameStoragePaths(files).getRuntimeProvisionTasksDirectory()).save(task);
+        new FileRuntimeSetupTaskRepository(
+            new GameStoragePaths(files).getRuntimeSetupTasksDirectory()).save(task);
     }
 }

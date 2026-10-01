@@ -4,7 +4,7 @@ set -eu
 PS4='+ '
 set -x
 
-SPEC_PATH=${1:?Usage: provision_rootfs_runtime.sh <provision-spec>}
+SPEC_PATH=${1:?Usage: setup_rootfs_runtime.sh <setup-spec>}
 
 TASK_ID=
 PACKAGE_NAME=
@@ -19,7 +19,7 @@ METADATA_ROOT=
 EVENTS_PATH=
 LOG_PATH=
 COMPLETED=false
-FAILURE_CODE=provision_script_failed
+FAILURE_CODE=setup_script_failed
 
 on_exit() {
     status=$?
@@ -45,7 +45,7 @@ fail() {
 
 while IFS='=' read -r key value; do
     case "$key" in
-        schemaVersion) [ "$value" = 2 ] || fail unsupported_provision_spec 64 ;;
+        schemaVersion) [ "$value" = 2 ] || fail unsupported_setup_spec 64 ;;
         taskId) TASK_ID=$value ;;
         packageName) PACKAGE_NAME=$value ;;
         version) VERSION=$value ;;
@@ -59,33 +59,33 @@ while IFS='=' read -r key value; do
         eventsPath) EVENTS_PATH=$value ;;
         logPath) LOG_PATH=$value ;;
         '') ;;
-        *) fail invalid_provision_spec 64 ;;
+        *) fail invalid_setup_spec 64 ;;
     esac
 done < "$SPEC_PATH"
 
 for value in "$TASK_ID" "$PACKAGE_NAME" "$CONTAINER_ID" "$CONTAINER_NAME"; do
-    case "$value" in ''|*[!A-Za-z0-9._-]*) fail invalid_provision_identifier 64 ;; esac
+    case "$value" in ''|*[!A-Za-z0-9._-]*) fail invalid_setup_identifier 64 ;; esac
 done
-case "$VERSION" in ''|*[!0-9]*|0*) fail invalid_provision_version 64 ;; esac
-case "$RECIPE_SHA256" in *[!0-9a-f]*|'') fail invalid_provision_recipe_digest 64 ;; esac
-[ "${#RECIPE_SHA256}" -eq 64 ] || fail invalid_provision_recipe_digest 64
+case "$VERSION" in ''|*[!0-9]*|0*) fail invalid_setup_version 64 ;; esac
+case "$RECIPE_SHA256" in *[!0-9a-f]*|'') fail invalid_setup_recipe_digest 64 ;; esac
+[ "${#RECIPE_SHA256}" -eq 64 ] || fail invalid_setup_recipe_digest 64
 
-PRIVATE_ROOT=${SPEC_PATH%/runtime/provision/specs/*}
+PRIVATE_ROOT=${SPEC_PATH%/runtime/setup/specs/*}
 [ -n "$PRIVATE_ROOT" ] && [ "$PRIVATE_ROOT" != "$SPEC_PATH" ] || \
-    fail invalid_provision_spec_path 64
-case "$SPEC_PATH" in "$PRIVATE_ROOT"/runtime/provision/specs/*.provisionspec) ;; *)
-    fail invalid_provision_spec_path 64 ;;
+    fail invalid_setup_spec_path 64
+case "$SPEC_PATH" in "$PRIVATE_ROOT"/runtime/setup/specs/*.setupspec) ;; *)
+    fail invalid_setup_spec_path 64 ;;
 esac
 for path in "$SPEC_PATH" "$BUILD_CONTEXT" "$RECIPE_DIRECTORY" "$SOURCE_DIRECTORY" \
     "$METADATA_ROOT" "$EVENTS_PATH" "$LOG_PATH"; do
-    case "$path" in "$PRIVATE_ROOT"/*) ;; *) fail provision_path_outside_private_storage 64 ;; esac
-    case "$path" in *'/../'*|*/..|*'/./'*|*/.) fail invalid_provision_private_path 64 ;; esac
+    case "$path" in "$PRIVATE_ROOT"/*) ;; *) fail setup_path_outside_private_storage 64 ;; esac
+    case "$path" in *'/../'*|*/..|*'/./'*|*/.) fail invalid_setup_private_path 64 ;; esac
 done
 events_directory=${EVENTS_PATH%/*}
 logs_directory=${LOG_PATH%/*}
 [ "$events_directory" != "$EVENTS_PATH" ] && [ "$logs_directory" != "$LOG_PATH" ] || \
-    fail invalid_provision_output_path 64
-mkdir -p "$events_directory" "$logs_directory" || fail provision_output_directory_failed 70
+    fail invalid_setup_output_path 64
+mkdir -p "$events_directory" "$logs_directory" || fail setup_output_directory_failed 70
 : >> "$LOG_PATH"
 
 progress() {
@@ -93,7 +93,7 @@ progress() {
 }
 
 # Keep the durable log for task reconciliation, while forwarding command output to
-# the PTY when provisioning was started from the Games component screen.
+# the PTY when setup was started from the Games component screen.
 run_logged() {
     if [ -t 1 ]; then
         status_path="$LOG_PATH.command-status.$$"
@@ -117,7 +117,7 @@ CONTAINER_DIRECTORY="$PREFIX/var/lib/proot-distro/containers/$CONTAINER_NAME"
 ROOTFS="$CONTAINER_DIRECTORY/rootfs"
 BASE_IMAGE=debian:trixie-20260824
 # Every container built from the same recipe (same box64/Wine source component, same
-# provision-container.sh/games-runtime.properties, same version of this script -- that is
+# setup-container.sh/games-runtime.properties, same version of this script -- that is
 # exactly what RECIPE_SHA256 hashes) would otherwise redo an identical multi-hundred-MB
 # download+unpack+apt-install. Build that once into a reserved "tmpl-" pseudo-container and
 # hardlink-clone it into every real container instead. "tmpl-" is never a real containerId
@@ -141,7 +141,7 @@ else
     TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/$TEMPLATE_CONTAINER_NAME.tar.gz"
     TEMPLATE_COMPRESSOR=gzip
 fi
-supports_container_provision() {
+supports_container_setup() {
     [ -x "$PROOT_DISTRO" ] &&
         "$PROOT_DISTRO" install --help 2>&1 | grep -q -- '--name' &&
         "$PROOT_DISTRO" login --help 2>&1 | grep -q -- '--isolated' &&
@@ -167,17 +167,17 @@ if [ ! -x "$PREFIX/bin/proot" ] || [ ! -x "$PROOT_DISTRO" ] || \
 fi
 [ -x "$PROOT_DISTRO" ] || fail proot_distro_missing 69
 [ -x "$PREFIX/bin/proot" ] || fail proot_missing 69
-supports_container_provision || {
+supports_container_setup || {
     fail proot_distro_install_login_unsupported 69
 }
-[ -f "$RECIPE_DIRECTORY/provision-container.sh" ] || fail rootfs_recipe_script_missing 66
+[ -f "$RECIPE_DIRECTORY/setup-container.sh" ] || fail rootfs_recipe_script_missing 66
 [ -f "$RECIPE_DIRECTORY/games-runtime.properties" ] || fail rootfs_recipe_manifest_missing 66
 find "$SOURCE_DIRECTORY" -name '*.deb' -type f | grep -q . || fail rootfs_source_packages_missing 66
 
 progress '==> [2/4] Preparing runtime build context'
 rm -rf "$BUILD_CONTEXT"
 mkdir -p "$BUILD_CONTEXT/hangover-source"
-cp "$RECIPE_DIRECTORY/provision-container.sh" "$BUILD_CONTEXT/provision-container.sh"
+cp "$RECIPE_DIRECTORY/setup-container.sh" "$BUILD_CONTEXT/setup-container.sh"
 cp "$RECIPE_DIRECTORY/games-runtime.properties" "$BUILD_CONTEXT/games-runtime.properties"
 cp -al "$SOURCE_DIRECTORY"/. "$BUILD_CONTEXT/hangover-source"/ 2>/dev/null || \
     cp -a "$SOURCE_DIRECTORY"/. "$BUILD_CONTEXT/hangover-source"/
@@ -203,7 +203,7 @@ base_container_ready() {
     [ -x "$root/usr/bin/env" ] && [ -f "$directory/manifest.json" ]
 }
 # Builds a fresh proot-distro container from the base image and runs the games
-# provisioning script inside it. $1 = container name, $2 = its directory, $3 = its rootfs.
+# setup script inside it. $1 = container name, $2 = its directory, $3 = its rootfs.
 build_runtime_into() {
     name=$1
     directory=$2
@@ -225,9 +225,9 @@ build_runtime_into() {
     fi
     progress '==> [4/4] Installing game runtime packages in Debian'
     if ! run_logged "$PROOT_DISTRO" login "$name" --isolated \
-        --bind "$BUILD_CONTEXT:/run/games-provision" -- \
-        /bin/sh /run/games-provision/provision-container.sh; then
-        fail rootfs_guest_provision_failed 70
+        --bind "$BUILD_CONTEXT:/run/games-setup" -- \
+        /bin/sh /run/games-setup/setup-container.sh; then
+        fail rootfs_guest_setup_failed 70
     fi
 }
 # Archives the already-built template container ($TEMPLATE_DIRECTORY, i.e. manifest.json +

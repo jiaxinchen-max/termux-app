@@ -2,10 +2,10 @@ package com.termux.localgames.service;
 
 import com.termux.localgames.components.ComponentStoragePaths;
 import com.termux.localgames.data.FileComponentTaskRepository;
-import com.termux.localgames.data.FileRuntimeProvisionTaskRepository;
+import com.termux.localgames.data.FileRuntimeSetupTaskRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.ComponentTask;
-import com.termux.localgames.domain.RuntimeProvisionTask;
+import com.termux.localgames.domain.RuntimeSetupTask;
 
 import java.io.File;
 
@@ -15,8 +15,8 @@ final class RuntimeInstallationGate {
 
     static void requireComponentSlot(File filesDirectory, String selfTaskId) throws Exception {
         GameStoragePaths games = new GameStoragePaths(filesDirectory);
-        for (RuntimeProvisionTask task : new FileRuntimeProvisionTaskRepository(
-            games.getRuntimeProvisionTasksDirectory()).list()) {
+        for (RuntimeSetupTask task : new FileRuntimeSetupTaskRepository(
+            games.getRuntimeSetupTasksDirectory()).list()) {
             if (!task.getState().isTerminal()) throw new Exception("runtime_installation_busy");
         }
         for (ComponentTask task : new FileComponentTaskRepository(new ComponentStoragePaths(
@@ -36,8 +36,8 @@ final class RuntimeInstallationGate {
             }
         }
         GameStoragePaths games = new GameStoragePaths(filesDirectory);
-        for (RuntimeProvisionTask task : new FileRuntimeProvisionTaskRepository(
-            games.getRuntimeProvisionTasksDirectory()).list()) {
+        for (RuntimeSetupTask task : new FileRuntimeSetupTaskRepository(
+            games.getRuntimeSetupTasksDirectory()).list()) {
             if (!task.getState().isTerminal() && !task.getTaskId().equals(selfTaskId)) {
                 throw new Exception("runtime_installation_busy");
             }
@@ -52,8 +52,8 @@ final class RuntimeInstallationGate {
             }
         }
         GameStoragePaths games = new GameStoragePaths(filesDirectory);
-        for (RuntimeProvisionTask task : new FileRuntimeProvisionTaskRepository(
-            games.getRuntimeProvisionTasksDirectory()).list()) {
+        for (RuntimeSetupTask task : new FileRuntimeSetupTaskRepository(
+            games.getRuntimeSetupTasksDirectory()).list()) {
             if (!task.getState().isTerminal() && !task.getTaskId().equals(selfTaskId)) {
                 throw new Exception("runtime_installation_busy");
             }

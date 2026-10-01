@@ -18,7 +18,7 @@ import com.termux.localgames.api.AppExperienceMode;
 import com.termux.localgames.api.LegacyRuntimeConfiguration;
 import com.termux.localgames.api.LaunchRequest;
 import com.termux.localgames.api.LaunchHostException;
-import com.termux.localgames.api.RuntimeProvisionRequest;
+import com.termux.localgames.api.RuntimeSetupRequest;
 import com.termux.localgames.api.RuntimeComponentActivation;
 import com.termux.localgames.domain.LaunchExecutionMode;
 import com.termux.localgames.api.ResolvedGameDirectory;
@@ -234,19 +234,19 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
         }
 
         @Override
-        public void startRuntimeProvision(RuntimeProvisionRequest request)
+        public void startRuntimeSetup(RuntimeSetupRequest request)
             throws LaunchHostException {
             prepareLaunchRuntime();
-            startTrustedTerminalScript(request, "runtime_provision_host_start_failed");
+            startTrustedTerminalScript(request, "runtime_setup_host_start_failed");
         }
 
         @Override
-        public void startTermuxPackageInstall(RuntimeProvisionRequest request)
+        public void startTermuxPackageInstall(RuntimeSetupRequest request)
             throws LaunchHostException {
             startTrustedTerminalScript(request, "termux_package_install_host_start_failed");
         }
 
-        private void startTrustedTerminalScript(RuntimeProvisionRequest request, String failureCode)
+        private void startTrustedTerminalScript(RuntimeSetupRequest request, String failureCode)
             throws LaunchHostException {
             try {
                 requirePrivatePath(request.getScriptPath());
@@ -254,7 +254,7 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
                 requirePrivatePath(request.getWorkingDirectory());
                 String shell = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/sh";
                 if (!new File(shell).isFile()) throw new IOException("termux_shell_missing");
-                Intent intent = createProvisionIntent(applicationContext, shell, request);
+                Intent intent = createSetupIntent(applicationContext, shell, request);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     applicationContext.startForegroundService(intent);
                 } else {
@@ -268,8 +268,8 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
         }
 
         @Override
-        public TerminalSession getRuntimeProvisionTerminal(String taskId) {
-            return TermuxGamesProvisionTerminalRegistry.find(taskId);
+        public TerminalSession getRuntimeSetupTerminal(String taskId) {
+            return TermuxGamesSetupTerminalRegistry.find(taskId);
         }
 
         @Override
@@ -332,8 +332,8 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
         return intent;
     }
 
-    static Intent createProvisionIntent(Context context, String shell,
-                                        RuntimeProvisionRequest request) {
+    static Intent createSetupIntent(Context context, String shell,
+                                        RuntimeSetupRequest request) {
         Intent intent = new Intent(TermuxConstants.TERMUX_APP.TERMUX_SERVICE.ACTION_SERVICE_EXECUTE);
         intent.setClass(context, TermuxService.class);
         intent.setData(Uri.parse(shell));
@@ -352,7 +352,7 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
             Integer.toString(TermuxConstants.TERMUX_APP.TERMUX_SERVICE
                 .VALUE_EXTRA_SESSION_ACTION_SWITCH_TO_NEW_SESSION_AND_DONT_OPEN_ACTIVITY));
         intent.putExtra(TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_COMMAND_LABEL,
-            "Games runtime provision " + request.getTaskId());
+            "Games runtime setup " + request.getTaskId());
         return intent;
     }
 }

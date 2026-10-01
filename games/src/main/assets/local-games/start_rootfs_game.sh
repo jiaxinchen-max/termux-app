@@ -498,7 +498,7 @@ else
 fi
 
 # English uses the always-present C.UTF-8 locale; Chinese uses the locale
-# provisioned above. This remains a game-level override.
+# setuped above. This remains a game-level override.
 case "${GAMES_LOCALE:-}" in
     en_US.UTF-8|en_US.utf8) GUEST_LOCALE=C.UTF-8 ;;
     zh_CN.UTF-8|zh_CN.utf8) GUEST_LOCALE=zh_CN.UTF-8 ;;

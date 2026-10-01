@@ -155,7 +155,7 @@ final class ComponentTaskConsoleDialog extends Dialog {
                 progress.setProgress(terminal ? 100 : 0);
             }
         }
-        hide.setText(terminal ? R.string.local_games_runtime_provision_console_close
+        hide.setText(terminal ? R.string.local_games_runtime_setup_console_close
             : R.string.local_games_component_console_hide);
         if (!terminal) handler.postDelayed(this::refresh, 500);
     }

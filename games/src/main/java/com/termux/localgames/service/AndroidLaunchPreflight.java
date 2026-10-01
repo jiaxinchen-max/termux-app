@@ -92,8 +92,8 @@ public final class AndroidLaunchPreflight {
                 if (subject == null || !subject.matches("[A-Za-z0-9._:-]{1,128}")) {
                     subject = "rootfs_manifest_invalid";
                 }
-                PreflightIssueCode code = "rootfs_provision_required".equals(subject)
-                    ? PreflightIssueCode.RUNTIME_PROVISION_REQUIRED
+                PreflightIssueCode code = "rootfs_setup_required".equals(subject)
+                    ? PreflightIssueCode.RUNTIME_SETUP_REQUIRED
                     : PreflightIssueCode.UNSUPPORTED_PROFILE_SELECTION;
                 result = result.withIssueFirst(new PreflightIssue(code, subject));
             }
@@ -102,13 +102,13 @@ public final class AndroidLaunchPreflight {
                 .getContainerPrefixDirectory(profile.getContainerId());
             if (!new File(prefix, ".termux-box-bootstrap-done").isFile()) {
                 result = result.withIssue(new PreflightIssue(
-                    PreflightIssueCode.RUNTIME_PROVISION_REQUIRED, "prefix_provision_required"));
+                    PreflightIssueCode.RUNTIME_SETUP_REQUIRED, "prefix_setup_required"));
             } else {
                 File runtimeMarker = new File(prefix, ".termux-box-wine-package");
                 if (runtimeMarker.isFile() &&
                     !profile.getWinePackage().equals(readFirstLine(runtimeMarker))) {
                     result = result.withIssue(new PreflightIssue(
-                        PreflightIssueCode.RUNTIME_PROVISION_REQUIRED,
+                        PreflightIssueCode.RUNTIME_SETUP_REQUIRED,
                         "prefix_runtime_mismatch"));
                 }
             }

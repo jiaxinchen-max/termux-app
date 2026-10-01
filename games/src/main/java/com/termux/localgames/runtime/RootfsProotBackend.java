@@ -54,7 +54,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
         requireProfile(profile);
         RootfsRuntimeInstallation active = new RootfsRuntimeInstallationReader(paths)
             .readActive(profile.getContainerId(), profile.getRootfsPackage())
-            .orElseThrow(() -> new IOException("rootfs_provision_required"));
+            .orElseThrow(() -> new IOException("rootfs_setup_required"));
         File rootfs = active.getRootfsDirectory().getCanonicalFile();
         if (!rootfs.isDirectory()) throw new IOException("rootfs_content_missing");
         verifyManifest(rootfs, profile);

@@ -84,14 +84,14 @@
             android:label="@string/local_game_launch_notification_title" />
 
         <service
-            android:name=".service.RootfsProvisionForegroundService"
+            android:name=".service.RootfsSetupForegroundService"
             android:exported="false"
-            android:label="@string/local_games_runtime_provision_title" />
+            android:label="@string/local_games_runtime_setup_title" />
 
         <service
-            android:name=".service.PrefixProvisionForegroundService"
+            android:name=".service.PrefixSetupForegroundService"
             android:exported="false"
-            android:label="@string/local_games_prefix_provision_title" />
+            android:label="@string/local_games_prefix_setup_title" />
 
         <service
             android:name=".service.ResetRuntimeForegroundService"

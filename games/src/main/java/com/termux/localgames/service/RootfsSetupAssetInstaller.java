@@ -3,7 +3,7 @@ package com.termux.localgames.service;
 import android.content.Context;
 
 import com.termux.localgames.data.GameStoragePaths;
-import com.termux.localgames.runtime.RootfsProvisionRecipe;
+import com.termux.localgames.runtime.RootfsSetupRecipe;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -19,19 +19,19 @@ import java.util.Locale;
 /** Installs immutable bundled recipe inputs and computes their source-bound identity. Public
  *  because ResetRuntimeForegroundService/LocalGamesActivity also need to resolve the current
  *  recipeSha256 (to know which shared rootfs template a "reset RootFS" action should target). */
-public final class RootfsProvisionAssetInstaller {
+public final class RootfsSetupAssetInstaller {
     private static final String[] RECIPE_FILES = {
-        "provision-container.sh", "games-runtime.properties"
+        "setup-container.sh", "games-runtime.properties"
     };
     private final Context context;
     private final GameStoragePaths paths;
 
-    public RootfsProvisionAssetInstaller(Context context, GameStoragePaths paths) {
+    public RootfsSetupAssetInstaller(Context context, GameStoragePaths paths) {
         this.context = context.getApplicationContext();
         this.paths = paths;
     }
 
-    public Installed install(RootfsProvisionRecipe recipe, String sourceSha256) throws IOException {
+    public Installed install(RootfsSetupRecipe recipe, String sourceSha256) throws IOException {
         if (sourceSha256 == null || !sourceSha256.matches("[0-9a-f]{64}")) {
             throw new IOException("rootfs_source_digest_invalid");
         }
@@ -53,9 +53,9 @@ public final class RootfsProvisionAssetInstaller {
                 }
             }
         }
-        File script = new File(paths.getRuntimeProvisionDirectory(), "provision_rootfs_runtime.sh");
-        copyAsset("local-games/provision_rootfs_runtime.sh", script, digest);
-        if (!script.setExecutable(true, true)) throw new IOException("rootfs_provision_script_mode_failed");
+        File script = new File(paths.getRuntimeSetupDirectory(), "setup_rootfs_runtime.sh");
+        copyAsset("local-games/setup_rootfs_runtime.sh", script, digest);
+        if (!script.setExecutable(true, true)) throw new IOException("rootfs_setup_script_mode_failed");
         return new Installed(directory.getCanonicalFile(), script.getCanonicalFile(), hex(digest.digest()));
     }
 

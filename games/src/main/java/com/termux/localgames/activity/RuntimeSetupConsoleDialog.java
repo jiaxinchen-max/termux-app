@@ -14,10 +14,10 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 
 import com.termux.localgames.R;
-import com.termux.localgames.data.FileRuntimeProvisionTaskRepository;
+import com.termux.localgames.data.FileRuntimeSetupTaskRepository;
 import com.termux.localgames.data.GameStoragePaths;
-import com.termux.localgames.domain.RuntimeProvisionTask;
-import com.termux.localgames.domain.RuntimeProvisionTaskState;
+import com.termux.localgames.domain.RuntimeSetupTask;
+import com.termux.localgames.domain.RuntimeSetupTaskState;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 import com.termux.shared.termux.terminal.TermuxTerminalViewClientBase;
 import com.termux.terminal.TerminalSession;
@@ -30,33 +30,33 @@ import android.os.Looper;
 
 import com.termux.localgames.api.LocalGames;
 
-/** Modal TerminalView attached to the actual Termux provisioning session. Nothing but the
+/** Modal TerminalView attached to the actual Termux setup session. Nothing but the
  *  log/terminal content itself is shown -- no title, no button chrome -- tapping outside the
  *  dialog (losing focus) dismisses it, same as any other modal. */
-final class RuntimeProvisionConsoleDialog extends Dialog {
+final class RuntimeSetupConsoleDialog extends Dialog {
     private final String taskId;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TerminalSession consoleSession;
     private TerminalView terminalView;
     private TextView status;
     private boolean dismissed;
-    private boolean provisionFailed;
-    private int titleRes = R.string.local_games_runtime_provision_console_title;
+    private boolean setupFailed;
+    private int titleRes = R.string.local_games_runtime_setup_console_title;
 
-    private RuntimeProvisionConsoleDialog(@NonNull Context context, @NonNull String taskId) {
+    private RuntimeSetupConsoleDialog(@NonNull Context context, @NonNull String taskId) {
         super(context);
         this.taskId = taskId;
         setCancelable(true);
         setCanceledOnTouchOutside(true);
     }
 
-    static RuntimeProvisionConsoleDialog show(@NonNull Context context, @NonNull String taskId) {
-        return show(context, taskId, R.string.local_games_runtime_provision_console_title);
+    static RuntimeSetupConsoleDialog show(@NonNull Context context, @NonNull String taskId) {
+        return show(context, taskId, R.string.local_games_runtime_setup_console_title);
     }
 
-    static RuntimeProvisionConsoleDialog show(@NonNull Context context, @NonNull String taskId,
+    static RuntimeSetupConsoleDialog show(@NonNull Context context, @NonNull String taskId,
                                               int titleRes) {
-        RuntimeProvisionConsoleDialog dialog = new RuntimeProvisionConsoleDialog(context, taskId);
+        RuntimeSetupConsoleDialog dialog = new RuntimeSetupConsoleDialog(context, taskId);
         dialog.titleRes = titleRes;
         dialog.show();
         return dialog;
@@ -89,7 +89,7 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         setContentView(content);
-        terminalView.post(this::attachProvisionSession);
+        terminalView.post(this::attachSetupSession);
         refreshStatus();
 
         Window window = getWindow();
@@ -140,18 +140,18 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
         super.dismiss();
     }
 
-    private void attachProvisionSession() {
-        if (dismissed || !isShowing() || provisionFailed) return;
+    private void attachSetupSession() {
+        if (dismissed || !isShowing() || setupFailed) return;
         // TerminalView initializes its renderer from the configured text size.  Do not attach a
         // session until that initialization is observable on the UI queue.
         if (terminalView == null || terminalView.mRenderer == null) {
-            handler.postDelayed(this::attachProvisionSession, 50);
+            handler.postDelayed(this::attachSetupSession, 50);
             return;
         }
         TerminalSession session = LocalGames.requireHost(getContext())
-            .getRuntimeProvisionTerminal(taskId);
+            .getRuntimeSetupTerminal(taskId);
         if (session == null) {
-            handler.postDelayed(this::attachProvisionSession, 100);
+            handler.postDelayed(this::attachSetupSession, 100);
             return;
         }
         consoleSession = session;
@@ -177,17 +177,17 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
     // so without this the dialog looks identical to a hang.
     private void refreshStatus() {
         if (dismissed || !isShowing() || consoleSession != null) return;
-        RuntimeProvisionTask task = readTask();
-        String preparing = getContext().getString(R.string.local_games_runtime_provision_preparing);
+        RuntimeSetupTask task = readTask();
+        String preparing = getContext().getString(R.string.local_games_runtime_setup_preparing);
         if (task == null) {
             status.setText(preparing);
-        } else if (task.getState() == RuntimeProvisionTaskState.FAILED) {
-            provisionFailed = true;
-            status.setText(getContext().getString(R.string.local_games_runtime_provision_failed));
+        } else if (task.getState() == RuntimeSetupTaskState.FAILED) {
+            setupFailed = true;
+            status.setText(getContext().getString(R.string.local_games_runtime_setup_failed));
             return;
-        } else if (task.getState() == RuntimeProvisionTaskState.CANCELLED) {
-            provisionFailed = true;
-            status.setText(RuntimeProvisionTaskState.CANCELLED.name());
+        } else if (task.getState() == RuntimeSetupTaskState.CANCELLED) {
+            setupFailed = true;
+            status.setText(RuntimeSetupTaskState.CANCELLED.name());
             return;
         } else {
             status.setText(preparing + " (" + task.getState().name() + ")");
@@ -195,10 +195,10 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
         handler.postDelayed(this::refreshStatus, 500);
     }
 
-    private RuntimeProvisionTask readTask() {
+    private RuntimeSetupTask readTask() {
         try {
-            return new FileRuntimeProvisionTaskRepository(new GameStoragePaths(getContext()
-                .getFilesDir()).getRuntimeProvisionTasksDirectory()).find(taskId).orElse(null);
+            return new FileRuntimeSetupTaskRepository(new GameStoragePaths(getContext()
+                .getFilesDir()).getRuntimeSetupTasksDirectory()).find(taskId).orElse(null);
         } catch (IOException | RuntimeException ignored) {
             return null;
         }

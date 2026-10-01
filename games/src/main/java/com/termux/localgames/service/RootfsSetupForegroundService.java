@@ -17,17 +17,17 @@ import com.termux.localgames.R;
 import com.termux.localgames.activity.LocalGamesActivity;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.LocalGamesHost;
-import com.termux.localgames.api.RuntimeProvisionRequest;
-import com.termux.localgames.api.RuntimeProvisionTasks;
+import com.termux.localgames.api.RuntimeSetupRequest;
+import com.termux.localgames.api.RuntimeSetupTasks;
 import com.termux.localgames.components.ComponentStoragePaths;
 import com.termux.localgames.components.install.ComponentInstallationReader;
 import com.termux.localgames.components.install.InstalledComponent;
-import com.termux.localgames.data.FileRuntimeProvisionTaskRepository;
+import com.termux.localgames.data.FileRuntimeSetupTaskRepository;
 import com.termux.localgames.data.GameStoragePaths;
-import com.termux.localgames.data.RootfsProvisionSpecCodec;
-import com.termux.localgames.domain.RuntimeProvisionTask;
-import com.termux.localgames.domain.RuntimeProvisionTaskState;
-import com.termux.localgames.runtime.RootfsProvisionRecipe;
+import com.termux.localgames.data.RootfsSetupSpecCodec;
+import com.termux.localgames.domain.RuntimeSetupTask;
+import com.termux.localgames.domain.RuntimeSetupTaskState;
+import com.termux.localgames.runtime.RootfsSetupRecipe;
 import com.termux.localgames.runtime.RootfsRuntimeInstallation;
 import com.termux.localgames.runtime.RootfsRuntimeInstallationReader;
 import com.termux.localgames.runtime.RootfsRuntimeActivationStore;
@@ -47,10 +47,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/** Persistent owner for Termux-internal RootFS provisioning and activation. */
-public final class RootfsProvisionForegroundService extends Service {
-    private static final String TAG = "GamesRootfsProvision";
-    private static final String CHANNEL_ID = "games_runtime_provision";
+/** Persistent owner for Termux-internal RootFS setup and activation. */
+public final class RootfsSetupForegroundService extends Service {
+    private static final String TAG = "GamesRootfsSetup";
+    private static final String CHANNEL_ID = "games_runtime_setup";
     private static final int NOTIFICATION_ID = 23093;
 
     private final Set<String> submitted = new HashSet<>();
@@ -58,7 +58,7 @@ public final class RootfsProvisionForegroundService extends Service {
     private volatile boolean receivedStart;
     private ScheduledExecutorService executor;
     private GameStoragePaths paths;
-    private FileRuntimeProvisionTaskRepository tasks;
+    private FileRuntimeSetupTaskRepository tasks;
     private ComponentInstallationReader components;
     private LocalGamesHost host;
 
@@ -66,12 +66,12 @@ public final class RootfsProvisionForegroundService extends Service {
     public void onCreate() {
         super.onCreate();
         paths = new GameStoragePaths(getFilesDir());
-        tasks = new FileRuntimeProvisionTaskRepository(paths.getRuntimeProvisionTasksDirectory());
+        tasks = new FileRuntimeSetupTaskRepository(paths.getRuntimeSetupTasksDirectory());
         components = new ComponentInstallationReader(
             new ComponentStoragePaths(getFilesDir()).getInstallDirectory());
         host = LocalGames.requireHost(this);
         executor = Executors.newSingleThreadScheduledExecutor(runnable ->
-            new Thread(runnable, "GamesRootfsProvision"));
+            new Thread(runnable, "GamesRootfsSetup"));
         createChannel();
         startForeground(NOTIFICATION_ID, notification(null));
         executor.scheduleWithFixedDelay(this::reconcileAll, 500, 1000, TimeUnit.MILLISECONDS);
@@ -82,19 +82,19 @@ public final class RootfsProvisionForegroundService extends Service {
         receivedStart = true;
         if (intent == null || intent.getAction() == null) return START_STICKY;
         String action = intent.getAction();
-        String taskId = intent.getStringExtra(RuntimeProvisionTasks.EXTRA_TASK_ID);
-        String packageName = intent.getStringExtra(RuntimeProvisionTasks.EXTRA_PACKAGE_NAME);
-        String containerId = intent.getStringExtra(RuntimeProvisionTasks.EXTRA_CONTAINER_ID);
+        String taskId = intent.getStringExtra(RuntimeSetupTasks.EXTRA_TASK_ID);
+        String packageName = intent.getStringExtra(RuntimeSetupTasks.EXTRA_PACKAGE_NAME);
+        String containerId = intent.getStringExtra(RuntimeSetupTasks.EXTRA_CONTAINER_ID);
         pendingCommands.incrementAndGet();
         executor.execute(() -> {
             try {
-                if (RuntimeProvisionTasks.ACTION_ENQUEUE.equals(action)) {
+                if (RuntimeSetupTasks.ACTION_ENQUEUE.equals(action)) {
                     enqueue(requiredId(taskId), requiredId(packageName), requiredId(containerId));
-                } else if (RuntimeProvisionTasks.ACTION_RECONCILE.equals(action)) {
+                } else if (RuntimeSetupTasks.ACTION_RECONCILE.equals(action)) {
                     reconcile(requiredTask(requiredId(taskId)));
-                } else if (RuntimeProvisionTasks.ACTION_RECONCILE_ALL.equals(action)) {
+                } else if (RuntimeSetupTasks.ACTION_RECONCILE_ALL.equals(action)) {
                     reconcileAll();
-                } else if (RuntimeProvisionTasks.ACTION_ROLLBACK.equals(action)) {
+                } else if (RuntimeSetupTasks.ACTION_ROLLBACK.equals(action)) {
                     RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), null);
                     RootfsRuntimeInstallation active = new RootfsRuntimeActivationStore(paths)
                         .rollback(requiredId(containerId), requiredId(packageName));
@@ -102,7 +102,7 @@ public final class RootfsProvisionForegroundService extends Service {
                         active.getVersion()));
                 }
             } catch (Exception error) {
-                Log.e(TAG, "Provision command failed", error);
+                Log.e(TAG, "Setup command failed", error);
                 fail(taskId, stableError(error));
             } finally {
                 pendingCommands.decrementAndGet();
@@ -125,51 +125,51 @@ public final class RootfsProvisionForegroundService extends Service {
             throw new IOException("rootfs_container_must_be_independent");
         }
         RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), taskId);
-        RootfsProvisionRecipe recipe = RootfsProvisionRecipe.require(packageName);
+        RootfsSetupRecipe recipe = RootfsSetupRecipe.require(packageName);
         InstalledComponent source = components.read(recipe.getSourceComponentId()).getActive()
             .orElseThrow(() -> new IOException("rootfs_source_component_missing:" +
                 recipe.getSourceComponentId()));
-        RootfsProvisionAssetInstaller.Installed assets =
-            new RootfsProvisionAssetInstaller(this, paths).install(recipe, source.getSha256());
+        RootfsSetupAssetInstaller.Installed assets =
+            new RootfsSetupAssetInstaller(this, paths).install(recipe, source.getSha256());
         String containerName = containerId;
-        RuntimeProvisionTask task = RuntimeProvisionTask.queued(taskId, packageName,
+        RuntimeSetupTask task = RuntimeSetupTask.queued(taskId, packageName,
             recipe.getVersion(), assets.getRecipeSha256(), recipe.getSourceComponentId(),
             containerId, containerName, System.currentTimeMillis());
         tasks.save(task);
         prepareAndStart(task, source, assets);
     }
 
-    private void prepareAndStart(RuntimeProvisionTask task) throws Exception {
-        RootfsProvisionRecipe recipe = RootfsProvisionRecipe.require(task.getPackageName());
+    private void prepareAndStart(RuntimeSetupTask task) throws Exception {
+        RootfsSetupRecipe recipe = RootfsSetupRecipe.require(task.getPackageName());
         InstalledComponent source = components.read(task.getSourceComponentId()).getActive()
             .orElseThrow(() -> new IOException("rootfs_source_component_missing:" +
                 task.getSourceComponentId()));
-        RootfsProvisionAssetInstaller.Installed assets =
-            new RootfsProvisionAssetInstaller(this, paths).install(recipe, source.getSha256());
+        RootfsSetupAssetInstaller.Installed assets =
+            new RootfsSetupAssetInstaller(this, paths).install(recipe, source.getSha256());
         if (!task.getRecipeSha256().equals(assets.getRecipeSha256())) {
             throw new IOException("rootfs_recipe_changed");
         }
         prepareAndStart(task, source, assets);
     }
 
-    private void prepareAndStart(RuntimeProvisionTask task, InstalledComponent source,
-                                 RootfsProvisionAssetInstaller.Installed assets) throws Exception {
+    private void prepareAndStart(RuntimeSetupTask task, InstalledComponent source,
+                                 RootfsSetupAssetInstaller.Installed assets) throws Exception {
         if (!submitted.add(task.getTaskId())) return;
         try {
-            RuntimeProvisionTask preparing = transition(task,
-                RuntimeProvisionTaskState.PREPARING, "");
-            File spec = new File(paths.getRuntimeProvisionSpecsDirectory(),
-                task.getTaskId() + ".provisionspec");
+            RuntimeSetupTask preparing = transition(task,
+                RuntimeSetupTaskState.PREPARING, "");
+            File spec = new File(paths.getRuntimeSetupSpecsDirectory(),
+                task.getTaskId() + ".setupspec");
             File events = eventFile(task.getTaskId());
-            File log = new File(paths.getRuntimeProvisionLogsDirectory(), task.getTaskId() + ".log");
-            File context = new File(paths.getRuntimeProvisionStagingDirectory(), task.getTaskId());
-            new RootfsProvisionSpecCodec().write(spec, preparing, assets.recipeDirectory,
+            File log = new File(paths.getRuntimeSetupLogsDirectory(), task.getTaskId() + ".log");
+            File context = new File(paths.getRuntimeSetupStagingDirectory(), task.getTaskId());
+            new RootfsSetupSpecCodec().write(spec, preparing, assets.recipeDirectory,
                 source.getDirectory(), context,
                 paths.getRootfsRuntimeDirectory(task.getContainerId()), events, log);
-            host.startRuntimeProvision(new RuntimeProvisionRequest(task.getTaskId(),
+            host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 assets.script.getCanonicalPath(), spec.getCanonicalPath(),
-                paths.getRuntimeProvisionDirectory().getCanonicalPath()));
-            transition(preparing, RuntimeProvisionTaskState.BUILDING, "");
+                paths.getRuntimeSetupDirectory().getCanonicalPath()));
+            transition(preparing, RuntimeSetupTaskState.BUILDING, "");
         } catch (Exception error) {
             submitted.remove(task.getTaskId());
             throw error;
@@ -178,14 +178,14 @@ public final class RootfsProvisionForegroundService extends Service {
 
     private void reconcileAll() {
         try {
-            List<RuntimeProvisionTask> snapshots = tasks.list();
+            List<RuntimeSetupTask> snapshots = tasks.list();
             boolean active = false;
-            for (RuntimeProvisionTask task : snapshots) {
+            for (RuntimeSetupTask task : snapshots) {
                 if (task.getState().isTerminal()) continue;
                 active = true;
                 try { reconcile(task); }
                 catch (Exception error) {
-                    Log.e(TAG, "Provision reconciliation failed", error);
+                    Log.e(TAG, "Setup reconciliation failed", error);
                     fail(task.getTaskId(), stableError(error));
                 }
             }
@@ -194,21 +194,21 @@ public final class RootfsProvisionForegroundService extends Service {
                 stopSelf();
             }
         } catch (Exception error) {
-            Log.e(TAG, "Unable to list provision tasks", error);
+            Log.e(TAG, "Unable to list setup tasks", error);
         }
     }
 
-    private void reconcile(RuntimeProvisionTask task) throws Exception {
-        ProvisionEvent event = readLastEvent(eventFile(task.getTaskId()));
+    private void reconcile(RuntimeSetupTask task) throws Exception {
+        SetupEvent event = readLastEvent(eventFile(task.getTaskId()));
         if (event.state == Event.SUCCEEDED || activeMatches(task)) {
-            RuntimeProvisionTask current = requiredTask(task.getTaskId());
+            RuntimeSetupTask current = requiredTask(task.getTaskId());
             if (!current.getState().isTerminal()) {
-                RuntimeProvisionTask verifying = transition(current,
-                    RuntimeProvisionTaskState.VERIFYING, "");
+                RuntimeSetupTask verifying = transition(current,
+                    RuntimeSetupTaskState.VERIFYING, "");
                 if (!activeMatches(verifying)) throw new IOException("rootfs_activation_invalid");
-                RuntimeProvisionTask activating = transition(verifying,
-                    RuntimeProvisionTaskState.ACTIVATING, "");
-                transition(activating, RuntimeProvisionTaskState.SUCCEEDED, "");
+                RuntimeSetupTask activating = transition(verifying,
+                    RuntimeSetupTaskState.ACTIVATING, "");
+                transition(activating, RuntimeSetupTaskState.SUCCEEDED, "");
             }
             submitted.remove(task.getTaskId());
         } else if (event.state == Event.FAILED) {
@@ -219,7 +219,7 @@ public final class RootfsProvisionForegroundService extends Service {
         }
     }
 
-    private boolean activeMatches(RuntimeProvisionTask task) {
+    private boolean activeMatches(RuntimeSetupTask task) {
         try {
             RootfsRuntimeInstallation active = new RootfsRuntimeInstallationReader(paths)
                 .readActive(task.getContainerId(), task.getPackageName()).orElse(null);
@@ -231,10 +231,10 @@ public final class RootfsProvisionForegroundService extends Service {
         }
     }
 
-    private RuntimeProvisionTask transition(RuntimeProvisionTask task,
-                                            RuntimeProvisionTaskState state,
+    private RuntimeSetupTask transition(RuntimeSetupTask task,
+                                            RuntimeSetupTaskState state,
                                             String error) throws IOException {
-        RuntimeProvisionTask updated = task.transition(state, error, System.currentTimeMillis());
+        RuntimeSetupTask updated = task.transition(state, error, System.currentTimeMillis());
         tasks.save(updated);
         publish(updated);
         return updated;
@@ -243,52 +243,52 @@ public final class RootfsProvisionForegroundService extends Service {
     private void fail(String taskId, String code) {
         if (taskId == null) return;
         try {
-            RuntimeProvisionTask task = tasks.find(taskId).orElse(null);
+            RuntimeSetupTask task = tasks.find(taskId).orElse(null);
             if (task != null && !task.getState().isTerminal()) {
-                transition(task, RuntimeProvisionTaskState.FAILED, code);
+                transition(task, RuntimeSetupTaskState.FAILED, code);
             }
         } catch (Exception error) {
-            Log.e(TAG, "Unable to persist provision failure", error);
+            Log.e(TAG, "Unable to persist setup failure", error);
         }
     }
 
-    private RuntimeProvisionTask requiredTask(String taskId) throws IOException {
-        return tasks.find(taskId).orElseThrow(() -> new IOException("provision_task_missing"));
+    private RuntimeSetupTask requiredTask(String taskId) throws IOException {
+        return tasks.find(taskId).orElseThrow(() -> new IOException("setup_task_missing"));
     }
 
     private File eventFile(String taskId) {
-        return new File(paths.getRuntimeProvisionEventsDirectory(), taskId + ".jsonl");
+        return new File(paths.getRuntimeSetupEventsDirectory(), taskId + ".jsonl");
     }
 
-    private static ProvisionEvent readLastEvent(File file) throws IOException {
-        if (!file.isFile()) return ProvisionEvent.none();
+    private static SetupEvent readLastEvent(File file) throws IOException {
+        if (!file.isFile()) return SetupEvent.none();
         String last = null;
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (line.length() > 4096) throw new IOException("provision_event_too_large");
+                if (line.length() > 4096) throw new IOException("setup_event_too_large");
                 if (!line.trim().isEmpty()) last = line;
             }
         }
-        if (last == null) return ProvisionEvent.none();
+        if (last == null) return SetupEvent.none();
         try {
             JSONObject value = new JSONObject(last);
             String state = value.optString("state", "BUILDING");
             if ("SUCCEEDED".equals(state)) {
-                return new ProvisionEvent(Event.SUCCEEDED, "");
+                return new SetupEvent(Event.SUCCEEDED, "");
             }
             if ("FAILED".equals(state)) {
-                String code = value.optString("errorCode", "provision_script_failed");
-                if (!code.matches("[a-z0-9_:.+-]{1,128}")) code = "provision_script_failed";
-                return new ProvisionEvent(Event.FAILED, code);
+                String code = value.optString("errorCode", "setup_script_failed");
+                if (!code.matches("[a-z0-9_:.+-]{1,128}")) code = "setup_script_failed";
+                return new SetupEvent(Event.FAILED, code);
             }
-            return new ProvisionEvent(Event.BUILDING, "");
+            return new SetupEvent(Event.BUILDING, "");
         } catch (JSONException error) {
-            throw new IOException("provision_event_invalid", error);
+            throw new IOException("setup_event_invalid", error);
         }
     }
 
-    private void publish(RuntimeProvisionTask task) {
+    private void publish(RuntimeSetupTask task) {
         ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
             .notify(NOTIFICATION_ID, notification(task));
     }
@@ -298,21 +298,21 @@ public final class RootfsProvisionForegroundService extends Service {
             ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this);
         ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).notify(
             NOTIFICATION_ID, builder.setSmallIcon(R.drawable.local_games_ic_component)
-                .setContentTitle(getString(R.string.local_games_runtime_provision_title))
+                .setContentTitle(getString(R.string.local_games_runtime_setup_title))
                 .setContentText(message).setOngoing(false).build());
     }
 
-    private Notification notification(@Nullable RuntimeProvisionTask task) {
+    private Notification notification(@Nullable RuntimeSetupTask task) {
         Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
             ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this);
         Intent target = new Intent(this, LocalGamesActivity.class);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
-        String text = task == null ? getString(R.string.local_games_runtime_provision_preparing) :
-            getString(R.string.local_games_runtime_provision_status,
+        String text = task == null ? getString(R.string.local_games_runtime_setup_preparing) :
+            getString(R.string.local_games_runtime_setup_status,
                 task.getPackageName(), task.getState().name());
         return builder.setSmallIcon(R.drawable.local_games_ic_component)
-            .setContentTitle(getString(R.string.local_games_runtime_provision_title))
+            .setContentTitle(getString(R.string.local_games_runtime_setup_title))
             .setContentText(text)
             .setContentIntent(PendingIntent.getActivity(this, 0, target, flags))
             .setOnlyAlertOnce(true)
@@ -325,7 +325,7 @@ public final class RootfsProvisionForegroundService extends Service {
     private void createChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-            getString(R.string.local_games_runtime_provision_channel),
+            getString(R.string.local_games_runtime_setup_channel),
             NotificationManager.IMPORTANCE_LOW);
         ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
             .createNotificationChannel(channel);
@@ -333,7 +333,7 @@ public final class RootfsProvisionForegroundService extends Service {
 
     private static String requiredId(String value) throws IOException {
         if (value == null || !value.matches("[A-Za-z0-9._-]{1,128}")) {
-            throw new IOException("invalid_provision_identifier");
+            throw new IOException("invalid_setup_identifier");
         }
         return value;
     }
@@ -341,22 +341,22 @@ public final class RootfsProvisionForegroundService extends Service {
     private static String stableError(Exception error) {
         String message = error.getMessage();
         return message != null && message.matches("[a-z0-9_:.+-]{1,128}")
-            ? message : "runtime_provision_failed";
+            ? message : "runtime_setup_failed";
     }
 
     private enum Event { NONE, BUILDING, SUCCEEDED, FAILED }
 
-    private static final class ProvisionEvent {
+    private static final class SetupEvent {
         final Event state;
         final String errorCode;
 
-        ProvisionEvent(Event state, String errorCode) {
+        SetupEvent(Event state, String errorCode) {
             this.state = state;
             this.errorCode = errorCode;
         }
 
-        static ProvisionEvent none() {
-            return new ProvisionEvent(Event.NONE, "");
+        static SetupEvent none() {
+            return new SetupEvent(Event.NONE, "");
         }
     }
 }

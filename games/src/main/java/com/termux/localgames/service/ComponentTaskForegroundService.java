@@ -22,7 +22,7 @@ import com.termux.localgames.api.ComponentTasks;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.LocalGamesHost;
 import com.termux.localgames.api.RuntimeComponentActivation;
-import com.termux.localgames.api.RuntimeProvisionRequest;
+import com.termux.localgames.api.RuntimeSetupRequest;
 import com.termux.localgames.components.ComponentDownloader;
 import com.termux.localgames.components.ComponentStoragePaths;
 import com.termux.localgames.components.DefaultHttpConnectionFactory;
@@ -256,16 +256,16 @@ public final class ComponentTaskForegroundService extends Service {
                 this::publishTask);
             GameStoragePaths paths = new GameStoragePaths(getFilesDir());
             File script = new LaunchScriptInstaller(this, paths).installTermuxGlibcRuntime();
-            File specification = new File(paths.getRuntimeProvisionSpecsDirectory(),
+            File specification = new File(paths.getRuntimeSetupSpecsDirectory(),
                 "termux-glibc-" + taskId + ".conf");
-            File event = new File(paths.getRuntimeProvisionEventsDirectory(),
+            File event = new File(paths.getRuntimeSetupEventsDirectory(),
                 "termux-glibc-" + taskId + ".event");
             if (event.exists() && !event.delete()) throw new IOException("glibc_event_cleanup_failed");
             writeTermuxGlibcSpecification(specification, taskId,
                 ComponentTaskConsoleLog.file(getFilesDir(), taskId), event);
 
             LocalGamesHost host = LocalGames.requireHost(this);
-            host.startTermuxPackageInstall(new RuntimeProvisionRequest(taskId,
+            host.startTermuxPackageInstall(new RuntimeSetupRequest(taskId,
                 script.getCanonicalPath(), specification.getCanonicalPath(),
                 paths.getRuntimeDirectory().getCanonicalPath()));
             String eventState = waitForTermuxGlibcEvent(event);

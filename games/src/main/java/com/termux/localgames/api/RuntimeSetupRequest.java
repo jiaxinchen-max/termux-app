@@ -1,13 +1,13 @@
 package com.termux.localgames.api;
 
 /** Validated request for one Termux-owned runtime build. */
-public final class RuntimeProvisionRequest {
+public final class RuntimeSetupRequest {
     private final String taskId;
     private final String scriptPath;
     private final String specPath;
     private final String workingDirectory;
 
-    public RuntimeProvisionRequest(String taskId, String scriptPath, String specPath,
+    public RuntimeSetupRequest(String taskId, String scriptPath, String specPath,
                                    String workingDirectory) {
         this.taskId = requireId(taskId);
         this.scriptPath = requirePath(scriptPath, "scriptPath");
@@ -19,11 +19,11 @@ public final class RuntimeProvisionRequest {
     public String getScriptPath() { return scriptPath; }
     public String getSpecPath() { return specPath; }
     public String getWorkingDirectory() { return workingDirectory; }
-    public String getShellName() { return "games-runtime-provision-" + taskId; }
+    public String getShellName() { return "games-runtime-setup-" + taskId; }
 
     private static String requireId(String value) {
         if (value == null || !value.matches("[A-Za-z0-9._-]{1,128}")) {
-            throw new IllegalArgumentException("invalid provision taskId");
+            throw new IllegalArgumentException("invalid setup taskId");
         }
         return value;
     }

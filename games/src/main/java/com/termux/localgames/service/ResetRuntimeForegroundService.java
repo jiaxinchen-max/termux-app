@@ -18,7 +18,7 @@ import com.termux.localgames.activity.LocalGamesActivity;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.LocalGamesHost;
 import com.termux.localgames.api.ResetTasks;
-import com.termux.localgames.api.RuntimeProvisionRequest;
+import com.termux.localgames.api.RuntimeSetupRequest;
 import com.termux.localgames.data.FileResetTaskRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.ResetTarget;
@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /** Persistent owner for purging one runtime environment (GLIBC or RootFS) to not-installed. */
 public final class ResetRuntimeForegroundService extends Service {
     private static final String TAG = "GamesRuntimeReset";
-    private static final String CHANNEL_ID = "games_runtime_provision";
+    private static final String CHANNEL_ID = "games_runtime_setup";
     private static final int NOTIFICATION_ID = 23099;
     private static final long RESET_TIMEOUT_MS = 30L * 60L * 1000L;
     private static final long RESET_POLL_MS = 250L;
@@ -135,7 +135,7 @@ public final class ResetRuntimeForegroundService extends Service {
             {"TERMUX_GLIBC_LOG_FILE", log.getCanonicalPath()},
             {"TERMUX_GLIBC_EVENT_FILE", event.getCanonicalPath()},
         });
-        host.startTermuxPackageInstall(new RuntimeProvisionRequest(taskId,
+        host.startTermuxPackageInstall(new RuntimeSetupRequest(taskId,
             script.getCanonicalPath(), spec.getCanonicalPath(),
             paths.getRuntimeDirectory().getCanonicalPath()));
         String state = waitForEvent(event);
@@ -144,7 +144,7 @@ public final class ResetRuntimeForegroundService extends Service {
 
     /** $2 is the current recipeSha256 (64 lowercase hex chars), not a game containerId --
      *  resetting RootFS only tears down the shared rootfs template that new containers are
-     *  cloned from (see provision_rootfs_runtime.sh's TEMPLATE_CONTAINER_NAME, which this
+     *  cloned from (see setup_rootfs_runtime.sh's TEMPLATE_CONTAINER_NAME, which this
      *  must stay in sync with); already-cloned game containers are untouched and keep working. */
     private void runRootfsReset(String taskId, String recipeSha256) throws Exception {
         String requiredRecipeSha256 = requireRecipeSha256(recipeSha256);
@@ -163,7 +163,7 @@ public final class ResetRuntimeForegroundService extends Service {
             {"RESET_CONTAINER_DIR", templateDirectory.getCanonicalPath()},
             {"RESET_METADATA_DIR", ""},
         });
-        host.startRuntimeProvision(new RuntimeProvisionRequest(taskId,
+        host.startRuntimeSetup(new RuntimeSetupRequest(taskId,
             script.getCanonicalPath(), spec.getCanonicalPath(),
             paths.getResetDirectory().getCanonicalPath()));
         String state = waitForEvent(event);
@@ -274,7 +274,7 @@ public final class ResetRuntimeForegroundService extends Service {
     private void createChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-            getString(R.string.local_games_runtime_provision_channel),
+            getString(R.string.local_games_runtime_setup_channel),
             NotificationManager.IMPORTANCE_LOW);
         ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
             .createNotificationChannel(channel);

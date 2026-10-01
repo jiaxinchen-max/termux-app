@@ -281,7 +281,7 @@ TASK_LOCK_OWNED=1
 
 emit RUNNING PREPARING_PREFIX 25 null '' false preparing_prefix
 [ -e "$PREFIX_PATH/.termux-box-bootstrap-done" ] || \
-    terminal_failure prefix_provision_required null true
+    terminal_failure prefix_setup_required null true
 if [ -f "$PREFIX_PATH/.termux-box-wine-package" ]; then
     PREFIX_WINE_PACKAGE=$(sed -n '1p' "$PREFIX_PATH/.termux-box-wine-package")
     [ "$PREFIX_WINE_PACKAGE" = "$WINE_PACKAGE" ] || \

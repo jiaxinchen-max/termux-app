@@ -9,7 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 
 import com.termux.localgames.api.LaunchRequest;
-import com.termux.localgames.api.RuntimeProvisionRequest;
+import com.termux.localgames.api.RuntimeSetupRequest;
 import com.termux.localgames.domain.LaunchExecutionMode;
 import com.termux.shared.shell.command.ExecutionCommand;
 import com.termux.shared.termux.TermuxConstants;
@@ -50,12 +50,12 @@ public class TermuxLocalGamesHostFactoryTest {
     }
 
     @Test
-    public void provisionIntentAlwaysUsesBackgroundAppShell() {
+    public void setupIntentAlwaysUsesBackgroundAppShell() {
         Context context = RuntimeEnvironment.getApplication();
-        RuntimeProvisionRequest request = new RuntimeProvisionRequest("build-1",
-            "/private/provision.sh", "/private/build.provisionspec", "/private/runtime");
+        RuntimeSetupRequest request = new RuntimeSetupRequest("build-1",
+            "/private/setup.sh", "/private/build.setupspec", "/private/runtime");
 
-        Intent intent = TermuxLocalGamesHostFactory.createProvisionIntent(
+        Intent intent = TermuxLocalGamesHostFactory.createSetupIntent(
             context, "/bin/sh", request);
 
         assertEquals(ExecutionCommand.Runner.APP_SHELL.getName(), intent.getStringExtra(

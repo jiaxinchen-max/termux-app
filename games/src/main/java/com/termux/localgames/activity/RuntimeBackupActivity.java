@@ -17,7 +17,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
 import com.termux.localgames.api.LaunchHostException;
 import com.termux.localgames.api.LocalGames;
-import com.termux.localgames.api.RuntimeProvisionRequest;
+import com.termux.localgames.api.RuntimeSetupRequest;
 import com.termux.localgames.databinding.ActivityRuntimeBackupBinding;
 import com.termux.localgames.runtime.RuntimeBackupManager;
 import com.termux.localgames.runtime.RuntimeBackupType;
@@ -122,7 +122,7 @@ public final class RuntimeBackupActivity extends AppCompatActivity {
         binding.runtimeBackupViewProcess.setVisibility(View.VISIBLE);
         showActiveConsole();
         try {
-            LocalGames.requireHost(this).startRuntimeProvision(new RuntimeProvisionRequest(
+            LocalGames.requireHost(this).startRuntimeSetup(new RuntimeSetupRequest(
                 job.getTaskId(), job.getScript().getCanonicalPath(), job.getSpec().getCanonicalPath(),
                 job.getDirectory().getCanonicalPath()));
             handler.postDelayed(this::pollJob, 300);
@@ -133,7 +133,7 @@ public final class RuntimeBackupActivity extends AppCompatActivity {
 
     private void showActiveConsole() {
         if (activeJob == null) return;
-        RuntimeProvisionConsoleDialog.show(this, activeJob.getTaskId(),
+        RuntimeSetupConsoleDialog.show(this, activeJob.getTaskId(),
             R.string.local_games_runtime_backup_console_title);
     }
 

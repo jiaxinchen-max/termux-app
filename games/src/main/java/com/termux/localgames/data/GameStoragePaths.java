@@ -67,41 +67,41 @@ public final class GameStoragePaths {
     public File getRootfsRuntimeDirectory(String containerId) {
         return new File(getRootfsRuntimeDirectory(), requireId(containerId));
     }
-    public File getRuntimeProvisionDirectory() {
-        return new File(libraryDirectory.getParentFile(), "runtime/provision");
+    public File getRuntimeSetupDirectory() {
+        return new File(libraryDirectory.getParentFile(), "runtime/setup");
     }
-    public File getRuntimeProvisionTasksDirectory() {
-        return new File(getRuntimeProvisionDirectory(), "tasks");
+    public File getRuntimeSetupTasksDirectory() {
+        return new File(getRuntimeSetupDirectory(), "tasks");
     }
-    public File getRuntimeProvisionSpecsDirectory() {
-        return new File(getRuntimeProvisionDirectory(), "specs");
+    public File getRuntimeSetupSpecsDirectory() {
+        return new File(getRuntimeSetupDirectory(), "specs");
     }
-    public File getRuntimeProvisionEventsDirectory() {
-        return new File(getRuntimeProvisionDirectory(), "events");
+    public File getRuntimeSetupEventsDirectory() {
+        return new File(getRuntimeSetupDirectory(), "events");
     }
-    public File getRuntimeProvisionLogsDirectory() {
-        return new File(getRuntimeProvisionDirectory(), "logs");
+    public File getRuntimeSetupLogsDirectory() {
+        return new File(getRuntimeSetupDirectory(), "logs");
     }
-    public File getRuntimeProvisionStagingDirectory() {
-        return new File(getRuntimeProvisionDirectory(), "staging");
+    public File getRuntimeSetupStagingDirectory() {
+        return new File(getRuntimeSetupDirectory(), "staging");
     }
     public File getRuntimeRecipeDirectory() {
-        return new File(getRuntimeProvisionDirectory(), "recipes");
+        return new File(getRuntimeSetupDirectory(), "recipes");
     }
-    public File getPrefixProvisionDirectory() {
-        return new File(libraryDirectory.getParentFile(), "runtime/prefix-provision");
+    public File getPrefixSetupDirectory() {
+        return new File(libraryDirectory.getParentFile(), "runtime/prefix-setup");
     }
-    public File getPrefixProvisionTasksDirectory() {
-        return new File(getPrefixProvisionDirectory(), "tasks");
+    public File getPrefixSetupTasksDirectory() {
+        return new File(getPrefixSetupDirectory(), "tasks");
     }
-    public File getPrefixProvisionSpecsDirectory() {
-        return new File(getPrefixProvisionDirectory(), "specs");
+    public File getPrefixSetupSpecsDirectory() {
+        return new File(getPrefixSetupDirectory(), "specs");
     }
-    public File getPrefixProvisionEventsDirectory() {
-        return new File(getPrefixProvisionDirectory(), "events");
+    public File getPrefixSetupEventsDirectory() {
+        return new File(getPrefixSetupDirectory(), "events");
     }
-    public File getPrefixProvisionLogsDirectory() {
-        return new File(getPrefixProvisionDirectory(), "logs");
+    public File getPrefixSetupLogsDirectory() {
+        return new File(getPrefixSetupDirectory(), "logs");
     }
     public File getTermuxPrefixDirectory() { return new File(filesDirectory, "usr"); }
     public File getProotDistroContainersDirectory() {

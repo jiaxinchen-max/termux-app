@@ -89,13 +89,13 @@ public class LocalGamesApiInstrumentedTest {
     }
 
     @Test
-    public void runtimeProvisionReconcileAllTargetsPrivateForegroundService() throws Exception {
+    public void runtimeSetupReconcileAllTargetsPrivateForegroundService() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
-        Intent intent = RuntimeProvisionTasks.createReconcileAllIntent(context);
+        Intent intent = RuntimeSetupTasks.createReconcileAllIntent(context);
 
-        assertEquals(RuntimeProvisionTasks.ACTION_RECONCILE_ALL, intent.getAction());
-        assertEquals(com.termux.localgames.service.RootfsProvisionForegroundService.class.getName(),
+        assertEquals(RuntimeSetupTasks.ACTION_RECONCILE_ALL, intent.getAction());
+        assertEquals(com.termux.localgames.service.RootfsSetupForegroundService.class.getName(),
             intent.getComponent().getClassName());
         assertFalse(context.getPackageManager().getServiceInfo(intent.getComponent(), 0).exported);
     }

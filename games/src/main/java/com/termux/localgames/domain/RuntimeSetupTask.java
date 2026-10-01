@@ -1,7 +1,7 @@
 package com.termux.localgames.domain;
 
 /** Immutable state for an on-device Termux runtime build. */
-public final class RuntimeProvisionTask {
+public final class RuntimeSetupTask {
     public static final int SCHEMA_VERSION = 2;
 
     private final String taskId;
@@ -11,14 +11,14 @@ public final class RuntimeProvisionTask {
     private final String sourceComponentId;
     private final String containerId;
     private final String containerName;
-    private final RuntimeProvisionTaskState state;
+    private final RuntimeSetupTaskState state;
     private final String errorCode;
     private final long createdAt;
     private final long updatedAt;
 
-    public RuntimeProvisionTask(String taskId, String packageName, int version,
+    public RuntimeSetupTask(String taskId, String packageName, int version,
                                 String recipeSha256, String sourceComponentId,
-                                String containerId, String containerName, RuntimeProvisionTaskState state,
+                                String containerId, String containerName, RuntimeSetupTaskState state,
                                 String errorCode, long createdAt, long updatedAt) {
         this.taskId = requireId(taskId, "taskId");
         this.packageName = requireId(packageName, "packageName");
@@ -26,7 +26,7 @@ public final class RuntimeProvisionTask {
         this.containerId = requireId(containerId, "containerId");
         this.containerName = requireId(containerName, "containerName");
         if (version < 1 || state == null || createdAt < 0 || updatedAt < createdAt) {
-            throw new IllegalArgumentException("invalid runtime provision task");
+            throw new IllegalArgumentException("invalid runtime setup task");
         }
         if (recipeSha256 == null || !recipeSha256.matches("[0-9a-f]{64}")) {
             throw new IllegalArgumentException("invalid recipeSha256");
@@ -36,26 +36,26 @@ public final class RuntimeProvisionTask {
         this.state = state;
         this.errorCode = errorCode == null ? "" : errorCode;
         if (!this.errorCode.isEmpty() && !this.errorCode.matches("[a-z0-9_:.+-]{1,128}")) {
-            throw new IllegalArgumentException("invalid provision errorCode");
+            throw new IllegalArgumentException("invalid setup errorCode");
         }
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
-    public static RuntimeProvisionTask queued(String taskId, String packageName, int version,
+    public static RuntimeSetupTask queued(String taskId, String packageName, int version,
                                               String recipeSha256, String sourceComponentId,
                                               String containerId, String containerName, long now) {
-        return new RuntimeProvisionTask(taskId, packageName, version, recipeSha256,
-            sourceComponentId, containerId, containerName, RuntimeProvisionTaskState.QUEUED,
+        return new RuntimeSetupTask(taskId, packageName, version, recipeSha256,
+            sourceComponentId, containerId, containerName, RuntimeSetupTaskState.QUEUED,
             "", now, now);
     }
 
-    public RuntimeProvisionTask transition(RuntimeProvisionTaskState next, String error, long now) {
-        if (state.isTerminal()) throw new IllegalStateException("terminal provision task");
-        if (next == null || next == RuntimeProvisionTaskState.QUEUED || now < updatedAt) {
-            throw new IllegalArgumentException("invalid provision transition");
+    public RuntimeSetupTask transition(RuntimeSetupTaskState next, String error, long now) {
+        if (state.isTerminal()) throw new IllegalStateException("terminal setup task");
+        if (next == null || next == RuntimeSetupTaskState.QUEUED || now < updatedAt) {
+            throw new IllegalArgumentException("invalid setup transition");
         }
-        return new RuntimeProvisionTask(taskId, packageName, version, recipeSha256,
+        return new RuntimeSetupTask(taskId, packageName, version, recipeSha256,
             sourceComponentId, containerId, containerName, next, error, createdAt, now);
     }
 
@@ -66,7 +66,7 @@ public final class RuntimeProvisionTask {
     public String getSourceComponentId() { return sourceComponentId; }
     public String getContainerId() { return containerId; }
     public String getContainerName() { return containerName; }
-    public RuntimeProvisionTaskState getState() { return state; }
+    public RuntimeSetupTaskState getState() { return state; }
     public String getErrorCode() { return errorCode; }
     public long getCreatedAt() { return createdAt; }
     public long getUpdatedAt() { return updatedAt; }

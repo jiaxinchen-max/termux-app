@@ -6,30 +6,30 @@ import android.os.Build;
 
 import androidx.annotation.NonNull;
 
-import com.termux.localgames.service.RootfsProvisionForegroundService;
+import com.termux.localgames.service.RootfsSetupForegroundService;
 
 import java.util.UUID;
 
 /** Public command surface for persistent on-device runtime builds. */
-public final class RuntimeProvisionTasks {
-    public static final String ACTION_ENQUEUE = "com.termux.localgames.action.ENQUEUE_RUNTIME_PROVISION";
-    public static final String ACTION_RECONCILE = "com.termux.localgames.action.RECONCILE_RUNTIME_PROVISION";
+public final class RuntimeSetupTasks {
+    public static final String ACTION_ENQUEUE = "com.termux.localgames.action.ENQUEUE_RUNTIME_SETUP";
+    public static final String ACTION_RECONCILE = "com.termux.localgames.action.RECONCILE_RUNTIME_SETUP";
     public static final String ACTION_RECONCILE_ALL =
-        "com.termux.localgames.action.RECONCILE_ALL_RUNTIME_PROVISION";
+        "com.termux.localgames.action.RECONCILE_ALL_RUNTIME_SETUP";
     public static final String ACTION_ROLLBACK = "com.termux.localgames.action.ROLLBACK_RUNTIME";
-    public static final String EXTRA_TASK_ID = "com.termux.localgames.extra.PROVISION_TASK_ID";
+    public static final String EXTRA_TASK_ID = "com.termux.localgames.extra.SETUP_TASK_ID";
     public static final String EXTRA_PACKAGE_NAME = "com.termux.localgames.extra.ROOTFS_PACKAGE";
     public static final String EXTRA_CONTAINER_ID = "com.termux.localgames.extra.ROOTFS_CONTAINER_ID";
 
-    private RuntimeProvisionTasks() {}
+    private RuntimeSetupTasks() {}
 
     @NonNull
     public static String enqueue(@NonNull Context context, @NonNull String packageName,
                                  @NonNull String containerId) {
         requireId(packageName, "packageName");
         requireId(containerId, "containerId");
-        String taskId = "provision-" + UUID.randomUUID().toString();
-        Intent intent = new Intent(context, RootfsProvisionForegroundService.class)
+        String taskId = "setup-" + UUID.randomUUID().toString();
+        Intent intent = new Intent(context, RootfsSetupForegroundService.class)
             .setAction(ACTION_ENQUEUE)
             .putExtra(EXTRA_TASK_ID, taskId)
             .putExtra(EXTRA_PACKAGE_NAME, packageName)
@@ -40,7 +40,7 @@ public final class RuntimeProvisionTasks {
 
     public static void reconcile(@NonNull Context context, @NonNull String taskId) {
         requireId(taskId, "taskId");
-        start(context, new Intent(context, RootfsProvisionForegroundService.class)
+        start(context, new Intent(context, RootfsSetupForegroundService.class)
             .setAction(ACTION_RECONCILE).putExtra(EXTRA_TASK_ID, taskId));
     }
 
@@ -50,7 +50,7 @@ public final class RuntimeProvisionTasks {
 
     @NonNull
     public static Intent createReconcileAllIntent(@NonNull Context context) {
-        return new Intent(context, RootfsProvisionForegroundService.class)
+        return new Intent(context, RootfsSetupForegroundService.class)
             .setAction(ACTION_RECONCILE_ALL);
     }
 
@@ -58,7 +58,7 @@ public final class RuntimeProvisionTasks {
                                 @NonNull String containerId) {
         requireId(packageName, "packageName");
         requireId(containerId, "containerId");
-        start(context, new Intent(context, RootfsProvisionForegroundService.class)
+        start(context, new Intent(context, RootfsSetupForegroundService.class)
             .setAction(ACTION_ROLLBACK).putExtra(EXTRA_PACKAGE_NAME, packageName)
             .putExtra(EXTRA_CONTAINER_ID, containerId));
     }

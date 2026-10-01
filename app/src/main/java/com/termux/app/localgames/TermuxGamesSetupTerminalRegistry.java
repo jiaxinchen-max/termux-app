@@ -6,20 +6,20 @@ import com.termux.terminal.TerminalSession;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Process-local bridge exposing only Games provisioning sessions to the Games module. */
-public final class TermuxGamesProvisionTerminalRegistry {
-    private static final String PREFIX = "games-runtime-provision-";
+/** Process-local bridge exposing only Games setup sessions to the Games module. */
+public final class TermuxGamesSetupTerminalRegistry {
+    private static final String PREFIX = "games-runtime-setup-";
     private static final ConcurrentHashMap<String, TerminalSession> SESSIONS =
         new ConcurrentHashMap<>();
 
-    private TermuxGamesProvisionTerminalRegistry() {}
+    private TermuxGamesSetupTerminalRegistry() {}
 
-    public static boolean isProvisionSession(String shellName) {
+    public static boolean isSetupSession(String shellName) {
         return shellName != null && shellName.startsWith(PREFIX);
     }
 
     public static void register(String shellName, TerminalSession session) {
-        if (!isProvisionSession(shellName) || session == null) return;
+        if (!isSetupSession(shellName) || session == null) return;
         SESSIONS.put(shellName.substring(PREFIX.length()), session);
     }
 
@@ -28,6 +28,6 @@ public final class TermuxGamesProvisionTerminalRegistry {
     }
 
     public static void remove(String shellName) {
-        if (isProvisionSession(shellName)) SESSIONS.remove(shellName.substring(PREFIX.length()));
+        if (isSetupSession(shellName)) SESSIONS.remove(shellName.substring(PREFIX.length()));
     }
 }

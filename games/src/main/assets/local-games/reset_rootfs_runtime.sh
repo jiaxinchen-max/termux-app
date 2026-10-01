@@ -49,7 +49,7 @@ if [ -n "$RESET_METADATA_DIR" ]; then
 fi
 
 # When resetting the shared template ("tmpl-<recipeSha16>"), also drop its cached archive in
-# games-template-cache/ (see provision_rootfs_runtime.sh), so the next provision rebuilds the
+# games-template-cache/ (see setup_rootfs_runtime.sh), so the next setup rebuilds the
 # template from scratch instead of re-extracting a stale archive. Derived from RESET_CONTAINER_DIR
 # (= .../proot-distro/containers/tmpl-<sha>) with no extra spec variable.
 case "$RESET_CONTAINER_ID" in

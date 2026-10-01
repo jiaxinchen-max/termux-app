@@ -81,8 +81,8 @@ append_active_rootfs_containers() {
     [ -d "$containers_root/$container" ] || fail rootfs_backup_container_missing
     echo "Including active RootFS container: $container"
     tar \
-      --exclude="usr/var/lib/proot-distro/containers/$container/rootfs/run/games-provision" \
-      --exclude="usr/var/lib/proot-distro/containers/$container/rootfs/run/games-provision/*" \
+      --exclude="usr/var/lib/proot-distro/containers/$container/rootfs/run/games-setup" \
+      --exclude="usr/var/lib/proot-distro/containers/$container/rootfs/run/games-setup/*" \
       -C "$filesDirectory" -rvpf "$archive.partial" \
       "usr/var/lib/proot-distro/containers/$container" || fail runtime_backup_tar_failed
     found=1
@@ -156,7 +156,7 @@ export_runtime() {
       ;;
     rootfs-proot)
       # A direct-recovery archive contains only the containers referenced by the
-      # active RootFS pointers. Component payloads are provisioning inputs, not
+      # active RootFS pointers. Component payloads are setup inputs, not
       # launch-time dependencies; retain their receipts so preflight remains valid.
       tar -C "$jobDirectory" -vcpf "$archive.partial" runtime-backup.properties || \
         fail runtime_backup_tar_failed

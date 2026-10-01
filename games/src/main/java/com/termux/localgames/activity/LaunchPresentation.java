@@ -57,7 +57,7 @@ public final class LaunchPresentation {
         }
         if ("preflight_component_missing".equals(code) ||
             "preflight_component_version_mismatch".equals(code) ||
-            "preflight_runtime_provision_required".equals(code)) {
+            "preflight_runtime_setup_required".equals(code)) {
             return RecoveryAction.COMPONENTS;
         }
         return recoverable ? RecoveryAction.RETRY : RecoveryAction.NONE;

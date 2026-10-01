@@ -1,7 +1,7 @@
 package com.termux.localgames.domain;
 
 /** Immutable state for an on-device request to purge one runtime environment back to
- *  "not installed" (the opposite of a {@link RuntimeProvisionTask}). */
+ *  "not installed" (the opposite of a {@link RuntimeSetupTask}). */
 public final class ResetTask {
     public static final int SCHEMA_VERSION = 1;
 

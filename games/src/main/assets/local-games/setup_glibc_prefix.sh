@@ -4,7 +4,7 @@ set -u
 PS4='+ '
 set -x
 
-SPEC_PATH="${1:?Usage: $0 <prefix_provision_spec>}"
+SPEC_PATH="${1:?Usage: $0 <prefix_setup_spec>}"
 [ -f "$SPEC_PATH" ] || exit 64
 . "$SPEC_PATH"
 

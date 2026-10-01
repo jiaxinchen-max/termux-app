@@ -133,7 +133,7 @@ public final class ComponentInstaller {
             // .7z archives meant for an interactive in-guest installer. Extracting those with
             // ARM64-filtered LZMA2 (a 7-Zip feature Apache Commons Compress does not implement)
             // is not attempted here; the raw bundle is published as-is and the prefix
-            // provisioning shell script extracts the selected build with the real `7z` binary
+            // setup shell script extracts the selected build with the real `7z` binary
             // once the GLIBC runtime is available.
 
             // Publish into the launcher-visible runtime before the active pointer moves.

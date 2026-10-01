@@ -17,16 +17,16 @@ import com.termux.localgames.R;
 import com.termux.localgames.activity.LocalGamesActivity;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.LocalGamesHost;
-import com.termux.localgames.api.PrefixProvisionTasks;
-import com.termux.localgames.api.RuntimeProvisionRequest;
-import com.termux.localgames.data.FilePrefixProvisionTaskRepository;
+import com.termux.localgames.api.PrefixSetupTasks;
+import com.termux.localgames.api.RuntimeSetupRequest;
+import com.termux.localgames.data.FilePrefixSetupTaskRepository;
 import com.termux.localgames.data.FileGameContainerRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.GameRuntimeBackendType;
-import com.termux.localgames.domain.PrefixProvisionTask;
+import com.termux.localgames.domain.PrefixSetupTask;
 import com.termux.localgames.domain.RuntimeProfile;
-import com.termux.localgames.domain.RuntimeProvisionTaskState;
+import com.termux.localgames.domain.RuntimeSetupTaskState;
 import com.termux.localgames.runtime.GlibcTermuxBoxBackend;
 import com.termux.localgames.runtime.GameContainerFactory;
 import com.termux.localgames.runtime.GameContainerProfileResolver;
@@ -48,16 +48,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Persistent owner for Mobox-compatible initialization of game GLIBC Wine prefixes. */
-public final class PrefixProvisionForegroundService extends Service {
-    private static final String TAG = "GamesPrefixProvision";
-    private static final String CHANNEL_ID = "games_prefix_provision";
+public final class PrefixSetupForegroundService extends Service {
+    private static final String TAG = "GamesPrefixSetup";
+    private static final String CHANNEL_ID = "games_prefix_setup";
     private static final int NOTIFICATION_ID = 23094;
 
     private final Set<String> submitted = new HashSet<>();
     private final AtomicInteger pendingCommands = new AtomicInteger();
     private ScheduledExecutorService executor;
     private GameStoragePaths paths;
-    private FilePrefixProvisionTaskRepository tasks;
+    private FilePrefixSetupTaskRepository tasks;
     private FileRuntimeProfileRepository profiles;
     private FileGameContainerRepository containers;
     private LocalGamesHost host;
@@ -67,12 +67,12 @@ public final class PrefixProvisionForegroundService extends Service {
     public void onCreate() {
         super.onCreate();
         paths = new GameStoragePaths(getFilesDir());
-        tasks = new FilePrefixProvisionTaskRepository(paths.getPrefixProvisionTasksDirectory());
+        tasks = new FilePrefixSetupTaskRepository(paths.getPrefixSetupTasksDirectory());
         profiles = new FileRuntimeProfileRepository(paths.getProfilesDirectory());
         containers = new FileGameContainerRepository(paths.getContainersDirectory());
         host = LocalGames.requireHost(this);
         executor = Executors.newSingleThreadScheduledExecutor(runnable ->
-            new Thread(runnable, "GamesPrefixProvision"));
+            new Thread(runnable, "GamesPrefixSetup"));
         createChannel();
         startForeground(NOTIFICATION_ID, notification(null));
         executor.scheduleWithFixedDelay(this::reconcileAll, 500, 1000, TimeUnit.MILLISECONDS);
@@ -83,18 +83,18 @@ public final class PrefixProvisionForegroundService extends Service {
         receivedStart = true;
         if (intent == null || intent.getAction() == null) return START_STICKY;
         String action = intent.getAction();
-        String taskId = intent.getStringExtra(PrefixProvisionTasks.EXTRA_TASK_ID);
-        String gameId = intent.getStringExtra(PrefixProvisionTasks.EXTRA_GAME_ID);
+        String taskId = intent.getStringExtra(PrefixSetupTasks.EXTRA_TASK_ID);
+        String gameId = intent.getStringExtra(PrefixSetupTasks.EXTRA_GAME_ID);
         pendingCommands.incrementAndGet();
         executor.execute(() -> {
             try {
-                if (PrefixProvisionTasks.ACTION_ENQUEUE.equals(action)) {
+                if (PrefixSetupTasks.ACTION_ENQUEUE.equals(action)) {
                     enqueue(requiredId(taskId), requiredId(gameId));
-                } else if (PrefixProvisionTasks.ACTION_RECONCILE_ALL.equals(action)) {
+                } else if (PrefixSetupTasks.ACTION_RECONCILE_ALL.equals(action)) {
                     reconcileAll();
                 }
             } catch (Exception error) {
-                Log.e(TAG, "Prefix provision command failed", error);
+                Log.e(TAG, "Prefix setup command failed", error);
                 fail(taskId, stableError(error));
             } finally {
                 pendingCommands.decrementAndGet();
@@ -115,16 +115,16 @@ public final class PrefixProvisionForegroundService extends Service {
         RuntimeProfile profile = resolveContainer(profiles.find(gameId)
             .orElseThrow(() -> new IOException("runtime_profile_missing")));
         if (profile.getRuntimeBackendType() != GameRuntimeBackendType.GLIBC_TERMUX_BOX) return;
-        for (PrefixProvisionTask current : tasks.list()) {
+        for (PrefixSetupTask current : tasks.list()) {
             if (current.getGameId().equals(gameId) && !current.getState().isTerminal()) return;
         }
-        PrefixProvisionTask task = PrefixProvisionTask.queued(taskId, gameId,
+        PrefixSetupTask task = PrefixSetupTask.queued(taskId, gameId,
             profile.getWinePackage(), System.currentTimeMillis());
         tasks.save(task);
         prepareAndStart(task, profile);
     }
 
-    private void prepareAndStart(PrefixProvisionTask task) throws Exception {
+    private void prepareAndStart(PrefixSetupTask task) throws Exception {
         RuntimeProfile profile = resolveContainer(profiles.find(task.getGameId())
             .orElseThrow(() -> new IOException("runtime_profile_missing")));
         if (profile.getRuntimeBackendType() != GameRuntimeBackendType.GLIBC_TERMUX_BOX ||
@@ -134,31 +134,31 @@ public final class PrefixProvisionForegroundService extends Service {
         prepareAndStart(task, profile);
     }
 
-    private void prepareAndStart(PrefixProvisionTask task, RuntimeProfile profile) throws Exception {
+    private void prepareAndStart(PrefixSetupTask task, RuntimeProfile profile) throws Exception {
         if (!submitted.add(task.getTaskId())) return;
         try {
-            PrefixProvisionTask preparing = task.getState() == RuntimeProvisionTaskState.QUEUED
-                ? transition(task, RuntimeProvisionTaskState.PREPARING, "") : task;
+            PrefixSetupTask preparing = task.getState() == RuntimeSetupTaskState.QUEUED
+                ? transition(task, RuntimeSetupTaskState.PREPARING, "") : task;
             new GlibcRuntimeComponentPreparer(this, host).ensure(profile);
             if (isReady(preparing)) {
-                PrefixProvisionTask verifying = transition(preparing,
-                    RuntimeProvisionTaskState.VERIFYING, "");
-                transition(verifying, RuntimeProvisionTaskState.SUCCEEDED, "");
+                PrefixSetupTask verifying = transition(preparing,
+                    RuntimeSetupTaskState.VERIFYING, "");
+                transition(verifying, RuntimeSetupTaskState.SUCCEEDED, "");
                 submitted.remove(task.getTaskId());
                 return;
             }
             new LaunchScriptInstaller(this, paths).install(new GlibcTermuxBoxBackend());
-            File script = new File(paths.getRuntimeDirectory(), "provision_glibc_prefix.sh");
-            File spec = new File(paths.getPrefixProvisionSpecsDirectory(),
+            File script = new File(paths.getRuntimeDirectory(), "setup_glibc_prefix.sh");
+            File spec = new File(paths.getPrefixSetupSpecsDirectory(),
                 task.getTaskId() + ".conf");
             File event = eventFile(task.getTaskId());
-            File log = new File(paths.getPrefixProvisionLogsDirectory(),
+            File log = new File(paths.getPrefixSetupLogsDirectory(),
                 task.getTaskId() + ".log");
             writeSpec(spec, preparing, profile, event, log);
-            host.startRuntimeProvision(new RuntimeProvisionRequest(task.getTaskId(),
+            host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 script.getCanonicalPath(), spec.getCanonicalPath(),
-                paths.getPrefixProvisionDirectory().getCanonicalPath()));
-            transition(preparing, RuntimeProvisionTaskState.BUILDING, "");
+                paths.getPrefixSetupDirectory().getCanonicalPath()));
+            transition(preparing, RuntimeSetupTaskState.BUILDING, "");
         } catch (Exception error) {
             submitted.remove(task.getTaskId());
             throw error;
@@ -168,12 +168,12 @@ public final class PrefixProvisionForegroundService extends Service {
     private void reconcileAll() {
         try {
             boolean active = false;
-            for (PrefixProvisionTask task : tasks.list()) {
+            for (PrefixSetupTask task : tasks.list()) {
                 if (task.getState().isTerminal()) continue;
                 active = true;
                 try { reconcile(task); }
                 catch (Exception error) {
-                    Log.e(TAG, "Prefix provision reconciliation failed", error);
+                    Log.e(TAG, "Prefix setup reconciliation failed", error);
                     fail(task.getTaskId(), stableError(error));
                 }
             }
@@ -182,19 +182,19 @@ public final class PrefixProvisionForegroundService extends Service {
                 stopSelf();
             }
         } catch (Exception error) {
-            Log.e(TAG, "Unable to list prefix provision tasks", error);
+            Log.e(TAG, "Unable to list prefix setup tasks", error);
         }
     }
 
-    private void reconcile(PrefixProvisionTask task) throws Exception {
+    private void reconcile(PrefixSetupTask task) throws Exception {
         Event event = readLastEvent(eventFile(task.getTaskId()));
         if (event == Event.SUCCEEDED || isReady(task)) {
-            PrefixProvisionTask current = requiredTask(task.getTaskId());
+            PrefixSetupTask current = requiredTask(task.getTaskId());
             if (!current.getState().isTerminal()) {
-                PrefixProvisionTask verifying = transition(current,
-                    RuntimeProvisionTaskState.VERIFYING, "");
+                PrefixSetupTask verifying = transition(current,
+                    RuntimeSetupTaskState.VERIFYING, "");
                 if (!isReady(verifying)) throw new IOException("prefix_activation_invalid");
-                transition(verifying, RuntimeProvisionTaskState.SUCCEEDED, "");
+                transition(verifying, RuntimeSetupTaskState.SUCCEEDED, "");
             }
             submitted.remove(task.getTaskId());
         } else if (event == Event.FAILED) {
@@ -205,7 +205,7 @@ public final class PrefixProvisionForegroundService extends Service {
         }
     }
 
-    private boolean isReady(PrefixProvisionTask task) throws IOException {
+    private boolean isReady(PrefixSetupTask task) throws IOException {
         RuntimeProfile profile = resolveContainer(profiles.find(task.getGameId())
             .orElseThrow(() -> new IOException("runtime_profile_missing")));
         File prefix = paths.getContainerPrefixDirectory(profile.getContainerId());
@@ -218,7 +218,7 @@ public final class PrefixProvisionForegroundService extends Service {
         }
     }
 
-    private boolean hasLiveBootstrap(PrefixProvisionTask task) throws IOException {
+    private boolean hasLiveBootstrap(PrefixSetupTask task) throws IOException {
         RuntimeProfile profile = resolveContainer(profiles.find(task.getGameId())
             .orElseThrow(() -> new IOException("runtime_profile_missing")));
         File pidFile = new File(paths.getContainerPrefixDirectory(profile.getContainerId()).getPath() +
@@ -247,7 +247,7 @@ public final class PrefixProvisionForegroundService extends Service {
         return new GameContainerProfileResolver().resolve(gameProfile, container);
     }
 
-    private void writeSpec(File target, PrefixProvisionTask task, RuntimeProfile profile,
+    private void writeSpec(File target, PrefixSetupTask task, RuntimeProfile profile,
                            File event, File log) throws IOException {
         ensureDirectory(target.getParentFile());
         ensureDirectory(event.getParentFile());
@@ -272,7 +272,7 @@ public final class PrefixProvisionForegroundService extends Service {
         }
         if (!temporary.renameTo(target)) {
             temporary.delete();
-            throw new IOException("prefix_provision_spec_publish_failed");
+            throw new IOException("prefix_setup_spec_publish_failed");
         }
     }
 
@@ -283,10 +283,10 @@ public final class PrefixProvisionForegroundService extends Service {
         writer.write("'\n");
     }
 
-    private PrefixProvisionTask transition(PrefixProvisionTask task,
-                                            RuntimeProvisionTaskState state,
+    private PrefixSetupTask transition(PrefixSetupTask task,
+                                            RuntimeSetupTaskState state,
                                             String error) throws IOException {
-        PrefixProvisionTask updated = task.transition(state, error, System.currentTimeMillis());
+        PrefixSetupTask updated = task.transition(state, error, System.currentTimeMillis());
         tasks.save(updated);
         publish(updated);
         return updated;
@@ -295,22 +295,22 @@ public final class PrefixProvisionForegroundService extends Service {
     private void fail(String taskId, String code) {
         if (taskId == null) return;
         try {
-            PrefixProvisionTask task = tasks.find(taskId).orElse(null);
+            PrefixSetupTask task = tasks.find(taskId).orElse(null);
             if (task != null && !task.getState().isTerminal()) {
-                transition(task, RuntimeProvisionTaskState.FAILED, code);
+                transition(task, RuntimeSetupTaskState.FAILED, code);
             }
         } catch (Exception error) {
-            Log.e(TAG, "Unable to persist prefix provision failure", error);
+            Log.e(TAG, "Unable to persist prefix setup failure", error);
         }
     }
 
-    private PrefixProvisionTask requiredTask(String taskId) throws IOException {
+    private PrefixSetupTask requiredTask(String taskId) throws IOException {
         return tasks.find(taskId)
-            .orElseThrow(() -> new IOException("prefix_provision_task_missing"));
+            .orElseThrow(() -> new IOException("prefix_setup_task_missing"));
     }
 
     private File eventFile(String taskId) {
-        return new File(paths.getPrefixProvisionEventsDirectory(), taskId + ".jsonl");
+        return new File(paths.getPrefixSetupEventsDirectory(), taskId + ".jsonl");
     }
 
     private static Event readLastEvent(File file) throws IOException {
@@ -329,22 +329,22 @@ public final class PrefixProvisionForegroundService extends Service {
         return Event.BUILDING;
     }
 
-    private void publish(PrefixProvisionTask task) {
+    private void publish(PrefixSetupTask task) {
         ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
             .notify(NOTIFICATION_ID, notification(task));
     }
 
-    private Notification notification(@Nullable PrefixProvisionTask task) {
+    private Notification notification(@Nullable PrefixSetupTask task) {
         Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
             ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this);
         Intent target = new Intent(this, LocalGamesActivity.class);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
-        String text = task == null ? getString(R.string.local_games_runtime_provision_preparing) :
-            getString(R.string.local_games_runtime_provision_status,
+        String text = task == null ? getString(R.string.local_games_runtime_setup_preparing) :
+            getString(R.string.local_games_runtime_setup_status,
                 task.getGameId(), task.getState().name());
         return builder.setSmallIcon(R.drawable.local_games_ic_component)
-            .setContentTitle(getString(R.string.local_games_prefix_provision_title))
+            .setContentTitle(getString(R.string.local_games_prefix_setup_title))
             .setContentText(text)
             .setContentIntent(PendingIntent.getActivity(this, 0, target, flags))
             .setOnlyAlertOnce(true)
@@ -357,7 +357,7 @@ public final class PrefixProvisionForegroundService extends Service {
     private void createChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-            getString(R.string.local_games_prefix_provision_channel),
+            getString(R.string.local_games_prefix_setup_channel),
             NotificationManager.IMPORTANCE_LOW);
         ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
             .createNotificationChannel(channel);
@@ -365,13 +365,13 @@ public final class PrefixProvisionForegroundService extends Service {
 
     private static void ensureDirectory(File directory) throws IOException {
         if (!directory.isDirectory() && !directory.mkdirs()) {
-            throw new IOException("prefix_provision_directory_failed");
+            throw new IOException("prefix_setup_directory_failed");
         }
     }
 
     private static String requiredId(String value) throws IOException {
         if (value == null || !value.matches("[A-Za-z0-9._-]{1,128}")) {
-            throw new IOException("invalid_prefix_provision_identifier");
+            throw new IOException("invalid_prefix_setup_identifier");
         }
         return value;
     }
@@ -379,7 +379,7 @@ public final class PrefixProvisionForegroundService extends Service {
     private static String stableError(Exception error) {
         String message = error.getMessage();
         return message != null && message.matches("[a-z0-9_:.+-]{1,128}")
-            ? message : "prefix_provision_failed";
+            ? message : "prefix_setup_failed";
     }
 
     private enum Event { NONE, BUILDING, SUCCEEDED, FAILED }

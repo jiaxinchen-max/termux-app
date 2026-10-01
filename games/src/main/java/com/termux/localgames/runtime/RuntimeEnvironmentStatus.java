@@ -39,7 +39,7 @@ public final class RuntimeEnvironmentStatus {
         return RuntimeReadinessState.INCOMPLETE;
     }
 
-    /** READY when the shared rootfs template (see provision_rootfs_runtime.sh) that new
+    /** READY when the shared rootfs template (see setup_rootfs_runtime.sh) that new
      *  containers get cloned from is itself intact; INCOMPLETE when a template directory exists
      *  but its build never finished (interrupted install); NOT_READY when no template exists at
      *  all. Deliberately independent of whether any GameContainer already exists -- an
@@ -69,7 +69,7 @@ public final class RuntimeEnvironmentStatus {
         }
     }
 
-    /** Mirrors provision_rootfs_runtime.sh's own runtime_complete() check, applied to any
+    /** Mirrors setup_rootfs_runtime.sh's own runtime_complete() check, applied to any
      *  "tmpl-<recipeSha256 prefix>" pseudo-container under proot-distro/containers -- recipes
      *  change rarely enough in practice that a name-pattern scan (rather than resolving the
      *  exact current recipeSha256, which needs Context + file I/O this class doesn't have) is

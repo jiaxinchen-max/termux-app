@@ -20,12 +20,12 @@ import com.termux.localgames.api.LaunchRequest;
 import com.termux.localgames.api.LaunchTasks;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.LocalGamesHost;
-import com.termux.localgames.api.PrefixProvisionTasks;
+import com.termux.localgames.api.PrefixSetupTasks;
 import com.termux.localgames.api.ResolvedGameDirectory;
 import com.termux.localgames.data.FileGameRepository;
 import com.termux.localgames.data.FileGameContainerRepository;
 import com.termux.localgames.data.FileLaunchTaskRepository;
-import com.termux.localgames.data.FilePrefixProvisionTaskRepository;
+import com.termux.localgames.data.FilePrefixSetupTaskRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.data.LaunchSpecCodec;
@@ -35,7 +35,7 @@ import com.termux.localgames.domain.LaunchEvent;
 import com.termux.localgames.domain.LaunchStage;
 import com.termux.localgames.domain.LaunchTask;
 import com.termux.localgames.domain.LaunchTaskState;
-import com.termux.localgames.domain.PrefixProvisionTask;
+import com.termux.localgames.domain.PrefixSetupTask;
 import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.domain.RuntimeProfilePreset;
 import com.termux.localgames.domain.RuntimeProfilePresets;
@@ -252,7 +252,7 @@ public final class LocalGameOrchestratorService extends Service {
                 } catch (Exception error) {
                     Log.e(TAG, "Unable to reconcile launch: " + task.getTaskId(), error);
                     // Surface the real stable error code (e.g. component_prepare_failed:turnip,
-                    // prefix_provision_timeout) instead of masking every IOException as the
+                    // prefix_setup_timeout) instead of masking every IOException as the
                     // generic launch_event_invalid -- stableError keeps event-parse and other
                     // unclassifiable failures as a safe fallback code.
                     failTask(task.getTaskId(), stableError(error), true);
@@ -374,35 +374,35 @@ public final class LocalGameOrchestratorService extends Service {
 
     private boolean ensureGlibcPrefix(String launchTaskId, Game game, RuntimeProfile profile)
         throws Exception {
-        FilePrefixProvisionTaskRepository prefixTasks = new FilePrefixProvisionTaskRepository(
-            paths.getPrefixProvisionTasksDirectory());
-        String provisionTaskId = PrefixProvisionTasks.enqueue(this, game.getId());
+        FilePrefixSetupTaskRepository prefixTasks = new FilePrefixSetupTaskRepository(
+            paths.getPrefixSetupTasksDirectory());
+        String setupTaskId = PrefixSetupTasks.enqueue(this, game.getId());
         long deadline = System.currentTimeMillis() + PREFIX_PREPARE_TIMEOUT_MS;
         while (System.currentTimeMillis() < deadline) {
             if (cancelFile(launchTaskId).isFile()) {
                 cancelTask(requiredTask(launchTaskId), "cancelled_during_runtime_prepare");
                 return false;
             }
-            PrefixProvisionTask provision = prefixTasks.find(provisionTaskId).orElse(null);
-            if (provision != null) {
-                if (provision.getState() ==
-                    com.termux.localgames.domain.RuntimeProvisionTaskState.SUCCEEDED) {
+            PrefixSetupTask setup = prefixTasks.find(setupTaskId).orElse(null);
+            if (setup != null) {
+                if (setup.getState() ==
+                    com.termux.localgames.domain.RuntimeSetupTaskState.SUCCEEDED) {
                     return true;
                 }
-                if (provision.getState() ==
-                    com.termux.localgames.domain.RuntimeProvisionTaskState.FAILED) {
-                    String error = provision.getErrorCode();
+                if (setup.getState() ==
+                    com.termux.localgames.domain.RuntimeSetupTaskState.FAILED) {
+                    String error = setup.getErrorCode();
                     throw new IOException(error.isEmpty()
-                        ? "prefix_provision_failed" : error);
+                        ? "prefix_setup_failed" : error);
                 }
-                if (provision.getState() ==
-                    com.termux.localgames.domain.RuntimeProvisionTaskState.CANCELLED) {
-                    throw new IOException("prefix_provision_cancelled");
+                if (setup.getState() ==
+                    com.termux.localgames.domain.RuntimeSetupTaskState.CANCELLED) {
+                    throw new IOException("prefix_setup_cancelled");
                 }
             }
             sleepForRuntimePreparation();
         }
-        throw new IOException("prefix_provision_timeout");
+        throw new IOException("prefix_setup_timeout");
     }
 
     private RuntimeProfile resolveContainer(RuntimeProfile gameProfile) throws IOException {

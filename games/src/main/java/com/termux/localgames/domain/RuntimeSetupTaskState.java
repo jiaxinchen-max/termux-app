@@ -1,6 +1,6 @@
 package com.termux.localgames.domain;
 
-public enum RuntimeProvisionTaskState {
+public enum RuntimeSetupTaskState {
     QUEUED,
     PREPARING,
     BUILDING,

@@ -3,14 +3,14 @@ package com.termux.localgames.data;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.termux.localgames.domain.RuntimeProvisionTask;
-import com.termux.localgames.domain.RuntimeProvisionTaskState;
+import com.termux.localgames.domain.RuntimeSetupTask;
+import com.termux.localgames.domain.RuntimeSetupTaskState;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-public class FileRuntimeProvisionTaskRepositoryTest {
+public class FileRuntimeSetupTaskRepositoryTest {
     private static final String SHA =
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
@@ -18,18 +18,18 @@ public class FileRuntimeProvisionTaskRepositoryTest {
 
     @Test
     public void persistsBuildStateAcrossRepositoryInstances() throws Exception {
-        java.io.File directory = temporary.newFolder("provision-tasks");
-        FileRuntimeProvisionTaskRepository first =
-            new FileRuntimeProvisionTaskRepository(directory);
-        RuntimeProvisionTask queued = RuntimeProvisionTask.queued("task-1",
+        java.io.File directory = temporary.newFolder("setup-tasks");
+        FileRuntimeSetupTaskRepository first =
+            new FileRuntimeSetupTaskRepository(directory);
+        RuntimeSetupTask queued = RuntimeSetupTask.queued("task-1",
             "debian-13-games-rootfs", 1, SHA, "hangover-11.9-debian13-source",
             "container-game-a", "container-game-a", 10);
-        first.save(queued.transition(RuntimeProvisionTaskState.BUILDING, "", 20));
+        first.save(queued.transition(RuntimeSetupTaskState.BUILDING, "", 20));
 
-        RuntimeProvisionTask restored = new FileRuntimeProvisionTaskRepository(directory)
+        RuntimeSetupTask restored = new FileRuntimeSetupTaskRepository(directory)
             .find("task-1").get();
 
-        assertEquals(RuntimeProvisionTaskState.BUILDING, restored.getState());
+        assertEquals(RuntimeSetupTaskState.BUILDING, restored.getState());
         assertEquals(SHA, restored.getRecipeSha256());
         assertEquals("container-game-a", restored.getContainerId());
         assertEquals("container-game-a", restored.getContainerName());

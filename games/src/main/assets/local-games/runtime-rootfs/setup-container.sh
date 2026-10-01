@@ -4,9 +4,9 @@ set -eu
 PS4='+ '
 set -x
 
-PROVISION_ROOT=/run/games-provision
-SOURCE_ROOT="$PROVISION_ROOT/hangover-source"
-MANIFEST="$PROVISION_ROOT/games-runtime.properties"
+SETUP_ROOT=/run/games-setup
+SOURCE_ROOT="$SETUP_ROOT/hangover-source"
+MANIFEST="$SETUP_ROOT/games-runtime.properties"
 BOX64_DEB=/tmp/box64-android_0.4.5_arm64.deb
 BOX64_URL='https://github.com/jiaxinchen-max/termux-app/releases/download/1.0.8/box64-android_0.4.5%2B20260908T103809.4e5f180-1_arm64.deb'
 BOX64_SHA256='745cd5efc55d3f24d11ac2d9b958a03482b03f4df9d52764c1b6784435fc4e8e'

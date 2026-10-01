@@ -22,7 +22,7 @@ import com.termux.R;
 import com.termux.app.event.SystemEventReceiver;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.TermuxTerminalSessionServiceClient;
-import com.termux.app.localgames.TermuxGamesProvisionTerminalRegistry;
+import com.termux.app.localgames.TermuxGamesSetupTerminalRegistry;
 import com.termux.shared.termux.plugins.TermuxPluginUtils;
 import com.termux.shared.data.IntentUtils;
 import com.termux.shared.net.uri.UriUtils;
@@ -588,10 +588,10 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
 
         executionCommand.setShellCommandShellEnvironment = true;
         executionCommand.terminalTranscriptRows = mProperties.getTerminalTranscriptRows();
-        // Games owns these sessions through a modal TerminalView. A finished provisioning
+        // Games owns these sessions through a modal TerminalView. A finished setup
         // command must have the same lifecycle as pressing Enter on a completed terminal,
         // otherwise it remains in the service session list indefinitely.
-        if (TermuxGamesProvisionTerminalRegistry.isProvisionSession(executionCommand.shellName)) {
+        if (TermuxGamesSetupTerminalRegistry.isSetupSession(executionCommand.shellName)) {
             executionCommand.autoCloseOnExit = true;
         }
 
@@ -617,11 +617,11 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
 
         mShellManager.mTermuxSessions.add(newTermuxSession);
 
-        if (TermuxGamesProvisionTerminalRegistry.isProvisionSession(executionCommand.shellName)) {
+        if (TermuxGamesSetupTerminalRegistry.isSetupSession(executionCommand.shellName)) {
             // Games owns a modal TerminalView rather than TermuxActivity. Start the PTY here so
-            // closing that modal cannot leave the provisioning task in an uninitialized state.
+            // closing that modal cannot leave the setup task in an uninitialized state.
             newTermuxSession.getTerminalSession().initializeEmulator(100, 30);
-            TermuxGamesProvisionTerminalRegistry.register(executionCommand.shellName,
+            TermuxGamesSetupTerminalRegistry.register(executionCommand.shellName,
                 newTermuxSession.getTerminalSession());
         }
 
@@ -666,7 +666,7 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
                 TermuxPluginUtils.processPluginExecutionCommandResult(this, LOG_TAG, executionCommand);
 
             if (executionCommand != null)
-                TermuxGamesProvisionTerminalRegistry.remove(executionCommand.shellName);
+                TermuxGamesSetupTerminalRegistry.remove(executionCommand.shellName);
 
             mShellManager.mTermuxSessions.remove(termuxSession);
 

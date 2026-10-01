@@ -13,21 +13,21 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.termux.app.TermuxActivity;
 import com.termux.localgames.api.ComponentTasks;
 import com.termux.localgames.api.LocalGames;
-import com.termux.localgames.api.PrefixProvisionTasks;
+import com.termux.localgames.api.PrefixSetupTasks;
 import com.termux.localgames.components.ComponentStoragePaths;
 import com.termux.localgames.data.ComponentTaskRepository;
 import com.termux.localgames.data.FileComponentTaskRepository;
 import com.termux.localgames.data.FileGameRepository;
-import com.termux.localgames.data.FilePrefixProvisionTaskRepository;
+import com.termux.localgames.data.FilePrefixSetupTaskRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.Game;
 import com.termux.localgames.domain.ComponentTask;
 import com.termux.localgames.domain.ComponentTaskState;
 import com.termux.localgames.domain.LaunchExecutionMode;
-import com.termux.localgames.domain.PrefixProvisionTask;
+import com.termux.localgames.domain.PrefixSetupTask;
 import com.termux.localgames.domain.RuntimeProfile;
-import com.termux.localgames.domain.RuntimeProvisionTaskState;
+import com.termux.localgames.domain.RuntimeSetupTaskState;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,11 +35,11 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.util.Collections;
 
-/** Runs GLIBC prefix provisioning through the real app Host and Termux AppShell. */
+/** Runs GLIBC prefix setup through the real app Host and Termux AppShell. */
 @RunWith(AndroidJUnit4.class)
-public class GlibcProvisionInstrumentedTest {
+public class GlibcSetupInstrumentedTest {
 
-    private static final String GAME_ID = "provision-smoke";
+    private static final String GAME_ID = "setup-smoke";
     private static final long TIMEOUT_MS = 12 * 60 * 1000;
     private static final String[] REQUIRED_COMPONENTS = {
         "glibc-prefix", "scripts", "box64-binaries", "prefix-apps", "libudev",
@@ -47,7 +47,7 @@ public class GlibcProvisionInstrumentedTest {
     };
 
     @Test
-    public void provisionsGlibcPrefixThroughTheAppShell() throws Exception {
+    public void setupsGlibcPrefixThroughTheAppShell() throws Exception {
         Context context = ApplicationProvider.getApplicationContext();
         assertEquals("test must target the real app package", "com.termux",
             context.getPackageName());
@@ -60,21 +60,21 @@ public class GlibcProvisionInstrumentedTest {
 
             GameStoragePaths paths = new GameStoragePaths(context.getFilesDir());
             new FileGameRepository(paths.getLibraryDirectory())
-                .save(new Game(GAME_ID, "Provision Smoke", "content://missing/tree/provision",
+                .save(new Game(GAME_ID, "Setup Smoke", "content://missing/tree/setup",
                     "Game.exe", ".", Collections.emptyList(), "", 0));
             new FileRuntimeProfileRepository(paths.getProfilesDirectory())
                 .save(new RuntimeProfile(GAME_ID, "wine-9.3-vanilla-wow64", "virgl", "dxvk",
                     "pulseaudio", "1280x720", "STABILITY", Collections.emptyMap(), "xinput",
                     LaunchExecutionMode.APP_SHELL, Collections.emptyMap()));
 
-            String taskId = PrefixProvisionTasks.enqueue(context, GAME_ID);
-            PrefixProvisionTask result = awaitTerminal(paths, taskId);
-            File provisionLog = new File(paths.getPrefixProvisionLogsDirectory(),
+            String taskId = PrefixSetupTasks.enqueue(context, GAME_ID);
+            PrefixSetupTask result = awaitTerminal(paths, taskId);
+            File setupLog = new File(paths.getPrefixSetupLogsDirectory(),
                 taskId + ".log");
 
-            assertEquals("GLIBC prefix provision must succeed: " + result.getErrorCode() +
-                    "\n" + readTail(provisionLog, 80),
-                RuntimeProvisionTaskState.SUCCEEDED, result.getState());
+            assertEquals("GLIBC prefix setup must succeed: " + result.getErrorCode() +
+                    "\n" + readTail(setupLog, 80),
+                RuntimeSetupTaskState.SUCCEEDED, result.getState());
             File prefix = new File(context.getFilesDir(), "games/prefixes/" + GAME_ID);
             assertTrue("bootstrap marker must be written",
                 new File(prefix, ".termux-box-bootstrap-done").isFile());
@@ -83,7 +83,7 @@ public class GlibcProvisionInstrumentedTest {
                 readFirstLine(new File(prefix, ".termux-box-wine-package")));
             assertTrue("box64 must exist in the launcher runtime",
                 new File(context.getFilesDir(), "usr/glibc/bin/box64").isFile());
-            assertTrue("runtime provisioning must install the independent Termux:X11 bridge",
+            assertTrue("runtime setup must install the independent Termux:X11 bridge",
                 new File(context.getFilesDir(), "usr/bin/termux-x11").canExecute());
             assertTrue("Termux:X11 embedded loader must be installed",
                 new File(context.getFilesDir(), "usr/libexec/termux-x11/loader.apk").isFile());
@@ -116,17 +116,17 @@ public class GlibcProvisionInstrumentedTest {
         throw new IllegalStateException();
     }
 
-    private PrefixProvisionTask awaitTerminal(GameStoragePaths paths, String taskId)
+    private PrefixSetupTask awaitTerminal(GameStoragePaths paths, String taskId)
         throws Exception {
-        FilePrefixProvisionTaskRepository repository = new FilePrefixProvisionTaskRepository(
-            paths.getPrefixProvisionTasksDirectory());
+        FilePrefixSetupTaskRepository repository = new FilePrefixSetupTaskRepository(
+            paths.getPrefixSetupTasksDirectory());
         long deadline = System.currentTimeMillis() + TIMEOUT_MS;
         while (System.currentTimeMillis() < deadline) {
-            PrefixProvisionTask task = repository.find(taskId).orElse(null);
+            PrefixSetupTask task = repository.find(taskId).orElse(null);
             if (task != null && task.getState().isTerminal()) return task;
             Thread.sleep(2000);
         }
-        fail("prefix provision did not finish within " + (TIMEOUT_MS / 60000) + " minutes");
+        fail("prefix setup did not finish within " + (TIMEOUT_MS / 60000) + " minutes");
         throw new IllegalStateException();
     }
 
@@ -139,7 +139,7 @@ public class GlibcProvisionInstrumentedTest {
     }
 
     private static String readTail(File file, int maximumLines) throws Exception {
-        if (!file.isFile()) return "provision log missing: " + file;
+        if (!file.isFile()) return "setup log missing: " + file;
         java.util.ArrayDeque<String> lines = new java.util.ArrayDeque<>();
         try (java.io.BufferedReader reader = new java.io.BufferedReader(
             new java.io.FileReader(file))) {
@@ -149,7 +149,7 @@ public class GlibcProvisionInstrumentedTest {
                 lines.addLast(line);
             }
         }
-        StringBuilder result = new StringBuilder("provision log tail:");
+        StringBuilder result = new StringBuilder("setup log tail:");
         for (String line : lines) result.append('\n').append(line);
         return result.toString();
     }

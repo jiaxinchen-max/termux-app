@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
 
 /**
  * Shared file-backed store for the atomic-write/{@code .bak}-recovery pattern used by the
- * Reset/Component/RuntimeProvision task repositories. Each repository keeps its own
+ * Reset/Component/RuntimeSetup task repositories. Each repository keeps its own
  * schema-versioning and migration quirks in its {@link Codec}; this class only owns the
  * directory scan and the tmp+fsync+rename dance.
  */

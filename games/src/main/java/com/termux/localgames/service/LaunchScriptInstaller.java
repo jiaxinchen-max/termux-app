@@ -20,7 +20,7 @@ import java.security.NoSuchAlgorithmException;
 public final class LaunchScriptInstaller {
 
     private static final String BOOTSTRAP_ASSET = "bootstrap_termux_box.sh";
-    private static final String PREFIX_PROVISION_ASSET = "local-games/provision_glibc_prefix.sh";
+    private static final String PREFIX_SETUP_ASSET = "local-games/setup_glibc_prefix.sh";
     private static final String TERMUX_GLIBC_INSTALL_ASSET =
         "local-games/install_termux_glibc_runtime.sh";
     private static final String TERMUX_GLIBC_RESET_ASSET =
@@ -50,8 +50,8 @@ public final class LaunchScriptInstaller {
             installAsset(TERMUX_BOX_GAME_ASSET,
                 new File(runtimeDirectory, "start_termux_box_game.sh"));
             installAsset(BOOTSTRAP_ASSET, new File(runtimeDirectory, "bootstrap_termux_box.sh"));
-            installAsset(PREFIX_PROVISION_ASSET,
-                new File(runtimeDirectory, "provision_glibc_prefix.sh"));
+            installAsset(PREFIX_SETUP_ASSET,
+                new File(runtimeDirectory, "setup_glibc_prefix.sh"));
         }
         return launcher;
     }
