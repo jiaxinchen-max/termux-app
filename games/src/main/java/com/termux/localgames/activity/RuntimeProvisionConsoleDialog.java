@@ -5,7 +5,6 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.view.Gravity;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
@@ -14,7 +13,6 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
-import com.google.android.material.button.MaterialButton;
 import com.termux.localgames.R;
 import com.termux.localgames.data.FileRuntimeProvisionTaskRepository;
 import com.termux.localgames.data.GameStoragePaths;
@@ -32,7 +30,9 @@ import android.os.Looper;
 
 import com.termux.localgames.api.LocalGames;
 
-/** Modal TerminalView attached to the actual Termux provisioning session. */
+/** Modal TerminalView attached to the actual Termux provisioning session. Nothing but the
+ *  log/terminal content itself is shown -- no title, no button chrome -- tapping outside the
+ *  dialog (losing focus) dismisses it, same as any other modal. */
 final class RuntimeProvisionConsoleDialog extends Dialog {
     private final String taskId;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -46,8 +46,8 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
     private RuntimeProvisionConsoleDialog(@NonNull Context context, @NonNull String taskId) {
         super(context);
         this.taskId = taskId;
-        setCancelable(false);
-        setCanceledOnTouchOutside(false);
+        setCancelable(true);
+        setCanceledOnTouchOutside(true);
     }
 
     static RuntimeProvisionConsoleDialog show(@NonNull Context context, @NonNull String taskId) {
@@ -67,45 +67,26 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
 
-        int padding = dp(18);
         LinearLayout content = new LinearLayout(getContext());
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(padding, padding, padding, padding);
-        content.setBackgroundColor(Color.rgb(12, 16, 27));
-
-        TextView title = new TextView(getContext());
-        title.setText(titleRes);
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(20);
-        content.addView(title, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        content.setBackgroundColor(Color.BLACK);
+        // No visible title text, but keep the label available to accessibility services.
+        content.setContentDescription(getContext().getString(titleRes));
 
         status = new TextView(getContext());
         status.setTextColor(Color.rgb(170, 185, 210));
         status.setTextSize(13);
-        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        statusParams.topMargin = dp(8);
-        content.addView(status, statusParams);
+        status.setPadding(dp(8), dp(8), dp(8), 0);
+        content.addView(status, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         terminalView = new TerminalView(getContext(), null);
         terminalView.setBackgroundColor(Color.BLACK);
         terminalView.setTerminalViewClient(new TermuxTerminalViewClientBase());
         TermuxAppSharedPreferences preferences = TermuxAppSharedPreferences.build(getContext());
         terminalView.setTextSize(preferences == null ? 14 : preferences.getFontSize());
-        LinearLayout.LayoutParams terminalParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
-        terminalParams.topMargin = dp(12);
-        content.addView(terminalView, terminalParams);
-
-        MaterialButton close = new MaterialButton(getContext());
-        close.setText(R.string.local_games_component_console_hide);
-        close.setOnClickListener(view -> dismiss());
-        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        closeParams.gravity = Gravity.END;
-        closeParams.topMargin = dp(8);
-        content.addView(close, closeParams);
+        content.addView(terminalView, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         setContentView(content);
         terminalView.post(this::attachProvisionSession);
@@ -118,14 +99,38 @@ final class RuntimeProvisionConsoleDialog extends Dialog {
         }
     }
 
+    // Golden ratio (1:1.618): the dialog's own box always stays golden, and its long side
+    // tracks whichever screen axis is actually longer -- wide/"flat" in landscape, tall/"thin"
+    // in portrait -- so it matches the screen's own orientation instead of always being a tall
+    // rectangle regardless of how the screen is held. The long side targets the golden fraction
+    // (1/phi =~ 0.618) of the screen's matching long-axis dimension, a substantial majority of
+    // the available space without spanning edge to edge.
+    private static final double PHI = 1.6180339887;
+    private static final double MAX_SHORT_FRACTION = 0.92;
+
     @Override
     protected void onStart() {
         super.onStart();
         Window window = getWindow();
-        if (window != null) {
-            window.setLayout((int) (getContext().getResources().getDisplayMetrics().widthPixels * .94f),
-                (int) (getContext().getResources().getDisplayMetrics().heightPixels * .78f));
+        if (window == null) return;
+        android.util.DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
+        int screenWidth = metrics.widthPixels;
+        int screenHeight = metrics.heightPixels;
+        boolean landscape = screenWidth >= screenHeight;
+        int screenLong = landscape ? screenWidth : screenHeight;
+        int screenShort = landscape ? screenHeight : screenWidth;
+        int dialogLong = (int) (screenLong / PHI);
+        int dialogShort = (int) (dialogLong / PHI);
+        if (dialogShort > screenShort * MAX_SHORT_FRACTION) {
+            // The screen's short axis is too narrow for a golden box this large (an unusually
+            // elongated screen) -- fit to that instead and shrink the long side to match, so
+            // the box itself still stays exactly golden.
+            dialogShort = (int) (screenShort * MAX_SHORT_FRACTION);
+            dialogLong = (int) (dialogShort * PHI);
         }
+        int width = landscape ? dialogLong : dialogShort;
+        int height = landscape ? dialogShort : dialogLong;
+        window.setLayout(width, height);
     }
 
     @Override
