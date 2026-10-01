@@ -21,6 +21,7 @@ import com.google.android.material.radiobutton.MaterialRadioButton;
 import com.termux.localgames.R;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.LocalGamesHost;
+import com.termux.localgames.api.RuntimeWarmup;
 import com.termux.localgames.data.FileGameRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.GameRepository;
@@ -285,6 +286,8 @@ public final class GameImportActivity extends AppCompatActivity {
                     profileRepository.save(RuntimeProfilePresets.create(gameId,
                         RuntimeProfilePreset.RECOMMENDED));
                 }
+                profileRepository.find(gameId).ifPresent(profile ->
+                    RuntimeWarmup.warm(this, profile));
             } catch (IOException | RuntimeException saveError) {
                 error = safeMessage(saveError);
             }

@@ -6,8 +6,12 @@ import android.os.Build;
 
 import androidx.annotation.NonNull;
 
+import com.termux.localgames.data.FileRuntimeSetupTaskRepository;
+import com.termux.localgames.data.GameStoragePaths;
+import com.termux.localgames.domain.RuntimeSetupTask;
 import com.termux.localgames.service.RootfsSetupForegroundService;
 
+import java.io.IOException;
 import java.util.UUID;
 
 /** Public command surface for persistent on-device runtime builds. */
@@ -28,6 +32,18 @@ public final class RuntimeSetupTasks {
                                  @NonNull String containerId) {
         requireId(packageName, "packageName");
         requireId(containerId, "containerId");
+        try {
+            FileRuntimeSetupTaskRepository repository = new FileRuntimeSetupTaskRepository(
+                new GameStoragePaths(context.getFilesDir()).getRuntimeSetupTasksDirectory());
+            for (RuntimeSetupTask task : repository.list()) {
+                if (task.getContainerId().equals(containerId) && !task.getState().isTerminal()) {
+                    reconcileAll(context);
+                    return task.getTaskId();
+                }
+            }
+        } catch (IOException ignored) {
+            // The foreground owner will persist a stable failure if storage is unavailable.
+        }
         String taskId = "setup-" + UUID.randomUUID().toString();
         Intent intent = new Intent(context, RootfsSetupForegroundService.class)
             .setAction(ACTION_ENQUEUE)

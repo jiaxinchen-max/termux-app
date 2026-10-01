@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
 import com.termux.localgames.api.LocalGames;
+import com.termux.localgames.api.RuntimeWarmup;
 import com.termux.localgames.data.FileGameContainerRepository;
 import com.termux.localgames.data.FileGameRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
@@ -681,6 +682,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             try {
                 profileRepository.save(toSave);
                 android.util.Log.d("GameRuntimeOptionsDebug", "profileRepository.save completed");
+                RuntimeWarmup.warm(getContext(), toSave);
                 if (saveGame) gameRepository.save(gameToSave);
                 post(() -> {
                     if (!destroyed) close();
