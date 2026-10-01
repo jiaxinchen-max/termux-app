@@ -48,6 +48,24 @@ if [ -n "$RESET_METADATA_DIR" ]; then
     run rm -rf "$RESET_METADATA_DIR" || { emit FAILED; exit 1; }
 fi
 
+# When resetting the shared template ("tmpl-<recipeSha16>"), also drop its cached archive in
+# games-template-cache/ (see provision_rootfs_runtime.sh), so the next provision rebuilds the
+# template from scratch instead of re-extracting a stale archive. Derived from RESET_CONTAINER_DIR
+# (= .../proot-distro/containers/tmpl-<sha>) with no extra spec variable.
+case "$RESET_CONTAINER_ID" in
+    tmpl-*)
+        CACHE_DIR="$(dirname "$(dirname "$RESET_CONTAINER_DIR")")/games-template-cache"
+        case "$CACHE_DIR" in
+            /data/data/com.termux/files/*|/data/user/[0-9]*/com.termux/files/*)
+                run rm -f "$CACHE_DIR/$RESET_CONTAINER_ID".tar.* || { emit FAILED; exit 1; } ;;
+            *)
+                printf '%s\n' "Refusing to remove cache outside private storage: $CACHE_DIR" \
+                    | tee -a "$RESET_LOG_FILE"
+                emit FAILED
+                exit 1 ;;
+        esac ;;
+esac
+
 if [ -e "$RESET_CONTAINER_DIR" ] || { [ -n "$RESET_METADATA_DIR" ] && [ -e "$RESET_METADATA_DIR" ]; }; then
     printf '%s\n' 'RootFS reset verification failed.' | tee -a "$RESET_LOG_FILE"
     emit FAILED

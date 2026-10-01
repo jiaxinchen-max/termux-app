@@ -126,6 +126,21 @@ BASE_IMAGE=debian:trixie-20260824
 TEMPLATE_CONTAINER_NAME="tmpl-${RECIPE_SHA256%${RECIPE_SHA256#????????????????}}"
 TEMPLATE_DIRECTORY="$PREFIX/var/lib/proot-distro/containers/$TEMPLATE_CONTAINER_NAME"
 TEMPLATE_ROOTFS="$TEMPLATE_DIRECTORY/rootfs"
+# The built template is archived once and every real container is produced by extracting that
+# archive -- independent real files, no hardlinks. Some Android data partitions reject hardlinks
+# outright (link() returns EPERM even for a self-owned file), which made the old `cp -al` clone
+# fail for every game; tar extraction is also exactly how proot-distro rootfs images normally
+# ship. The cache lives beside containers/ (never under it) so it is not mistaken for a container
+# and never matches the "tmpl-*" readiness scan. reset_rootfs_runtime.sh deletes the matching
+# archive when it resets the template, so "reset RootFS" still forces a full rebuild next time.
+TEMPLATE_CACHE_DIR="$PREFIX/var/lib/proot-distro/games-template-cache"
+if command -v zstd >/dev/null 2>&1; then
+    TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/$TEMPLATE_CONTAINER_NAME.tar.zst"
+    TEMPLATE_COMPRESSOR=zstd
+else
+    TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/$TEMPLATE_CONTAINER_NAME.tar.gz"
+    TEMPLATE_COMPRESSOR=gzip
+fi
 supports_container_provision() {
     [ -x "$PROOT_DISTRO" ] &&
         "$PROOT_DISTRO" install --help 2>&1 | grep -q -- '--name' &&
@@ -215,32 +230,50 @@ build_runtime_into() {
         fail rootfs_guest_provision_failed 70
     fi
 }
-# Replaces $2 (container directory named $1) with a hardlinked clone of the already-built
-# $3 template directory -- near-instant and near-zero extra disk versus a fresh build.
-clone_template_into() {
+# Archives the already-built template container ($TEMPLATE_DIRECTORY, i.e. manifest.json +
+# rootfs/ + shm/ + sysdata/) into $TEMPLATE_ARCHIVE once. Written to a .tmp then atomically
+# renamed, so a present archive is always complete. No-op if the archive already exists.
+ensure_template_archive() {
+    [ -f "$TEMPLATE_ARCHIVE" ] && return 0
+    mkdir -p "$TEMPLATE_CACHE_DIR"
+    rm -f "$TEMPLATE_ARCHIVE.tmp"
+    if ! run_logged tar -C "$TEMPLATE_DIRECTORY" \
+        --use-compress-program "$TEMPLATE_COMPRESSOR" -cf "$TEMPLATE_ARCHIVE.tmp" .; then
+        rm -f "$TEMPLATE_ARCHIVE.tmp"
+        fail rootfs_template_archive_failed 70
+    fi
+    if ! mv "$TEMPLATE_ARCHIVE.tmp" "$TEMPLATE_ARCHIVE"; then
+        rm -f "$TEMPLATE_ARCHIVE.tmp"
+        fail rootfs_template_archive_failed 70
+    fi
+}
+# Replaces $2 (container directory named $1) with a fresh extraction of the shared template
+# archive -- independent real files, no hardlinks, so it works on filesystems that reject them.
+extract_template_into() {
     name=$1
     directory=$2
-    template=$3
     if [ -d "$directory" ]; then
         if ! run_logged "$PROOT_DISTRO" remove --quiet "$name"; then
             fail proot_distro_container_remove_failed 70
         fi
     fi
-    mkdir -p "$(dirname "$directory")"
-    if ! run_logged cp -al "$template" "$directory"; then
-        fail rootfs_template_clone_failed 70
+    mkdir -p "$directory"
+    if ! run_logged tar -C "$directory" --use-compress-program "$TEMPLATE_COMPRESSOR" \
+        --numeric-owner -xpf "$TEMPLATE_ARCHIVE"; then
+        fail rootfs_template_extract_failed 70
     fi
 }
 
 if ! runtime_complete "$ROOTFS"; then
     if runtime_complete "$TEMPLATE_ROOTFS"; then
-        progress '==> [3/4] Cloning the shared runtime template for this recipe (skips package install)'
+        progress '==> [3/4] Reusing the shared runtime template for this recipe (skips package install)'
     else
         build_runtime_into "$TEMPLATE_CONTAINER_NAME" "$TEMPLATE_DIRECTORY" "$TEMPLATE_ROOTFS"
         runtime_complete "$TEMPLATE_ROOTFS" || fail rootfs_template_build_invalid 70
-        progress '==> Cloning the newly-built template into this container'
     fi
-    clone_template_into "$CONTAINER_NAME" "$CONTAINER_DIRECTORY" "$TEMPLATE_DIRECTORY"
+    progress '==> Extracting the shared runtime template into this container'
+    ensure_template_archive
+    extract_template_into "$CONTAINER_NAME" "$CONTAINER_DIRECTORY"
 fi
 
 if ! runtime_complete "$ROOTFS"; then
