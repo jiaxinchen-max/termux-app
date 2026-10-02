@@ -249,36 +249,9 @@ manifest_has graphicsDrivers "$GRAPHICS_DRIVER" || terminal_failure rootfs_graph
 manifest_has dxWrappers "$DX_WRAPPER" || terminal_failure rootfs_dx_wrapper_missing
 [ "$GRAPHICS_DRIVER:$DX_WRAPPER" != rootfs-virgl-mesa:rootfs-dxvk ] || \
     terminal_failure runtime_combination_unsupported:virgl_dxvk
-RUNTIME_TRANSLATOR=${GAMES_RUNTIME_TRANSLATOR:-}
-[ -n "$RUNTIME_TRANSLATOR" ] || case "$WINE_PACKAGE" in hangover-*) RUNTIME_TRANSLATOR=hangover ;; *) RUNTIME_TRANSLATOR=box64 ;; esac
-case "$RUNTIME_TRANSLATOR" in
-    hangover)
-        case "$WINE_PACKAGE" in hangover-*) ;; *) terminal_failure runtime_translator_package_mismatch null true ;; esac
-        GUEST_COMMAND=/usr/bin/wine
-        GUEST_WINEBOOT=/usr/bin/wineboot
-        [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || terminal_failure rootfs_wine_missing null true
-        [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || terminal_failure rootfs_wineboot_missing null true
-        ;;
-    box64)
-        case "$WINE_PACKAGE" in box64-wine*) ;; *) terminal_failure runtime_translator_package_mismatch null true ;; esac
-        GUEST_COMMAND=/usr/local/bin/box64
-        GUEST_WINE=/opt/box64-wine/bin/wine
-        GUEST_WINEBOOT=/opt/box64-wine/bin/wineboot
-        [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || terminal_failure rootfs_box64_missing null true
-        [ -x "$ROOTFS_CANONICAL$GUEST_WINE" ] || terminal_failure rootfs_wine_missing null true
-        [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || terminal_failure rootfs_wineboot_missing null true
-        ;;
-    fex)
-        case "$WINE_PACKAGE" in box64-wine*) ;; *) terminal_failure runtime_translator_package_mismatch null true ;; esac
-        GUEST_COMMAND=/usr/bin/FEXInterpreter
-        GUEST_WINE=/opt/box64-wine/bin/wine
-        GUEST_WINEBOOT=/opt/box64-wine/bin/wineboot
-        [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || terminal_failure rootfs_fex_missing null true
-        [ -x "$ROOTFS_CANONICAL$GUEST_WINE" ] || terminal_failure rootfs_wine_missing null true
-        [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || terminal_failure rootfs_wineboot_missing null true
-        ;;
-    *) terminal_failure runtime_translator_unsupported null true ;;
-esac
+warmup_fail() { terminal_failure "$1" null true; }
+. "$(dirname "$SCRIPT_PATH")/rootfs_prefix_warmup.sh"
+resolve_rootfs_translator
 
 ROOT_CANONICAL=$(realpath "$GAME_ROOT" 2>/dev/null) || terminal_failure game_root_unreadable null true
 EXE_CANONICAL=$(realpath "$GAME_ROOT/$EXECUTABLE" 2>/dev/null) || terminal_failure game_executable_unreadable null true
@@ -464,38 +437,7 @@ case "$AUDIO_DRIVER" in
     *) terminal_failure rootfs_audio_driver_missing null true ;;
 esac
 
-PREFIX_MARKER_DIR="$PREFIX_PATH/.games-runtime"
-ROOTFS_LOCALE_MARKER="$PREFIX_MARKER_DIR/rootfs-zh-cn-locale"
-EXPECTED_ROOTFS_LOCALE_MARKER="$RUNTIME_ROOT_PATH|zh_CN.UTF-8|v1"
-CURRENT_ROOTFS_LOCALE_MARKER=
-[ ! -f "$ROOTFS_LOCALE_MARKER" ] || \
-    CURRENT_ROOTFS_LOCALE_MARKER=$(sed -n '1p' "$ROOTFS_LOCALE_MARKER" 2>/dev/null)
-if [ "$CURRENT_ROOTFS_LOCALE_MARKER" != "$EXPECTED_ROOTFS_LOCALE_MARKER" ]; then
-    printf '%s\n' 'Preparing zh_CN UTF-8 and GBK locales in the RootFS runtime.' >> "$LOG_PATH"
-    if [ ! -x "$ROOTFS_CANONICAL/usr/sbin/locale-gen" ]; then
-        run_rootfs_command /usr/bin/apt-get update >> "$LOG_PATH" 2>&1 && \
-        run_rootfs_command /usr/bin/apt-get install -y --no-install-recommends locales \
-            >> "$LOG_PATH" 2>&1 || \
-            printf '%s\n' 'RootFS locale package installation failed.' >> "$LOG_PATH"
-    fi
-    if [ -x "$ROOTFS_CANONICAL/usr/sbin/locale-gen" ]; then
-        run_rootfs_command /bin/sh -c \
-            "sed -i 's/^# *zh_CN.GBK GBK/zh_CN.GBK GBK/' /etc/locale.gen && \
-             sed -i 's/^# *zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen && \
-             /usr/sbin/locale-gen" >> "$LOG_PATH" 2>&1 && \
-        run_rootfs_command /bin/sh -c "locale -a | grep -qi '^zh_CN.utf8$'" \
-            >> "$LOG_PATH" 2>&1
-        if [ "$?" -eq 0 ]; then
-            mkdir -p "$PREFIX_MARKER_DIR"
-            printf '%s\n' "$EXPECTED_ROOTFS_LOCALE_MARKER" > "$ROOTFS_LOCALE_MARKER"
-            GUEST_LOCALE=zh_CN.UTF-8
-        else
-            printf '%s\n' 'RootFS zh_CN locale generation failed; retaining C.UTF-8.' >> "$LOG_PATH"
-        fi
-    fi
-else
-    GUEST_LOCALE=zh_CN.UTF-8
-fi
+warmup_rootfs_prefix
 
 # English uses the always-present C.UTF-8 locale; Chinese uses the locale
 # setuped above. This remains a game-level override.
@@ -503,166 +445,6 @@ case "${GAMES_LOCALE:-}" in
     en_US.UTF-8|en_US.utf8) GUEST_LOCALE=C.UTF-8 ;;
     zh_CN.UTF-8|zh_CN.utf8) GUEST_LOCALE=zh_CN.UTF-8 ;;
 esac
-
-GUEST_CJK_FONT=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
-if [ ! -f "$ROOTFS_CANONICAL$GUEST_CJK_FONT" ]; then
-    printf '%s\n' 'Installing Noto CJK fonts into the active RootFS runtime.' >> "$LOG_PATH"
-    if ! run_rootfs_command /usr/bin/apt-get update >> "$LOG_PATH" 2>&1 || \
-        ! run_rootfs_command /usr/bin/apt-get install -y --no-install-recommends \
-            fontconfig fonts-noto-cjk >> "$LOG_PATH" 2>&1; then
-        printf '%s\n' 'Noto CJK font installation failed; Wine may render CJK text as squares.' \
-            >> "$LOG_PATH"
-    else
-        run_rootfs_command /usr/bin/fc-cache -f >> "$LOG_PATH" 2>&1 || true
-    fi
-fi
-
-PREFIX_MARKER="$PREFIX_MARKER_DIR/runtime"
-EXPECTED_PREFIX_MARKER="$RUNTIME_ROOT_PATH|$WINE_PACKAGE"
-CURRENT_PREFIX_MARKER=
-[ ! -f "$PREFIX_MARKER" ] || CURRENT_PREFIX_MARKER=$(sed -n '1p' "$PREFIX_MARKER" 2>/dev/null)
-if [ "$CURRENT_PREFIX_MARKER" != "$EXPECTED_PREFIX_MARKER" ]; then
-    if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
-        run_rootfs_command "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
-    else
-        run_rootfs_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
-    fi
-    PROOT_PID=$!
-    PREFIX_STARTED_AT=$(date +%s)
-    while kill -0 "$PROOT_PID" 2>/dev/null; do
-        [ ! -e "$CANCEL_PATH" ] || { CANCELLED=1; kill "$PROOT_PID" 2>/dev/null || true; break; }
-        now=$(date +%s)
-        if [ $((now - PREFIX_STARTED_AT)) -ge 180 ]; then
-            kill "$PROOT_PID" 2>/dev/null || true
-            wait "$PROOT_PID" 2>/dev/null || true
-            PROOT_PID=
-            terminal_failure rootfs_prefix_initialization_timeout null true
-        fi
-        sleep 1
-    done
-    wait "$PROOT_PID"
-    PREFIX_EXIT_CODE=$?
-    PROOT_PID=
-    [ "$CANCELLED" = 1 ] || [ "$PREFIX_EXIT_CODE" -eq 0 ] || \
-        terminal_failure rootfs_prefix_initialization_failed "$PREFIX_EXIT_CODE" true
-    if [ "$CANCELLED" = 0 ]; then
-        mkdir -p "$PREFIX_MARKER_DIR"
-        printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
-    fi
-fi
-
-# Wine registers Linux fonts, but Hangover's `wine reg add` can report success
-# without persisting the value.  Use the same .reg import path as Termux-box and
-# also keep the CJK TTC files in the Windows font directory for applications
-# that enumerate only C:\\Windows\\Fonts.
-FONT_MARKER="$PREFIX_MARKER_DIR/cjk-fonts"
-EXPECTED_FONT_MARKER="$RUNTIME_ROOT_PATH|$WINE_PACKAGE|Noto Sans CJK SC|v4"
-FONT_LINK_REGISTRY_VALUE='"Tahoma"=hex(7):4e,00,6f,00,74,00,6f,00,53,00,61,00,6e,00,73,00,43,00,4a,00,4b,00,2d,00,52,00,65,00,67,00,75,00,6c,00,61,00,72,00,2e,00,74,00,74,00,63,00,2c,00,4e,00,6f,00,74,00,6f,00,20,00,53,00,61,00,6e,00,73,00,20,00,43,00,4a,00,4b,00,20,00,53,00,43,00,00,00,00,00'
-CURRENT_FONT_MARKER=
-[ ! -f "$FONT_MARKER" ] || CURRENT_FONT_MARKER=$(sed -n '1p' "$FONT_MARKER" 2>/dev/null)
-if [ -f "$ROOTFS_CANONICAL$GUEST_CJK_FONT" ] && \
-    [ "$CURRENT_FONT_MARKER" != "$EXPECTED_FONT_MARKER" ]; then
-    FONT_DIRECTORY="$PREFIX_PATH/drive_c/windows/Fonts"
-    FONT_REGISTRY_FILE="$PREFIX_MARKER_DIR/cjk-fonts.reg"
-    GUEST_FONT_REGISTRY_FILE="$GUEST_PREFIX/.games-runtime/cjk-fonts.reg"
-    mkdir -p "$FONT_DIRECTORY" "$PREFIX_MARKER_DIR"
-    cp "$ROOTFS_CANONICAL/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" \
-        "$FONT_DIRECTORY/NotoSansCJK-Regular.ttc" && \
-    cp "$ROOTFS_CANONICAL/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc" \
-        "$FONT_DIRECTORY/NotoSansCJK-Bold.ttc" || \
-        printf '%s\n' 'Failed to copy Noto CJK fonts into the Wine prefix.' >> "$LOG_PATH"
-    {
-        printf '%s\n' 'REGEDIT4'
-        printf '\n'
-        printf '%s\n' '[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\FontSubstitutes]'
-        printf '%s\n' '"MS Shell Dlg"="Tahoma"'
-        printf '%s\n' '"MS Shell Dlg 2"="Tahoma"'
-        printf '%s\n' '"Microsoft Sans Serif"="Noto Sans CJK SC"'
-        printf '%s\n' '"SimSun"="Noto Sans CJK SC"'
-        printf '%s\n' '"NSimSun"="Noto Sans CJK SC"'
-        printf '%s\n' '"Microsoft YaHei"="Noto Sans CJK SC"'
-        printf '\n'
-        printf '%s\n' '[HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\FontSubstitutes]'
-        printf '%s\n' '"MS Shell Dlg"="Tahoma"'
-        printf '%s\n' '"MS Shell Dlg 2"="Tahoma"'
-        printf '%s\n' '"Microsoft Sans Serif"="Noto Sans CJK SC"'
-        printf '%s\n' '"SimSun"="Noto Sans CJK SC"'
-        printf '%s\n' '"NSimSun"="Noto Sans CJK SC"'
-        printf '%s\n' '"Microsoft YaHei"="Noto Sans CJK SC"'
-        printf '\n'
-        printf '%s\n' '[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\FontLink\SystemLink]'
-        printf '%s\n' "$FONT_LINK_REGISTRY_VALUE"
-        printf '%s\n' "\"Tahoma Bold\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Shell Dlg\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Shell Dlg 2\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Microsoft Sans Serif\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Sans Serif\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Lucida Sans Unicode\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Arial\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Arial Black\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '\n'
-        printf '%s\n' '[HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\FontLink\SystemLink]'
-        printf '%s\n' "$FONT_LINK_REGISTRY_VALUE"
-        printf '%s\n' "\"Tahoma Bold\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Shell Dlg\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Shell Dlg 2\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Microsoft Sans Serif\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Sans Serif\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Lucida Sans Unicode\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Arial\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Arial Black\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-    } > "$FONT_REGISTRY_FILE"
-    # Hangover's regedit can exit successfully without flushing HKEY_LOCAL_MACHINE
-    # when the prefix is bind-mounted through PRoot.  system.reg is Wine's durable
-    # registry hive and is not in use until the game Wine server starts below.
-    {
-        printf '\n'
-        printf '%s\n' '[Software\\Microsoft\\Windows NT\\CurrentVersion\\FontSubstitutes]'
-        printf '%s\n' '"MS Shell Dlg"="Tahoma"'
-        printf '%s\n' '"MS Shell Dlg 2"="Tahoma"'
-        printf '%s\n' '"Microsoft Sans Serif"="Noto Sans CJK SC"'
-        printf '%s\n' '"SimSun"="Noto Sans CJK SC"'
-        printf '%s\n' '"NSimSun"="Noto Sans CJK SC"'
-        printf '%s\n' '"Microsoft YaHei"="Noto Sans CJK SC"'
-        printf '\n'
-        printf '%s\n' '[Software\\Microsoft\\Windows NT\\CurrentVersion\\FontLink\\SystemLink]'
-        printf '%s\n' "$FONT_LINK_REGISTRY_VALUE"
-        printf '%s\n' "\"Tahoma Bold\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Shell Dlg\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Shell Dlg 2\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Microsoft Sans Serif\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Sans Serif\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Lucida Sans Unicode\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Arial\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Arial Black\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '\n'
-        printf '%s\n' '[Software\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\FontSubstitutes]'
-        printf '%s\n' '"MS Shell Dlg"="Tahoma"'
-        printf '%s\n' '"MS Shell Dlg 2"="Tahoma"'
-        printf '%s\n' '"Microsoft Sans Serif"="Noto Sans CJK SC"'
-        printf '%s\n' '"SimSun"="Noto Sans CJK SC"'
-        printf '%s\n' '"NSimSun"="Noto Sans CJK SC"'
-        printf '%s\n' '"Microsoft YaHei"="Noto Sans CJK SC"'
-        printf '\n'
-        printf '%s\n' '[Software\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\FontLink\\SystemLink]'
-        printf '%s\n' "$FONT_LINK_REGISTRY_VALUE"
-        printf '%s\n' "\"Tahoma Bold\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Shell Dlg\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Shell Dlg 2\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Microsoft Sans Serif\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"MS Sans Serif\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Lucida Sans Unicode\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Arial\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-        printf '%s\n' "\"Arial Black\"=${FONT_LINK_REGISTRY_VALUE#*=}"
-    } >> "$PREFIX_PATH/system.reg"
-    if grep -F "$FONT_LINK_REGISTRY_VALUE" "$PREFIX_PATH/system.reg" \
-        >/dev/null 2>&1; then
-        mkdir -p "$PREFIX_MARKER_DIR"
-        printf '%s\n' "$EXPECTED_FONT_MARKER" > "$FONT_MARKER"
-    else
-        printf '%s\n' 'Wine CJK FontLink registry setup failed.' >> "$LOG_PATH"
-    fi
-fi
 
 case "$DX_WRAPPER" in
     rootfs-dxvk)

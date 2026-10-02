@@ -22,9 +22,12 @@ import com.termux.localgames.api.RuntimeSetupTasks;
 import com.termux.localgames.components.ComponentStoragePaths;
 import com.termux.localgames.components.install.ComponentInstallationReader;
 import com.termux.localgames.components.install.InstalledComponent;
+import com.termux.localgames.data.FileGameContainerRepository;
 import com.termux.localgames.data.FileRuntimeSetupTaskRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.data.RootfsSetupSpecCodec;
+import com.termux.localgames.domain.GameContainer;
+import com.termux.localgames.domain.GameRuntimeBackendType;
 import com.termux.localgames.domain.RuntimeSetupTask;
 import com.termux.localgames.domain.RuntimeSetupTaskState;
 import com.termux.localgames.runtime.RootfsSetupRecipe;
@@ -60,6 +63,7 @@ public final class RootfsSetupForegroundService extends Service {
     private GameStoragePaths paths;
     private FileRuntimeSetupTaskRepository tasks;
     private ComponentInstallationReader components;
+    private FileGameContainerRepository containers;
     private LocalGamesHost host;
 
     @Override
@@ -69,6 +73,7 @@ public final class RootfsSetupForegroundService extends Service {
         tasks = new FileRuntimeSetupTaskRepository(paths.getRuntimeSetupTasksDirectory());
         components = new ComponentInstallationReader(
             new ComponentStoragePaths(getFilesDir()).getInstallDirectory());
+        containers = new FileGameContainerRepository(paths.getContainersDirectory());
         host = LocalGames.requireHost(this);
         executor = Executors.newSingleThreadScheduledExecutor(runnable ->
             new Thread(runnable, "GamesRootfsSetup"));
@@ -85,11 +90,13 @@ public final class RootfsSetupForegroundService extends Service {
         String taskId = intent.getStringExtra(RuntimeSetupTasks.EXTRA_TASK_ID);
         String packageName = intent.getStringExtra(RuntimeSetupTasks.EXTRA_PACKAGE_NAME);
         String containerId = intent.getStringExtra(RuntimeSetupTasks.EXTRA_CONTAINER_ID);
+        boolean baseOnly = intent.getBooleanExtra(RuntimeSetupTasks.EXTRA_BASE_ONLY, false);
         pendingCommands.incrementAndGet();
         executor.execute(() -> {
             try {
                 if (RuntimeSetupTasks.ACTION_ENQUEUE.equals(action)) {
-                    enqueue(requiredId(taskId), requiredId(packageName), requiredId(containerId));
+                    enqueue(requiredId(taskId), requiredId(packageName), requiredId(containerId),
+                        baseOnly);
                 } else if (RuntimeSetupTasks.ACTION_RECONCILE.equals(action)) {
                     reconcile(requiredTask(requiredId(taskId)));
                 } else if (RuntimeSetupTasks.ACTION_RECONCILE_ALL.equals(action)) {
@@ -119,7 +126,8 @@ public final class RootfsSetupForegroundService extends Service {
         super.onDestroy();
     }
 
-    private void enqueue(String taskId, String packageName, String containerId) throws Exception {
+    private void enqueue(String taskId, String packageName, String containerId, boolean baseOnly)
+        throws Exception {
         if (tasks.find(taskId).isPresent()) return;
         if (com.termux.localgames.domain.GameContainer.DEFAULT_ID.equals(containerId)) {
             throw new IOException("rootfs_container_must_be_independent");
@@ -134,7 +142,7 @@ public final class RootfsSetupForegroundService extends Service {
         String containerName = containerId;
         RuntimeSetupTask task = RuntimeSetupTask.queued(taskId, packageName,
             recipe.getVersion(), assets.getRecipeSha256(), recipe.getSourceComponentId(),
-            containerId, containerName, System.currentTimeMillis());
+            containerId, containerName, baseOnly, System.currentTimeMillis());
         tasks.save(task);
         prepareAndStart(task, source, assets);
     }
@@ -163,9 +171,24 @@ public final class RootfsSetupForegroundService extends Service {
             File events = eventFile(task.getTaskId());
             File log = new File(paths.getRuntimeSetupLogsDirectory(), task.getTaskId() + ".log");
             File context = new File(paths.getRuntimeSetupStagingDirectory(), task.getTaskId());
+            // Empty for BASE_ONLY tasks (no per-game container/prefix to warm) -- the script
+            // never reaches the warmup call site in that case.
+            String winePackage = null;
+            File winePrefixDirectory = null;
+            File prefixWarmupScript = null;
+            if (!task.isBaseOnly()) {
+                GameContainer container = containers.find(task.getContainerId())
+                    .orElseThrow(() -> new IOException("rootfs_container_missing"));
+                winePackage = container.getWinePackage();
+                winePrefixDirectory = paths.getContainerPrefixDirectory(task.getContainerId(),
+                    GameRuntimeBackendType.ROOTFS_PROOT);
+                prefixWarmupScript = new LaunchScriptInstaller(this, paths)
+                    .installRootfsPrefixWarmup();
+            }
             new RootfsSetupSpecCodec().write(spec, preparing, assets.recipeDirectory,
                 source.getDirectory(), context,
-                paths.getRootfsRuntimeDirectory(task.getContainerId()), events, log);
+                paths.getRootfsRuntimeDirectory(task.getContainerId()), events, log,
+                winePackage, winePrefixDirectory, prefixWarmupScript);
             host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 assets.script.getCanonicalPath(), spec.getCanonicalPath(),
                 paths.getRuntimeSetupDirectory().getCanonicalPath()));
@@ -200,12 +223,20 @@ public final class RootfsSetupForegroundService extends Service {
 
     private void reconcile(RuntimeSetupTask task) throws Exception {
         SetupEvent event = readLastEvent(eventFile(task.getTaskId()));
-        if (event.state == Event.SUCCEEDED || activeMatches(task)) {
+        // A BASE_ONLY build never creates or activates a real game container (that is the whole
+        // point -- no orphan container is left behind), so activeMatches() can never observe it
+        // as active. Its own script-emitted SUCCEEDED event is the only completion signal.
+        boolean succeeded = task.isBaseOnly()
+            ? event.state == Event.SUCCEEDED
+            : (event.state == Event.SUCCEEDED || activeMatches(task));
+        if (succeeded) {
             RuntimeSetupTask current = requiredTask(task.getTaskId());
             if (!current.getState().isTerminal()) {
                 RuntimeSetupTask verifying = transition(current,
                     RuntimeSetupTaskState.VERIFYING, "");
-                if (!activeMatches(verifying)) throw new IOException("rootfs_activation_invalid");
+                if (!task.isBaseOnly() && !activeMatches(verifying)) {
+                    throw new IOException("rootfs_activation_invalid");
+                }
                 RuntimeSetupTask activating = transition(verifying,
                     RuntimeSetupTaskState.ACTIVATING, "");
                 transition(activating, RuntimeSetupTaskState.SUCCEEDED, "");

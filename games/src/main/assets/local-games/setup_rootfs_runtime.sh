@@ -18,11 +18,17 @@ SOURCE_DIRECTORY=
 METADATA_ROOT=
 EVENTS_PATH=
 LOG_PATH=
+BASE_ONLY=false
+WINE_PREFIX_DIRECTORY=
+WINE_PACKAGE=
+PREFIX_WARMUP_SCRIPT=
 COMPLETED=false
 FAILURE_CODE=setup_script_failed
+WARMUP_DISPLAY_PID=
 
 on_exit() {
     status=$?
+    [ -z "$WARMUP_DISPLAY_PID" ] || kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
     if [ "$status" -ne 0 ] && [ "$COMPLETED" = false ] && [ -n "$EVENTS_PATH" ]; then
         event_directory=${EVENTS_PATH%/*}
         mkdir -p "$event_directory" 2>/dev/null || true
@@ -62,10 +68,20 @@ while IFS='=' read -r key value; do
         metadataRoot) METADATA_ROOT=$value ;;
         eventsPath) EVENTS_PATH=$value ;;
         logPath) LOG_PATH=$value ;;
+        baseOnly) BASE_ONLY=$value ;;
+        winePrefixDirectory) WINE_PREFIX_DIRECTORY=$value ;;
+        winePackage) WINE_PACKAGE=$value ;;
+        prefixWarmupScript) PREFIX_WARMUP_SCRIPT=$value ;;
         '') ;;
         *) fail invalid_setup_spec 64 ;;
     esac
 done < "$SPEC_PATH"
+case "$BASE_ONLY" in true|false) ;; *) fail invalid_setup_spec 64 ;; esac
+if [ "$BASE_ONLY" = false ]; then
+    case "$WINE_PACKAGE" in ''|*[!A-Za-z0-9._-]*) fail invalid_setup_wine_package 64 ;; esac
+    [ -n "$WINE_PREFIX_DIRECTORY" ] || fail invalid_setup_spec 64
+    [ -n "$PREFIX_WARMUP_SCRIPT" ] || fail invalid_setup_spec 64
+fi
 
 for value in "$TASK_ID" "$PACKAGE_NAME" "$CONTAINER_ID" "$CONTAINER_NAME"; do
     case "$value" in ''|*[!A-Za-z0-9._-]*) fail invalid_setup_identifier 64 ;; esac
@@ -80,8 +96,30 @@ PRIVATE_ROOT=${SPEC_PATH%/runtime/setup/specs/*}
 case "$SPEC_PATH" in "$PRIVATE_ROOT"/runtime/setup/specs/*.setupspec) ;; *)
     fail invalid_setup_spec_path 64 ;;
 esac
+# The app's own files-dir, in the exact string form Java's File.getCanonicalPath() produces
+# (SPEC_PATH itself came from that, via RootfsSetupForegroundService -> spec.getCanonicalPath()).
+# Used only for the proot-distro container/template storage paths below -- NOT for the Termux
+# installation prefix ($PREFIX below), which is a separate, always-stable convention. Modern
+# Android resolves a Context's files dir under /data/user/<id>/..., while a bare hardcoded
+# "/data/data/..." guess (the old $PREFIX-based derivation this replaces) can land on a
+# different-but-equivalent path in another process's mount view. Both paths work fine for actual
+# file I/O (the OS maps them to the same storage), but a text-equality marker check comparing
+# "was this already warmed" written from one and read from the other would never match -- which
+# is exactly why the RootFS prefix warmup done at import/save time was silently redone, in full,
+# every time at launch. Keying every container/template path off this single Java-derived string
+# instead, consistently, is what makes the marker comparison agree across both call sites.
+TERMUX_FILES_ROOT=${PRIVATE_ROOT%/games}
+[ -n "$TERMUX_FILES_ROOT" ] && [ "$TERMUX_FILES_ROOT" != "$PRIVATE_ROOT" ] || \
+    fail invalid_setup_spec_path 64
 for path in "$SPEC_PATH" "$BUILD_CONTEXT" "$RECIPE_DIRECTORY" "$SOURCE_DIRECTORY" \
     "$METADATA_ROOT" "$EVENTS_PATH" "$LOG_PATH"; do
+    case "$path" in "$PRIVATE_ROOT"/*) ;; *) fail setup_path_outside_private_storage 64 ;; esac
+    case "$path" in *'/../'*|*/..|*'/./'*|*/.) fail invalid_setup_private_path 64 ;; esac
+done
+# Empty for BASE_ONLY tasks (no per-game container/prefix involved); validated like the above
+# whenever actually supplied.
+for path in "$WINE_PREFIX_DIRECTORY" "$PREFIX_WARMUP_SCRIPT"; do
+    [ -n "$path" ] || continue
     case "$path" in "$PRIVATE_ROOT"/*) ;; *) fail setup_path_outside_private_storage 64 ;; esac
     case "$path" in *'/../'*|*/..|*'/./'*|*/.) fail invalid_setup_private_path 64 ;; esac
 done
@@ -117,32 +155,39 @@ run_logged() {
 
 PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
 PROOT_DISTRO="$PREFIX/bin/proot-distro"
-CONTAINER_DIRECTORY="$PREFIX/var/lib/proot-distro/containers/$CONTAINER_NAME"
+CONTAINERS_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/containers"
+CONTAINER_DIRECTORY="$CONTAINERS_DIRECTORY/$CONTAINER_NAME"
 ROOTFS="$CONTAINER_DIRECTORY/rootfs"
 BASE_IMAGE=debian:trixie-20260824
 # Every container built from the same recipe (same box64/Wine source component, same
-# setup-container.sh/games-runtime.properties, same version of this script -- that is
-# exactly what RECIPE_SHA256 hashes) would otherwise redo an identical multi-hundred-MB
-# download+unpack+apt-install. Build that once into a reserved "tmpl-" pseudo-container and
-# hardlink-clone it into every real container instead. "tmpl-" is never a real containerId
-# (those are generated, not user-chosen), so it never collides with, and is invisible to,
-# the reset/backup/asset-scanning code paths that key off real containerIds.
-TEMPLATE_CONTAINER_NAME="tmpl-${RECIPE_SHA256%${RECIPE_SHA256#????????????????}}"
-TEMPLATE_DIRECTORY="$PREFIX/var/lib/proot-distro/containers/$TEMPLATE_CONTAINER_NAME"
-TEMPLATE_ROOTFS="$TEMPLATE_DIRECTORY/rootfs"
-# The built template is archived once and every real container is produced by extracting that
-# archive -- independent real files, no hardlinks. Some Android data partitions reject hardlinks
-# outright (link() returns EPERM even for a self-owned file), which made the old `cp -al` clone
-# fail for every game; tar extraction is also exactly how proot-distro rootfs images normally
-# ship. The cache lives beside containers/ (never under it) so it is not mistaken for a container
-# and never matches the "tmpl-*" readiness scan. reset_rootfs_runtime.sh deletes the matching
-# archive when it resets the template, so "reset RootFS" still forces a full rebuild next time.
-TEMPLATE_CACHE_DIR="$PREFIX/var/lib/proot-distro/games-template-cache"
+# setup-container.sh/games-runtime.properties, same version of this script) would otherwise
+# redo an identical multi-hundred-MB download+unpack+apt-install. Build that once into a fixed,
+# reserved "tmpl-build" scratch container and archive it instead of hardlink-cloning it into every
+# real container. "tmpl-build" is never a real containerId (those are generated, not
+# user-chosen), so it never collides with, and is invisible to, the reset/backup/asset-scanning
+# code paths that key off real containerIds. A single fixed name (not one per recipe hash) is
+# safe because RuntimeInstallationGate.requireRootfsSlot() guarantees only one instance of this
+# script runs at a time system-wide, and the scratch directory is deleted at the end of every
+# build (see below) so nothing lingers between builds anyway.
+BUILD_CONTAINER_NAME=tmpl-build
+BUILD_DIRECTORY="$CONTAINERS_DIRECTORY/$BUILD_CONTAINER_NAME"
+BUILD_ROOTFS="$BUILD_DIRECTORY/rootfs"
+# The built template is archived once, under one fixed name (no recipe hash), and every real
+# container is produced by extracting that archive -- independent real files, no hardlinks. Some
+# Android data partitions reject hardlinks outright (link() returns EPERM even for a self-owned
+# file), which made the old `cp -al` clone fail for every game; tar extraction is also exactly how
+# proot-distro rootfs images normally ship. The cache lives beside containers/ (never under it) so
+# it is not mistaken for a container. A fixed name means there is always at most one archive on
+# disk -- this script's own BASE_ONLY path deletes it (and its sidecar) directly before
+# rebuilding, with no hash to recompute, so "rebuild RootFS" can never target a stale/wrong path
+# (the bug a recipe-hash-keyed name caused).
+TEMPLATE_CACHE_DIR="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-template-cache"
+TEMPLATE_RECIPE="$TEMPLATE_CACHE_DIR/games-rootfs-base.recipe"
 if command -v zstd >/dev/null 2>&1; then
-    TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/$TEMPLATE_CONTAINER_NAME.tar.zst"
+    TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base.tar.zst"
     TEMPLATE_COMPRESSOR=zstd
 else
-    TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/$TEMPLATE_CONTAINER_NAME.tar.gz"
+    TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base.tar.gz"
     TEMPLATE_COMPRESSOR=gzip
 fi
 supports_container_setup() {
@@ -234,14 +279,14 @@ build_runtime_into() {
         fail rootfs_guest_setup_failed 70
     fi
 }
-# Archives the already-built template container ($TEMPLATE_DIRECTORY, i.e. manifest.json +
+# Archives the already-built template container ($BUILD_DIRECTORY, i.e. manifest.json +
 # rootfs/ + shm/ + sysdata/) into $TEMPLATE_ARCHIVE once. Written to a .tmp then atomically
 # renamed, so a present archive is always complete. No-op if the archive already exists.
 ensure_template_archive() {
     [ -f "$TEMPLATE_ARCHIVE" ] && return 0
     mkdir -p "$TEMPLATE_CACHE_DIR"
     rm -f "$TEMPLATE_ARCHIVE.tmp"
-    if ! run_logged tar -C "$TEMPLATE_DIRECTORY" \
+    if ! run_logged tar -C "$BUILD_DIRECTORY" \
         --use-compress-program "$TEMPLATE_COMPRESSOR" -cf "$TEMPLATE_ARCHIVE.tmp" .; then
         rm -f "$TEMPLATE_ARCHIVE.tmp"
         fail rootfs_template_archive_failed 70
@@ -268,42 +313,87 @@ extract_template_into() {
     fi
 }
 
-# Reclaim superseded recipes: a recipe bump (new source component, recipe files, or this
-# script) changes RECIPE_SHA256 and therefore the template name, orphaning the previous ~3GB
-# "tmpl-<oldSha>" directory and its cached archive forever. No game ever sets up against an old
-# recipe again (all games share the current one), so drop every template dir and archive that is
-# not the current recipe's before extracting -- otherwise each bump permanently leaks a full
-# rootfs and the data partition fills up.
-if [ -d "$PREFIX/var/lib/proot-distro/containers" ]; then
-    for old_template in "$PREFIX"/var/lib/proot-distro/containers/tmpl-*; do
-        [ -d "$old_template" ] || continue
-        case "$old_template" in */"$TEMPLATE_CONTAINER_NAME") continue ;; esac
-        run_logged rm -rf "$old_template"
+# Reclaim stray build dirs / archives left by an older version of this script (hash-named
+# tmpl-<sha> dirs, hash-named cache archives) or by an interrupted BASE_ONLY rebuild. No game
+# ever reads any of these directly, so it is always safe to drop anything that is not the current
+# fixed-name artifact.
+if [ "$BASE_ONLY" = true ]; then
+    # A rebuild must actually replace the archive, not silently reuse a stale one --
+    # ensure_template_archive() below is a no-op when the archive already exists, so force a
+    # real rebuild by clearing it first. Harmless (a no-op delete) on a first-ever "Build" too.
+    rm -f "$TEMPLATE_ARCHIVE" "$TEMPLATE_ARCHIVE.tmp" "$TEMPLATE_RECIPE"
+fi
+if [ -d "$CONTAINERS_DIRECTORY" ]; then
+    for stray_container in "$CONTAINERS_DIRECTORY"/tmpl-*; do
+        [ -d "$stray_container" ] || continue
+        case "$stray_container" in */"$BUILD_CONTAINER_NAME") continue ;; esac
+        run_logged rm -rf "$stray_container"
     done
 fi
 if [ -d "$TEMPLATE_CACHE_DIR" ]; then
-    for old_archive in "$TEMPLATE_CACHE_DIR"/tmpl-*.tar.*; do
-        [ -f "$old_archive" ] || continue
-        case "$old_archive" in "$TEMPLATE_ARCHIVE"|"$TEMPLATE_ARCHIVE.tmp") continue ;; esac
-        rm -f "$old_archive"
+    for stray_archive in "$TEMPLATE_CACHE_DIR"/*.tar.*; do
+        [ -f "$stray_archive" ] || continue
+        case "$stray_archive" in "$TEMPLATE_ARCHIVE"|"$TEMPLATE_ARCHIVE.tmp") continue ;; esac
+        rm -f "$stray_archive"
     done
 fi
 
-if ! runtime_complete "$ROOTFS"; then
-    if runtime_complete "$TEMPLATE_ROOTFS"; then
-        progress '==> [3/4] Reusing the shared runtime template for this recipe (skips package install)'
-    else
-        build_runtime_into "$TEMPLATE_CONTAINER_NAME" "$TEMPLATE_DIRECTORY" "$TEMPLATE_ROOTFS"
-        runtime_complete "$TEMPLATE_ROOTFS" || fail rootfs_template_build_invalid 70
+if [ ! -f "$TEMPLATE_ARCHIVE" ]; then
+    if ! runtime_complete "$BUILD_ROOTFS"; then
+        build_runtime_into "$BUILD_CONTAINER_NAME" "$BUILD_DIRECTORY" "$BUILD_ROOTFS"
+        runtime_complete "$BUILD_ROOTFS" || fail rootfs_template_build_invalid 70
     fi
-    progress '==> Extracting the shared runtime template into this container'
+    progress '==> Archiving the shared runtime template'
     ensure_template_archive
+    printf '%s\n' "$RECIPE_SHA256" > "$TEMPLATE_RECIPE.tmp" &&
+        mv "$TEMPLATE_RECIPE.tmp" "$TEMPLATE_RECIPE" || fail rootfs_template_archive_failed 70
+    rm -rf "$BUILD_DIRECTORY"
+fi
+
+if [ "$BASE_ONLY" = true ]; then
+    printf '{"schemaVersion":1,"taskId":"%s","state":"SUCCEEDED"}\n' "$TASK_ID" >> "$EVENTS_PATH"
+    progress '==> Base runtime build completed'
+    COMPLETED=true
+    exit 0
+fi
+
+if ! runtime_complete "$ROOTFS"; then
+    progress '==> Extracting the shared runtime template into this container'
     extract_template_into "$CONTAINER_NAME" "$CONTAINER_DIRECTORY"
 fi
 
 if ! runtime_complete "$ROOTFS"; then
     fail games_runtime_container_invalid 70
 fi
+
+# Warms this container's Wine prefix (locale, CJK fonts, `wineboot -u`) right now, at
+# import/config-save time, instead of leaving it for the user's first Launch tap -- see
+# rootfs_prefix_warmup.sh, shared with start_rootfs_game.sh so the same marker files this writes
+# are recognized there and skipped (near-instant) on every subsequent launch. A confirmed design
+# choice: unlike RuntimeWarmup's own "never throws" wrapper, a warmup failure here fails this
+# whole setup task (surfaced as FAILED/retry in the Components tab) rather than being silently
+# deferred to launch time.
+progress '==> Warming the Wine prefix for this container (locale, CJK fonts, wineboot)'
+warmup_fail() { fail "$1" 70; }
+. "$PREFIX_WARMUP_SCRIPT"
+ROOTFS_CANONICAL=$(realpath "$ROOTFS") || fail rootfs_unreadable 70
+PREFIX_PATH="$WINE_PREFIX_DIRECTORY"
+RUNTIME_ROOT_PATH="$ROOTFS_CANONICAL"
+CANCEL_PATH=
+TERMUX_FILES_DIR="$TERMUX_FILES_ROOT"
+PROOT_BIN="$PREFIX/bin/proot"
+mkdir -p "$PREFIX_PATH"
+command -v termux-x11 >/dev/null 2>&1 || fail rootfs_prefix_warmup_display_missing 70
+# Runs on a dedicated display number, never the shared ":0" a real game session on another
+# container might concurrently be using -- RuntimeInstallationGate only serializes setup/reset
+# tasks against each other, not against an already-running game.
+MAINTENANCE_DISPLAY=:9
+termux-x11 "$MAINTENANCE_DISPLAY" >> "$LOG_PATH" 2>&1 &
+WARMUP_DISPLAY_PID=$!
+resolve_rootfs_translator
+warmup_rootfs_prefix
+kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
+WARMUP_DISPLAY_PID=
 
 PACKAGE_ROOT="$METADATA_ROOT/$PACKAGE_NAME"
 VERSION_ID="v${VERSION}-${RECIPE_SHA256%${RECIPE_SHA256#????????????}}"

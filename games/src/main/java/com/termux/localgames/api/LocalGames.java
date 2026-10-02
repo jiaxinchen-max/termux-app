@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.termux.localgames.activity.GameImportActivity;
 import com.termux.localgames.activity.GameFileManagerActivity;
@@ -20,6 +21,13 @@ public final class LocalGames {
 
     private static volatile LocalGamesHostFactory hostFactory;
 
+    /** Consumed once by {@code LocalGamesActivity} to auto-open the live setup console for a
+     *  runtime warm-up task just enqueued by a runtime-options Save. */
+    public static final String EXTRA_PENDING_SETUP_TASK_ID =
+        "com.termux.localgames.extra.PENDING_SETUP_TASK_ID";
+    public static final String EXTRA_PENDING_SETUP_IS_ROOTFS =
+        "com.termux.localgames.extra.PENDING_SETUP_IS_ROOTFS";
+
     private LocalGames() {
     }
 
@@ -35,6 +43,22 @@ public final class LocalGames {
     @NonNull
     public static Intent createLaunchIntent(@NonNull Context context) {
         return new Intent(context, LocalGamesActivity.class);
+    }
+
+    /** Opens the Library tab and, once loaded, auto-shows the live console for a runtime
+     *  warm-up task just enqueued by a runtime-options Save -- reuses the existing single
+     *  {@code LocalGamesActivity} instance on the back stack instead of stacking a new one. */
+    @NonNull
+    public static Intent createLibraryIntentShowingSetupConsole(@NonNull Context context,
+                                                                  @Nullable String taskId,
+                                                                  boolean rootfs) {
+        Intent intent = createLaunchIntent(context)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        if (taskId != null) {
+            intent.putExtra(EXTRA_PENDING_SETUP_TASK_ID, taskId)
+                .putExtra(EXTRA_PENDING_SETUP_IS_ROOTFS, rootfs);
+        }
+        return intent;
     }
 
     /** Opens the component view scoped to one game's selected runtime backend. */

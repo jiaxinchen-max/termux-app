@@ -58,6 +58,7 @@ public final class FileRuntimeSetupTaskRepository implements RuntimeSetupTaskRep
             value.setProperty("sourceComponentId", task.getSourceComponentId());
             value.setProperty("containerId", task.getContainerId());
             value.setProperty("containerName", task.getContainerName());
+            value.setProperty("baseOnly", String.valueOf(task.isBaseOnly()));
             value.setProperty("state", task.getState().name());
             value.setProperty("errorCode", task.getErrorCode());
             value.setProperty("createdAt", String.valueOf(task.getCreatedAt()));
@@ -69,15 +70,17 @@ public final class FileRuntimeSetupTaskRepository implements RuntimeSetupTaskRep
         public RuntimeSetupTask fromProperties(Properties value) throws IOException {
             try {
                 String schemaVersion = value.getProperty("schemaVersion");
-                if (!"1".equals(schemaVersion) && !"2".equals(schemaVersion)) {
+                if (!"1".equals(schemaVersion) && !"2".equals(schemaVersion) &&
+                    !"3".equals(schemaVersion)) {
                     throw new IOException("setup_task_schema_unsupported");
                 }
                 return new RuntimeSetupTask(required(value, "taskId"),
                     required(value, "packageName"), Integer.parseInt(required(value, "version")),
                     required(value, "recipeSha256"), required(value, "sourceComponentId"),
-                    "2".equals(schemaVersion) ? required(value, "containerId") :
-                        required(value, "containerName"),
+                    "1".equals(schemaVersion) ? required(value, "containerName") :
+                        required(value, "containerId"),
                     required(value, "containerName"),
+                    "3".equals(schemaVersion) && "true".equals(value.getProperty("baseOnly")),
                     RuntimeSetupTaskState.valueOf(required(value, "state")),
                     value.getProperty("errorCode", ""),
                     Long.parseLong(required(value, "createdAt")),

@@ -23,14 +23,14 @@ public class FileResetTaskRepositoryTest {
     public void persistsResetStateAcrossRepositoryInstances() throws Exception {
         java.io.File directory = temporary.newFolder("reset-tasks");
         FileResetTaskRepository first = new FileResetTaskRepository(directory);
-        ResetTask queued = ResetTask.queued("reset-1", ResetTarget.ROOTFS,
+        ResetTask queued = ResetTask.queued("reset-1", ResetTarget.GLIBC,
             RECIPE_SHA256, 10);
         first.save(queued.transition(ResetTaskState.RUNNING, "", 20));
 
         ResetTask restored = new FileResetTaskRepository(directory).find("reset-1").get();
 
         assertEquals(ResetTaskState.RUNNING, restored.getState());
-        assertEquals(ResetTarget.ROOTFS, restored.getTarget());
+        assertEquals(ResetTarget.GLIBC, restored.getTarget());
         assertEquals(RECIPE_SHA256, restored.getResetKey());
         assertTrue(new java.io.File(directory, "reset-1.properties").isFile());
     }
@@ -39,16 +39,6 @@ public class FileResetTaskRepositoryTest {
     public void glibcResetHasNoResetKey() {
         ResetTask queued = ResetTask.queued("reset-2", ResetTarget.GLIBC, null, 5);
         assertEquals("", queued.getResetKey());
-    }
-
-    @Test
-    public void rootfsResetRequiresResetKey() {
-        try {
-            ResetTask.queued("reset-3", ResetTarget.ROOTFS, null, 5);
-            fail("expected IllegalArgumentException");
-        } catch (IllegalArgumentException expected) {
-            assertEquals("rootfs_reset_requires_key", expected.getMessage());
-        }
     }
 
     @Test

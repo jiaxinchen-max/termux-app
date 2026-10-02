@@ -5,6 +5,8 @@ import android.os.Bundle;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.termux.localgames.api.LocalGames;
+
 /** Full-screen fallback for the per-game runtime menu on narrow displays. */
 public final class GameRuntimeOptionsActivity extends AppCompatActivity {
 
@@ -16,7 +18,16 @@ public final class GameRuntimeOptionsActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         optionsView = new GameRuntimeOptionsView(this,
-            getIntent().getStringExtra(EXTRA_GAME_ID), this::finish);
+            getIntent().getStringExtra(EXTRA_GAME_ID), new GameRuntimeOptionsView.Listener() {
+                @Override public void onRuntimeOptionsClosed() { finish(); }
+
+                @Override public void onRuntimeOptionsSaved(@Nullable String warmupTaskId,
+                                                             boolean rootfs) {
+                    startActivity(LocalGames.createLibraryIntentShowingSetupConsole(
+                        GameRuntimeOptionsActivity.this, warmupTaskId, rootfs));
+                    finish();
+                }
+            });
         setContentView(optionsView);
     }
 

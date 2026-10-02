@@ -74,9 +74,9 @@ public class RuntimeEnvironmentStatusTest {
     }
 
     @Test
-    public void rootfsNotReadyWhenNoTemplateExistsEvenIfAnUnrelatedContainerExists()
+    public void rootfsNotReadyWhenNoArchiveExistsEvenIfAnUnrelatedContainerExists()
         throws Exception {
-        // rootfsState() is about the shared template only -- an old container lying around
+        // rootfsState() is about the shared base archive only -- an old container lying around
         // (never even activated here) must not make it read as anything other than NOT_READY.
         File files = temporary.newFolder("files-rootfs-partial");
         GameStoragePaths paths = new GameStoragePaths(files);
@@ -91,82 +91,81 @@ public class RuntimeEnvironmentStatusTest {
     }
 
     @Test
-    public void rootfsReadyWhenAnActiveContainerExistsAndTheSharedTemplateIsIntact()
+    public void rootfsReadyWhenAnActiveContainerExistsAndTheSharedArchiveExists()
         throws Exception {
         File files = temporary.newFolder("files-rootfs-ready");
         GameStoragePaths paths = new GameStoragePaths(files);
         String containerId = "container-game-a";
         activateContainer(paths, containerId);
-        createCompleteRootfsBuild(new File(paths.getProotDistroContainersDirectory(),
-            "tmpl-abcdef0123456789/rootfs"));
+        createArchive(paths);
 
         assertEquals(RuntimeReadinessState.READY,
             new RuntimeEnvironmentStatus(paths).rootfsState());
     }
 
     @Test
-    public void rootfsReadyWhenTemplateIsIntactEvenWithoutAnyContainer() throws Exception {
+    public void rootfsReadyWhenArchiveExistsEvenWithoutAnyContainer() throws Exception {
         // Mirror of the previous test with the container removed entirely -- proves READY is
-        // driven purely by the shared template, not by any container's existence.
+        // driven purely by the shared archive, not by any container's existence.
         File files = temporary.newFolder("files-rootfs-ready-no-container");
         GameStoragePaths paths = new GameStoragePaths(files);
-        createCompleteRootfsBuild(new File(paths.getProotDistroContainersDirectory(),
-            "tmpl-abcdef0123456789/rootfs"));
+        createArchive(paths);
 
         assertEquals(RuntimeReadinessState.READY,
             new RuntimeEnvironmentStatus(paths).rootfsState());
     }
 
     @Test
-    public void rootfsIncompleteWhenTemplateDirectoryExistsButBuildIsUnfinished()
-        throws Exception {
-        File files = temporary.newFolder("files-rootfs-template-unfinished");
-        GameStoragePaths paths = new GameStoragePaths(files);
-        assertTrue(new File(paths.getProotDistroContainersDirectory(),
-            "tmpl-abcdef0123456789/rootfs").mkdirs());
-
-        assertEquals(RuntimeReadinessState.INCOMPLETE,
-            new RuntimeEnvironmentStatus(paths).rootfsState());
-    }
-
-    @Test
-    public void rootfsNotReadyWhenActiveContainerExistsButSharedTemplateWasReset()
+    public void rootfsNotReadyWhenActiveContainerExistsButSharedArchiveWasReset()
         throws Exception {
         // Reproduces the "reset RootFS" report: an already-installed, playable game container
-        // keeps working (still has an active build), but the shared template it was cloned
+        // keeps working (still has an active build), but the shared base archive it was cloned
         // from has just been wiped. New containers can't be built until it is rebuilt, so this
         // reads as NOT_READY -- the old container's continued usability is a separate,
         // per-container fact (see isRootfsContainerStale*) that must not keep rootfsState()
-        // artificially READY/INCOMPLETE.
-        File files = temporary.newFolder("files-rootfs-template-reset");
+        // artificially READY.
+        File files = temporary.newFolder("files-rootfs-archive-reset");
         GameStoragePaths paths = new GameStoragePaths(files);
         activateContainer(paths, "container-game-a");
-        // No tmpl-* directory at all -- as if it was just deleted by a reset.
+        // No archive at all -- as if it was just deleted by a reset.
 
         assertEquals(RuntimeReadinessState.NOT_READY,
             new RuntimeEnvironmentStatus(paths).rootfsState());
     }
 
     @Test
-    public void isRootfsContainerStaleWhenTemplateNoLongerExists() throws Exception {
-        File files = temporary.newFolder("files-stale-template-gone");
+    public void isRootfsContainerStaleWhenNoSidecarRecipeExists() throws Exception {
+        File files = temporary.newFolder("files-stale-no-sidecar");
         GameStoragePaths paths = new GameStoragePaths(files);
         activateContainer(paths, "container-game-a");
-        // No tmpl-<SHA prefix> directory -- the template this container was built from is gone.
+        // No sidecar recipe file -- the base this container was built from is gone.
 
         assertTrue(new RuntimeEnvironmentStatus(paths)
             .isRootfsContainerStale("container-game-a", GameContainer.ROOTFS_RUNTIME_PACKAGE));
     }
 
     @Test
-    public void isRootfsContainerStaleIsFalseWhenTemplateIsCurrent() throws Exception {
-        File files = temporary.newFolder("files-stale-template-current");
+    public void isRootfsContainerStaleIsFalseWhenSidecarRecipeMatchesContainer() throws Exception {
+        File files = temporary.newFolder("files-stale-sidecar-current");
         GameStoragePaths paths = new GameStoragePaths(files);
         activateContainer(paths, "container-game-a");
-        createCompleteRootfsBuild(new File(paths.getProotDistroContainersDirectory(),
-            "tmpl-" + SHA.substring(0, 16) + "/rootfs"));
+        writeSidecarRecipe(paths, SHA);
 
         assertFalse(new RuntimeEnvironmentStatus(paths)
+            .isRootfsContainerStale("container-game-a", GameContainer.ROOTFS_RUNTIME_PACKAGE));
+    }
+
+    @Test
+    public void isRootfsContainerStaleIsTrueWhenSidecarRecipeDiffersFromContainer()
+        throws Exception {
+        File files = temporary.newFolder("files-stale-sidecar-mismatch");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        activateContainer(paths, "container-game-a");
+        String rebuiltSha =
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        writeSidecarRecipe(paths, rebuiltSha);
+
+        assertTrue(new RuntimeEnvironmentStatus(paths)
             .isRootfsContainerStale("container-game-a", GameContainer.ROOTFS_RUNTIME_PACKAGE));
     }
 
@@ -198,20 +197,19 @@ public class RuntimeEnvironmentStatusTest {
             "version", "1", "recipeSha256", SHA, "containerName", containerId));
     }
 
-    private static void createCompleteRootfsBuild(File root) throws Exception {
-        for (String directory : new String[] {"usr/bin", "usr/local/bin",
-            "usr/share/fonts/opentype/noto", "etc", "mnt/games/game", "mnt/games/prefix"}) {
-            assertTrue(new File(root, directory).mkdirs());
+    private static void createArchive(GameStoragePaths paths) throws Exception {
+        File archive = paths.getRootfsBaseArchiveZst();
+        assertTrue(archive.getParentFile().isDirectory() || archive.getParentFile().mkdirs());
+        assertTrue(archive.createNewFile());
+    }
+
+    private static void writeSidecarRecipe(GameStoragePaths paths, String recipeSha256)
+        throws Exception {
+        createArchive(paths);
+        File recipe = paths.getRootfsBaseRecipeFile();
+        try (java.io.FileWriter writer = new java.io.FileWriter(recipe)) {
+            writer.write(recipeSha256 + "\n");
         }
-        for (String executable : new String[] {"usr/bin/env", "usr/local/bin/box64",
-            "usr/bin/wine", "usr/bin/wineboot"}) {
-            File file = new File(root, executable);
-            assertTrue(file.createNewFile());
-            assertTrue(file.setExecutable(true));
-        }
-        assertTrue(new File(root, "usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")
-            .createNewFile());
-        assertTrue(new File(root, "etc/games-runtime.properties").createNewFile());
     }
 
     private static Properties props(String... pairs) {

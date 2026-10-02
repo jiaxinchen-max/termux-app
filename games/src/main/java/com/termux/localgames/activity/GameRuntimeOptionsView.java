@@ -79,6 +79,10 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     public interface Listener {
         void onRuntimeOptionsClosed();
+        /** Called instead of {@link #onRuntimeOptionsClosed()} after a successful Save --
+         *  hosts should navigate to the Library tab and, if {@code warmupTaskId} is non-null,
+         *  surface that task's live setup console there. */
+        void onRuntimeOptionsSaved(@Nullable String warmupTaskId, boolean rootfs);
     }
 
     public GameRuntimeOptionsView(Context context, String gameId, Listener listener) {
@@ -676,16 +680,17 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         RuntimeProfile toSave = profile;
         Game gameToSave = game;
         boolean saveGame = gameChanged();
+        boolean rootfs = toSave.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT;
         android.util.Log.d("GameRuntimeOptionsDebug", "saveAndFinish toSave.backend="
             + toSave.getRuntimeBackendType() + " containerId=" + toSave.getContainerId());
         ioExecutor.execute(() -> {
             try {
                 profileRepository.save(toSave);
                 android.util.Log.d("GameRuntimeOptionsDebug", "profileRepository.save completed");
-                RuntimeWarmup.warm(getContext(), toSave);
+                String warmupTaskId = RuntimeWarmup.warm(getContext(), toSave);
                 if (saveGame) gameRepository.save(gameToSave);
                 post(() -> {
-                    if (!destroyed) close();
+                    if (!destroyed) listener.onRuntimeOptionsSaved(warmupTaskId, rootfs);
                 });
             } catch (IOException | RuntimeException error) {
                 android.util.Log.e("GameRuntimeOptionsDebug", "save failed", error);

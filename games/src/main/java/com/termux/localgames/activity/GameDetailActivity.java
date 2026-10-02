@@ -307,7 +307,17 @@ public final class GameDetailActivity extends AppCompatActivity {
         setSidePanelVisibility(View.GONE, View.GONE, View.VISIBLE);
         if (runtimeOptionsView != null) return;
         FrameLayout panel = findViewById(R.id.game_detail_runtime_panel);
-        runtimeOptionsView = new GameRuntimeOptionsView(this, game.getId(), this::closeRuntimePanel);
+        runtimeOptionsView = new GameRuntimeOptionsView(this, game.getId(),
+            new GameRuntimeOptionsView.Listener() {
+                @Override public void onRuntimeOptionsClosed() { closeRuntimePanel(); }
+
+                @Override public void onRuntimeOptionsSaved(@Nullable String warmupTaskId,
+                                                             boolean rootfs) {
+                    startActivity(LocalGames.createLibraryIntentShowingSetupConsole(
+                        GameDetailActivity.this, warmupTaskId, rootfs));
+                    finish();
+                }
+            });
         runtimeOptionsView.setShowHeader(false);
         panel.addView(runtimeOptionsView, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));

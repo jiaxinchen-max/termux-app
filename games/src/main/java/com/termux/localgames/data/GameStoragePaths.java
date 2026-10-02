@@ -107,6 +107,24 @@ public final class GameStoragePaths {
     public File getProotDistroContainersDirectory() {
         return new File(getTermuxPrefixDirectory(), "var/lib/proot-distro/containers");
     }
+    /** Beside containers/ (never under it), mirroring setup_rootfs_runtime.sh's
+     *  TEMPLATE_CACHE_DIR, so it is never mistaken for a container. */
+    public File getTemplateArchiveCacheDirectory() {
+        return new File(getTermuxPrefixDirectory(), "var/lib/proot-distro/games-template-cache");
+    }
+    /** The single shared RootFS base archive, when built with zstd available. */
+    public File getRootfsBaseArchiveZst() {
+        return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base.tar.zst");
+    }
+    /** The single shared RootFS base archive, when built without zstd (gzip fallback). */
+    public File getRootfsBaseArchiveGz() {
+        return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base.tar.gz");
+    }
+    /** Sidecar recording the recipeSha256 that built the current base archive, for
+     *  staleness comparisons against a container's own recorded recipeSha256. */
+    public File getRootfsBaseRecipeFile() {
+        return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base.recipe");
+    }
     public File getResetDirectory() {
         return new File(libraryDirectory.getParentFile(), "runtime/reset");
     }

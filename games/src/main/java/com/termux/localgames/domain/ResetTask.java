@@ -20,9 +20,6 @@ public final class ResetTask {
         this.target = target;
         this.resetKey = resetKey == null ? "" : resetKey;
         if (!this.resetKey.isEmpty()) requireId(this.resetKey, "resetKey");
-        if (target == ResetTarget.ROOTFS && this.resetKey.isEmpty()) {
-            throw new IllegalArgumentException("rootfs_reset_requires_key");
-        }
         if (state == null || createdAt < 0 || updatedAt < createdAt) {
             throw new IllegalArgumentException("invalid reset task");
         }

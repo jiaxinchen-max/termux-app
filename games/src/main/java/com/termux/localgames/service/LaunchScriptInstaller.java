@@ -7,6 +7,7 @@ import android.system.Os;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.runtime.GameRuntimeBackend;
 import com.termux.localgames.runtime.GlibcTermuxBoxBackend;
+import com.termux.localgames.runtime.RootfsProotBackend;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -25,10 +26,10 @@ public final class LaunchScriptInstaller {
         "local-games/install_termux_glibc_runtime.sh";
     private static final String TERMUX_GLIBC_RESET_ASSET =
         "local-games/reset_termux_glibc_runtime.sh";
-    private static final String ROOTFS_RESET_ASSET =
-        "local-games/reset_rootfs_runtime.sh";
     private static final String TERMUX_BOX_GAME_ASSET =
         "local-games/start_termux_box_game.sh";
+    private static final String ROOTFS_PREFIX_WARMUP_ASSET =
+        "local-games/rootfs_prefix_warmup.sh";
 
     private final Context context;
     private final File runtimeDirectory;
@@ -52,8 +53,24 @@ public final class LaunchScriptInstaller {
             installAsset(BOOTSTRAP_ASSET, new File(runtimeDirectory, "bootstrap_termux_box.sh"));
             installAsset(PREFIX_SETUP_ASSET,
                 new File(runtimeDirectory, "setup_glibc_prefix.sh"));
+        } else if (backend instanceof RootfsProotBackend) {
+            // Co-located with start_rootfs_game.sh itself (same runtimeDirectory), so that
+            // script can source it via a path relative to its own install location with no new
+            // LaunchSpec field needed. Also (re)installed independently by
+            // RootfsSetupForegroundService before every import/config-time warmup run -- see
+            // installRootfsPrefixWarmup().
+            installRootfsPrefixWarmup();
         }
         return launcher;
+    }
+
+    /** Deploys the shell functions shared between start_rootfs_game.sh (launch-time fallback)
+     *  and setup_rootfs_runtime.sh (import/config-time warmup) for initializing a RootFS
+     *  container's Wine prefix -- see rootfs_prefix_warmup.sh. */
+    public File installRootfsPrefixWarmup() throws IOException {
+        File script = new File(runtimeDirectory, "rootfs_prefix_warmup.sh");
+        installAsset(ROOTFS_PREFIX_WARMUP_ASSET, script);
+        return script;
     }
 
     /** Deploys the trusted terminal script that installs the official Termux GLIBC packages. */
@@ -67,13 +84,6 @@ public final class LaunchScriptInstaller {
     public File installResetTermuxGlibcRuntime() throws IOException {
         File script = new File(runtimeDirectory, "reset_termux_glibc_runtime.sh");
         installAsset(TERMUX_GLIBC_RESET_ASSET, script);
-        return script;
-    }
-
-    /** Deploys the trusted terminal script that removes one RootFS container's build + metadata. */
-    public File installResetRootfsRuntime() throws IOException {
-        File script = new File(runtimeDirectory, "reset_rootfs_runtime.sh");
-        installAsset(ROOTFS_RESET_ASSET, script);
         return script;
     }
 

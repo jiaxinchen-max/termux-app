@@ -104,6 +104,9 @@ public final class GameImportActivity extends AppCompatActivity {
             R.string.local_game_import_help);
         binding.localGameImportChooseDirectory.setOnClickListener(view -> chooseGameDirectory());
         binding.localGameImportConfirm.setOnClickListener(view -> confirmImport());
+        // Disabled until the readiness gate resolves -- fail-fast: a user who would otherwise
+        // pick a folder and scan it only discovers a missing runtime after investing that effort.
+        binding.localGameImportChooseDirectory.setEnabled(false);
 
         if (savedInstanceState != null) {
             String uri = savedInstanceState.getString(STATE_TREE_URI);
@@ -113,6 +116,12 @@ public final class GameImportActivity extends AppCompatActivity {
             String uri = getIntent().getStringExtra(EXTRA_TREE_URI);
             if (!TextUtils.isEmpty(uri)) treeUri = Uri.parse(uri);
         }
+        GameImportReadinessGate.require(this, importExecutor, this::proceedAfterReadinessGate);
+    }
+
+    private void proceedAfterReadinessGate() {
+        if (destroyed || binding == null) return;
+        binding.localGameImportChooseDirectory.setEnabled(true);
         if (treeUri != null) {
             if (isLocalGameDirectory(treeUri)) {
                 if (isPosixAccessible(treeUri)) startScan(treeUri);

@@ -23,7 +23,7 @@ public class FileRuntimeSetupTaskRepositoryTest {
             new FileRuntimeSetupTaskRepository(directory);
         RuntimeSetupTask queued = RuntimeSetupTask.queued("task-1",
             "debian-13-games-rootfs", 1, SHA, "hangover-11.9-debian13-source",
-            "container-game-a", "container-game-a", 10);
+            "container-game-a", "container-game-a", false, 10);
         first.save(queued.transition(RuntimeSetupTaskState.BUILDING, "", 20));
 
         RuntimeSetupTask restored = new FileRuntimeSetupTaskRepository(directory)

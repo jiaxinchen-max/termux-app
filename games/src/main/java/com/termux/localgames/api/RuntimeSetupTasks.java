@@ -24,12 +24,29 @@ public final class RuntimeSetupTasks {
     public static final String EXTRA_TASK_ID = "com.termux.localgames.extra.SETUP_TASK_ID";
     public static final String EXTRA_PACKAGE_NAME = "com.termux.localgames.extra.ROOTFS_PACKAGE";
     public static final String EXTRA_CONTAINER_ID = "com.termux.localgames.extra.ROOTFS_CONTAINER_ID";
+    public static final String EXTRA_BASE_ONLY = "com.termux.localgames.extra.ROOTFS_BASE_ONLY";
 
     private RuntimeSetupTasks() {}
 
     @NonNull
     public static String enqueue(@NonNull Context context, @NonNull String packageName,
                                  @NonNull String containerId) {
+        return enqueue(context, packageName, containerId, false);
+    }
+
+    /** A BASE_ONLY build (re)builds the shared RootFS base archive and never creates or
+     *  activates a real game container -- see setup_rootfs_runtime.sh's BASE_ONLY spec flag.
+     *  {@code containerId} must still be a disposable, non-DEFAULT_ID identifier (the setup
+     *  foreground service requires one), but no container is ever created under it. */
+    @NonNull
+    public static String enqueueBaseOnly(@NonNull Context context, @NonNull String packageName,
+                                        @NonNull String containerId) {
+        return enqueue(context, packageName, containerId, true);
+    }
+
+    @NonNull
+    private static String enqueue(@NonNull Context context, @NonNull String packageName,
+                                  @NonNull String containerId, boolean baseOnly) {
         requireId(packageName, "packageName");
         requireId(containerId, "containerId");
         try {
@@ -49,7 +66,8 @@ public final class RuntimeSetupTasks {
             .setAction(ACTION_ENQUEUE)
             .putExtra(EXTRA_TASK_ID, taskId)
             .putExtra(EXTRA_PACKAGE_NAME, packageName)
-            .putExtra(EXTRA_CONTAINER_ID, containerId);
+            .putExtra(EXTRA_CONTAINER_ID, containerId)
+            .putExtra(EXTRA_BASE_ONLY, baseOnly);
         start(context, intent);
         return taskId;
     }

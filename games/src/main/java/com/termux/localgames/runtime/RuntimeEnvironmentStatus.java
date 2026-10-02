@@ -1,5 +1,7 @@
 package com.termux.localgames.runtime;
 
+import androidx.annotation.Nullable;
+
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.RuntimeReadinessState;
 
@@ -39,21 +41,20 @@ public final class RuntimeEnvironmentStatus {
         return RuntimeReadinessState.INCOMPLETE;
     }
 
-    /** READY when the shared rootfs template (see setup_rootfs_runtime.sh) that new
-     *  containers get cloned from is itself intact; INCOMPLETE when a template directory exists
-     *  but its build never finished (interrupted install); NOT_READY when no template exists at
-     *  all. Deliberately independent of whether any GameContainer already exists -- an
-     *  already-cloned container keeps working off its own files even after the shared template
-     *  it came from is reset or replaced (see isRootfsContainerStale for that per-container
-     *  case). */
+    /** READY when the single shared rootfs base archive (see setup_rootfs_runtime.sh) that new
+     *  containers are extracted from exists; NOT_READY otherwise. An atomically-renamed archive
+     *  has no partially-built state to represent, so unlike glibcState() this is strictly binary
+     *  -- INCOMPLETE is never returned. Deliberately independent of whether any GameContainer
+     *  already exists -- an already-cloned container keeps working off its own files even after
+     *  the shared base it came from is reset or rebuilt (see isRootfsContainerStale for that
+     *  per-container case). */
     public RuntimeReadinessState rootfsState() {
-        if (anyRootfsTemplateComplete()) return RuntimeReadinessState.READY;
-        return anyRootfsTemplateExists()
-            ? RuntimeReadinessState.INCOMPLETE : RuntimeReadinessState.NOT_READY;
+        return paths.getRootfsBaseArchiveZst().isFile() || paths.getRootfsBaseArchiveGz().isFile()
+            ? RuntimeReadinessState.READY : RuntimeReadinessState.NOT_READY;
     }
 
-    /** Whether the given ROOTFS_PROOT container's active build was cloned from a template that
-     *  is no longer the live one (reset, or replaced by a different recipe). Purely
+    /** Whether the given ROOTFS_PROOT container's active build was cloned from a base archive
+     *  that is no longer the live one (reset, or rebuilt from a different recipe). Purely
      *  informational -- the container's own already-cloned files keep working regardless.
      *  False if the container has no active build at all (nothing to compare). */
     public boolean isRootfsContainerStale(String containerId, String rootfsPackage) {
@@ -61,46 +62,27 @@ public final class RuntimeEnvironmentStatus {
             Optional<RootfsRuntimeInstallation> installation =
                 new RootfsRuntimeInstallationReader(paths).readActive(containerId, rootfsPackage);
             if (!installation.isPresent()) return false;
-            File template = new File(paths.getProotDistroContainersDirectory(),
-                "tmpl-" + installation.get().getRecipeSha256().substring(0, 16));
-            return !isRootfsBuildComplete(new File(template, "rootfs"));
+            return !installation.get().getRecipeSha256().equals(currentBaseRecipeSha256());
         } catch (IOException | RuntimeException ignored) {
             return false;
         }
     }
 
-    /** Mirrors setup_rootfs_runtime.sh's own runtime_complete() check, applied to any
-     *  "tmpl-<recipeSha256 prefix>" pseudo-container under proot-distro/containers -- recipes
-     *  change rarely enough in practice that a name-pattern scan (rather than resolving the
-     *  exact current recipeSha256, which needs Context + file I/O this class doesn't have) is
-     *  an acceptable approximation. */
-    private boolean anyRootfsTemplateComplete() {
-        File[] entries = paths.getProotDistroContainersDirectory().listFiles();
-        if (entries == null) return false;
-        for (File entry : entries) {
-            if (!entry.getName().startsWith("tmpl-")) continue;
-            if (isRootfsBuildComplete(new File(entry, "rootfs"))) return true;
+    /** The recipeSha256 recorded alongside the current base archive, or null when no archive (or
+     *  no readable sidecar) exists -- in which case every container reads as stale, matching the
+     *  old "no valid current template to compare against" behavior. */
+    @Nullable
+    private String currentBaseRecipeSha256() {
+        File recipe = paths.getRootfsBaseRecipeFile();
+        if (!recipe.isFile()) return null;
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.FileReader(recipe))) {
+            String value = reader.readLine();
+            if (value == null) return null;
+            value = value.trim();
+            return value.matches("[0-9a-f]{64}") ? value : null;
+        } catch (IOException | RuntimeException error) {
+            return null;
         }
-        return false;
-    }
-
-    private boolean anyRootfsTemplateExists() {
-        File[] entries = paths.getProotDistroContainersDirectory().listFiles();
-        if (entries == null) return false;
-        for (File entry : entries) {
-            if (entry.getName().startsWith("tmpl-")) return true;
-        }
-        return false;
-    }
-
-    private static boolean isRootfsBuildComplete(File root) {
-        return new File(root, "usr/bin/env").canExecute()
-            && new File(root, "usr/local/bin/box64").canExecute()
-            && new File(root, "usr/bin/wine").canExecute()
-            && new File(root, "usr/bin/wineboot").canExecute()
-            && new File(root, "usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc").isFile()
-            && new File(root, "etc/games-runtime.properties").isFile()
-            && new File(root, "mnt/games/game").isDirectory()
-            && new File(root, "mnt/games/prefix").isDirectory();
     }
 }

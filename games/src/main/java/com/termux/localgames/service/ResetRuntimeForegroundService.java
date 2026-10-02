@@ -39,7 +39,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** Persistent owner for purging one runtime environment (GLIBC or RootFS) to not-installed. */
+/** Persistent owner for purging the GLIBC runtime environment to not-installed. RootFS has no
+ *  reset of its own -- "rebuild" fully replaced it, see LocalGamesActivity. */
 public final class ResetRuntimeForegroundService extends Service {
     private static final String TAG = "GamesRuntimeReset";
     private static final String CHANNEL_ID = "games_runtime_setup";
@@ -119,8 +120,7 @@ public final class ResetRuntimeForegroundService extends Service {
         tasks.save(task);
         transition(task, ResetTaskState.RUNNING, "");
         publish(task);
-        if (target == ResetTarget.GLIBC) runGlibcReset(taskId);
-        else runRootfsReset(taskId, resetKey);
+        runGlibcReset(taskId);
         transition(requiredTask(taskId), ResetTaskState.SUCCEEDED, "");
     }
 
@@ -140,34 +140,6 @@ public final class ResetRuntimeForegroundService extends Service {
             paths.getRuntimeDirectory().getCanonicalPath()));
         String state = waitForEvent(event);
         if (!"SUCCEEDED".equals(state)) throw new IOException("glibc_reset_failed");
-    }
-
-    /** $2 is the current recipeSha256 (64 lowercase hex chars), not a game containerId --
-     *  resetting RootFS only tears down the shared rootfs template that new containers are
-     *  cloned from (see setup_rootfs_runtime.sh's TEMPLATE_CONTAINER_NAME, which this
-     *  must stay in sync with); already-cloned game containers are untouched and keep working. */
-    private void runRootfsReset(String taskId, String recipeSha256) throws Exception {
-        String requiredRecipeSha256 = requireRecipeSha256(recipeSha256);
-        String templateContainerName = "tmpl-" + requiredRecipeSha256.substring(0, 16);
-        File script = new LaunchScriptInstaller(this, paths).installResetRootfsRuntime();
-        File spec = new File(paths.getResetSpecsDirectory(), taskId + ".conf");
-        File log = new File(paths.getResetLogsDirectory(), taskId + ".log");
-        File event = new File(paths.getResetEventsDirectory(), taskId + ".event");
-        if (event.exists() && !event.delete()) throw new IOException("reset_event_cleanup_failed");
-        File templateDirectory = new File(paths.getProotDistroContainersDirectory(),
-            templateContainerName);
-        writeShellSpec(spec, new String[][]{
-            {"RESET_LOG_FILE", log.getCanonicalPath()},
-            {"RESET_EVENT_FILE", event.getCanonicalPath()},
-            {"RESET_CONTAINER_ID", templateContainerName},
-            {"RESET_CONTAINER_DIR", templateDirectory.getCanonicalPath()},
-            {"RESET_METADATA_DIR", ""},
-        });
-        host.startRuntimeSetup(new RuntimeSetupRequest(taskId,
-            script.getCanonicalPath(), spec.getCanonicalPath(),
-            paths.getResetDirectory().getCanonicalPath()));
-        String state = waitForEvent(event);
-        if (!"SUCCEEDED".equals(state)) throw new IOException("rootfs_reset_failed");
     }
 
     private void reconcileAll() {
@@ -283,13 +255,6 @@ public final class ResetRuntimeForegroundService extends Service {
     private static String requiredId(String value) throws IOException {
         if (value == null || !value.matches("[A-Za-z0-9._-]{1,128}")) {
             throw new IOException("invalid_reset_identifier");
-        }
-        return value;
-    }
-
-    private static String requireRecipeSha256(String value) throws IOException {
-        if (value == null || !value.matches("[0-9a-f]{64}")) {
-            throw new IOException("invalid_recipe_sha256");
         }
         return value;
     }

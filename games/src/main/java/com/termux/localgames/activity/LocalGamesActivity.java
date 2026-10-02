@@ -1,6 +1,7 @@
 package com.termux.localgames.activity;
 
 import android.app.Dialog;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -46,9 +47,9 @@ import com.termux.localgames.components.index.ComponentIndexParser;
 import com.termux.localgames.components.index.ComponentDescriptor;
 import com.termux.localgames.components.index.ComponentType;
 import com.termux.localgames.components.install.ComponentInstallationReader;
-import com.termux.localgames.components.install.InstalledComponent;
 import com.termux.localgames.data.FileComponentTaskRepository;
 import com.termux.localgames.data.FileGameRepository;
+import com.termux.localgames.data.FilePrefixSetupTaskRepository;
 import com.termux.localgames.data.FileResetTaskRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.FileRuntimeSetupTaskRepository;
@@ -65,13 +66,12 @@ import com.termux.localgames.databinding.ItemLocalGameBinding;
 import com.termux.localgames.domain.ComponentTask;
 import com.termux.localgames.domain.Game;
 import com.termux.localgames.domain.GameRuntimeBackendType;
+import com.termux.localgames.domain.PrefixSetupTask;
 import com.termux.localgames.domain.ResetTarget;
 import com.termux.localgames.domain.ResetTask;
 import com.termux.localgames.domain.RuntimeReadinessState;
 import com.termux.localgames.api.ResetTasks;
-import com.termux.localgames.runtime.RootfsSetupRecipe;
 import com.termux.localgames.runtime.RuntimeEnvironmentStatus;
-import com.termux.localgames.service.RootfsSetupAssetInstaller;
 import com.termux.localgames.domain.RuntimeSetupTask;
 import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.importer.SafGameAccessProbe;
@@ -81,7 +81,9 @@ import com.termux.localgames.runtime.RootfsRuntimeInstallationReader;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -134,6 +136,9 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private int libraryGeneration;
     private int libraryColumns = 2;
     private Set<String> staleRootfsGameIds = Collections.emptySet();
+    private Map<String, BuildingTask> buildingGameTasks = Collections.emptyMap();
+    private final List<android.animation.ObjectAnimator> libraryCardBreathAnimators =
+        new ArrayList<>();
     private RuntimeSetupTask latestRuntimeSetupTask;
     private boolean rootfsRuntimeInstalled;
     @Nullable private android.animation.ObjectAnimator glibcBladeBreathAnimator;
@@ -141,6 +146,17 @@ public final class LocalGamesActivity extends AppCompatActivity {
     @Nullable private String componentGameId;
     @Nullable private String componentContainerId;
     @Nullable private GameRuntimeBackendType componentBackend;
+
+    /** A game whose runtime container is actively being built by a non-terminal setup task --
+     *  see {@code loadLibraryAsync()}'s background pass and {@code renderGameRow()}. */
+    private static final class BuildingTask {
+        final String taskId;
+        final boolean rootfs;
+        BuildingTask(String taskId, boolean rootfs) {
+            this.taskId = taskId;
+            this.rootfs = rootfs;
+        }
+    }
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -172,17 +188,15 @@ public final class LocalGamesActivity extends AppCompatActivity {
             }
             return true;
         });
-        binding.localGamesAddButton.setOnClickListener(view ->
-            startActivity(LocalGames.createFileManagerIntent(this)));
-        binding.localGamesFileManagerButton.setOnClickListener(view ->
-            startActivity(LocalGames.createFileManagerIntent(this)));
+        binding.localGamesAddButton.setOnClickListener(view -> startImportFlow());
+        binding.localGamesFileManagerButton.setOnClickListener(view -> startImportFlow());
         binding.localGamesComponentTaskConsole.setOnClickListener(view ->
             showActiveInstallationConsole());
         binding.localGamesSettingsButton.setOnClickListener(view -> showPage(TAB_SETTINGS));
         configureOrientationButton();
         binding.localGamesNavigation.setOnItemSelectedListener(item -> {
             if (item.getItemId() == R.id.local_games_navigation_import) {
-                startActivity(LocalGames.createFileManagerIntent(this));
+                startImportFlow();
                 return false;
             }
             if (item.getItemId() == R.id.local_games_navigation_tools) {
@@ -204,6 +218,29 @@ public final class LocalGamesActivity extends AppCompatActivity {
         showPage(initialPage);
         ResetTasks.reconcileAll(this);
         renderRuntimeStatus();
+        mainHandler.post(this::consumePendingSetupConsoleIntent);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        mainHandler.post(this::consumePendingSetupConsoleIntent);
+    }
+
+    /** Surfaces the live console for a runtime warm-up task just enqueued by a runtime-options
+     *  Save (see {@code GameRuntimeOptionsView.saveAndFinish()} and both of its hosts). Consumes
+     *  the extras immediately so rotation or process recreation never re-shows it. */
+    private void consumePendingSetupConsoleIntent() {
+        Intent intent = getIntent();
+        String taskId = intent.getStringExtra(LocalGames.EXTRA_PENDING_SETUP_TASK_ID);
+        if (taskId == null) return;
+        boolean rootfs = intent.getBooleanExtra(LocalGames.EXTRA_PENDING_SETUP_IS_ROOTFS, false);
+        intent.removeExtra(LocalGames.EXTRA_PENDING_SETUP_TASK_ID);
+        intent.removeExtra(LocalGames.EXTRA_PENDING_SETUP_IS_ROOTFS);
+        Dialog dialog = rootfs ? RuntimeSetupConsoleDialog.show(this, taskId)
+            : PrefixSetupConsoleDialog.show(this, taskId);
+        dialog.setOnDismissListener(ignored -> loadLibraryAsync());
     }
 
     @Override
@@ -397,6 +434,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         libraryExecutor.execute(() -> {
             List<GameLibraryItem> items = null;
             Set<String> stale = new HashSet<>();
+            Map<String, BuildingTask> building = new HashMap<>();
             String error = null;
             try {
                 items = libraryRepository.load();
@@ -404,12 +442,38 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 FileRuntimeProfileRepository profiles =
                     new FileRuntimeProfileRepository(gamePaths.getProfilesDirectory());
                 RuntimeEnvironmentStatus status = new RuntimeEnvironmentStatus(gamePaths);
+                Map<String, String> activeRootfsSetupByContainer = new HashMap<>();
+                for (RuntimeSetupTask task : new FileRuntimeSetupTaskRepository(
+                        gamePaths.getRuntimeSetupTasksDirectory()).list()) {
+                    if (!task.getState().isTerminal()) {
+                        activeRootfsSetupByContainer.put(task.getContainerId(), task.getTaskId());
+                    }
+                }
+                Map<String, String> activePrefixSetupByGame = new HashMap<>();
+                for (PrefixSetupTask task : new FilePrefixSetupTaskRepository(
+                        gamePaths.getPrefixSetupTasksDirectory()).list()) {
+                    if (!task.getState().isTerminal()) {
+                        activePrefixSetupByGame.put(task.getGameId(), task.getTaskId());
+                    }
+                }
                 for (GameLibraryItem item : items) {
                     profiles.find(item.getGame().getId()).ifPresent(profile -> {
-                        if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT &&
-                            status.isRootfsContainerStale(profile.getContainerId(),
-                                profile.getRootfsPackage())) {
-                            stale.add(item.getGame().getId());
+                        if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
+                            if (status.isRootfsContainerStale(profile.getContainerId(),
+                                    profile.getRootfsPackage())) {
+                                stale.add(item.getGame().getId());
+                            }
+                            String taskId = activeRootfsSetupByContainer.get(
+                                profile.getContainerId());
+                            if (taskId != null) {
+                                building.put(item.getGame().getId(), new BuildingTask(taskId, true));
+                            }
+                        } else if (profile.getRuntimeBackendType() ==
+                                GameRuntimeBackendType.GLIBC_TERMUX_BOX) {
+                            String taskId = activePrefixSetupByGame.get(item.getGame().getId());
+                            if (taskId != null) {
+                                building.put(item.getGame().getId(), new BuildingTask(taskId, false));
+                            }
                         }
                     });
                 }
@@ -418,6 +482,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
             }
             List<GameLibraryItem> loaded = items;
             Set<String> loadedStale = stale;
+            Map<String, BuildingTask> loadedBuilding = building;
             String failure = error;
             mainHandler.post(() -> {
                 libraryLoadInFlight.set(false);
@@ -425,6 +490,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                     generation != libraryGeneration) return;
                 if (failure == null) {
                     staleRootfsGameIds = loadedStale;
+                    buildingGameTasks = loadedBuilding;
                     renderLibrary(loaded, generation);
                 } else renderLibraryError(failure);
             });
@@ -435,6 +501,12 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding.localGamesLibraryLoading.hide();
         binding.localGamesLibraryError.setVisibility(View.GONE);
         binding.localGamesLibraryItems.removeAllViews();
+        // Rows are fully reinflated on every pass -- cancel animators from the previous pass so
+        // they do not keep running (and ticking the UI thread) against now-detached views.
+        for (android.animation.ObjectAnimator animator : libraryCardBreathAnimators) {
+            animator.cancel();
+        }
+        libraryCardBreathAnimators.clear();
         binding.localGamesCount.setText(getString(R.string.local_games_my_games_count,
             items.size()));
         binding.localGamesEmptyState.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
@@ -480,7 +552,18 @@ public final class LocalGamesActivity extends AppCompatActivity {
             ? getString(R.string.local_game_never_played)
             : getString(R.string.local_game_last_played, DateUtils.formatDateTime(this,
                 game.getLastPlayedAt(), DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_SHOW_TIME)));
-        row.getRoot().setOnClickListener(view -> showLaunchPresentation(item));
+        BuildingTask building = buildingGameTasks.get(game.getId());
+        applyCardBuildingState(row.getRoot(), building != null);
+        row.getRoot().setOnClickListener(view -> {
+            if (building != null) {
+                Dialog dialog = building.rootfs
+                    ? RuntimeSetupConsoleDialog.show(this, building.taskId)
+                    : PrefixSetupConsoleDialog.show(this, building.taskId);
+                dialog.setOnDismissListener(ignored -> loadLibraryAsync());
+                return;
+            }
+            showLaunchPresentation(item);
+        });
         row.getRoot().setFocusable(true);
         row.localGameDetails.setOnClickListener(view -> startActivity(
             LocalGames.createRuntimeOptionsIntent(this, game.getId())));
@@ -1226,6 +1309,15 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding.localGamesComponentsError.setVisibility(View.VISIBLE);
     }
 
+    /** Fail-fast "ToC" entry point for every "Import game" affordance on this screen -- stops
+     *  the user at tap-time when a required runtime is missing, rather than after they've picked
+     *  a folder and scanned it in GameImportActivity (whose own gate remains the authoritative
+     *  backstop, covering GameFileManagerActivity's "import as game" action too). */
+    private void startImportFlow() {
+        GameImportReadinessGate.require(this, libraryExecutor, () ->
+            startActivity(LocalGames.createFileManagerIntent(this)));
+    }
+
     private void renderRuntimeStatus() {
         libraryExecutor.execute(() -> {
             GameStoragePaths paths = new GameStoragePaths(getFilesDir());
@@ -1233,13 +1325,10 @@ public final class LocalGamesActivity extends AppCompatActivity {
             RuntimeReadinessState glibcState = status.glibcState();
             RuntimeReadinessState rootfsState = status.rootfsState();
             ResetTask activeGlibcReset = findActiveResetTask(paths, ResetTarget.GLIBC);
-            ResetTask activeRootfsReset = findActiveResetTask(paths, ResetTarget.ROOTFS);
             mainHandler.post(() -> {
                 if (binding == null) return;
                 RuntimeReadinessState glibcVisual = activeGlibcReset != null
                     ? RuntimeReadinessState.INCOMPLETE : glibcState;
-                RuntimeReadinessState rootfsVisual = activeRootfsReset != null
-                    ? RuntimeReadinessState.INCOMPLETE : rootfsState;
                 glibcBladeBreathAnimator = applyBladeState(
                     binding.localGamesRuntimeEmblem.localGamesEmblemGlibcBlade,
                     binding.localGamesRuntimeEmblem.localGamesEmblemGlibcIcon,
@@ -1247,14 +1336,14 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 containerBladeBreathAnimator = applyBladeState(
                     binding.localGamesRuntimeEmblem.localGamesEmblemContainerBlade,
                     binding.localGamesRuntimeEmblem.localGamesEmblemContainerIcon,
-                    rootfsVisual, containerBladeBreathAnimator);
+                    rootfsState, containerBladeBreathAnimator);
                 binding.localGamesRuntimeEmblem.localGamesEmblemGlibcTap.setOnClickListener(view -> {
                     if (glibcState == RuntimeReadinessState.NOT_READY) confirmGlibcInstall();
                     else confirmReset(ResetTarget.GLIBC, null);
                 });
                 binding.localGamesRuntimeEmblem.localGamesEmblemContainerTap.setOnClickListener(view -> {
                     if (rootfsState == RuntimeReadinessState.NOT_READY) confirmRootfsInstall();
-                    else confirmRootfsReset();
+                    else confirmRootfsRebuild();
                 });
             });
         });
@@ -1282,7 +1371,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     /** Builds the shared RootFS base runtime (box64, Wine, fonts) that new game containers are
-     *  hardlink-cloned from -- the same setup triggered from the per-game Components
+     *  extracted from -- the same setup triggered from the per-game Components
      *  list when no such container exists yet, without navigating there. */
     private void confirmRootfsInstall() {
         if (showActiveInstallationConsole()) return;
@@ -1295,18 +1384,66 @@ public final class LocalGamesActivity extends AppCompatActivity {
             .show();
     }
 
+    /** Deletes the current shared RootFS base archive (if any) and rebuilds it from scratch, as
+     *  one user-confirmed operation -- unlike the old reset-then-separately-rebuild flow, this
+     *  can never leave the base in a torn-down state the user has to remember to come back and
+     *  rebuild. */
+    private void confirmRootfsRebuild() {
+        if (showActiveInstallationConsole()) return;
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.local_games_rootfs_rebuild_confirm_title)
+            .setMessage(R.string.local_games_rootfs_rebuild_confirm_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.local_games_rootfs_rebuild_action, (dialog, which) ->
+                installRootfsRuntime())
+            .show();
+    }
+
     private void installRootfsRuntime() {
         // This blade is reachable with no specific game in context (componentContainerId may be
-        // unset), but RuntimeSetupTasks.enqueue requires a real, non-DEFAULT_ID containerId
-        // for the activation/clone step even though the expensive shared-template build itself
-        // is containerId-independent. Use a disposable id instead of forcing a game context here
-        // -- it clones into an orphan proot-distro container nothing else ever references, but
-        // that's a small one-time disk cost versus every other container reaching this point.
-        String taskId = RuntimeSetupTasks.enqueue(this, "debian-13-games-rootfs",
+        // unset), but RuntimeSetupTasks.enqueueBaseOnly requires a real, non-DEFAULT_ID
+        // containerId even though a BASE_ONLY build never creates a container under it. Use a
+        // disposable id instead of forcing a game context here.
+        String taskId = RuntimeSetupTasks.enqueueBaseOnly(this, "debian-13-games-rootfs",
             "shared-rebuild-" + UUID.randomUUID());
         RuntimeSetupConsoleDialog.show(this, taskId)
             .setOnDismissListener(dialog -> renderRuntimeStatus());
         mainHandler.postDelayed(this::renderRuntimeStatus, 400);
+    }
+
+    /** Marks a Library card as "container build in progress" with a red/breathing background
+     *  (mirrors {@code applyBladeState}'s breathing treatment, applied to the card background
+     *  instead of an icon's alpha), or restores the normal surface color when not building.
+     *  Takes the row's root {@code View} rather than assuming {@code MaterialCardView} --
+     *  the landscape variant (layout-land/item_local_game.xml) roots a plain LinearLayout with
+     *  the MaterialCardView only wrapping the cover image, so a plain CardView cast/property
+     *  crashes there (confirmed on device). Animate the CardView-specific "cardBackgroundColor"
+     *  property when the root really is one (portrait, correct rounded-corner fill), otherwise
+     *  fall back to the generic View "backgroundColor" property (landscape). Started animators
+     *  are tracked in {@code libraryCardBreathAnimators} so the next {@code renderLibrary()}
+     *  pass can cancel them before the row views are discarded. */
+    private void applyCardBuildingState(View card, boolean building) {
+        String property = card instanceof com.google.android.material.card.MaterialCardView
+            ? "cardBackgroundColor" : "backgroundColor";
+        int surfaceColor = ContextCompat.getColor(this, R.color.local_games_surface);
+        if (!building) {
+            if ("cardBackgroundColor".equals(property)) {
+                ((com.google.android.material.card.MaterialCardView) card)
+                    .setCardBackgroundColor(surfaceColor);
+            } else {
+                card.setBackgroundColor(surfaceColor);
+            }
+            return;
+        }
+        int errorColor = ContextCompat.getColor(this, R.color.local_games_error);
+        android.animation.ObjectAnimator animator = android.animation.ObjectAnimator.ofArgb(
+            card, property, surfaceColor, errorColor);
+        animator.setDuration(1100);
+        animator.setRepeatMode(android.animation.ObjectAnimator.REVERSE);
+        animator.setRepeatCount(android.animation.ObjectAnimator.INFINITE);
+        animator.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+        animator.start();
+        libraryCardBreathAnimators.add(animator);
     }
 
     /** Colors one blade + its icon for the given readiness state and starts/stops the
@@ -1365,55 +1502,11 @@ public final class LocalGamesActivity extends AppCompatActivity {
         return null;
     }
 
-    /** Resetting RootFS tears down the shared rootfs template that new game containers are
-     *  hardlink-cloned from (see setup_rootfs_runtime.sh); already-cloned containers keep
-     *  their own copy and are unaffected. The template is identified by the current recipe's
-     *  content hash, which is global -- not tied to any specific game, so there is nothing to
-     *  pick here (unlike the old per-container reset). */
-    private void confirmRootfsReset() {
-        libraryExecutor.execute(() -> {
-            String recipeSha256 = resolveCurrentRootfsRecipeSha256();
-            mainHandler.post(() -> {
-                if (binding == null) return;
-                confirmReset(ResetTarget.ROOTFS, recipeSha256);
-            });
-        });
-    }
-
-    /** Mirrors RootfsSetupForegroundService.enqueue()'s own recipeSha256 computation.
-     *  Returns null when no RootFS environment could possibly exist yet (no active box64/Wine
-     *  source component to build one from). */
-    @Nullable
-    private String resolveCurrentRootfsRecipeSha256() {
-        try {
-            GameStoragePaths paths = new GameStoragePaths(getFilesDir());
-            RootfsSetupRecipe recipe = RootfsSetupRecipe.require(
-                RootfsSetupRecipe.DEFAULT_PACKAGE);
-            ComponentInstallationReader components = new ComponentInstallationReader(
-                new ComponentStoragePaths(getFilesDir()).getInstallDirectory());
-            java.util.Optional<InstalledComponent> source =
-                components.read(recipe.getSourceComponentId()).getActive();
-            if (!source.isPresent()) return null;
-            RootfsSetupAssetInstaller.Installed assets =
-                new RootfsSetupAssetInstaller(this, paths).install(recipe,
-                    source.get().getSha256());
-            return assets.getRecipeSha256();
-        } catch (IOException | RuntimeException error) {
-            return null;
-        }
-    }
-
     private void confirmReset(ResetTarget target, @Nullable String resetKey) {
         if (showActiveInstallationConsole()) return;
-        if (target == ResetTarget.ROOTFS && TextUtils.isEmpty(resetKey)) {
-            Toast.makeText(this, R.string.local_games_reset_rootfs_none, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        int messageRes = target == ResetTarget.GLIBC
-            ? R.string.local_games_reset_confirm_glibc : R.string.local_games_reset_confirm_rootfs;
         new MaterialAlertDialogBuilder(this)
             .setTitle(R.string.local_games_reset_confirm_title)
-            .setMessage(messageRes)
+            .setMessage(R.string.local_games_reset_confirm_glibc)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.local_games_reset_action, (dialog, which) -> {
                 String taskId = ResetTasks.enqueue(this, target, resetKey);
