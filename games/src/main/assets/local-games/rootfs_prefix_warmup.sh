@@ -9,9 +9,13 @@
 # Every function here reads already-set globals instead of taking them as parameters, matching
 # this codebase's existing shell convention (see e.g. start_rootfs_game.sh's own
 # run_rootfs_command). Required before calling anything below:
-#   ROOTFS_CANONICAL    realpath of the container's rootfs
+#   ROOTFS_CANONICAL    realpath of the one shared RootFS every container mounts (see
+#                        GameStoragePaths.getSharedRootfsDirectory()) -- never a per-container copy
 #   PREFIX_PATH          host path of this container's Wine prefix (bind-mounted inside the
 #                        container at /mnt/games/prefix)
+#   HOME_PATH            host path of this container's writable $HOME (bind-mounted at /root) --
+#                        the shared rootfs itself is conceptually read-only, so anything a tool
+#                        writes under $HOME needs somewhere real, per-container, to land
 #   RUNTIME_ROOT_PATH    the exact string embedded into the "already warmed" marker files --
 #                        both callers must compute the identical value for a given container, or
 #                        warming up in one place does not skip anything in the other
@@ -22,6 +26,11 @@
 #   CANCEL_PATH          a file appearing here aborts an in-progress wineboot; pass "" when there
 #                        is no interactive cancel concept (always false for -e "" , so the
 #                        cancel check is simply never true)
+#   TEMPLATE_PREFIX_ARCHIVE  a pre-booted Wine prefix archive (wineboot -u + CJK FontLink already
+#                        applied, built once alongside the RootFS base) to extract into
+#                        PREFIX_PATH instead of actually running wineboot here; pass "" when none
+#                        is available yet (falls back to the real wineboot run below, same as
+#                        before this existed -- see setup_rootfs_runtime.sh for how it is built)
 #   MAINTENANCE_DISPLAY  optional X11 display passed to the proot session (default ":0").
 #                        start_rootfs_game.sh leaves this unset -- an X session is already live
 #                        on :0 by the time it reaches this code. setup_rootfs_runtime.sh has no
@@ -73,14 +82,16 @@ resolve_rootfs_translator() {
 
 # A deliberately minimal proot session for prefix maintenance only -- unlike
 # start_rootfs_game.sh's own run_rootfs_command, it binds neither the game root nor a pulse
-# server socket, and always runs as plain C.UTF-8 (locale-gen/apt-get/wineboot -u do not need a
-# game's selected locale; start_rootfs_game.sh applies GUEST_LOCALE separately, later, only to
-# the actual game process).
+# server socket, and always runs as plain C.UTF-8 (wineboot does not need a game's selected
+# locale; start_rootfs_game.sh applies GUEST_LOCALE separately, later, only to the actual game
+# process). $HOME_PATH, not the shared rootfs's own /root, is what's actually writable here --
+# see this file's header comment.
 run_rootfs_maintenance_command() {
     "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
         -r "$ROOTFS_CANONICAL" \
         -b /dev -b /proc -b /sys \
         -b "$TERMUX_FILES_DIR/usr/tmp:/tmp" \
+        -b "$HOME_PATH:/root" \
         -b "$PREFIX_PATH:/mnt/games/prefix" \
         -w /root \
         /usr/bin/env -u PULSE_SERVER -u FONTCONFIG_PATH -u FONTCONFIG_FILE -u FONTCONFIG_SYSROOT \
@@ -92,65 +103,47 @@ run_rootfs_maintenance_command() {
         "$@"
 }
 
-# Ports, verbatim in effect, the three marker-gated setup blocks that used to live inline in
-# start_rootfs_game.sh: zh_CN/GBK locale generation, Noto CJK font installation, and
-# `wineboot -u` (+ CJK FontLink registry injection). Idempotent -- a container whose markers
-# already match is a handful of stat() calls, nothing more.
+# Warms this container's Wine prefix: `wineboot -u` (or a clone of a pre-booted template prefix,
+# see TEMPLATE_PREFIX_ARCHIVE above) plus CJK FontLink registry injection. Idempotent -- a
+# container whose markers already match is a handful of stat() calls, nothing more. Locale
+# generation and the CJK font package itself are no longer done here at all: both are baked into
+# the shared RootFS once, at base-image build time, by runtime-rootfs/setup-container.sh -- doing
+# either per-container used to be merely redundant (the base already had them); now that the
+# RootFS is one shared, conceptually read-only image instead of a per-container copy, it would
+# also be a correctness bug (concurrent per-container setups writing into the same shared tree).
 warmup_rootfs_prefix() {
-    GUEST_LOCALE=C.UTF-8
-
+    GUEST_LOCALE=zh_CN.UTF-8
     PREFIX_MARKER_DIR="$PREFIX_PATH/.games-runtime"
-    ROOTFS_LOCALE_MARKER="$PREFIX_MARKER_DIR/rootfs-zh-cn-locale"
-    EXPECTED_ROOTFS_LOCALE_MARKER="$RUNTIME_ROOT_PATH|zh_CN.UTF-8|v1"
-    CURRENT_ROOTFS_LOCALE_MARKER=
-    [ ! -f "$ROOTFS_LOCALE_MARKER" ] || \
-        CURRENT_ROOTFS_LOCALE_MARKER=$(sed -n '1p' "$ROOTFS_LOCALE_MARKER" 2>/dev/null)
-    if [ "$CURRENT_ROOTFS_LOCALE_MARKER" != "$EXPECTED_ROOTFS_LOCALE_MARKER" ]; then
-        printf '%s\n' 'Preparing zh_CN UTF-8 and GBK locales in the RootFS runtime.' >> "$LOG_PATH"
-        if [ ! -x "$ROOTFS_CANONICAL/usr/sbin/locale-gen" ]; then
-            run_rootfs_maintenance_command /usr/bin/apt-get update >> "$LOG_PATH" 2>&1 && \
-            run_rootfs_maintenance_command /usr/bin/apt-get install -y --no-install-recommends locales \
-                >> "$LOG_PATH" 2>&1 || \
-                printf '%s\n' 'RootFS locale package installation failed.' >> "$LOG_PATH"
-        fi
-        if [ -x "$ROOTFS_CANONICAL/usr/sbin/locale-gen" ]; then
-            run_rootfs_maintenance_command /bin/sh -c \
-                "sed -i 's/^# *zh_CN.GBK GBK/zh_CN.GBK GBK/' /etc/locale.gen && \
-                 sed -i 's/^# *zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen && \
-                 /usr/sbin/locale-gen" >> "$LOG_PATH" 2>&1 && \
-            run_rootfs_maintenance_command /bin/sh -c "locale -a | grep -qi '^zh_CN.utf8$'" \
-                >> "$LOG_PATH" 2>&1
-            if [ "$?" -eq 0 ]; then
-                mkdir -p "$PREFIX_MARKER_DIR"
-                printf '%s\n' "$EXPECTED_ROOTFS_LOCALE_MARKER" > "$ROOTFS_LOCALE_MARKER"
-                GUEST_LOCALE=zh_CN.UTF-8
-            else
-                printf '%s\n' 'RootFS zh_CN locale generation failed; retaining C.UTF-8.' >> "$LOG_PATH"
-            fi
-        fi
-    else
-        GUEST_LOCALE=zh_CN.UTF-8
-    fi
-
     GUEST_CJK_FONT=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
-    if [ ! -f "$ROOTFS_CANONICAL$GUEST_CJK_FONT" ]; then
-        printf '%s\n' 'Installing Noto CJK fonts into the active RootFS runtime.' >> "$LOG_PATH"
-        if ! run_rootfs_maintenance_command /usr/bin/apt-get update >> "$LOG_PATH" 2>&1 || \
-            ! run_rootfs_maintenance_command /usr/bin/apt-get install -y --no-install-recommends \
-                fontconfig fonts-noto-cjk >> "$LOG_PATH" 2>&1; then
-            printf '%s\n' 'Noto CJK font installation failed; Wine may render CJK text as squares.' \
-                >> "$LOG_PATH"
-        else
-            run_rootfs_maintenance_command /usr/bin/fc-cache -f >> "$LOG_PATH" 2>&1 || true
-        fi
-    fi
 
     PREFIX_MARKER="$PREFIX_MARKER_DIR/runtime"
     EXPECTED_PREFIX_MARKER="$RUNTIME_ROOT_PATH|$WINE_PACKAGE"
     CURRENT_PREFIX_MARKER=
     [ ! -f "$PREFIX_MARKER" ] || CURRENT_PREFIX_MARKER=$(sed -n '1p' "$PREFIX_MARKER" 2>/dev/null)
     if [ "$CURRENT_PREFIX_MARKER" != "$EXPECTED_PREFIX_MARKER" ]; then
-        if [ -z "$CANCEL_PATH" ]; then
+        if [ -n "$TEMPLATE_PREFIX_ARCHIVE" ] && [ -f "$TEMPLATE_PREFIX_ARCHIVE" ]; then
+            # Clone a prefix that was already wineboot'd + FontLink'd once, during the shared
+            # base build, instead of paying that cost again for every container. The clone is
+            # universal (no container-specific state is baked into a fresh prefix -- see
+            # setup_rootfs_runtime.sh's template-prefix build step for why this is safe); only
+            # the marker's recorded RUNTIME_ROOT_PATH is container-specific, so it is rewritten
+            # below to this container's real value rather than the template's own placeholder.
+            printf '%s\n' 'Cloning the pre-booted Wine prefix template.' >> "$LOG_PATH"
+            case "$TEMPLATE_PREFIX_ARCHIVE" in
+                *.tar.zst) TEMPLATE_PREFIX_COMPRESSOR=zstd ;;
+                *) TEMPLATE_PREFIX_COMPRESSOR=gzip ;;
+            esac
+            rm -rf "$PREFIX_PATH"
+            mkdir -p "$PREFIX_PATH"
+            if ! tar -C "$PREFIX_PATH" --use-compress-program "$TEMPLATE_PREFIX_COMPRESSOR" \
+                --numeric-owner -xpf "$TEMPLATE_PREFIX_ARCHIVE" >> "$LOG_PATH" 2>&1; then
+                warmup_fail rootfs_prefix_template_extract_failed
+            fi
+            mkdir -p "$PREFIX_MARKER_DIR"
+            printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
+            printf '%s\n' "$RUNTIME_ROOT_PATH|$WINE_PACKAGE|Noto Sans CJK SC|v4" \
+                > "$PREFIX_MARKER_DIR/cjk-fonts"
+        elif [ -z "$CANCEL_PATH" ]; then
             # No interactive cancel concept here (setup/pre-warm time -- see this file's header
             # comment on CANCEL_PATH). Block directly on one foreground command instead of
             # backgrounding it and polling its PID once a second: `timeout`, run inside the
@@ -167,6 +160,8 @@ warmup_rootfs_prefix() {
             PREFIX_EXIT_CODE=$?
             [ "$PREFIX_EXIT_CODE" -ne 124 ] || warmup_fail rootfs_prefix_initialization_timeout
             [ "$PREFIX_EXIT_CODE" -eq 0 ] || warmup_fail rootfs_prefix_initialization_failed
+            mkdir -p "$PREFIX_MARKER_DIR"
+            printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
         else
             if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
                 run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
@@ -198,10 +193,10 @@ warmup_rootfs_prefix() {
             PROOT_PID=
             [ "${CANCELLED:-0}" = 1 ] || [ "$PREFIX_EXIT_CODE" -eq 0 ] || \
                 warmup_fail rootfs_prefix_initialization_failed
-        fi
-        if [ "${CANCELLED:-0}" != 1 ]; then
-            mkdir -p "$PREFIX_MARKER_DIR"
-            printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
+            if [ "${CANCELLED:-0}" != 1 ]; then
+                mkdir -p "$PREFIX_MARKER_DIR"
+                printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
+            fi
         fi
     fi
 

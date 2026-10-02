@@ -82,10 +82,11 @@ public final class GameUninstaller {
         }
         if (isContainerReferencedByOtherGame(gameId, containerId)) return;
 
-        // Debian RootFS proot-distro directory (the multi-GB payload) and its activation metadata.
-        deleteTreeIfExists(new File(paths.getProotDistroContainersDirectory(), containerId));
-        deleteTreeIfExists(paths.getRootfsRuntimeDirectory(containerId));
-        // The container's own working directory (GLIBC prefix for termux-box backends).
+        // The container's own working directory -- GLIBC prefix, or the RootFS backend's
+        // prefix-rootfs_proot/home-rootfs_proot pair (see GameStoragePaths). The RootFS payload
+        // itself is never per-container anymore -- every container mounts the one shared,
+        // always-current image (see GameStoragePaths.getSharedRootfsDirectory()), so there is no
+        // multi-GB per-container copy left to reclaim here.
         deleteTreeIfExists(paths.getContainerDirectory(containerId));
         // The container inventory record itself, removed last as the source of truth.
         containers.delete(containerId);

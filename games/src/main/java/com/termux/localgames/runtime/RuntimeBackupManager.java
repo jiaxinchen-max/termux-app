@@ -115,13 +115,8 @@ public final class RuntimeBackupManager {
         if (type == null) throw new IllegalArgumentException("runtime_type_required");
         requireDirectory(new File(filesDirectory, "games/components/install"),
             "runtime_component_receipts_missing");
-        if (type == RuntimeBackupType.GLIBC) {
-            requireDirectory(new File(paths.getTermuxPrefixDirectory(), "glibc"),
-                "glibc_runtime_missing");
-        } else {
-            requireDirectory(paths.getRootfsRuntimeDirectory(), "rootfs_runtime_missing");
-            requireDirectory(paths.getProotDistroContainersDirectory(), "rootfs_runtime_missing");
-        }
+        requireDirectory(new File(paths.getTermuxPrefixDirectory(), "glibc"),
+            "glibc_runtime_missing");
     }
 
     private void writeJob(Job job) throws IOException {

@@ -1,9 +1,11 @@
 package com.termux.localgames.runtime;
 
-/** Runtime trees that can be exported independently without game content. */
+/** Runtime trees that can be exported independently without game content. RootFS backup/restore
+ *  was removed when the RootFS runtime moved to one shared, always-current image (see
+ *  GameStoragePaths.getSharedRootfsDirectory()) -- there is no more per-container install to
+ *  export. */
 public enum RuntimeBackupType {
-    GLIBC("glibc"),
-    ROOTFS_PROOT("rootfs-proot");
+    GLIBC("glibc");
 
     private final String storageValue;
 

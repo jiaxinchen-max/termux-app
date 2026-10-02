@@ -10,9 +10,10 @@ import java.nio.charset.StandardCharsets;
 /** Writes a non-executable, private-path-only shell input contract. */
 public final class RootfsSetupSpecCodec {
     public void write(File file, RuntimeSetupTask task, File recipeDirectory,
-                      File sourceDirectory, File buildContext, File metadataRoot,
+                      File sourceDirectory, File buildContext,
                       File eventsPath, File logPath, String winePackage,
-                      File winePrefixDirectory, File prefixWarmupScript) throws IOException {
+                      File winePrefixDirectory, File homeDirectory,
+                      File prefixWarmupScript) throws IOException {
         if (file == null || task == null) throw new IllegalArgumentException("setup spec required");
         StringBuilder value = new StringBuilder("schemaVersion=2\n");
         text(value, "taskId", task.getTaskId());
@@ -25,13 +26,13 @@ public final class RootfsSetupSpecCodec {
         text(value, "buildContext", canonical(buildContext));
         text(value, "recipeDirectory", canonical(recipeDirectory));
         text(value, "sourceDirectory", canonical(sourceDirectory));
-        text(value, "metadataRoot", canonical(metadataRoot));
         text(value, "eventsPath", canonical(eventsPath));
         text(value, "logPath", canonical(logPath));
         // Empty for BASE_ONLY tasks (no per-game container/prefix involved) -- the script never
         // reaches the warmup call site in that case.
         text(value, "winePackage", winePackage == null ? "" : winePackage);
         text(value, "winePrefixDirectory", canonicalOrEmpty(winePrefixDirectory));
+        text(value, "homeDirectory", canonicalOrEmpty(homeDirectory));
         text(value, "prefixWarmupScript", canonicalOrEmpty(prefixWarmupScript));
         File parent = file.getParentFile();
         if (!parent.isDirectory() && !parent.mkdirs()) throw new IOException("setup_spec_directory_failed");

@@ -43,6 +43,7 @@ public final class LaunchSpecFactory {
         if (!workingDirectory.isDirectory() || !workingDirectory.canRead()) {
             throw new IOException("game_workdir_unreadable");
         }
+        File home = backend.resolveHomeDirectory(paths, profile);
         return new LaunchSpec(taskId, game.getId(), root.getPath(), game.getExecutable(),
             game.getWorkingDirectory(), game.getArguments(),
             backend.resolvePrefix(paths, profile).getCanonicalPath(),
@@ -55,7 +56,7 @@ public final class LaunchSpecFactory {
             new File(paths.getLaunchLocksDirectory(), taskId).getCanonicalPath(),
             new File(paths.getLaunchCancelDirectory(), taskId + ".cancel").getCanonicalPath(),
             43200, profile.getRuntimeBackendType(), profile.getRootfsPackage(),
-            runtimeRootPath);
+            runtimeRootPath, home == null ? "" : home.getCanonicalPath());
     }
 
     private static void requireContained(File root, File child, String error) throws IOException {

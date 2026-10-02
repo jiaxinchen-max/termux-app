@@ -35,16 +35,6 @@
                 android:padding="42dp"
                 android:scaleType="centerCrop"
                 android:src="@drawable/local_games_cover_placeholder" />
-
-            <ImageView
-                android:id="@+id/local_game_stale_badge"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:layout_gravity="top|end"
-                android:layout_margin="6dp"
-                android:visibility="gone"
-                android:src="@drawable/local_games_ic_warning"
-                android:contentDescription="@string/local_game_stale_rootfs_base_description" />
         </FrameLayout>
 
         <LinearLayout

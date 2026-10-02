@@ -21,6 +21,15 @@ public interface GameRuntimeBackend {
     /** Resolves the prefix/C drive owned by the profile's single bound container. */
     File resolvePrefix(GameStoragePaths paths, RuntimeProfile profile) throws IOException;
 
+    /** Resolves a per-container writable directory to bind as $HOME inside the guest, for
+     *  backends whose rootfs is shared and conceptually read-only (anything a tool writes under
+     *  $HOME needs somewhere real to land that isn't the shared tree). Null for backends that do
+     *  not run inside a shared rootfs. */
+    default File resolveHomeDirectory(GameStoragePaths paths, RuntimeProfile profile)
+        throws IOException {
+        return null;
+    }
+
     /** Empty only for backends that do not execute inside a versioned RootFS. */
     String resolveRuntimeRoot(GameStoragePaths paths, ComponentStoragePaths componentPaths,
                               RuntimeProfile profile) throws IOException;

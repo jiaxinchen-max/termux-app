@@ -65,7 +65,6 @@ public final class RuntimeBackupActivity extends AppCompatActivity {
             R.string.local_games_runtime_backup_title,
             R.string.local_games_runtime_backup_description);
         binding.runtimeBackupExportGlibc.setOnClickListener(view -> requestExport(RuntimeBackupType.GLIBC));
-        binding.runtimeBackupExportRootfs.setOnClickListener(view -> requestExport(RuntimeBackupType.ROOTFS_PROOT));
         binding.runtimeBackupRestore.setOnClickListener(view ->
             openArchive.launch(new String[] {"application/x-tar", "application/octet-stream"}));
         binding.runtimeBackupViewProcess.setOnClickListener(view -> showActiveConsole());
@@ -226,7 +225,6 @@ public final class RuntimeBackupActivity extends AppCompatActivity {
     private void setBusy(boolean busy) {
         binding.runtimeBackupProgress.setVisibility(busy ? View.VISIBLE : View.GONE);
         binding.runtimeBackupExportGlibc.setEnabled(!busy);
-        binding.runtimeBackupExportRootfs.setEnabled(!busy);
         binding.runtimeBackupRestore.setEnabled(!busy);
         if (busy) {
             binding.runtimeBackupStatus.setText(R.string.local_games_runtime_backup_working);
@@ -240,8 +238,7 @@ public final class RuntimeBackupActivity extends AppCompatActivity {
     }
 
     private int label(RuntimeBackupType type) {
-        return type == RuntimeBackupType.GLIBC
-            ? R.string.local_games_runtime_backup_glibc : R.string.local_games_runtime_backup_rootfs;
+        return R.string.local_games_runtime_backup_glibc;
     }
 
     private void toast(int text) { Toast.makeText(this, text, Toast.LENGTH_SHORT).show(); }

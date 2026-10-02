@@ -7,7 +7,7 @@ import java.util.Map;
 /** Immutable, shell-safe snapshot of every value consumed by one launch attempt. */
 public final class LaunchSpec {
 
-    public static final int SCHEMA_VERSION = 4;
+    public static final int SCHEMA_VERSION = 5;
     public static final int MAX_ARGUMENTS = 256;
     public static final int MAX_ENVIRONMENT = 256;
 
@@ -35,6 +35,7 @@ public final class LaunchSpec {
     private final GameRuntimeBackendType runtimeBackendType;
     private final String rootfsPackage;
     private final String runtimeRootPath;
+    private final String homeDirectoryPath;
 
     public LaunchSpec(String taskId, String gameId, String gameRootPath,
                       String executable, String workingDirectory, List<String> arguments,
@@ -71,7 +72,7 @@ public final class LaunchSpec {
             prefixPath, winePackage, graphicsDriver, dxWrapper, audioDriver, resolution,
             box64Preset, inputProfileId, launchExecutionMode, environment, eventPath,
             logPath, lockPath, cancelPath, timeoutSeconds,
-            GameRuntimeBackendType.GLIBC_TERMUX_BOX, "", "");
+            GameRuntimeBackendType.GLIBC_TERMUX_BOX, "", "", "");
     }
 
     public LaunchSpec(String taskId, String gameId, String gameRootPath,
@@ -82,7 +83,7 @@ public final class LaunchSpec {
                       Map<String, String> environment, String eventPath,
                       String logPath, String lockPath, String cancelPath, long timeoutSeconds,
                       GameRuntimeBackendType runtimeBackendType, String rootfsPackage,
-                      String runtimeRootPath) {
+                      String runtimeRootPath, String homeDirectoryPath) {
         this.taskId = requireId(taskId, "taskId");
         this.gameId = requireId(gameId, "gameId");
         this.gameRootPath = requireAbsolute(gameRootPath, "gameRootPath");
@@ -139,12 +140,15 @@ public final class LaunchSpec {
             throw new IllegalArgumentException("invalid rootfsPackage");
         }
         this.runtimeRootPath = DomainValidation.optionalText(runtimeRootPath);
+        this.homeDirectoryPath = DomainValidation.optionalText(homeDirectoryPath);
         if (runtimeBackendType == GameRuntimeBackendType.ROOTFS_PROOT) {
             if (this.rootfsPackage.isEmpty()) {
                 throw new IllegalArgumentException("rootfsPackage required");
             }
             requireAbsolute(this.runtimeRootPath, "runtimeRootPath");
-        } else if (!this.rootfsPackage.isEmpty() || !this.runtimeRootPath.isEmpty()) {
+            requireAbsolute(this.homeDirectoryPath, "homeDirectoryPath");
+        } else if (!this.rootfsPackage.isEmpty() || !this.runtimeRootPath.isEmpty() ||
+            !this.homeDirectoryPath.isEmpty()) {
             throw new IllegalArgumentException("rootfs fields not supported for GLIBC backend");
         }
     }
@@ -212,4 +216,5 @@ public final class LaunchSpec {
     public GameRuntimeBackendType getRuntimeBackendType() { return runtimeBackendType; }
     public String getRootfsPackage() { return rootfsPackage; }
     public String getRuntimeRootPath() { return runtimeRootPath; }
+    public String getHomeDirectoryPath() { return homeDirectoryPath; }
 }

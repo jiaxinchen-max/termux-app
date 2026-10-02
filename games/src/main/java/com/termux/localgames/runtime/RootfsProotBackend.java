@@ -49,14 +49,19 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
     }
 
     @Override
+    public File resolveHomeDirectory(GameStoragePaths paths, RuntimeProfile profile)
+        throws IOException {
+        requireProfile(profile);
+        return paths.getContainerHomeDirectory(profile.getContainerId(), getType())
+            .getCanonicalFile();
+    }
+
+    @Override
     public String resolveRuntimeRoot(GameStoragePaths paths, ComponentStoragePaths componentPaths,
                                      RuntimeProfile profile) throws IOException {
         requireProfile(profile);
-        RootfsRuntimeInstallation active = new RootfsRuntimeInstallationReader(paths)
-            .readActive(profile.getContainerId(), profile.getRootfsPackage())
-            .orElseThrow(() -> new IOException("rootfs_setup_required"));
-        File rootfs = active.getRootfsDirectory().getCanonicalFile();
-        if (!rootfs.isDirectory()) throw new IOException("rootfs_content_missing");
+        File rootfs = paths.getSharedRootfsDirectory().getCanonicalFile();
+        if (!rootfs.isDirectory()) throw new IOException("rootfs_setup_required");
         verifyManifest(rootfs, profile);
         if (!new File(rootfs, "mnt/games/game").isDirectory() ||
             !new File(rootfs, "mnt/games/prefix").isDirectory()) {

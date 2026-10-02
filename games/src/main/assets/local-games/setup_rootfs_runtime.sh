@@ -15,11 +15,11 @@ CONTAINER_NAME=
 BUILD_CONTEXT=
 RECIPE_DIRECTORY=
 SOURCE_DIRECTORY=
-METADATA_ROOT=
 EVENTS_PATH=
 LOG_PATH=
 BASE_ONLY=false
 WINE_PREFIX_DIRECTORY=
+HOME_DIRECTORY=
 WINE_PACKAGE=
 PREFIX_WARMUP_SCRIPT=
 COMPLETED=false
@@ -65,11 +65,11 @@ while IFS='=' read -r key value; do
         buildContext) BUILD_CONTEXT=$value ;;
         recipeDirectory) RECIPE_DIRECTORY=$value ;;
         sourceDirectory) SOURCE_DIRECTORY=$value ;;
-        metadataRoot) METADATA_ROOT=$value ;;
         eventsPath) EVENTS_PATH=$value ;;
         logPath) LOG_PATH=$value ;;
         baseOnly) BASE_ONLY=$value ;;
         winePrefixDirectory) WINE_PREFIX_DIRECTORY=$value ;;
+        homeDirectory) HOME_DIRECTORY=$value ;;
         winePackage) WINE_PACKAGE=$value ;;
         prefixWarmupScript) PREFIX_WARMUP_SCRIPT=$value ;;
         '') ;;
@@ -77,10 +77,14 @@ while IFS='=' read -r key value; do
     esac
 done < "$SPEC_PATH"
 case "$BASE_ONLY" in true|false) ;; *) fail invalid_setup_spec 64 ;; esac
+# Required unconditionally, even for BASE_ONLY: that path also builds the shared template Wine
+# prefix (see below), sourcing the same rootfs_prefix_warmup.sh functions a per-container warmup
+# uses.
+[ -n "$PREFIX_WARMUP_SCRIPT" ] || fail invalid_setup_spec 64
 if [ "$BASE_ONLY" = false ]; then
     case "$WINE_PACKAGE" in ''|*[!A-Za-z0-9._-]*) fail invalid_setup_wine_package 64 ;; esac
     [ -n "$WINE_PREFIX_DIRECTORY" ] || fail invalid_setup_spec 64
-    [ -n "$PREFIX_WARMUP_SCRIPT" ] || fail invalid_setup_spec 64
+    [ -n "$HOME_DIRECTORY" ] || fail invalid_setup_spec 64
 fi
 
 for value in "$TASK_ID" "$PACKAGE_NAME" "$CONTAINER_ID" "$CONTAINER_NAME"; do
@@ -112,13 +116,13 @@ TERMUX_FILES_ROOT=${PRIVATE_ROOT%/games}
 [ -n "$TERMUX_FILES_ROOT" ] && [ "$TERMUX_FILES_ROOT" != "$PRIVATE_ROOT" ] || \
     fail invalid_setup_spec_path 64
 for path in "$SPEC_PATH" "$BUILD_CONTEXT" "$RECIPE_DIRECTORY" "$SOURCE_DIRECTORY" \
-    "$METADATA_ROOT" "$EVENTS_PATH" "$LOG_PATH"; do
+    "$EVENTS_PATH" "$LOG_PATH"; do
     case "$path" in "$PRIVATE_ROOT"/*) ;; *) fail setup_path_outside_private_storage 64 ;; esac
     case "$path" in *'/../'*|*/..|*'/./'*|*/.) fail invalid_setup_private_path 64 ;; esac
 done
 # Empty for BASE_ONLY tasks (no per-game container/prefix involved); validated like the above
 # whenever actually supplied.
-for path in "$WINE_PREFIX_DIRECTORY" "$PREFIX_WARMUP_SCRIPT"; do
+for path in "$WINE_PREFIX_DIRECTORY" "$HOME_DIRECTORY" "$PREFIX_WARMUP_SCRIPT"; do
     [ -n "$path" ] || continue
     case "$path" in "$PRIVATE_ROOT"/*) ;; *) fail setup_path_outside_private_storage 64 ;; esac
     case "$path" in *'/../'*|*/..|*'/./'*|*/.) fail invalid_setup_private_path 64 ;; esac
@@ -156,8 +160,13 @@ run_logged() {
 PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
 PROOT_DISTRO="$PREFIX/bin/proot-distro"
 CONTAINERS_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/containers"
-CONTAINER_DIRECTORY="$CONTAINERS_DIRECTORY/$CONTAINER_NAME"
-ROOTFS="$CONTAINER_DIRECTORY/rootfs"
+# Winlator-style: one shared, always-current RootFS every container's proot session mounts with
+# `-r` (see start_rootfs_game.sh) -- never a per-containerId copy. Beside containers/ (never
+# under it, and not itself a proot-distro-managed container) so it is never mistaken for one by
+# the reset/backup/asset-scanning code paths that key off containerIds, and so the plain
+# tar-extraction below (not `proot-distro remove`/`install`) is the right tool to replace it.
+SHARED_ROOTFS_CONTAINER_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-shared-rootfs"
+SHARED_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY/rootfs"
 BASE_IMAGE=debian:trixie-20260824
 # Every container built from the same recipe (same box64/Wine source component, same
 # setup-container.sh/games-runtime.properties, same version of this script) would otherwise
@@ -186,10 +195,16 @@ TEMPLATE_RECIPE="$TEMPLATE_CACHE_DIR/games-rootfs-base.recipe"
 if command -v zstd >/dev/null 2>&1; then
     TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base.tar.zst"
     TEMPLATE_COMPRESSOR=zstd
+    TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.zst"
 else
     TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base.tar.gz"
     TEMPLATE_COMPRESSOR=gzip
+    TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.gz"
 fi
+# Sourced early (not just before the per-container warmup call further down) because BASE_ONLY
+# also builds the shared template Wine prefix below, using these same functions.
+warmup_fail() { fail "$1" 70; }
+. "$PREFIX_WARMUP_SCRIPT"
 supports_container_setup() {
     [ -x "$PROOT_DISTRO" ] &&
         "$PROOT_DISTRO" install --help 2>&1 | grep -q -- '--name' &&
@@ -296,19 +311,16 @@ ensure_template_archive() {
         fail rootfs_template_archive_failed 70
     fi
 }
-# Replaces $2 (container directory named $1) with a fresh extraction of the shared template
+# Replaces $SHARED_ROOTFS_CONTAINER_DIRECTORY with a fresh extraction of the shared template
 # archive -- independent real files, no hardlinks, so it works on filesystems that reject them.
-extract_template_into() {
-    name=$1
-    directory=$2
-    if [ -d "$directory" ]; then
-        if ! run_logged "$PROOT_DISTRO" remove --quiet "$name"; then
-            fail proot_distro_container_remove_failed 70
-        fi
-    fi
-    mkdir -p "$directory"
-    if ! run_logged tar -C "$directory" --use-compress-program "$TEMPLATE_COMPRESSOR" \
-        --numeric-owner -xpf "$TEMPLATE_ARCHIVE"; then
+# Not a registered proot-distro container (it holds the one rootfs every real container's proot
+# session mounts directly, see start_rootfs_game.sh), so a plain rm -rf is the right tool here,
+# unlike the "proot-distro remove" a real container's own directory would need.
+extract_shared_rootfs() {
+    rm -rf "$SHARED_ROOTFS_CONTAINER_DIRECTORY"
+    mkdir -p "$SHARED_ROOTFS_CONTAINER_DIRECTORY"
+    if ! run_logged tar -C "$SHARED_ROOTFS_CONTAINER_DIRECTORY" \
+        --use-compress-program "$TEMPLATE_COMPRESSOR" --numeric-owner -xpf "$TEMPLATE_ARCHIVE"; then
         fail rootfs_template_extract_failed 70
     fi
 }
@@ -321,7 +333,10 @@ if [ "$BASE_ONLY" = true ]; then
     # A rebuild must actually replace the archive, not silently reuse a stale one --
     # ensure_template_archive() below is a no-op when the archive already exists, so force a
     # real rebuild by clearing it first. Harmless (a no-op delete) on a first-ever "Build" too.
-    rm -f "$TEMPLATE_ARCHIVE" "$TEMPLATE_ARCHIVE.tmp" "$TEMPLATE_RECIPE"
+    # The template Wine prefix is rebuilt in lockstep with the rootfs for the same reason (the
+    # known hash-drift failure mode this session already fixed once for the rootfs side).
+    rm -f "$TEMPLATE_ARCHIVE" "$TEMPLATE_ARCHIVE.tmp" "$TEMPLATE_RECIPE" \
+        "$TEMPLATE_PREFIX_ARCHIVE" "$TEMPLATE_PREFIX_ARCHIVE.tmp"
 fi
 if [ -d "$CONTAINERS_DIRECTORY" ]; then
     for stray_container in "$CONTAINERS_DIRECTORY"/tmpl-*; do
@@ -333,7 +348,10 @@ fi
 if [ -d "$TEMPLATE_CACHE_DIR" ]; then
     for stray_archive in "$TEMPLATE_CACHE_DIR"/*.tar.*; do
         [ -f "$stray_archive" ] || continue
-        case "$stray_archive" in "$TEMPLATE_ARCHIVE"|"$TEMPLATE_ARCHIVE.tmp") continue ;; esac
+        case "$stray_archive" in
+            "$TEMPLATE_ARCHIVE"|"$TEMPLATE_ARCHIVE.tmp"| \
+            "$TEMPLATE_PREFIX_ARCHIVE"|"$TEMPLATE_PREFIX_ARCHIVE.tmp") continue ;;
+        esac
         rm -f "$stray_archive"
     done
 fi
@@ -348,6 +366,57 @@ if [ ! -f "$TEMPLATE_ARCHIVE" ]; then
     printf '%s\n' "$RECIPE_SHA256" > "$TEMPLATE_RECIPE.tmp" &&
         mv "$TEMPLATE_RECIPE.tmp" "$TEMPLATE_RECIPE" || fail rootfs_template_archive_failed 70
     rm -rf "$BUILD_DIRECTORY"
+    # (Re)archiving and (re)publishing the one live, shared RootFS happen in the same task so the
+    # two can never disagree -- every container, old and new alike, mounts whatever this leaves
+    # behind (see GameStoragePaths.getSharedRootfsDirectory()). A rebuild therefore takes effect
+    # for already-created games immediately; there is no more per-container pinning to go stale.
+    progress '==> Publishing the shared RootFS image'
+    extract_shared_rootfs
+    runtime_complete "$SHARED_ROOTFS" || fail rootfs_shared_image_invalid 70
+
+    # Pre-boot one Wine prefix here too (wineboot -u + CJK FontLink), archived alongside the
+    # rootfs, so every subsequent container extracts a ready-made prefix instead of paying the
+    # wineboot cost again (see rootfs_prefix_warmup.sh's TEMPLATE_PREFIX_ARCHIVE fast path). The
+    # only package any ROOTFS_PROOT container ever actually uses is hangover-11.9 (confirmed via
+    # grep across activity/ and runtime/), so one template prefix covers every real container.
+    progress '==> Pre-warming the shared Wine prefix template (wineboot + CJK FontLink)'
+    TEMPLATE_PREFIX_ARCHIVE_DESTINATION="$TEMPLATE_PREFIX_ARCHIVE"
+    TEMPLATE_PREFIX_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/prefix-build"
+    TEMPLATE_HOME_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/home-build"
+    rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
+    mkdir -p "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
+    ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS") || fail rootfs_unreadable 70
+    PREFIX_PATH="$TEMPLATE_PREFIX_BUILD_DIRECTORY"
+    HOME_PATH="$TEMPLATE_HOME_BUILD_DIRECTORY"
+    WINE_PACKAGE=hangover-11.9
+    RUNTIME_ROOT_PATH=template
+    # Empty, not $TEMPLATE_PREFIX_ARCHIVE_DESTINATION: this build step is what PRODUCES that
+    # archive, so warmup_rootfs_prefix must do the real wineboot run here, never the clone path.
+    TEMPLATE_PREFIX_ARCHIVE=
+    CANCEL_PATH=
+    TERMUX_FILES_DIR="$TERMUX_FILES_ROOT"
+    PROOT_BIN="$PREFIX/bin/proot"
+    command -v termux-x11 >/dev/null 2>&1 || fail rootfs_prefix_warmup_display_missing 70
+    MAINTENANCE_DISPLAY=:9
+    termux-x11 "$MAINTENANCE_DISPLAY" >> "$LOG_PATH" 2>&1 &
+    WARMUP_DISPLAY_PID=$!
+    resolve_rootfs_translator
+    warmup_rootfs_prefix
+    kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
+    WARMUP_DISPLAY_PID=
+    mkdir -p "$TEMPLATE_CACHE_DIR"
+    rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
+    if ! run_logged tar -C "$TEMPLATE_PREFIX_BUILD_DIRECTORY" --use-compress-program "$TEMPLATE_COMPRESSOR" \
+        -cf "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp" .; then
+        rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
+        fail rootfs_prefix_template_archive_failed 70
+    fi
+    if ! mv "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp" "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION"; then
+        rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
+        fail rootfs_prefix_template_archive_failed 70
+    fi
+    TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_PREFIX_ARCHIVE_DESTINATION"
+    rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
 fi
 
 if [ "$BASE_ONLY" = true ]; then
@@ -357,14 +426,11 @@ if [ "$BASE_ONLY" = true ]; then
     exit 0
 fi
 
-if ! runtime_complete "$ROOTFS"; then
-    progress '==> Extracting the shared runtime template into this container'
-    extract_template_into "$CONTAINER_NAME" "$CONTAINER_DIRECTORY"
-fi
-
-if ! runtime_complete "$ROOTFS"; then
-    fail games_runtime_container_invalid 70
-fi
+# Should be unreachable: GameImportReadinessGate/RuntimeEnvironmentStatus.rootfsState() already
+# gate game creation on the base archive existing, and the block above republishes the shared
+# rootfs every time that archive is (re)built -- the two can only disagree if something deleted
+# games-shared-rootfs/ directly without going through this script.
+runtime_complete "$SHARED_ROOTFS" || fail rootfs_shared_image_missing 70
 
 # Warms this container's Wine prefix (locale, CJK fonts, `wineboot -u`) right now, at
 # import/config-save time, instead of leaving it for the user's first Launch tap -- see
@@ -374,15 +440,14 @@ fi
 # whole setup task (surfaced as FAILED/retry in the Components tab) rather than being silently
 # deferred to launch time.
 progress '==> Warming the Wine prefix for this container (locale, CJK fonts, wineboot)'
-warmup_fail() { fail "$1" 70; }
-. "$PREFIX_WARMUP_SCRIPT"
-ROOTFS_CANONICAL=$(realpath "$ROOTFS") || fail rootfs_unreadable 70
+ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS") || fail rootfs_unreadable 70
 PREFIX_PATH="$WINE_PREFIX_DIRECTORY"
+HOME_PATH="$HOME_DIRECTORY"
 RUNTIME_ROOT_PATH="$ROOTFS_CANONICAL"
 CANCEL_PATH=
 TERMUX_FILES_DIR="$TERMUX_FILES_ROOT"
 PROOT_BIN="$PREFIX/bin/proot"
-mkdir -p "$PREFIX_PATH"
+mkdir -p "$PREFIX_PATH" "$HOME_PATH"
 command -v termux-x11 >/dev/null 2>&1 || fail rootfs_prefix_warmup_display_missing 70
 # Runs on a dedicated display number, never the shared ":0" a real game session on another
 # container might concurrently be using -- RuntimeInstallationGate only serializes setup/reset
@@ -394,35 +459,6 @@ resolve_rootfs_translator
 warmup_rootfs_prefix
 kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
 WARMUP_DISPLAY_PID=
-
-PACKAGE_ROOT="$METADATA_ROOT/$PACKAGE_NAME"
-VERSION_ID="v${VERSION}-${RECIPE_SHA256%${RECIPE_SHA256#????????????}}"
-mkdir -p "$PACKAGE_ROOT/versions"
-RECEIPT_TMP="$PACKAGE_ROOT/versions/$VERSION_ID.properties.tmp"
-RECEIPT="$PACKAGE_ROOT/versions/$VERSION_ID.properties"
-{
-    printf 'schemaVersion=1\n'
-    printf 'packageName=%s\n' "$PACKAGE_NAME"
-    printf 'version=%s\n' "$VERSION"
-    printf 'recipeSha256=%s\n' "$RECIPE_SHA256"
-    printf 'containerName=%s\n' "$CONTAINER_NAME"
-} > "$RECEIPT_TMP"
-mv "$RECEIPT_TMP" "$RECEIPT"
-
-POINTER="$PACKAGE_ROOT/active.properties"
-PREVIOUS=
-if [ -f "$POINTER" ]; then
-    PREVIOUS=$(sed -n 's/^active=\([A-Za-z0-9._-]*\)$/\1/p' "$POINTER" | head -n 1)
-fi
-POINTER_TMP="$POINTER.tmp"
-{
-    printf 'schemaVersion=1\n'
-    printf 'active=%s\n' "$VERSION_ID"
-    printf 'previous=%s\n' "$PREVIOUS"
-} > "$POINTER_TMP"
-[ ! -f "$POINTER" ] || cp "$POINTER" "$POINTER.bak"
-mv "$POINTER_TMP" "$POINTER"
-rm -f "$POINTER.bak"
 
 printf '{"schemaVersion":1,"taskId":"%s","state":"SUCCEEDED"}\n' "$TASK_ID" >> "$EVENTS_PATH"
 progress '==> Runtime installation completed'

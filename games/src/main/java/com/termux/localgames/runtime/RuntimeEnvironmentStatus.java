@@ -1,13 +1,9 @@
 package com.termux.localgames.runtime;
 
-import androidx.annotation.Nullable;
-
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.RuntimeReadinessState;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.Optional;
 
 /** Independent readiness checks for the two runtime backends -- replaces the single
  *  combined {@code LocalGamesHost.isRuntimeAvailable()} boolean, which cannot represent two
@@ -41,48 +37,14 @@ public final class RuntimeEnvironmentStatus {
         return RuntimeReadinessState.INCOMPLETE;
     }
 
-    /** READY when the single shared rootfs base archive (see setup_rootfs_runtime.sh) that new
-     *  containers are extracted from exists; NOT_READY otherwise. An atomically-renamed archive
-     *  has no partially-built state to represent, so unlike glibcState() this is strictly binary
-     *  -- INCOMPLETE is never returned. Deliberately independent of whether any GameContainer
-     *  already exists -- an already-cloned container keeps working off its own files even after
-     *  the shared base it came from is reset or rebuilt (see isRootfsContainerStale for that
-     *  per-container case). */
+    /** READY when the single shared RootFS base archive (see setup_rootfs_runtime.sh) exists.
+     *  Building/rebuilding the base atomically (re)archives it and extracts it live to
+     *  GameStoragePaths.getSharedRootfsDirectory() in the same task, so every ROOTFS_PROOT
+     *  container always mounts the one current image -- there is no per-container copy left to
+     *  go stale. An atomically-renamed archive has no partially-built state to represent, so
+     *  unlike glibcState() this is strictly binary -- INCOMPLETE is never returned. */
     public RuntimeReadinessState rootfsState() {
         return paths.getRootfsBaseArchiveZst().isFile() || paths.getRootfsBaseArchiveGz().isFile()
             ? RuntimeReadinessState.READY : RuntimeReadinessState.NOT_READY;
-    }
-
-    /** Whether the given ROOTFS_PROOT container's active build was cloned from a base archive
-     *  that is no longer the live one (reset, or rebuilt from a different recipe). Purely
-     *  informational -- the container's own already-cloned files keep working regardless.
-     *  False if the container has no active build at all (nothing to compare). */
-    public boolean isRootfsContainerStale(String containerId, String rootfsPackage) {
-        try {
-            Optional<RootfsRuntimeInstallation> installation =
-                new RootfsRuntimeInstallationReader(paths).readActive(containerId, rootfsPackage);
-            if (!installation.isPresent()) return false;
-            return !installation.get().getRecipeSha256().equals(currentBaseRecipeSha256());
-        } catch (IOException | RuntimeException ignored) {
-            return false;
-        }
-    }
-
-    /** The recipeSha256 recorded alongside the current base archive, or null when no archive (or
-     *  no readable sidecar) exists -- in which case every container reads as stale, matching the
-     *  old "no valid current template to compare against" behavior. */
-    @Nullable
-    private String currentBaseRecipeSha256() {
-        File recipe = paths.getRootfsBaseRecipeFile();
-        if (!recipe.isFile()) return null;
-        try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                new java.io.FileReader(recipe))) {
-            String value = reader.readLine();
-            if (value == null) return null;
-            value = value.trim();
-            return value.matches("[0-9a-f]{64}") ? value : null;
-        } catch (IOException | RuntimeException error) {
-            return null;
-        }
     }
 }

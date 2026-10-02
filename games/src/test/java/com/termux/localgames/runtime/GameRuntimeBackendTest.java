@@ -24,9 +24,6 @@ import java.util.Set;
 
 public class GameRuntimeBackendTest {
 
-    private static final String SHA =
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-
     @Rule public final TemporaryFolder temporary = new TemporaryFolder();
 
     @Test
@@ -75,13 +72,10 @@ public class GameRuntimeBackendTest {
     }
 
     @Test
-    public void rootfsResolvesOnlyActiveTermuxBuiltContainer() throws Exception {
+    public void rootfsResolvesTheSharedLiveRootfs() throws Exception {
         File files = temporary.newFolder("component-files");
         ComponentStoragePaths componentPaths = new ComponentStoragePaths(files);
-        File packageRoot = new File(new GameStoragePaths(files).getRootfsRuntimeDirectory(
-            rootfsProfile().getContainerId()), "debian-13-games-rootfs");
-        File rootfs = new File(new GameStoragePaths(files).getProotDistroContainersDirectory(),
-            "games-debian13-hangover119-v1/rootfs");
+        File rootfs = new GameStoragePaths(files).getSharedRootfsDirectory();
         assertTrue(rootfs.mkdirs());
         assertTrue(new File(rootfs, "mnt/games/game").mkdirs());
         assertTrue(new File(rootfs, "mnt/games/prefix").mkdirs());
@@ -92,12 +86,6 @@ public class GameRuntimeBackendTest {
             "graphicsDrivers", "rootfs-virgl-mesa,rootfs-llvmpipe",
             "dxWrappers", "rootfs-dxvk,rootfs-wined3d",
             "audioDrivers", "pulseaudio,alsa"));
-        write(new File(packageRoot, "versions/v1-aaaaaaaaaaaa.properties"), properties(
-            "schemaVersion", "1", "packageName", "debian-13-games-rootfs",
-            "version", "1", "recipeSha256", SHA,
-            "containerName", "games-debian13-hangover119-v1"));
-        write(new File(packageRoot, "active.properties"), properties(
-            "schemaVersion", "1", "active", "v1-aaaaaaaaaaaa", "previous", ""));
 
         String resolved = new RootfsProotBackend().resolveRuntimeRoot(
             new GameStoragePaths(files), componentPaths, rootfsProfile());

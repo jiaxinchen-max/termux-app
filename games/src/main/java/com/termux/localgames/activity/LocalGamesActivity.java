@@ -77,7 +77,6 @@ import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.importer.SafGameAccessProbe;
 import com.termux.localgames.recovery.GameUninstallPlan;
 import com.termux.localgames.recovery.GameUninstaller;
-import com.termux.localgames.runtime.RootfsRuntimeInstallationReader;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -135,7 +134,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private int selectedTab;
     private int libraryGeneration;
     private int libraryColumns = 2;
-    private Set<String> staleRootfsGameIds = Collections.emptySet();
     private Map<String, BuildingTask> buildingGameTasks = Collections.emptyMap();
     private final List<android.animation.ObjectAnimator> libraryCardBreathAnimators =
         new ArrayList<>();
@@ -433,7 +431,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding.localGamesLibraryError.setVisibility(View.GONE);
         libraryExecutor.execute(() -> {
             List<GameLibraryItem> items = null;
-            Set<String> stale = new HashSet<>();
             Map<String, BuildingTask> building = new HashMap<>();
             String error = null;
             try {
@@ -441,7 +438,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 GameStoragePaths gamePaths = new GameStoragePaths(getFilesDir());
                 FileRuntimeProfileRepository profiles =
                     new FileRuntimeProfileRepository(gamePaths.getProfilesDirectory());
-                RuntimeEnvironmentStatus status = new RuntimeEnvironmentStatus(gamePaths);
                 Map<String, String> activeRootfsSetupByContainer = new HashMap<>();
                 for (RuntimeSetupTask task : new FileRuntimeSetupTaskRepository(
                         gamePaths.getRuntimeSetupTasksDirectory()).list()) {
@@ -459,10 +455,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 for (GameLibraryItem item : items) {
                     profiles.find(item.getGame().getId()).ifPresent(profile -> {
                         if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
-                            if (status.isRootfsContainerStale(profile.getContainerId(),
-                                    profile.getRootfsPackage())) {
-                                stale.add(item.getGame().getId());
-                            }
                             String taskId = activeRootfsSetupByContainer.get(
                                 profile.getContainerId());
                             if (taskId != null) {
@@ -481,7 +473,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 error = safeMessage(loadError);
             }
             List<GameLibraryItem> loaded = items;
-            Set<String> loadedStale = stale;
             Map<String, BuildingTask> loadedBuilding = building;
             String failure = error;
             mainHandler.post(() -> {
@@ -489,7 +480,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 if (!started || binding == null || selectedTab != TAB_LIBRARY ||
                     generation != libraryGeneration) return;
                 if (failure == null) {
-                    staleRootfsGameIds = loadedStale;
                     buildingGameTasks = loadedBuilding;
                     renderLibrary(loaded, generation);
                 } else renderLibraryError(failure);
@@ -546,8 +536,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
         row.localGameAccessStatus.setTextColor(ContextCompat.getColor(this,
             item.getAccessState() == GameAccessState.ACCESSIBLE
                 ? R.color.local_games_success : R.color.local_games_error));
-        row.localGameStaleBadge.setVisibility(
-            staleRootfsGameIds.contains(game.getId()) ? View.VISIBLE : View.GONE);
         row.localGameLastPlayed.setText(game.getLastPlayedAt() == 0
             ? getString(R.string.local_game_never_played)
             : getString(R.string.local_game_last_played, DateUtils.formatDateTime(this,
@@ -866,12 +854,13 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 } catch (IOException ignored) {
                     // A damaged task record must not hide the component catalog or reinstall action.
                 }
-                try {
-                    runtimeInstalled = new RootfsRuntimeInstallationReader(
-                        new GameStoragePaths(getFilesDir()))
-                        .readActive(componentContainerId, "debian-13-games-rootfs").isPresent();
-                } catch (IOException | RuntimeException ignored) {
-                    // Missing or stale activation metadata is rendered as not installed.
+                if (componentContainerId != null) {
+                    GameStoragePaths gamePaths = new GameStoragePaths(getFilesDir());
+                    runtimeInstalled = gamePaths.getSharedRootfsDirectory().isDirectory() &&
+                        gamePaths.getContainerPrefixDirectory(componentContainerId,
+                            GameRuntimeBackendType.ROOTFS_PROOT).isDirectory() &&
+                        gamePaths.getContainerHomeDirectory(componentContainerId,
+                            GameRuntimeBackendType.ROOTFS_PROOT).isDirectory();
                 }
             }
             List<ComponentCatalogItem> loadedItems = items;

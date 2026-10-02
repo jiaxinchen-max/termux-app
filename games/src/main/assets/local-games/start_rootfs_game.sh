@@ -1,5 +1,5 @@
 #!/bin/sh
-# RootFS/PRoot game launcher. Input is a private schema-v4 Base64 LaunchSpec.
+# RootFS/PRoot game launcher. Input is a private schema-v5 Base64 LaunchSpec.
 
 set -u
 
@@ -10,7 +10,20 @@ SCRIPT_PATH=$(realpath "$0" 2>/dev/null) || {
 }
 TERMUX_FILES_DIR=$(dirname "$(dirname "$(dirname "$SCRIPT_PATH")")")
 GAMES_PRIVATE_ROOT="$TERMUX_FILES_DIR/games"
-PROOT_DISTRO_CONTAINERS="$TERMUX_FILES_DIR/usr/var/lib/proot-distro/containers"
+# Winlator-style: one shared, always-current RootFS every container's proot session mounts with
+# `-r` -- never a per-containerId copy (see setup_rootfs_runtime.sh, which publishes it, and
+# GameStoragePaths.getSharedRootfsDirectory(), which RootfsProotBackend resolves RUNTIME_ROOT_PATH
+# from below).
+SHARED_ROOTFS_CONTAINER_DIRECTORY="$TERMUX_FILES_DIR/usr/var/lib/proot-distro/games-shared-rootfs"
+SHARED_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY/rootfs"
+TEMPLATE_CACHE_DIR="$TERMUX_FILES_DIR/usr/var/lib/proot-distro/games-template-cache"
+if [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.zst" ]; then
+    TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.zst"
+elif [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.gz" ]; then
+    TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.gz"
+else
+    TEMPLATE_PREFIX_ARCHIVE=
+fi
 PROOT_BIN="$TERMUX_FILES_DIR/usr/bin/proot"
 SEQUENCE=0
 PROOT_PID=
@@ -44,6 +57,7 @@ LAUNCH_EXECUTION_MODE=
 RUNTIME_BACKEND_TYPE=
 ROOTFS_PACKAGE=
 RUNTIME_ROOT_PATH=
+HOME_PATH=
 EVENT_PATH=
 LOG_PATH=
 LOCK_PATH=
@@ -82,6 +96,7 @@ while IFS= read -r line || [ -n "$line" ]; do
         runtimeBackendType) RUNTIME_BACKEND_TYPE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         rootfsPackage) ROOTFS_PACKAGE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         runtimeRootPath) RUNTIME_ROOT_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
+        homeDirectory) HOME_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         eventPath) EVENT_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         logPath) LOG_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         lockPath) LOCK_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
@@ -112,7 +127,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     esac
 done < "$SPEC_PATH"
 
-[ "$SPEC_SCHEMA" = 4 ] || fail_before_events unsupported_launch_spec_schema
+[ "$SPEC_SCHEMA" = 5 ] || fail_before_events unsupported_launch_spec_schema
 [ "$RUNTIME_BACKEND_TYPE" = rootfs_proot ] || fail_before_events runtime_backend_script_mismatch
 case "$TASK_ID" in ''|*[!A-Za-z0-9._-]*) fail_before_events invalid_task_id ;; esac
 case "$GAME_ID" in ''|*[!A-Za-z0-9._-]*) fail_before_events invalid_game_id ;; esac
@@ -143,19 +158,17 @@ validate_private_path() {
     case "$1" in *'/../'*|*/..|*/./*) fail_before_events invalid_launch_private_path ;; esac
 }
 validate_private_path "$PREFIX_PATH"
+validate_private_path "$HOME_PATH"
 validate_private_path "$EVENT_PATH"
 validate_private_path "$LOG_PATH"
 validate_private_path "$LOCK_PATH"
 validate_private_path "$CANCEL_PATH"
-case "$RUNTIME_ROOT_PATH" in "$PROOT_DISTRO_CONTAINERS"/*/rootfs) ;; *) fail_before_events rootfs_path_outside_termux_runtime ;; esac
-RUNTIME_CONTAINER=${RUNTIME_ROOT_PATH#"$PROOT_DISTRO_CONTAINERS"/}
-RUNTIME_CONTAINER=${RUNTIME_CONTAINER%/rootfs}
-case "$RUNTIME_CONTAINER" in ''|*[!A-Za-z0-9._-]*) fail_before_events invalid_rootfs_container ;; esac
-[ "$RUNTIME_ROOT_PATH" = "$PROOT_DISTRO_CONTAINERS/$RUNTIME_CONTAINER/rootfs" ] || \
-    fail_before_events rootfs_path_outside_termux_runtime
+# Must be exactly the one shared RootFS every container mounts -- there is no more per-container
+# path pattern to validate against (see SHARED_ROOTFS above).
+[ "$RUNTIME_ROOT_PATH" = "$SHARED_ROOTFS" ] || fail_before_events rootfs_path_outside_termux_runtime
 
 mkdir -p "$(dirname "$EVENT_PATH")" "$(dirname "$LOG_PATH")" \
-    "$(dirname "$LOCK_PATH")" "$(dirname "$CANCEL_PATH")" "$PREFIX_PATH"
+    "$(dirname "$LOCK_PATH")" "$(dirname "$CANCEL_PATH")" "$PREFIX_PATH" "$HOME_PATH"
 : > "$EVENT_PATH"
 : > "$LOG_PATH"
 if [ "$LAUNCH_EXECUTION_MODE" = terminal_session ]; then
@@ -210,8 +223,8 @@ trap on_signal HUP INT TERM
 emit RUNNING PRECHECK 5 null '' false precheck
 [ -x "$PROOT_BIN" ] || terminal_failure proot_runtime_missing null true
 ROOTFS_CANONICAL=$(realpath "$RUNTIME_ROOT_PATH" 2>/dev/null) || terminal_failure rootfs_unreadable null true
-CONTAINERS_CANONICAL=$(realpath "$PROOT_DISTRO_CONTAINERS" 2>/dev/null) || terminal_failure proot_distro_store_unreadable null true
-[ "$ROOTFS_CANONICAL" = "$CONTAINERS_CANONICAL/$RUNTIME_CONTAINER/rootfs" ] || \
+SHARED_ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS" 2>/dev/null) || terminal_failure rootfs_unreadable null true
+[ "$ROOTFS_CANONICAL" = "$SHARED_ROOTFS_CANONICAL" ] || \
     terminal_failure rootfs_path_outside_termux_runtime
 [ -d "$ROOTFS_CANONICAL" ] || terminal_failure rootfs_unreadable null true
 [ -x "$ROOTFS_CANONICAL/usr/bin/env" ] || terminal_failure rootfs_env_missing null true
@@ -298,6 +311,7 @@ run_rootfs_command() {
             -r "$ROOTFS_CANONICAL" \
             -b /dev -b /proc -b /sys \
             -b "$TERMUX_FILES_DIR/usr/tmp:/tmp" \
+            -b "$HOME_PATH:/root" \
             -b "$ROOT_CANONICAL:$GUEST_GAME_ROOT" \
             -b "$PREFIX_PATH:$GUEST_PREFIX" \
             -w "$GUEST_WORKING_DIRECTORY" \
@@ -313,6 +327,7 @@ run_rootfs_command() {
             -r "$ROOTFS_CANONICAL" \
             -b /dev -b /proc -b /sys \
             -b "$TERMUX_FILES_DIR/usr/tmp:/tmp" \
+            -b "$HOME_PATH:/root" \
             -b "$ROOT_CANONICAL:$GUEST_GAME_ROOT" \
             -b "$PREFIX_PATH:$GUEST_PREFIX" \
             -w "$GUEST_WORKING_DIRECTORY" \

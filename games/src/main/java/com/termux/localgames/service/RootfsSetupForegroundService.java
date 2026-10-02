@@ -31,9 +31,6 @@ import com.termux.localgames.domain.GameRuntimeBackendType;
 import com.termux.localgames.domain.RuntimeSetupTask;
 import com.termux.localgames.domain.RuntimeSetupTaskState;
 import com.termux.localgames.runtime.RootfsSetupRecipe;
-import com.termux.localgames.runtime.RootfsRuntimeInstallation;
-import com.termux.localgames.runtime.RootfsRuntimeInstallationReader;
-import com.termux.localgames.runtime.RootfsRuntimeActivationStore;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -101,12 +98,6 @@ public final class RootfsSetupForegroundService extends Service {
                     reconcile(requiredTask(requiredId(taskId)));
                 } else if (RuntimeSetupTasks.ACTION_RECONCILE_ALL.equals(action)) {
                     reconcileAll();
-                } else if (RuntimeSetupTasks.ACTION_ROLLBACK.equals(action)) {
-                    RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), null);
-                    RootfsRuntimeInstallation active = new RootfsRuntimeActivationStore(paths)
-                        .rollback(requiredId(containerId), requiredId(packageName));
-                    publishMessage(getString(R.string.local_games_runtime_rollback_complete,
-                        active.getVersion()));
                 }
             } catch (Exception error) {
                 Log.e(TAG, "Setup command failed", error);
@@ -172,23 +163,26 @@ public final class RootfsSetupForegroundService extends Service {
             File log = new File(paths.getRuntimeSetupLogsDirectory(), task.getTaskId() + ".log");
             File context = new File(paths.getRuntimeSetupStagingDirectory(), task.getTaskId());
             // Empty for BASE_ONLY tasks (no per-game container/prefix to warm) -- the script
-            // never reaches the warmup call site in that case.
+            // never binds a container prefix in that case. prefixWarmupScript is still needed
+            // unconditionally though: BASE_ONLY also builds the shared template Wine prefix (see
+            // setup_rootfs_runtime.sh), sourcing the same rootfs_prefix_warmup.sh functions.
             String winePackage = null;
             File winePrefixDirectory = null;
-            File prefixWarmupScript = null;
+            File homeDirectory = null;
+            File prefixWarmupScript = new LaunchScriptInstaller(this, paths)
+                .installRootfsPrefixWarmup();
             if (!task.isBaseOnly()) {
                 GameContainer container = containers.find(task.getContainerId())
                     .orElseThrow(() -> new IOException("rootfs_container_missing"));
                 winePackage = container.getWinePackage();
                 winePrefixDirectory = paths.getContainerPrefixDirectory(task.getContainerId(),
                     GameRuntimeBackendType.ROOTFS_PROOT);
-                prefixWarmupScript = new LaunchScriptInstaller(this, paths)
-                    .installRootfsPrefixWarmup();
+                homeDirectory = paths.getContainerHomeDirectory(task.getContainerId(),
+                    GameRuntimeBackendType.ROOTFS_PROOT);
             }
             new RootfsSetupSpecCodec().write(spec, preparing, assets.recipeDirectory,
-                source.getDirectory(), context,
-                paths.getRootfsRuntimeDirectory(task.getContainerId()), events, log,
-                winePackage, winePrefixDirectory, prefixWarmupScript);
+                source.getDirectory(), context, events, log,
+                winePackage, winePrefixDirectory, homeDirectory, prefixWarmupScript);
             host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 assets.script.getCanonicalPath(), spec.getCanonicalPath(),
                 paths.getRuntimeSetupDirectory().getCanonicalPath()));
@@ -223,20 +217,14 @@ public final class RootfsSetupForegroundService extends Service {
 
     private void reconcile(RuntimeSetupTask task) throws Exception {
         SetupEvent event = readLastEvent(eventFile(task.getTaskId()));
-        // A BASE_ONLY build never creates or activates a real game container (that is the whole
-        // point -- no orphan container is left behind), so activeMatches() can never observe it
-        // as active. Its own script-emitted SUCCEEDED event is the only completion signal.
-        boolean succeeded = task.isBaseOnly()
-            ? event.state == Event.SUCCEEDED
-            : (event.state == Event.SUCCEEDED || activeMatches(task));
-        if (succeeded) {
+        // The script's own emitted SUCCEEDED event is the only completion signal -- there is no
+        // more per-container "activation" to cross-check against now that every container mounts
+        // the one shared, always-current RootFS (see GameStoragePaths.getSharedRootfsDirectory()).
+        if (event.state == Event.SUCCEEDED) {
             RuntimeSetupTask current = requiredTask(task.getTaskId());
             if (!current.getState().isTerminal()) {
                 RuntimeSetupTask verifying = transition(current,
                     RuntimeSetupTaskState.VERIFYING, "");
-                if (!task.isBaseOnly() && !activeMatches(verifying)) {
-                    throw new IOException("rootfs_activation_invalid");
-                }
                 RuntimeSetupTask activating = transition(verifying,
                     RuntimeSetupTaskState.ACTIVATING, "");
                 transition(activating, RuntimeSetupTaskState.SUCCEEDED, "");
@@ -247,18 +235,6 @@ public final class RootfsSetupForegroundService extends Service {
             submitted.remove(task.getTaskId());
         } else if (!submitted.contains(task.getTaskId())) {
             prepareAndStart(task);
-        }
-    }
-
-    private boolean activeMatches(RuntimeSetupTask task) {
-        try {
-            RootfsRuntimeInstallation active = new RootfsRuntimeInstallationReader(paths)
-                .readActive(task.getContainerId(), task.getPackageName()).orElse(null);
-            return active != null && active.getVersion() == task.getVersion() &&
-                active.getRecipeSha256().equals(task.getRecipeSha256()) &&
-                active.getContainerName().equals(task.getContainerName());
-        } catch (IOException error) {
-            return false;
         }
     }
 

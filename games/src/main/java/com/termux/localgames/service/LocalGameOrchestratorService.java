@@ -48,7 +48,6 @@ import com.termux.localgames.runtime.LaunchPreflightResult;
 import com.termux.localgames.runtime.LaunchSpecFactory;
 import com.termux.localgames.runtime.LaunchTaskStateMachine;
 import com.termux.localgames.runtime.GameContainerFactory;
-import com.termux.localgames.runtime.RootfsRuntimeInstallationReader;
 import com.termux.localgames.runtime.GameContainerProfileResolver;
 import com.termux.localgames.runtime.PreflightIssue;
 import com.termux.localgames.runtime.GameRuntimeBackend;
@@ -450,13 +449,12 @@ public final class LocalGameOrchestratorService extends Service {
     }
 
     private boolean rootfsRuntimeReady(RuntimeProfile profile) {
-        try {
-            return new RootfsRuntimeInstallationReader(paths)
-                .readActive(profile.getContainerId(), profile.getRootfsPackage()).isPresent();
-        } catch (IOException | RuntimeException ignored) {
-            // Unreadable/corrupt activation metadata -- treat as not ready so it gets rebuilt.
-            return false;
-        }
+        if (!paths.getSharedRootfsDirectory().isDirectory()) return false;
+        File prefix = paths.getContainerPrefixDirectory(profile.getContainerId(),
+            GameRuntimeBackendType.ROOTFS_PROOT);
+        File home = paths.getContainerHomeDirectory(profile.getContainerId(),
+            GameRuntimeBackendType.ROOTFS_PROOT);
+        return prefix.isDirectory() && home.isDirectory();
     }
 
     private RuntimeProfile resolveContainer(RuntimeProfile gameProfile) throws IOException {

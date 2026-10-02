@@ -104,6 +104,7 @@ public final class LaunchSpecCodec {
         text(lines, "runtimeBackendType", spec.getRuntimeBackendType().getStorageValue());
         text(lines, "rootfsPackage", spec.getRootfsPackage());
         text(lines, "runtimeRootPath", spec.getRuntimeRootPath());
+        text(lines, "homeDirectory", spec.getHomeDirectoryPath());
         text(lines, "eventPath", spec.getEventPath());
         text(lines, "logPath", spec.getLogPath());
         text(lines, "lockPath", spec.getLockPath());
@@ -140,6 +141,7 @@ public final class LaunchSpecCodec {
             expected.add("rootfsPackage");
             expected.add("runtimeRootPath");
         }
+        if (schema >= 5) expected.add("homeDirectory");
         List<String> argumentValues = new ArrayList<>();
         for (int index = 0; index < arguments; index++) {
             String key = "argument." + index;
@@ -177,7 +179,8 @@ public final class LaunchSpecCodec {
                     ? GameRuntimeBackendType.fromStorageValue(decoded(fields, "runtimeBackendType"))
                     : GameRuntimeBackendType.GLIBC_TERMUX_BOX,
                 schema >= 4 ? decoded(fields, "rootfsPackage") : "",
-                schema >= 4 ? decoded(fields, "runtimeRootPath") : "");
+                schema >= 4 ? decoded(fields, "runtimeRootPath") : "",
+                schema >= 5 ? decoded(fields, "homeDirectory") : "");
         } catch (IllegalArgumentException error) {
             throw new IOException("invalid_launch_spec", error);
         }

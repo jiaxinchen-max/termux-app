@@ -73,10 +73,10 @@ public class LaunchSpecCodecTest {
         LaunchSpecCodec codec = new LaunchSpecCodec();
         codec.write(target, spec(new LinkedHashMap<>()));
         String raw = new String(Files.readAllBytes(target.toPath()), StandardCharsets.US_ASCII)
-            .replace("schemaVersion=4", "schemaVersion=1")
+            .replace("schemaVersion=5", "schemaVersion=1")
             .replaceAll("(?m)^inputProfileId=.*\\n", "")
             .replaceAll("(?m)^launchExecutionMode=.*\\n", "")
-            .replaceAll("(?m)^(runtimeBackendType|rootfsPackage|runtimeRootPath)=.*\\n", "");
+            .replaceAll("(?m)^(runtimeBackendType|rootfsPackage|runtimeRootPath|homeDirectory)=.*\\n", "");
         try (FileOutputStream output = new FileOutputStream(target, false)) {
             output.write(raw.getBytes(StandardCharsets.US_ASCII));
         }
@@ -93,9 +93,9 @@ public class LaunchSpecCodecTest {
         LaunchSpecCodec codec = new LaunchSpecCodec();
         codec.write(target, spec(new LinkedHashMap<>()));
         String raw = new String(Files.readAllBytes(target.toPath()), StandardCharsets.US_ASCII)
-            .replace("schemaVersion=4", "schemaVersion=2")
+            .replace("schemaVersion=5", "schemaVersion=2")
             .replaceAll("(?m)^launchExecutionMode=.*\\n", "")
-            .replaceAll("(?m)^(runtimeBackendType|rootfsPackage|runtimeRootPath)=.*\\n", "");
+            .replaceAll("(?m)^(runtimeBackendType|rootfsPackage|runtimeRootPath|homeDirectory)=.*\\n", "");
         try (FileOutputStream output = new FileOutputStream(target, false)) {
             output.write(raw.getBytes(StandardCharsets.US_ASCII));
         }
@@ -109,8 +109,8 @@ public class LaunchSpecCodecTest {
         LaunchSpecCodec codec = new LaunchSpecCodec();
         codec.write(target, spec(new LinkedHashMap<>()));
         String raw = new String(Files.readAllBytes(target.toPath()), StandardCharsets.US_ASCII)
-            .replace("schemaVersion=4", "schemaVersion=3")
-            .replaceAll("(?m)^(runtimeBackendType|rootfsPackage|runtimeRootPath)=.*\\n", "");
+            .replace("schemaVersion=5", "schemaVersion=3")
+            .replaceAll("(?m)^(runtimeBackendType|rootfsPackage|runtimeRootPath|homeDirectory)=.*\\n", "");
         try (FileOutputStream output = new FileOutputStream(target, false)) {
             output.write(raw.getBytes(StandardCharsets.US_ASCII));
         }
@@ -119,6 +119,20 @@ public class LaunchSpecCodecTest {
         assertEquals(GameRuntimeBackendType.GLIBC_TERMUX_BOX,
             restored.getRuntimeBackendType());
         assertEquals("", restored.getRuntimeRootPath());
+    }
+
+    @Test
+    public void readsSchemaFourWithoutHomeDirectory() throws Exception {
+        File target = temporary.newFile("schema-four.launchspec");
+        LaunchSpecCodec codec = new LaunchSpecCodec();
+        codec.write(target, spec(new LinkedHashMap<>()));
+        String raw = new String(Files.readAllBytes(target.toPath()), StandardCharsets.US_ASCII)
+            .replace("schemaVersion=5", "schemaVersion=4")
+            .replaceAll("(?m)^homeDirectory=.*\\n", "");
+        try (FileOutputStream output = new FileOutputStream(target, false)) {
+            output.write(raw.getBytes(StandardCharsets.US_ASCII));
+        }
+        assertEquals("", codec.read(target).getHomeDirectoryPath());
     }
 
     @Test
@@ -134,7 +148,8 @@ public class LaunchSpecCodecTest {
             base.getLogPath(), base.getLockPath(), base.getCancelPath(),
             base.getTimeoutSeconds(), GameRuntimeBackendType.ROOTFS_PROOT,
             "debian-13-games-rootfs",
-            "/data/data/com.termux/files/games/components/install/debian/versions/v1/rootfs");
+            "/data/data/com.termux/files/games/components/install/debian/versions/v1/rootfs",
+            "/data/data/com.termux/files/games/containers/container-1/home-rootfs_proot");
         File target = temporary.newFile("rootfs.launchspec");
 
         new LaunchSpecCodec().write(target, rootfs);
@@ -143,6 +158,7 @@ public class LaunchSpecCodecTest {
         assertEquals(GameRuntimeBackendType.ROOTFS_PROOT, restored.getRuntimeBackendType());
         assertEquals("debian-13-games-rootfs", restored.getRootfsPackage());
         assertEquals(rootfs.getRuntimeRootPath(), restored.getRuntimeRootPath());
+        assertEquals(rootfs.getHomeDirectoryPath(), restored.getHomeDirectoryPath());
     }
 
     @Test(expected = IllegalArgumentException.class)

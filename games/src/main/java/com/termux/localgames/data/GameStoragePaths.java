@@ -60,13 +60,6 @@ public final class GameStoragePaths {
     }
     public File getCacheDirectory() { return new File(libraryDirectory.getParentFile(), "cache"); }
     public File getRuntimeDirectory() { return new File(libraryDirectory.getParentFile(), "runtime"); }
-    public File getRootfsRuntimeDirectory() {
-        return new File(libraryDirectory.getParentFile(), "runtimes/rootfs");
-    }
-    /** Each PRoot container owns its own activation metadata and installed RootFS. */
-    public File getRootfsRuntimeDirectory(String containerId) {
-        return new File(getRootfsRuntimeDirectory(), requireId(containerId));
-    }
     public File getRuntimeSetupDirectory() {
         return new File(libraryDirectory.getParentFile(), "runtime/setup");
     }
@@ -107,6 +100,25 @@ public final class GameStoragePaths {
     public File getProotDistroContainersDirectory() {
         return new File(getTermuxPrefixDirectory(), "var/lib/proot-distro/containers");
     }
+    /** The one shared RootFS every ROOTFS_PROOT container's proot session mounts with `-r`
+     *  (Winlator-style: extracted once from the base archive, never per-container). Beside
+     *  containers/ (never under it, and never containing a containerId) so it is never mistaken
+     *  for a per-container directory by reset/backup/asset-scanning code that keys off those. */
+    public File getSharedRootfsContainerDirectory() {
+        return new File(getTermuxPrefixDirectory(), "var/lib/proot-distro/games-shared-rootfs");
+    }
+    public File getSharedRootfsDirectory() {
+        return new File(getSharedRootfsContainerDirectory(), "rootfs");
+    }
+    /** Backs the `/root` bind in start_rootfs_game.sh/rootfs_prefix_warmup.sh -- HOME points
+     *  inside the shared, conceptually read-only rootfs, so anything written under $HOME needs
+     *  its own per-container, per-backend directory here instead (parallel to
+     *  getContainerPrefixDirectory). */
+    public File getContainerHomeDirectory(String containerId, GameRuntimeBackendType backendType) {
+        if (backendType == null) throw new IllegalArgumentException("runtime_backend_required");
+        return new File(getContainerDirectory(containerId), "home-" +
+            backendType.getStorageValue());
+    }
     /** Beside containers/ (never under it), mirroring setup_rootfs_runtime.sh's
      *  TEMPLATE_CACHE_DIR, so it is never mistaken for a container. */
     public File getTemplateArchiveCacheDirectory() {
@@ -120,10 +132,19 @@ public final class GameStoragePaths {
     public File getRootfsBaseArchiveGz() {
         return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base.tar.gz");
     }
-    /** Sidecar recording the recipeSha256 that built the current base archive, for
-     *  staleness comparisons against a container's own recorded recipeSha256. */
+    /** Sidecar recording the recipeSha256 that built the current base archive (diagnostics only
+     *  now that every container always shares the one live, always-current rootfs). */
     public File getRootfsBaseRecipeFile() {
         return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base.recipe");
+    }
+    /** A pre-booted Wine prefix (wineboot -u + CJK FontLink already applied), built once
+     *  alongside the RootFS base archive and extracted into each new container's prefix instead
+     *  of rerunning wineboot -u there. Same zstd/gzip fallback pair as the rootfs archive. */
+    public File getRootfsPrefixTemplateArchiveZst() {
+        return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base-prefix.tar.zst");
+    }
+    public File getRootfsPrefixTemplateArchiveGz() {
+        return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base-prefix.tar.gz");
     }
     public File getResetDirectory() {
         return new File(libraryDirectory.getParentFile(), "runtime/reset");
