@@ -2,13 +2,14 @@ package com.termux.localgames.domain;
 
 /** Immutable state for an on-device Termux runtime build. */
 public final class RuntimeSetupTask {
-    public static final int SCHEMA_VERSION = 3;
+    public static final int SCHEMA_VERSION = 4;
 
     private final String taskId;
     private final String packageName;
     private final int version;
     private final String recipeSha256;
     private final String sourceComponentId;
+    private final String dxComponentId;
     private final String containerId;
     private final String containerName;
     private final boolean baseOnly;
@@ -19,12 +20,14 @@ public final class RuntimeSetupTask {
 
     public RuntimeSetupTask(String taskId, String packageName, int version,
                                 String recipeSha256, String sourceComponentId,
+                                String dxComponentId,
                                 String containerId, String containerName, boolean baseOnly,
                                 RuntimeSetupTaskState state,
                                 String errorCode, long createdAt, long updatedAt) {
         this.taskId = requireId(taskId, "taskId");
         this.packageName = requireId(packageName, "packageName");
         this.sourceComponentId = requireId(sourceComponentId, "sourceComponentId");
+        this.dxComponentId = requireId(dxComponentId, "dxComponentId");
         this.containerId = requireId(containerId, "containerId");
         this.containerName = requireId(containerName, "containerName");
         if (version < 1 || state == null || createdAt < 0 || updatedAt < createdAt) {
@@ -47,11 +50,12 @@ public final class RuntimeSetupTask {
 
     public static RuntimeSetupTask queued(String taskId, String packageName, int version,
                                               String recipeSha256, String sourceComponentId,
+                                              String dxComponentId,
                                               String containerId, String containerName,
                                               boolean baseOnly, long now) {
         return new RuntimeSetupTask(taskId, packageName, version, recipeSha256,
-            sourceComponentId, containerId, containerName, baseOnly, RuntimeSetupTaskState.QUEUED,
-            "", now, now);
+            sourceComponentId, dxComponentId, containerId, containerName, baseOnly,
+            RuntimeSetupTaskState.QUEUED, "", now, now);
     }
 
     public RuntimeSetupTask transition(RuntimeSetupTaskState next, String error, long now) {
@@ -60,7 +64,8 @@ public final class RuntimeSetupTask {
             throw new IllegalArgumentException("invalid setup transition");
         }
         return new RuntimeSetupTask(taskId, packageName, version, recipeSha256,
-            sourceComponentId, containerId, containerName, baseOnly, next, error, createdAt, now);
+            sourceComponentId, dxComponentId, containerId, containerName, baseOnly, next, error,
+            createdAt, now);
     }
 
     public String getTaskId() { return taskId; }
@@ -68,6 +73,7 @@ public final class RuntimeSetupTask {
     public int getVersion() { return version; }
     public String getRecipeSha256() { return recipeSha256; }
     public String getSourceComponentId() { return sourceComponentId; }
+    public String getDxComponentId() { return dxComponentId; }
     public String getContainerId() { return containerId; }
     public String getContainerName() { return containerName; }
     /** A BASE_ONLY build (re)builds the shared RootFS base archive and never creates or

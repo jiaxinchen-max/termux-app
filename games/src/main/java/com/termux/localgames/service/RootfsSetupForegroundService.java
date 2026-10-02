@@ -128,14 +128,18 @@ public final class RootfsSetupForegroundService extends Service {
         InstalledComponent source = components.read(recipe.getSourceComponentId()).getActive()
             .orElseThrow(() -> new IOException("rootfs_source_component_missing:" +
                 recipe.getSourceComponentId()));
-        RootfsSetupAssetInstaller.Installed assets =
-            new RootfsSetupAssetInstaller(this, paths).install(recipe, source.getSha256());
+        InstalledComponent dx = components.read(recipe.getDxComponentId()).getActive()
+            .orElseThrow(() -> new IOException("rootfs_source_component_missing:" +
+                recipe.getDxComponentId()));
+        RootfsSetupAssetInstaller.Installed assets = new RootfsSetupAssetInstaller(this, paths)
+            .install(recipe, source.getSha256(), dx.getSha256());
         String containerName = containerId;
         RuntimeSetupTask task = RuntimeSetupTask.queued(taskId, packageName,
             recipe.getVersion(), assets.getRecipeSha256(), recipe.getSourceComponentId(),
-            containerId, containerName, baseOnly, System.currentTimeMillis());
+            recipe.getDxComponentId(), containerId, containerName, baseOnly,
+            System.currentTimeMillis());
         tasks.save(task);
-        prepareAndStart(task, source, assets);
+        prepareAndStart(task, source, dx, assets);
     }
 
     private void prepareAndStart(RuntimeSetupTask task) throws Exception {
@@ -143,15 +147,19 @@ public final class RootfsSetupForegroundService extends Service {
         InstalledComponent source = components.read(task.getSourceComponentId()).getActive()
             .orElseThrow(() -> new IOException("rootfs_source_component_missing:" +
                 task.getSourceComponentId()));
-        RootfsSetupAssetInstaller.Installed assets =
-            new RootfsSetupAssetInstaller(this, paths).install(recipe, source.getSha256());
+        InstalledComponent dx = components.read(task.getDxComponentId()).getActive()
+            .orElseThrow(() -> new IOException("rootfs_source_component_missing:" +
+                task.getDxComponentId()));
+        RootfsSetupAssetInstaller.Installed assets = new RootfsSetupAssetInstaller(this, paths)
+            .install(recipe, source.getSha256(), dx.getSha256());
         if (!task.getRecipeSha256().equals(assets.getRecipeSha256())) {
             throw new IOException("rootfs_recipe_changed");
         }
-        prepareAndStart(task, source, assets);
+        prepareAndStart(task, source, dx, assets);
     }
 
     private void prepareAndStart(RuntimeSetupTask task, InstalledComponent source,
+                                 InstalledComponent dx,
                                  RootfsSetupAssetInstaller.Installed assets) throws Exception {
         if (!submitted.add(task.getTaskId())) return;
         try {
@@ -181,7 +189,7 @@ public final class RootfsSetupForegroundService extends Service {
                     GameRuntimeBackendType.ROOTFS_PROOT);
             }
             new RootfsSetupSpecCodec().write(spec, preparing, assets.recipeDirectory,
-                source.getDirectory(), context, events, log,
+                source.getDirectory(), dx.getDirectory(), context, events, log,
                 winePackage, winePrefixDirectory, homeDirectory, prefixWarmupScript);
             host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 assets.script.getCanonicalPath(), spec.getCanonicalPath(),

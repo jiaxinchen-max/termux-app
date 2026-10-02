@@ -25,6 +25,9 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
         if ("hangover-11.9".equals(profile.getWinePackage())) {
             result.add("hangover-11.9-debian13-source");
         }
+        if ("rootfs-dxvk".equals(profile.getDxWrapper())) {
+            result.add("rootfs-dxvk");
+        }
         return result;
     }
 

@@ -31,12 +31,17 @@ public final class RootfsSetupAssetInstaller {
         this.paths = paths;
     }
 
-    public Installed install(RootfsSetupRecipe recipe, String sourceSha256) throws IOException {
+    public Installed install(RootfsSetupRecipe recipe, String sourceSha256, String dxSha256)
+        throws IOException {
         if (sourceSha256 == null || !sourceSha256.matches("[0-9a-f]{64}")) {
             throw new IOException("rootfs_source_digest_invalid");
         }
+        if (dxSha256 == null || !dxSha256.matches("[0-9a-f]{64}")) {
+            throw new IOException("rootfs_dx_digest_invalid");
+        }
         MessageDigest digest = sha256Digest();
         digest.update(sourceSha256.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        digest.update(dxSha256.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
         File directory = new File(paths.getRuntimeRecipeDirectory(),
             recipe.getPackageName() + "-v" + recipe.getVersion());
         ensureDirectory(directory);

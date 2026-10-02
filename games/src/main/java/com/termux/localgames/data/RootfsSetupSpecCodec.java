@@ -10,12 +10,12 @@ import java.nio.charset.StandardCharsets;
 /** Writes a non-executable, private-path-only shell input contract. */
 public final class RootfsSetupSpecCodec {
     public void write(File file, RuntimeSetupTask task, File recipeDirectory,
-                      File sourceDirectory, File buildContext,
+                      File sourceDirectory, File dxvkDirectory, File buildContext,
                       File eventsPath, File logPath, String winePackage,
                       File winePrefixDirectory, File homeDirectory,
                       File prefixWarmupScript) throws IOException {
         if (file == null || task == null) throw new IllegalArgumentException("setup spec required");
-        StringBuilder value = new StringBuilder("schemaVersion=2\n");
+        StringBuilder value = new StringBuilder("schemaVersion=3\n");
         text(value, "taskId", task.getTaskId());
         text(value, "packageName", task.getPackageName());
         value.append("version=").append(task.getVersion()).append('\n');
@@ -26,6 +26,7 @@ public final class RootfsSetupSpecCodec {
         text(value, "buildContext", canonical(buildContext));
         text(value, "recipeDirectory", canonical(recipeDirectory));
         text(value, "sourceDirectory", canonical(sourceDirectory));
+        text(value, "dxvkDirectory", canonical(dxvkDirectory));
         text(value, "eventsPath", canonical(eventsPath));
         text(value, "logPath", canonical(logPath));
         // Empty for BASE_ONLY tasks (no per-game container/prefix involved) -- the script never

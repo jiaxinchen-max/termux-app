@@ -296,11 +296,35 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
                 profile.getAudioDriver(), value, profile.getBox64Preset(), profile.getEnvironment(),
                 profile.getInputProfileId(), profile.getLaunchExecutionMode()));
-        addChoice("Graphics driver", withCurrent(profile.getGraphicsDriver(), "turnip", "virgl", "llvmpipe"),
-            value -> replace(profile.getWinePackage(), value, profile.getDxWrapper(), profile.getAudioDriver(),
-                profile.getResolution(), profile.getBox64Preset(), profile.getEnvironment(),
-                profile.getInputProfileId(), profile.getLaunchExecutionMode()));
-        addChoice("DirectX translation", withCurrent(profile.getDxWrapper(), "dxvk", "vkd3d", "wined3d"),
+        boolean rootfs = profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT;
+        String[] graphicsChoices = rootfs
+            ? withCurrent(profile.getGraphicsDriver(), "rootfs-virgl-mesa", "rootfs-llvmpipe")
+            : withCurrent(profile.getGraphicsDriver(), "turnip", "virgl", "llvmpipe");
+        addChoice("Graphics driver", graphicsChoices,
+            value -> {
+                // VirGL has no Vulkan path, so it cannot host DXVK (RootfsProotBackend.
+                // requireProfile() rejects that combination) -- fall back to WineD3D instead of
+                // saving a profile that will only fail later, at launch preflight.
+                String dx = profile.getDxWrapper();
+                if (rootfs && "rootfs-virgl-mesa".equals(value) && "rootfs-dxvk".equals(dx)) {
+                    dx = "rootfs-wined3d";
+                    Toast.makeText(getContext(),
+                        "VirGL does not support DXVK; switched DirectX translation to WineD3D",
+                        Toast.LENGTH_LONG).show();
+                }
+                replace(profile.getWinePackage(), value, dx, profile.getAudioDriver(),
+                    profile.getResolution(), profile.getBox64Preset(), profile.getEnvironment(),
+                    profile.getInputProfileId(), profile.getLaunchExecutionMode());
+            });
+        String[] dxChoices;
+        if (rootfs) {
+            dxChoices = "rootfs-virgl-mesa".equals(profile.getGraphicsDriver())
+                ? withCurrent(profile.getDxWrapper(), "rootfs-wined3d")
+                : withCurrent(profile.getDxWrapper(), "rootfs-wined3d", "rootfs-dxvk");
+        } else {
+            dxChoices = withCurrent(profile.getDxWrapper(), "dxvk", "vkd3d", "wined3d");
+        }
+        addChoice("DirectX translation", dxChoices,
             value -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), value,
                 profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
                 profile.getEnvironment(), profile.getInputProfileId(), profile.getLaunchExecutionMode()));

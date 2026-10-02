@@ -15,6 +15,7 @@ CONTAINER_NAME=
 BUILD_CONTEXT=
 RECIPE_DIRECTORY=
 SOURCE_DIRECTORY=
+DXVK_DIRECTORY=
 EVENTS_PATH=
 LOG_PATH=
 BASE_ONLY=false
@@ -55,7 +56,7 @@ fail() {
 
 while IFS='=' read -r key value; do
     case "$key" in
-        schemaVersion) [ "$value" = 2 ] || fail unsupported_setup_spec 64 ;;
+        schemaVersion) [ "$value" = 3 ] || fail unsupported_setup_spec 64 ;;
         taskId) TASK_ID=$value ;;
         packageName) PACKAGE_NAME=$value ;;
         version) VERSION=$value ;;
@@ -65,6 +66,7 @@ while IFS='=' read -r key value; do
         buildContext) BUILD_CONTEXT=$value ;;
         recipeDirectory) RECIPE_DIRECTORY=$value ;;
         sourceDirectory) SOURCE_DIRECTORY=$value ;;
+        dxvkDirectory) DXVK_DIRECTORY=$value ;;
         eventsPath) EVENTS_PATH=$value ;;
         logPath) LOG_PATH=$value ;;
         baseOnly) BASE_ONLY=$value ;;
@@ -116,7 +118,7 @@ TERMUX_FILES_ROOT=${PRIVATE_ROOT%/games}
 [ -n "$TERMUX_FILES_ROOT" ] && [ "$TERMUX_FILES_ROOT" != "$PRIVATE_ROOT" ] || \
     fail invalid_setup_spec_path 64
 for path in "$SPEC_PATH" "$BUILD_CONTEXT" "$RECIPE_DIRECTORY" "$SOURCE_DIRECTORY" \
-    "$EVENTS_PATH" "$LOG_PATH"; do
+    "$DXVK_DIRECTORY" "$EVENTS_PATH" "$LOG_PATH"; do
     case "$path" in "$PRIVATE_ROOT"/*) ;; *) fail setup_path_outside_private_storage 64 ;; esac
     case "$path" in *'/../'*|*/..|*'/./'*|*/.) fail invalid_setup_private_path 64 ;; esac
 done
@@ -237,14 +239,17 @@ supports_container_setup || {
 [ -f "$RECIPE_DIRECTORY/setup-container.sh" ] || fail rootfs_recipe_script_missing 66
 [ -f "$RECIPE_DIRECTORY/games-runtime.properties" ] || fail rootfs_recipe_manifest_missing 66
 find "$SOURCE_DIRECTORY" -name '*.deb' -type f | grep -q . || fail rootfs_source_packages_missing 66
+find "$DXVK_DIRECTORY" -type f | grep -q . || fail rootfs_dxvk_source_missing 66
 
 progress '==> [2/4] Preparing runtime build context'
 rm -rf "$BUILD_CONTEXT"
-mkdir -p "$BUILD_CONTEXT/hangover-source"
+mkdir -p "$BUILD_CONTEXT/hangover-source" "$BUILD_CONTEXT/dxvk-source"
 cp "$RECIPE_DIRECTORY/setup-container.sh" "$BUILD_CONTEXT/setup-container.sh"
 cp "$RECIPE_DIRECTORY/games-runtime.properties" "$BUILD_CONTEXT/games-runtime.properties"
 cp -al "$SOURCE_DIRECTORY"/. "$BUILD_CONTEXT/hangover-source"/ 2>/dev/null || \
     cp -a "$SOURCE_DIRECTORY"/. "$BUILD_CONTEXT/hangover-source"/
+cp -al "$DXVK_DIRECTORY"/. "$BUILD_CONTEXT/dxvk-source"/ 2>/dev/null || \
+    cp -a "$DXVK_DIRECTORY"/. "$BUILD_CONTEXT/dxvk-source"/
 
 printf '{"schemaVersion":1,"taskId":"%s","state":"BUILDING"}\n' "$TASK_ID" >> "$EVENTS_PATH"
 

@@ -52,6 +52,22 @@ public class GameRuntimeBackendTest {
     }
 
     @Test
+    public void rootfsRequiresDxvkComponentOnlyWhenSelected() {
+        RootfsProotBackend backend = new RootfsProotBackend();
+        RuntimeProfile withDxvk = new RuntimeProfile("game-1", "hangover-11.9",
+            "rootfs-llvmpipe", "rootfs-dxvk", "pulseaudio", "1280x720", "INTERMEDIATE",
+            Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
+            Collections.emptyMap(), GameRuntimeBackendType.ROOTFS_PROOT,
+            "debian-13-games-rootfs", "container-game-1");
+
+        Set<String> components = backend.requiredComponentIds(withDxvk);
+
+        assertTrue(components.contains("rootfs-dxvk"));
+        assertTrue(components.contains("hangover-11.9-debian13-source"));
+        assertFalse(backend.requiredComponentIds(rootfsProfile()).contains("rootfs-dxvk"));
+    }
+
+    @Test
     public void bothBackendsRequireTheIndependentX11Bridge() {
         assertTrue(new GlibcTermuxBoxBackend().requiredHostCapabilityIds(glibcProfile())
             .contains("termux-x11"));
