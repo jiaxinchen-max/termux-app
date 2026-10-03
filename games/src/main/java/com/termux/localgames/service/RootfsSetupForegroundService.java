@@ -125,41 +125,55 @@ public final class RootfsSetupForegroundService extends Service {
         }
         RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), taskId);
         RootfsSetupRecipe recipe = RootfsSetupRecipe.require(packageName);
-        InstalledComponent source = components.read(recipe.getSourceComponentId()).getActive()
-            .orElseThrow(() -> new IOException("rootfs_source_component_missing:" +
-                recipe.getSourceComponentId()));
-        InstalledComponent dx = components.read(recipe.getDxComponentId()).getActive()
-            .orElseThrow(() -> new IOException("rootfs_source_component_missing:" +
-                recipe.getDxComponentId()));
+        java.util.LinkedHashMap<String, InstalledComponent> baseComponents =
+            resolveBaseComponents(recipe);
         RootfsSetupAssetInstaller.Installed assets = new RootfsSetupAssetInstaller(this, paths)
-            .install(recipe, source.getSha256(), dx.getSha256());
+            .install(recipe, componentSha256s(baseComponents));
         String containerName = containerId;
         RuntimeSetupTask task = RuntimeSetupTask.queued(taskId, packageName,
             recipe.getVersion(), assets.getRecipeSha256(), recipe.getSourceComponentId(),
-            recipe.getDxComponentId(), containerId, containerName, baseOnly,
-            System.currentTimeMillis());
+            containerId, containerName, baseOnly, System.currentTimeMillis());
         tasks.save(task);
-        prepareAndStart(task, source, dx, assets);
+        prepareAndStart(task, baseComponents, assets);
     }
 
     private void prepareAndStart(RuntimeSetupTask task) throws Exception {
         RootfsSetupRecipe recipe = RootfsSetupRecipe.require(task.getPackageName());
-        InstalledComponent source = components.read(task.getSourceComponentId()).getActive()
-            .orElseThrow(() -> new IOException("rootfs_source_component_missing:" +
-                task.getSourceComponentId()));
-        InstalledComponent dx = components.read(task.getDxComponentId()).getActive()
-            .orElseThrow(() -> new IOException("rootfs_source_component_missing:" +
-                task.getDxComponentId()));
+        java.util.LinkedHashMap<String, InstalledComponent> baseComponents =
+            resolveBaseComponents(recipe);
         RootfsSetupAssetInstaller.Installed assets = new RootfsSetupAssetInstaller(this, paths)
-            .install(recipe, source.getSha256(), dx.getSha256());
+            .install(recipe, componentSha256s(baseComponents));
         if (!task.getRecipeSha256().equals(assets.getRecipeSha256())) {
             throw new IOException("rootfs_recipe_changed");
         }
-        prepareAndStart(task, source, dx, assets);
+        prepareAndStart(task, baseComponents, assets);
     }
 
-    private void prepareAndStart(RuntimeSetupTask task, InstalledComponent source,
-                                 InstalledComponent dx,
+    /** Resolves every active base component the recipe bakes into the shared image, keyed by id
+     *  (which doubles as the in-container /opt/games-runtime/&lt;id&gt; dir for DXVK). */
+    private java.util.LinkedHashMap<String, InstalledComponent> resolveBaseComponents(
+        RootfsSetupRecipe recipe) throws IOException {
+        java.util.LinkedHashMap<String, InstalledComponent> result = new java.util.LinkedHashMap<>();
+        for (String id : recipe.getBaseComponentIds()) {
+            InstalledComponent component = components.read(id).getActive()
+                .orElseThrow(() -> new IOException("rootfs_source_component_missing:" + id));
+            result.put(id, component);
+        }
+        return result;
+    }
+
+    private static String[] componentSha256s(
+        java.util.LinkedHashMap<String, InstalledComponent> components) {
+        String[] result = new String[components.size()];
+        int index = 0;
+        for (InstalledComponent component : components.values()) {
+            result[index++] = component.getSha256();
+        }
+        return result;
+    }
+
+    private void prepareAndStart(RuntimeSetupTask task,
+                                 java.util.LinkedHashMap<String, InstalledComponent> baseComponents,
                                  RootfsSetupAssetInstaller.Installed assets) throws Exception {
         if (!submitted.add(task.getTaskId())) return;
         try {
@@ -188,8 +202,13 @@ public final class RootfsSetupForegroundService extends Service {
                 homeDirectory = paths.getContainerHomeDirectory(task.getContainerId(),
                     GameRuntimeBackendType.ROOTFS_PROOT);
             }
+            java.util.LinkedHashMap<String, File> componentDirectories =
+                new java.util.LinkedHashMap<>();
+            for (java.util.Map.Entry<String, InstalledComponent> entry : baseComponents.entrySet()) {
+                componentDirectories.put(entry.getKey(), entry.getValue().getDirectory());
+            }
             new RootfsSetupSpecCodec().write(spec, preparing, assets.recipeDirectory,
-                source.getDirectory(), dx.getDirectory(), context, events, log,
+                componentDirectories, context, events, log,
                 winePackage, winePrefixDirectory, homeDirectory, prefixWarmupScript);
             host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 assets.script.getCanonicalPath(), spec.getCanonicalPath(),

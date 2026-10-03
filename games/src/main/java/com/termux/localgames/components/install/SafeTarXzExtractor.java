@@ -4,6 +4,7 @@ import com.termux.localgames.components.DownloadControl;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.tukaani.xz.XZInputStream;
 
 import java.io.BufferedInputStream;
@@ -135,16 +136,54 @@ final class SafeTarXzExtractor {
         return new Result(entries, totalBytes);
     }
 
-    /** Source components may be upstream plain tar files; packaged components remain tar.xz. */
+    /** Source components may be upstream plain tar or gzip tarballs; packaged components remain
+     *  tar.xz. Detect by magic bytes so a mislabeled extension cannot pick the wrong decoder. */
     private static InputStream openPayload(BufferedInputStream input) throws IOException {
         input.mark(6);
         byte[] magic = new byte[6];
         int count = input.read(magic);
         input.reset();
-        boolean xz = count == 6 &&
+        boolean xz = count >= 6 &&
             (magic[0] & 0xff) == 0xfd && magic[1] == 0x37 && magic[2] == 0x7a &&
             magic[3] == 0x58 && magic[4] == 0x5a && magic[5] == 0x00;
-        return xz ? new XZInputStream(input) : input;
+        if (xz) return new XZInputStream(input);
+        boolean gzip = count >= 2 && (magic[0] & 0xff) == 0x1f && (magic[1] & 0xff) == 0x8b;
+        return gzip ? new GzipCompressorInputStream(input) : input;
+    }
+
+    /**
+     * Whether this archive is one the unified extractor can expand: xz- or gzip-compressed, or a
+     * plain POSIX/GNU tar (identified by the {@code ustar} magic at offset 257). Everything else
+     * (e.g. a single Debian {@code .deb}, which is an {@code ar} archive) is a raw payload the
+     * {@link ComponentInstaller} publishes as-is for a shell step to install.
+     */
+    static boolean isExtractableArchive(File archive) throws IOException {
+        try (java.io.InputStream input = new BufferedInputStream(new FileInputStream(archive))) {
+            byte[] head = new byte[2];
+            int headCount = readFully(input, head);
+            if (headCount >= 2 && (head[0] & 0xff) == 0x1f && (head[1] & 0xff) == 0x8b) return true;
+            byte[] rest = new byte[261];
+            int restCount = readFully(input, rest);
+            if (headCount >= 2 && (head[0] & 0xff) == 0xfd && head[1] == 0x37 &&
+                restCount >= 4 && rest[0] == 0x7a && rest[1] == 0x58 && rest[2] == 0x5a &&
+                rest[3] == 0x00) {
+                return true;
+            }
+            // "ustar" lives at byte 257; we have already consumed 2 head bytes, so it is at
+            // index 255 of rest.
+            return restCount >= 260 && rest[255] == 'u' && rest[256] == 's' && rest[257] == 't' &&
+                rest[258] == 'a' && rest[259] == 'r';
+        }
+    }
+
+    private static int readFully(java.io.InputStream input, byte[] buffer) throws IOException {
+        int total = 0;
+        while (total < buffer.length) {
+            int read = input.read(buffer, total, buffer.length - total);
+            if (read < 0) break;
+            total += read;
+        }
+        return total;
     }
 
     private static File safeEntry(File destination, String root, String name) throws IOException {

@@ -306,7 +306,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 // requireProfile() rejects that combination) -- fall back to WineD3D instead of
                 // saving a profile that will only fail later, at launch preflight.
                 String dx = profile.getDxWrapper();
-                if (rootfs && "rootfs-virgl-mesa".equals(value) && "rootfs-dxvk".equals(dx)) {
+                if (rootfs && "rootfs-virgl-mesa".equals(value)
+                    && dx != null && dx.startsWith("rootfs-dxvk-")) {
                     dx = "rootfs-wined3d";
                     Toast.makeText(getContext(),
                         "VirGL does not support DXVK; switched DirectX translation to WineD3D",
@@ -318,9 +319,12 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             });
         String[] dxChoices;
         if (rootfs) {
+            // DXVK 2.7 first: Vulkan 1.3, best fit for the software (llvmpipe) renderer. 3.1 needs
+            // Vulkan 1.4; 1.10.3 has the lowest Vulkan floor. VirGL has no Vulkan, so only WineD3D.
             dxChoices = "rootfs-virgl-mesa".equals(profile.getGraphicsDriver())
                 ? withCurrent(profile.getDxWrapper(), "rootfs-wined3d")
-                : withCurrent(profile.getDxWrapper(), "rootfs-wined3d", "rootfs-dxvk");
+                : withCurrent(profile.getDxWrapper(), "rootfs-wined3d",
+                    "rootfs-dxvk-2.7", "rootfs-dxvk-3.1", "rootfs-dxvk-1.10.3");
         } else {
             dxChoices = withCurrent(profile.getDxWrapper(), "dxvk", "vkd3d", "wined3d");
         }

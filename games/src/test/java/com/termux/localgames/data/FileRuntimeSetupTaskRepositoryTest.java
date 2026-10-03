@@ -22,7 +22,7 @@ public class FileRuntimeSetupTaskRepositoryTest {
         FileRuntimeSetupTaskRepository first =
             new FileRuntimeSetupTaskRepository(directory);
         RuntimeSetupTask queued = RuntimeSetupTask.queued("task-1",
-            "debian-13-games-rootfs", 1, SHA, "hangover-11.9-debian13-source", "rootfs-dxvk",
+            "debian-13-games-rootfs", 1, SHA, "hangover-11.9-debian13-source",
             "container-game-a", "container-game-a", false, 10);
         first.save(queued.transition(RuntimeSetupTaskState.BUILDING, "", 20));
 
@@ -32,7 +32,6 @@ public class FileRuntimeSetupTaskRepositoryTest {
         assertEquals(RuntimeSetupTaskState.BUILDING, restored.getState());
         assertEquals(SHA, restored.getRecipeSha256());
         assertEquals("hangover-11.9-debian13-source", restored.getSourceComponentId());
-        assertEquals("rootfs-dxvk", restored.getDxComponentId());
         assertEquals("container-game-a", restored.getContainerId());
         assertEquals("container-game-a", restored.getContainerName());
         assertTrue(new java.io.File(directory, "task-1.properties").isFile());

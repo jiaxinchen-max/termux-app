@@ -86,7 +86,8 @@ public class LaunchPreflightEvaluatorTest {
 
     @Test
     public void rootfsBackendUsesVerifiedSourceAndTermuxBuilderCapabilities() throws Exception {
-        String[] ids = {"hangover-11.9-debian13-source"};
+        String[] ids = {"hangover-11.9-debian13-source", "box64-rootfs",
+            "rootfs-dxvk-2.7", "rootfs-dxvk-3.1", "rootfs-dxvk-1.10.3"};
         ComponentIndex index = index(ids);
         RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-11.9",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
@@ -104,7 +105,8 @@ public class LaunchPreflightEvaluatorTest {
             true, Long.MAX_VALUE, installed);
 
         assertTrue(result.isReady());
-        assertEquals(1, result.getRequirements().size());
+        // The whole framework-delivered base set is required before the shared image can build.
+        assertEquals(5, result.getRequirements().size());
     }
 
     @Test

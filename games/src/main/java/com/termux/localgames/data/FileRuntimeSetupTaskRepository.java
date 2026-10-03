@@ -2,7 +2,6 @@ package com.termux.localgames.data;
 
 import com.termux.localgames.domain.RuntimeSetupTask;
 import com.termux.localgames.domain.RuntimeSetupTaskState;
-import com.termux.localgames.runtime.RootfsSetupRecipe;
 
 import java.io.File;
 import java.io.IOException;
@@ -57,7 +56,6 @@ public final class FileRuntimeSetupTaskRepository implements RuntimeSetupTaskRep
             value.setProperty("version", String.valueOf(task.getVersion()));
             value.setProperty("recipeSha256", task.getRecipeSha256());
             value.setProperty("sourceComponentId", task.getSourceComponentId());
-            value.setProperty("dxComponentId", task.getDxComponentId());
             value.setProperty("containerId", task.getContainerId());
             value.setProperty("containerName", task.getContainerName());
             value.setProperty("baseOnly", String.valueOf(task.isBaseOnly()));
@@ -73,19 +71,16 @@ public final class FileRuntimeSetupTaskRepository implements RuntimeSetupTaskRep
             try {
                 String schemaVersion = value.getProperty("schemaVersion");
                 if (!"1".equals(schemaVersion) && !"2".equals(schemaVersion) &&
-                    !"3".equals(schemaVersion) && !"4".equals(schemaVersion)) {
+                    !"3".equals(schemaVersion)) {
                     throw new IOException("setup_task_schema_unsupported");
                 }
                 return new RuntimeSetupTask(required(value, "taskId"),
                     required(value, "packageName"), Integer.parseInt(required(value, "version")),
                     required(value, "recipeSha256"), required(value, "sourceComponentId"),
-                    "4".equals(schemaVersion) ? required(value, "dxComponentId") :
-                        RootfsSetupRecipe.DEFAULT_DX_COMPONENT,
                     "1".equals(schemaVersion) ? required(value, "containerName") :
                         required(value, "containerId"),
                     required(value, "containerName"),
-                    ("3".equals(schemaVersion) || "4".equals(schemaVersion)) &&
-                        "true".equals(value.getProperty("baseOnly")),
+                    "3".equals(schemaVersion) && "true".equals(value.getProperty("baseOnly")),
                     RuntimeSetupTaskState.valueOf(required(value, "state")),
                     value.getProperty("errorCode", ""),
                     Long.parseLong(required(value, "createdAt")),

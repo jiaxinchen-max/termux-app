@@ -23,10 +23,11 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
         requireProfile(profile);
         Set<String> result = new LinkedHashSet<>();
         if ("hangover-11.9".equals(profile.getWinePackage())) {
-            result.add("hangover-11.9-debian13-source");
-        }
-        if ("rootfs-dxvk".equals(profile.getDxWrapper())) {
-            result.add("rootfs-dxvk");
+            // The one shared base image is built from this whole set (Hangover source, Box64,
+            // and every selectable DXVK), all delivered through the unified component framework.
+            // A game's dxWrapper only picks which baked DXVK to use at launch, so every rootfs
+            // profile requires the full set present before the base image can build.
+            result.addAll(RootfsSetupRecipe.DEFAULT_BASE_COMPONENTS);
         }
         return result;
     }
@@ -94,16 +95,22 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
             "rootfs-turnip".equals(graphics))) {
             throw new IllegalArgumentException("renderer_unsupported:" + graphics);
         }
-        if (!("rootfs-wined3d".equals(dx) || "rootfs-dxvk".equals(dx))) {
+        if (!("rootfs-wined3d".equals(dx) || isDxvk(dx))) {
             throw new IllegalArgumentException("dx_wrapper_unsupported:" + dx);
         }
         if (!"pulseaudio".equals(audio)) {
             throw new IllegalArgumentException("audio_driver_unsupported:" + audio);
         }
-        if ("rootfs-virgl-mesa".equals(graphics) && "rootfs-dxvk".equals(dx)) {
+        if ("rootfs-virgl-mesa".equals(graphics) && isDxvk(dx)) {
             throw new IllegalArgumentException(
                 "runtime_combination_unsupported:virgl_dxvk");
         }
+    }
+
+    /** Every versioned DXVK dxWrapper (rootfs-dxvk-2.7, rootfs-dxvk-3.1, ...) is a selectable
+     *  Vulkan Direct3D layer; the component id equals the dxWrapper value. */
+    private static boolean isDxvk(String dx) {
+        return dx != null && dx.startsWith("rootfs-dxvk-");
     }
 
     private static void verifyManifest(File rootfs, RuntimeProfile profile) throws IOException {

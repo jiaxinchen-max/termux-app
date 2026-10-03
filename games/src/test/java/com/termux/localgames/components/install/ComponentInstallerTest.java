@@ -76,6 +76,27 @@ public class ComponentInstallerTest {
     }
 
     @Test
+    public void publishesRawNonArchivePayloadVerbatim() throws Exception {
+        Fixture fixture = fixture();
+        // An ar archive (Debian .deb) is not a tar, so the installer must publish it as-is for a
+        // shell step to install -- named from the download URL's basename.
+        File deb = rawArchive("box64.deb", "box64 package bytes");
+        ComponentTask task = ComponentTask.queued("task-deb", "box64-rootfs", 1,
+                "https://example.invalid/box64-android_0.4.5_arm64.deb", deb.length(), sha256(deb))
+            .transition(ComponentTaskState.VERIFIED, deb.length(), "", "", "", "");
+        fixture.repository.save(task);
+
+        InstalledComponent installed = fixture.installer.install(task, deb,
+            ComponentInstallListener.NONE);
+
+        File published = new File(installed.getDirectory(), "box64-android_0.4.5_arm64.deb");
+        assertTrue(published.isFile());
+        assertEquals("!<arch>\nbox64 package bytes", text(published));
+        assertEquals(ComponentTaskState.INSTALLED,
+            fixture.repository.find("task-deb").get().getState());
+    }
+
+    @Test
     public void traversalFailurePreservesPreviousActiveVersion() throws Exception {
         Fixture fixture = fixture();
         File firstArchive = archive("first.tar.xz", "bin/runtime", "v1");
@@ -177,6 +198,15 @@ public class ComponentInstallerTest {
             tar.write(content);
             tar.closeArchiveEntry();
             tar.finish();
+        }
+        return file;
+    }
+
+    private File rawArchive(String name, String value) throws Exception {
+        File file = new File(temporaryFolder.getRoot(), name);
+        try (OutputStream output = new FileOutputStream(file)) {
+            output.write("!<arch>\n".getBytes(StandardCharsets.US_ASCII));
+            output.write(value.getBytes(StandardCharsets.UTF_8));
         }
         return file;
     }

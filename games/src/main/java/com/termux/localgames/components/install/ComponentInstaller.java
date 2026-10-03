@@ -120,7 +120,9 @@ public final class ComponentInstaller {
                 }
                 deleteTree(staging);
             } else {
-                SafeTarXzExtractor.Result result = extractor.extract(archive, staging, control);
+                SafeTarXzExtractor.Result result = SafeTarXzExtractor.isExtractableArchive(archive)
+                    ? extractor.extract(archive, staging, control)
+                    : copyRawPayload(archive, staging, task, control);
                 writeReceipt(staging, task, result);
                 checkControl(control);
                 if (!staging.renameTo(versionDirectory)) {
@@ -239,6 +241,45 @@ public final class ComponentInstaller {
         receipt.setProperty("entries", String.valueOf(result.entries));
         receipt.setProperty("expandedBytes", String.valueOf(result.bytes));
         writeProperties(new File(directory, RECEIPT), receipt);
+    }
+
+    /** Publishes a non-archive component (e.g. a single Debian {@code .deb}, which is an {@code ar}
+     *  archive the tar extractor cannot read) verbatim into the staging dir. A later shell step
+     *  installs it; the same download/sha256/version-dir/receipt transaction still applies. */
+    private SafeTarXzExtractor.Result copyRawPayload(File archive, File staging, ComponentTask task,
+                                                     DownloadControl control) throws IOException {
+        ensureDirectory(staging);
+        File target = new File(staging, rawPayloadName(task));
+        long total = 0;
+        byte[] buffer = new byte[32 * 1024];
+        try (InputStream input = new BufferedInputStream(new FileInputStream(archive));
+             java.io.OutputStream output = new java.io.BufferedOutputStream(
+                 new FileOutputStream(target, false))) {
+            int read;
+            while ((read = input.read(buffer)) >= 0) {
+                checkControl(control);
+                output.write(buffer, 0, read);
+                total += read;
+            }
+        }
+        return new SafeTarXzExtractor.Result(1, total);
+    }
+
+    /** A safe, extension-preserving file name for a raw payload, derived from the download URL
+     *  (so a {@code .deb} stays a {@code .deb} for the in-guest installer to recognise). */
+    private static String rawPayloadName(ComponentTask task) {
+        String url = task.getUrl();
+        String candidate = "";
+        if (url != null) {
+            int slash = url.lastIndexOf('/');
+            candidate = slash >= 0 ? url.substring(slash + 1) : url;
+            int query = candidate.indexOf('?');
+            if (query >= 0) candidate = candidate.substring(0, query);
+        }
+        if (!candidate.matches("[A-Za-z0-9._+-]{1,128}") || candidate.equals(RECEIPT)) {
+            candidate = task.getPackageName() + ".payload";
+        }
+        return candidate;
     }
 
     private boolean validReceipt(File directory, ComponentTask task) {

@@ -28,7 +28,7 @@ public class ComponentIndexParserTest {
 
         assertEquals(2, index.getSchemaVersion());
         assertEquals("2026-09-13T01:00:00Z", index.getGeneratedAt());
-        assertEquals(20, index.getComponents().size());
+        assertEquals(23, index.getComponents().size());
         ComponentDescriptor glibc = index.find("termux-glibc-runtime").get();
         assertEquals("runtime", glibc.getCategory());
         assertEquals(ComponentType.RUNTIME_SUPPORT, glibc.getType());
@@ -44,10 +44,15 @@ public class ComponentIndexParserTest {
         assertEquals(273571840L, source.getSize());
         assertEquals("896918679daa53d6d3a6a1c40132cd35a1d9edc7afdbc643f9bbb3e22b114348",
             source.getSha256());
-        ComponentDescriptor rootfsDxvk = index.find("rootfs-dxvk").get();
+        ComponentDescriptor box64Rootfs = index.find("box64-rootfs").get();
+        assertTrue(box64Rootfs.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
+        assertEquals(ComponentType.TRANSLATOR, box64Rootfs.getType());
+        ComponentDescriptor rootfsDxvk = index.find("rootfs-dxvk-2.7").get();
         assertEquals(ComponentType.DX_WRAPPER, rootfsDxvk.getType());
         assertTrue(rootfsDxvk.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
-        assertEquals("rootfs-dxvk", rootfsDxvk.getProfileValue());
+        assertEquals("rootfs-dxvk-2.7", rootfsDxvk.getProfileValue());
+        assertTrue(index.find("rootfs-dxvk-3.1").isPresent());
+        assertTrue(index.find("rootfs-dxvk-1.10.3").isPresent());
     }
 
     @Test

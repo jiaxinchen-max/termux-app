@@ -43,7 +43,10 @@ public class GameRuntimeBackendTest {
 
         Set<String> components = backend.requiredComponentIds(rootfsProfile());
 
-        assertEquals(Collections.singleton("hangover-11.9-debian13-source"), components);
+        // The shared base image is built from the whole framework-delivered component set.
+        assertTrue(components.contains("hangover-11.9-debian13-source"));
+        assertTrue(components.contains("box64-rootfs"));
+        assertTrue(components.contains("rootfs-dxvk-2.7"));
         assertFalse(components.contains(GlibcTermuxBoxBackend.TERMUX_GLIBC_RUNTIME_COMPONENT));
         assertEquals(3, backend.requiredHostCapabilityIds(rootfsProfile()).size());
         assertTrue(backend.requiredHostCapabilityIds(rootfsProfile()).contains("termux-x11"));
@@ -52,19 +55,22 @@ public class GameRuntimeBackendTest {
     }
 
     @Test
-    public void rootfsRequiresDxvkComponentOnlyWhenSelected() {
+    public void rootfsBaseComponentsComeFromTheUnifiedFramework() {
         RootfsProotBackend backend = new RootfsProotBackend();
         RuntimeProfile withDxvk = new RuntimeProfile("game-1", "hangover-11.9",
-            "rootfs-llvmpipe", "rootfs-dxvk", "pulseaudio", "1280x720", "INTERMEDIATE",
+            "rootfs-llvmpipe", "rootfs-dxvk-2.7", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
             Collections.emptyMap(), GameRuntimeBackendType.ROOTFS_PROOT,
             "debian-13-games-rootfs", "container-game-1");
 
+        // Every base input (Box64 .deb + all DXVK builds) is a framework component now, so the
+        // whole set is required before the shared base image can build, regardless of dxWrapper.
         Set<String> components = backend.requiredComponentIds(withDxvk);
 
-        assertTrue(components.contains("rootfs-dxvk"));
-        assertTrue(components.contains("hangover-11.9-debian13-source"));
-        assertFalse(backend.requiredComponentIds(rootfsProfile()).contains("rootfs-dxvk"));
+        assertTrue(components.contains("box64-rootfs"));
+        assertTrue(components.contains("rootfs-dxvk-2.7"));
+        assertTrue(components.contains("rootfs-dxvk-3.1"));
+        assertTrue(components.contains("rootfs-dxvk-1.10.3"));
     }
 
     @Test
@@ -141,7 +147,7 @@ public class GameRuntimeBackendTest {
     @Test
     public void rootfsBackendRejectsVirglWithDxvk() {
         RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-11.9",
-            "rootfs-virgl-mesa", "rootfs-dxvk", "pulseaudio", "1280x720",
+            "rootfs-virgl-mesa", "rootfs-dxvk-2.7", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
             GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");

@@ -260,8 +260,10 @@ fi
 manifest_has runtimePackages "$WINE_PACKAGE" || terminal_failure rootfs_runtime_package_missing
 manifest_has graphicsDrivers "$GRAPHICS_DRIVER" || terminal_failure rootfs_graphics_driver_missing
 manifest_has dxWrappers "$DX_WRAPPER" || terminal_failure rootfs_dx_wrapper_missing
-[ "$GRAPHICS_DRIVER:$DX_WRAPPER" != rootfs-virgl-mesa:rootfs-dxvk ] || \
-    terminal_failure runtime_combination_unsupported:virgl_dxvk
+case "$GRAPHICS_DRIVER:$DX_WRAPPER" in
+    rootfs-virgl-mesa:rootfs-dxvk-*)
+        terminal_failure runtime_combination_unsupported:virgl_dxvk ;;
+esac
 warmup_fail() { terminal_failure "$1" null true; }
 . "$(dirname "$SCRIPT_PATH")/rootfs_prefix_warmup.sh"
 resolve_rootfs_translator
@@ -462,9 +464,10 @@ case "${GAMES_LOCALE:-}" in
 esac
 
 case "$DX_WRAPPER" in
-    rootfs-dxvk)
-        DXVK_SYSTEM32="$ROOTFS_CANONICAL/opt/games-runtime/dxvk/system32"
-        DXVK_SYSWOW64="$ROOTFS_CANONICAL/opt/games-runtime/dxvk/syswow64"
+    rootfs-dxvk-*)
+        # The dxWrapper value doubles as the install dir name set up by setup-container.sh.
+        DXVK_SYSTEM32="$ROOTFS_CANONICAL/opt/games-runtime/$DX_WRAPPER/system32"
+        DXVK_SYSWOW64="$ROOTFS_CANONICAL/opt/games-runtime/$DX_WRAPPER/syswow64"
         [ -d "$DXVK_SYSTEM32" ] && [ -d "$DXVK_SYSWOW64" ] || \
             terminal_failure rootfs_dxvk_payload_missing null true
         mkdir -p "$PREFIX_PATH/drive_c/windows/system32" "$PREFIX_PATH/drive_c/windows/syswow64"
