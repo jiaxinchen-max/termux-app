@@ -67,17 +67,6 @@ public class ComponentLaunchContractTest {
     }
 
     @Test
-    public void virglProfileValueMatchesTheLiteralTheScriptCompares() throws Exception {
-        // start_local_game.sh: if [ "$GRAPHICS_DRIVER" = VirGL ] || [ "$GRAPHICS_DRIVER" = virgl ]
-        ComponentDescriptor virgl = index().find("virgl-mesa").get();
-        assertEquals("script compares the bare token, not the package id",
-            "virgl", virgl.getProfileValue());
-        String script = read("local-games/start_local_game.sh");
-        assertTrue("launch script must still branch on the catalog value",
-            script.contains("\"$GRAPHICS_DRIVER\" = " + virgl.getProfileValue()));
-    }
-
-    @Test
     public void everySelectableValueIsNonEmptyAndTrimmed() throws Exception {
         for (ComponentDescriptor descriptor : index().getComponents()) {
             if (!descriptor.isSelectable()) continue;

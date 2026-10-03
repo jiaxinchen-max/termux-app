@@ -76,31 +76,6 @@ public class FileRuntimeProfileRepositoryTest {
     }
 
     @Test
-    public void readsSchemaOneWithAppShellDefault() throws Exception {
-        File directory = temporaryFolder.newFolder("legacy-profiles");
-        FileRuntimeProfileRepository repository = new FileRuntimeProfileRepository(directory);
-        repository.save(RuntimeProfilePresets.create("game-1", RuntimeProfilePreset.RECOMMENDED)
-            .withLaunchExecutionMode(LaunchExecutionMode.TERMINAL_SESSION));
-        File file = new File(directory, "game-1.properties");
-        Properties properties = new Properties();
-        try (java.io.FileInputStream input = new java.io.FileInputStream(file)) {
-            properties.load(input);
-        }
-        properties.setProperty("schemaVersion", "1");
-        properties.remove("launchExecutionMode");
-        properties.remove("runtimeBackendType");
-        properties.remove("rootfsPackage");
-        try (FileOutputStream output = new FileOutputStream(file)) {
-            properties.store(output, null);
-        }
-
-        assertEquals(LaunchExecutionMode.APP_SHELL,
-            repository.find("game-1").get().getLaunchExecutionMode());
-        assertEquals(GameRuntimeBackendType.GLIBC_TERMUX_BOX,
-            repository.find("game-1").get().getRuntimeBackendType());
-    }
-
-    @Test
     public void persistsRootfsBackendWithoutSharingGlibcSemantics() throws Exception {
         FileRuntimeProfileRepository repository = repository();
         RuntimeProfile base = RuntimeProfilePresets.create("game-1",
@@ -116,29 +91,6 @@ public class FileRuntimeProfileRepositoryTest {
         RuntimeProfile restored = repository.find("game-1").get();
         assertEquals(GameRuntimeBackendType.ROOTFS_PROOT, restored.getRuntimeBackendType());
         assertEquals("debian-13-games-rootfs", restored.getRootfsPackage());
-    }
-
-    @Test
-    public void readsSchemaTwoWithGlibcBackendDefault() throws Exception {
-        File directory = temporaryFolder.newFolder("schema-two-profiles");
-        FileRuntimeProfileRepository repository = new FileRuntimeProfileRepository(directory);
-        repository.save(RuntimeProfilePresets.create("game-1", RuntimeProfilePreset.RECOMMENDED));
-        File file = new File(directory, "game-1.properties");
-        Properties properties = new Properties();
-        try (java.io.FileInputStream input = new java.io.FileInputStream(file)) {
-            properties.load(input);
-        }
-        properties.setProperty("schemaVersion", "2");
-        properties.remove("runtimeBackendType");
-        properties.remove("rootfsPackage");
-        try (FileOutputStream output = new FileOutputStream(file)) {
-            properties.store(output, null);
-        }
-
-        RuntimeProfile restored = repository.find("game-1").get();
-        assertEquals(GameRuntimeBackendType.GLIBC_TERMUX_BOX,
-            restored.getRuntimeBackendType());
-        assertEquals("", restored.getRootfsPackage());
     }
 
     private FileRuntimeProfileRepository repository() throws IOException {

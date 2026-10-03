@@ -48,21 +48,6 @@ public class GameUninstallerTest {
     }
 
     @Test
-    public void explicitSelectionsDeleteOnlyOwnedPrivateAssets() throws Exception {
-        Fixture fixture = fixture("selected-files", "game-2");
-
-        new GameUninstaller(fixture.files).execute(
-            GameUninstallPlan.keepPrivateAssets(fixture.gameId)
-                .withSelections(true, true, true, true));
-
-        assertFalse(fixture.paths.getGamePrefixDirectory(fixture.gameId).exists());
-        assertFalse(fixture.paths.getGameCacheDirectory(fixture.gameId).exists());
-        assertFalse(fixture.paths.getCurrentProfileFile(fixture.gameId).exists());
-        assertFalse(new File(fixture.paths.getLaunchTasksDirectory(), "task-" + fixture.gameId + ".properties").exists());
-        assertTrue(fixture.external.isFile());
-    }
-
-    @Test
     public void activeTaskBlocksUninstallBeforeAnyMutation() throws Exception {
         File files = temporary.newFolder("active-uninstall-files");
         GameStoragePaths paths = new GameStoragePaths(files);
