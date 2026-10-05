@@ -97,6 +97,30 @@ public class ComponentInstallerTest {
     }
 
     @Test
+    public void publishesRawPayloadWithPercentEncodedUrlBasenamePreservingExtension() throws Exception {
+        Fixture fixture = fixture();
+        // Regression test: a release asset basename containing a percent-encoded character (here
+        // "%2B" for a literal "+", as GitHub release URLs produce) must still be decoded to a safe
+        // name that keeps its ".deb" extension -- not fall back to "<packageName>.payload", which
+        // setup-container.sh's "find ... -name '*.deb'" dispatch would silently never match.
+        File deb = rawArchive("box64.deb", "box64 package bytes");
+        ComponentTask task = ComponentTask.queued("task-deb-encoded", "box64-rootfs", 1,
+                "https://example.invalid/box64-android_0.4.5%2B20260908T103809.4e5f180-1_arm64.deb",
+                deb.length(), sha256(deb))
+            .transition(ComponentTaskState.VERIFIED, deb.length(), "", "", "", "");
+        fixture.repository.save(task);
+
+        InstalledComponent installed = fixture.installer.install(task, deb,
+            ComponentInstallListener.NONE);
+
+        File published = new File(installed.getDirectory(),
+            "box64-android_0.4.5+20260908T103809.4e5f180-1_arm64.deb");
+        assertTrue(published.isFile());
+        assertEquals(ComponentTaskState.INSTALLED,
+            fixture.repository.find("task-deb-encoded").get().getState());
+    }
+
+    @Test
     public void traversalFailurePreservesPreviousActiveVersion() throws Exception {
         Fixture fixture = fixture();
         File firstArchive = archive("first.tar.xz", "bin/runtime", "v1");

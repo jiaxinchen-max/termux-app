@@ -275,11 +275,25 @@ public final class ComponentInstaller {
             candidate = slash >= 0 ? url.substring(slash + 1) : url;
             int query = candidate.indexOf('?');
             if (query >= 0) candidate = candidate.substring(0, query);
+            candidate = percentDecode(candidate);
         }
         if (!candidate.matches("[A-Za-z0-9._+-]{1,128}") || candidate.equals(RECEIPT)) {
             candidate = task.getPackageName() + ".payload";
         }
         return candidate;
+    }
+
+    /** Decodes percent-encoded octets in a URL path segment (e.g. {@code %2B} -> {@code +}).
+     *  Escapes any literal {@code +} first so {@link java.net.URLDecoder} -- which treats
+     *  {@code +} as an encoded space, a query-string convention that does not apply to path
+     *  segments -- does not corrupt it. Falls back to the original value on malformed escapes;
+     *  the safety regex in {@link #rawPayloadName} rejects it the same as any other bad name. */
+    private static String percentDecode(String value) {
+        try {
+            return java.net.URLDecoder.decode(value.replace("+", "%2B"), "UTF-8");
+        } catch (java.io.UnsupportedEncodingException | IllegalArgumentException error) {
+            return value;
+        }
     }
 
     private boolean validReceipt(File directory, ComponentTask task) {
