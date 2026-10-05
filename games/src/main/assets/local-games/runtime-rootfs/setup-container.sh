@@ -36,6 +36,10 @@ locale-gen
 #   - any *.deb (Hangover source bundle, Box64 .deb) -> apt-get install (resolves deps from the repo)
 #   - a DXVK WoW64 tree (x64/ + x32/|x86/ at any depth) -> copy DLLs into
 #     /opt/games-runtime/<id>/{system32,syswow64} for start_rootfs_game.sh to pick per game.
+#   - a portable Wine build (bin/wine + bin/wineboot at any depth) -> copy the whole tree to
+#     /opt/box64-wine for the standalone Box64 translator path (rootfs_prefix_warmup.sh's "box64"
+#     case), as an alternative to Hangover's bundled wine+translator. Never apt-installed or
+#     registered with dpkg -- stays a self-contained, relocatable directory.
 
 # 1) Install every Debian package across all components in one dependency-resolving pass.
 if find "$COMPONENTS_ROOT" -name '*.deb' -type f | grep -q .; then
@@ -70,6 +74,24 @@ for compdir in "$COMPONENTS_ROOT"/*; do
     }
 done
 
+# 3) Lay out a portable Wine build (if any component bundles one) for the standalone Box64
+# translator path. Detected by content (bin/wine + bin/wineboot), not by component id, matching
+# the DXVK loop's approach above.
+for compdir in "$COMPONENTS_ROOT"/*; do
+    [ -d "$compdir" ] || continue
+    winebin=$(find "$compdir" \( -type f -o -type l \) -name wine -path '*/bin/*' | head -n 1)
+    [ -n "$winebin" ] || continue
+    winebootbin=$(find "$compdir" \( -type f -o -type l \) -name wineboot -path '*/bin/*' | head -n 1)
+    [ -n "$winebootbin" ] || {
+        printf '%s\n' "box64_wine_missing_wineboot:$(basename "$compdir")" >&2
+        exit 70
+    }
+    srcroot=$(dirname "$(dirname "$winebin")")
+    mkdir -p /opt/box64-wine
+    cp -a "$srcroot"/. /opt/box64-wine/
+    chmod +x /opt/box64-wine/bin/wine /opt/box64-wine/bin/wineboot
+done
+
 mkdir -p /mnt/games/game /mnt/games/prefix
 install -m 0644 "$MANIFEST" /etc/games-runtime.properties
 rm -rf /var/lib/apt/lists/*
@@ -78,3 +100,5 @@ test -x /usr/bin/env
 command -v box64 >/dev/null 2>&1 || { printf '%s\n' box64_missing >&2; exit 70; }
 test -x /usr/bin/wine
 test -x /usr/bin/wineboot
+test -x /opt/box64-wine/bin/wine
+test -x /opt/box64-wine/bin/wineboot

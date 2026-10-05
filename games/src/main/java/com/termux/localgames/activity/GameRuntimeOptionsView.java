@@ -332,6 +332,18 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             value -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), value,
                 profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
                 profile.getEnvironment(), profile.getInputProfileId(), profile.getLaunchExecutionMode()));
+        if (rootfs) {
+            // hangover-11.9 bundles its own translation layer inside the wine binary (apt-installed,
+            // shared system-wide). box64-wine-10.0 is a portable vanilla wine run under the
+            // standalone Box64 translator (see rootfs_prefix_warmup.sh's resolve_rootfs_translator) --
+            // an independent runtime, selectable per game.
+            addChoice("Wine package", withCurrent(profile.getWinePackage(),
+                    "hangover-11.9", "box64-wine-10.0"),
+                value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),
+                    profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
+                    profile.getEnvironment(), profile.getInputProfileId(),
+                    profile.getLaunchExecutionMode()));
+        }
         addChoice("Audio driver", withCurrent(profile.getAudioDriver(), "alsa", "pulseaudio"),
             value -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
                 value, profile.getResolution(), profile.getBox64Preset(), profile.getEnvironment(),

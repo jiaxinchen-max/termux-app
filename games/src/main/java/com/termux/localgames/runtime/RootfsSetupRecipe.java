@@ -11,8 +11,10 @@ public final class RootfsSetupRecipe {
     /**
      * Every component baked into the one shared RootFS base image, all delivered through the unified
      * component framework (download + sha256 + extract/raw-publish) and installed in-guest by
-     * setup-container.sh by content: the Hangover Debian source, the Box64 translator .deb, and the
-     * selectable DXVK builds (installed under /opt/games-runtime/&lt;id&gt; for per-game dxWrapper use).
+     * setup-container.sh by content: the Hangover Debian source, the Box64 translator .deb, the
+     * selectable DXVK builds (installed under /opt/games-runtime/&lt;id&gt; for per-game dxWrapper use),
+     * and a portable vanilla Wine build (installed under /opt/box64-wine for per-game selection of the
+     * standalone Box64 translator path, as an alternative to Hangover's bundled translation layer).
      */
     public static final List<String> DEFAULT_BASE_COMPONENTS = Collections.unmodifiableList(
         Arrays.asList(
@@ -20,8 +22,9 @@ public final class RootfsSetupRecipe {
             "box64-rootfs",
             "rootfs-dxvk-2.7",
             "rootfs-dxvk-3.1",
-            "rootfs-dxvk-1.10.3"));
-    public static final int DEFAULT_VERSION = 6;
+            "rootfs-dxvk-1.10.3",
+            "box64-wine-10.0"));
+    public static final int DEFAULT_VERSION = 8;
 
     private final String packageName;
     private final int version;

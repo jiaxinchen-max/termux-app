@@ -305,6 +305,21 @@ export TERMUX_VULKAN_BROKER_SOCKET="$TERMUX_FILES_DIR/usr/tmp/.vortek/V0"
 export RESOLUTION
 export GAMES_RUNTIME_PACKAGE="$WINE_PACKAGE"
 export GAMES_DX_WRAPPER="$DX_WRAPPER"
+# Both translator paths are box64-derived (Hangover's bundled WowBox64 is box64's own dynarec
+# compiled in -- see the "[BOX64] WowBox64 ..." banner either path prints at startup), so
+# BOX64_PROFILE applies regardless of which one is active. box64 interprets this itself; we only
+# need to translate our own STABILITY/INTERMEDIATE/PERFORMANCE preset into its vocabulary.
+case "$BOX64_PRESET" in
+    STABILITY) export BOX64_PROFILE=safest ;;
+    PERFORMANCE) export BOX64_PROFILE=fastest ;;
+    *) export BOX64_PROFILE=default ;;
+esac
+# wine's esync/fsync backends need working POSIX shared memory (shm_open under /dev/shm) and/or
+# futex2, neither reliably available inside this proot rootfs -- esync_init fails outright
+# ("shm_open: No such file or directory") rather than degrading gracefully. Force the plain
+# server-side synchronization wine falls back to without these, which does work under proot.
+export WINEESYNC=0
+export WINEFSYNC=0
 unset LD_PRELOAD
 
 run_rootfs_command() {

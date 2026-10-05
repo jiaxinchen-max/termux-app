@@ -28,7 +28,7 @@ public class ComponentIndexParserTest {
 
         assertEquals(2, index.getSchemaVersion());
         assertEquals("2026-09-13T01:00:00Z", index.getGeneratedAt());
-        assertEquals(23, index.getComponents().size());
+        assertEquals(24, index.getComponents().size());
         ComponentDescriptor glibc = index.find("termux-glibc-runtime").get();
         assertEquals("runtime", glibc.getCategory());
         assertEquals(ComponentType.RUNTIME_SUPPORT, glibc.getType());
