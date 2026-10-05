@@ -530,11 +530,14 @@ fi
 GAMES_EFFECTIVE_CPU_CORES="${GAMES_CPU_CORES:-${GAMES_CPU_CORES_32:-}}"
 if [ -n "$GAMES_EFFECTIVE_CPU_CORES" ]; then
     case "$GAMES_EFFECTIVE_CPU_CORES" in *[!0-9,-]*|'') terminal_failure invalid_cpu_affinity ;; esac
-    if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
-        set -- -c "$GAMES_EFFECTIVE_CPU_CORES" "$GUEST_WINE" "$@"
-    else
-        set -- -c "$GAMES_EFFECTIVE_CPU_CORES" "$GUEST_COMMAND" "$@"
-    fi
+    # "$@" at this point is already the correct guest-side command line built above (which already
+    # includes GUEST_WINE for the box64/fex case, and omits it for hangover) -- taskset just needs
+    # GUEST_COMMAND (the actual binary to exec: wine itself for hangover, box64/FEXInterpreter for
+    # the standalone-translator paths) prepended in front of it. Do not special-case GUEST_WINE
+    # here too: that previously substituted an *empty* string as the exec target for hangover
+    # (GUEST_WINE is intentionally blank there), so taskset always failed with "No such file or
+    # directory" whenever a CPU affinity was set together with the hangover translator.
+    set -- -c "$GAMES_EFFECTIVE_CPU_CORES" "$GUEST_COMMAND" "$@"
     run_rootfs_command /usr/bin/taskset "$@" >> "$LOG_PATH" 2>&1 &
 else
     run_rootfs_command "$GUEST_COMMAND" "$@" >> "$LOG_PATH" 2>&1 &
