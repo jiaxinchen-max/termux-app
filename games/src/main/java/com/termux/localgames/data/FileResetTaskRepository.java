@@ -67,8 +67,16 @@ public final class FileResetTaskRepository implements ResetTaskRepository {
                 if (!"1".equals(value.getProperty("schemaVersion"))) {
                     throw new IOException("reset_task_schema_unsupported");
                 }
+                // Legacy reset tasks may name a target that no longer exists as an enum constant
+                // (e.g. ROOTFS, removed when "rebuild" replaced RootFS reset). Skip those quietly
+                // instead of letting valueOf() throw a noisy wrapped stack that the task-store logs
+                // on every list()/render.
+                String target = required(value, "target");
+                if (!isKnownTarget(target)) {
+                    throw new IOException("reset_task_target_unsupported:" + target);
+                }
                 return new ResetTask(required(value, "taskId"),
-                    ResetTarget.valueOf(required(value, "target")),
+                    ResetTarget.valueOf(target),
                     value.getProperty("resetKey", ""),
                     ResetTaskState.valueOf(required(value, "state")),
                     value.getProperty("errorCode", ""),
@@ -77,6 +85,13 @@ public final class FileResetTaskRepository implements ResetTaskRepository {
             } catch (IllegalArgumentException error) {
                 throw new IOException("reset_task_invalid", error);
             }
+        }
+
+        private static boolean isKnownTarget(String target) {
+            for (ResetTarget known : ResetTarget.values()) {
+                if (known.name().equals(target)) return true;
+            }
+            return false;
         }
 
         private static String required(Properties value, String key) throws IOException {

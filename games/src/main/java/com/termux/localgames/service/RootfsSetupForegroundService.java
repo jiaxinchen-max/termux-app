@@ -125,6 +125,11 @@ public final class RootfsSetupForegroundService extends Service {
         }
         RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), taskId);
         RootfsSetupRecipe recipe = RootfsSetupRecipe.require(packageName);
+        // Auto-download any base component that isn't installed yet, before the build starts.
+        // No rootfs setup task is persisted at this point, so the component tasks this enqueues
+        // pass their own RuntimeInstallationGate check; once they finish, resolveBaseComponents
+        // succeeds instead of throwing rootfs_source_component_missing (the rebuild-stuck cause).
+        new RootfsRuntimeComponentPreparer(this).ensure(recipe.getBaseComponentIds());
         java.util.LinkedHashMap<String, InstalledComponent> baseComponents =
             resolveBaseComponents(recipe);
         RootfsSetupAssetInstaller.Installed assets = new RootfsSetupAssetInstaller(this, paths)
