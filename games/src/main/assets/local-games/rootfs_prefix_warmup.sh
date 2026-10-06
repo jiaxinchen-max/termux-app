@@ -61,8 +61,15 @@ resolve_rootfs_translator() {
         box64)
             case "$WINE_PACKAGE" in box64-wine*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
             GUEST_COMMAND=/usr/local/bin/box64
-            GUEST_WINE=/opt/box64-wine/bin/wine
-            GUEST_WINEBOOT=/opt/box64-wine/bin/wineboot
+            GUEST_WINE=/opt/box64-wine/bin/wine64
+            # The biarch build's bin/wineboot is a #!/bin/sh wrapper script, not an ELF -- box64
+            # cannot translate/exec it directly ("Not an ELF file"). wineboot is instead invoked
+            # as wine64's own built-in program dispatch (wine64 recognises "wineboot" as argv[1]
+            # the same way it recognises "explorer"), so GUEST_WINEBOOT reuses the wine64 binary
+            # itself and GUEST_WINEBOOT_ARG supplies the extra "wineboot" argument word. Verified
+            # on-device: `box64 wine64 wineboot -u` completes cleanly with a fresh prefix.
+            GUEST_WINEBOOT=/opt/box64-wine/bin/wine64
+            GUEST_WINEBOOT_ARG=wineboot
             [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || warmup_fail rootfs_box64_missing
             [ -x "$ROOTFS_CANONICAL$GUEST_WINE" ] || warmup_fail rootfs_wine_missing
             [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || warmup_fail rootfs_wineboot_missing
@@ -121,13 +128,19 @@ warmup_rootfs_prefix() {
     CURRENT_PREFIX_MARKER=
     [ ! -f "$PREFIX_MARKER" ] || CURRENT_PREFIX_MARKER=$(sed -n '1p' "$PREFIX_MARKER" 2>/dev/null)
     if [ "$CURRENT_PREFIX_MARKER" != "$EXPECTED_PREFIX_MARKER" ]; then
-        if [ -n "$TEMPLATE_PREFIX_ARCHIVE" ] && [ -f "$TEMPLATE_PREFIX_ARCHIVE" ]; then
-            # Clone a prefix that was already wineboot'd + FontLink'd once, during the shared
-            # base build, instead of paying that cost again for every container. The clone is
-            # universal (no container-specific state is baked into a fresh prefix -- see
-            # setup_rootfs_runtime.sh's template-prefix build step for why this is safe); only
-            # the marker's recorded RUNTIME_ROOT_PATH is container-specific, so it is rewritten
-            # below to this container's real value rather than the template's own placeholder.
+        # The shared template prefix is pre-booted by Hangover (setup_rootfs_runtime.sh hardcodes
+        # WINE_PACKAGE=hangover-11.9 for the template build), so it is ONLY a valid starting point
+        # for Hangover containers. A box64-wine container runs a different Wine build (vanilla
+        # Kron4ek x86_64) whose ntdll/kernel32 layout a Hangover-booted prefix does not match --
+        # cloning the template there produced `wine: could not load kernel32.dll, status c000007b`.
+        # Non-Hangover containers must therefore do a full fresh wineboot with their own Wine.
+        TEMPLATE_PREFIX_USABLE=0
+        case "$WINE_PACKAGE" in hangover-*) TEMPLATE_PREFIX_USABLE=1 ;; esac
+        if [ "$TEMPLATE_PREFIX_USABLE" = 1 ] && [ -n "$TEMPLATE_PREFIX_ARCHIVE" ] && [ -f "$TEMPLATE_PREFIX_ARCHIVE" ]; then
+            # Clone a prefix that was already wineboot'd + FontLink'd once, during the shared base
+            # build, instead of paying that cost again for every Hangover container. Only the
+            # marker's recorded RUNTIME_ROOT_PATH is container-specific, so it is rewritten below
+            # to this container's real value rather than the template's own placeholder.
             printf '%s\n' 'Cloning the pre-booted Wine prefix template.' >> "$LOG_PATH"
             case "$TEMPLATE_PREFIX_ARCHIVE" in
                 *.tar.zst) TEMPLATE_PREFIX_COMPRESSOR=zstd ;;
@@ -154,8 +167,8 @@ warmup_rootfs_prefix() {
             if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
                 run_rootfs_maintenance_command timeout 180 "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1
             else
-                run_rootfs_maintenance_command timeout 180 "$GUEST_COMMAND" "$GUEST_WINEBOOT" -u \
-                    >> "$LOG_PATH" 2>&1
+                run_rootfs_maintenance_command timeout 180 "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+                    ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u >> "$LOG_PATH" 2>&1
             fi
             PREFIX_EXIT_CODE=$?
             [ "$PREFIX_EXIT_CODE" -ne 124 ] || warmup_fail rootfs_prefix_initialization_timeout

@@ -24,7 +24,7 @@ public final class RootfsSetupRecipe {
             "rootfs-dxvk-3.1",
             "rootfs-dxvk-1.10.3",
             "box64-wine-10.0"));
-    public static final int DEFAULT_VERSION = 8;
+    public static final int DEFAULT_VERSION = 9;
 
     private final String packageName;
     private final int version;
