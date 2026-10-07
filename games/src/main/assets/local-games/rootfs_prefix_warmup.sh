@@ -167,7 +167,14 @@ warmup_rootfs_prefix() {
             if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
                 run_rootfs_maintenance_command timeout 180 "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1
             else
-                run_rootfs_maintenance_command timeout 180 "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+                # box64-translated wineboot JITs the entire wine64 binary (not just guest app
+                # code, unlike Hangover's native-ARM64 wine) on every container -- the
+                # template-clone fast path above is Hangover-only (see warmup_rootfs_prefix's
+                # TEMPLATE_PREFIX_USABLE gate), so this box64 branch always pays the full,
+                # much slower cold-JIT wineboot cost. 180s was sized for Hangover's native
+                # case and was observed to be too tight here; 600s gives real headroom without
+                # masking a genuine hang (rootfs_prefix_initialization_timeout below still fires).
+                run_rootfs_maintenance_command timeout 600 "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
                     ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u >> "$LOG_PATH" 2>&1
             fi
             PREFIX_EXIT_CODE=$?

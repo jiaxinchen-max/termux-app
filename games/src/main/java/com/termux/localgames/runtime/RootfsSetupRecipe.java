@@ -11,7 +11,10 @@ public final class RootfsSetupRecipe {
     /**
      * Every component baked into the one shared RootFS base image, all delivered through the unified
      * component framework (download + sha256 + extract/raw-publish) and installed in-guest by
-     * setup-container.sh by content: the Hangover Debian source, the Box64 translator .deb, the
+     * setup-container.sh by content: the Hangover Debian source, the Box64 translator .deb, an mprotect
+     * patch overlay for that same Box64 binary (works around Android's W^X SELinux policy denying
+     * PROT_EXEC on app-private-storage memory -- needed only by Box64-translated Wine, not Hangover's
+     * native ARM64 wine; not yet submitted upstream, see box64-wine-39bit-pitfalls writeup), the
      * selectable DXVK builds (installed under /opt/games-runtime/&lt;id&gt; for per-game dxWrapper use),
      * and a portable vanilla Wine build (installed under /opt/box64-wine for per-game selection of the
      * standalone Box64 translator path, as an alternative to Hangover's bundled translation layer).
@@ -20,11 +23,12 @@ public final class RootfsSetupRecipe {
         Arrays.asList(
             DEFAULT_SOURCE,
             "box64-rootfs",
+            "box64-rootfs-mprotect-patch",
             "rootfs-dxvk-2.7",
             "rootfs-dxvk-3.1",
             "rootfs-dxvk-1.10.3",
             "box64-wine-10.0"));
-    public static final int DEFAULT_VERSION = 9;
+    public static final int DEFAULT_VERSION = 10;
 
     private final String packageName;
     private final int version;

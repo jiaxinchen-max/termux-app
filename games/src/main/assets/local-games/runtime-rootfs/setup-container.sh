@@ -52,6 +52,24 @@ fi
 # Box64's .deb installs to /usr/local/bin; make sure it is on PATH for the launcher.
 command -v box64 >/dev/null 2>&1 || ln -sf /usr/local/bin/box64 /usr/bin/box64
 
+# 1b) Overlay a patched box64 binary, if the box64-rootfs-mprotect-patch component is present.
+# Unlike the DXVK/Wine loops below, this one is matched by component id, not content -- it is a
+# narrowly-scoped single-file override of the official apt-installed binary above, not a generic
+# category. Android's targetSdkVersion>=29 W^X SELinux policy denies mprotect(PROT_EXEC) on
+# app-private-storage-backed memory (same root cause as termux-pacman/glibc-packages issue #49 /
+# PR #50's libc fix); the official box64-android .deb does not carry this fix, so Wine builds that
+# are translated by box64 itself (rather than run natively, like Hangover) fail to mark loaded
+# PE sections executable. See box64-wine-39bit-pitfalls.md for the full writeup.
+if [ -d "$COMPONENTS_ROOT/box64-rootfs-mprotect-patch" ]; then
+    patched_box64=$(find "$COMPONENTS_ROOT/box64-rootfs-mprotect-patch" -maxdepth 1 -type f | head -n 1)
+    [ -n "$patched_box64" ] || {
+        printf '%s\n' box64_mprotect_patch_empty >&2
+        exit 70
+    }
+    cp "$patched_box64" /usr/local/bin/box64
+    chmod 755 /usr/local/bin/box64
+fi
+
 # 2) Lay out any DXVK components by their WoW64 split.
 for compdir in "$COMPONENTS_ROOT"/*; do
     [ -d "$compdir" ] || continue
