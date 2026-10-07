@@ -24,8 +24,16 @@ if ! dpkg --configure -a; then
     apt-get -f install -y
     dpkg --configure -a
 fi
+# The libx*/libcups/libsdl2 row is for box64's "native library bridge": box64 prefers the rootfs's
+# native ARM64 build of these X11 / cups / SDL2 client libs over translating the guest's x86_64 copy
+# (less overhead, and it silences the `[BOX64] Error initializing native libX.../libSDL2-2.0.so.0
+# cannot open shared object file` lines that otherwise flood the wineboot console). Without them
+# box64 just falls back to translation -- harmless, only noisier/slightly slower -- so this is an
+# optimisation, not required. (box64 asks for libSDL2-2.0.so.0 specifically, provided by
+# libsdl2-2.0-0; it never requests SDL1.2/SDL3, so those are intentionally omitted.)
 apt-get install -y --no-install-recommends \
     alsa-utils ca-certificates libegl1 libegl-mesa0 libgl1 libgl1-mesa-dri libglx-mesa0 \
+    libxcomposite1 libxcursor1 libxi6 libxrandr2 libxinerama1 libcups2t64 libsdl2-2.0-0 \
     curl fontconfig fonts-noto-cjk libvulkan1 locales mesa-vulkan-drivers pulseaudio-utils tar xz-utils zstd
 sed -i 's/^# *zh_CN.GBK GBK/zh_CN.GBK GBK/' /etc/locale.gen
 sed -i 's/^# *zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen

@@ -173,6 +173,61 @@ run_logged() {
     "$@" >> "$LOG_PATH" 2>&1
 }
 
+# Like run_logged, but for a long, possibly-stalling step (wineboot) that must stay visible in the
+# live setup console without an arbitrary wall-clock ceiling. Two differences from run_logged:
+#  1. Visibility without a tee pipe: the command writes to "$LOG_PATH" and a background `tail -f`
+#     forwards new lines to the PTY. Because the command is backgrounded directly (no pipe), its
+#     own "$!" is proot's PID -- and proot runs with --kill-on-exit (see
+#     rootfs_prefix_warmup.sh's run_rootfs_maintenance_command), so killing that one PID tears
+#     down the whole proot->wine process tree. (A `... | tee &` pipeline's $! is tee, not proot,
+#     so killing it would leave wine running -- hence the tail-forward instead.)
+#  2. Silence watchdog instead of a fixed timeout: the command may run as long as "$LOG_PATH"
+#     keeps growing, and is aborted only after PREFIX_SILENCE_TIMEOUT seconds of *zero* growth -- a
+#     genuine deadlock (e.g. the old Mono-installer hang), never a healthy-but-slow run, which
+#     streams output continuously. Returns the command's real exit code, or 124 (mimicking
+#     `timeout`) on watchdog fire, so the caller's existing "-ne 124 -> timeout" check is reused.
+run_logged_watchdog() {
+    watchdog_silence=${PREFIX_SILENCE_TIMEOUT:-300}
+    watchdog_tail_pid=
+    if [ -t 1 ]; then
+        tail -n 0 -f "$LOG_PATH" 2>/dev/null &
+        watchdog_tail_pid=$!
+    fi
+    "$@" >> "$LOG_PATH" 2>&1 &
+    watchdog_cmd_pid=$!
+    watchdog_last_size=$(wc -c < "$LOG_PATH" 2>/dev/null || printf '0')
+    watchdog_last_change=$(date +%s)
+    watchdog_fired=0
+    # Quiet set -x around the poll loop itself -- a per-5s trace of the watchdog machinery is noise
+    # in the live console, not progress (same reasoning as rootfs_prefix_warmup.sh's poll loop).
+    set +x
+    while kill -0 "$watchdog_cmd_pid" 2>/dev/null; do
+        sleep 5
+        watchdog_now=$(date +%s)
+        watchdog_size=$(wc -c < "$LOG_PATH" 2>/dev/null || printf '0')
+        if [ "$watchdog_size" != "$watchdog_last_size" ]; then
+            watchdog_last_size=$watchdog_size
+            watchdog_last_change=$watchdog_now
+        elif [ $((watchdog_now - watchdog_last_change)) -ge "$watchdog_silence" ]; then
+            # SIGKILL, not SIGTERM: proot is a ptrace tracer that forwards SIGTERM to the guest
+            # init (Windows wineboot ignores it) and does NOT itself exit, so --kill-on-exit never
+            # fires -- verified on-device that `kill` leaves the whole wine tree running. SIGKILL
+            # can't be forwarded/caught, so proot dies at the kernel and ptrace EXITKILL reaps every
+            # tracee (including the daemonised, PPID=1 wineserver). watchdog_cmd_pid is proot's real
+            # PID because run_rootfs_maintenance_command execs proot (see its header).
+            kill -9 "$watchdog_cmd_pid" 2>/dev/null || true
+            watchdog_fired=1
+            break
+        fi
+    done
+    set -x
+    watchdog_status=0
+    wait "$watchdog_cmd_pid" 2>/dev/null || watchdog_status=$?
+    [ -z "$watchdog_tail_pid" ] || { kill "$watchdog_tail_pid" 2>/dev/null || true; wait "$watchdog_tail_pid" 2>/dev/null || true; }
+    [ "$watchdog_fired" = 0 ] || return 124
+    return "$watchdog_status"
+}
+
 PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
 PROOT_DISTRO="$PREFIX/bin/proot-distro"
 CONTAINERS_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/containers"
@@ -211,12 +266,16 @@ TEMPLATE_RECIPE="$TEMPLATE_CACHE_DIR/games-rootfs-base.recipe"
 if command -v zstd >/dev/null 2>&1; then
     TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base.tar.zst"
     TEMPLATE_COMPRESSOR=zstd
-    TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.zst"
+    TEMPLATE_PREFIX_EXT=zst
 else
     TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base.tar.gz"
     TEMPLATE_COMPRESSOR=gzip
-    TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.gz"
+    TEMPLATE_PREFIX_EXT=gz
 fi
+# One prefix template is pre-booted per translator (see the BASE_ONLY loop below), not a single
+# fixed-name archive -- TEMPLATE_PREFIX_ARCHIVE itself is resolved per-container, per-translator,
+# via rootfs_prefix_warmup.sh's resolve_template_prefix_archive() further down.
+TEMPLATE_PREFIX_ARCHIVE=
 # Sourced early (not just before the per-container warmup call further down) because BASE_ONLY
 # also builds the shared template Wine prefix below, using these same functions.
 warmup_fail() { fail "$1" 70; }
@@ -360,10 +419,15 @@ if [ "$BASE_ONLY" = true ]; then
     # A rebuild must actually replace the archive, not silently reuse a stale one --
     # ensure_template_archive() below is a no-op when the archive already exists, so force a
     # real rebuild by clearing it first. Harmless (a no-op delete) on a first-ever "Build" too.
-    # The template Wine prefix is rebuilt in lockstep with the rootfs for the same reason (the
-    # known hash-drift failure mode this session already fixed once for the rootfs side).
-    rm -f "$TEMPLATE_ARCHIVE" "$TEMPLATE_ARCHIVE.tmp" "$TEMPLATE_RECIPE" \
-        "$TEMPLATE_PREFIX_ARCHIVE" "$TEMPLATE_PREFIX_ARCHIVE.tmp"
+    # Every per-translator prefix template (games-rootfs-base-prefix-<translator>.tar.*, see the
+    # BASE_ONLY loop below -- one per distinct RUNTIME_TRANSLATOR bucket, not one per literal wine
+    # package) is rebuilt in lockstep with the rootfs for the same reason (the known hash-drift
+    # failure mode this session already fixed once for the rootfs side).
+    rm -f "$TEMPLATE_ARCHIVE" "$TEMPLATE_ARCHIVE.tmp" "$TEMPLATE_RECIPE"
+    for stray_prefix in "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*; do
+        [ -e "$stray_prefix" ] || continue
+        rm -f "$stray_prefix"
+    done
 fi
 if [ -d "$CONTAINERS_DIRECTORY" ]; then
     for stray_container in "$CONTAINERS_DIRECTORY"/tmpl-*; do
@@ -376,8 +440,9 @@ if [ -d "$TEMPLATE_CACHE_DIR" ]; then
     for stray_archive in "$TEMPLATE_CACHE_DIR"/*.tar.*; do
         [ -f "$stray_archive" ] || continue
         case "$stray_archive" in
-            "$TEMPLATE_ARCHIVE"|"$TEMPLATE_ARCHIVE.tmp"| \
-            "$TEMPLATE_PREFIX_ARCHIVE"|"$TEMPLATE_PREFIX_ARCHIVE.tmp") continue ;;
+            "$TEMPLATE_ARCHIVE"|"$TEMPLATE_ARCHIVE.tmp") continue ;;
+            # Every per-translator prefix template is a live artifact, not just one fixed name.
+            "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*) continue ;;
         esac
         rm -f "$stray_archive"
     done
@@ -401,49 +466,85 @@ if [ ! -f "$TEMPLATE_ARCHIVE" ]; then
     extract_shared_rootfs
     runtime_complete "$SHARED_ROOTFS" || fail rootfs_shared_image_invalid 70
 
-    # Pre-boot one Wine prefix here too (wineboot -u + CJK FontLink), archived alongside the
-    # rootfs, so every subsequent container extracts a ready-made prefix instead of paying the
-    # wineboot cost again (see rootfs_prefix_warmup.sh's TEMPLATE_PREFIX_ARCHIVE fast path). The
-    # only package any ROOTFS_PROOT container ever actually uses is hangover-11.9 (confirmed via
-    # grep across activity/ and runtime/), so one template prefix covers every real container.
-    progress '==> Pre-warming the shared Wine prefix template (wineboot + CJK FontLink)'
-    TEMPLATE_PREFIX_ARCHIVE_DESTINATION="$TEMPLATE_PREFIX_ARCHIVE"
-    TEMPLATE_PREFIX_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/prefix-build"
-    TEMPLATE_HOME_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/home-build"
-    rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
-    mkdir -p "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
-    ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS") || fail rootfs_unreadable 70
-    PREFIX_PATH="$TEMPLATE_PREFIX_BUILD_DIRECTORY"
-    HOME_PATH="$TEMPLATE_HOME_BUILD_DIRECTORY"
-    WINE_PACKAGE=hangover-11.9
-    RUNTIME_ROOT_PATH=template
-    # Empty, not $TEMPLATE_PREFIX_ARCHIVE_DESTINATION: this build step is what PRODUCES that
-    # archive, so warmup_rootfs_prefix must do the real wineboot run here, never the clone path.
-    TEMPLATE_PREFIX_ARCHIVE=
-    CANCEL_PATH=
-    TERMUX_FILES_DIR="$TERMUX_FILES_ROOT"
-    PROOT_BIN="$PREFIX/bin/proot"
+    # Pre-boot one Wine prefix per *translator* (wineboot -u + CJK FontLink), archived alongside
+    # the rootfs, so every subsequent container extracts a ready-made prefix instead of paying the
+    # wineboot cost again (see rootfs_prefix_warmup.sh's resolve_template_prefix_archive() /
+    # TEMPLATE_PREFIX_ARCHIVE fast path). A Kron4ek box64-wine prefix and a Hangover prefix have
+    # incompatible ntdll/kernel32 layouts (confirmed: cloning the wrong one produced `wine: could
+    # not load kernel32.dll, status c000007b`) -- but that incompatibility is cross-architecture
+    # (Hangover's native ARM64 wine vs box64's translated x86_64 wine), not cross-wine-version: two
+    # wine packages that resolve_rootfs_translator() below maps to the SAME RUNTIME_TRANSLATOR
+    # (e.g. two box64-wine-* versions) share one compatible prefix, so only the first
+    # games-runtime.properties entry for each distinct translator actually gets a template built;
+    # later entries mapping to an already-built translator just reuse it. Read the package list
+    # from the manifest already staged into the build context, rather than hardcoding it, so
+    # adding a wine package to the recipe is enough on its own to pick up (or share) a pre-booted
+    # template; no edit needed here.
+    runtime_packages=$(sed -n 's/^runtimePackages=//p' "$BUILD_CONTEXT/games-runtime.properties")
+    [ -n "$runtime_packages" ] || fail rootfs_runtime_packages_missing 70
+    TEMPLATE_PREFIX_BUCKETS_BUILT=
+    # One termux-x11 session for the whole loop below, started once and killed once, never
+    # restarted per translator: restarting it between iterations (even on a fresh display number)
+    # left the second wineboot connected to a half-torn-down X session that never finished booting
+    # (`boot event wait timed out`, looping until the wineboot timeout killed it) -- confirmed by
+    # reproducing the SAME failure with a distinct display number per iteration (ruling out a
+    # stale-socket/display-number collision) and then reproducing a clean, progressing wineboot
+    # with a single long-lived termux-x11 session instead. A real container's own warmup (further
+    # below) never hits this, since it only ever starts termux-x11 once in its script process.
     command -v termux-x11 >/dev/null 2>&1 || fail rootfs_prefix_warmup_display_missing 70
     MAINTENANCE_DISPLAY=:9
     termux-x11 "$MAINTENANCE_DISPLAY" >> "$LOG_PATH" 2>&1 &
     WARMUP_DISPLAY_PID=$!
-    resolve_rootfs_translator
-    warmup_rootfs_prefix
+    OLD_IFS=$IFS
+    IFS=','
+    for template_wine_package in $runtime_packages; do
+        IFS=$OLD_IFS
+        [ -n "$template_wine_package" ] || continue
+        WINE_PACKAGE=$template_wine_package
+        ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS") || fail rootfs_unreadable 70
+        resolve_rootfs_translator
+        case " $TEMPLATE_PREFIX_BUCKETS_BUILT " in
+            *" $RUNTIME_TRANSLATOR "*)
+                progress "==> Reusing the $RUNTIME_TRANSLATOR Wine prefix template for $template_wine_package"
+                IFS=','
+                continue
+                ;;
+        esac
+        progress "==> Pre-warming the $RUNTIME_TRANSLATOR Wine prefix template (via $template_wine_package)"
+        TEMPLATE_PREFIX_ARCHIVE_DESTINATION="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$RUNTIME_TRANSLATOR.tar.$TEMPLATE_PREFIX_EXT"
+        TEMPLATE_PREFIX_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/prefix-build"
+        TEMPLATE_HOME_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/home-build"
+        rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
+        mkdir -p "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
+        PREFIX_PATH="$TEMPLATE_PREFIX_BUILD_DIRECTORY"
+        HOME_PATH="$TEMPLATE_HOME_BUILD_DIRECTORY"
+        RUNTIME_ROOT_PATH=template
+        # Empty, not $TEMPLATE_PREFIX_ARCHIVE_DESTINATION: this build step is what PRODUCES that
+        # archive, so warmup_rootfs_prefix must do the real wineboot run here, never the clone path.
+        TEMPLATE_PREFIX_ARCHIVE=
+        CANCEL_PATH=
+        TERMUX_FILES_DIR="$TERMUX_FILES_ROOT"
+        PROOT_BIN="$PREFIX/bin/proot"
+        warmup_rootfs_prefix
+        mkdir -p "$TEMPLATE_CACHE_DIR"
+        rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
+        if ! run_logged tar -C "$TEMPLATE_PREFIX_BUILD_DIRECTORY" --use-compress-program "$TEMPLATE_COMPRESSOR" \
+            -cf "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp" .; then
+            rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
+            fail rootfs_prefix_template_archive_failed 70
+        fi
+        if ! mv "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp" "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION"; then
+            rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
+            fail rootfs_prefix_template_archive_failed 70
+        fi
+        rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
+        TEMPLATE_PREFIX_BUCKETS_BUILT="$TEMPLATE_PREFIX_BUCKETS_BUILT $RUNTIME_TRANSLATOR"
+        IFS=','
+    done
+    IFS=$OLD_IFS
     kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
+    wait "$WARMUP_DISPLAY_PID" 2>/dev/null || true
     WARMUP_DISPLAY_PID=
-    mkdir -p "$TEMPLATE_CACHE_DIR"
-    rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
-    if ! run_logged tar -C "$TEMPLATE_PREFIX_BUILD_DIRECTORY" --use-compress-program "$TEMPLATE_COMPRESSOR" \
-        -cf "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp" .; then
-        rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
-        fail rootfs_prefix_template_archive_failed 70
-    fi
-    if ! mv "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp" "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION"; then
-        rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
-        fail rootfs_prefix_template_archive_failed 70
-    fi
-    TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_PREFIX_ARCHIVE_DESTINATION"
-    rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
 fi
 
 if [ "$BASE_ONLY" = true ]; then
@@ -483,6 +584,7 @@ MAINTENANCE_DISPLAY=:9
 termux-x11 "$MAINTENANCE_DISPLAY" >> "$LOG_PATH" 2>&1 &
 WARMUP_DISPLAY_PID=$!
 resolve_rootfs_translator
+resolve_template_prefix_archive
 warmup_rootfs_prefix
 kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
 WARMUP_DISPLAY_PID=

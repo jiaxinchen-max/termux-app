@@ -17,13 +17,9 @@ GAMES_PRIVATE_ROOT="$TERMUX_FILES_DIR/games"
 SHARED_ROOTFS_CONTAINER_DIRECTORY="$TERMUX_FILES_DIR/usr/var/lib/proot-distro/games-shared-rootfs"
 SHARED_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY/rootfs"
 TEMPLATE_CACHE_DIR="$TERMUX_FILES_DIR/usr/var/lib/proot-distro/games-template-cache"
-if [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.zst" ]; then
-    TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.zst"
-elif [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.gz" ]; then
-    TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix.tar.gz"
-else
-    TEMPLATE_PREFIX_ARCHIVE=
-fi
+# TEMPLATE_PREFIX_ARCHIVE itself is resolved later, once WINE_PACKAGE is known (decoded from the
+# launch spec below) -- see rootfs_prefix_warmup.sh's resolve_template_prefix_archive(), called
+# right before this file's own (fallback) warmup_rootfs_prefix call further down.
 PROOT_BIN="$TERMUX_FILES_DIR/usr/bin/proot"
 SEQUENCE=0
 PROOT_PID=
@@ -469,6 +465,7 @@ case "$AUDIO_DRIVER" in
     *) terminal_failure rootfs_audio_driver_missing null true ;;
 esac
 
+resolve_template_prefix_archive
 warmup_rootfs_prefix
 
 # English uses the always-present C.UTF-8 locale; Chinese uses the locale

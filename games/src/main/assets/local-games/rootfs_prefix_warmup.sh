@@ -20,6 +20,15 @@
 #                        both callers must compute the identical value for a given container, or
 #                        warming up in one place does not skip anything in the other
 #   WINE_PACKAGE         e.g. "hangover-11.9" or "box64-wine-9.3"
+#   TEMPLATE_CACHE_DIR   only required by resolve_template_prefix_archive() (below), not by
+#                        warmup_rootfs_prefix() itself -- callers that build TEMPLATE_PREFIX_ARCHIVE
+#                        some other way (setup_rootfs_runtime.sh's BASE_ONLY template-build step
+#                        always passes "" instead, to force a real wineboot there) do not need it.
+#   RUNTIME_TRANSLATOR   only required by resolve_template_prefix_archive() (below); set by calling
+#                        resolve_rootfs_translator() first -- templates are keyed by translator
+#                        (hangover / box64 / fex), not by the literal WINE_PACKAGE string, since
+#                        that is the actual prefix-compatibility boundary (see that function's own
+#                        comment).
 #   PROOT_BIN            path to the proot binary
 #   TERMUX_FILES_DIR     Termux's `files` root
 #   LOG_PATH             appended to for diagnostics
@@ -30,7 +39,9 @@
 #                        applied, built once alongside the RootFS base) to extract into
 #                        PREFIX_PATH instead of actually running wineboot here; pass "" when none
 #                        is available yet (falls back to the real wineboot run below, same as
-#                        before this existed -- see setup_rootfs_runtime.sh for how it is built)
+#                        before this existed -- see setup_rootfs_runtime.sh for how it is built).
+#                        Callers warming a real container should call resolve_template_prefix_archive()
+#                        (below) first rather than compute this themselves.
 #   MAINTENANCE_DISPLAY  optional X11 display passed to the proot session (default ":0").
 #                        start_rootfs_game.sh leaves this unset -- an X session is already live
 #                        on :0 by the time it reaches this code. setup_rootfs_runtime.sh has no
@@ -42,6 +53,31 @@
 # file (each caller keeps its own existing failure path -- terminal_failure vs fail).
 # Uses, and leaves set on completion for the caller's own later use: PROOT_PID, CANCELLED,
 # GUEST_COMMAND, GUEST_WINE, GUEST_WINEBOOT, GUEST_LOCALE, RUNTIME_TRANSLATOR.
+
+# Resolves the pre-booted prefix template for the *current* RUNTIME_TRANSLATOR (hangover / box64 /
+# fex -- see resolve_rootfs_translator() below, which must be called first). Templates are keyed by
+# translator, not by the literal WINE_PACKAGE string: two wine packages that resolve to the same
+# translator (e.g. two box64-wine-* versions) are the same host CPU architecture running the same
+# flavor of wine, and share one compatible prefix -- only a *cross*-translator swap (Hangover's
+# native ARM64 wine vs box64's translated x86_64 wine) produces an incompatible prefix layout
+# (confirmed: cloning the wrong one produced `wine: could not load kernel32.dll, status c000007b`).
+# setup_rootfs_runtime.sh's BASE_ONLY path builds one template per distinct translator found while
+# looping over games-runtime.properties's runtimePackages (see that loop for how it dedupes), so
+# this lookup can never name a translator the build side does not also know about. Requires
+# TEMPLATE_CACHE_DIR and RUNTIME_TRANSLATOR already set; sets TEMPLATE_PREFIX_ARCHIVE to the
+# archive path, or "" if no template exists yet for this translator (e.g. it was only just added to
+# the recipe and the base has not been rebuilt since -- warmup_rootfs_prefix() below falls back to
+# a real wineboot in that case, same as always happened for every package before per-translator
+# templates existed).
+resolve_template_prefix_archive() {
+    if [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$RUNTIME_TRANSLATOR.tar.zst" ]; then
+        TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$RUNTIME_TRANSLATOR.tar.zst"
+    elif [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$RUNTIME_TRANSLATOR.tar.gz" ]; then
+        TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$RUNTIME_TRANSLATOR.tar.gz"
+    else
+        TEMPLATE_PREFIX_ARCHIVE=
+    fi
+}
 
 resolve_rootfs_translator() {
     RUNTIME_TRANSLATOR=${GAMES_RUNTIME_TRANSLATOR:-}
@@ -93,8 +129,27 @@ resolve_rootfs_translator() {
 # locale; start_rootfs_game.sh applies GUEST_LOCALE separately, later, only to the actual game
 # process). $HOME_PATH, not the shared rootfs's own /root, is what's actually writable here --
 # see this file's header comment.
+#
+# WINEDLLOVERRIDES=mscoree,mshtml=d disables Wine's automatic Mono (.NET) and Gecko (HTML) runtime
+# installers for the duration of this `wineboot -u`. Neither is bundled in the vanilla Kron4ek
+# box64-wine build, so without this a box64-wine wineboot reaches `control.exe appwiz.cpl
+# install_mono`, which in this headless, networkless proot either waits forever on a download that
+# never comes or blocks on a GUI "install Mono?" dialog nobody can answer -- observed as wineboot
+# hanging until the timeout killed it (`boot event wait timed out`, 0% progress), misread earlier
+# as "box64 translation is just slow" and wrongly papered over with a longer timeout. With the
+# override the identical wineboot completes cleanly in ~2.5 min. Prefix *initialisation* never
+# needs either runtime (they matter only when a game actually runs .NET/embedded-HTML code, which
+# is out of scope for building a base prefix); a game that needs .NET installs Mono separately.
+# NOTE: this function `exec`s proot -- it REPLACES its (sub)shell rather than returning. That is
+# deliberate and required for the silence watchdog to work: dash does NOT exec-optimise a
+# backgrounded *function call* (verified on-device: `fn(){ sleep; }; fn &` leaves $! pointing at an
+# intermediate dash subshell, and killing it orphans the sleep). With `exec` here, a backgrounded
+# `run_rootfs_maintenance_command ... &` has $! == proot's real PID, so killing $! terminates proot,
+# whose --kill-on-exit then tears down the whole wine tree. Consequence: every caller MUST invoke
+# this in a subshell context -- either backgrounded (`... &`, already its own subshell) or wrapped
+# in `( ... )` -- NEVER as a bare foreground call, which would exec-replace the whole setup script.
 run_rootfs_maintenance_command() {
-    "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
+    exec "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
         -r "$ROOTFS_CANONICAL" \
         -b /dev -b /proc -b /sys \
         -b "$TERMUX_FILES_DIR/usr/tmp:/tmp" \
@@ -106,7 +161,7 @@ run_rootfs_maintenance_command() {
         PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
         FONTCONFIG_PATH=/etc/fonts FONTCONFIG_FILE=/etc/fonts/fonts.conf \
         XDG_DATA_DIRS=/usr/local/share:/usr/share DISPLAY="${MAINTENANCE_DISPLAY:-:0}" \
-        WINEPREFIX=/mnt/games/prefix \
+        WINEPREFIX=/mnt/games/prefix WINEDLLOVERRIDES=mscoree,mshtml=d \
         "$@"
 }
 
@@ -128,17 +183,23 @@ warmup_rootfs_prefix() {
     CURRENT_PREFIX_MARKER=
     [ ! -f "$PREFIX_MARKER" ] || CURRENT_PREFIX_MARKER=$(sed -n '1p' "$PREFIX_MARKER" 2>/dev/null)
     if [ "$CURRENT_PREFIX_MARKER" != "$EXPECTED_PREFIX_MARKER" ]; then
-        # The shared template prefix is pre-booted by Hangover (setup_rootfs_runtime.sh hardcodes
-        # WINE_PACKAGE=hangover-11.9 for the template build), so it is ONLY a valid starting point
-        # for Hangover containers. A box64-wine container runs a different Wine build (vanilla
-        # Kron4ek x86_64) whose ntdll/kernel32 layout a Hangover-booted prefix does not match --
-        # cloning the template there produced `wine: could not load kernel32.dll, status c000007b`.
-        # Non-Hangover containers must therefore do a full fresh wineboot with their own Wine.
-        TEMPLATE_PREFIX_USABLE=0
-        case "$WINE_PACKAGE" in hangover-*) TEMPLATE_PREFIX_USABLE=1 ;; esac
-        if [ "$TEMPLATE_PREFIX_USABLE" = 1 ] && [ -n "$TEMPLATE_PREFIX_ARCHIVE" ] && [ -f "$TEMPLATE_PREFIX_ARCHIVE" ]; then
+        # One template prefix is pre-booted per *translator* (see setup_rootfs_runtime.sh's
+        # BASE_ONLY path, which loops over every package games-runtime.properties's
+        # runtimePackages lists and dedupes by translator), not just Hangover's -- a Kron4ek
+        # box64-wine prefix and a Hangover prefix have incompatible ntdll/kernel32 layouts, so
+        # cloning the WRONG translator's template produced `wine: could not load kernel32.dll,
+        # status c000007b`. Two wine packages of the SAME translator (e.g. two box64-wine-*
+        # versions) do share one prefix, though -- that incompatibility is cross-architecture, not
+        # cross-wine-version. resolve_template_prefix_archive() (below, and by both other callers
+        # of this function) already resolves TEMPLATE_PREFIX_ARCHIVE to the template for *this*
+        # container's own RUNTIME_TRANSLATOR specifically, so no further check is needed here: an
+        # empty/missing value simply means no template exists yet for this translator (e.g. it was
+        # just added to the recipe and the base hasn't been rebuilt since), and this container
+        # falls back to a real wineboot, exactly as every package did before per-translator
+        # templates existed.
+        if [ -n "$TEMPLATE_PREFIX_ARCHIVE" ] && [ -f "$TEMPLATE_PREFIX_ARCHIVE" ]; then
             # Clone a prefix that was already wineboot'd + FontLink'd once, during the shared base
-            # build, instead of paying that cost again for every Hangover container. Only the
+            # build, instead of paying that cost again for every container. Only the
             # marker's recorded RUNTIME_ROOT_PATH is container-specific, so it is rewritten below
             # to this container's real value rather than the template's own placeholder.
             printf '%s\n' 'Cloning the pre-booted Wine prefix template.' >> "$LOG_PATH"
@@ -157,27 +218,50 @@ warmup_rootfs_prefix() {
             printf '%s\n' "$RUNTIME_ROOT_PATH|$WINE_PACKAGE|Noto Sans CJK SC|v4" \
                 > "$PREFIX_MARKER_DIR/cjk-fonts"
         elif [ -z "$CANCEL_PATH" ]; then
-            # No interactive cancel concept here (setup/pre-warm time -- see this file's header
-            # comment on CANCEL_PATH). Block directly on one foreground command instead of
-            # backgrounding it and polling its PID once a second: `timeout`, run inside the
-            # guest, enforces the same 180s ceiling without a manual loop. The old polling loop's
-            # own `sleep 1`/`kill -0`/`date` statements were themselves traced by this script's
-            # `set -x` into the live setup console, reading as "nothing is happening" even while
-            # wineboot was actively running (its own output goes to LOG_PATH, not this trace).
-            if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
-                run_rootfs_maintenance_command timeout 180 "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1
+            # Setup/pre-warm time (no interactive cancel -- see this file's header on CANCEL_PATH).
+            # Route wineboot through run_logged_watchdog so its ~2-3 min of output STREAMS LIVE into
+            # the setup console dialog (same visibility every other setup step already has via
+            # run_logged), instead of being swallowed into LOG_PATH with the terminal appearing
+            # frozen. The watchdog also replaces the old arbitrary `timeout 600` ceiling with a
+            # silence watchdog: wineboot may run as long as it keeps producing output, and is
+            # aborted only on sustained silence (a genuine deadlock), never a healthy-but-slow run.
+            # It returns 124 on watchdog fire, so the existing "-ne 124 -> timeout" check is reused.
+            #
+            # command -v guard: run_logged_watchdog is defined by setup_rootfs_runtime.sh, the only
+            # caller that reaches this branch (CANCEL_PATH is always empty there; the launch caller,
+            # which lacks the helper, always has a non-empty CANCEL_PATH and takes the else branch).
+            # The fallback preserves the old foreground behaviour if ever sourced without the helper.
+            #
+            # Why both translators are equally slow (~2-3 min): Hangover is native ARM64 for 64-bit
+            # code, but its 32-bit WoW64 half runs through WowBox64 (a box64-based dynarec, see the
+            # `[BOX64] WowBox64 arm64 (Hangover 11.9)` lines wineboot emits), and the late wine.inf
+            # phase spawns many 32-bit rundll32/setupapi helpers that all pay that JIT cost -- so a
+            # cold Hangover wineboot is nearly as heavy as a box64-wine one. (box64-wine's earlier
+            # `boot event wait timed out` hangs were NOT slowness: wineboot was blocking on the
+            # Mono/Gecko auto-installer, now disabled via WINEDLLOVERRIDES in
+            # run_rootfs_maintenance_command.)
+            if command -v run_logged_watchdog >/dev/null 2>&1; then
+                if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
+                    if run_logged_watchdog run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u; then
+                        PREFIX_EXIT_CODE=0; else PREFIX_EXIT_CODE=$?; fi
+                else
+                    if run_logged_watchdog run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+                        ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u; then
+                        PREFIX_EXIT_CODE=0; else PREFIX_EXIT_CODE=$?; fi
+                fi
             else
-                # box64-translated wineboot JITs the entire wine64 binary (not just guest app
-                # code, unlike Hangover's native-ARM64 wine) on every container -- the
-                # template-clone fast path above is Hangover-only (see warmup_rootfs_prefix's
-                # TEMPLATE_PREFIX_USABLE gate), so this box64 branch always pays the full,
-                # much slower cold-JIT wineboot cost. 180s was sized for Hangover's native
-                # case and was observed to be too tight here; 600s gives real headroom without
-                # masking a genuine hang (rootfs_prefix_initialization_timeout below still fires).
-                run_rootfs_maintenance_command timeout 600 "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
-                    ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u >> "$LOG_PATH" 2>&1
+                # Fallback if run_logged_watchdog is somehow absent (never in practice -- setup
+                # always defines it). run_rootfs_maintenance_command execs proot, so a BARE
+                # foreground call would exec-replace this script: wrap each in a ( ) subshell so
+                # the exec only replaces the subshell and PREFIX_EXIT_CODE still captures proot's.
+                if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
+                    ( run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u ) >> "$LOG_PATH" 2>&1
+                else
+                    ( run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+                        ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u ) >> "$LOG_PATH" 2>&1
+                fi
+                PREFIX_EXIT_CODE=$?
             fi
-            PREFIX_EXIT_CODE=$?
             [ "$PREFIX_EXIT_CODE" -ne 124 ] || warmup_fail rootfs_prefix_initialization_timeout
             [ "$PREFIX_EXIT_CODE" -eq 0 ] || warmup_fail rootfs_prefix_initialization_failed
             mkdir -p "$PREFIX_MARKER_DIR"
@@ -189,17 +273,24 @@ warmup_rootfs_prefix() {
                 run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
             fi
             PROOT_PID=$!
-            PREFIX_STARTED_AT=$(date +%s)
-            # The interactive-cancel fallback still needs to poll (watching an arbitrary file
-            # `timeout` cannot watch for us) -- but quiet this script's own `set -x` tracing
-            # around the loop itself, same reasoning as above: a per-second trace of the polling
-            # machinery is noise, not progress.
+            PREFIX_LAST_SIZE=$(wc -c < "$LOG_PATH" 2>/dev/null || printf '0')
+            PREFIX_LAST_CHANGE=$(date +%s)
+            PREFIX_SILENCE=${PREFIX_SILENCE_TIMEOUT:-300}
+            # PROOT_PID is proot's real PID (run_rootfs_maintenance_command execs proot). Both kills
+            # below are SIGKILL, not the default SIGTERM: proot forwards SIGTERM to the guest init
+            # (Windows wineboot ignores it) and does not exit, so --kill-on-exit never fires and the
+            # wine tree keeps running (verified on-device). SIGKILL dies at the kernel, and ptrace
+            # EXITKILL then reaps every tracee, including the daemonised PPID=1 wineserver.
             set +x
             while kill -0 "$PROOT_PID" 2>/dev/null; do
-                [ ! -e "$CANCEL_PATH" ] || { CANCELLED=1; kill "$PROOT_PID" 2>/dev/null || true; break; }
+                [ ! -e "$CANCEL_PATH" ] || { CANCELLED=1; kill -9 "$PROOT_PID" 2>/dev/null || true; break; }
                 now=$(date +%s)
-                if [ $((now - PREFIX_STARTED_AT)) -ge 180 ]; then
-                    kill "$PROOT_PID" 2>/dev/null || true
+                current_size=$(wc -c < "$LOG_PATH" 2>/dev/null || printf '0')
+                if [ "$current_size" != "$PREFIX_LAST_SIZE" ]; then
+                    PREFIX_LAST_SIZE=$current_size
+                    PREFIX_LAST_CHANGE=$now
+                elif [ $((now - PREFIX_LAST_CHANGE)) -ge "$PREFIX_SILENCE" ]; then
+                    kill -9 "$PROOT_PID" 2>/dev/null || true
                     wait "$PROOT_PID" 2>/dev/null || true
                     PROOT_PID=
                     set -x
