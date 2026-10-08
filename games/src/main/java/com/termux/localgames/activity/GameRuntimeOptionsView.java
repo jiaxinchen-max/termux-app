@@ -2,12 +2,15 @@ package com.termux.localgames.activity;
 
 import android.content.Context;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,14 +20,20 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
+import com.termux.localgames.api.CustomComponentInstallTasks;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.RuntimeWarmup;
+import com.termux.localgames.data.FileCustomRuntimeComponentRepository;
+import com.termux.localgames.data.FileCustomComponentInstallTaskRepository;
 import com.termux.localgames.data.FileGameContainerRepository;
 import com.termux.localgames.data.FileGameRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.GameContainerRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.data.RuntimeProfileRepository;
+import com.termux.localgames.domain.CustomComponentInstallTask;
+import com.termux.localgames.domain.CustomComponentInstallTaskState;
+import com.termux.localgames.domain.CustomRuntimeComponent;
 import com.termux.localgames.domain.Game;
 import com.termux.localgames.domain.GameContainer;
 import com.termux.localgames.domain.GameRuntimeBackendType;
@@ -33,19 +42,30 @@ import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.domain.RuntimeProfileDiff;
 import com.termux.localgames.domain.RuntimeProfilePreset;
 import com.termux.localgames.domain.RuntimeProfilePresets;
+import com.termux.localgames.domain.RuntimeTranslator;
 import com.termux.localgames.importer.LaunchArguments;
 import com.termux.localgames.runtime.GameContainerFactory;
 import com.termux.localgames.runtime.GameContainerProfileResolver;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 /**
  * A game-bound runtime parameter editor. It intentionally owns only launch selections for this
@@ -58,6 +78,10 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private RuntimeProfileRepository profileRepository;
     private FileGameRepository gameRepository;
     private GameContainerRepository containerRepository;
+    private FileCustomRuntimeComponentRepository customComponents;
+    private GameStoragePaths paths;
+    private List<CustomRuntimeComponent> customWineEntries = Collections.emptyList();
+    private List<CustomRuntimeComponent> customBox64Entries = Collections.emptyList();
     private LinearLayout content;
     private TextView title;
     private LinearLayout header;
@@ -83,16 +107,24 @@ public final class GameRuntimeOptionsView extends LinearLayout {
          *  hosts should navigate to the Library tab and, if {@code warmupTaskId} is non-null,
          *  surface that task's live setup console there. */
         void onRuntimeOptionsSaved(@Nullable String warmupTaskId, boolean rootfs);
+        /** This view is a plain lazily-created LinearLayout, not an Activity/Fragment, so it
+         *  cannot register an ActivityResultLauncher itself (must happen before STARTED). The
+         *  host must launch a SAF OpenDocument picker with the given MIME types and invoke the
+         *  supplied callback with the picked Uri (or null if the user cancelled) -- used by the
+         *  "+ Add custom Wine/Box64 build..." flow. */
+        void onPickCustomComponentFile(String[] mimeTypes, Consumer<Uri> onPicked);
     }
 
     public GameRuntimeOptionsView(Context context, String gameId, Listener listener) {
         super(context);
         this.gameId = gameId;
         this.listener = listener;
-        GameStoragePaths paths = new GameStoragePaths(getContext().getFilesDir());
+        this.paths = new GameStoragePaths(getContext().getFilesDir());
         gameRepository = new FileGameRepository(paths.getLibraryDirectory());
         profileRepository = new FileRuntimeProfileRepository(paths.getProfilesDirectory());
         containerRepository = new FileGameContainerRepository(paths.getContainersDirectory());
+        customComponents = new FileCustomRuntimeComponentRepository(
+            paths.getCustomRuntimeComponentsDirectory());
         addView(createContent(), new LinearLayout.LayoutParams(
             LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         if (gameId == null || gameId.trim().isEmpty()) {
@@ -146,12 +178,16 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 if (!foundGame.isPresent()) throw new IOException("game_not_found");
                 RuntimeProfile loaded = profileRepository.find(gameId).orElseGet(() ->
                     RuntimeProfilePresets.create(gameId, RuntimeProfilePreset.RECOMMENDED));
+                List<CustomRuntimeComponent> wineEntries = loadCustomEntries(CustomRuntimeComponent.Kind.WINE);
+                List<CustomRuntimeComponent> box64Entries = loadCustomEntries(CustomRuntimeComponent.Kind.BOX64);
                 post(() -> {
                     if (destroyed) return;
                     game = foundGame.get();
                     gameBaseline = game;
                     baseline = loaded;
                     profile = loaded;
+                    customWineEntries = wineEntries;
+                    customBox64Entries = box64Entries;
                     progressHost.setVisibility(View.GONE);
                     optionsScroll.setVisibility(View.VISIBLE);
                     render();
@@ -164,6 +200,29 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                     }
                 });
             }
+        });
+    }
+
+    private List<CustomRuntimeComponent> loadCustomEntries(CustomRuntimeComponent.Kind kind) {
+        try {
+            return customComponents.listByKind(kind);
+        } catch (IOException error) {
+            return Collections.emptyList();
+        }
+    }
+
+    /** Reloads the custom-component registry and re-renders -- called after the add-custom flow's
+     *  console dialog is dismissed, so a newly-installed entry appears in the picker immediately. */
+    private void reloadCustomComponentsAndRender() {
+        ioExecutor.execute(() -> {
+            List<CustomRuntimeComponent> wineEntries = loadCustomEntries(CustomRuntimeComponent.Kind.WINE);
+            List<CustomRuntimeComponent> box64Entries = loadCustomEntries(CustomRuntimeComponent.Kind.BOX64);
+            post(() -> {
+                if (destroyed) return;
+                customWineEntries = wineEntries;
+                customBox64Entries = box64Entries;
+                render();
+            });
         });
     }
 
@@ -268,7 +327,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             GameRuntimeBackendType.ROOTFS_PROOT, GameContainer.ROOTFS_RUNTIME_PACKAGE, containerId);
         android.util.Log.d("GameRuntimeOptionsDebug", "switchToRootfs draft built, containerId="
             + containerId);
-        GameContainer container = GameContainerFactory.fromProfile(draft);
+        GameContainer container = GameContainerFactory.fromProfile(draft, paths);
         android.util.Log.d("GameRuntimeOptionsDebug", "container built id=" + container.getId()
             + " backend=" + container.getBackendType());
         try {
@@ -279,7 +338,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             Toast.makeText(getContext(), "Unable to create rootfs container", Toast.LENGTH_LONG).show();
             return;
         }
-        profile = new GameContainerProfileResolver().resolve(draft, container);
+        profile = new GameContainerProfileResolver().resolve(draft, container, paths);
         android.util.Log.d("GameRuntimeOptionsDebug", "profile field reassigned, backend="
             + profile.getRuntimeBackendType());
     }
@@ -336,13 +395,17 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             // hangover-11.9 bundles its own translation layer inside the wine binary (apt-installed,
             // shared system-wide). box64-wine-10.0 is a portable vanilla wine run under the
             // standalone Box64 translator (see rootfs_prefix_warmup.sh's resolve_rootfs_translator) --
-            // an independent runtime, selectable per game.
-            addChoice("Wine package", withCurrent(profile.getWinePackage(),
-                    "hangover-11.9", "box64-wine-10.0"),
+            // an independent runtime, selectable per game. Custom-installed builds (see
+            // showAddCustomComponentFlow) are appended after the two presets, and a trailing
+            // "+ Add custom Wine build..." row launches that flow instead of selecting a value.
+            addChoiceWithAddCustom("Wine package", profile.getWinePackage(),
+                new String[] {"hangover-11.9", "box64-wine-10.0"}, customWineEntries, null,
+                getContext().getString(R.string.local_games_custom_component_add_wine),
                 value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),
                     profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
                     profile.getEnvironment(), profile.getInputProfileId(),
-                    profile.getLaunchExecutionMode()));
+                    profile.getLaunchExecutionMode()),
+                () -> showAddCustomComponentFlow(CustomRuntimeComponent.Kind.WINE));
         }
         addChoice("Audio driver", withCurrent(profile.getAudioDriver(), "alsa", "pulseaudio"),
             value -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
@@ -451,12 +514,227 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             .show();
     }
 
+    /** Like addChoice, but appends registry-sourced custom entries after the presets and a
+     *  trailing "+ Add custom build..." row whose selection launches onAddCustom instead of
+     *  calling callback. currentValue is always values[0] (same convention as withCurrent), so
+     *  indexOf's "not found -> 0" fallback still resolves to the actual current selection.
+     *  emptyValueLabel is shown in place of the raw value when currentValue/a value is empty
+     *  (the Box64 build row's "no override" case); pass null when the value is never empty
+     *  (the Wine package row). */
+    private void addChoiceWithAddCustom(String label, String currentValue, String[] presetValues,
+            List<CustomRuntimeComponent> customEntries, @Nullable String emptyValueLabel,
+            String addCustomLabel, ChoiceCallback callback, Runnable onAddCustom) {
+        List<String> values = new ArrayList<>();
+        values.add(currentValue);
+        for (String preset : presetValues) if (!values.contains(preset)) values.add(preset);
+        for (CustomRuntimeComponent entry : customEntries) {
+            if (!values.contains(entry.getId())) values.add(entry.getId());
+        }
+        String[] valuesArray = values.toArray(new String[0]);
+        String[] displayLabels = new String[valuesArray.length + 1];
+        for (int index = 0; index < valuesArray.length; index++) {
+            displayLabels[index] = displayNameFor(valuesArray[index], customEntries, emptyValueLabel);
+        }
+        displayLabels[valuesArray.length] = addCustomLabel;
+        int checked = indexOf(valuesArray, currentValue);
+        addRow(label, displayLabels[checked], true, view -> new MaterialAlertDialogBuilder(
+            getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
+            .setTitle(label)
+            .setSingleChoiceItems(displayLabels, checked, (dialog, which) -> {
+                dialog.dismiss();
+                if (which == valuesArray.length) {
+                    onAddCustom.run();
+                    return;
+                }
+                callback.choose(valuesArray[which]);
+                render();
+            })
+            .show());
+    }
+
+    private static String displayNameFor(String value, List<CustomRuntimeComponent> customEntries,
+            @Nullable String emptyValueLabel) {
+        if ((value == null || value.isEmpty()) && emptyValueLabel != null) return emptyValueLabel;
+        for (CustomRuntimeComponent entry : customEntries) {
+            if (entry.getId().equals(value)) return entry.getDisplayName();
+        }
+        return value;
+    }
+
+    /** Entry point for the "+ Add custom Wine/Box64 build..." row: picks a local file via SAF,
+     *  then collects a display name (and, for WINE, which translator family it belongs to --
+     *  this cannot be sniffed from an arbitrary archive, see CustomRuntimeComponent) before
+     *  staging it and enqueuing CustomComponentInstallForegroundService. */
+    private void showAddCustomComponentFlow(CustomRuntimeComponent.Kind kind) {
+        String[] mimeTypes = kind == CustomRuntimeComponent.Kind.WINE
+            ? new String[] {"application/x-xz", "application/zstd", "application/gzip",
+                "application/x-tar", "application/octet-stream"}
+            : new String[] {"application/vnd.debian.binary-package", "application/octet-stream"};
+        listener.onPickCustomComponentFile(mimeTypes, uri -> {
+            if (uri == null) return;
+            showCustomComponentMetadataDialog(kind, uri);
+        });
+    }
+
+    private void showCustomComponentMetadataDialog(CustomRuntimeComponent.Kind kind, Uri uri) {
+        LinearLayout form = new LinearLayout(getContext());
+        form.setOrientation(LinearLayout.VERTICAL);
+        int margin = dp(20);
+        form.setPadding(margin, 0, margin, 0);
+        EditText name = new EditText(getContext());
+        name.setHint(R.string.local_games_custom_component_name_hint);
+        name.setSingleLine(true);
+        name.setTextColor(color(R.color.local_games_on_surface));
+        name.setHintTextColor(color(R.color.local_games_on_surface_secondary));
+        form.addView(name);
+        RadioGroup translatorGroup = null;
+        if (kind == CustomRuntimeComponent.Kind.WINE) {
+            translatorGroup = new RadioGroup(getContext());
+            translatorGroup.setOrientation(RadioGroup.VERTICAL);
+            RadioButton hangover = new RadioButton(getContext());
+            hangover.setId(View.generateViewId());
+            hangover.setText(R.string.local_games_custom_component_translator_hangover);
+            hangover.setTextColor(color(R.color.local_games_on_surface));
+            RadioButton box64 = new RadioButton(getContext());
+            box64.setId(View.generateViewId());
+            box64.setText(R.string.local_games_custom_component_translator_box64);
+            box64.setTextColor(color(R.color.local_games_on_surface));
+            translatorGroup.addView(hangover);
+            translatorGroup.addView(box64);
+            translatorGroup.check(box64.getId());
+            form.addView(translatorGroup);
+        }
+        RadioGroup finalTranslatorGroup = translatorGroup;
+        new MaterialAlertDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
+            .setTitle(getContext().getString(kind == CustomRuntimeComponent.Kind.WINE
+                ? R.string.local_games_custom_component_add_wine
+                : R.string.local_games_custom_component_add_box64))
+            .setView(form)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.local_games_custom_component_add_action, (dialog, which) -> {
+                String displayName = name.getText().toString().trim();
+                if (displayName.isEmpty()) {
+                    Toast.makeText(getContext(),
+                        R.string.local_games_custom_component_name_required, Toast.LENGTH_LONG).show();
+                    return;
+                }
+                RuntimeTranslator translator = null;
+                if (kind == CustomRuntimeComponent.Kind.WINE) {
+                    RadioButton checked = finalTranslatorGroup.findViewById(
+                        finalTranslatorGroup.getCheckedRadioButtonId());
+                    translator = checked != null && checked.getText().toString().equals(
+                        getContext().getString(R.string.local_games_custom_component_translator_hangover))
+                        ? RuntimeTranslator.HANGOVER : RuntimeTranslator.BOX64;
+                }
+                startCustomComponentInstall(kind, translator, displayName, uri);
+            })
+            .show();
+    }
+
+    private void startCustomComponentInstall(CustomRuntimeComponent.Kind kind,
+            @Nullable RuntimeTranslator translator, String displayName, Uri uri) {
+        String slug = displayName.toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+        if (slug.isEmpty()) slug = "build";
+        if (slug.length() > 64) slug = slug.substring(0, 64);
+        String componentId = (kind == CustomRuntimeComponent.Kind.WINE ? "custom-wine-" : "custom-box64-")
+            + slug;
+        try {
+            if (customComponents.find(componentId).isPresent()) {
+                Toast.makeText(getContext(),
+                    R.string.local_games_custom_component_id_exists, Toast.LENGTH_LONG).show();
+                return;
+            }
+        } catch (IOException ignored) {
+            // Fall through -- a transient read failure here just means the id-collision check is
+            // skipped; the install itself will still fail cleanly if the id truly collides, since
+            // the registry save at the end is also a plain overwrite-by-id.
+        }
+        String finalComponentId = componentId;
+        RuntimeTranslator finalTranslator = translator;
+        Toast.makeText(getContext(), R.string.local_games_custom_component_installing,
+            Toast.LENGTH_SHORT).show();
+        ioExecutor.execute(() -> {
+            File staged;
+            String sha256;
+            try {
+                staged = stageCustomComponentPayload(uri);
+                sha256 = sha256Of(staged);
+            } catch (IOException | NoSuchAlgorithmException | RuntimeException error) {
+                post(() -> Toast.makeText(getContext(),
+                    R.string.local_games_custom_component_pick_failed, Toast.LENGTH_LONG).show());
+                return;
+            }
+            String taskId = CustomComponentInstallTasks.enqueue(getContext(), finalComponentId, kind,
+                finalTranslator, displayName, staged, sha256);
+            post(() -> showCustomComponentConsole(taskId));
+        });
+    }
+
+    private File stageCustomComponentPayload(Uri uri) throws IOException {
+        File directory = paths.getCustomComponentStagingDirectory();
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            throw new IOException("custom_component_staging_directory_failed");
+        }
+        File staged = new File(directory, "pick-" + UUID.randomUUID() + ".payload");
+        try (InputStream input = getContext().getContentResolver().openInputStream(uri)) {
+            if (input == null) throw new IOException("custom_component_source_unavailable");
+            try (OutputStream output = new FileOutputStream(staged)) {
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = input.read(buffer)) >= 0) output.write(buffer, 0, read);
+            }
+        }
+        return staged;
+    }
+
+    private static String sha256Of(File file) throws IOException, NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (InputStream input = new FileInputStream(file)) {
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = input.read(buffer)) >= 0) digest.update(buffer, 0, read);
+        }
+        StringBuilder hex = new StringBuilder();
+        for (byte value : digest.digest()) hex.append(String.format("%02x", value & 0xff));
+        return hex.toString();
+    }
+
+    private void showCustomComponentConsole(String taskId) {
+        RuntimeSetupConsoleDialog.TaskStatusLookup lookup = id -> {
+            try {
+                CustomComponentInstallTask task = new FileCustomComponentInstallTaskRepository(
+                    paths.getCustomComponentInstallTasksDirectory()).find(id).orElse(null);
+                if (task == null) return null;
+                return new RuntimeSetupConsoleDialog.TaskStatusLookup.Status(
+                    task.getState() == CustomComponentInstallTaskState.FAILED, false,
+                    task.getState().name());
+            } catch (IOException | RuntimeException ignored) {
+                return null;
+            }
+        };
+        RuntimeSetupConsoleDialog.show(getContext(), taskId,
+                R.string.local_games_custom_component_console_title, lookup)
+            .setOnDismissListener(dialog -> reloadCustomComponentsAndRender());
+    }
+
     private void renderAdvanced() {
         pageTitle("Advanced");
         addChoice("Box64 preset", withCurrent(profile.getBox64Preset(), "STABILITY", "INTERMEDIATE", "PERFORMANCE"),
             value -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
                 profile.getAudioDriver(), profile.getResolution(), value, profile.getEnvironment(),
                 profile.getInputProfileId(), profile.getLaunchExecutionMode()));
+        if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
+            // Orthogonal to the Wine package choice: which Box64 binary translates it, independent
+            // of which Wine build is selected. "" means "no override" -- rootfs_prefix_warmup.sh
+            // falls back to the apt-installed stock binary. See GAMES_CUSTOM_BOX64_ID wiring in
+            // GameContainerProfileResolver.
+            addChoiceWithAddCustom("Box64 build", option("GAMES_CUSTOM_BOX64_ID"), new String[] {""},
+                customBox64Entries, getContext().getString(R.string.local_games_box64_build_default),
+                getContext().getString(R.string.local_games_custom_component_add_box64),
+                value -> setOption("GAMES_CUSTOM_BOX64_ID", value),
+                () -> showAddCustomComponentFlow(CustomRuntimeComponent.Kind.BOX64));
+        }
         addChoice("Startup option", labels("App shell", "Terminal session"),
             profile.getLaunchExecutionMode() == LaunchExecutionMode.APP_SHELL ? 0 : 1,
             which -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),

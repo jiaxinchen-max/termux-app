@@ -355,7 +355,7 @@ run_rootfs_command() {
 }
 
 run_rootfs_wine() {
-    if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
+    if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
         run_rootfs_command "$GUEST_WINE" "$@"
     else
         run_rootfs_command "$GUEST_COMMAND" "$GUEST_WINE" "$@"
@@ -519,7 +519,7 @@ emit RUNNING STARTING_GAME 80 null '' false starting_game
 # virtual desktop supplies the desktop surface and window decoration instead,
 # while keeping every game window inside the LaunchSpec resolution.
 printf 'Launching Wine virtual desktop at %s\n' "$RESOLUTION" >> "$LOG_PATH"
-if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
+if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
     set -- explorer "/desktop=shell,$RESOLUTION" "$GUEST_EXECUTABLE" "$@"
 else
     set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION" "$GUEST_EXECUTABLE" "$@"

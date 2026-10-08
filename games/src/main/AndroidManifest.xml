@@ -102,6 +102,11 @@
             android:name=".service.RootfsBackupForegroundService"
             android:exported="false"
             android:label="@string/local_games_backup_title" />
+
+        <service
+            android:name=".service.CustomComponentInstallForegroundService"
+            android:exported="false"
+            android:label="@string/local_games_custom_component_install_title" />
     </application>
 
 </manifest>

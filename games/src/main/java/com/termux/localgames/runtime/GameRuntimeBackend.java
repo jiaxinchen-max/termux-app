@@ -18,6 +18,18 @@ public interface GameRuntimeBackend {
 
     Set<String> requiredHostCapabilityIds(RuntimeProfile profile);
 
+    /** Default: ignores paths and delegates to the single-arg overload above -- override only
+     *  when the computation genuinely depends on on-disk state. RootfsProotBackend overrides this
+     *  to validate a custom-installed Wine build (see CustomRuntimeComponent) actually exists in
+     *  its registry before treating it as a satisfiable requirement. */
+    default Set<String> requiredComponentIds(RuntimeProfile profile, GameStoragePaths paths) {
+        return requiredComponentIds(profile);
+    }
+
+    default Set<String> requiredHostCapabilityIds(RuntimeProfile profile, GameStoragePaths paths) {
+        return requiredHostCapabilityIds(profile);
+    }
+
     /** Resolves the prefix/C drive owned by the profile's single bound container. */
     File resolvePrefix(GameStoragePaths paths, RuntimeProfile profile) throws IOException;
 

@@ -49,11 +49,12 @@ public final class AndroidLaunchPreflight {
         }
         ComponentInstallationReader installationReader = new ComponentInstallationReader(
             new ComponentStoragePaths(context.getFilesDir()).getInstallDirectory());
+        GameStoragePaths paths = new GameStoragePaths(context.getFilesDir());
         GameRuntimeBackend backend = GameRuntimeBackendRegistry.createDefault()
             .require(profile.getRuntimeBackendType());
         Map<String, InstalledComponentVersion> installed = resolveInstalledComponents(index,
             installationReader, profile.getRuntimeBackendType(), host);
-        for (String capability : backend.requiredHostCapabilityIds(profile)) {
+        for (String capability : backend.requiredHostCapabilityIds(profile, paths)) {
             try {
                 if (host.isRuntimeComponentAvailable(capability)) {
                     installed.put(capability, new InstalledComponentVersion(1,
@@ -70,7 +71,7 @@ public final class AndroidLaunchPreflight {
         long available = new StatFs(context.getFilesDir().getAbsolutePath()).getAvailableBytes();
         LaunchPreflightResult result = new LaunchPreflightEvaluator(index,
             LaunchPreflightEvaluator.DEFAULT_PREFIX_RESERVE_BYTES, backend)
-            .evaluate(profile, access, runtime, available, installed);
+            .evaluate(profile, access, runtime, available, installed, paths);
         if (access == GameAccessState.ACCESSIBLE) {
             ResolvedGameDirectory resolved;
             try {
@@ -85,7 +86,7 @@ public final class AndroidLaunchPreflight {
         }
         if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
             try {
-                backend.resolveRuntimeRoot(new GameStoragePaths(context.getFilesDir()),
+                backend.resolveRuntimeRoot(paths,
                     new ComponentStoragePaths(context.getFilesDir()), profile);
             } catch (IOException | RuntimeException error) {
                 String subject = error.getMessage();
@@ -98,8 +99,7 @@ public final class AndroidLaunchPreflight {
                 result = result.withIssueFirst(new PreflightIssue(code, subject));
             }
         } else {
-            File prefix = new GameStoragePaths(context.getFilesDir())
-                .getContainerPrefixDirectory(profile.getContainerId());
+            File prefix = paths.getContainerPrefixDirectory(profile.getContainerId());
             if (!new File(prefix, ".termux-box-bootstrap-done").isFile()) {
                 result = result.withIssue(new PreflightIssue(
                     PreflightIssueCode.RUNTIME_SETUP_REQUIRED, "prefix_setup_required"));

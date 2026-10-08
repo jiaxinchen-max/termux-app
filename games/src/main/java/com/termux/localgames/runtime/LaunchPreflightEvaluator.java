@@ -1,8 +1,11 @@
 package com.termux.localgames.runtime;
 
+import androidx.annotation.Nullable;
+
 import com.termux.localgames.components.index.ComponentDescriptor;
 import com.termux.localgames.components.index.ComponentIndex;
 import com.termux.localgames.data.GameAccessState;
+import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.RuntimeProfile;
 
 import java.util.ArrayList;
@@ -41,6 +44,13 @@ public final class LaunchPreflightEvaluator {
     public LaunchPreflightResult evaluate(RuntimeProfile profile, GameAccessState accessState,
                                           boolean runtimeAvailable, long availableBytes,
                                           Map<String, InstalledComponentVersion> installed) {
+        return evaluate(profile, accessState, runtimeAvailable, availableBytes, installed, null);
+    }
+
+    public LaunchPreflightResult evaluate(RuntimeProfile profile, GameAccessState accessState,
+                                          boolean runtimeAvailable, long availableBytes,
+                                          Map<String, InstalledComponentVersion> installed,
+                                          @Nullable GameStoragePaths paths) {
         if (profile == null || accessState == null || installed == null || availableBytes < 0) {
             throw new IllegalArgumentException("invalid preflight input");
         }
@@ -56,8 +66,8 @@ public final class LaunchPreflightEvaluator {
 
         Set<String> componentIds = new LinkedHashSet<>();
         try {
-            componentIds.addAll(backend.requiredComponentIds(profile));
-            for (String capability : backend.requiredHostCapabilityIds(profile)) {
+            componentIds.addAll(backend.requiredComponentIds(profile, paths));
+            for (String capability : backend.requiredHostCapabilityIds(profile, paths)) {
                 if (!installed.containsKey(capability)) {
                     issues.add(new PreflightIssue(PreflightIssueCode.COMPONENT_MISSING,
                         capability));

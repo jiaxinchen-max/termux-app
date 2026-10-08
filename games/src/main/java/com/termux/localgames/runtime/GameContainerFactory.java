@@ -1,5 +1,8 @@
 package com.termux.localgames.runtime;
 
+import androidx.annotation.Nullable;
+
+import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.GameContainer;
 import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.domain.RuntimeProfilePreset;
@@ -10,12 +13,19 @@ import com.termux.localgames.domain.RuntimeTranslator;
 public final class GameContainerFactory {
     private GameContainerFactory() { }
 
+    /** Legacy convenience -- see GameContainerProfileResolver.resolve(profile, container)'s
+     *  2-arg overload for the same custom-wine-* caveat (falls back to BOX64 bucket with no
+     *  GameStoragePaths to consult the registry). */
     public static GameContainer fromProfile(RuntimeProfile profile) {
+        return fromProfile(profile, null);
+    }
+
+    public static GameContainer fromProfile(RuntimeProfile profile, @Nullable GameStoragePaths paths) {
         if (GameContainer.DEFAULT_ID.equals(profile.getContainerId())) {
             return globalGlibcFromProfile(profile);
         }
-        RuntimeTranslator translator = profile.getWinePackage().startsWith("hangover-")
-            ? RuntimeTranslator.HANGOVER : RuntimeTranslator.BOX64;
+        RuntimeTranslator translator = GameContainerProfileResolver.resolveTranslator(
+            profile.getWinePackage(), paths);
         return new GameContainer(profile.getContainerId(), "Independent container",
             profile.getRuntimeBackendType(), profile.getRootfsPackage(), translator,
             profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),

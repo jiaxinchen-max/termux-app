@@ -244,7 +244,7 @@ public final class PrefixSetupForegroundService extends Service {
             containers.save(container);
         }
         if (container == null) throw new IOException("bound_container_missing");
-        return new GameContainerProfileResolver().resolve(gameProfile, container);
+        return new GameContainerProfileResolver().resolve(gameProfile, container, paths);
     }
 
     private void writeSpec(File target, PrefixSetupTask task, RuntimeProfile profile,

@@ -53,6 +53,13 @@
 # file (each caller keeps its own existing failure path -- terminal_failure vs fail).
 # Uses, and leaves set on completion for the caller's own later use: PROOT_PID, CANCELLED,
 # GUEST_COMMAND, GUEST_WINE, GUEST_WINEBOOT, GUEST_LOCALE, RUNTIME_TRANSLATOR.
+#
+# Dispatch sites in this file and in start_rootfs_game.sh key the "is this the hangover direct-exec
+# shape, or the box64/fex wrapped-binary shape" branch off `[ "$RUNTIME_TRANSLATOR" = hangover ]`,
+# not a literal GUEST_COMMAND path match -- GUEST_COMMAND for hangover is itself overridable (see
+# resolve_rootfs_translator()'s GAMES_CUSTOM_WINE_PATH read, used when WINE_PACKAGE names a custom-
+# installed build), so matching its *value* against a hardcoded "/usr/bin/wine" would silently
+# break for any custom hangover-family build.
 
 # Resolves the pre-booted prefix template for the *current* RUNTIME_TRANSLATOR (hangover / box64 /
 # fex -- see resolve_rootfs_translator() below, which must be called first). Templates are keyed by
@@ -70,10 +77,22 @@
 # a real wineboot in that case, same as always happened for every package before per-translator
 # templates existed).
 resolve_template_prefix_archive() {
-    if [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$RUNTIME_TRANSLATOR.tar.zst" ]; then
-        TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$RUNTIME_TRANSLATOR.tar.zst"
-    elif [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$RUNTIME_TRANSLATOR.tar.gz" ]; then
-        TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$RUNTIME_TRANSLATOR.tar.gz"
+    # A custom-installed Wine build (see install_custom_rootfs_component.sh) gets its own isolated
+    # template cache entry keyed by its literal componentId, rather than sharing the translator
+    # bucket's template -- unlike the two built-in presets per translator (verified compatible
+    # with each other, see this function's header comment above), a custom build's compatibility
+    # with whatever already-booted prefix a preset produced is unknown. The first container to use
+    # a given custom id pays a real wineboot once (warmup_rootfs_prefix()'s existing fallback,
+    # unchanged, handles TEMPLATE_PREFIX_ARCHIVE="" exactly like a brand-new translator would);
+    # every later container reusing the same custom id then clones that id's own template.
+    case "$WINE_PACKAGE" in
+        custom-wine-*) template_key=$WINE_PACKAGE ;;
+        *) template_key=$RUNTIME_TRANSLATOR ;;
+    esac
+    if [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_key.tar.zst" ]; then
+        TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_key.tar.zst"
+    elif [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_key.tar.gz" ]; then
+        TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_key.tar.gz"
     else
         TEMPLATE_PREFIX_ARCHIVE=
     fi
@@ -87,24 +106,32 @@ resolve_rootfs_translator() {
     esac
     case "$RUNTIME_TRANSLATOR" in
         hangover)
-            case "$WINE_PACKAGE" in hangover-*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
-            GUEST_COMMAND=/usr/bin/wine
+            case "$WINE_PACKAGE" in hangover-*|custom-wine-*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
+            # GUEST_COMMAND is the one binary actually exec'd for this translator (see
+            # start_rootfs_game.sh's run_rootfs_wine()/game-launch dispatch, both keyed off
+            # RUNTIME_TRANSLATOR, not a literal path match -- a custom hangover-family build's own
+            # bin/wine replaces the apt-installed one here exactly the same way). GUEST_WINE is
+            # unused for this translator (no wrapper binary involved), left blank as before.
+            GUEST_COMMAND=${GAMES_CUSTOM_WINE_PATH:-/usr/bin/wine}
             GUEST_WINE=
-            GUEST_WINEBOOT=/usr/bin/wineboot
+            GUEST_WINEBOOT=${GAMES_CUSTOM_WINEBOOT_PATH:-/usr/bin/wineboot}
             [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || warmup_fail rootfs_wine_missing
             [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || warmup_fail rootfs_wineboot_missing
             ;;
         box64)
-            case "$WINE_PACKAGE" in box64-wine*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
+            case "$WINE_PACKAGE" in box64-wine*|custom-wine-*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
             GUEST_COMMAND=/usr/local/bin/box64
-            GUEST_WINE=/opt/box64-wine/bin/wine64
+            GUEST_WINE=${GAMES_CUSTOM_WINE_PATH:-/opt/box64-wine/bin/wine64}
             # The biarch build's bin/wineboot is a #!/bin/sh wrapper script, not an ELF -- box64
             # cannot translate/exec it directly ("Not an ELF file"). wineboot is instead invoked
             # as wine64's own built-in program dispatch (wine64 recognises "wineboot" as argv[1]
             # the same way it recognises "explorer"), so GUEST_WINEBOOT reuses the wine64 binary
             # itself and GUEST_WINEBOOT_ARG supplies the extra "wineboot" argument word. Verified
-            # on-device: `box64 wine64 wineboot -u` completes cleanly with a fresh prefix.
-            GUEST_WINEBOOT=/opt/box64-wine/bin/wine64
+            # on-device: `box64 wine64 wineboot -u` completes cleanly with a fresh prefix. A
+            # custom build's own bin/wineboot is trusted to be the same kind of wine64-dispatch
+            # wrapper (install_custom_rootfs_component.sh only accepts wine-tree payloads shaped
+            # like this one), so the same no-separate-binary convention applies to it too.
+            GUEST_WINEBOOT=${GAMES_CUSTOM_WINE_PATH:-/opt/box64-wine/bin/wine64}
             GUEST_WINEBOOT_ARG=wineboot
             [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || warmup_fail rootfs_box64_missing
             [ -x "$ROOTFS_CANONICAL$GUEST_WINE" ] || warmup_fail rootfs_wine_missing
@@ -121,7 +148,23 @@ resolve_rootfs_translator() {
             ;;
         *) warmup_fail runtime_translator_unsupported ;;
     esac
+    # Box64 build choice is orthogonal to the Wine package/translator choice above (see
+    # GameRuntimeOptionsView's "Box64 build" row) -- a custom box64 binary only ever overrides
+    # GUEST_COMMAND, never the wine/wineboot paths resolved above. A no-op when
+    # GAMES_CUSTOM_BOX64_ID names a build that was installed as a .deb (apt already replaced
+    # /usr/local/bin/box64 in place, so GUEST_COMMAND's existing value already points at it); only
+    # a raw-binary custom build (installed to its own /opt/custom-box64/<id>/box64 path, never
+    # touching /usr/local/bin/box64) actually changes GUEST_COMMAND here.
+    if [ -n "${GAMES_CUSTOM_BOX64_ID:-}" ]; then
+        case "$GAMES_CUSTOM_BOX64_ID" in
+            custom-box64-*) ;;
+            *) warmup_fail custom_box64_id_invalid ;;
+        esac
+        custom_box64_raw_bin="/opt/custom-box64/$GAMES_CUSTOM_BOX64_ID/box64"
+        [ -x "$ROOTFS_CANONICAL$custom_box64_raw_bin" ] && GUEST_COMMAND=$custom_box64_raw_bin
+    fi
 }
+
 
 # A deliberately minimal proot session for prefix maintenance only -- unlike
 # start_rootfs_game.sh's own run_rootfs_command, it binds neither the game root nor a pulse
@@ -241,7 +284,7 @@ warmup_rootfs_prefix() {
             # Mono/Gecko auto-installer, now disabled via WINEDLLOVERRIDES in
             # run_rootfs_maintenance_command.)
             if command -v run_logged_watchdog >/dev/null 2>&1; then
-                if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
+                if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
                     if run_logged_watchdog run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u; then
                         PREFIX_EXIT_CODE=0; else PREFIX_EXIT_CODE=$?; fi
                 else
@@ -254,7 +297,7 @@ warmup_rootfs_prefix() {
                 # always defines it). run_rootfs_maintenance_command execs proot, so a BARE
                 # foreground call would exec-replace this script: wrap each in a ( ) subshell so
                 # the exec only replaces the subshell and PREFIX_EXIT_CODE still captures proot's.
-                if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
+                if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
                     ( run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u ) >> "$LOG_PATH" 2>&1
                 else
                     ( run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
@@ -267,7 +310,7 @@ warmup_rootfs_prefix() {
             mkdir -p "$PREFIX_MARKER_DIR"
             printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
         else
-            if [ "$GUEST_COMMAND" = /usr/bin/wine ]; then
+            if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
                 run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
             else
                 run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &

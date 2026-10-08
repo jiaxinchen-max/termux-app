@@ -1,6 +1,9 @@
 package com.termux.localgames.runtime;
 
+import androidx.annotation.Nullable;
+
 import com.termux.localgames.components.ComponentStoragePaths;
+import com.termux.localgames.data.FileCustomRuntimeComponentRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.GameRuntimeBackendType;
 import com.termux.localgames.domain.RuntimeProfile;
@@ -20,7 +23,12 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
 
     @Override
     public Set<String> requiredComponentIds(RuntimeProfile profile) {
-        requireProfile(profile);
+        return requiredComponentIds(profile, null);
+    }
+
+    @Override
+    public Set<String> requiredComponentIds(RuntimeProfile profile, GameStoragePaths paths) {
+        requireProfile(profile, paths);
         Set<String> result = new LinkedHashSet<>();
         if ("hangover-11.9".equals(profile.getWinePackage())) {
             // The one shared base image is built from this whole set (Hangover source, Box64,
@@ -34,7 +42,12 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
 
     @Override
     public Set<String> requiredHostCapabilityIds(RuntimeProfile profile) {
-        requireProfile(profile);
+        return requiredHostCapabilityIds(profile, null);
+    }
+
+    @Override
+    public Set<String> requiredHostCapabilityIds(RuntimeProfile profile, GameStoragePaths paths) {
+        requireProfile(profile, paths);
         Set<String> result = new LinkedHashSet<>();
         result.add("termux-x11");
         result.add("proot");
@@ -47,7 +60,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
 
     @Override
     public File resolvePrefix(GameStoragePaths paths, RuntimeProfile profile) throws IOException {
-        requireProfile(profile);
+        requireProfile(profile, paths);
         return paths.getContainerPrefixDirectory(profile.getContainerId(), getType())
             .getCanonicalFile();
     }
@@ -55,7 +68,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
     @Override
     public File resolveHomeDirectory(GameStoragePaths paths, RuntimeProfile profile)
         throws IOException {
-        requireProfile(profile);
+        requireProfile(profile, paths);
         return paths.getContainerHomeDirectory(profile.getContainerId(), getType())
             .getCanonicalFile();
     }
@@ -63,7 +76,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
     @Override
     public String resolveRuntimeRoot(GameStoragePaths paths, ComponentStoragePaths componentPaths,
                                      RuntimeProfile profile) throws IOException {
-        requireProfile(profile);
+        requireProfile(profile, paths);
         File rootfs = paths.getSharedRootfsDirectory().getCanonicalFile();
         if (!rootfs.isDirectory()) throw new IOException("rootfs_setup_required");
         verifyManifest(rootfs, profile);
@@ -80,7 +93,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
     @Override
     public String getLauncherFileName() { return "start_rootfs_game.sh"; }
 
-    private void requireProfile(RuntimeProfile profile) {
+    private void requireProfile(RuntimeProfile profile, @Nullable GameStoragePaths paths) {
         if (profile == null || profile.getRuntimeBackendType() != getType()) {
             throw new IllegalArgumentException("runtime_backend_profile_mismatch");
         }
@@ -88,8 +101,17 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
         String graphics = profile.getGraphicsDriver();
         String dx = profile.getDxWrapper();
         String audio = profile.getAudioDriver();
-        if (!(runtime.startsWith("hangover-") || runtime.startsWith("box64-wine"))) {
+        if (!(runtime.startsWith("hangover-") || runtime.startsWith("box64-wine") ||
+            runtime.startsWith("custom-wine-"))) {
             throw new IllegalArgumentException("runtime_engine_unsupported:" + runtime);
+        }
+        // paths == null means a caller that predates custom components (or a unit test) -- skip
+        // the registry check rather than hard-failing every such caller; the install flow and
+        // shell-side manifest check (verifyManifest) still catch a genuinely bogus/forged id at
+        // the points that matter (launch preflight, actual rootfs mount).
+        if (runtime.startsWith("custom-wine-") && paths != null &&
+            !customComponentExists(runtime, paths)) {
+            throw new IllegalArgumentException("runtime_engine_not_installed:" + runtime);
         }
         if (!("rootfs-virgl-mesa".equals(graphics) || "rootfs-llvmpipe".equals(graphics) ||
             "rootfs-turnip".equals(graphics))) {
@@ -106,6 +128,16 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
                 "runtime_combination_unsupported:virgl_dxvk");
         }
     }
+
+    private static boolean customComponentExists(String id, GameStoragePaths paths) {
+        try {
+            return new FileCustomRuntimeComponentRepository(
+                paths.getCustomRuntimeComponentsDirectory()).find(id).isPresent();
+        } catch (IOException error) {
+            return false;
+        }
+    }
+
 
     /** Every versioned DXVK dxWrapper (rootfs-dxvk-2.7, rootfs-dxvk-3.1, ...) is a selectable
      *  Vulkan Direct3D layer; the component id equals the dxWrapper value. */

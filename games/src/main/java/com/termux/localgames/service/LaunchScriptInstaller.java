@@ -34,6 +34,8 @@ public final class LaunchScriptInstaller {
         "local-games/rootfs_script_common.sh";
     private static final String ROOTFS_BACKUP_RESTORE_ASSET =
         "local-games/backup_restore_rootfs.sh";
+    private static final String CUSTOM_COMPONENT_INSTALL_ASSET =
+        "local-games/install_custom_rootfs_component.sh";
 
     private final Context context;
     private final File runtimeDirectory;
@@ -96,6 +98,16 @@ public final class LaunchScriptInstaller {
         installRootfsScriptCommon();
         File script = new File(runtimeDirectory, "backup_restore_rootfs.sh");
         installAsset(ROOTFS_BACKUP_RESTORE_ASSET, script);
+        return script;
+    }
+
+    /** Deploys the trusted terminal script that installs a user-picked local Wine/Box64 build
+     *  into the already-published shared RootFS -- see install_custom_rootfs_component.sh. Also
+     *  (re)installs rootfs_script_common.sh, same convention as installBackupRestoreRootfs(). */
+    public File installCustomComponentScript() throws IOException {
+        installRootfsScriptCommon();
+        File script = new File(runtimeDirectory, "install_custom_rootfs_component.sh");
+        installAsset(CUSTOM_COMPONENT_INSTALL_ASSET, script);
         return script;
     }
 

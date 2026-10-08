@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 /** Private editor for one persisted Game. */
 public final class GameDetailActivity extends AppCompatActivity {
@@ -68,6 +69,13 @@ public final class GameDetailActivity extends AppCompatActivity {
             Intent data = result.getData();
             if (result.getResultCode() == Activity.RESULT_OK && data != null &&
                 data.getData() != null) replaceCover(data.getData());
+        });
+    private Consumer<Uri> pendingCustomComponentPick;
+    private final ActivityResultLauncher<String[]> customComponentPicker = registerForActivityResult(
+        new ActivityResultContracts.OpenDocument(), uri -> {
+            Consumer<Uri> callback = pendingCustomComponentPick;
+            pendingCustomComponentPick = null;
+            if (callback != null) callback.accept(uri);
         });
     private ActivityGameDetailBinding binding;
     private GameRepository gameRepository;
@@ -316,6 +324,12 @@ public final class GameDetailActivity extends AppCompatActivity {
                     startActivity(LocalGames.createLibraryIntentShowingSetupConsole(
                         GameDetailActivity.this, warmupTaskId, rootfs));
                     finish();
+                }
+
+                @Override public void onPickCustomComponentFile(String[] mimeTypes,
+                                                                  Consumer<Uri> onPicked) {
+                    pendingCustomComponentPick = onPicked;
+                    customComponentPicker.launch(mimeTypes);
                 }
             });
         runtimeOptionsView.setShowHeader(false);

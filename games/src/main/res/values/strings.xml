@@ -38,6 +38,21 @@
     <string name="local_games_backup_restore_console_title">Restoring backup</string>
     <string name="local_games_backup_title">Base environment backup</string>
     <string name="local_games_backup_channel">Base environment backup</string>
+    <string name="local_games_custom_component_install_title">Installing custom component</string>
+    <string name="local_games_custom_component_channel">Custom Wine/Box64 install</string>
+    <string name="local_games_custom_component_console_title">Installing custom component</string>
+    <string name="local_games_custom_component_add_wine">+ Add custom Wine build…</string>
+    <string name="local_games_custom_component_add_box64">+ Add custom Box64 build…</string>
+    <string name="local_games_custom_component_name_hint">Name</string>
+    <string name="local_games_custom_component_translator_hangover">Hangover (native ARM64)</string>
+    <string name="local_games_custom_component_translator_box64">Box64 (x86_64 translated)</string>
+    <string name="local_games_custom_component_add_action">Add</string>
+    <string name="local_games_custom_component_name_required">Enter a name for this build.</string>
+    <string name="local_games_custom_component_id_exists">A custom build with this name already exists. Choose a different name.</string>
+    <string name="local_games_custom_component_pick_failed">Unable to read the selected file.</string>
+    <string name="local_games_box64_build_default">Default (bundled with Wine package)</string>
+    <string name="local_games_custom_component_installing">Installing…</string>
+
     <string name="local_games_import_gate_title">Runtime not ready</string>
     <string name="local_games_import_gate_glibc_missing">GLIBC runtime is not ready yet.</string>
     <string name="local_games_import_gate_rootfs_missing">RootFS base environment is not ready yet.</string>

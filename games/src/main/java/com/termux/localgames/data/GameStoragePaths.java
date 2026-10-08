@@ -174,6 +174,34 @@ public final class GameStoragePaths {
     public File getExternalBackupFile() {
         return new File(getExternalBackupDirectory(), "games-base-backup.tar.zst");
     }
+    /** Registry of user-installed custom Wine/Box64 builds -- see CustomRuntimeComponent /
+     *  FileCustomRuntimeComponentRepository. Small, app-private, independent of the install task
+     *  state below (which tracks the one-shot shell run that produces each registry entry). */
+    public File getCustomRuntimeComponentsDirectory() {
+        return new File(libraryDirectory.getParentFile(), "runtime/custom-components");
+    }
+    public File getCustomComponentInstallDirectory() {
+        return new File(libraryDirectory.getParentFile(), "runtime/custom-install");
+    }
+    public File getCustomComponentInstallTasksDirectory() {
+        return new File(getCustomComponentInstallDirectory(), "tasks");
+    }
+    public File getCustomComponentInstallSpecsDirectory() {
+        return new File(getCustomComponentInstallDirectory(), "specs");
+    }
+    public File getCustomComponentInstallEventsDirectory() {
+        return new File(getCustomComponentInstallDirectory(), "events");
+    }
+    public File getCustomComponentInstallLogsDirectory() {
+        return new File(getCustomComponentInstallDirectory(), "logs");
+    }
+    /** Where a SAF-picked local Wine/Box64 build is drained into app-private storage before the
+     *  install task reads it -- mirrors RuntimeBackupActivity's "stream immediately into
+     *  app-private storage" precedent; no persisted SAF permission is kept. One staged file per
+     *  task, deleted once the install task reaches a terminal state. */
+    public File getCustomComponentStagingDirectory() {
+        return new File(getCustomComponentInstallDirectory(), "staging");
+    }
     public File getGamePrefixDirectory(String gameId) {
         return new File(getPrefixesDirectory(), requireId(gameId));
     }
