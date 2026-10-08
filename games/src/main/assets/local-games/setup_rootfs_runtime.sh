@@ -150,83 +150,15 @@ logs_directory=${LOG_PATH%/*}
 mkdir -p "$events_directory" "$logs_directory" || fail setup_output_directory_failed 70
 : >> "$LOG_PATH"
 
-progress() {
-    printf '%s\n' "$1" | tee -a "$LOG_PATH"
-}
-
-# Keep the durable log for task reconciliation, while forwarding command output to
-# the PTY when setup was started from the Games component screen.
-run_logged() {
-    if [ -t 1 ]; then
-        status_path="$LOG_PATH.command-status.$$"
-        rm -f "$status_path"
-        (
-            set +e
-            "$@"
-            command_status=$?
-            printf '%s\n' "$command_status" > "$status_path"
-        ) 2>&1 | tee -a "$LOG_PATH"
-        command_status=$(cat "$status_path" 2>/dev/null || printf '1')
-        rm -f "$status_path"
-        return "$command_status"
-    fi
-    "$@" >> "$LOG_PATH" 2>&1
-}
-
-# Like run_logged, but for a long, possibly-stalling step (wineboot) that must stay visible in the
-# live setup console without an arbitrary wall-clock ceiling. Two differences from run_logged:
-#  1. Visibility without a tee pipe: the command writes to "$LOG_PATH" and a background `tail -f`
-#     forwards new lines to the PTY. Because the command is backgrounded directly (no pipe), its
-#     own "$!" is proot's PID -- and proot runs with --kill-on-exit (see
-#     rootfs_prefix_warmup.sh's run_rootfs_maintenance_command), so killing that one PID tears
-#     down the whole proot->wine process tree. (A `... | tee &` pipeline's $! is tee, not proot,
-#     so killing it would leave wine running -- hence the tail-forward instead.)
-#  2. Silence watchdog instead of a fixed timeout: the command may run as long as "$LOG_PATH"
-#     keeps growing, and is aborted only after PREFIX_SILENCE_TIMEOUT seconds of *zero* growth -- a
-#     genuine deadlock (e.g. the old Mono-installer hang), never a healthy-but-slow run, which
-#     streams output continuously. Returns the command's real exit code, or 124 (mimicking
-#     `timeout`) on watchdog fire, so the caller's existing "-ne 124 -> timeout" check is reused.
-run_logged_watchdog() {
-    watchdog_silence=${PREFIX_SILENCE_TIMEOUT:-300}
-    watchdog_tail_pid=
-    if [ -t 1 ]; then
-        tail -n 0 -f "$LOG_PATH" 2>/dev/null &
-        watchdog_tail_pid=$!
-    fi
-    "$@" >> "$LOG_PATH" 2>&1 &
-    watchdog_cmd_pid=$!
-    watchdog_last_size=$(wc -c < "$LOG_PATH" 2>/dev/null || printf '0')
-    watchdog_last_change=$(date +%s)
-    watchdog_fired=0
-    # Quiet set -x around the poll loop itself -- a per-5s trace of the watchdog machinery is noise
-    # in the live console, not progress (same reasoning as rootfs_prefix_warmup.sh's poll loop).
-    set +x
-    while kill -0 "$watchdog_cmd_pid" 2>/dev/null; do
-        sleep 5
-        watchdog_now=$(date +%s)
-        watchdog_size=$(wc -c < "$LOG_PATH" 2>/dev/null || printf '0')
-        if [ "$watchdog_size" != "$watchdog_last_size" ]; then
-            watchdog_last_size=$watchdog_size
-            watchdog_last_change=$watchdog_now
-        elif [ $((watchdog_now - watchdog_last_change)) -ge "$watchdog_silence" ]; then
-            # SIGKILL, not SIGTERM: proot is a ptrace tracer that forwards SIGTERM to the guest
-            # init (Windows wineboot ignores it) and does NOT itself exit, so --kill-on-exit never
-            # fires -- verified on-device that `kill` leaves the whole wine tree running. SIGKILL
-            # can't be forwarded/caught, so proot dies at the kernel and ptrace EXITKILL reaps every
-            # tracee (including the daemonised, PPID=1 wineserver). watchdog_cmd_pid is proot's real
-            # PID because run_rootfs_maintenance_command execs proot (see its header).
-            kill -9 "$watchdog_cmd_pid" 2>/dev/null || true
-            watchdog_fired=1
-            break
-        fi
-    done
-    set -x
-    watchdog_status=0
-    wait "$watchdog_cmd_pid" 2>/dev/null || watchdog_status=$?
-    [ -z "$watchdog_tail_pid" ] || { kill "$watchdog_tail_pid" 2>/dev/null || true; wait "$watchdog_tail_pid" 2>/dev/null || true; }
-    [ "$watchdog_fired" = 0 ] || return 124
-    return "$watchdog_status"
-}
+# Co-located with $PREFIX_WARMUP_SCRIPT by LaunchScriptInstaller (same runtimeDirectory) --
+# derive its path from PREFIX_WARMUP_SCRIPT's own directory rather than adding a new spec field,
+# same convention start_rootfs_game.sh uses to find rootfs_prefix_warmup.sh. Defines progress(),
+# run_logged(), run_logged_watchdog() -- shared with backup_restore_rootfs.sh so both scripts'
+# output follows the same "visible in the live console, silence-watchdog not a fixed timeout"
+# convention instead of each growing its own copy.
+COMMON_SCRIPT="$(dirname "$PREFIX_WARMUP_SCRIPT")/rootfs_script_common.sh"
+[ -f "$COMMON_SCRIPT" ] || fail invalid_setup_spec 64
+. "$COMMON_SCRIPT"
 
 PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
 PROOT_DISTRO="$PREFIX/bin/proot-distro"
@@ -234,41 +166,40 @@ CONTAINERS_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/containers"
 # Winlator-style: one shared, always-current RootFS every container's proot session mounts with
 # `-r` (see start_rootfs_game.sh) -- never a per-containerId copy. Beside containers/ (never
 # under it, and not itself a proot-distro-managed container) so it is never mistaken for one by
-# the reset/backup/asset-scanning code paths that key off containerIds, and so the plain
-# tar-extraction below (not `proot-distro remove`/`install`) is the right tool to replace it.
+# the reset/backup/asset-scanning code paths that key off containerIds, and so a plain
+# rm -rf + mv below (not `proot-distro remove`/`install`) is the right tool to replace it.
 SHARED_ROOTFS_CONTAINER_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-shared-rootfs"
 SHARED_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY/rootfs"
 BASE_IMAGE=debian:trixie-20260824
 # Every container built from the same recipe (same box64/Wine source component, same
 # setup-container.sh/games-runtime.properties, same version of this script) would otherwise
 # redo an identical multi-hundred-MB download+unpack+apt-install. Build that once into a fixed,
-# reserved "tmpl-build" scratch container and archive it instead of hardlink-cloning it into every
-# real container. "tmpl-build" is never a real containerId (those are generated, not
-# user-chosen), so it never collides with, and is invisible to, the reset/backup/asset-scanning
-# code paths that key off real containerIds. A single fixed name (not one per recipe hash) is
-# safe because RuntimeInstallationGate.requireRootfsSlot() guarantees only one instance of this
-# script runs at a time system-wide, and the scratch directory is deleted at the end of every
-# build (see below) so nothing lingers between builds anyway.
+# reserved "tmpl-build" scratch container, then publish it as the live shared RootFS (see the
+# runtime_complete/mv gate further down) instead of hardlink-cloning it into every real container.
+# "tmpl-build" is never a real containerId (those are generated, not user-chosen), so it never
+# collides with, and is invisible to, the reset/backup/asset-scanning code paths that key off real
+# containerIds. A single fixed name (not one per recipe hash) is safe because
+# RuntimeInstallationGate.requireRootfsSlot() guarantees only one instance of this script runs at a
+# time system-wide, and the scratch directory is consumed (mv'd away) at the end of every
+# successful build, so nothing lingers between builds anyway.
 BUILD_CONTAINER_NAME=tmpl-build
 BUILD_DIRECTORY="$CONTAINERS_DIRECTORY/$BUILD_CONTAINER_NAME"
 BUILD_ROOTFS="$BUILD_DIRECTORY/rootfs"
-# The built template is archived once, under one fixed name (no recipe hash), and every real
-# container is produced by extracting that archive -- independent real files, no hardlinks. Some
-# Android data partitions reject hardlinks outright (link() returns EPERM even for a self-owned
-# file), which made the old `cp -al` clone fail for every game; tar extraction is also exactly how
-# proot-distro rootfs images normally ship. The cache lives beside containers/ (never under it) so
-# it is not mistaken for a container. A fixed name means there is always at most one archive on
-# disk -- this script's own BASE_ONLY path deletes it (and its sidecar) directly before
-# rebuilding, with no hash to recompute, so "rebuild RootFS" can never target a stale/wrong path
-# (the bug a recipe-hash-keyed name caused).
+# Beside containers/ (never under it) so it is not mistaken for a container. Holds:
+#  - games-rootfs-base.recipe: the recipeSha256 that last successfully published the shared
+#    RootFS, used below to decide whether a rebuild is needed at all (no more archive-existence
+#    check -- see the runtime_complete/mv gate further down, which replaced the old
+#    build-archive-delete-extract round trip now that the build and the live shared RootFS can
+#    just be mv'd into place directly, same filesystem).
+#  - games-rootfs-base-prefix-<translator>.tar.*: the per-translator pre-booted Wine prefix
+#    templates (still genuinely archived -- cloned into many containers afterward, unlike the
+#    rootfs itself which only ever has the one live copy).
 TEMPLATE_CACHE_DIR="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-template-cache"
 TEMPLATE_RECIPE="$TEMPLATE_CACHE_DIR/games-rootfs-base.recipe"
 if command -v zstd >/dev/null 2>&1; then
-    TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base.tar.zst"
     TEMPLATE_COMPRESSOR=zstd
     TEMPLATE_PREFIX_EXT=zst
 else
-    TEMPLATE_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base.tar.gz"
     TEMPLATE_COMPRESSOR=gzip
     TEMPLATE_PREFIX_EXT=gz
 fi
@@ -380,50 +311,19 @@ build_runtime_into() {
         fail rootfs_guest_setup_failed 70
     fi
 }
-# Archives the already-built template container ($BUILD_DIRECTORY, i.e. manifest.json +
-# rootfs/ + shm/ + sysdata/) into $TEMPLATE_ARCHIVE once. Written to a .tmp then atomically
-# renamed, so a present archive is always complete. No-op if the archive already exists.
-ensure_template_archive() {
-    [ -f "$TEMPLATE_ARCHIVE" ] && return 0
-    mkdir -p "$TEMPLATE_CACHE_DIR"
-    rm -f "$TEMPLATE_ARCHIVE.tmp"
-    if ! run_logged tar -C "$BUILD_DIRECTORY" \
-        --use-compress-program "$TEMPLATE_COMPRESSOR" -cf "$TEMPLATE_ARCHIVE.tmp" .; then
-        rm -f "$TEMPLATE_ARCHIVE.tmp"
-        fail rootfs_template_archive_failed 70
-    fi
-    if ! mv "$TEMPLATE_ARCHIVE.tmp" "$TEMPLATE_ARCHIVE"; then
-        rm -f "$TEMPLATE_ARCHIVE.tmp"
-        fail rootfs_template_archive_failed 70
-    fi
-}
-# Replaces $SHARED_ROOTFS_CONTAINER_DIRECTORY with a fresh extraction of the shared template
-# archive -- independent real files, no hardlinks, so it works on filesystems that reject them.
-# Not a registered proot-distro container (it holds the one rootfs every real container's proot
-# session mounts directly, see start_rootfs_game.sh), so a plain rm -rf is the right tool here,
-# unlike the "proot-distro remove" a real container's own directory would need.
-extract_shared_rootfs() {
-    rm -rf "$SHARED_ROOTFS_CONTAINER_DIRECTORY"
-    mkdir -p "$SHARED_ROOTFS_CONTAINER_DIRECTORY"
-    if ! run_logged tar -C "$SHARED_ROOTFS_CONTAINER_DIRECTORY" \
-        --use-compress-program "$TEMPLATE_COMPRESSOR" --numeric-owner -xpf "$TEMPLATE_ARCHIVE"; then
-        fail rootfs_template_extract_failed 70
-    fi
-}
 
-# Reclaim stray build dirs / archives left by an older version of this script (hash-named
-# tmpl-<sha> dirs, hash-named cache archives) or by an interrupted BASE_ONLY rebuild. No game
-# ever reads any of these directly, so it is always safe to drop anything that is not the current
-# fixed-name artifact.
+# Reclaim stray build dirs left by an older version of this script or an interrupted BASE_ONLY
+# rebuild. No game ever reads any of these directly, so it is always safe to drop anything that
+# is not the current fixed-name artifact.
 if [ "$BASE_ONLY" = true ]; then
-    # A rebuild must actually replace the archive, not silently reuse a stale one --
-    # ensure_template_archive() below is a no-op when the archive already exists, so force a
-    # real rebuild by clearing it first. Harmless (a no-op delete) on a first-ever "Build" too.
+    # A rebuild must actually rebuild, not silently reuse the already-published shared RootFS --
+    # the gate below skips rebuilding whenever the recorded recipe still matches, so force a real
+    # rebuild by clearing the record first. Harmless (a no-op delete) on a first-ever "Build" too.
     # Every per-translator prefix template (games-rootfs-base-prefix-<translator>.tar.*, see the
     # BASE_ONLY loop below -- one per distinct RUNTIME_TRANSLATOR bucket, not one per literal wine
     # package) is rebuilt in lockstep with the rootfs for the same reason (the known hash-drift
     # failure mode this session already fixed once for the rootfs side).
-    rm -f "$TEMPLATE_ARCHIVE" "$TEMPLATE_ARCHIVE.tmp" "$TEMPLATE_RECIPE"
+    rm -f "$TEMPLATE_RECIPE"
     for stray_prefix in "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*; do
         [ -e "$stray_prefix" ] || continue
         rm -f "$stray_prefix"
@@ -440,7 +340,6 @@ if [ -d "$TEMPLATE_CACHE_DIR" ]; then
     for stray_archive in "$TEMPLATE_CACHE_DIR"/*.tar.*; do
         [ -f "$stray_archive" ] || continue
         case "$stray_archive" in
-            "$TEMPLATE_ARCHIVE"|"$TEMPLATE_ARCHIVE.tmp") continue ;;
             # Every per-translator prefix template is a live artifact, not just one fixed name.
             "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*) continue ;;
         esac
@@ -448,22 +347,35 @@ if [ -d "$TEMPLATE_CACHE_DIR" ]; then
     done
 fi
 
-if [ ! -f "$TEMPLATE_ARCHIVE" ]; then
+# Skip the expensive rebuild below unless the live shared RootFS is actually missing/broken, or
+# was last published from a different recipe (a base component or this script's own version
+# changed) -- BASE_ONLY always qualifies for the latter, since the stray-cleanup block above just
+# cleared $TEMPLATE_RECIPE.
+if ! runtime_complete "$SHARED_ROOTFS" || \
+    [ "$(cat "$TEMPLATE_RECIPE" 2>/dev/null)" != "$RECIPE_SHA256" ]; then
     if ! runtime_complete "$BUILD_ROOTFS"; then
         build_runtime_into "$BUILD_CONTAINER_NAME" "$BUILD_DIRECTORY" "$BUILD_ROOTFS"
         runtime_complete "$BUILD_ROOTFS" || fail rootfs_template_build_invalid 70
     fi
-    progress '==> Archiving the shared runtime template'
-    ensure_template_archive
     printf '%s\n' "$RECIPE_SHA256" > "$TEMPLATE_RECIPE.tmp" &&
-        mv "$TEMPLATE_RECIPE.tmp" "$TEMPLATE_RECIPE" || fail rootfs_template_archive_failed 70
-    rm -rf "$BUILD_DIRECTORY"
-    # (Re)archiving and (re)publishing the one live, shared RootFS happen in the same task so the
-    # two can never disagree -- every container, old and new alike, mounts whatever this leaves
-    # behind (see GameStoragePaths.getSharedRootfsDirectory()). A rebuild therefore takes effect
-    # for already-created games immediately; there is no more per-container pinning to go stale.
+        mv "$TEMPLATE_RECIPE.tmp" "$TEMPLATE_RECIPE" || fail rootfs_recipe_record_failed 70
+    # Recording the recipe and publishing the one live, shared RootFS happen in the same task so
+    # the two can never disagree -- every container, old and new alike, mounts whatever this
+    # leaves behind (see GameStoragePaths.getSharedRootfsDirectory()). A rebuild therefore takes
+    # effect for already-created games immediately; there is no more per-container pinning to go
+    # stale. $BUILD_DIRECTORY and $SHARED_ROOTFS_CONTAINER_DIRECTORY are siblings under the same
+    # .../proot-distro/ directory (same filesystem), so publishing is a plain same-filesystem mv,
+    # not a tar/compress round trip through an intermediate archive: that archive used to exist
+    # only to survive the brief window between "scratch build done" and "live directory
+    # replaced" (so a build failure could never corrupt the directory every game mounts) -- a
+    # plain mv from a separate scratch directory gives the exact same safety without ever
+    # materializing compressed bytes nobody reads. Compression now exists only as the dedicated,
+    # explicitly user-triggered Backup feature (see backup_restore_rootfs.sh), not as a hidden
+    # cost of every build.
     progress '==> Publishing the shared RootFS image'
-    extract_shared_rootfs
+    rm -rf "$SHARED_ROOTFS_CONTAINER_DIRECTORY"
+    mv "$BUILD_DIRECTORY" "$SHARED_ROOTFS_CONTAINER_DIRECTORY" || \
+        fail rootfs_shared_image_publish_failed 70
     runtime_complete "$SHARED_ROOTFS" || fail rootfs_shared_image_invalid 70
 
     # Pre-boot one Wine prefix per *translator* (wineboot -u + CJK FontLink), archived alongside

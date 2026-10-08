@@ -1,5 +1,7 @@
 package com.termux.localgames.data;
 
+import android.os.Environment;
+
 import com.termux.localgames.domain.GameRuntimeBackendType;
 
 import java.io.File;
@@ -120,31 +122,14 @@ public final class GameStoragePaths {
             backendType.getStorageValue());
     }
     /** Beside containers/ (never under it), mirroring setup_rootfs_runtime.sh's
-     *  TEMPLATE_CACHE_DIR, so it is never mistaken for a container. */
+     *  TEMPLATE_CACHE_DIR, so it is never mistaken for a container. Holds the per-translator
+     *  pre-booted Wine prefix templates (games-rootfs-base-prefix-&lt;translator&gt;.tar.*) and the
+     *  recorded recipeSha256 (games-rootfs-base.recipe) -- there is no RootFS base archive here
+     *  any more: building/rebuilding the shared RootFS publishes it directly (a same-filesystem
+     *  mv, see setup_rootfs_runtime.sh), and compressing it is now the dedicated, explicitly
+     *  user-triggered Backup feature below, not a hidden step of every build. */
     public File getTemplateArchiveCacheDirectory() {
         return new File(getTermuxPrefixDirectory(), "var/lib/proot-distro/games-template-cache");
-    }
-    /** The single shared RootFS base archive, when built with zstd available. */
-    public File getRootfsBaseArchiveZst() {
-        return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base.tar.zst");
-    }
-    /** The single shared RootFS base archive, when built without zstd (gzip fallback). */
-    public File getRootfsBaseArchiveGz() {
-        return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base.tar.gz");
-    }
-    /** Sidecar recording the recipeSha256 that built the current base archive (diagnostics only
-     *  now that every container always shares the one live, always-current rootfs). */
-    public File getRootfsBaseRecipeFile() {
-        return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base.recipe");
-    }
-    /** A pre-booted Wine prefix (wineboot -u + CJK FontLink already applied), built once
-     *  alongside the RootFS base archive and extracted into each new container's prefix instead
-     *  of rerunning wineboot -u there. Same zstd/gzip fallback pair as the rootfs archive. */
-    public File getRootfsPrefixTemplateArchiveZst() {
-        return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base-prefix.tar.zst");
-    }
-    public File getRootfsPrefixTemplateArchiveGz() {
-        return new File(getTemplateArchiveCacheDirectory(), "games-rootfs-base-prefix.tar.gz");
     }
     public File getResetDirectory() {
         return new File(libraryDirectory.getParentFile(), "runtime/reset");
@@ -160,6 +145,34 @@ public final class GameStoragePaths {
     }
     public File getResetLogsDirectory() {
         return new File(getResetDirectory(), "logs");
+    }
+    public File getBackupDirectory() {
+        return new File(libraryDirectory.getParentFile(), "runtime/backup");
+    }
+    public File getBackupTasksDirectory() {
+        return new File(getBackupDirectory(), "tasks");
+    }
+    public File getBackupSpecsDirectory() {
+        return new File(getBackupDirectory(), "specs");
+    }
+    public File getBackupEventsDirectory() {
+        return new File(getBackupDirectory(), "events");
+    }
+    public File getBackupLogsDirectory() {
+        return new File(getBackupDirectory(), "logs");
+    }
+    /** Where a user-triggered base-environment backup is written to / read from. Deliberately
+     *  NOT under {@link #filesDirectory} (unlike every other path in this class) -- the whole
+     *  point of this feature is to survive an app data clear or uninstall, so it has to live on
+     *  real external/shared storage (requires MANAGE_EXTERNAL_STORAGE, already declared in
+     *  AndroidManifest.xml; see PermissionUtils). Single fixed name, not one per backup: only the
+     *  most recent backup is ever kept (see RootfsBackupForegroundService) -- the backup/restore
+     *  UI is a straight overwrite, not a version picker. */
+    public File getExternalBackupDirectory() {
+        return new File(Environment.getExternalStorageDirectory(), "TermuxGames/backups");
+    }
+    public File getExternalBackupFile() {
+        return new File(getExternalBackupDirectory(), "games-base-backup.tar.zst");
     }
     public File getGamePrefixDirectory(String gameId) {
         return new File(getPrefixesDirectory(), requireId(gameId));

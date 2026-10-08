@@ -37,14 +37,24 @@ public final class RuntimeEnvironmentStatus {
         return RuntimeReadinessState.INCOMPLETE;
     }
 
-    /** READY when the single shared RootFS base archive (see setup_rootfs_runtime.sh) exists.
-     *  Building/rebuilding the base atomically (re)archives it and extracts it live to
-     *  GameStoragePaths.getSharedRootfsDirectory() in the same task, so every ROOTFS_PROOT
-     *  container always mounts the one current image -- there is no per-container copy left to
-     *  go stale. An atomically-renamed archive has no partially-built state to represent, so
-     *  unlike glibcState() this is strictly binary -- INCOMPLETE is never returned. */
+    /** READY when the one shared RootFS (see GameStoragePaths.getSharedRootfsDirectory()) is a
+     *  complete build -- building/rebuilding it publishes directly into that same live directory
+     *  (a same-filesystem mv, see setup_rootfs_runtime.sh), so every ROOTFS_PROOT container always
+     *  mounts the one current image; there is no per-container copy, and no separate archive file,
+     *  left to go stale or to check instead. Mirrors setup_rootfs_runtime.sh's own
+     *  runtime_complete() check exactly -- keep both in sync if either changes. An atomically
+     *  published directory has no partially-built state to represent, so unlike glibcState() this
+     *  is strictly binary -- INCOMPLETE is never returned. */
     public RuntimeReadinessState rootfsState() {
-        return paths.getRootfsBaseArchiveZst().isFile() || paths.getRootfsBaseArchiveGz().isFile()
-            ? RuntimeReadinessState.READY : RuntimeReadinessState.NOT_READY;
+        File root = paths.getSharedRootfsDirectory();
+        boolean complete = new File(root, "usr/bin/env").canExecute() &&
+            new File(root, "usr/local/bin/box64").canExecute() &&
+            new File(root, "usr/bin/wine").canExecute() &&
+            new File(root, "usr/bin/wineboot").canExecute() &&
+            new File(root, "usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc").isFile() &&
+            new File(root, "etc/games-runtime.properties").isFile() &&
+            new File(root, "mnt/games/game").isDirectory() &&
+            new File(root, "mnt/games/prefix").isDirectory();
+        return complete ? RuntimeReadinessState.READY : RuntimeReadinessState.NOT_READY;
     }
 }

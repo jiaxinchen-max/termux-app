@@ -12,6 +12,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.termux.localgames.R;
 import com.termux.localgames.data.FileRuntimeSetupTaskRepository;
@@ -34,7 +35,48 @@ import com.termux.localgames.api.LocalGames;
  *  log/terminal content itself is shown -- no title, no button chrome -- tapping outside the
  *  dialog (losing focus) dismisses it, same as any other modal. */
 final class RuntimeSetupConsoleDialog extends Dialog {
+    /** Pre-session-attach status lookup, abstracted so this dialog can show progress for any
+     *  taskId-addressed task family, not just RuntimeSetupTask -- e.g. the base-environment
+     *  Backup/Restore feature's own RootfsBackupTask, which has no recipe/component/container
+     *  fields and a smaller state machine (no CANCELLED). Once the real TerminalSession attaches
+     *  (attachSetupSession()), this is no longer consulted -- the live terminal output itself
+     *  takes over as the source of truth. */
+    interface TaskStatusLookup {
+        /** Null means "no task record yet" (still preparing, nothing written). */
+        @Nullable Status lookup(String taskId);
+
+        final class Status {
+            final boolean failed;
+            final boolean cancelled;
+            final String stateName;
+
+            Status(boolean failed, boolean cancelled, @NonNull String stateName) {
+                this.failed = failed;
+                this.cancelled = cancelled;
+                this.stateName = stateName;
+            }
+        }
+    }
+
+    private static TaskStatusLookup defaultLookup(Context context) {
+        return taskId -> {
+            try {
+                RuntimeSetupTask task = new FileRuntimeSetupTaskRepository(new GameStoragePaths(
+                    context.getFilesDir()).getRuntimeSetupTasksDirectory()).find(taskId)
+                    .orElse(null);
+                if (task == null) return null;
+                return new TaskStatusLookup.Status(
+                    task.getState() == RuntimeSetupTaskState.FAILED,
+                    task.getState() == RuntimeSetupTaskState.CANCELLED,
+                    task.getState().name());
+            } catch (IOException | RuntimeException ignored) {
+                return null;
+            }
+        };
+    }
+
     private final String taskId;
+    private final TaskStatusLookup statusLookup;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TerminalSession consoleSession;
     private TerminalView terminalView;
@@ -43,9 +85,11 @@ final class RuntimeSetupConsoleDialog extends Dialog {
     private boolean setupFailed;
     private int titleRes = R.string.local_games_runtime_setup_console_title;
 
-    private RuntimeSetupConsoleDialog(@NonNull Context context, @NonNull String taskId) {
+    private RuntimeSetupConsoleDialog(@NonNull Context context, @NonNull String taskId,
+                                      @NonNull TaskStatusLookup statusLookup) {
         super(context);
         this.taskId = taskId;
+        this.statusLookup = statusLookup;
         setCancelable(true);
         setCanceledOnTouchOutside(true);
     }
@@ -56,7 +100,13 @@ final class RuntimeSetupConsoleDialog extends Dialog {
 
     static RuntimeSetupConsoleDialog show(@NonNull Context context, @NonNull String taskId,
                                               int titleRes) {
-        RuntimeSetupConsoleDialog dialog = new RuntimeSetupConsoleDialog(context, taskId);
+        return show(context, taskId, titleRes, defaultLookup(context));
+    }
+
+    static RuntimeSetupConsoleDialog show(@NonNull Context context, @NonNull String taskId,
+                                              int titleRes, @NonNull TaskStatusLookup statusLookup) {
+        RuntimeSetupConsoleDialog dialog = new RuntimeSetupConsoleDialog(context, taskId,
+            statusLookup);
         dialog.titleRes = titleRes;
         dialog.show();
         return dialog;
@@ -177,31 +227,22 @@ final class RuntimeSetupConsoleDialog extends Dialog {
     // so without this the dialog looks identical to a hang.
     private void refreshStatus() {
         if (dismissed || !isShowing() || consoleSession != null) return;
-        RuntimeSetupTask task = readTask();
+        TaskStatusLookup.Status taskStatus = statusLookup.lookup(taskId);
         String preparing = getContext().getString(R.string.local_games_runtime_setup_preparing);
-        if (task == null) {
+        if (taskStatus == null) {
             status.setText(preparing);
-        } else if (task.getState() == RuntimeSetupTaskState.FAILED) {
+        } else if (taskStatus.failed) {
             setupFailed = true;
             status.setText(getContext().getString(R.string.local_games_runtime_setup_failed));
             return;
-        } else if (task.getState() == RuntimeSetupTaskState.CANCELLED) {
+        } else if (taskStatus.cancelled) {
             setupFailed = true;
-            status.setText(RuntimeSetupTaskState.CANCELLED.name());
+            status.setText(taskStatus.stateName);
             return;
         } else {
-            status.setText(preparing + " (" + task.getState().name() + ")");
+            status.setText(preparing + " (" + taskStatus.stateName + ")");
         }
         handler.postDelayed(this::refreshStatus, 500);
-    }
-
-    private RuntimeSetupTask readTask() {
-        try {
-            return new FileRuntimeSetupTaskRepository(new GameStoragePaths(getContext()
-                .getFilesDir()).getRuntimeSetupTasksDirectory()).find(taskId).orElse(null);
-        } catch (IOException | RuntimeException ignored) {
-            return null;
-        }
     }
 
     private int dp(int value) {

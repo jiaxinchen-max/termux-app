@@ -30,6 +30,10 @@ public final class LaunchScriptInstaller {
         "local-games/start_termux_box_game.sh";
     private static final String ROOTFS_PREFIX_WARMUP_ASSET =
         "local-games/rootfs_prefix_warmup.sh";
+    private static final String ROOTFS_SCRIPT_COMMON_ASSET =
+        "local-games/rootfs_script_common.sh";
+    private static final String ROOTFS_BACKUP_RESTORE_ASSET =
+        "local-games/backup_restore_rootfs.sh";
 
     private final Context context;
     private final File runtimeDirectory;
@@ -70,6 +74,28 @@ public final class LaunchScriptInstaller {
     public File installRootfsPrefixWarmup() throws IOException {
         File script = new File(runtimeDirectory, "rootfs_prefix_warmup.sh");
         installAsset(ROOTFS_PREFIX_WARMUP_ASSET, script);
+        return script;
+    }
+
+    /** Deploys progress()/run_logged()/run_logged_watchdog() -- shared between
+     *  setup_rootfs_runtime.sh (which finds it via a path derived from its own spec's
+     *  prefixWarmupScript field) and backup_restore_rootfs.sh (which finds it via a plain
+     *  sibling-path lookup, since both live in this same runtimeDirectory). See
+     *  rootfs_script_common.sh. */
+    public File installRootfsScriptCommon() throws IOException {
+        File script = new File(runtimeDirectory, "rootfs_script_common.sh");
+        installAsset(ROOTFS_SCRIPT_COMMON_ASSET, script);
+        return script;
+    }
+
+    /** Deploys the trusted terminal script backing the base-environment Backup/Restore feature --
+     *  see backup_restore_rootfs.sh. Also (re)installs rootfs_script_common.sh, its sibling
+     *  dependency, so RootfsBackupForegroundService never has to orchestrate two separate
+     *  installer calls for one task. */
+    public File installBackupRestoreRootfs() throws IOException {
+        installRootfsScriptCommon();
+        File script = new File(runtimeDirectory, "backup_restore_rootfs.sh");
+        installAsset(ROOTFS_BACKUP_RESTORE_ASSET, script);
         return script;
     }
 

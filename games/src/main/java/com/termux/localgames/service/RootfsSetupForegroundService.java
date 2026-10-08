@@ -196,8 +196,11 @@ public final class RootfsSetupForegroundService extends Service {
             String winePackage = null;
             File winePrefixDirectory = null;
             File homeDirectory = null;
-            File prefixWarmupScript = new LaunchScriptInstaller(this, paths)
-                .installRootfsPrefixWarmup();
+            LaunchScriptInstaller scripts = new LaunchScriptInstaller(this, paths);
+            // Co-located sibling script setup_rootfs_runtime.sh sources by deriving its path
+            // from PREFIX_WARMUP_SCRIPT's own directory -- see that script's COMMON_SCRIPT line.
+            scripts.installRootfsScriptCommon();
+            File prefixWarmupScript = scripts.installRootfsPrefixWarmup();
             if (!task.isBaseOnly()) {
                 GameContainer container = containers.find(task.getContainerId())
                     .orElseThrow(() -> new IOException("rootfs_container_missing"));

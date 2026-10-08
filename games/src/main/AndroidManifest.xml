@@ -97,6 +97,11 @@
             android:name=".service.ResetRuntimeForegroundService"
             android:exported="false"
             android:label="@string/local_games_reset_title" />
+
+        <service
+            android:name=".service.RootfsBackupForegroundService"
+            android:exported="false"
+            android:label="@string/local_games_backup_title" />
     </application>
 
 </manifest>

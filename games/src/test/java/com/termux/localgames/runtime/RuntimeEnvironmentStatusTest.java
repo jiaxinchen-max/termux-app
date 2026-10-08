@@ -70,7 +70,7 @@ public class RuntimeEnvironmentStatusTest {
     @Test
     public void rootfsNotReadyWhenNoArchiveExistsEvenIfAnUnrelatedContainerExists()
         throws Exception {
-        // rootfsState() is about the shared base archive only -- a container record lying
+        // rootfsState() is about the one shared RootFS directory only -- a container record lying
         // around must not make it read as anything other than NOT_READY. Every container mounts
         // the one shared, always-current image now (see GameStoragePaths.getSharedRootfsDirectory()),
         // so there is no per-container copy for this to be confused with.
@@ -87,18 +87,43 @@ public class RuntimeEnvironmentStatusTest {
     }
 
     @Test
-    public void rootfsReadyWhenArchiveExists() throws Exception {
+    public void rootfsReadyWhenSharedRootfsIsComplete() throws Exception {
         File files = temporary.newFolder("files-rootfs-ready");
         GameStoragePaths paths = new GameStoragePaths(files);
-        createArchive(paths);
+        createCompleteSharedRootfs(paths);
 
         assertEquals(RuntimeReadinessState.READY,
             new RuntimeEnvironmentStatus(paths).rootfsState());
     }
 
-    private static void createArchive(GameStoragePaths paths) throws Exception {
-        File archive = paths.getRootfsBaseArchiveZst();
-        assertTrue(archive.getParentFile().isDirectory() || archive.getParentFile().mkdirs());
-        assertTrue(archive.createNewFile());
+    @Test
+    public void rootfsNotReadyWhenSharedRootfsIsMissingOneMarker() throws Exception {
+        File files = temporary.newFolder("files-rootfs-incomplete");
+        GameStoragePaths paths = new GameStoragePaths(files);
+        File root = createCompleteSharedRootfs(paths);
+        assertTrue(new File(root, "usr/bin/wineboot").delete());
+
+        assertEquals(RuntimeReadinessState.NOT_READY,
+            new RuntimeEnvironmentStatus(paths).rootfsState());
+    }
+
+    private static File createCompleteSharedRootfs(GameStoragePaths paths) throws Exception {
+        File root = paths.getSharedRootfsDirectory();
+        for (String executable : new String[] {"usr/bin/env", "usr/local/bin/box64",
+            "usr/bin/wine", "usr/bin/wineboot"}) {
+            File file = new File(root, executable);
+            assertTrue(file.getParentFile().isDirectory() || file.getParentFile().mkdirs());
+            assertTrue(file.createNewFile());
+            assertTrue(file.setExecutable(true));
+        }
+        File font = new File(root, "usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc");
+        assertTrue(font.getParentFile().mkdirs());
+        assertTrue(font.createNewFile());
+        File manifest = new File(root, "etc/games-runtime.properties");
+        assertTrue(manifest.getParentFile().mkdirs());
+        assertTrue(manifest.createNewFile());
+        assertTrue(new File(root, "mnt/games/game").mkdirs());
+        assertTrue(new File(root, "mnt/games/prefix").mkdirs());
+        return root;
     }
 }
