@@ -54,6 +54,7 @@ RUNTIME_BACKEND_TYPE=
 ROOTFS_PACKAGE=
 RUNTIME_ROOT_PATH=
 HOME_PATH=
+DESKTOP_ONLY=0
 EVENT_PATH=
 LOG_PATH=
 LOCK_PATH=
@@ -93,6 +94,7 @@ while IFS= read -r line || [ -n "$line" ]; do
         rootfsPackage) ROOTFS_PACKAGE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         runtimeRootPath) RUNTIME_ROOT_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         homeDirectory) HOME_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
+        desktopOnly) DESKTOP_ONLY=$value ;;
         eventPath) EVENT_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         logPath) LOG_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         lockPath) LOCK_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
@@ -123,8 +125,9 @@ while IFS= read -r line || [ -n "$line" ]; do
     esac
 done < "$SPEC_PATH"
 
-[ "$SPEC_SCHEMA" = 5 ] || fail_before_events unsupported_launch_spec_schema
+[ "$SPEC_SCHEMA" = 6 ] || fail_before_events unsupported_launch_spec_schema
 [ "$RUNTIME_BACKEND_TYPE" = rootfs_proot ] || fail_before_events runtime_backend_script_mismatch
+case "$DESKTOP_ONLY" in 0|1) ;; *) fail_before_events invalid_desktop_only ;; esac
 case "$TASK_ID" in ''|*[!A-Za-z0-9._-]*) fail_before_events invalid_task_id ;; esac
 case "$GAME_ID" in ''|*[!A-Za-z0-9._-]*) fail_before_events invalid_game_id ;; esac
 case "$ROOTFS_PACKAGE" in ''|*[!A-Za-z0-9._-]*) fail_before_events invalid_rootfs_package ;; esac
@@ -519,7 +522,14 @@ emit RUNNING STARTING_GAME 80 null '' false starting_game
 # virtual desktop supplies the desktop surface and window decoration instead,
 # while keeping every game window inside the LaunchSpec resolution.
 printf 'Launching Wine virtual desktop at %s\n' "$RESOLUTION" >> "$LOG_PATH"
-if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
+if [ "$DESKTOP_ONLY" = 1 ]; then
+    # Desktop-only launch: open the bare Wine virtual desktop, do NOT run the game executable.
+    if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
+        set -- explorer "/desktop=shell,$RESOLUTION"
+    else
+        set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION"
+    fi
+elif [ "$RUNTIME_TRANSLATOR" = hangover ]; then
     set -- explorer "/desktop=shell,$RESOLUTION" "$GUEST_EXECUTABLE" "$@"
 else
     set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION" "$GUEST_EXECUTABLE" "$@"

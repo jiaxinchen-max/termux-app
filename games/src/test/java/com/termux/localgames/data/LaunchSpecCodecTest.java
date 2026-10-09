@@ -68,71 +68,23 @@ public class LaunchSpecCodecTest {
     }
 
     @Test
-    public void readsSchemaOneWithXInputDefault() throws Exception {
-        File target = temporary.newFile("legacy.launchspec");
-        LaunchSpecCodec codec = new LaunchSpecCodec();
-        codec.write(target, spec(new LinkedHashMap<>()));
-        String raw = new String(Files.readAllBytes(target.toPath()), StandardCharsets.US_ASCII)
-            .replace("schemaVersion=5", "schemaVersion=1")
-            .replaceAll("(?m)^inputProfileId=.*\\n", "")
-            .replaceAll("(?m)^launchExecutionMode=.*\\n", "")
-            .replaceAll("(?m)^(runtimeBackendType|rootfsPackage|runtimeRootPath|homeDirectory)=.*\\n", "");
-        try (FileOutputStream output = new FileOutputStream(target, false)) {
-            output.write(raw.getBytes(StandardCharsets.US_ASCII));
-        }
-        assertEquals("xinput", codec.read(target).getInputProfileId());
-        assertEquals(LaunchExecutionMode.APP_SHELL,
-            codec.read(target).getLaunchExecutionMode());
-        assertEquals(GameRuntimeBackendType.GLIBC_TERMUX_BOX,
-            codec.read(target).getRuntimeBackendType());
-    }
+    public void preservesDesktopOnlyFlag() throws Exception {
+        LaunchSpec base = spec(new LinkedHashMap<>());
+        LaunchSpec desktop = new LaunchSpec(base.getTaskId(), base.getGameId(),
+            base.getGameRootPath(), base.getExecutable(), base.getWorkingDirectory(),
+            base.getArguments(), base.getPrefixPath(), base.getWinePackage(),
+            base.getGraphicsDriver(), base.getDxWrapper(), base.getAudioDriver(),
+            base.getResolution(), base.getBox64Preset(), base.getInputProfileId(),
+            base.getLaunchExecutionMode(), base.getEnvironment(), base.getEventPath(),
+            base.getLogPath(), base.getLockPath(), base.getCancelPath(),
+            base.getTimeoutSeconds(), GameRuntimeBackendType.GLIBC_TERMUX_BOX, "", "", "", true);
+        File target = temporary.newFile("desktop.launchspec");
 
-    @Test
-    public void readsSchemaTwoWithAppShellDefault() throws Exception {
-        File target = temporary.newFile("schema-two.launchspec");
-        LaunchSpecCodec codec = new LaunchSpecCodec();
-        codec.write(target, spec(new LinkedHashMap<>()));
-        String raw = new String(Files.readAllBytes(target.toPath()), StandardCharsets.US_ASCII)
-            .replace("schemaVersion=5", "schemaVersion=2")
-            .replaceAll("(?m)^launchExecutionMode=.*\\n", "")
-            .replaceAll("(?m)^(runtimeBackendType|rootfsPackage|runtimeRootPath|homeDirectory)=.*\\n", "");
-        try (FileOutputStream output = new FileOutputStream(target, false)) {
-            output.write(raw.getBytes(StandardCharsets.US_ASCII));
-        }
-        assertEquals(LaunchExecutionMode.APP_SHELL,
-            codec.read(target).getLaunchExecutionMode());
-    }
+        new LaunchSpecCodec().write(target, desktop);
+        LaunchSpec restored = new LaunchSpecCodec().read(target);
 
-    @Test
-    public void readsSchemaThreeWithGlibcBackendDefault() throws Exception {
-        File target = temporary.newFile("schema-three.launchspec");
-        LaunchSpecCodec codec = new LaunchSpecCodec();
-        codec.write(target, spec(new LinkedHashMap<>()));
-        String raw = new String(Files.readAllBytes(target.toPath()), StandardCharsets.US_ASCII)
-            .replace("schemaVersion=5", "schemaVersion=3")
-            .replaceAll("(?m)^(runtimeBackendType|rootfsPackage|runtimeRootPath|homeDirectory)=.*\\n", "");
-        try (FileOutputStream output = new FileOutputStream(target, false)) {
-            output.write(raw.getBytes(StandardCharsets.US_ASCII));
-        }
-
-        LaunchSpec restored = codec.read(target);
-        assertEquals(GameRuntimeBackendType.GLIBC_TERMUX_BOX,
-            restored.getRuntimeBackendType());
-        assertEquals("", restored.getRuntimeRootPath());
-    }
-
-    @Test
-    public void readsSchemaFourWithoutHomeDirectory() throws Exception {
-        File target = temporary.newFile("schema-four.launchspec");
-        LaunchSpecCodec codec = new LaunchSpecCodec();
-        codec.write(target, spec(new LinkedHashMap<>()));
-        String raw = new String(Files.readAllBytes(target.toPath()), StandardCharsets.US_ASCII)
-            .replace("schemaVersion=5", "schemaVersion=4")
-            .replaceAll("(?m)^homeDirectory=.*\\n", "");
-        try (FileOutputStream output = new FileOutputStream(target, false)) {
-            output.write(raw.getBytes(StandardCharsets.US_ASCII));
-        }
-        assertEquals("", codec.read(target).getHomeDirectoryPath());
+        assertEquals(true, restored.isDesktopOnly());
+        assertEquals(false, spec(new LinkedHashMap<>()).isDesktopOnly());
     }
 
     @Test

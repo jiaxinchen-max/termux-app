@@ -35,6 +35,8 @@ import java.util.concurrent.Executors;
 public final class GameLaunchActivity extends AppCompatActivity {
 
     public static final String EXTRA_GAME_ID = "com.termux.localgames.extra.LAUNCH_GAME_ID";
+    /** When true, open the bare Wine desktop for this game's container instead of running it. */
+    public static final String EXTRA_DESKTOP = "com.termux.localgames.extra.LAUNCH_DESKTOP";
     private static final String STATE_TASK_ID = "game_launch.task_id";
     private static final String STATE_SESSION_OPENED = "game_launch.session_opened";
 
@@ -45,6 +47,7 @@ public final class GameLaunchActivity extends AppCompatActivity {
     private GameRepository gameRepository;
     private Subscription subscription;
     private String gameId;
+    private boolean desktop;
     private String taskId;
     private boolean destroyed;
     private boolean sessionOpened;
@@ -65,6 +68,7 @@ public final class GameLaunchActivity extends AppCompatActivity {
         orchestrator = new PersistentLocalGameOrchestrator(this);
         gameRepository = new FileGameRepository(new GameStoragePaths(getFilesDir()).getLibraryDirectory());
         gameId = getIntent().getStringExtra(EXTRA_GAME_ID);
+        desktop = getIntent().getBooleanExtra(EXTRA_DESKTOP, false);
         taskId = savedInstanceState == null
             ? getIntent().getStringExtra(com.termux.localgames.api.LaunchTasks.EXTRA_TASK_ID)
             : savedInstanceState.getString(STATE_TASK_ID);
@@ -100,7 +104,8 @@ public final class GameLaunchActivity extends AppCompatActivity {
         setLoading(true);
         ioExecutor.execute(() -> {
             try {
-                String created = orchestrator.launch(gameId);
+                String created = desktop ? orchestrator.launchDesktop(gameId)
+                    : orchestrator.launch(gameId);
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     taskId = created;

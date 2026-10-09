@@ -121,6 +121,15 @@ public final class LocalGames {
             .putExtra(GameLaunchActivity.EXTRA_GAME_ID, gameId);
     }
 
+    /** Opens the bare Wine desktop for one game's container instead of running the game. */
+    @NonNull
+    public static Intent createGameDesktopLaunchIntent(@NonNull Context context,
+                                                        @NonNull String gameId) {
+        return new Intent(context, GameLaunchActivity.class)
+            .putExtra(GameLaunchActivity.EXTRA_GAME_ID, gameId)
+            .putExtra(GameLaunchActivity.EXTRA_DESKTOP, true);
+    }
+
     /** Opens the X11 session surface for an existing persistent launch task. */
     @NonNull
     public static Intent createGameSessionIntent(@NonNull Context context,

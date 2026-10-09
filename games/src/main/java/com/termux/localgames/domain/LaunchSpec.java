@@ -7,7 +7,7 @@ import java.util.Map;
 /** Immutable, shell-safe snapshot of every value consumed by one launch attempt. */
 public final class LaunchSpec {
 
-    public static final int SCHEMA_VERSION = 5;
+    public static final int SCHEMA_VERSION = 6;
     public static final int MAX_ARGUMENTS = 256;
     public static final int MAX_ENVIRONMENT = 256;
 
@@ -36,6 +36,10 @@ public final class LaunchSpec {
     private final String rootfsPackage;
     private final String runtimeRootPath;
     private final String homeDirectoryPath;
+    /** When true, launch the bare Wine virtual desktop (explorer /desktop=shell) and do NOT run
+     *  the game's executable -- the user just wants to poke around inside the container. Every
+     *  other value (container, prefix, game root mount) is still real, so no validation relaxes. */
+    private final boolean desktopOnly;
 
     public LaunchSpec(String taskId, String gameId, String gameRootPath,
                       String executable, String workingDirectory, List<String> arguments,
@@ -84,6 +88,22 @@ public final class LaunchSpec {
                       String logPath, String lockPath, String cancelPath, long timeoutSeconds,
                       GameRuntimeBackendType runtimeBackendType, String rootfsPackage,
                       String runtimeRootPath, String homeDirectoryPath) {
+        this(taskId, gameId, gameRootPath, executable, workingDirectory, arguments,
+            prefixPath, winePackage, graphicsDriver, dxWrapper, audioDriver, resolution,
+            box64Preset, inputProfileId, launchExecutionMode, environment, eventPath,
+            logPath, lockPath, cancelPath, timeoutSeconds, runtimeBackendType, rootfsPackage,
+            runtimeRootPath, homeDirectoryPath, false);
+    }
+
+    public LaunchSpec(String taskId, String gameId, String gameRootPath,
+                      String executable, String workingDirectory, List<String> arguments,
+                      String prefixPath, String winePackage, String graphicsDriver,
+                      String dxWrapper, String audioDriver, String resolution, String box64Preset,
+                      String inputProfileId, LaunchExecutionMode launchExecutionMode,
+                      Map<String, String> environment, String eventPath,
+                      String logPath, String lockPath, String cancelPath, long timeoutSeconds,
+                      GameRuntimeBackendType runtimeBackendType, String rootfsPackage,
+                      String runtimeRootPath, String homeDirectoryPath, boolean desktopOnly) {
         this.taskId = requireId(taskId, "taskId");
         this.gameId = requireId(gameId, "gameId");
         this.gameRootPath = requireAbsolute(gameRootPath, "gameRootPath");
@@ -151,6 +171,7 @@ public final class LaunchSpec {
             !this.homeDirectoryPath.isEmpty()) {
             throw new IllegalArgumentException("rootfs fields not supported for GLIBC backend");
         }
+        this.desktopOnly = desktopOnly;
     }
 
     private static String requireId(String value, String field) {
@@ -217,4 +238,5 @@ public final class LaunchSpec {
     public String getRootfsPackage() { return rootfsPackage; }
     public String getRuntimeRootPath() { return runtimeRootPath; }
     public String getHomeDirectoryPath() { return homeDirectoryPath; }
+    public boolean isDesktopOnly() { return desktopOnly; }
 }

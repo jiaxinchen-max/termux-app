@@ -190,7 +190,8 @@ public final class LocalGameOrchestratorService extends Service {
                 }
                 String runtimeRoot = backend.resolveRuntimeRoot(paths, componentPaths, profile);
                 spec = new LaunchSpecFactory(paths)
-                    .create(taskId, game, profile, resolved.getPath(), backend, runtimeRoot);
+                    .create(taskId, game, profile, resolved.getPath(), backend, runtimeRoot,
+                        com.termux.localgames.api.LaunchTasks.isDesktopTaskId(taskId));
                 codec.write(specFile, spec);
                 task = task.withEnvironmentFingerprint(codec.fingerprint(spec),
                     System.currentTimeMillis());

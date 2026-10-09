@@ -42,6 +42,15 @@ public final class PersistentLocalGameOrchestrator implements LocalGameOrchestra
 
     @Override
     public String launch(String gameId) throws OrchestrationException {
+        return launch(gameId, false);
+    }
+
+    @Override
+    public String launchDesktop(String gameId) throws OrchestrationException {
+        return launch(gameId, true);
+    }
+
+    private String launch(String gameId, boolean desktop) throws OrchestrationException {
         try {
             String taskId;
             boolean[] created = {false};
@@ -50,7 +59,8 @@ public final class PersistentLocalGameOrchestrator implements LocalGameOrchestra
                 if (active.isPresent()) {
                     return active.get().getTaskId();
                 }
-                String createdTaskId = "launch-" + UUID.randomUUID().toString();
+                String createdTaskId = (desktop ? LaunchTasks.DESKTOP_TASK_PREFIX
+                    : LaunchTasks.GAME_TASK_PREFIX) + UUID.randomUUID().toString();
                 repository.save(LaunchTask.queued(createdTaskId, gameId, System.currentTimeMillis()));
                 created[0] = true;
                 return createdTaskId;

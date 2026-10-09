@@ -129,6 +129,7 @@
     <string name="local_game_detail_uninstall_snapshots">Delete recovery points</string>
     <string name="local_game_detail_uninstall_configuration">Delete runtime configuration</string>
     <string name="local_game_detail_launch">Launch game</string>
+    <string name="local_game_launch_desktop">Open Wine desktop (no game)</string>
     <string name="local_game_detail_save_failed">Unable to save game details: %1$s</string>
     <string name="local_game_detail_cover_failed">Unable to use this cover: %1$s</string>
     <string name="local_game_detail_delete">Remove from library</string>

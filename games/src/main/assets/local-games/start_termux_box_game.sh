@@ -633,8 +633,14 @@ ln -s "$TERMUX_BOX_GAME_ROOT" "$WINEPREFIX/dosdevices/g:" || exit 2
 GAME_EXECUTABLE=$(printf '%s' "$TERMUX_BOX_GAME_EXECUTABLE" | sed 's|/|\\|g')
 WINDOWS_TARGET="G:\\$GAME_EXECUTABLE"
 cd "$TERMUX_BOX_GAME_WORKDIR" || exit 2
-DISPLAY=:0 LC_ALL="$LC_ALL" run_container_wine explorer /desktop=shell,"$RESOLUTION" \
-    "$WINDOWS_TARGET" "$@" >>"${TERMUX_BOX_LAUNCH_LOG:-/dev/null}" 2>&1 &
+# Desktop-only launch: open the bare Wine virtual desktop and do NOT run the game executable.
+if [ "${TERMUX_BOX_DESKTOP_ONLY:-0}" = 1 ]; then
+    DISPLAY=:0 LC_ALL="$LC_ALL" run_container_wine explorer /desktop=shell,"$RESOLUTION" \
+        >>"${TERMUX_BOX_LAUNCH_LOG:-/dev/null}" 2>&1 &
+else
+    DISPLAY=:0 LC_ALL="$LC_ALL" run_container_wine explorer /desktop=shell,"$RESOLUTION" \
+        "$WINDOWS_TARGET" "$@" >>"${TERMUX_BOX_LAUNCH_LOG:-/dev/null}" 2>&1 &
+fi
 WINE_PID=$!
 
 if [ "${STARTUP_WINEDEVICE_MODE:-1}" = "0" ]; then

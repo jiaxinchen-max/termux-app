@@ -105,6 +105,7 @@ public final class LaunchSpecCodec {
         text(lines, "rootfsPackage", spec.getRootfsPackage());
         text(lines, "runtimeRootPath", spec.getRuntimeRootPath());
         text(lines, "homeDirectory", spec.getHomeDirectoryPath());
+        plain(lines, "desktopOnly", spec.isDesktopOnly() ? "1" : "0");
         text(lines, "eventPath", spec.getEventPath());
         text(lines, "logPath", spec.getLogPath());
         text(lines, "lockPath", spec.getLockPath());
@@ -126,22 +127,18 @@ public final class LaunchSpecCodec {
     }
 
     private static LaunchSpec decode(Map<String, String> fields) throws IOException {
-        int schema = integer(fields, "schemaVersion", 1, LaunchSpec.SCHEMA_VERSION);
+        // Dev-phase: only the current schema is accepted (matches the launcher scripts' exact
+        // schema check). No older-version spec files are read.
+        integer(fields, "schemaVersion", LaunchSpec.SCHEMA_VERSION, LaunchSpec.SCHEMA_VERSION);
         int arguments = integer(fields, "argumentCount", 0, LaunchSpec.MAX_ARGUMENTS);
         int environment = integer(fields, "environmentCount", 0, LaunchSpec.MAX_ENVIRONMENT);
         Set<String> expected = new HashSet<>();
         Collections.addAll(expected, "schemaVersion", "taskId", "gameId", "gameRootPath",
             "executable", "workingDirectory", "prefixPath", "winePackage", "graphicsDriver",
-            "dxWrapper", "audioDriver", "resolution", "box64Preset", "eventPath", "logPath", "lockPath",
+            "dxWrapper", "audioDriver", "resolution", "box64Preset", "inputProfileId",
+            "launchExecutionMode", "runtimeBackendType", "rootfsPackage", "runtimeRootPath",
+            "homeDirectory", "desktopOnly", "eventPath", "logPath", "lockPath",
             "cancelPath", "timeoutSeconds", "argumentCount", "environmentCount");
-        if (schema >= 2) expected.add("inputProfileId");
-        if (schema >= 3) expected.add("launchExecutionMode");
-        if (schema >= 4) {
-            expected.add("runtimeBackendType");
-            expected.add("rootfsPackage");
-            expected.add("runtimeRootPath");
-        }
-        if (schema >= 5) expected.add("homeDirectory");
         List<String> argumentValues = new ArrayList<>();
         for (int index = 0; index < arguments; index++) {
             String key = "argument." + index;
@@ -167,20 +164,17 @@ public final class LaunchSpecCodec {
                 decoded(fields, "prefixPath"), decoded(fields, "winePackage"),
                 decoded(fields, "graphicsDriver"), decoded(fields, "dxWrapper"), decoded(fields, "audioDriver"),
                 decoded(fields, "resolution"), decoded(fields, "box64Preset"),
-                schema >= 2 ? decoded(fields, "inputProfileId") : "xinput",
-                schema >= 3
-                    ? LaunchExecutionMode.fromStorageValue(decoded(fields, "launchExecutionMode"))
-                    : LaunchExecutionMode.APP_SHELL,
+                decoded(fields, "inputProfileId"),
+                LaunchExecutionMode.fromStorageValue(decoded(fields, "launchExecutionMode")),
                 environmentValues,
                 decoded(fields, "eventPath"), decoded(fields, "logPath"),
                 decoded(fields, "lockPath"), decoded(fields, "cancelPath"),
                 longValue(fields, "timeoutSeconds", 30, 86400),
-                schema >= 4
-                    ? GameRuntimeBackendType.fromStorageValue(decoded(fields, "runtimeBackendType"))
-                    : GameRuntimeBackendType.GLIBC_TERMUX_BOX,
-                schema >= 4 ? decoded(fields, "rootfsPackage") : "",
-                schema >= 4 ? decoded(fields, "runtimeRootPath") : "",
-                schema >= 5 ? decoded(fields, "homeDirectory") : "");
+                GameRuntimeBackendType.fromStorageValue(decoded(fields, "runtimeBackendType")),
+                decoded(fields, "rootfsPackage"),
+                decoded(fields, "runtimeRootPath"),
+                decoded(fields, "homeDirectory"),
+                "1".equals(fields.get("desktopOnly")));
         } catch (IllegalArgumentException error) {
             throw new IOException("invalid_launch_spec", error);
         }

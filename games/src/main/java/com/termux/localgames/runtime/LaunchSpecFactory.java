@@ -27,6 +27,12 @@ public final class LaunchSpecFactory {
     public LaunchSpec create(String taskId, Game game, RuntimeProfile profile,
                              String resolvedGameRoot, GameRuntimeBackend backend,
                              String runtimeRootPath) throws IOException {
+        return create(taskId, game, profile, resolvedGameRoot, backend, runtimeRootPath, false);
+    }
+
+    public LaunchSpec create(String taskId, Game game, RuntimeProfile profile,
+                             String resolvedGameRoot, GameRuntimeBackend backend,
+                             String runtimeRootPath, boolean desktopOnly) throws IOException {
         if (!game.getId().equals(profile.getId())) {
             throw new IllegalArgumentException("game_profile_mismatch");
         }
@@ -56,7 +62,7 @@ public final class LaunchSpecFactory {
             new File(paths.getLaunchLocksDirectory(), taskId).getCanonicalPath(),
             new File(paths.getLaunchCancelDirectory(), taskId + ".cancel").getCanonicalPath(),
             43200, profile.getRuntimeBackendType(), profile.getRootfsPackage(),
-            runtimeRootPath, home == null ? "" : home.getCanonicalPath());
+            runtimeRootPath, home == null ? "" : home.getCanonicalPath(), desktopOnly);
     }
 
     private static void requireContained(File root, File child, String error) throws IOException {

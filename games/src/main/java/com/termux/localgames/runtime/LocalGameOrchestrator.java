@@ -9,6 +9,10 @@ public interface LocalGameOrchestrator {
 
     String launch(String gameId) throws OrchestrationException;
 
+    /** Like {@link #launch(String)} but opens the bare Wine desktop for the game's container
+     *  instead of running the game's executable. */
+    String launchDesktop(String gameId) throws OrchestrationException;
+
     void cancel(String taskId, boolean force) throws OrchestrationException;
 
     void reportDisplayConnection(String taskId, boolean connected) throws OrchestrationException;

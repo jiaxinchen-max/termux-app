@@ -639,6 +639,12 @@ public final class LocalGamesActivity extends AppCompatActivity {
             dialog.dismiss();
             startActivity(LocalGames.createGameLaunchIntent(this, game.getId()));
         });
+        content.gameLaunchSheetDesktop.setEnabled(
+            item.getAccessState() == GameAccessState.ACCESSIBLE);
+        content.gameLaunchSheetDesktop.setOnClickListener(view -> {
+            dialog.dismiss();
+            startActivity(LocalGames.createGameDesktopLaunchIntent(this, game.getId()));
+        });
         content.gameLaunchSheetLayout.setOnClickListener(view -> {
             dialog.dismiss();
             showActionsPresentation(item);

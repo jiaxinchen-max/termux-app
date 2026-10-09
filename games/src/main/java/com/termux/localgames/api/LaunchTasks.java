@@ -17,6 +17,16 @@ public final class LaunchTasks {
     public static final String EXTRA_FORCE = "com.termux.localgames.extra.LAUNCH_FORCE";
     public static final String EXTRA_DISPLAY_CONNECTED = "com.termux.localgames.extra.DISPLAY_CONNECTED";
 
+    /** Launch-task id prefixes carry the launch mode durably (survives process restart and
+     *  retry) without a LaunchTask schema field: desktop-only vs. run-the-game. */
+    public static final String GAME_TASK_PREFIX = "launch-";
+    public static final String DESKTOP_TASK_PREFIX = "desktop-";
+
+    /** True when the task was created to open the bare Wine desktop rather than run the game. */
+    public static boolean isDesktopTaskId(String taskId) {
+        return taskId != null && taskId.startsWith(DESKTOP_TASK_PREFIX);
+    }
+
     private LaunchTasks() {}
 
     public static Intent command(Context context, String action, String taskId) {
