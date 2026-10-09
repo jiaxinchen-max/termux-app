@@ -11,19 +11,23 @@ import java.nio.charset.StandardCharsets;
 /** Writes a non-executable, shell input contract for install_custom_rootfs_component.sh. Unlike
  *  RootfsBackupSpecCodec's backupArchivePath, payloadPath here is always required to live under
  *  the app's own private storage (the SAF-picked file is drained there before this spec is ever
- *  written -- see CustomComponentInstallForegroundService). */
+ *  written -- see CustomComponentInstallForegroundService). payloadKind is always derivable from
+ *  the task's kind (WINE -> wine-tree, BOX64 -> box64-tree) -- both are always a compressed
+ *  archive (see install_custom_rootfs_component.sh's header comment on why no .deb/raw-binary
+ *  path exists), so there is no separate classification step or parameter for it. */
 public final class CustomComponentInstallSpecCodec {
     public void write(File file, CustomComponentInstallTask task, File payloadPath,
-                      String payloadKind, File eventsPath, File logPath) throws IOException {
+                      File eventsPath, File logPath) throws IOException {
         if (file == null || task == null) {
             throw new IllegalArgumentException("custom install spec required");
         }
+        boolean wine = task.getKind() == CustomRuntimeComponent.Kind.WINE;
         StringBuilder value = new StringBuilder("schemaVersion=1\n");
         text(value, "taskId", task.getTaskId());
-        text(value, "kind", task.getKind() == CustomRuntimeComponent.Kind.WINE ? "wine" : "box64");
+        text(value, "kind", wine ? "wine" : "box64");
         text(value, "componentId", task.getComponentId());
         text(value, "payloadPath", canonical(payloadPath));
-        text(value, "payloadKind", requirePayloadKind(payloadKind));
+        text(value, "payloadKind", wine ? "wine-tree" : "box64-tree");
         text(value, "eventsPath", canonical(eventsPath));
         text(value, "logPath", canonical(logPath));
         File parent = file.getParentFile();
@@ -38,14 +42,6 @@ public final class CustomComponentInstallSpecCodec {
         }
         if (file.exists() && !file.delete()) throw new IOException("custom_install_spec_replace_failed");
         if (!temporary.renameTo(file)) throw new IOException("custom_install_spec_publish_failed");
-    }
-
-    private static String requirePayloadKind(String value) {
-        if (value == null) throw new IllegalArgumentException("payloadKind required");
-        switch (value) {
-            case "wine-tree": case "deb": case "raw-binary": return value;
-            default: throw new IllegalArgumentException("invalid payloadKind: " + value);
-        }
     }
 
     private static void text(StringBuilder output, String key, String value) {

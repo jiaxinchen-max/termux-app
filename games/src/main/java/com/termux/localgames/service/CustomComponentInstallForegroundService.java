@@ -30,10 +30,8 @@ import com.termux.localgames.domain.RuntimeTranslator;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -151,9 +149,7 @@ public final class CustomComponentInstallForegroundService extends Service {
             File events = eventFile(task.getTaskId());
             File log = new File(paths.getCustomComponentInstallLogsDirectory(),
                 task.getTaskId() + ".log");
-            String payloadKind = classifyPayloadKind(task.getKind(), payload);
-            new CustomComponentInstallSpecCodec().write(spec, task, payload, payloadKind,
-                events, log);
+            new CustomComponentInstallSpecCodec().write(spec, task, payload, events, log);
             host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 script.getCanonicalPath(), spec.getCanonicalPath(),
                 paths.getCustomComponentInstallDirectory().getCanonicalPath()));
@@ -162,29 +158,6 @@ public final class CustomComponentInstallForegroundService extends Service {
             submitted.remove(task.getTaskId());
             throw error;
         }
-    }
-
-    /** WINE payloads are always a wine-tree archive (the only shape install_custom_rootfs_
-     *  component.sh supports for that kind). BOX64 payloads are classified by magic bytes: an ar
-     *  archive header ("!<arch>\n") is a .deb, an ELF header is a raw binary -- anything else is
-     *  rejected before ever enqueuing the shell task. */
-    private static String classifyPayloadKind(CustomRuntimeComponent.Kind kind, File payload)
-            throws IOException {
-        if (kind == CustomRuntimeComponent.Kind.WINE) return "wine-tree";
-        byte[] header = new byte[8];
-        int read;
-        try (InputStream input = new FileInputStream(payload)) {
-            read = input.read(header);
-        }
-        if (read >= 7 && header[0] == '!' && header[1] == '<' && header[2] == 'a' &&
-            header[3] == 'r' && header[4] == 'c' && header[5] == 'h' && header[6] == '>') {
-            return "deb";
-        }
-        if (read >= 4 && header[0] == 0x7F && header[1] == 'E' && header[2] == 'L' &&
-            header[3] == 'F') {
-            return "raw-binary";
-        }
-        throw new IOException("custom_box64_payload_format_unrecognized");
     }
 
     private void reconcileAll() {

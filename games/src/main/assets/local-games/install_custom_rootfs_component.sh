@@ -7,25 +7,25 @@
 #   kind=wine|box64
 #   componentId=<custom-wine-<slug>|custom-box64-<slug>>
 #   payloadPath=<app-private staged copy of the SAF-picked file, canonical>
-#   payloadKind=wine-tree|deb|raw-binary
+#   payloadKind=wine-tree|box64-tree
 #   eventsPath=<private events jsonl path, under .../games/runtime/custom-install/events/>
 #   logPath=<private log path, under .../games/runtime/custom-install/logs/>
 #
-# wine:wine-tree  -- payload is a tar(.xz/.gz/.zst/.tar) archive containing bin/wine+bin/wineboot
-#                     at some depth (same content-detection runtime-rootfs/setup-container.sh
-#                     already uses for its own portable-Wine-build loop). Copied whole to
-#                     /opt/custom-wine/<componentId>/ inside the shared RootFS; no apt/proot-distro
-#                     involved, this is plain file extraction onto a host path.
-# box64:deb       -- payload is a single .deb. Installed via a raw `proot` session chrooted into
-#                     the shared RootFS (same invocation shape as rootfs_prefix_warmup.sh's
-#                     run_rootfs_maintenance_command -- NOT `proot-distro login`, which only
-#                     resolves registered container *names* under proot-distro's own containers
-#                     directory; the shared RootFS is deliberately NOT registered there, see
-#                     setup_rootfs_runtime.sh's own comment on why it is a plain mv'd directory).
-#                     apt resolves dependencies from the same Debian snapshot repo configured
-#                     inside the RootFS at base-build time (unchanged since publish).
-# box64:raw-binary -- payload is a bare ELF executable. Copied + chmod'd to
-#                     /opt/custom-box64/<componentId>/box64, no apt/proot needed.
+# Both kinds are a tar(.xz/.gz/.zst/.tar) archive, detected and extracted identically (by content,
+# not by the payload file's name/extension -- the staged file is named after its taskId, not the
+# original SAF-picked display name). No .deb/apt-get path exists for either: apt-get install would
+# let an arbitrary .deb's dependency resolution touch/replace shared libraries used by every other
+# container, which is unacceptable for a user-supplied package nobody has reviewed. Everything here
+# is a plain, isolated file copy -- never a package manager -- so a bad pick can only ever leave its
+# own dedicated /opt/custom-*/<componentId>/ directory in a bad state, never the rest of the RootFS.
+#
+# wine:wine-tree  -- archive containing bin/wine+bin/wineboot+lib*/wine at some depth (same
+#                     content-detection runtime-rootfs/setup-container.sh already uses for its own
+#                     portable-Wine-build loop). The whole wine tree is copied to
+#                     /opt/custom-wine/<componentId>/ inside the shared RootFS.
+# box64:box64-tree -- archive containing a `box64` executable at some depth. Only that one binary
+#                     is copied, to /opt/custom-box64/<componentId>/box64 -- a dedicated path, never
+#                     /usr/local/bin/box64 or any other system location.
 
 set -eu
 PS4='+ '
@@ -93,9 +93,9 @@ case "$COMPONENT_ID" in
     *) fail invalid_custom_component_id 64 ;;
 esac
 case "$COMPONENT_ID" in *[!A-Za-z0-9._-]*) fail invalid_custom_component_id 64 ;; esac
-case "$PAYLOAD_KIND" in wine-tree|deb|raw-binary) ;; *) fail invalid_custom_install_spec 64 ;; esac
+case "$PAYLOAD_KIND" in wine-tree|box64-tree) ;; *) fail invalid_custom_install_spec 64 ;; esac
 case "$KIND:$PAYLOAD_KIND" in
-    wine:wine-tree|box64:deb|box64:raw-binary) ;;
+    wine:wine-tree|box64:box64-tree) ;;
     *) fail custom_component_kind_unsupported 64 ;;
 esac
 case "$PAYLOAD_PATH" in /*) ;; *) fail invalid_custom_install_payload_path 64 ;; esac
@@ -128,7 +128,6 @@ mkdir -p "$events_directory" "$logs_directory" || fail custom_install_output_dir
 . "$(dirname "$SCRIPT_PATH")/rootfs_script_common.sh"
 
 PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
-PROOT_BIN="$PREFIX/bin/proot"
 SHARED_ROOTFS_CONTAINER_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-shared-rootfs"
 SHARED_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY/rootfs"
 STAGE_DIR="$SHARED_ROOTFS_CONTAINER_DIRECTORY/.custom-install-stage/$COMPONENT_ID"
@@ -156,21 +155,38 @@ printf '{"schemaVersion":1,"taskId":"%s","state":"RUNNING"}\n' "$TASK_ID" >> "$E
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR"
 
+progress '==> Extracting the custom build'
+# Detected by content (magic bytes), not by the payload file's name/extension -- see this script's
+# header comment. Matches this codebase's existing "install by content" convention (see
+# runtime-rootfs/setup-container.sh's own header comment on the same principle for the base-image
+# build).
+MAGIC=$(od -An -tx1 -N 6 "$PAYLOAD_PATH" 2>/dev/null | tr -d ' \n')
+case "$MAGIC" in
+    fd377a585a00*) run_logged tar -C "$STAGE_DIR" -J -xpf "$PAYLOAD_PATH" ;;
+    1f8b*) run_logged tar -C "$STAGE_DIR" -z -xpf "$PAYLOAD_PATH" ;;
+    28b52ffd*) run_logged tar -C "$STAGE_DIR" --zstd -xpf "$PAYLOAD_PATH" ;;
+    *)
+        # Not a recognized compressed-archive magic -- try as a plain uncompressed tar (ustar
+        # magic at offset 257) before giving up.
+        if ! run_logged tar -C "$STAGE_DIR" -xpf "$PAYLOAD_PATH"; then
+            fail custom_archive_format_unsupported 64
+        fi
+        ;;
+esac
+
 case "$KIND:$PAYLOAD_KIND" in
     wine:wine-tree)
-        progress '==> Extracting the custom Wine build'
-        case "$PAYLOAD_PATH" in
-            *.tar.zst) run_logged tar -C "$STAGE_DIR" --zstd -xpf "$PAYLOAD_PATH" ;;
-            *.tar.xz) run_logged tar -C "$STAGE_DIR" -J -xpf "$PAYLOAD_PATH" ;;
-            *.tar.gz|*.tgz) run_logged tar -C "$STAGE_DIR" -z -xpf "$PAYLOAD_PATH" ;;
-            *.tar) run_logged tar -C "$STAGE_DIR" -xpf "$PAYLOAD_PATH" ;;
-            *) fail custom_wine_archive_format_unsupported 64 ;;
-        esac
-
         WINEBIN=$(find "$STAGE_DIR" \( -type f -o -type l \) -name wine -path '*/bin/*' | head -n 1)
         [ -n "$WINEBIN" ] || fail custom_wine_missing_wine_binary 70
         WINEBOOTBIN=$(find "$STAGE_DIR" \( -type f -o -type l \) -name wineboot -path '*/bin/*' | head -n 1)
         [ -n "$WINEBOOTBIN" ] || fail custom_wine_missing_wineboot_binary 70
+        # A genuine Wine build ships its PE/builtin DLL tree under lib/wine (or lib64/wine) -- bin/
+        # wine and bin/wineboot alone can be present in an unrelated archive, so require the DLL
+        # tree too before trusting this as a real Wine build. All still in staging: an archive that
+        # fails here has not touched the shared RootFS.
+        if ! find "$STAGE_DIR" -type d -path '*/lib*/wine' 2>/dev/null | grep -q .; then
+            fail custom_wine_not_a_wine_build 64
+        fi
         SRCROOT=$(dirname "$(dirname "$WINEBIN")")
 
         progress "==> Installing $COMPONENT_ID into the shared RootFS"
@@ -189,36 +205,29 @@ case "$KIND:$PAYLOAD_KIND" in
             sed -i "s/^runtimePackages=.*/runtimePackages=${CURRENT},${COMPONENT_ID}/" "$MANIFEST"
         fi
         ;;
-    box64:deb)
-        progress '==> Installing the custom Box64 .deb'
-        [ -x "$PROOT_BIN" ] || fail proot_runtime_missing 69
-        cp -a "$PAYLOAD_PATH" "$STAGE_DIR/component.deb"
-        # Raw proot chroot into the shared RootFS itself -- same invocation shape as
-        # rootfs_prefix_warmup.sh's run_rootfs_maintenance_command (-0 for root, /dev /proc /sys
-        # bound). The RootFS's own /etc/apt/sources.list, resolv.conf and certs are whatever
-        # setup-container.sh wrote at base-build time -- untouched since publish, so apt-get can
-        # resolve dependencies from the same Debian snapshot repo again without any extra setup.
-        if ! run_logged_watchdog "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
-            -r "$SHARED_ROOTFS" \
-            -b /dev -b /proc -b /sys \
-            -b "$TERMUX_FILES_ROOT/usr/tmp:/tmp" \
-            -b "$STAGE_DIR:/run/custom-install" \
-            -w /run/custom-install \
-            /usr/bin/env -i HOME=/root USER=root LOGNAME=root LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-            PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-            DEBIAN_FRONTEND=noninteractive \
-            /bin/sh -c 'apt-get install -y --no-install-recommends /run/custom-install/component.deb'; then
-            fail custom_box64_deb_install_failed 70
-        fi
-        # Box64's .deb installs to /usr/local/bin; mirror setup-container.sh's own PATH symlink.
-        [ -x "$SHARED_ROOTFS/usr/bin/box64" ] || \
-            ln -sf /usr/local/bin/box64 "$SHARED_ROOTFS/usr/bin/box64" 2>/dev/null || true
-        ;;
-    box64:raw-binary)
-        progress '==> Installing the custom Box64 binary'
+    box64:box64-tree)
+        progress '==> Validating the custom Box64 binary'
+        BOX64BIN=$(find "$STAGE_DIR" -type f -name box64 | head -n 1)
+        [ -n "$BOX64BIN" ] || fail custom_box64_missing_binary 70
+        # box64 on this RootFS must be a NATIVE ARM64 (AArch64) executable (box64 translates x86
+        # guests but is itself an ARM64 binary); an x86 build picked by mistake would be copied in
+        # and then fail to exec at launch. Still entirely within staging -- nothing written to the
+        # shared RootFS until this passes. ELF e_machine is a 2-byte little-endian field at offset
+        # 18; AArch64 == 0x00B7.
+        BOX64_MAGIC=$(od -An -tx1 -N 20 "$BOX64BIN" 2>/dev/null | tr -d ' \n')
+        case "$BOX64_MAGIC" in
+            7f454c46*) ;;
+            *) fail custom_box64_not_elf 64 ;;
+        esac
+        [ "$(printf '%s' "$BOX64_MAGIC" | cut -c37-40)" = b700 ] || fail custom_box64_not_aarch64 64
+
+        progress "==> Installing $COMPONENT_ID into the shared RootFS"
+        # Only the one binary is copied, to its own dedicated directory -- never /usr/local/bin/
+        # box64 or any other system path, so a bad or malicious pick cannot affect any other
+        # container or translator. See this script's header comment.
         DEST="$SHARED_ROOTFS/opt/custom-box64/$COMPONENT_ID/box64"
         mkdir -p "$(dirname "$DEST")"
-        cp "$PAYLOAD_PATH" "$DEST"
+        cp "$BOX64BIN" "$DEST"
         chmod 755 "$DEST"
         ;;
 esac

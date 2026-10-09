@@ -564,12 +564,13 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     /** Entry point for the "+ Add custom Wine/Box64 build..." row: picks a local file via SAF,
      *  then collects a display name (and, for WINE, which translator family it belongs to --
      *  this cannot be sniffed from an arbitrary archive, see CustomRuntimeComponent) before
-     *  staging it and enqueuing CustomComponentInstallForegroundService. */
+     *  staging it and enqueuing CustomComponentInstallForegroundService. Both kinds are a
+     *  compressed archive -- no .deb/raw-binary path exists (see install_custom_rootfs_
+     *  component.sh's header comment on why apt-get is never used for a user-supplied package),
+     *  so the same MIME filter applies regardless of kind. */
     private void showAddCustomComponentFlow(CustomRuntimeComponent.Kind kind) {
-        String[] mimeTypes = kind == CustomRuntimeComponent.Kind.WINE
-            ? new String[] {"application/x-xz", "application/zstd", "application/gzip",
-                "application/x-tar", "application/octet-stream"}
-            : new String[] {"application/vnd.debian.binary-package", "application/octet-stream"};
+        String[] mimeTypes = {"application/x-xz", "application/zstd", "application/gzip",
+            "application/x-tar", "application/octet-stream"};
         listener.onPickCustomComponentFile(mimeTypes, uri -> {
             if (uri == null) return;
             showCustomComponentMetadataDialog(kind, uri);
