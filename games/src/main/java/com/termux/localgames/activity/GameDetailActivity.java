@@ -22,6 +22,8 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
 import com.termux.localgames.api.LocalGames;
+import com.termux.localgames.api.LocalGamesHost;
+import com.termux.localgames.api.ResolvedGameDirectory;
 import com.termux.localgames.artwork.GameArtworkLoader;
 import com.termux.localgames.artwork.GameArtworkStore;
 import com.termux.localgames.data.FileGameRepository;
@@ -40,6 +42,7 @@ import com.termux.localgames.recovery.GameAssetUsage;
 import com.termux.localgames.recovery.GameUninstallPlan;
 import com.termux.localgames.recovery.GameUninstaller;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -79,6 +82,7 @@ public final class GameDetailActivity extends AppCompatActivity {
         });
     private ActivityGameDetailBinding binding;
     private GameRepository gameRepository;
+    private LocalGamesHost appHost;
     private SafGameAccessProbe accessProbe;
     private GameArtworkStore artworkStore;
     private GameArtworkLoader artworkLoader;
@@ -102,6 +106,7 @@ public final class GameDetailActivity extends AppCompatActivity {
         gameId = getIntent().getStringExtra(EXTRA_GAME_ID);
         GameStoragePaths paths = new GameStoragePaths(getFilesDir());
         gameRepository = new FileGameRepository(paths.getLibraryDirectory());
+        appHost = LocalGames.requireHost(this);
         accessProbe = new SafGameAccessProbe(getContentResolver());
         artworkStore = new GameArtworkStore(getFilesDir());
         artworkLoader = new GameArtworkLoader(artworkStore);
@@ -394,6 +399,10 @@ public final class GameDetailActivity extends AppCompatActivity {
             binding.gameDetailWorkingDirectoryLayout.setError(
                 getString(R.string.local_game_import_invalid_working_directory));
             valid = false;
+        } else if (!workingDirectoryExists(workingDirectory)) {
+            binding.gameDetailWorkingDirectoryLayout.setError(
+                getString(R.string.local_game_import_working_directory_missing));
+            valid = false;
         }
         try {
             arguments = LaunchArguments.parse(textOf(binding.gameDetailArguments));
@@ -408,6 +417,19 @@ public final class GameDetailActivity extends AppCompatActivity {
         Game updated = new Game(game.getId(), name, game.getRootUri(), game.getExecutable(),
             workingDirectory, arguments, game.getArtworkUri(), game.getLastPlayedAt());
         persistGame(updated, R.string.local_game_detail_saved);
+    }
+
+    /** Request #3: beyond GameImportValidation's syntax-only check (no "..", no absolute paths),
+     *  this resolves the game's rootUri to a real POSIX directory the same way launch preflight
+     *  does (LocalGamesHost.resolveGameDirectory -- also the gate for which storage roots are
+     *  even reachable, see TermuxLocalGamesHostFactory) and confirms workingDirectory actually
+     *  exists under it. "." means the root itself. */
+    private boolean workingDirectoryExists(String workingDirectory) {
+        ResolvedGameDirectory resolved = appHost.resolveGameDirectory(game.getRootUri());
+        if (!resolved.isResolved()) return false;
+        File base = new File(resolved.getPath());
+        File target = ".".equals(workingDirectory) ? base : new File(base, workingDirectory);
+        return target.isDirectory();
     }
 
     private void persistGame(Game updated, int successMessage) {

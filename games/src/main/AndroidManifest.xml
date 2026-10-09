@@ -15,13 +15,6 @@
             android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
 
         <activity
-            android:name=".activity.GameImportActivity"
-            android:exported="false"
-            android:label="@string/local_game_import_title"
-            android:resizeableActivity="true"
-            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
-
-        <activity
             android:name=".activity.GameFileManagerActivity"
             android:exported="false"
             android:label="@string/local_game_file_manager_title"
@@ -31,6 +24,13 @@
 
         <activity
             android:name=".activity.GameDetailActivity"
+            android:exported="false"
+            android:label="@string/local_game_detail_title"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".activity.GameReauthorizeActivity"
             android:exported="false"
             android:label="@string/local_game_detail_title"
             android:resizeableActivity="true"

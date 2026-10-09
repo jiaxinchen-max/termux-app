@@ -54,6 +54,7 @@ ROOTFS_PACKAGE=
 ROOTFS_PACKAGE_SEEN=0
 RUNTIME_ROOT_PATH=
 RUNTIME_ROOT_PATH_SEEN=0
+HOME_PATH=
 EVENT_PATH=
 LOG_PATH=
 LOCK_PATH=
@@ -73,7 +74,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     [ "$key" != "$line" ] || fail_before_events invalid_launch_spec_line
     case "$key" in
         schemaVersion)
-            [ "$value" = 1 ] || [ "$value" = 2 ] || [ "$value" = 3 ] || [ "$value" = 4 ] || fail_before_events unsupported_launch_spec_schema
+            [ "$value" = 1 ] || [ "$value" = 2 ] || [ "$value" = 3 ] || [ "$value" = 4 ] || [ "$value" = 5 ] || fail_before_events unsupported_launch_spec_schema
             SPEC_SCHEMA=$value
             ;;
         timeoutSeconds) TIMEOUT_SECONDS=$value ;;
@@ -111,6 +112,7 @@ while IFS= read -r line || [ -n "$line" ]; do
             RUNTIME_ROOT_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64
             RUNTIME_ROOT_PATH_SEEN=1
             ;;
+        homeDirectory) HOME_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         eventPath) EVENT_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         logPath) LOG_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         lockPath) LOCK_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
@@ -142,7 +144,7 @@ done < "$SPEC_PATH"
 
 case "$TASK_ID" in ''|*[!A-Za-z0-9._-]*) fail_before_events invalid_task_id ;; esac
 case "$SPEC_SCHEMA:$INPUT_PROFILE_SEEN:$LAUNCH_EXECUTION_MODE_SEEN:$RUNTIME_BACKEND_SEEN:$ROOTFS_PACKAGE_SEEN:$RUNTIME_ROOT_PATH_SEEN" in
-    1:0:0:0:0:0|2:1:0:0:0:0|3:1:1:0:0:0|4:1:1:1:1:1) ;;
+    1:0:0:0:0:0|2:1:0:0:0:0|3:1:1:0:0:0|4:1:1:1:1:1|5:1:1:1:1:1) ;;
     *) fail_before_events missing_launch_spec_version_field ;;
 esac
 [ "$RUNTIME_BACKEND_TYPE" = glibc_termux_box ] || fail_before_events runtime_backend_script_mismatch

@@ -4,77 +4,82 @@ import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.text.format.Formatter;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.ImageView;
-import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
-import androidx.documentfile.provider.DocumentFile;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
 import com.termux.localgames.api.LocalGames;
+import com.termux.localgames.data.FileGameRepository;
+import com.termux.localgames.data.FileRuntimeProfileRepository;
+import com.termux.localgames.data.GameRepository;
 import com.termux.localgames.data.GameStoragePaths;
+import com.termux.localgames.data.RuntimeProfileRepository;
 import com.termux.localgames.databinding.ActivityLocalGameFileManagerBinding;
-import com.termux.localgames.importer.SafPermissionManager;
-import com.termux.localgames.importer.SafGameRootUri;
+import com.termux.localgames.importer.PeExecutableInspector;
+import com.termux.localgames.importer.QuickGameImport;
+import com.termux.shared.android.PermissionUtils;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
+import java.io.InputStream;
+import java.text.DateFormat;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.Deque;
-import java.util.List;
+import java.util.Date;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-/** Browser for private game files and persisted SAF roots. It never mutates file content. */
+/** Browser for private game files and the mounted shared storage tree. It never mutates file
+ *  content on its own -- tapping a file shows read-only details, long-pressing one offers to
+ *  import it as a game. Whole-folder import (the old "⋯" menu) is gone: a game is always a
+ *  specific picked file, never an unscanned directory. */
 public final class GameFileManagerActivity extends AppCompatActivity {
 
-    private final Deque<DocumentFile> safHistory = new ArrayDeque<>();
-    private final ActivityResultLauncher<Intent> directoryPicker = registerForActivityResult(
-        new ActivityResultContracts.StartActivityForResult(), result -> {
-            if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null ||
-                result.getData().getData() == null) return;
-            try {
-                SafPermissionManager.persistReadPermission(getContentResolver(),
-                    result.getData().getData(), result.getData().getFlags());
-                showHome();
-            } catch (SecurityException error) {
-                Toast.makeText(this, R.string.local_game_import_permission_lost,
-                    Toast.LENGTH_LONG).show();
-            }
-        });
+    private static final int REQUEST_SHARED_STORAGE_PERMISSION = 8402;
+
+    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
+        new Thread(runnable, "GamesFileManagerIo"));
+    private final PeExecutableInspector peInspector = new PeExecutableInspector();
 
     private ActivityLocalGameFileManagerBinding binding;
+    private GameRepository gameRepository;
+    private RuntimeProfileRepository profileRepository;
     private File filesRoot;
     private File gameFilesRoot;
+    private File sharedStorageRoot;
     private File localCurrent;
-    private DocumentFile safCurrent;
-    private Uri safTreeUri;
-    private boolean browsingAuthorizedFolders;
+    @Nullable private Runnable pendingSharedStorageAction;
+    private boolean destroyed;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityLocalGameFileManagerBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        GameStoragePaths paths = new GameStoragePaths(getFilesDir());
+        gameRepository = new FileGameRepository(paths.getLibraryDirectory());
+        profileRepository = new FileRuntimeProfileRepository(paths.getProfilesDirectory());
         filesRoot = getFilesDir();
-        gameFilesRoot = new GameStoragePaths(filesRoot).getImportedGamesDirectory();
+        gameFilesRoot = paths.getImportedGamesDirectory();
         if (!gameFilesRoot.exists() && !gameFilesRoot.mkdirs()) {
             Toast.makeText(this, R.string.local_game_file_manager_empty, Toast.LENGTH_SHORT).show();
         }
+        sharedStorageRoot = Environment.getExternalStorageDirectory();
         binding.localGameFileManagerToolbar.setNavigationOnClickListener(view -> navigateUp());
         GamesHelpDialog.attach(binding.localGameFileManagerToolbar,
             R.string.local_game_file_manager_title, R.string.local_game_file_manager_help);
@@ -87,39 +92,58 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         else navigateUp();
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_SHARED_STORAGE_PERMISSION) resumePendingSharedStorageAction();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_SHARED_STORAGE_PERMISSION) resumePendingSharedStorageAction();
+    }
+
+    @Override
+    protected void onDestroy() {
+        destroyed = true;
+        ioExecutor.shutdownNow();
+        binding = null;
+        super.onDestroy();
+    }
+
     private void navigateUp() {
-        if (localCurrent != null) {
-            if (localCurrent.equals(filesRoot)) {
-                showHome();
-            } else {
-                File parent = localCurrent.getParentFile();
-                if (parent == null || !isWithin(filesRoot, parent)) showHome();
-                else showLocal(parent);
-            }
+        if (localCurrent == null) {
+            finish();
             return;
         }
-        if (safCurrent != null) {
-            if (safHistory.isEmpty()) showHome();
-            else showSaf(safHistory.removeLast(), safTreeUri, false);
-            return;
-        }
-        if (browsingAuthorizedFolders) {
+        File root = rootFor(localCurrent);
+        if (root == null || localCurrent.equals(root)) {
             showHome();
             return;
         }
-        finish();
+        File parent = localCurrent.getParentFile();
+        if (parent == null || !isWithin(root, parent)) showHome();
+        else showLocal(parent);
     }
 
     private boolean isHome() {
-        return localCurrent == null && safCurrent == null && !browsingAuthorizedFolders;
+        return localCurrent == null;
+    }
+
+    /** Which of the three fixed roots a directory currently being browsed belongs to -- used to
+     *  know where "up" from the top of a tree should land (back to Home, not past the root). */
+    @Nullable
+    private File rootFor(File directory) {
+        if (isWithin(gameFilesRoot, directory)) return gameFilesRoot;
+        if (isWithin(sharedStorageRoot, directory)) return sharedStorageRoot;
+        if (isWithin(filesRoot, directory)) return filesRoot;
+        return null;
     }
 
     private void showHome() {
         localCurrent = null;
-        safCurrent = null;
-        safTreeUri = null;
-        safHistory.clear();
-        browsingAuthorizedFolders = false;
         binding.localGameFileManagerLocation.setText(
             R.string.local_game_file_manager_internal_storage);
         clearRows();
@@ -127,49 +151,45 @@ public final class GameFileManagerActivity extends AppCompatActivity {
             view -> showLocal(gameFilesRoot), null);
         addTile(getString(R.string.local_game_file_manager_private_files), true,
             view -> showLocal(filesRoot), null);
-        addTile(getString(R.string.local_game_file_manager_authorized), true,
-            view -> showAuthorizedFolders(), null);
+        addTile(getString(R.string.local_game_file_manager_shared_storage), true,
+            view -> ensureSharedStoragePermission(() -> showLocal(sharedStorageRoot)), null);
     }
 
-    private void showAuthorizedFolders() {
-        localCurrent = null;
-        safCurrent = null;
-        safTreeUri = null;
-        safHistory.clear();
-        browsingAuthorizedFolders = true;
-        binding.localGameFileManagerLocation.setText(R.string.local_game_file_manager_authorized);
-        clearRows();
-        addTile(getString(R.string.local_game_file_manager_grant_directory), true,
-            view -> directoryPicker.launch(SafPermissionManager.createOpenTreeIntent()), null);
-        List<Uri> roots = new ArrayList<>();
-        getContentResolver().getPersistedUriPermissions().forEach(permission -> {
-            if (permission.isReadPermission()) roots.add(permission.getUri());
-        });
-        if (roots.isEmpty()) {
-            addEmpty(getString(R.string.local_game_file_manager_empty));
+    /** Request #4: games may only be imported from the app's own private storage or, once
+     *  granted, the mounted shared/external storage tree -- gated the same way
+     *  LocalGamesActivity.ensureBackupStoragePermission() gates Backup/Restore's own
+     *  MANAGE_EXTERNAL_STORAGE need (check -> request -> resume from the activity-result
+     *  callback). */
+    private void ensureSharedStoragePermission(Runnable action) {
+        if (PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
+                this, -1, false)) {
+            action.run();
             return;
         }
-        for (Uri root : roots) {
-            DocumentFile file = DocumentFile.fromTreeUri(this, root);
-            if (file == null) continue;
-            String name = file.getName();
-            addTile(name == null || name.trim().isEmpty() ? root.toString() : name, true,
-                view -> showSaf(file, root, true), view -> importGame(root));
+        pendingSharedStorageAction = action;
+        PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
+            this, REQUEST_SHARED_STORAGE_PERMISSION, true);
+    }
+
+    private void resumePendingSharedStorageAction() {
+        Runnable action = pendingSharedStorageAction;
+        pendingSharedStorageAction = null;
+        if (action == null) return;
+        if (PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
+                this, -1, true)) {
+            action.run();
         }
     }
 
     private void showLocal(File directory) {
         try {
             File canonical = directory.getCanonicalFile();
-            if (!isWithin(filesRoot.getCanonicalFile(), canonical) || !canonical.isDirectory()) {
+            File root = rootFor(canonical);
+            if (root == null || !canonical.isDirectory()) {
                 showHome();
                 return;
             }
             localCurrent = canonical;
-            safCurrent = null;
-            safTreeUri = null;
-            safHistory.clear();
-            browsingAuthorizedFolders = false;
             binding.localGameFileManagerLocation.setText(canonical.getPath());
             clearRows();
             File[] entries = canonical.listFiles();
@@ -180,12 +200,14 @@ public final class GameFileManagerActivity extends AppCompatActivity {
             Arrays.sort(entries, Comparator.comparing(File::isFile).thenComparing(File::getName,
                 String.CASE_INSENSITIVE_ORDER));
             for (File entry : entries) {
-                if (!isWithin(filesRoot, entry)) continue;
+                if (!isWithin(root, entry)) continue;
                 if (entry.isDirectory()) {
-                    addTile(entry.getName(), true, view -> showLocal(entry),
-                        view -> importGame(Uri.fromFile(entry)));
+                    // Folders are purely navigable now -- no "⋯"/import-as-folder action. A game
+                    // is always a specific file the user picked (see request #1).
+                    addTile(entry.getName(), true, view -> showLocal(entry), null);
                 } else {
-                    addTile(entry.getName(), false, null, null);
+                    addTile(entry.getName(), false, view -> showFileDetails(entry),
+                        view -> showFileImportMenu(view, entry));
                 }
             }
         } catch (IOException error) {
@@ -193,59 +215,72 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         }
     }
 
-    private void showSaf(DocumentFile directory, Uri treeUri, boolean resetHistory) {
-        if (directory == null || !directory.isDirectory()) {
-            showHome();
-            return;
-        }
-        if (resetHistory) safHistory.clear();
-        localCurrent = null;
-        safCurrent = directory;
-        safTreeUri = treeUri;
-        browsingAuthorizedFolders = false;
-        binding.localGameFileManagerLocation.setText(directory.getUri().toString());
-        clearRows();
-        DocumentFile[] entries;
-        try {
-            entries = directory.listFiles();
-        } catch (SecurityException error) {
-            addEmpty(getString(R.string.local_game_import_permission_lost));
-            return;
-        }
-        if (entries.length == 0) {
-            addEmpty(getString(R.string.local_game_file_manager_empty));
-            return;
-        }
-        List<DocumentFile> sorted = new ArrayList<>(Arrays.asList(entries));
-        Collections.sort(sorted, Comparator.comparing(DocumentFile::isFile).thenComparing(
-            file -> file.getName() == null ? "" : file.getName(), String.CASE_INSENSITIVE_ORDER));
-        for (DocumentFile entry : sorted) {
-            String name = entry.getName() == null ? entry.getUri().toString() : entry.getName();
-            if (entry.isDirectory()) {
-                addTile(name, true,
-                    view -> {
-                        safHistory.addLast(directory);
-                        showSaf(entry, treeUri, false);
-                    }, view -> importSafFolder(treeUri, entry));
-            } else {
-                addTile(name, false, null, null);
-            }
-        }
+    /** Request #2: tapping a file shows read-only details instead of doing nothing. */
+    private void showFileDetails(File file) {
+        boolean looksExecutable = looksLikePortableExecutable(file);
+        String details = getString(R.string.local_game_file_details_body,
+            Formatter.formatShortFileSize(this, Math.max(0, file.length())),
+            DateFormat.getDateTimeInstance().format(new Date(file.lastModified())),
+            getString(looksExecutable ? R.string.local_game_file_details_looks_executable
+                : R.string.local_game_file_details_not_executable));
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(file.getName())
+            .setMessage(details + "\n\n" + getString(R.string.local_game_file_details_c_drive_tip))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.local_game_file_manager_import_as_game,
+                (dialog, which) -> quickImport(file))
+            .show();
     }
 
-    private void importSafFolder(Uri treeUri, DocumentFile directory) {
-        try {
-            importGame(SafGameRootUri.forDocument(treeUri, directory.getUri()));
+    private boolean looksLikePortableExecutable(File file) {
+        try (InputStream input = new FileInputStream(file)) {
+            return peInspector.isPortableExecutable(input);
         } catch (IOException error) {
-            Toast.makeText(this, getString(R.string.local_game_import_failed,
-                error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage()),
-                Toast.LENGTH_LONG).show();
+            return false;
         }
     }
 
-    private void importGame(Uri root) {
-        startActivity(LocalGames.createImportIntent(this)
-            .putExtra(GameImportActivity.EXTRA_TREE_URI, root.toString()));
+    /** Request #2: long-pressing a file offers to import it directly (no whole-folder scan). */
+    private void showFileImportMenu(View anchor, File file) {
+        PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add(R.string.local_game_file_manager_import_as_game);
+        menu.setOnMenuItemClickListener(item -> {
+            quickImport(file);
+            return true;
+        });
+        menu.show();
+    }
+
+    /** Request #3: no confirmation screen -- import immediately and land in the game's own edit
+     *  page. GameImportReadinessGate.require() is the same fail-fast check
+     *  GameImportActivity.onCreate() used to run; with that Activity gone this is now the sole
+     *  backstop for this entry point (LocalGamesActivity.startImportFlow() already runs it once
+     *  before launching this Activity, but re-checking here guards a stale instance reached any
+     *  other way, e.g. process restore). */
+    private void quickImport(File file) {
+        GameImportReadinessGate.require(this, ioExecutor, () -> ioExecutor.execute(() -> {
+            String gameId;
+            String error = null;
+            try {
+                gameId = QuickGameImport.importGame(gameRepository, profileRepository, file, this);
+            } catch (IOException | RuntimeException importError) {
+                gameId = null;
+                error = importError.getMessage() == null
+                    ? importError.getClass().getSimpleName() : importError.getMessage();
+            }
+            String importedId = gameId;
+            String failure = error;
+            runOnUiThread(() -> {
+                if (destroyed) return;
+                if (failure != null) {
+                    Toast.makeText(this, getString(R.string.local_game_import_save_failed, failure),
+                        Toast.LENGTH_LONG).show();
+                    return;
+                }
+                startActivity(LocalGames.createGameDetailIntent(this, importedId));
+                finish();
+            });
+        }));
     }
 
     private void clearRows() {
@@ -253,12 +288,18 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         binding.localGameFileManagerItems.setColumnCount(gridColumns());
     }
 
-    private void addTile(String title, boolean directory, @Nullable View.OnClickListener listener,
-                         @Nullable View.OnClickListener menuListener) {
+    private void addTile(String title, boolean directory, @Nullable View.OnClickListener onTap,
+                         @Nullable View.OnClickListener onLongPress) {
         FrameLayout tile = new FrameLayout(this);
         tile.setBackgroundResource(R.drawable.local_games_bg_file_tile);
-        tile.setOnClickListener(listener);
-        tile.setEnabled(listener != null);
+        tile.setOnClickListener(onTap);
+        tile.setEnabled(onTap != null);
+        if (onLongPress != null) {
+            tile.setOnLongClickListener(view -> {
+                onLongPress.onClick(view);
+                return true;
+            });
+        }
 
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -286,35 +327,12 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         labelParams.topMargin = dp(5);
         content.addView(label, labelParams);
 
-        if (menuListener != null) {
-            ImageButton more = new ImageButton(this);
-            more.setImageResource(R.drawable.local_games_ic_overflow);
-            more.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-            more.setContentDescription(getString(R.string.local_game_card_more));
-            more.setPadding(dp(4), dp(4), dp(4), dp(4));
-            more.setOnClickListener(view -> showFolderMenu(view, menuListener));
-            FrameLayout.LayoutParams moreParams = new FrameLayout.LayoutParams(dp(28), dp(28),
-                Gravity.TOP | Gravity.END);
-            moreParams.setMargins(0, dp(4), dp(4), 0);
-            tile.addView(more, moreParams);
-        }
-
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
         params.width = gridTileWidth();
         params.height = dp(112);
         params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED);
         params.setMargins(dp(5), dp(5), dp(5), dp(5));
         binding.localGameFileManagerItems.addView(tile, params);
-    }
-
-    private void showFolderMenu(View anchor, View.OnClickListener importListener) {
-        PopupMenu menu = new PopupMenu(this, anchor);
-        menu.getMenu().add(R.string.local_game_file_manager_import_as_game);
-        menu.setOnMenuItemClickListener(item -> {
-            importListener.onClick(anchor);
-            return true;
-        });
-        menu.show();
     }
 
     private void addEmpty(String message) {

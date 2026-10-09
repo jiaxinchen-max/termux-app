@@ -27,7 +27,8 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.lifecycle.Lifecycle;
 
 import com.termux.localgames.activity.LocalGamesActivity;
-import com.termux.localgames.activity.GameImportActivity;
+import com.termux.localgames.activity.GameFileManagerActivity;
+import com.termux.localgames.activity.GameReauthorizeActivity;
 import com.termux.localgames.activity.GameDetailActivity;
 import com.termux.localgames.activity.GameAssetsActivity;
 import com.termux.localgames.activity.GameLaunchActivity;
@@ -119,17 +120,21 @@ public class LocalGamesApiInstrumentedTest {
     }
 
     @Test
-    public void importIntentTargetsPrivateActivityAndPickerRequestsPersistentReadOnlyTree() throws Exception {
+    public void fileManagerIntentTargetsPrivateActivityAndPickerRequestsPersistentReadOnlyTree()
+            throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
-        Intent importIntent = LocalGames.createImportIntent(context);
-        assertNotNull(importIntent.getComponent());
-        assertEquals(GameImportActivity.class.getName(),
-            importIntent.getComponent().getClassName());
+        Intent fileManagerIntent = LocalGames.createFileManagerIntent(context);
+        assertNotNull(fileManagerIntent.getComponent());
+        assertEquals(GameFileManagerActivity.class.getName(),
+            fileManagerIntent.getComponent().getClassName());
         ActivityInfo info = context.getPackageManager().getActivityInfo(
-            importIntent.getComponent(), 0);
+            fileManagerIntent.getComponent(), 0);
         assertFalse(info.exported);
 
+        // Still used by GameReauthorizeActivity to re-grant a lost SAF permission for an
+        // already-imported game -- new imports no longer go through this picker at all (see
+        // GameFileManagerActivity's direct filesystem browsing).
         Intent picker = SafPermissionManager.createOpenTreeIntent();
         assertEquals(Intent.ACTION_OPEN_DOCUMENT_TREE, picker.getAction());
         assertEquals(Intent.FLAG_GRANT_READ_URI_PERMISSION,
@@ -302,16 +307,21 @@ public class LocalGamesApiInstrumentedTest {
     }
 
     @Test
-    public void lostSafPermissionRecoverySurvivesActivityRecreation() {
+    public void reauthorizeIntentTargetsPrivateActivityWithExpectedTreeUri() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         String missingTree = "content://missing.documents/tree/game";
+
         Intent intent = LocalGames.createReauthorizeIntent(context, missingTree);
 
-        try (ActivityScenario<GameImportActivity> scenario = ActivityScenario.launch(intent)) {
-            assertLostPermissionState(scenario, missingTree);
-            scenario.recreate();
-            assertLostPermissionState(scenario, missingTree);
-        }
+        assertNotNull(intent.getComponent());
+        assertEquals(GameReauthorizeActivity.class.getName(), intent.getComponent().getClassName());
+        assertEquals(missingTree, intent.getStringExtra(GameReauthorizeActivity.EXTRA_TREE_URI));
+        ActivityInfo info = context.getPackageManager().getActivityInfo(intent.getComponent(), 0);
+        assertFalse(info.exported);
+        // GameReauthorizeActivity immediately hands off to the system folder picker and has no
+        // UI of its own to assert against here (unlike the old GameImportActivity screen this
+        // replaced) -- the picker-matching behavior itself needs a real instrumented UI
+        // interaction to exercise and is not covered by this test.
     }
 
     @Test
@@ -532,23 +542,6 @@ public class LocalGamesApiInstrumentedTest {
             rows += items.getChildCount();
         }
         return rows;
-    }
-
-    private static void assertLostPermissionState(ActivityScenario<GameImportActivity> scenario,
-                                                   String treeUri) {
-        scenario.onActivity(activity -> {
-            android.widget.TextView directory = activity.findViewById(
-                com.termux.localgames.R.id.local_game_import_directory);
-            android.widget.TextView error = activity.findViewById(
-                com.termux.localgames.R.id.local_game_import_error);
-            View form = activity.findViewById(com.termux.localgames.R.id.local_game_import_form);
-            View choose = activity.findViewById(
-                com.termux.localgames.R.id.local_game_import_choose_directory);
-            assertEquals(treeUri, directory.getText().toString());
-            assertEquals(View.VISIBLE, error.getVisibility());
-            assertEquals(View.GONE, form.getVisibility());
-            assertTrue(choose.isEnabled());
-        });
     }
 
     private static FileGameRepository repository(Context context) {

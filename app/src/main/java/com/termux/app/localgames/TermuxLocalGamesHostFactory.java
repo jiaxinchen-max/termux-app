@@ -160,11 +160,19 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
                     String path = uri.getPath();
                     if (path == null) return ResolvedGameDirectory.blocked(
                         "game_root_not_posix_accessible");
-                    File gamesRoot = new GameStoragePaths(applicationContext.getFilesDir())
-                        .getImportedGamesDirectory().getCanonicalFile();
+                    // Request #4: games may only be imported from the app's own private storage
+                    // (either the dedicated imported-games folder or the app's raw files root --
+                    // see GameFileManagerActivity's "Game files"/"App files" tiles) or the mounted
+                    // shared/external storage tree (its "Shared storage" tile, gated on
+                    // MANAGE_EXTERNAL_STORAGE) -- never an arbitrary filesystem path.
                     File candidate = new File(path).getCanonicalFile();
-                    String prefix = gamesRoot.getPath() + File.separator;
-                    if (!(candidate.equals(gamesRoot) || candidate.getPath().startsWith(prefix)) ||
+                    File[] allowedRoots = {
+                        new GameStoragePaths(applicationContext.getFilesDir())
+                            .getImportedGamesDirectory().getCanonicalFile(),
+                        applicationContext.getFilesDir().getCanonicalFile(),
+                        Environment.getExternalStorageDirectory().getCanonicalFile(),
+                    };
+                    if (!isUnderAnyRoot(candidate, allowedRoots) ||
                         !candidate.isDirectory() || !candidate.canRead()) {
                         return ResolvedGameDirectory.blocked("game_root_not_posix_accessible");
                     }
@@ -199,6 +207,19 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
             } catch (RuntimeException | IOException error) {
                 return ResolvedGameDirectory.blocked("game_root_not_posix_accessible");
             }
+        }
+
+        /** True when canonicalCandidate is exactly one of roots, or a descendant of one. Every
+         *  root passed in must already be canonical (see call site). */
+        private static boolean isUnderAnyRoot(File canonicalCandidate, File... roots) {
+            for (File root : roots) {
+                String prefix = root.getPath() + File.separator;
+                if (canonicalCandidate.equals(root) ||
+                    canonicalCandidate.getPath().startsWith(prefix)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         @Override

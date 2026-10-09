@@ -6,9 +6,9 @@ import android.content.Intent;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.termux.localgames.activity.GameImportActivity;
 import com.termux.localgames.activity.GameFileManagerActivity;
 import com.termux.localgames.activity.GameDetailActivity;
+import com.termux.localgames.activity.GameReauthorizeActivity;
 import com.termux.localgames.activity.GameRuntimeOptionsActivity;
 import com.termux.localgames.activity.GameAssetsActivity;
 import com.termux.localgames.activity.GameLaunchActivity;
@@ -68,23 +68,19 @@ public final class LocalGames {
             .putExtra(LocalGamesActivity.EXTRA_COMPONENT_GAME_ID, gameId);
     }
 
-    /** Creates an explicit intent for the SAF game-directory import flow. */
-    @NonNull
-    public static Intent createImportIntent(@NonNull Context context) {
-        return new Intent(context, GameImportActivity.class);
-    }
-
-    /** Opens the file manager used to browse private games and authorized folders. */
+    /** Opens the file manager used to browse private games and the mounted shared storage tree,
+     *  and (via long-press on a file) import a new game -- see GameFileManagerActivity. */
     @NonNull
     public static Intent createFileManagerIntent(@NonNull Context context) {
         return new Intent(context, GameFileManagerActivity.class);
     }
 
-    /** Opens the import flow to restore access to a previously imported tree URI. */
+    /** Re-grants a lost SAF permission for an already-imported game; see GameReauthorizeActivity. */
     @NonNull
     public static Intent createReauthorizeIntent(@NonNull Context context,
                                                   @NonNull String treeUri) {
-        return createImportIntent(context).putExtra(GameImportActivity.EXTRA_TREE_URI, treeUri);
+        return new Intent(context, GameReauthorizeActivity.class)
+            .putExtra(GameReauthorizeActivity.EXTRA_TREE_URI, treeUri);
     }
 
     /** Opens a persisted game by stable id; the Activity reloads current repository state. */
