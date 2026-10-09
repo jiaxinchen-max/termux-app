@@ -45,15 +45,10 @@ RESOLUTION=
 BOX64_PRESET=
 RUNTIME_TRANSLATOR=box64
 INPUT_PROFILE_ID=xinput
-INPUT_PROFILE_SEEN=0
 LAUNCH_EXECUTION_MODE=app_shell
-LAUNCH_EXECUTION_MODE_SEEN=0
 RUNTIME_BACKEND_TYPE=glibc_termux_box
-RUNTIME_BACKEND_SEEN=0
 ROOTFS_PACKAGE=
-ROOTFS_PACKAGE_SEEN=0
 RUNTIME_ROOT_PATH=
-RUNTIME_ROOT_PATH_SEEN=0
 HOME_PATH=
 EVENT_PATH=
 LOG_PATH=
@@ -73,10 +68,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     value=${line#*=}
     [ "$key" != "$line" ] || fail_before_events invalid_launch_spec_line
     case "$key" in
-        schemaVersion)
-            [ "$value" = 1 ] || [ "$value" = 2 ] || [ "$value" = 3 ] || [ "$value" = 4 ] || [ "$value" = 5 ] || fail_before_events unsupported_launch_spec_schema
-            SPEC_SCHEMA=$value
-            ;;
+        schemaVersion) SPEC_SCHEMA=$value ;;
         timeoutSeconds) TIMEOUT_SECONDS=$value ;;
         argumentCount) ARGUMENT_COUNT=$value ;;
         environmentCount) ENVIRONMENT_COUNT=$value ;;
@@ -92,26 +84,11 @@ while IFS= read -r line || [ -n "$line" ]; do
         audioDriver) AUDIO_DRIVER=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         resolution) RESOLUTION=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         box64Preset) BOX64_PRESET=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
-        inputProfileId)
-            INPUT_PROFILE_ID=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64
-            INPUT_PROFILE_SEEN=1
-            ;;
-        launchExecutionMode)
-            LAUNCH_EXECUTION_MODE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64
-            LAUNCH_EXECUTION_MODE_SEEN=1
-            ;;
-        runtimeBackendType)
-            RUNTIME_BACKEND_TYPE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64
-            RUNTIME_BACKEND_SEEN=1
-            ;;
-        rootfsPackage)
-            ROOTFS_PACKAGE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64
-            ROOTFS_PACKAGE_SEEN=1
-            ;;
-        runtimeRootPath)
-            RUNTIME_ROOT_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64
-            RUNTIME_ROOT_PATH_SEEN=1
-            ;;
+        inputProfileId) INPUT_PROFILE_ID=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
+        launchExecutionMode) LAUNCH_EXECUTION_MODE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
+        runtimeBackendType) RUNTIME_BACKEND_TYPE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
+        rootfsPackage) ROOTFS_PACKAGE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
+        runtimeRootPath) RUNTIME_ROOT_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         homeDirectory) HOME_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         eventPath) EVENT_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         logPath) LOG_PATH=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
@@ -143,10 +120,7 @@ while IFS= read -r line || [ -n "$line" ]; do
 done < "$SPEC_PATH"
 
 case "$TASK_ID" in ''|*[!A-Za-z0-9._-]*) fail_before_events invalid_task_id ;; esac
-case "$SPEC_SCHEMA:$INPUT_PROFILE_SEEN:$LAUNCH_EXECUTION_MODE_SEEN:$RUNTIME_BACKEND_SEEN:$ROOTFS_PACKAGE_SEEN:$RUNTIME_ROOT_PATH_SEEN" in
-    1:0:0:0:0:0|2:1:0:0:0:0|3:1:1:0:0:0|4:1:1:1:1:1|5:1:1:1:1:1) ;;
-    *) fail_before_events missing_launch_spec_version_field ;;
-esac
+[ "$SPEC_SCHEMA" = 5 ] || fail_before_events unsupported_launch_spec_schema
 [ "$RUNTIME_BACKEND_TYPE" = glibc_termux_box ] || fail_before_events runtime_backend_script_mismatch
 [ -z "$ROOTFS_PACKAGE" ] || fail_before_events unexpected_rootfs_package
 [ -z "$RUNTIME_ROOT_PATH" ] || fail_before_events unexpected_runtime_root_path
