@@ -15,6 +15,11 @@ public final class RootfsSetupRecipe {
      *  vanilla Wine build, used by the standalone-Box64-translator path) -- see
      *  UpstreamWineReleaseResolver / RootfsRuntimeComponentPreparer. */
     public static final String BOX64_WINE_COMPONENT = "box64-wine-latest";
+    /** Also resolved against upstream's latest release at every RootFS rebuild (Kron4ek's own
+     *  "Proton" build -- Valve's Proton wine patches without Proton's python wrapper or bundled
+     *  DXVK/vkd3d-proton, same box64-translated shape as BOX64_WINE_COMPONENT) -- see
+     *  UpstreamWineReleaseResolver / RootfsRuntimeComponentPreparer. */
+    public static final String BOX64_PROTON_COMPONENT = "box64-proton-latest";
     /**
      * Every component baked into the one shared RootFS base image, all delivered through the unified
      * component framework (download + sha256 + extract/raw-publish) and installed in-guest by
@@ -23,8 +28,9 @@ public final class RootfsSetupRecipe {
      * PROT_EXEC on app-private-storage memory -- needed only by Box64-translated Wine, not Hangover's
      * native ARM64 wine; not yet submitted upstream, see box64-wine-39bit-pitfalls writeup), the
      * selectable DXVK builds (installed under /opt/games-runtime/&lt;id&gt; for per-game dxWrapper use),
-     * and a portable vanilla Wine build (installed under /opt/box64-wine for per-game selection of the
-     * standalone Box64 translator path, as an alternative to Hangover's bundled translation layer).
+     * and two portable Wine builds for the standalone Box64 translator path (installed under
+     * /opt/box64-wine and /opt/box64-proton respectively, as alternatives to Hangover's bundled
+     * translation layer and to each other).
      */
     public static final List<String> DEFAULT_BASE_COMPONENTS = Collections.unmodifiableList(
         Arrays.asList(
@@ -34,7 +40,8 @@ public final class RootfsSetupRecipe {
             "rootfs-dxvk-2.7",
             "rootfs-dxvk-3.1",
             "rootfs-dxvk-1.10.3",
-            BOX64_WINE_COMPONENT));
+            BOX64_WINE_COMPONENT,
+            BOX64_PROTON_COMPONENT));
     public static final int DEFAULT_VERSION = 10;
 
     private final String packageName;

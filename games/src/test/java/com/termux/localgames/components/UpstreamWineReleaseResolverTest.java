@@ -68,6 +68,53 @@ public class UpstreamWineReleaseResolverTest {
     }
 
     @Test
+    public void resolvesProtonWineSkippingBetaAndExperimentalReleases() throws Exception {
+        // The release LIST (newest first) mixes a plain numbered release, an experimental proton
+        // tag and a beta proton tag before the first stable "proton-*" one -- only the last of
+        // these should be picked.
+        String numberedRelease = "{\"tag_name\":\"11.19\",\"assets\":[]}";
+        String expRelease = "{\"tag_name\":\"proton-exp-11.0\",\"assets\":[" +
+            asset("wine-proton-exp-11.0-amd64-wow64.tar.xz", "https://example.invalid/exp", 1L) +
+            "]}";
+        String betaRelease = "{\"tag_name\":\"proton-11.0-beta1\",\"assets\":[" +
+            asset("wine-proton-11.0-beta1-amd64-wow64.tar.xz", "https://example.invalid/beta", 1L) +
+            "]}";
+        String stableRelease = "{\"tag_name\":\"proton-11.0-2\",\"body\":\"" +
+            "51e1b54068c242c0a59c329674afe4b0ae03d313516a535be4acd1c5f3277e9b  wine-proton-11.0-2-amd64.tar.xz\\n" +
+            "f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595  wine-proton-11.0-2-amd64-wow64.tar.xz\\n" +
+            "\",\"assets\":[" +
+            asset("wine-proton-11.0-2-amd64-wow64.tar.xz",
+                "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-11.0-2/wine-proton-11.0-2-amd64-wow64.tar.xz",
+                80017220L) +
+            "]}";
+        String listBody = "[" + numberedRelease + "," + expRelease + "," + betaRelease + "," +
+            stableRelease + "]";
+        UpstreamWineReleaseResolver resolver = resolver(response(200, listBody));
+
+        ComponentDescriptor resolved = resolver.resolveProtonWine(protonWineTemplate());
+
+        assertEquals("box64-proton-latest", resolved.getId());
+        assertEquals(80017220L, resolved.getSize());
+        assertEquals("f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595",
+            resolved.getSha256());
+        assertTrue(resolved.getUrl().endsWith("wine-proton-11.0-2-amd64-wow64.tar.xz"));
+    }
+
+    @Test
+    public void throwsWhenNoStableProtonReleaseExists() throws Exception {
+        String listBody = "[{\"tag_name\":\"11.19\",\"assets\":[]}," +
+            "{\"tag_name\":\"proton-exp-11.0\",\"assets\":[]}]";
+        UpstreamWineReleaseResolver resolver = resolver(response(200, listBody));
+
+        try {
+            resolver.resolveProtonWine(protonWineTemplate());
+            fail("expected IOException");
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage().contains("no_proton_release_found"));
+        }
+    }
+
+    @Test
     public void throwsWhenNoAssetMatchesTheExpectedName() throws Exception {
         String body = "{\"tag_name\":\"11.16\",\"assets\":[" +
             asset("hangover_11.16_ubuntu2404_noble_arm64.tar", "https://example.invalid/x", 1L) +
@@ -115,6 +162,15 @@ public class UpstreamWineReleaseResolverTest {
             ComponentType.TRANSLATOR, "Box64 + Wine (RootFS)", "Vanilla WoW64 (offline fallback)",
             "Portable vanilla Wine under the standalone Box64 translator.", "ROOTFS", false, false,
             "box64-wine-latest", Collections.singleton(GameRuntimeBackendType.ROOTFS_PROOT));
+    }
+
+    private static ComponentDescriptor protonWineTemplate() {
+        return new ComponentDescriptor("box64-proton-latest", "runtime", 1,
+            "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-11.0-2/wine-proton-11.0-2-amd64-wow64.tar.xz",
+            80017220L, "f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595",
+            ComponentType.TRANSLATOR, "Box64 + Proton (RootFS)", "Proton WoW64 (offline fallback)",
+            "Kron4ek's own Proton build under the standalone Box64 translator.", "ROOTFS", false,
+            false, "box64-proton-latest", Collections.singleton(GameRuntimeBackendType.ROOTFS_PROOT));
     }
 
     private static UpstreamWineReleaseResolver resolver(FakeConnection response) {

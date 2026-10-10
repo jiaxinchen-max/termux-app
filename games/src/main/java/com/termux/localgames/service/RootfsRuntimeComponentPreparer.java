@@ -31,14 +31,14 @@ import java.util.List;
  * step. This closes the gap where a rebuild threw {@code rootfs_source_component_missing} (and
  * created no task, leaving the UI stuck) when a required component had never been downloaded.</p>
  *
- * <p>Two of the base components -- the Hangover source archive and the box64-wine translator
- * build -- are intentionally NOT pinned to a fixed version in the bundled catalog: every rebuild
- * re-resolves "whatever upstream currently calls latest" via {@link UpstreamWineReleaseResolver}
- * instead. The catalog's static entry for each survives only as a last-resort fallback for a
- * first-ever install with no network available; once any version has installed successfully, a
- * later resolve failure (offline, GitHub API hiccup) is never allowed to fall back onto that
- * static entry, since it could be older than what is already installed -- see {@link
- * #resolveDescriptor}.</p>
+ * <p>Three of the base components -- the Hangover source archive, the box64-wine translator
+ * build and the box64-proton translator build -- are intentionally NOT pinned to a fixed version
+ * in the bundled catalog: every rebuild re-resolves "whatever upstream currently calls latest"
+ * via {@link UpstreamWineReleaseResolver} instead. The catalog's static entry for each survives
+ * only as a last-resort fallback for a first-ever install with no network available; once any
+ * version has installed successfully, a later resolve failure (offline, GitHub API hiccup) is
+ * never allowed to fall back onto that static entry, since it could be older than what is already
+ * installed -- see {@link #resolveDescriptor}.</p>
  */
 final class RootfsRuntimeComponentPreparer {
     private static final String TAG = "GamesRootfsComponentPrep";
@@ -71,23 +71,18 @@ final class RootfsRuntimeComponentPreparer {
         }
     }
 
-    /** For the two upstream-tracked wine components, prefers a freshly resolved "latest" release
-     *  over the bundled catalog's static entry. On resolve failure (offline, GitHub API rate
-     *  limit, etc.) it degrades without ever re-downloading or downgrading: if a version is
+    /** For the three upstream-tracked wine components, prefers a freshly resolved "latest"
+     *  release over the bundled catalog's static entry. On resolve failure (offline, GitHub API
+     *  rate limit, etc.) it degrades without ever re-downloading or downgrading: if a version is
      *  already installed it is kept as-is; otherwise the bundled static entry is used so a
      *  first-ever install can still succeed with no network. Every other component id is
      *  unaffected and reads the catalog as before. */
     private ComponentDescriptor resolveDescriptor(String componentId) throws IOException {
         ComponentDescriptor template = index.find(componentId).orElseThrow(() ->
             new IOException("component_unknown:" + componentId));
-        if (!RootfsSetupRecipe.DEFAULT_SOURCE.equals(componentId) &&
-            !RootfsSetupRecipe.BOX64_WINE_COMPONENT.equals(componentId)) {
-            return template;
-        }
+        if (!isUpstreamTracked(componentId)) return template;
         try {
-            return RootfsSetupRecipe.DEFAULT_SOURCE.equals(componentId)
-                ? upstreamResolver.resolveHangoverSource(template)
-                : upstreamResolver.resolveBox64Wine(template);
+            return resolveUpstream(componentId, template);
         } catch (IOException resolveError) {
             InstalledComponent active = installations.read(componentId).getActive().orElse(null);
             if (active != null) {
@@ -104,6 +99,23 @@ final class RootfsRuntimeComponentPreparer {
                 " with nothing installed; using the bundled fallback", resolveError);
             return template;
         }
+    }
+
+    private static boolean isUpstreamTracked(String componentId) {
+        return RootfsSetupRecipe.DEFAULT_SOURCE.equals(componentId) ||
+            RootfsSetupRecipe.BOX64_WINE_COMPONENT.equals(componentId) ||
+            RootfsSetupRecipe.BOX64_PROTON_COMPONENT.equals(componentId);
+    }
+
+    private ComponentDescriptor resolveUpstream(String componentId, ComponentDescriptor template)
+        throws IOException {
+        if (RootfsSetupRecipe.DEFAULT_SOURCE.equals(componentId)) {
+            return upstreamResolver.resolveHangoverSource(template);
+        }
+        if (RootfsSetupRecipe.BOX64_WINE_COMPONENT.equals(componentId)) {
+            return upstreamResolver.resolveBox64Wine(template);
+        }
+        return upstreamResolver.resolveProtonWine(template);
     }
 
     private void ensure(ComponentDescriptor descriptor) throws IOException {

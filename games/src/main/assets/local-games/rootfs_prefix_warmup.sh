@@ -19,7 +19,7 @@
 #   RUNTIME_ROOT_PATH    the exact string embedded into the "already warmed" marker files --
 #                        both callers must compute the identical value for a given container, or
 #                        warming up in one place does not skip anything in the other
-#   WINE_PACKAGE         e.g. "hangover-latest" or "box64-wine-latest"
+#   WINE_PACKAGE         e.g. "hangover-latest", "box64-wine-latest" or "box64-proton-latest"
 #   TEMPLATE_CACHE_DIR   only required by resolve_template_prefix_archive() (below), not by
 #                        warmup_rootfs_prefix() itself -- callers that build TEMPLATE_PREFIX_ARCHIVE
 #                        some other way (setup_rootfs_runtime.sh's BASE_ONLY template-build step
@@ -119,19 +119,31 @@ resolve_rootfs_translator() {
             [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || warmup_fail rootfs_wineboot_missing
             ;;
         box64)
-            case "$WINE_PACKAGE" in box64-wine*|custom-wine-*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
+            case "$WINE_PACKAGE" in box64-wine*|box64-proton*|custom-wine-*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
+            # Both box64-wine-* (Kron4ek vanilla) and box64-proton-* (Kron4ek's Proton build) are
+            # portable x86_64 Wine builds translated by box64, installed under different /opt
+            # directories (see setup-container.sh's step 3) -- but they are NOT binary-identical:
+            # the vanilla build ships a separate bin/wine64 launcher (bin/wine itself is 32-bit
+            # only), while the Proton build consolidates to a single bin/wine WoW64 launcher with
+            # no bin/wine64 at all. Confirmed on-device: both launcher binaries are ~13KB ELF
+            # stubs of the same shape, just under different names.
+            case "$WINE_PACKAGE" in
+                box64-proton*) box64_wine_root=/opt/box64-proton; box64_wine_bin=wine ;;
+                *) box64_wine_root=/opt/box64-wine; box64_wine_bin=wine64 ;;
+            esac
             GUEST_COMMAND=/usr/local/bin/box64
-            GUEST_WINE=${GAMES_CUSTOM_WINE_PATH:-/opt/box64-wine/bin/wine64}
+            GUEST_WINE=${GAMES_CUSTOM_WINE_PATH:-$box64_wine_root/bin/$box64_wine_bin}
             # The biarch build's bin/wineboot is a #!/bin/sh wrapper script, not an ELF -- box64
             # cannot translate/exec it directly ("Not an ELF file"). wineboot is instead invoked
-            # as wine64's own built-in program dispatch (wine64 recognises "wineboot" as argv[1]
-            # the same way it recognises "explorer"), so GUEST_WINEBOOT reuses the wine64 binary
-            # itself and GUEST_WINEBOOT_ARG supplies the extra "wineboot" argument word. Verified
-            # on-device: `box64 wine64 wineboot -u` completes cleanly with a fresh prefix. A
-            # custom build's own bin/wineboot is trusted to be the same kind of wine64-dispatch
-            # wrapper (install_custom_rootfs_component.sh only accepts wine-tree payloads shaped
-            # like this one), so the same no-separate-binary convention applies to it too.
-            GUEST_WINEBOOT=${GAMES_CUSTOM_WINE_PATH:-/opt/box64-wine/bin/wine64}
+            # as the WoW64 launcher's own built-in program dispatch (it recognises "wineboot" as
+            # argv[1] the same way it recognises "explorer"), so GUEST_WINEBOOT reuses that same
+            # launcher binary and GUEST_WINEBOOT_ARG supplies the extra "wineboot" argument word.
+            # Verified on-device: `box64 wine64 wineboot -u` (vanilla) and `box64 wine wineboot -u`
+            # (Proton) both complete cleanly with a fresh prefix. A custom build's own bin/wineboot
+            # is trusted to be the same kind of dispatch wrapper around its bin/wine64 launcher
+            # (install_custom_rootfs_component.sh only accepts wine-tree payloads shaped like the
+            # vanilla one), so the no-separate-binary convention applies to it too.
+            GUEST_WINEBOOT=${GAMES_CUSTOM_WINE_PATH:-$box64_wine_root/bin/$box64_wine_bin}
             GUEST_WINEBOOT_ARG=wineboot
             [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || warmup_fail rootfs_box64_missing
             [ -x "$ROOTFS_CANONICAL$GUEST_WINE" ] || warmup_fail rootfs_wine_missing

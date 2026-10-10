@@ -44,10 +44,11 @@ locale-gen
 #   - any *.deb (Hangover source bundle, Box64 .deb) -> apt-get install (resolves deps from the repo)
 #   - a DXVK WoW64 tree (x64/ + x32/|x86/ at any depth) -> copy DLLs into
 #     /opt/games-runtime/<id>/{system32,syswow64} for start_rootfs_game.sh to pick per game.
-#   - a portable Wine build (bin/wine + bin/wineboot at any depth) -> copy the whole tree to
-#     /opt/box64-wine for the standalone Box64 translator path (rootfs_prefix_warmup.sh's "box64"
-#     case), as an alternative to Hangover's bundled wine+translator. Never apt-installed or
-#     registered with dpkg -- stays a self-contained, relocatable directory.
+#   - a portable Wine build (bin/wine + bin/wineboot at any depth) -> copy the whole tree to its
+#     own /opt/<name> directory (box64-wine-latest -> /opt/box64-wine, box64-proton-latest ->
+#     /opt/box64-proton) for the standalone Box64 translator path (rootfs_prefix_warmup.sh's
+#     "box64" case), as alternatives to Hangover's bundled wine+translator and to each other.
+#     Never apt-installed or registered with dpkg -- stays a self-contained, relocatable directory.
 
 # 1) Install every Debian package across all components in one dependency-resolving pass.
 if find "$COMPONENTS_ROOT" -name '*.deb' -type f | grep -q .; then
@@ -100,9 +101,16 @@ for compdir in "$COMPONENTS_ROOT"/*; do
     }
 done
 
-# 3) Lay out a portable Wine build (if any component bundles one) for the standalone Box64
+# 3) Lay out portable Wine builds (if any component bundles one) for the standalone Box64
 # translator path. Detected by content (bin/wine + bin/wineboot), not by component id, matching
-# the DXVK loop's approach above.
+# the DXVK loop's approach above -- this also naturally unwraps a version-named top-level
+# directory a release tarball may ship: srcroot is derived from wherever bin/wine was actually
+# found, not assumed to be the component root. Each known id gets its own fixed /opt destination
+# so multiple portable builds can coexist as separate selectable Wine packages (see
+# RootfsProotBackend/resolve_rootfs_translator()) -- an id this loop does not recognise is a
+# programming error (a new wine-shaped base component was added without teaching this script
+# where to put it), so it fails loudly instead of silently overwriting one of the known
+# destinations.
 for compdir in "$COMPONENTS_ROOT"/*; do
     [ -d "$compdir" ] || continue
     winebin=$(find "$compdir" \( -type f -o -type l \) -name wine -path '*/bin/*' | head -n 1)
@@ -112,10 +120,19 @@ for compdir in "$COMPONENTS_ROOT"/*; do
         printf '%s\n' "box64_wine_missing_wineboot:$(basename "$compdir")" >&2
         exit 70
     }
+    cid=$(basename "$compdir")
+    case "$cid" in
+        box64-wine-latest) dest=/opt/box64-wine ;;
+        box64-proton-latest) dest=/opt/box64-proton ;;
+        *)
+            printf '%s\n' "box64_wine_unknown_component:$cid" >&2
+            exit 70
+            ;;
+    esac
     srcroot=$(dirname "$(dirname "$winebin")")
-    mkdir -p /opt/box64-wine
-    cp -a "$srcroot"/. /opt/box64-wine/
-    chmod +x /opt/box64-wine/bin/wine /opt/box64-wine/bin/wineboot
+    mkdir -p "$dest"
+    cp -a "$srcroot"/. "$dest/"
+    chmod +x "$dest/bin/wine" "$dest/bin/wineboot"
 done
 
 mkdir -p /mnt/games/game /mnt/games/prefix
@@ -128,3 +145,5 @@ test -x /usr/bin/wine
 test -x /usr/bin/wineboot
 test -x /opt/box64-wine/bin/wine
 test -x /opt/box64-wine/bin/wineboot
+test -x /opt/box64-proton/bin/wine
+test -x /opt/box64-proton/bin/wineboot

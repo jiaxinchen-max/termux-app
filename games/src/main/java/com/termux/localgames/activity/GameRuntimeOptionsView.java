@@ -393,16 +393,19 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 profile.getEnvironment(), profile.getInputProfileId(), profile.getLaunchExecutionMode()));
         if (rootfs) {
             // hangover-latest bundles its own translation layer inside the wine binary (apt-installed,
-            // shared system-wide). box64-wine-latest is a portable vanilla wine run under the
-            // standalone Box64 translator (see rootfs_prefix_warmup.sh's resolve_rootfs_translator) --
-            // an independent runtime, selectable per game. Both are resolved against upstream's
-            // latest release at every RootFS rebuild instead of a pinned version (see
+            // shared system-wide). box64-wine-latest (Kron4ek vanilla) and box64-proton-latest
+            // (Kron4ek's own "Proton" build -- Valve's Proton wine patches without Proton's python
+            // wrapper or bundled DXVK/vkd3d-proton) are both portable Wine builds run under the
+            // standalone Box64 translator (see rootfs_prefix_warmup.sh's resolve_rootfs_translator)
+            // -- independent runtimes, selectable per game. All three are resolved against
+            // upstream's latest release at every RootFS rebuild instead of a pinned version (see
             // UpstreamWineReleaseResolver), hence the "-latest" names rather than a version number.
-            // Custom-installed builds (see showAddCustomComponentFlow) are appended after the two
+            // Custom-installed builds (see showAddCustomComponentFlow) are appended after the three
             // presets, and a trailing "+ Add custom Wine build..." row launches that flow instead
             // of selecting a value.
             addChoiceWithAddCustom("Wine package", profile.getWinePackage(),
-                new String[] {"hangover-latest", "box64-wine-latest"}, customWineEntries, null,
+                new String[] {"hangover-latest", "box64-wine-latest", "box64-proton-latest"},
+                customWineEntries, null,
                 getContext().getString(R.string.local_games_custom_component_add_wine),
                 value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),
                     profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),

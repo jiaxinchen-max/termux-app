@@ -102,7 +102,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
         String dx = profile.getDxWrapper();
         String audio = profile.getAudioDriver();
         if (!(runtime.startsWith("hangover-") || runtime.startsWith("box64-wine") ||
-            runtime.startsWith("custom-wine-"))) {
+            runtime.startsWith("box64-proton") || runtime.startsWith("custom-wine-"))) {
             throw new IllegalArgumentException("runtime_engine_unsupported:" + runtime);
         }
         // paths == null means a caller that predates custom components (or a unit test) -- skip

@@ -17,13 +17,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Resolves "whatever upstream currently calls latest" for the two wine-family components this
+ * Resolves "whatever upstream currently calls latest" for the three wine-family components this
  * app intentionally does NOT pin to a fixed version in index-v1.json (see
- * RootfsRuntimeComponentPreparer): Hangover's Debian source archive and the vanilla Kron4ek Wine
- * build used by the box64-wine translator path. Hangover never publishes a checksum for any
- * release -- the returned descriptor's sha256 is left empty (trust-on-first-download; see
- * ComponentTask.withVerifiedSha256()). Kron4ek's release body is a plain SHA256SUMS-style text
- * block, which IS parsed and used as a real, pre-verified digest.
+ * RootfsRuntimeComponentPreparer): Hangover's Debian source archive, the vanilla Kron4ek Wine
+ * build used by the box64-wine translator path, and Kron4ek's own "Proton" build (Valve's Proton
+ * wine patches, without Proton's python wrapper or bundled DXVK/vkd3d-proton -- same portable
+ * box64-translated shape as the vanilla build) used by the box64-proton translator path. Hangover
+ * never publishes a checksum for any release -- its returned descriptor's sha256 is left empty
+ * (trust-on-first-download; see ComponentTask.withVerifiedSha256()). Kron4ek's release bodies
+ * (both the vanilla and proton build families) are plain SHA256SUMS-style text blocks, which ARE
+ * parsed and used as real, pre-verified digests.
  */
 public final class UpstreamWineReleaseResolver {
 
@@ -31,6 +34,11 @@ public final class UpstreamWineReleaseResolver {
         "https://api.github.com/repos/AndreRH/hangover/releases/latest";
     private static final String KRON4EK_RELEASES_URL =
         "https://api.github.com/repos/Kron4ek/Wine-Builds/releases/latest";
+    // Kron4ek's Proton build is published under a separate "proton-*" tag lineage, not every
+    // numbered release, so it cannot be found via /releases/latest -- the full list has to be
+    // scanned for the newest tag matching that family (see fetchLatestStableProtonRelease()).
+    private static final String KRON4EK_RELEASES_LIST_URL =
+        "https://api.github.com/repos/Kron4ek/Wine-Builds/releases?per_page=100";
     // The RootFS recipe (setup_rootfs_runtime.sh) only ever provisions a Debian 13 "trixie"
     // guest -- the asset must match that exact distro variant, only the version number floats.
     private static final Pattern HANGOVER_ASSET =
@@ -39,6 +47,8 @@ public final class UpstreamWineReleaseResolver {
     // pinned by exact filename.
     private static final Pattern KRON4EK_VANILLA_WOW64_ASSET =
         Pattern.compile("^wine-[0-9.]+-amd64-wow64\\.tar\\.xz$");
+    private static final Pattern KRON4EK_PROTON_WOW64_ASSET =
+        Pattern.compile("^wine-proton-[0-9A-Za-z._-]+-amd64-wow64\\.tar\\.xz$");
     private static final Pattern SHA256SUMS_LINE = Pattern.compile("^([0-9a-f]{64})\\s+(\\S+)$");
     private static final int CONNECT_TIMEOUT_MS = 10_000;
     private static final int READ_TIMEOUT_MS = 15_000;
@@ -55,14 +65,14 @@ public final class UpstreamWineReleaseResolver {
     }
 
     public ComponentDescriptor resolveHangoverSource(ComponentDescriptor template) throws IOException {
-        JSONObject release = fetchLatestRelease(HANGOVER_RELEASES_URL);
+        JSONObject release = fetchJsonObject(HANGOVER_RELEASES_URL);
         Asset asset = findAsset(release, HANGOVER_ASSET);
         return ComponentDescriptor.withResolvedUpstream(template, versionFor(release), asset.url,
             asset.size, "");
     }
 
     public ComponentDescriptor resolveBox64Wine(ComponentDescriptor template) throws IOException {
-        JSONObject release = fetchLatestRelease(KRON4EK_RELEASES_URL);
+        JSONObject release = fetchJsonObject(KRON4EK_RELEASES_URL);
         Asset asset = findAsset(release, KRON4EK_VANILLA_WOW64_ASSET);
         String sha256 = findSha256InBody(release.optString("body", ""), asset.name);
         if (sha256 == null) {
@@ -72,7 +82,52 @@ public final class UpstreamWineReleaseResolver {
             asset.size, sha256);
     }
 
-    private JSONObject fetchLatestRelease(String apiUrl) throws IOException {
+    public ComponentDescriptor resolveProtonWine(ComponentDescriptor template) throws IOException {
+        JSONObject release = fetchLatestStableProtonRelease();
+        Asset asset = findAsset(release, KRON4EK_PROTON_WOW64_ASSET);
+        String sha256 = findSha256InBody(release.optString("body", ""), asset.name);
+        if (sha256 == null) {
+            throw new IOException("upstream_release_unavailable:proton_wine_sha256_not_found");
+        }
+        return ComponentDescriptor.withResolvedUpstream(template, versionFor(release), asset.url,
+            asset.size, sha256);
+    }
+
+    /** Scans the release list (newest first) for the first "proton-*" tag that is not a beta or
+     *  experimental build -- e.g. "proton-11.0-2" qualifies, "proton-11.0-beta1" and
+     *  "proton-exp-11.0" do not. */
+    private JSONObject fetchLatestStableProtonRelease() throws IOException {
+        JSONArray releases = fetchJsonArray(KRON4EK_RELEASES_LIST_URL);
+        for (int index = 0; index < releases.length(); index++) {
+            JSONObject release = releases.optJSONObject(index);
+            if (release == null) continue;
+            String tag = release.optString("tag_name", "");
+            if (isStableProtonTag(tag)) return release;
+        }
+        throw new IOException("upstream_release_unavailable:no_proton_release_found");
+    }
+
+    private static boolean isStableProtonTag(String tag) {
+        return tag.startsWith("proton-") && !tag.contains("beta") && !tag.contains("exp");
+    }
+
+    private JSONObject fetchJsonObject(String apiUrl) throws IOException {
+        try {
+            return new JSONObject(fetchUrl(apiUrl));
+        } catch (JSONException error) {
+            throw new IOException("upstream_release_unavailable:invalid_json", error);
+        }
+    }
+
+    private JSONArray fetchJsonArray(String apiUrl) throws IOException {
+        try {
+            return new JSONArray(fetchUrl(apiUrl));
+        } catch (JSONException error) {
+            throw new IOException("upstream_release_unavailable:invalid_json", error);
+        }
+    }
+
+    private String fetchUrl(String apiUrl) throws IOException {
         HttpURLConnection connection = connectionFactory.open(new URL(apiUrl));
         try {
             connection.setRequestProperty("User-Agent", "termux-app-games-module");
@@ -85,10 +140,8 @@ public final class UpstreamWineReleaseResolver {
                 throw new IOException("upstream_release_unavailable:http_" + status);
             }
             try (InputStream input = connection.getInputStream()) {
-                return new JSONObject(readAll(input));
+                return readAll(input);
             }
-        } catch (JSONException error) {
-            throw new IOException("upstream_release_unavailable:invalid_json", error);
         } finally {
             connection.disconnect();
         }

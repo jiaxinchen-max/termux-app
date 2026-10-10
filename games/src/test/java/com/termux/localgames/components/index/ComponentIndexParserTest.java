@@ -28,7 +28,7 @@ public class ComponentIndexParserTest {
 
         assertEquals(2, index.getSchemaVersion());
         assertEquals("2026-09-13T01:00:00Z", index.getGeneratedAt());
-        assertEquals(25, index.getComponents().size());
+        assertEquals(26, index.getComponents().size());
         ComponentDescriptor glibc = index.find("termux-glibc-runtime").get();
         assertEquals("runtime", glibc.getCategory());
         assertEquals(ComponentType.RUNTIME_SUPPORT, glibc.getType());
@@ -53,6 +53,10 @@ public class ComponentIndexParserTest {
         assertEquals("rootfs-dxvk-2.7", rootfsDxvk.getProfileValue());
         assertTrue(index.find("rootfs-dxvk-3.1").isPresent());
         assertTrue(index.find("rootfs-dxvk-1.10.3").isPresent());
+        ComponentDescriptor boxProton = index.find("box64-proton-latest").get();
+        assertEquals(ComponentType.TRANSLATOR, boxProton.getType());
+        assertTrue(boxProton.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
+        assertEquals("box64-proton-latest", boxProton.getProfileValue());
     }
 
     @Test
