@@ -90,7 +90,7 @@ public class RuntimeInstallationGateTest {
     private static void saveSetupTask(File files, String taskId,
                                           RuntimeSetupTaskState state) throws Exception {
         RuntimeSetupTask task = RuntimeSetupTask.queued(taskId, "debian-13-games-rootfs",
-            1, "a".repeat(64), "hangover-11.9-debian13-source", "container-a", "container-a",
+            1, "a".repeat(64), "hangover-latest-debian13-source", "container-a", "container-a",
             false, 1L)
             .transition(state, "", 2L);
         new FileRuntimeSetupTaskRepository(

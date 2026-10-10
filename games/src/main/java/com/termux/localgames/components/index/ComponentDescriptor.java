@@ -44,8 +44,11 @@ public final class ComponentDescriptor {
             throw new IllegalArgumentException("invalid component version or size");
         }
         validateUrl(url);
+        // Empty sha256 means "not yet known" -- see UpstreamWineReleaseResolver and
+        // ComponentTask.withVerifiedSha256() for the two components resolved at rebuild time
+        // against an upstream that may not publish a checksum at all (Hangover).
         String normalizedSha = sha256 == null ? "" : sha256.toLowerCase(Locale.US);
-        if (!normalizedSha.matches("[0-9a-f]{64}")) {
+        if (!normalizedSha.isEmpty() && !normalizedSha.matches("[0-9a-f]{64}")) {
             throw new IllegalArgumentException("invalid component SHA-256");
         }
         this.id = id;
@@ -85,6 +88,18 @@ public final class ComponentDescriptor {
 
     public ComponentTask createTask(String taskId) {
         return ComponentTask.queued(taskId, id, version, url, size, sha256);
+    }
+
+    /** Copies every display/classification field from {@code template} (the bundled catalog's
+     *  static fallback entry) but substitutes the actual values an upstream release resolver
+     *  (see UpstreamWineReleaseResolver) just found -- used for the two wine components this
+     *  app resolves against upstream "latest" at RootFS rebuild time instead of a pinned version. */
+    public static ComponentDescriptor withResolvedUpstream(ComponentDescriptor template,
+            int version, String url, long size, String sha256) {
+        return new ComponentDescriptor(template.id, template.category, version, url, size, sha256,
+            template.type, template.displayName, template.versionName, template.summary,
+            template.framework, template.base, template.recommended, template.profileValue,
+            template.runtimeBackends);
     }
 
     public String getId() { return id; }

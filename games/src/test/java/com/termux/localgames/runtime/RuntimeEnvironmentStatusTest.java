@@ -78,7 +78,7 @@ public class RuntimeEnvironmentStatusTest {
         GameStoragePaths paths = new GameStoragePaths(files);
         GameContainer container = new GameContainer("container-game-b", "Game B",
             GameRuntimeBackendType.ROOTFS_PROOT, GameContainer.ROOTFS_RUNTIME_PACKAGE,
-            RuntimeTranslator.HANGOVER, "hangover-11.9", "rootfs-llvmpipe", "rootfs-wined3d",
+            RuntimeTranslator.HANGOVER, "hangover-latest", "rootfs-llvmpipe", "rootfs-wined3d",
             "pulseaudio", "1280x720", "INTERMEDIATE", Collections.emptyMap());
         new FileGameContainerRepository(paths.getContainersDirectory()).save(container);
 

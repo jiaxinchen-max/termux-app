@@ -45,13 +45,13 @@ public final class GameContainerProfileResolverTest {
         // *current* winePackage -- not the container's now-stale translator -- or
         // rootfs_prefix_warmup.sh's resolve_rootfs_translator() rejects the launch with
         // runtime_translator_package_mismatch (WINE_PACKAGE no longer matching RUNTIME_TRANSLATOR).
-        RuntimeProfile gameProfile = new RuntimeProfile("game-2", "box64-wine-10.0",
+        RuntimeProfile gameProfile = new RuntimeProfile("game-2", "box64-wine-latest",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "", LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
             GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", "container-stale");
         GameContainer staleContainer = new GameContainer("container-stale", "Independent container",
             GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", RuntimeTranslator.HANGOVER,
-            "hangover-11.9", "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
+            "hangover-latest", "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap());
 
         RuntimeProfile resolved = new GameContainerProfileResolver()

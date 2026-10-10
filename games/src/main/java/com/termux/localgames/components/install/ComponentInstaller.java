@@ -103,7 +103,10 @@ public final class ComponentInstaller {
         File staging = new File(stagingRoot(), task.getTaskId());
         boolean activated = false;
         try {
-            verifyArchive(archive, task);
+            String verifiedSha256 = verifyArchive(archive, task);
+            if (!verifiedSha256.equals(task.getSha256())) {
+                task = task.withVerifiedSha256(verifiedSha256);
+            }
             task = transition(task, ComponentTaskState.INSTALLING, "", "", listener);
             deleteTree(staging);
             ensureDirectory(staging);
@@ -220,15 +223,22 @@ public final class ComponentInstaller {
         return updated;
     }
 
-    private static void verifyArchive(File archive, ComponentTask task) throws IOException {
+    /** Returns the archive's actual sha256. A non-empty {@code task.getSha256()} must match it
+     *  exactly (unchanged behaviour); an empty one means the digest was not known ahead of time
+     *  (trust-on-first-download -- see ComponentTask.withVerifiedSha256()) and is accepted as-is,
+     *  the actual value becoming the one this install is pinned to from here on. */
+    private static String verifyArchive(File archive, ComponentTask task) throws IOException {
         if (!archive.isFile() || archive.length() != task.getExpectedSize()) {
             throw new ComponentInstallException("archive_size_mismatch",
                 "Verified component archive size changed");
         }
-        if (!task.getSha256().equals(sha256(archive))) {
+        String actual = sha256(archive);
+        String expected = task.getSha256();
+        if (!expected.isEmpty() && !expected.equals(actual)) {
             throw new ComponentInstallException("archive_sha256_mismatch",
                 "Verified component archive digest changed");
         }
+        return actual;
     }
 
     private void writeReceipt(File directory, ComponentTask task,
@@ -328,10 +338,16 @@ public final class ComponentInstaller {
             task.getSha256(), directory);
     }
 
+    /** An empty {@code task.getSha256()} means the caller resolved this install without a
+     *  pre-known digest (trust-on-first-download, see ComponentTask.withVerifiedSha256()) -- the
+     *  installed receipt always holds the real computed hash by then, so the two can never be
+     *  compared directly; identity falls back to packageName+version alone in that case. */
     private static boolean matches(InstalledComponent component, ComponentTask task) {
-        return component.getPackageName().equals(task.getPackageName()) &&
-            component.getVersion() == task.getVersion() &&
-            component.getSha256().equals(task.getSha256());
+        if (!component.getPackageName().equals(task.getPackageName()) ||
+            component.getVersion() != task.getVersion()) {
+            return false;
+        }
+        return task.getSha256().isEmpty() || component.getSha256().equals(task.getSha256());
     }
 
     private static void requirePackage(InstalledComponent component, String packageName)

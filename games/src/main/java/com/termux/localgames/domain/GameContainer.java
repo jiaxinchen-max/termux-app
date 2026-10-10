@@ -12,7 +12,7 @@ public final class GameContainer {
     public static final String DEFAULT_ID = "default";
     /** Runtime activation ID; this is distinct from the component that supplies its recipe. */
     public static final String ROOTFS_RUNTIME_PACKAGE = "debian-13-games-rootfs";
-    private static final String ROOTFS_RECIPE_SOURCE = "hangover-11.9-debian13-source";
+    private static final String ROOTFS_RECIPE_SOURCE = "hangover-latest-debian13-source";
 
     private final String id;
     private final String name;

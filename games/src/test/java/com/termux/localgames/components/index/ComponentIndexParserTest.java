@@ -38,7 +38,7 @@ public class ComponentIndexParserTest {
         assertEquals(1L, glibc.getSize());
         assertEquals("0000000000000000000000000000000000000000000000000000000000000000",
             glibc.getSha256());
-        ComponentDescriptor source = index.find("hangover-11.9-debian13-source").get();
+        ComponentDescriptor source = index.find("hangover-latest-debian13-source").get();
         assertEquals(ComponentType.RUNTIME_SUPPORT, source.getType());
         assertTrue(source.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
         assertEquals(273571840L, source.getSize());

@@ -7,7 +7,14 @@ import java.util.List;
 /** Versioned recipe identity; payload bytes are bundled as Games assets. */
 public final class RootfsSetupRecipe {
     public static final String DEFAULT_PACKAGE = "debian-13-games-rootfs";
-    public static final String DEFAULT_SOURCE = "hangover-11.9-debian13-source";
+    /** Resolved against the latest upstream Hangover release at every RootFS rebuild instead of
+     *  being pinned to a fixed version -- see UpstreamWineReleaseResolver /
+     *  RootfsRuntimeComponentPreparer. The id itself never needs a version bump again. */
+    public static final String DEFAULT_SOURCE = "hangover-latest-debian13-source";
+    /** Also resolved against upstream's latest release at every RootFS rebuild (Kron4ek's
+     *  vanilla Wine build, used by the standalone-Box64-translator path) -- see
+     *  UpstreamWineReleaseResolver / RootfsRuntimeComponentPreparer. */
+    public static final String BOX64_WINE_COMPONENT = "box64-wine-latest";
     /**
      * Every component baked into the one shared RootFS base image, all delivered through the unified
      * component framework (download + sha256 + extract/raw-publish) and installed in-guest by
@@ -27,7 +34,7 @@ public final class RootfsSetupRecipe {
             "rootfs-dxvk-2.7",
             "rootfs-dxvk-3.1",
             "rootfs-dxvk-1.10.3",
-            "box64-wine-10.0"));
+            BOX64_WINE_COMPONENT));
     public static final int DEFAULT_VERSION = 10;
 
     private final String packageName;

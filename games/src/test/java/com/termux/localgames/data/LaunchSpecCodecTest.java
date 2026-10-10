@@ -94,7 +94,7 @@ public class LaunchSpecCodecTest {
             base.getGameRootPath(), base.getExecutable(), base.getWorkingDirectory(),
             base.getArguments(),
             "/data/data/com.termux/files/games/prefixes/rootfs_proot/game-1",
-            "hangover-11.9", "rootfs-virgl-mesa", "rootfs-wined3d", base.getAudioDriver(),
+            "hangover-latest", "rootfs-virgl-mesa", "rootfs-wined3d", base.getAudioDriver(),
             base.getResolution(), base.getBox64Preset(), base.getInputProfileId(),
             base.getLaunchExecutionMode(), base.getEnvironment(), base.getEventPath(),
             base.getLogPath(), base.getLockPath(), base.getCancelPath(),

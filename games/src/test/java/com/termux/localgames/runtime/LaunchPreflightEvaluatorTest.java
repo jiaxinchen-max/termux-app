@@ -86,11 +86,11 @@ public class LaunchPreflightEvaluatorTest {
 
     @Test
     public void rootfsBackendUsesVerifiedSourceAndTermuxBuilderCapabilities() throws Exception {
-        String[] ids = {"hangover-11.9-debian13-source", "box64-rootfs",
+        String[] ids = {"hangover-latest-debian13-source", "box64-rootfs",
             "box64-rootfs-mprotect-patch", "rootfs-dxvk-2.7", "rootfs-dxvk-3.1",
-            "rootfs-dxvk-1.10.3", "box64-wine-10.0"};
+            "rootfs-dxvk-1.10.3", "box64-wine-latest"};
         ComponentIndex index = index(ids);
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-11.9",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -112,9 +112,9 @@ public class LaunchPreflightEvaluatorTest {
 
     @Test
     public void rootfsBackendBlocksWhenHostProotIsMissing() throws Exception {
-        String[] ids = {"hangover-11.9-debian13-source"};
+        String[] ids = {"hangover-latest-debian13-source"};
         ComponentIndex index = index(ids);
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-11.9",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
             "rootfs-virgl-mesa", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -131,9 +131,9 @@ public class LaunchPreflightEvaluatorTest {
 
     @Test
     public void rootfsVirglBlocksWhenHostServerIsMissing() throws Exception {
-        String[] ids = {"hangover-11.9-debian13-source"};
+        String[] ids = {"hangover-latest-debian13-source"};
         ComponentIndex index = index(ids);
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-11.9",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
             "rootfs-virgl-mesa", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -199,7 +199,7 @@ public class LaunchPreflightEvaluatorTest {
             boolean wine = ids[index].startsWith("wine-");
             String category = wine ? "wine" : "runtime";
             String type = wine ? "container" : "runtime_support";
-            String backend = "hangover-11.9-debian13-source".equals(ids[index])
+            String backend = "hangover-latest-debian13-source".equals(ids[index])
                 ? "rootfs_proot" : "glibc_termux_box";
             json.append("{\"id\":\"").append(ids[index]).append("\",\"category\":\"")
                 .append(category).append("\",\"type\":\"").append(type)

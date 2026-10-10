@@ -30,7 +30,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
     public Set<String> requiredComponentIds(RuntimeProfile profile, GameStoragePaths paths) {
         requireProfile(profile, paths);
         Set<String> result = new LinkedHashSet<>();
-        if ("hangover-11.9".equals(profile.getWinePackage())) {
+        if (profile.getWinePackage().startsWith("hangover-")) {
             // The one shared base image is built from this whole set (Hangover source, Box64,
             // and every selectable DXVK), all delivered through the unified component framework.
             // A game's dxWrapper only picks which baked DXVK to use at launch, so every rootfs

@@ -76,6 +76,7 @@ import com.termux.localgames.domain.RootfsBackupTaskState;
 import com.termux.localgames.domain.RuntimeReadinessState;
 import com.termux.localgames.api.ResetTasks;
 import com.termux.localgames.runtime.RuntimeEnvironmentStatus;
+import com.termux.localgames.runtime.RootfsSetupRecipe;
 import com.termux.localgames.domain.RuntimeSetupTask;
 import com.termux.localgames.domain.RuntimeProfile;
 import com.termux.localgames.importer.SafGameAccessProbe;
@@ -1034,7 +1035,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private static boolean isRootfsSource(ComponentCatalogItem item) {
-        return "hangover-11.9-debian13-source".equals(item.getDescriptor().getId());
+        return RootfsSetupRecipe.DEFAULT_SOURCE.equals(item.getDescriptor().getId());
     }
 
     private int componentTypeLabel(ComponentType type) {
@@ -1065,7 +1066,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private String componentSummary(ComponentDescriptor descriptor) {
         switch (descriptor.getId()) {
-            case "hangover-11.9-debian13-source":
+            case RootfsSetupRecipe.DEFAULT_SOURCE:
                 return getString(R.string.local_games_component_summary_imagefs);
             case "turnip":
                 return getString(R.string.local_games_component_summary_turnip);

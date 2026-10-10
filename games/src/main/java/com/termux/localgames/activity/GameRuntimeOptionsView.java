@@ -320,7 +320,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
      */
     private void switchToRootfs() {
         String containerId = "container-" + UUID.randomUUID().toString().substring(0, 8);
-        RuntimeProfile draft = new RuntimeProfile(profile.getId(), "hangover-11.9",
+        RuntimeProfile draft = new RuntimeProfile(profile.getId(), "hangover-latest",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", profile.getResolution(),
             profile.getBox64Preset(), profile.getEnvironment(), profile.getInputProfileId(),
             profile.getLaunchExecutionMode(), profile.getComponentVersions(),
@@ -392,14 +392,17 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
                 profile.getEnvironment(), profile.getInputProfileId(), profile.getLaunchExecutionMode()));
         if (rootfs) {
-            // hangover-11.9 bundles its own translation layer inside the wine binary (apt-installed,
-            // shared system-wide). box64-wine-10.0 is a portable vanilla wine run under the
+            // hangover-latest bundles its own translation layer inside the wine binary (apt-installed,
+            // shared system-wide). box64-wine-latest is a portable vanilla wine run under the
             // standalone Box64 translator (see rootfs_prefix_warmup.sh's resolve_rootfs_translator) --
-            // an independent runtime, selectable per game. Custom-installed builds (see
-            // showAddCustomComponentFlow) are appended after the two presets, and a trailing
-            // "+ Add custom Wine build..." row launches that flow instead of selecting a value.
+            // an independent runtime, selectable per game. Both are resolved against upstream's
+            // latest release at every RootFS rebuild instead of a pinned version (see
+            // UpstreamWineReleaseResolver), hence the "-latest" names rather than a version number.
+            // Custom-installed builds (see showAddCustomComponentFlow) are appended after the two
+            // presets, and a trailing "+ Add custom Wine build..." row launches that flow instead
+            // of selecting a value.
             addChoiceWithAddCustom("Wine package", profile.getWinePackage(),
-                new String[] {"hangover-11.9", "box64-wine-10.0"}, customWineEntries, null,
+                new String[] {"hangover-latest", "box64-wine-latest"}, customWineEntries, null,
                 getContext().getString(R.string.local_games_custom_component_add_wine),
                 value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),
                     profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),

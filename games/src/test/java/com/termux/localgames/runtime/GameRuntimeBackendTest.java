@@ -44,7 +44,7 @@ public class GameRuntimeBackendTest {
         Set<String> components = backend.requiredComponentIds(rootfsProfile());
 
         // The shared base image is built from the whole framework-delivered component set.
-        assertTrue(components.contains("hangover-11.9-debian13-source"));
+        assertTrue(components.contains("hangover-latest-debian13-source"));
         assertTrue(components.contains("box64-rootfs"));
         assertTrue(components.contains("rootfs-dxvk-2.7"));
         assertFalse(components.contains(GlibcTermuxBoxBackend.TERMUX_GLIBC_RUNTIME_COMPONENT));
@@ -57,7 +57,7 @@ public class GameRuntimeBackendTest {
     @Test
     public void rootfsBaseComponentsComeFromTheUnifiedFramework() {
         RootfsProotBackend backend = new RootfsProotBackend();
-        RuntimeProfile withDxvk = new RuntimeProfile("game-1", "hangover-11.9",
+        RuntimeProfile withDxvk = new RuntimeProfile("game-1", "hangover-latest",
             "rootfs-llvmpipe", "rootfs-dxvk-2.7", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
             Collections.emptyMap(), GameRuntimeBackendType.ROOTFS_PROOT,
@@ -104,7 +104,7 @@ public class GameRuntimeBackendTest {
         write(new File(rootfs, "etc/games-runtime.properties"), properties(
             "schemaVersion", "2", "runtimeBackend", "rootfs_proot",
             "architecture", "aarch64",
-            "runtimePackages", "hangover-11.9,box64-wine-stable",
+            "runtimePackages", "hangover-latest,box64-wine-stable",
             "graphicsDrivers", "rootfs-virgl-mesa,rootfs-llvmpipe",
             "dxWrappers", "rootfs-dxvk,rootfs-wined3d",
             "audioDrivers", "pulseaudio,alsa"));
@@ -146,7 +146,7 @@ public class GameRuntimeBackendTest {
 
     @Test
     public void rootfsBackendRejectsVirglWithDxvk() {
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-11.9",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
             "rootfs-virgl-mesa", "rootfs-dxvk-2.7", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -163,7 +163,7 @@ public class GameRuntimeBackendTest {
 
     @Test
     public void rootfsVirglRequiresHostServerButLlvmpipeDoesNot() {
-        RuntimeProfile virgl = new RuntimeProfile("game-1", "hangover-11.9",
+        RuntimeProfile virgl = new RuntimeProfile("game-1", "hangover-latest",
             "rootfs-virgl-mesa", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -177,7 +177,7 @@ public class GameRuntimeBackendTest {
 
     @Test
     public void rootfsBackendRejectsCapabilitiesNotImplementedByLauncher() {
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-11.9",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
             "rootfs-vortek", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -193,7 +193,7 @@ public class GameRuntimeBackendTest {
 
     @Test
     public void rootfsBackendRejectsAudioNotImplementedByLauncher() {
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-11.9",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
             "rootfs-virgl-mesa", "rootfs-wined3d", "alsa", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -208,7 +208,7 @@ public class GameRuntimeBackendTest {
     }
 
     private static RuntimeProfile rootfsProfile() {
-        return new RuntimeProfile("game-1", "hangover-11.9", "rootfs-llvmpipe",
+        return new RuntimeProfile("game-1", "hangover-latest", "rootfs-llvmpipe",
             "rootfs-wined3d", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
             Collections.emptyMap(), GameRuntimeBackendType.ROOTFS_PROOT,

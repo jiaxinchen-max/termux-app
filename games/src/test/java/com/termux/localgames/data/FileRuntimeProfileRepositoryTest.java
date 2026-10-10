@@ -80,7 +80,7 @@ public class FileRuntimeProfileRepositoryTest {
         FileRuntimeProfileRepository repository = repository();
         RuntimeProfile base = RuntimeProfilePresets.create("game-1",
             RuntimeProfilePreset.RECOMMENDED);
-        RuntimeProfile rootfs = new RuntimeProfile(base.getId(), "hangover-11.9",
+        RuntimeProfile rootfs = new RuntimeProfile(base.getId(), "hangover-latest",
             "rootfs-virgl-mesa", "rootfs-wined3d", base.getAudioDriver(), base.getResolution(),
             base.getBox64Preset(), base.getEnvironment(), base.getInputProfileId(),
             base.getLaunchExecutionMode(), base.getComponentVersions(),

@@ -19,7 +19,7 @@
 #   RUNTIME_ROOT_PATH    the exact string embedded into the "already warmed" marker files --
 #                        both callers must compute the identical value for a given container, or
 #                        warming up in one place does not skip anything in the other
-#   WINE_PACKAGE         e.g. "hangover-11.9" or "box64-wine-9.3"
+#   WINE_PACKAGE         e.g. "hangover-latest" or "box64-wine-latest"
 #   TEMPLATE_CACHE_DIR   only required by resolve_template_prefix_archive() (below), not by
 #                        warmup_rootfs_prefix() itself -- callers that build TEMPLATE_PREFIX_ARCHIVE
 #                        some other way (setup_rootfs_runtime.sh's BASE_ONLY template-build step

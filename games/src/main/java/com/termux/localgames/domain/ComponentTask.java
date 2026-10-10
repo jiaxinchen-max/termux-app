@@ -31,9 +31,12 @@ public final class ComponentTask {
         }
         this.version = version;
         this.url = DomainValidation.requireText(url, "url");
-        String normalizedSha = DomainValidation.requireText(sha256, "sha256")
-            .toLowerCase(Locale.US);
-        if (!normalizedSha.matches("[0-9a-f]{64}")) {
+        // Empty sha256 means "not yet known" -- the two upstream-tracked wine components
+        // (Hangover, which publishes no checksum at all) are resolved at rebuild time without a
+        // pre-known digest; ComponentInstaller computes and records the real one once the
+        // archive is downloaded (trust-on-first-download, see withVerifiedSha256()).
+        String normalizedSha = DomainValidation.optionalText(sha256).toLowerCase(Locale.US);
+        if (!normalizedSha.isEmpty() && !normalizedSha.matches("[0-9a-f]{64}")) {
             throw new IllegalArgumentException("sha256 must contain 64 lowercase hex characters");
         }
         if (downloadedBytes < 0 || downloadedBytes > expectedSize) {
@@ -75,6 +78,15 @@ public final class ComponentTask {
         return new ComponentTask(taskId, packageName, version, url, expectedSize,
             sha256, nextDownloadedBytes, nextEtag, nextLastModified, nextState,
             nextErrorCode, nextErrorMessage);
+    }
+
+    /** Pins the digest actually computed from a downloaded archive once this task's sha256 was
+     *  unknown at enqueue time (trust-on-first-download). Only meaningful going from an empty
+     *  sha256 to a real one -- see ComponentInstaller.install(). */
+    public ComponentTask withVerifiedSha256(String verifiedSha256) {
+        return new ComponentTask(taskId, packageName, version, url, expectedSize,
+            verifiedSha256, downloadedBytes, etag, lastModified, state,
+            errorCode, errorMessage);
     }
 
     public String getTaskId() { return taskId; }

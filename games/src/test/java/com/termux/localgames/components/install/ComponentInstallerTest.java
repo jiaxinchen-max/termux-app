@@ -61,6 +61,30 @@ public class ComponentInstallerTest {
         assertTrue(secondInstalled.getDirectory().isDirectory());
     }
 
+    /** Covers the two upstream-tracked wine components (Hangover, which publishes no checksum at
+     *  all) resolved without a pre-known sha256 -- see UpstreamWineReleaseResolver. The archive is
+     *  still hashed and the computed digest both becomes the receipt's sha256 and lets a later
+     *  "is this already installed" check succeed. */
+    @Test
+    public void installsWithoutAPreknownSha256TrustsTheComputedDigest() throws Exception {
+        Fixture fixture = fixture();
+        File archive = archive("hangover.tar.xz", "bin/runtime", "hangover-contents");
+        ComponentTask task = ComponentTask.queued("task-tofu", "hangover-latest-debian13-source",
+                1, "https://example.invalid/hangover.tar.xz", archive.length(), "")
+            .transition(ComponentTaskState.VERIFIED, archive.length(), "", "", "", "");
+        fixture.repository.save(task);
+        String expectedSha256 = sha256(archive);
+
+        InstalledComponent installed = fixture.installer.install(task, archive,
+            ComponentInstallListener.NONE);
+
+        assertEquals(expectedSha256, installed.getSha256());
+        InstalledComponent active = fixture.installer.findActive("hangover-latest-debian13-source")
+            .get();
+        assertEquals(expectedSha256, active.getSha256());
+        assertFalse(active.getSha256().isEmpty());
+    }
+
     @Test
     public void installsVerifiedPlainTarSourceComponent() throws Exception {
         Fixture fixture = fixture();

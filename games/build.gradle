@@ -64,6 +64,12 @@ dependencies {
     implementation 'org.apache.commons:commons-compress:1.20'
 
     testImplementation 'junit:junit:4.13.2'
+    // org.json.JSONObject is provided by the Android platform at runtime (RootfsSetupForegroundService,
+    // UpstreamWineReleaseResolver use it as-is with no extra dependency needed on-device) but JVM unit
+    // tests run against android.jar's stub with unitTests.returnDefaultValues = true, which makes every
+    // org.json method return a type default instead of actually parsing -- a real implementation is
+    // needed here so UpstreamWineReleaseResolverTest can exercise real JSON parsing.
+    testImplementation 'org.json:json:20231013'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.5'

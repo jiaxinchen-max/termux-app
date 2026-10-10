@@ -128,7 +128,7 @@ public class GameUninstallerTest {
     }
 
     private static RuntimeProfile rootfsProfile(String gameId, String containerId) {
-        return new RuntimeProfile(gameId, "hangover-11.9", "rootfs-llvmpipe", "rootfs-wined3d",
+        return new RuntimeProfile(gameId, "hangover-latest", "rootfs-llvmpipe", "rootfs-wined3d",
             "pulseaudio", "1280x720", "INTERMEDIATE", Collections.emptyMap(), "",
             LaunchExecutionMode.TERMINAL_SESSION, Collections.emptyMap(),
             GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", containerId);
