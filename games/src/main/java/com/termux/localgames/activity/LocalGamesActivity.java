@@ -958,6 +958,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         if (componentBackend == null) throw new IOException("component_runtime_scope_missing");
         List<ComponentCatalogItem> result = new java.util.ArrayList<>();
         for (ComponentCatalogItem item : items) {
+            if (item.getDescriptor().isHidden()) continue;
             if (item.getDescriptor().supportsBackend(componentBackend)) result.add(item);
         }
         return result;

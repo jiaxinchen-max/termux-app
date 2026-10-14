@@ -226,8 +226,8 @@
     <string name="local_games_runtime_rollback_action">回滚运行环境</string>
     <string name="local_games_runtime_rollback_complete">运行环境已回滚到版本 %1$d</string>
     <string name="local_game_runtime_profile_title">运行配置</string>
-    <string name="local_game_runtime_profile_backend_glibc">GLIBC · TermuxBox</string>
-    <string name="local_game_runtime_profile_backend_rootfs">RootFS · PRoot</string>
+    <string name="local_game_runtime_profile_backend_glibc">Native</string>
+    <string name="local_game_runtime_profile_backend_rootfs">PRoot</string>
     <string name="local_game_launch_title">游戏启动</string>
     <string name="local_game_launch_preparing">正在准备持久启动任务…</string>
     <string name="local_game_launch_task_id">任务：%1$s</string>

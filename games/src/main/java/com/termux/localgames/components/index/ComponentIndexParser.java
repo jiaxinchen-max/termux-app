@@ -42,7 +42,7 @@ public final class ComponentIndexParser {
 
     private static ComponentDescriptor parsePackage(Map<String, Object> item) throws IOException {
         requireKeys(item, "package", "id", "category", "type", "displayName",
-            "versionName", "summary", "framework", "base", "recommended",
+            "versionName", "summary", "framework", "base", "recommended", "hidden",
             "profileValue", "runtimeBackends", "version", "url", "size", "sha256");
         Set<GameRuntimeBackendType> backends = new LinkedHashSet<>();
         for (Object value : array(item.get("runtimeBackends"), "runtimeBackends")) {
@@ -70,6 +70,7 @@ public final class ComponentIndexParser {
                 string(item.get("framework"), "framework"),
                 bool(item.get("base"), "base"),
                 bool(item.get("recommended"), "recommended"),
+                bool(item.get("hidden"), "hidden"),
                 optionalString(item.get("profileValue"), "profileValue"),
                 backends
             );

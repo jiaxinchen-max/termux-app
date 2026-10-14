@@ -22,6 +22,8 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
 import com.termux.localgames.api.CustomComponentInstallTasks;
 import com.termux.localgames.api.LocalGames;
+import com.termux.localgames.components.index.ComponentIndex;
+import com.termux.localgames.components.index.ComponentIndexParser;
 import com.termux.localgames.api.RuntimeWarmup;
 import com.termux.localgames.data.FileCustomRuntimeComponentRepository;
 import com.termux.localgames.data.FileCustomComponentInstallTaskRepository;
@@ -79,6 +81,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private FileGameRepository gameRepository;
     private GameContainerRepository containerRepository;
     private FileCustomRuntimeComponentRepository customComponents;
+    @Nullable private final ComponentIndex componentIndex;
     private GameStoragePaths paths;
     private List<CustomRuntimeComponent> customWineEntries = Collections.emptyList();
     private List<CustomRuntimeComponent> customBox64Entries = Collections.emptyList();
@@ -125,6 +128,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         containerRepository = new FileGameContainerRepository(paths.getContainersDirectory());
         customComponents = new FileCustomRuntimeComponentRepository(
             paths.getCustomRuntimeComponentsDirectory());
+        this.componentIndex = loadComponentIndex(context);
         addView(createContent(), new LinearLayout.LayoutParams(
             LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         if (gameId == null || gameId.trim().isEmpty()) {
@@ -558,13 +562,32 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             .show());
     }
 
-    private static String displayNameFor(String value, List<CustomRuntimeComponent> customEntries,
+    private String displayNameFor(String value, List<CustomRuntimeComponent> customEntries,
             @Nullable String emptyValueLabel) {
         if ((value == null || value.isEmpty()) && emptyValueLabel != null) return emptyValueLabel;
         for (CustomRuntimeComponent entry : customEntries) {
             if (entry.getId().equals(value)) return entry.getDisplayName();
         }
+        if (componentIndex != null) {
+            java.util.Optional<com.termux.localgames.components.index.ComponentDescriptor>
+                catalogEntry = componentIndex.find(value);
+            if (catalogEntry.isPresent()) return catalogEntry.get().getDisplayName();
+        }
         return value;
+    }
+
+    /** Parses the bundled component catalog once at construction so displayNameFor() can map a
+     *  preset component id (e.g. "box64-wine-latest") to its friendly catalog displayName instead
+     *  of showing the raw id. Best-effort: a parse failure leaves componentIndex null and
+     *  displayNameFor() falls back to showing raw ids, not a crash. */
+    @Nullable
+    private static ComponentIndex loadComponentIndex(Context context) {
+        try (java.io.InputStream input = context.getAssets().open(
+                "termux-box-packages/index-v1.json")) {
+            return new ComponentIndexParser().parse(input);
+        } catch (java.io.IOException | RuntimeException error) {
+            return null;
+        }
     }
 
     /** Entry point for the "+ Add custom Wine/Box64 build..." row: picks a local file via SAF,

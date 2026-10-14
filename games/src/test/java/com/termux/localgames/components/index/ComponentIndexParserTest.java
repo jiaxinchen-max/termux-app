@@ -1,6 +1,7 @@
 package com.termux.localgames.components.index;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -47,6 +48,12 @@ public class ComponentIndexParserTest {
         ComponentDescriptor box64Rootfs = index.find("box64-rootfs").get();
         assertTrue(box64Rootfs.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
         assertEquals(ComponentType.TRANSLATOR, box64Rootfs.getType());
+        // The three implementation-detail components are hidden from the user-facing list; a
+        // representative selectable one is not.
+        assertTrue(box64Rootfs.isHidden());
+        assertTrue(index.find("box64-rootfs-mprotect-patch").get().isHidden());
+        assertTrue(source.isHidden());
+        assertFalse(index.find("box64-wine-latest").get().isHidden());
         ComponentDescriptor rootfsDxvk = index.find("rootfs-dxvk-2.7").get();
         assertEquals(ComponentType.DX_WRAPPER, rootfsDxvk.getType());
         assertTrue(rootfsDxvk.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
@@ -173,7 +180,7 @@ public class ComponentIndexParserTest {
         return "{\"id\":\"" + id + "\",\"category\":\"runtime\",\"type\":\"" + type +
             "\",\"displayName\":\"DXVK\",\"versionName\":\"2.0\"," +
             "\"summary\":\"Direct3D translation layer\",\"framework\":\"GLIBC\"," +
-            "\"base\":false,\"recommended\":true,\"profileValue\":\"" +
+            "\"base\":false,\"recommended\":true,\"hidden\":false,\"profileValue\":\"" +
             profileValue + "\",\"runtimeBackends\":[\"glibc_termux_box\"]," +
             "\"version\":1,\"url\":\"https://example.invalid/a.tar.xz\"," +
             "\"size\":1,\"sha256\":\"" + SHA256 + "\"}";

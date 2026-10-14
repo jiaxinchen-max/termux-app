@@ -276,8 +276,8 @@
     <string name="local_games_runtime_rollback_action">Roll back runtime</string>
     <string name="local_games_runtime_rollback_complete">Runtime rolled back to version %1$d</string>
     <string name="local_game_runtime_profile_title">Runtime configuration</string>
-    <string name="local_game_runtime_profile_backend_glibc">GLIBC · TermuxBox</string>
-    <string name="local_game_runtime_profile_backend_rootfs">RootFS · PRoot</string>
+    <string name="local_game_runtime_profile_backend_glibc">Native</string>
+    <string name="local_game_runtime_profile_backend_rootfs">PRoot</string>
     <string name="local_game_launch_title">Game launch</string>
     <string name="local_game_launch_preparing">Preparing persistent launch task…</string>
     <string name="local_game_launch_task_id">Task: %1$s</string>

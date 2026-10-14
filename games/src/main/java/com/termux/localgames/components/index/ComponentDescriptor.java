@@ -25,6 +25,7 @@ public final class ComponentDescriptor {
     private final String framework;
     private final boolean base;
     private final boolean recommended;
+    private final boolean hidden;
     private final String profileValue;
     private final Set<GameRuntimeBackendType> runtimeBackends;
 
@@ -32,7 +33,7 @@ public final class ComponentDescriptor {
                                long size, String sha256, ComponentType type,
                                String displayName, String versionName, String summary,
                                String framework, boolean base, boolean recommended,
-                               String profileValue,
+                               boolean hidden, String profileValue,
                                Set<GameRuntimeBackendType> runtimeBackends) {
         if (id == null || !id.matches("[A-Za-z0-9._-]+")) {
             throw new IllegalArgumentException("invalid component id");
@@ -65,6 +66,7 @@ public final class ComponentDescriptor {
         this.framework = requireText(framework, "framework");
         this.base = base;
         this.recommended = recommended;
+        this.hidden = hidden;
         this.profileValue = profileValue == null ? "" : profileValue.trim();
         if (!this.profileValue.isEmpty() && !this.profileValue.matches("[A-Za-z0-9._-]+")) {
             throw new IllegalArgumentException("invalid component profileValue");
@@ -98,8 +100,8 @@ public final class ComponentDescriptor {
             int version, String url, long size, String sha256) {
         return new ComponentDescriptor(template.id, template.category, version, url, size, sha256,
             template.type, template.displayName, template.versionName, template.summary,
-            template.framework, template.base, template.recommended, template.profileValue,
-            template.runtimeBackends);
+            template.framework, template.base, template.recommended, template.hidden,
+            template.profileValue, template.runtimeBackends);
     }
 
     public String getId() { return id; }
@@ -115,6 +117,12 @@ public final class ComponentDescriptor {
     public String getFramework() { return framework; }
     public boolean isBase() { return base; }
     public boolean isRecommended() { return recommended; }
+    /** True for components that are pure implementation detail -- auto-managed as part of some
+     *  other setup pipeline, never a choice a user should make directly (selecting them would
+     *  either do nothing useful or actively break things, e.g. a stock box64 build that crashes
+     *  under Android's W^X policy once picked over the patched build). Filtered out of the
+     *  user-facing Components list; still fully functional for internal lookups/downloads. */
+    public boolean isHidden() { return hidden; }
     public boolean isSelectable() { return !profileValue.isEmpty(); }
     public String getProfileValue() { return profileValue; }
     public Set<GameRuntimeBackendType> getRuntimeBackends() { return runtimeBackends; }

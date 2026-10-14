@@ -151,7 +151,7 @@ public class UpstreamWineReleaseResolverTest {
             "https://github.com/AndreRH/hangover/releases/download/hangover-11.9/hangover_11.9_debian13_trixie_arm64.tar",
             273571840L, "896918679daa53d6d3a6a1c40132cd35a1d9edc7afdbc643f9bbb3e22b114348",
             ComponentType.RUNTIME_SUPPORT, "Debian 13 ImageFS Source", "Hangover (offline fallback)",
-            "Verified Debian source archive.", "ROOTFS", false, false, "",
+            "Verified Debian source archive.", "ROOTFS", false, false, false, "",
             Collections.singleton(GameRuntimeBackendType.ROOTFS_PROOT));
     }
 
@@ -161,7 +161,7 @@ public class UpstreamWineReleaseResolverTest {
             65074156L, "aeebbbf239e548f0136f1cd72a2e109dd9a572a8f703da3c09fa40d74d5c255f",
             ComponentType.TRANSLATOR, "Box64 + Wine (RootFS)", "Vanilla WoW64 (offline fallback)",
             "Portable vanilla Wine under the standalone Box64 translator.", "ROOTFS", false, false,
-            "box64-wine-latest", Collections.singleton(GameRuntimeBackendType.ROOTFS_PROOT));
+            false, "box64-wine-latest", Collections.singleton(GameRuntimeBackendType.ROOTFS_PROOT));
     }
 
     private static ComponentDescriptor protonWineTemplate() {
@@ -170,7 +170,8 @@ public class UpstreamWineReleaseResolverTest {
             80017220L, "f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595",
             ComponentType.TRANSLATOR, "Box64 + Proton (RootFS)", "Proton WoW64 (offline fallback)",
             "Kron4ek's own Proton build under the standalone Box64 translator.", "ROOTFS", false,
-            false, "box64-proton-latest", Collections.singleton(GameRuntimeBackendType.ROOTFS_PROOT));
+            false, false, "box64-proton-latest",
+            Collections.singleton(GameRuntimeBackendType.ROOTFS_PROOT));
     }
 
     private static UpstreamWineReleaseResolver resolver(FakeConnection response) {
