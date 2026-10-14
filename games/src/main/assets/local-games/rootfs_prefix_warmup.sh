@@ -131,7 +131,7 @@ resolve_rootfs_translator() {
                 box64-proton*) box64_wine_root=/opt/box64-proton; box64_wine_bin=wine ;;
                 *) box64_wine_root=/opt/box64-wine; box64_wine_bin=wine64 ;;
             esac
-            GUEST_COMMAND=/usr/local/bin/box64
+            GUEST_COMMAND=/opt/box64/box64-rootfs-mprotect-patch/bin/box64
             GUEST_WINE=${GAMES_CUSTOM_WINE_PATH:-$box64_wine_root/bin/$box64_wine_bin}
             # The biarch build's bin/wineboot is a #!/bin/sh wrapper script, not an ELF -- box64
             # cannot translate/exec it directly ("Not an ELF file"). wineboot is instead invoked
@@ -161,19 +161,18 @@ resolve_rootfs_translator() {
         *) warmup_fail runtime_translator_unsupported ;;
     esac
     # Box64 build choice is orthogonal to the Wine package/translator choice above (see
-    # GameRuntimeOptionsView's "Box64 build" row) -- a custom box64 binary only ever overrides
-    # GUEST_COMMAND, never the wine/wineboot paths resolved above. A no-op when
-    # GAMES_CUSTOM_BOX64_ID names a build that was installed as a .deb (apt already replaced
-    # /usr/local/bin/box64 in place, so GUEST_COMMAND's existing value already points at it); only
-    # a raw-binary custom build (installed to its own /opt/custom-box64/<id>/box64 path, never
-    # touching /usr/local/bin/box64) actually changes GUEST_COMMAND here.
+    # GameRuntimeOptionsView's "Box64 build" row) -- it only ever overrides GUEST_COMMAND, never
+    # the wine/wineboot paths resolved above. Every box64 build (the catalog's box64-rootfs,
+    # box64-rootfs-mprotect-patch, or any custom-box64-* sideload) lives at its own
+    # /opt/box64/<id>/bin/box64 (see setup-container.sh's box64 layout step), so selection is just
+    # picking which id's directory to point GUEST_COMMAND at -- defaults to the mprotect-patched
+    # build above if this is unset. Fails loudly (not a silent fallback) if the requested id's
+    # build isn't actually installed, so a typo'd/missing id is caught here rather than silently
+    # running whatever the default happened to be.
     if [ -n "${GAMES_CUSTOM_BOX64_ID:-}" ]; then
-        case "$GAMES_CUSTOM_BOX64_ID" in
-            custom-box64-*) ;;
-            *) warmup_fail custom_box64_id_invalid ;;
-        esac
-        custom_box64_raw_bin="/opt/custom-box64/$GAMES_CUSTOM_BOX64_ID/box64"
-        [ -x "$ROOTFS_CANONICAL$custom_box64_raw_bin" ] && GUEST_COMMAND=$custom_box64_raw_bin
+        custom_box64_bin="/opt/box64/$GAMES_CUSTOM_BOX64_ID/bin/box64"
+        [ -x "$ROOTFS_CANONICAL$custom_box64_bin" ] || warmup_fail custom_box64_id_invalid
+        GUEST_COMMAND=$custom_box64_bin
     fi
 }
 

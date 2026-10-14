@@ -119,7 +119,8 @@ fi
 runtime_complete() {
     root=$1
     [ -x "$root/usr/bin/env" ] &&
-        [ -x "$root/usr/local/bin/box64" ] &&
+        [ -x "$root/opt/box64/box64-rootfs/bin/box64" ] &&
+        [ -x "$root/opt/box64/box64-rootfs-mprotect-patch/bin/box64" ] &&
         [ -x "$root/usr/bin/wine" ] &&
         [ -x "$root/usr/bin/wineboot" ] &&
         [ -f "$root/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" ] &&

@@ -109,8 +109,8 @@ public class RuntimeEnvironmentStatusTest {
 
     private static File createCompleteSharedRootfs(GameStoragePaths paths) throws Exception {
         File root = paths.getSharedRootfsDirectory();
-        for (String executable : new String[] {"usr/bin/env", "usr/local/bin/box64",
-            "usr/bin/wine", "usr/bin/wineboot"}) {
+        for (String executable : new String[] {"usr/bin/env", "opt/box64/box64-rootfs/bin/box64",
+            "opt/box64/box64-rootfs-mprotect-patch/bin/box64", "usr/bin/wine", "usr/bin/wineboot"}) {
             File file = new File(root, executable);
             assertTrue(file.getParentFile().isDirectory() || file.getParentFile().mkdirs());
             assertTrue(file.createNewFile());

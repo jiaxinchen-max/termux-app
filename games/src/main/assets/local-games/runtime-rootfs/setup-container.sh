@@ -41,7 +41,7 @@ locale-gen
 
 # All base components arrive pre-verified and pre-extracted (Java component framework) under
 # components/<id>/. Install them by content, not by hardcoded id/URL:
-#   - any *.deb (Hangover source bundle, Box64 .deb) -> apt-get install (resolves deps from the repo)
+#   - any *.deb (Hangover source bundle) -> apt-get install (resolves deps from the repo)
 #   - a DXVK WoW64 tree (x64/ + x32/|x86/ at any depth) -> copy DLLs into
 #     /opt/games-runtime/<id>/{system32,syswow64} for start_rootfs_game.sh to pick per game.
 #   - a portable Wine build (bin/wine + bin/wineboot at any depth) -> copy the whole tree to its
@@ -49,6 +49,11 @@ locale-gen
 #     /opt/box64-proton) for the standalone Box64 translator path (rootfs_prefix_warmup.sh's
 #     "box64" case), as alternatives to Hangover's bundled wine+translator and to each other.
 #     Never apt-installed or registered with dpkg -- stays a self-contained, relocatable directory.
+#   - a box64 translator build (bin/box64 at any depth) -> copy the whole tree to its own
+#     /opt/box64/<id>/ directory keyed by component id (box64-rootfs, box64-rootfs-mprotect-patch,
+#     or any custom-box64-* sideload), so multiple box64 builds coexist as distinct selectable
+#     translators (see rootfs_prefix_warmup.sh's GUEST_COMMAND resolution). Also tar.xz, never a
+#     .deb/apt package -- nothing writes to the shared /usr/local/bin anymore.
 
 # 1) Install every Debian package across all components in one dependency-resolving pass.
 if find "$COMPONENTS_ROOT" -name '*.deb' -type f | grep -q .; then
@@ -57,26 +62,6 @@ if find "$COMPONENTS_ROOT" -name '*.deb' -type f | grep -q .; then
         apt-get -f install -y
         dpkg --configure -a
     }
-fi
-# Box64's .deb installs to /usr/local/bin; make sure it is on PATH for the launcher.
-command -v box64 >/dev/null 2>&1 || ln -sf /usr/local/bin/box64 /usr/bin/box64
-
-# 1b) Overlay a patched box64 binary, if the box64-rootfs-mprotect-patch component is present.
-# Unlike the DXVK/Wine loops below, this one is matched by component id, not content -- it is a
-# narrowly-scoped single-file override of the official apt-installed binary above, not a generic
-# category. Android's targetSdkVersion>=29 W^X SELinux policy denies mprotect(PROT_EXEC) on
-# app-private-storage-backed memory (same root cause as termux-pacman/glibc-packages issue #49 /
-# PR #50's libc fix); the official box64-android .deb does not carry this fix, so Wine builds that
-# are translated by box64 itself (rather than run natively, like Hangover) fail to mark loaded
-# PE sections executable. See box64-wine-39bit-pitfalls.md for the full writeup.
-if [ -d "$COMPONENTS_ROOT/box64-rootfs-mprotect-patch" ]; then
-    patched_box64=$(find "$COMPONENTS_ROOT/box64-rootfs-mprotect-patch" -maxdepth 1 -type f | head -n 1)
-    [ -n "$patched_box64" ] || {
-        printf '%s\n' box64_mprotect_patch_empty >&2
-        exit 70
-    }
-    cp "$patched_box64" /usr/local/bin/box64
-    chmod 755 /usr/local/bin/box64
 fi
 
 # 2) Lay out any DXVK components by their WoW64 split.
@@ -135,12 +120,33 @@ for compdir in "$COMPONENTS_ROOT"/*; do
     chmod +x "$dest/bin/wine" "$dest/bin/wineboot"
 done
 
+# 4) Lay out any box64 translator build (stock, patched, or future catalog additions) by content
+# (bin/box64 present), each to its own /opt/box64/<id>/ directory keyed by component id --
+# multiple builds coexist on disk, nothing overwrites another. No case-id whitelist needed (unlike
+# the Wine loop above) since every id maps to the same /opt/box64/<id>/ shape generically; a new
+# box64-shaped base component just works without teaching this script a new destination. Replaces
+# the old apt .deb + single-slot /usr/local/bin/box64 overlay scheme: box64-rootfs (stock) and
+# box64-rootfs-mprotect-patch (W^X fix, needed by box64-translated Wine -- see
+# box64-wine-39bit-pitfalls.md) now both ship as tar.xz and coexist as distinct builds.
+for compdir in "$COMPONENTS_ROOT"/*; do
+    [ -d "$compdir" ] || continue
+    box64bin=$(find "$compdir" \( -type f -o -type l \) -name box64 -path '*/bin/*' | head -n 1)
+    [ -n "$box64bin" ] || continue
+    cid=$(basename "$compdir")
+    dest="/opt/box64/$cid"
+    srcroot=$(dirname "$(dirname "$box64bin")")
+    mkdir -p "$dest"
+    cp -a "$srcroot"/. "$dest/"
+    chmod +x "$dest/bin/box64"
+done
+
 mkdir -p /mnt/games/game /mnt/games/prefix
 install -m 0644 "$MANIFEST" /etc/games-runtime.properties
 rm -rf /var/lib/apt/lists/*
 
 test -x /usr/bin/env
-command -v box64 >/dev/null 2>&1 || { printf '%s\n' box64_missing >&2; exit 70; }
+test -x /opt/box64/box64-rootfs/bin/box64
+test -x /opt/box64/box64-rootfs-mprotect-patch/bin/box64
 test -x /usr/bin/wine
 test -x /usr/bin/wineboot
 test -x /opt/box64-wine/bin/wine
