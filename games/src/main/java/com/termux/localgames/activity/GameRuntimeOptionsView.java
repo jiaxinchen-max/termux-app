@@ -7,6 +7,7 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
@@ -19,6 +20,7 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.termux.localgames.R;
 import com.termux.localgames.api.CustomComponentInstallTasks;
 import com.termux.localgames.api.LocalGames;
@@ -91,6 +93,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private ProgressBar progress;
     private LinearLayout progressHost;
     private ScrollView optionsScroll;
+    private ExtendedFloatingActionButton saveFab;
     private final String gameId;
     private final Listener listener;
     private Game game;
@@ -139,9 +142,11 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     private View createContent() {
-        LinearLayout root = new LinearLayout(getContext());
-        root.setOrientation(LinearLayout.VERTICAL);
+        FrameLayout root = new FrameLayout(getContext());
         root.setBackgroundColor(color(R.color.local_games_background));
+
+        LinearLayout innerContent = new LinearLayout(getContext());
+        innerContent.setOrientation(LinearLayout.VERTICAL);
 
         header = new LinearLayout(getContext());
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -154,13 +159,13 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         title = text("Runtime parameters", 18, R.color.local_games_on_surface);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         header.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1));
-        root.addView(header);
+        innerContent.addView(header);
 
         progress = new ProgressBar(getContext());
         progressHost = new LinearLayout(getContext());
         progressHost.setGravity(Gravity.CENTER);
         progressHost.addView(progress);
-        root.addView(progressHost, new LinearLayout.LayoutParams(
+        innerContent.addView(progressHost, new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
 
         optionsScroll = new ScrollView(getContext());
@@ -170,8 +175,29 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         content.setPadding(dp(20), dp(8), dp(20), dp(28));
         optionsScroll.addView(content);
         optionsScroll.setVisibility(View.GONE);
-        root.addView(optionsScroll, new LinearLayout.LayoutParams(
+        innerContent.addView(optionsScroll, new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+
+        root.addView(innerContent, new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // Always-visible shortcut so a change made several sub-pages deep (e.g. Common's Wine
+        // package) can be saved without first navigating back to Page.ROOT to reach the
+        // Discard/Cancel/Save dialog -- see navigateBack(). Shares saveAndFinish() verbatim, so
+        // its save-then-leave behavior matches that dialog's "Save" button exactly.
+        saveFab = new ExtendedFloatingActionButton(getContext());
+        saveFab.setText("Save");
+        saveFab.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+            color(R.color.local_games_primary)));
+        saveFab.setTextColor(color(R.color.local_games_background));
+        saveFab.setVisibility(View.GONE);
+        saveFab.setOnClickListener(view -> saveAndFinish());
+        FrameLayout.LayoutParams fabParams = new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        fabParams.gravity = Gravity.BOTTOM | Gravity.END;
+        fabParams.setMargins(dp(16), dp(16), dp(16), dp(16));
+        root.addView(saveFab, fabParams);
+
         return root;
     }
 
@@ -194,6 +220,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                     customBox64Entries = box64Entries;
                     progressHost.setVisibility(View.GONE);
                     optionsScroll.setVisibility(View.VISIBLE);
+                    saveFab.setVisibility(View.VISIBLE);
                     render();
                 });
             } catch (IOException | RuntimeException error) {
