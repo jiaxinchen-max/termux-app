@@ -64,7 +64,7 @@ public class AndroidLaunchPreflightAvailabilityTest {
         String json = "{\"schemaVersion\":2,\"generatedAt\":\"test\",\"packages\":[" +
             "{\"id\":\"runtime-component\",\"category\":\"runtime\",\"type\":\"runtime_support\"," +
             "\"displayName\":\"Runtime\",\"versionName\":\"1\",\"summary\":\"Runtime\"," +
-            "\"framework\":\"Test\",\"base\":true,\"recommended\":false,\"profileValue\":\"\"," +
+            "\"framework\":\"Test\",\"base\":true,\"recommended\":false,\"hidden\":false,\"profileValue\":\"\"," +
             "\"runtimeBackends\":[\"glibc_termux_box\",\"rootfs_proot\"],\"version\":1," +
             "\"url\":\"https://example.invalid/runtime.tar.xz\",\"size\":1,\"sha256\":\"" + SHA + "\"}]}";
         return new ComponentIndexParser().parse(new ByteArrayInputStream(

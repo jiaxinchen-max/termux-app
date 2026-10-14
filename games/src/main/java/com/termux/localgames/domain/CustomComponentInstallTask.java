@@ -30,7 +30,8 @@ public final class CustomComponentInstallTask {
         this.componentId = requireId(componentId);
         this.kind = kind;
         if (kind == CustomRuntimeComponent.Kind.WINE) {
-            if (translator == null || translator == RuntimeTranslator.FEX) {
+            // null means a GLIBC_TERMUX_BOX install -- see CustomRuntimeComponent's own comment.
+            if (translator == RuntimeTranslator.FEX) {
                 throw new IllegalArgumentException("invalid translator for custom wine install");
             }
         } else if (translator != null) {

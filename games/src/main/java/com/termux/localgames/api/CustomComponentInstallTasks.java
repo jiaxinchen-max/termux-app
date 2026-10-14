@@ -41,7 +41,9 @@ public final class CustomComponentInstallTasks {
 
     private CustomComponentInstallTasks() {}
 
-    /** @param translator required for WINE kind, must be null for BOX64 kind.
+    /** @param translator for WINE kind: HANGOVER/BOX64 for a ROOTFS install, null for a
+     *         GLIBC_TERMUX_BOX one (that backend has no translator choice -- see
+     *         CustomRuntimeComponent's doc comment); always null for BOX64 kind.
      *  @param stagedPayload already drained into app-private storage (see
      *         GameStoragePaths#getCustomComponentStagingDirectory()) before this is called. */
     @NonNull

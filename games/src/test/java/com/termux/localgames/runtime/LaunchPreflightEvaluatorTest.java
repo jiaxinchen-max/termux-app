@@ -206,7 +206,7 @@ public class LaunchPreflightEvaluatorTest {
                 .append("\",\"displayName\":\"Component ").append(ids[index])
                 .append("\",\"versionName\":\"v1\",\"summary\":\"test component\",")
                 .append("\"framework\":\"Termux GLIBC\",\"base\":false,")
-                .append("\"recommended\":false,\"profileValue\":\"")
+                .append("\"recommended\":false,\"hidden\":false,\"profileValue\":\"")
                 .append(wine ? ids[index] : "").append("\",\"runtimeBackends\":[\"")
                 .append(backend).append("\"],\"version\":1,")
                 .append("\"url\":\"https://example.invalid/")

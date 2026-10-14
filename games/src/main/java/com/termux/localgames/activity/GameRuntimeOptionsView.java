@@ -406,16 +406,34 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             // UpstreamWineReleaseResolver), hence the "-latest" names rather than a version number.
             // Custom-installed builds (see showAddCustomComponentFlow) are appended after the three
             // presets, and a trailing "+ Add custom Wine build..." row launches that flow instead
-            // of selecting a value.
+            // of selecting a value. Filtered to translator != null: a GLIBC-origin custom entry
+            // (translator == null, installed under $TERMUX_GLIBC_DIR, not the shared RootFS) would
+            // otherwise show up here too and fail at launch once picked, since the registry is one
+            // flat list shared by both backends (see CustomRuntimeComponent's own doc comment).
             addChoiceWithAddCustom("Wine package", profile.getWinePackage(),
                 new String[] {"hangover-latest", "box64-wine-latest", "box64-proton-latest"},
-                customWineEntries, null,
+                customWineEntriesForBackend(true), null,
                 getContext().getString(R.string.local_games_custom_component_add_wine),
                 value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),
                     profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
                     profile.getEnvironment(), profile.getInputProfileId(),
                     profile.getLaunchExecutionMode()),
-                () -> showAddCustomComponentFlow(CustomRuntimeComponent.Kind.WINE));
+                () -> showAddCustomComponentFlow(CustomRuntimeComponent.Kind.WINE, true));
+        } else {
+            // GLIBC_TERMUX_BOX has no translator choice (always box64), so unlike the ROOTFS row
+            // above the presets come straight from the bundled catalog (every "container"-type
+            // component that declares glibc_termux_box support -- see RuntimeProfilePresets for
+            // the three that ship as fixed presets today) instead of a hardcoded id list, and
+            // custom entries are filtered to translator == null (the GLIBC-origin half of the
+            // flat registry -- see the ROOTFS branch's comment above for why the split matters).
+            addChoiceWithAddCustom("Wine package", profile.getWinePackage(), glibcWinePresetIds(),
+                customWineEntriesForBackend(false), null,
+                getContext().getString(R.string.local_games_custom_component_add_wine),
+                value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),
+                    profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
+                    profile.getEnvironment(), profile.getInputProfileId(),
+                    profile.getLaunchExecutionMode()),
+                () -> showAddCustomComponentFlow(CustomRuntimeComponent.Kind.WINE, false));
         }
         addChoice("Audio driver", withCurrent(profile.getAudioDriver(), "alsa", "pulseaudio"),
             value -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
@@ -562,6 +580,37 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             .show());
     }
 
+    /** Splits the flat WINE-kind custom registry by origin backend: ROOTFS custom builds always
+     *  declare a translator, GLIBC_TERMUX_BOX ones never do (see CustomRuntimeComponent's doc
+     *  comment) -- this is the one signal available to tell them apart without a dedicated field. */
+    private List<CustomRuntimeComponent> customWineEntriesForBackend(boolean rootfs) {
+        List<CustomRuntimeComponent> result = new ArrayList<>();
+        for (CustomRuntimeComponent entry : customWineEntries) {
+            if ((entry.getTranslator() != null) == rootfs) result.add(entry);
+        }
+        return result;
+    }
+
+    /** Catalog wine builds selectable under GLIBC_TERMUX_BOX (the "container"-type components
+     *  declaring glibc_termux_box support in index-v1.json) -- the preset list the GLIBC "Wine
+     *  package" row offers before custom entries and "+ Add custom Wine build...". Falls back to
+     *  the RuntimeProfilePresets-baked ids if the bundled index failed to parse, so the row never
+     *  ends up with zero presets. */
+    private String[] glibcWinePresetIds() {
+        if (componentIndex == null) {
+            return new String[] {"wine-9.3-vanilla-wow64", "wine-9.0-staging-wow64",
+                "wine-8.18-staging-wow64"};
+        }
+        List<com.termux.localgames.components.index.ComponentDescriptor> entries =
+            componentIndex.selectable(com.termux.localgames.components.index.ComponentType.CONTAINER,
+                GameRuntimeBackendType.GLIBC_TERMUX_BOX);
+        String[] result = new String[entries.size()];
+        for (int index = 0; index < entries.size(); index++) {
+            result[index] = entries.get(index).getProfileValue();
+        }
+        return result;
+    }
+
     private String displayNameFor(String value, List<CustomRuntimeComponent> customEntries,
             @Nullable String emptyValueLabel) {
         if ((value == null || value.isEmpty()) && emptyValueLabel != null) return emptyValueLabel;
@@ -591,22 +640,25 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     /** Entry point for the "+ Add custom Wine/Box64 build..." row: picks a local file via SAF,
-     *  then collects a display name (and, for WINE, which translator family it belongs to --
-     *  this cannot be sniffed from an arbitrary archive, see CustomRuntimeComponent) before
-     *  staging it and enqueuing CustomComponentInstallForegroundService. Both kinds are a
+     *  then collects a display name (and, for a ROOTFS WINE pick, which translator family it
+     *  belongs to -- this cannot be sniffed from an arbitrary archive, see CustomRuntimeComponent)
+     *  before staging it and enqueuing CustomComponentInstallForegroundService. Both kinds are a
      *  compressed archive -- no .deb/raw-binary path exists (see install_custom_rootfs_
      *  component.sh's header comment on why apt-get is never used for a user-supplied package),
-     *  so the same MIME filter applies regardless of kind. */
-    private void showAddCustomComponentFlow(CustomRuntimeComponent.Kind kind) {
+     *  so the same MIME filter applies regardless of kind. {@code forRootfs} is only meaningful
+     *  for WINE (BOX64 custom builds only ever exist under ROOTFS_PROOT today) -- it decides
+     *  whether the metadata dialog asks for a translator at all. */
+    private void showAddCustomComponentFlow(CustomRuntimeComponent.Kind kind, boolean forRootfs) {
         String[] mimeTypes = {"application/x-xz", "application/zstd", "application/gzip",
             "application/x-tar", "application/octet-stream"};
         listener.onPickCustomComponentFile(mimeTypes, uri -> {
             if (uri == null) return;
-            showCustomComponentMetadataDialog(kind, uri);
+            showCustomComponentMetadataDialog(kind, forRootfs, uri);
         });
     }
 
-    private void showCustomComponentMetadataDialog(CustomRuntimeComponent.Kind kind, Uri uri) {
+    private void showCustomComponentMetadataDialog(CustomRuntimeComponent.Kind kind,
+            boolean forRootfs, Uri uri) {
         LinearLayout form = new LinearLayout(getContext());
         form.setOrientation(LinearLayout.VERTICAL);
         int margin = dp(20);
@@ -618,7 +670,10 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         name.setHintTextColor(color(R.color.local_games_on_surface_secondary));
         form.addView(name);
         RadioGroup translatorGroup = null;
-        if (kind == CustomRuntimeComponent.Kind.WINE) {
+        // GLIBC_TERMUX_BOX has exactly one translation path (box64) -- nothing to ask about, so
+        // this picker only appears for a ROOTFS WINE add (see GlibcTermuxBoxBackend/
+        // CustomRuntimeComponent's own doc comments on why translator stays null there).
+        if (kind == CustomRuntimeComponent.Kind.WINE && forRootfs) {
             translatorGroup = new RadioGroup(getContext());
             translatorGroup.setOrientation(RadioGroup.VERTICAL);
             RadioButton hangover = new RadioButton(getContext());
@@ -649,7 +704,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                     return;
                 }
                 RuntimeTranslator translator = null;
-                if (kind == CustomRuntimeComponent.Kind.WINE) {
+                if (kind == CustomRuntimeComponent.Kind.WINE && forRootfs) {
                     RadioButton checked = finalTranslatorGroup.findViewById(
                         finalTranslatorGroup.getCheckedRadioButtonId());
                     translator = checked != null && checked.getText().toString().equals(
@@ -763,7 +818,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 customBox64Entries, getContext().getString(R.string.local_games_box64_build_default),
                 getContext().getString(R.string.local_games_custom_component_add_box64),
                 value -> setOption("GAMES_CUSTOM_BOX64_ID", value),
-                () -> showAddCustomComponentFlow(CustomRuntimeComponent.Kind.BOX64));
+                () -> showAddCustomComponentFlow(CustomRuntimeComponent.Kind.BOX64, true));
         }
         addChoice("Startup option", labels("App shell", "Terminal session"),
             profile.getLaunchExecutionMode() == LaunchExecutionMode.APP_SHELL ? 0 : 1,

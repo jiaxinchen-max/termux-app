@@ -32,7 +32,14 @@ public final class GlibcTermuxBoxBackend implements GameRuntimeBackend {
         Set<String> result = new LinkedHashSet<>(BASE_COMPONENTS);
         result.add(graphicsComponent(profile.getGraphicsDriver()));
         result.add(dxComponent(profile.getDxWrapper()));
-        result.add(profile.getWinePackage());
+        // A "custom-wine-*" package is installed by install_custom_glibc_wine_component.sh
+        // straight into $TERMUX_GLIBC_DIR (see GameRuntimeOptionsView's "+ Add custom Wine
+        // build..." row) and tracked in the separate CustomRuntimeComponent registry, not the
+        // bundled catalog -- adding it here would make launch preflight demand a catalog download
+        // that will never exist (mirrors RootfsProotBackend's own "custom-wine-" exclusion).
+        if (!profile.getWinePackage().startsWith("custom-wine-")) {
+            result.add(profile.getWinePackage());
+        }
         result.addAll(profile.getComponentVersions().keySet());
         return result;
     }

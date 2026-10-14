@@ -36,6 +36,8 @@ public final class LaunchScriptInstaller {
         "local-games/backup_restore_rootfs.sh";
     private static final String CUSTOM_COMPONENT_INSTALL_ASSET =
         "local-games/install_custom_rootfs_component.sh";
+    private static final String CUSTOM_GLIBC_WINE_INSTALL_ASSET =
+        "local-games/install_custom_glibc_wine_component.sh";
 
     private final Context context;
     private final File runtimeDirectory;
@@ -108,6 +110,19 @@ public final class LaunchScriptInstaller {
         installRootfsScriptCommon();
         File script = new File(runtimeDirectory, "install_custom_rootfs_component.sh");
         installAsset(CUSTOM_COMPONENT_INSTALL_ASSET, script);
+        return script;
+    }
+
+    /** Deploys the trusted terminal script that installs a user-picked local Wine build into the
+     *  Termux glibc prefix (GLIBC_TERMUX_BOX backend) -- see
+     *  install_custom_glibc_wine_component.sh. Also (re)installs rootfs_script_common.sh, the same
+     *  shared progress()/run_logged() helper set installCustomComponentScript() depends on -- the
+     *  helper itself has nothing RootFS-specific in it despite its filename (see that script's own
+     *  header comment). */
+    public File installCustomGlibcWineComponentScript() throws IOException {
+        installRootfsScriptCommon();
+        File script = new File(runtimeDirectory, "install_custom_glibc_wine_component.sh");
+        installAsset(CUSTOM_GLIBC_WINE_INSTALL_ASSET, script);
         return script;
     }
 

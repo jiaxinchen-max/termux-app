@@ -1,10 +1,11 @@
 package com.termux.localgames.domain;
 
-/** A user-installed Wine or Box64 build, registered after
- *  install_custom_rootfs_component.sh reports success -- see CustomComponentInstallForegroundService.
- *  Lives in a separate, writable registry from the read-only bundled component catalog
- *  (ComponentIndex), since these entries are created at runtime from a locally-picked file rather
- *  than shipped with the app. */
+/** A user-installed Wine or Box64 build, registered after install_custom_rootfs_component.sh
+ *  (ROOTFS_PROOT) or install_custom_glibc_wine_component.sh (GLIBC_TERMUX_BOX) reports success --
+ *  see CustomComponentInstallForegroundService, which picks between the two scripts based on
+ *  whether translator is null. Lives in a separate, writable registry from the read-only bundled
+ *  component catalog (ComponentIndex), since these entries are created at runtime from a
+ *  locally-picked file rather than shipped with the app. */
 public final class CustomRuntimeComponent {
     public static final int SCHEMA_VERSION = 1;
 
@@ -24,7 +25,9 @@ public final class CustomRuntimeComponent {
         this.kind = kind;
         this.id = requireId(id, kind);
         if (kind == Kind.WINE) {
-            if (translator == null || translator == RuntimeTranslator.FEX) {
+            // null means a GLIBC_TERMUX_BOX install -- that backend has exactly one translation
+            // path (box64) and no ROOTFS-style translator choice, so there is nothing to record.
+            if (translator == RuntimeTranslator.FEX) {
                 throw new IllegalArgumentException("invalid translator for custom wine");
             }
         } else if (translator != null) {

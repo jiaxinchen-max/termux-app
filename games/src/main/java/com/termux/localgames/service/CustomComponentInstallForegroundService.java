@@ -143,7 +143,15 @@ public final class CustomComponentInstallForegroundService extends Service {
     private void prepareAndStart(CustomComponentInstallTask task, File payload) throws Exception {
         if (!submitted.add(task.getTaskId())) return;
         try {
-            File script = new LaunchScriptInstaller(this, paths).installCustomComponentScript();
+            // A WINE-kind task with no translator came from the GLIBC_TERMUX_BOX "Wine package"
+            // row (see GameRuntimeOptionsView) -- that backend has no ROOTFS-style translator
+            // choice, which is exactly how CustomRuntimeComponent/CustomComponentInstallTask tell
+            // the two install targets apart (see their own doc comments).
+            LaunchScriptInstaller installer = new LaunchScriptInstaller(this, paths);
+            boolean glibc = task.getKind() == CustomRuntimeComponent.Kind.WINE
+                && task.getTranslator() == null;
+            File script = glibc ? installer.installCustomGlibcWineComponentScript()
+                : installer.installCustomComponentScript();
             File spec = new File(paths.getCustomComponentInstallSpecsDirectory(),
                 task.getTaskId() + ".installspec");
             File events = eventFile(task.getTaskId());

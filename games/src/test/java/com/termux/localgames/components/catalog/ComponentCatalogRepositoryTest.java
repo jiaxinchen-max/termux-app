@@ -122,7 +122,7 @@ public class ComponentCatalogRepositoryTest {
         return "{\"id\":\"" + id + "\",\"category\":\"" + category +
             "\",\"type\":\"" + type + "\",\"displayName\":\"Component " + id +
             "\",\"versionName\":\"v" + version + "\",\"summary\":\"test component\"," +
-            "\"framework\":\"Termux GLIBC\",\"base\":false,\"recommended\":false," +
+            "\"framework\":\"Termux GLIBC\",\"base\":false,\"recommended\":false,\"hidden\":false," +
             "\"profileValue\":\"" + ("wine".equals(category) ? id : "") + "\"," +
             "\"runtimeBackends\":[\"glibc_termux_box\"],\"version\":" + version +
             ",\"url\":\"https://example.invalid/" + id + ".tar.xz\"," +
