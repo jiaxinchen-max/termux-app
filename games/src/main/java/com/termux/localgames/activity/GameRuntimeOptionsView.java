@@ -374,9 +374,19 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             + profile.getRuntimeBackendType());
     }
 
+    /** Mirrors switchToRootfs()'s own reset: ROOTFS-flavored choices like "rootfs-llvmpipe" or
+     *  "hangover-latest" aren't recognized by GlibcTermuxBoxBackend (and vice versa), so leaving
+     *  them in place after a bare backend switch doesn't surface until Save triggers a runtime
+     *  warmup that fails deep in GlibcTermuxBoxBackend.graphicsComponent() with
+     *  "renderer_unsupported:rootfs-llvmpipe" -- long after the user has moved on from this page.
+     *  Reset to the same wine/graphics/dx/audio baseline RuntimeProfilePresets.RECOMMENDED uses
+     *  for GLIBC_TERMUX_BOX, so a plain backend switch is guaranteed launchable on its own. */
     private void switchToGlibc() {
-        profile = profile.withRuntimeBackend(GameRuntimeBackendType.GLIBC_TERMUX_BOX, "")
-            .withContainerId(GameContainer.DEFAULT_ID);
+        profile = new RuntimeProfile(profile.getId(), "wine-9.3-vanilla-wow64", "turnip", "dxvk",
+            "alsa", profile.getResolution(), profile.getBox64Preset(), profile.getEnvironment(),
+            profile.getInputProfileId(), profile.getLaunchExecutionMode(),
+            profile.getComponentVersions(), GameRuntimeBackendType.GLIBC_TERMUX_BOX, "",
+            GameContainer.DEFAULT_ID);
     }
 
     private void renderBase() {
