@@ -26,6 +26,7 @@ import com.termux.localgames.api.RuntimeSetupRequest;
 import com.termux.localgames.components.ComponentDownloader;
 import com.termux.localgames.components.ComponentStoragePaths;
 import com.termux.localgames.components.DefaultHttpConnectionFactory;
+import com.termux.localgames.components.LocalComponentCache;
 import com.termux.localgames.components.delivery.ComponentDeliveryCoordinator;
 import com.termux.localgames.components.index.ComponentDescriptor;
 import com.termux.localgames.components.index.ComponentIndex;
@@ -341,7 +342,8 @@ public final class ComponentTaskForegroundService extends Service {
             paths.getTasksDirectory());
         ComponentDownloader downloader = new ComponentDownloader(repository,
             paths.getDownloadsDirectory(),
-            new DefaultHttpConnectionFactory());
+            new DefaultHttpConnectionFactory(),
+            new LocalComponentCache(localComponentCacheDirectory()));
         ComponentInstaller installer = new ComponentInstaller(repository,
             paths.getInstallDirectory(),
             new AndroidArchiveFileOperations(),
@@ -353,6 +355,14 @@ public final class ComponentTaskForegroundService extends Service {
         coordinator = new ComponentDeliveryCoordinator(repository, downloader, installer,
             paths.getDownloadsDirectory());
         return coordinator;
+    }
+
+    /** Fixed, user-writable directory a user can manually drop previously-downloaded component
+     *  archives into (keyed by the archive's own filename -- see LocalComponentCache) so a build
+     *  can recover without network access. Never created here -- it's a read-only lookup target;
+     *  LocalComponentCache treats a missing directory the same as an empty one. */
+    private static File localComponentCacheDirectory() {
+        return new File(Environment.getExternalStorageDirectory(), "Downloads/component");
     }
 
     private File retainedDownloadDirectory() throws IOException {

@@ -30,15 +30,25 @@ public final class ComponentDownloader {
     private final ComponentTaskRepository repository;
     private final File downloadDirectory;
     private final HttpConnectionFactory connectionFactory;
+    private final LocalComponentCache localCache;
 
     public ComponentDownloader(ComponentTaskRepository repository, File downloadDirectory,
                                HttpConnectionFactory connectionFactory) throws IOException {
+        this(repository, downloadDirectory, connectionFactory, null);
+    }
+
+    /** {@code localCache} is optional (null disables it): a best-effort local recovery source
+     *  checked before any network request -- see {@link LocalComponentCache}. */
+    public ComponentDownloader(ComponentTaskRepository repository, File downloadDirectory,
+                               HttpConnectionFactory connectionFactory,
+                               LocalComponentCache localCache) throws IOException {
         if (repository == null || downloadDirectory == null || connectionFactory == null) {
             throw new IllegalArgumentException("downloader dependencies must not be null");
         }
         this.repository = repository;
         this.downloadDirectory = downloadDirectory;
         this.connectionFactory = connectionFactory;
+        this.localCache = localCache;
         ensureDirectory(downloadDirectory);
     }
 
@@ -58,6 +68,9 @@ public final class ComponentDownloader {
             if (task.getState() == ComponentTaskState.CANCELLED) {
                 throw new ComponentDownloadException("task_cancelled",
                     "Cancelled component task cannot resume");
+            }
+            if (localCache != null && !(artifact.isFile() && verify(artifact, task))) {
+                restoreFromLocalCache(task, artifact);
             }
             if (artifact.isFile() && verify(artifact, task)) {
                 if (task.getState() == ComponentTaskState.INSTALLED) {
@@ -161,6 +174,30 @@ public final class ComponentDownloader {
             }
             throw error;
         }
+    }
+
+    /** Copies a matching local cache file into {@code artifact} if one is found; best-effort --
+     *  any failure here silently falls through to the normal network download below rather than
+     *  failing the task, since local recovery is a convenience, not a requirement. */
+    private void restoreFromLocalCache(ComponentTask task, File artifact) {
+        File recovered = localCache.find(task.getUrl(), task.getSha256());
+        if (recovered == null) return;
+        File temporary = new File(artifact.getPath() + ".fromlocal");
+        try (InputStream input = new BufferedInputStream(new FileInputStream(recovered));
+             FileOutputStream output = new FileOutputStream(temporary, false)) {
+            byte[] buffer = new byte[BUFFER_SIZE];
+            int read;
+            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+            output.getFD().sync();
+        } catch (IOException ignored) {
+            temporary.delete();
+            return;
+        }
+        if (artifact.exists() && !artifact.delete()) {
+            temporary.delete();
+            return;
+        }
+        if (!temporary.renameTo(artifact)) temporary.delete();
     }
 
     private ComponentTask transfer(ComponentTask task, File partial, Response response,
