@@ -487,7 +487,8 @@ public class TouchInputHandler {
         switch(pref.asList().get()) {
             case "toggle soft keyboard": return (key, down) -> {if(key==KEY_BACK&&p.enableFloatBallMenu.get()){return;} if (down) MainActivity.toggleKeyboardVisibility(mActivity); };
             case "toggle additional key bar": return (key, down) -> { if (down) mActivity.toggleExtraKeys(); };
-            case "open preferences": return (key, down) -> { if (down) mActivity.openPreference(true);};
+            case "open preferences": return (key, down) -> { if (down) mActivity.toggleX11Preference();};
+            case "trigger terminal input": return (key, down) -> { if (down) mActivity.toggleTerminalView();};
             case "restart activity":return (key, down) -> {if(down)mActivity.stopDesktop();};
             case "release pointer and keyboard capture": return (key, down) -> { if (down) setCapturingEnabled(false); };
             case "toggle fullscreen": return (key, down) -> { if (down) MainActivity.prefs.fullscreen.put(!MainActivity.prefs.fullscreen.get()); };
@@ -518,6 +519,7 @@ public class TouchInputHandler {
             case "toggle soft keyboard":
             case "toggle additional key bar":
             case "release pointer and keyboard capture":
+            case "trigger terminal input":
                 return PendingIntent.getBroadcast(mActivity, requestCode, new Intent(MainActivity.ACTION_CUSTOM) {{
                     putExtra("what", name);
                     setPackage(mActivity.getPackageName());

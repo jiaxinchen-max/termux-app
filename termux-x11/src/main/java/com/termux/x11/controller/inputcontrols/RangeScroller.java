@@ -2,8 +2,8 @@ package com.termux.x11.controller.inputcontrols;
 
 import android.graphics.Rect;
 
-
 import com.termux.x11.controller.widget.InputControlsView;
+import com.termux.x11.controller.widget.TouchpadView;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -38,6 +38,14 @@ public class RangeScroller {
         return scrollOffset;
     }
 
+    public Binding getBinding() {
+        return binding;
+    }
+
+    public boolean isScrolling() {
+        return scrolling;
+    }
+
     public byte[] getRangeIndex() {
         ControlElement.Range range = element.getRange();
         byte from = (byte)Math.floor((scrollOffset / getElementSize()) % range.max);
@@ -68,7 +76,7 @@ public class RangeScroller {
     }
 
     private boolean isTap() {
-        return (System.currentTimeMillis() - touchTime) < inputControlsView.MAX_TAP_MILLISECONDS;
+        return (System.currentTimeMillis() - touchTime) < TouchpadView.MAX_TAP_MILLISECONDS;
     }
 
     private void destroyTimer() {
@@ -94,7 +102,7 @@ public class RangeScroller {
             public void run() {
                 if (!scrolling) inputControlsView.post(() -> inputControlsView.handleInputEvent(binding, true));
             }
-        }, inputControlsView.MAX_TAP_MILLISECONDS);
+        }, TouchpadView.MAX_TAP_MILLISECONDS);
     }
 
     public void handleTouchMove(float x, float y) {
@@ -102,7 +110,7 @@ public class RangeScroller {
             float position = element.getOrientation() == 0 ? x : y;
             float deltaPosition = position - lastPosition;
 
-            if (Math.abs(deltaPosition) >= inputControlsView.MAX_TAP_TRAVEL_DISTANCE) {
+            if (Math.abs(deltaPosition) >= TouchpadView.MAX_TAP_TRAVEL_DISTANCE) {
                 scrolling = true;
                 destroyTimer();
             }
@@ -115,7 +123,6 @@ public class RangeScroller {
                 if (scrollOffset < 0) scrollOffset = scrollSize + scrollOffset;
 
                 lastPosition = position;
-                inputControlsView.invalidate();
             }
         }
     }

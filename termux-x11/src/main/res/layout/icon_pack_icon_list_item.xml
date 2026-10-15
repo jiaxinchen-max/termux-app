@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:background="?attr/panelBackground"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <ImageView
+        android:id="@+id/IVPreview"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:background="@drawable/icon_background"
+        android:padding="4dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/icon_image_picker" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginLeft="12dp"
+        android:layout_marginRight="12dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/TVTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorPrimaryText"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/TVSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="?attr/colorSecondaryText"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/BTRemove"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:padding="2dp"
+        android:src="@drawable/remove_button" />
+</LinearLayout>

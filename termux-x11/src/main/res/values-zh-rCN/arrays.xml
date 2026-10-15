@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Only the *Entries arrays (displayed text) are localized here.
+      The matching *Values arrays are intentionally NOT translated: they are the values
+      stored in SharedPreferences and switched on by TouchInputHandler, so they must stay
+      English and fall back to res/values/arrays.xml.
+      Keep the item count and order identical to userActionsValues.
+    -->
+    <string-array name="userActionsEntries">
+        <item>无操作</item>
+        <item>切换软键盘</item>
+        <item>切换附加按键栏</item>
+        <item>打开设置</item>
+        <item>释放指针和键盘捕获</item>
+        <item>切换全屏</item>
+        <item>重启活动</item>
+        <item>退出</item>
+        <item>打开终端界面</item>
+    </string-array>
+    <string-array name="userActionsVolumeDownEntries">
+        <item>@array/userActionsEntries</item>
+        <item>降低音量</item>
+    </string-array>
+    <string-array name="userActionsVolumeUpEntries">
+        <item>@array/userActionsEntries</item>
+        <item>增加音量</item>
+    </string-array>
+    <string-array name="userActionsMediaKeyEntries">
+        <item>@array/userActionsEntries</item>
+        <item>发送媒体键</item>
+    </string-array>
+
+    <!-- 分辨率模式（displayResolutionMode）；对应的值仍用 displayResolutionVariants -->
+    <string-array name="displayResolutionVariantsEntries">
+        <item>原生</item>
+        <item>缩放</item>
+        <item>真实</item>
+        <item>自定义</item>
+    </string-array>
+
+    <!-- 屏幕方向（forceOrientation）；对应的值仍用 forceOrientationVariants -->
+    <string-array name="forceOrientationVariantsEntries">
+        <item>自动</item>
+        <item>竖屏</item>
+        <item>横屏</item>
+        <item>反向竖屏</item>
+        <item>反向横屏</item>
+    </string-array>
+</resources>

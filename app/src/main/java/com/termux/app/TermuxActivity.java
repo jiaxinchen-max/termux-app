@@ -269,7 +269,7 @@ public class TermuxActivity extends com.termux.x11.MainActivity implements Servi
                 return true;
             }
 //            ev.offsetLocation(0, -ScreenUtils.getStatusHeight());
-            inputControlsView.handleTouchEvent(ev);
+            inputControlsView.onTouchEvent(ev);
 //            ev.offsetLocation(0, ScreenUtils.getStatusHeight());
             return true;
         }
@@ -400,6 +400,16 @@ public class TermuxActivity extends com.termux.x11.MainActivity implements Servi
             }
 
             @Override
+            public void toggleTerminalView() {
+                mMainContentView.toggleTerminalView();
+            }
+
+            @Override
+            public void toggleX11Preference() {
+                mMainContentView.toggleX11Preference();
+            }
+
+            @Override
             public void releaseSlider(boolean open) {
                 if (!TermuxActivity.this.mEnableFloatBallMenu
                     || TermuxActivity.this.mFloatBallMenuClient == null) {
@@ -440,6 +450,17 @@ public class TermuxActivity extends com.termux.x11.MainActivity implements Servi
             @Override
             public void showProcessManager() {
                 showProcessManagerDialog();
+            }
+
+            @Override
+            public void sendTextToTerminal(String text) {
+                if (text == null || text.isEmpty()) return;
+                runOnUiThread(() -> {
+                    TerminalSession session = getCurrentSession();
+                    if (session != null && session.isRunning()) {
+                        session.write(text);
+                    }
+                });
             }
 
             @Override

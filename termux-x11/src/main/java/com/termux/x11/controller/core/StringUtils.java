@@ -67,4 +67,15 @@ public class StringUtils {
         int indexOfNull = value.indexOf('\0');
         return indexOfNull != -1 ? value.substring(0, indexOfNull) : value;
     }
+
+    public static String clearReservedChars(String name) {
+        if (name == null || name.isEmpty()) return "";
+        return name.replaceAll("[\\\\/:*?\"<>\\|]+", "");
+    }
+
+    public static String repeat(char chr, int count) {
+        final char[] buffer = new char[Math.max(count, 0)];
+        java.util.Arrays.fill(buffer, chr);
+        return new String(buffer);
+    }
 }

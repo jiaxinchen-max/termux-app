@@ -7,4 +7,9 @@
     <color name="colorBlack">#000000</color>
     <color name="colorWhite">#000000</color>
     <color name="colorDayNight">#000000</color>
+    <color name="colorPrimaryText">#fafafa</color>
+    <color name="colorSecondaryText">#9e9e9e</color>
+    <color name="colorPrimarySurface">#1b1e21</color>
+    <color name="colorPrimaryVariant">#56677a</color>
+    <color name="colorSecondaryVariant">#37424f</color>
 </resources>

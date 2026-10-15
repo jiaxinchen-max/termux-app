@@ -1,0 +1,1 @@
+{"id":5,"name":"暗黑走路摇杆","cursorSpeed":1,"elements":[{"type":"TRACKPAD","shape":"CIRCLE","bindings":["MOUSE_MOVE_UP","MOUSE_MOVE_RIGHT","MOUSE_MOVE_DOWN","MOUSE_MOVE_LEFT"],"scale":1.0,"x":0.16,"y":0.78,"toggleSwitch":false,"text":"","iconId":0,"mouseBtn":"MOUSE_LEFT_BUTTON","pressedColor":-3625561}]}

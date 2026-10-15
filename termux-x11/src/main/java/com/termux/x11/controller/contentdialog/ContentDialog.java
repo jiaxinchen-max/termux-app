@@ -168,4 +168,35 @@ public class ContentDialog extends Dialog {
 
         dialog.show();
     }
+
+    public static void showSelectionList(Context context, int titleResId, final String[] items,
+                                        boolean multiSelection, Callback<ArrayList<Integer>> callback) {
+        showSelectionList(context, context.getString(titleResId), items, multiSelection, callback);
+    }
+
+    public static void showSelectionList(Context context, String title, final String[] items,
+                                        boolean multiSelection, Callback<ArrayList<Integer>> callback) {
+        ContentDialog dialog = new ContentDialog(context);
+
+        final ListView listView = dialog.findViewById(R.id.ListView);
+        listView.getLayoutParams().width = AppUtils.getPreferredDialogWidth(context);
+        listView.setChoiceMode(multiSelection ? ListView.CHOICE_MODE_MULTIPLE : ListView.CHOICE_MODE_SINGLE);
+        int layoutResId = multiSelection
+                ? android.R.layout.simple_list_item_multiple_choice
+                : android.R.layout.simple_list_item_single_choice;
+        listView.setAdapter(new ArrayAdapter<>(context, layoutResId, items));
+        listView.setVisibility(View.VISIBLE);
+
+        dialog.setTitle(title);
+        dialog.setOnConfirmCallback(() -> {
+            ArrayList<Integer> result = new ArrayList<>();
+            SparseBooleanArray checkedItemPositions = listView.getCheckedItemPositions();
+            for (int i = 0; i < checkedItemPositions.size(); i++) {
+                if (checkedItemPositions.valueAt(i)) result.add(checkedItemPositions.keyAt(i));
+            }
+            callback.call(result);
+        });
+
+        dialog.show();
+    }
 }

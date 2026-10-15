@@ -17,6 +17,8 @@ import com.termux.x11.controller.xserver.ScreenInfo;
 import java.io.File;
 
 public abstract class WineThemeManager {
+    public static final String DEFAULT_WALLPAPER_ID = "wallpaper-1";
+
     public enum Theme {LIGHT, DARK}
     public enum BackgroundType {IMAGE, COLOR}
     public static final String DEFAULT_DESKTOP_THEME = Theme.LIGHT+","+BackgroundType.IMAGE+",#0277bd";

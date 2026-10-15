@@ -70,7 +70,6 @@ import com.termux.x11.controller.container.Shortcut;
 import com.termux.x11.controller.inputcontrols.InputControlsManager;
 import com.termux.x11.controller.widget.InputControlsView;
 import com.termux.x11.controller.widget.TouchpadView;
-import com.termux.x11.controller.winhandler.TaskManagerDialog;
 import com.termux.x11.controller.winhandler.WinHandler;
 import com.termux.x11.input.InputEventSender;
 import com.termux.x11.input.InputStub;
@@ -306,7 +305,8 @@ public class MainActivity extends LoriePreferences {
     private void setupInputController() {
         xServer = getLorieView();
         globalCursorSpeed = 1.0f;
-        touchpadView = new TouchpadView(this, xServer);
+        touchpadView = new TouchpadView(this, xServer, PreferenceManager.getDefaultSharedPreferences(getBaseContext())
+                .getBoolean("capture_pointer_on_external_mouse", false));
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setVisibility(View.GONE);
 //        touchpadView.setBackground(getDrawable(R.drawable.touchpad_background));
@@ -747,6 +747,39 @@ public class MainActivity extends LoriePreferences {
 //        Log.d("onConfigurationChanged","orientation:"+orientation);
     }
 
+    /**
+     * Bridge used by dialogs living outside the {@code com.termux.x11} package (for example the
+     * task manager) to type text into the currently running Termux terminal session.
+     *
+     * @param text the text to send; {@code "\r"} acts as the Enter key.
+     */
+    public void sendTextToTerminal(String text) {
+        if (termuxActivityListener != null) {
+            termuxActivityListener.sendTextToTerminal(text);
+        }
+    }
+
+    /**
+     * Show the Termux terminal view, or slide back to the X11 display if it is already showing.
+     * Used by the {@code trigger terminal input} user action, so pressing the same key twice
+     * closes what the first press opened.
+     */
+    public void toggleTerminalView() {
+        if (termuxActivityListener != null) {
+            termuxActivityListener.toggleTerminalView();
+        }
+    }
+
+    /**
+     * Show the X11 settings panel, or slide back to the X11 display if it is already showing.
+     * Used by the {@code open preferences} user action.
+     */
+    public void toggleX11Preference() {
+        if (termuxActivityListener != null) {
+            termuxActivityListener.toggleX11Preference();
+        }
+    }
+
     public int getOrientation() {
         WindowManager windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         Display display = windowManager.getDefaultDisplay();
@@ -788,7 +821,19 @@ public class MainActivity extends LoriePreferences {
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
                 break;
             default:
-                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+                // "auto". By default the system picks the rotation itself (UNSPECIFIED), which
+                // means the user's rotation lock wins and the screen stops rotating once
+                // auto-rotate is turned off on the device.
+                //
+                // SCREEN_ORIENTATION_SENSOR is a different story: in
+                // DisplayRotation.rotationForOrientation() it is matched by a top-level
+                // condition that is evaluated *before* the USER_ROTATION_LOCKED branch, so the
+                // orientation sensor keeps driving the rotation even while the device is locked.
+                // It behaves exactly like normal auto-rotate (no upside-down rotation unless the
+                // device allows all rotations), just without honouring the lock.
+                requestedOrientation = prefs.ignoreRotationLock.get()
+                    ? ActivityInfo.SCREEN_ORIENTATION_SENSOR
+                    : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
         }
 
         if (getRequestedOrientation() != requestedOrientation)
@@ -1001,8 +1046,18 @@ public class MainActivity extends LoriePreferences {
         showMouseAuxButtons(findViewById(R.id.mouse_buttons).getVisibility() != VISIBLE);
     }
 
+    /**
+     * Task manager entry point.
+     *
+     * The original process-list dialog has been replaced: triggering the task manager now
+     * types the two commands below into the running Termux terminal session instead of
+     * opening the process list UI. The X11 settings menu is closed afterwards so the
+     * terminal is visible again.
+     */
     public void showProcessManagerDialog() {
-        (new TaskManagerDialog(this)).show();
+        sendTextToTerminal("export DISPLAY=:0\rwine_task_manager\r");
+        // Close the X11 settings menu/panel (no-op when it is not open).
+        openPreference(false);
     }
 
     //whether view include (x,y)

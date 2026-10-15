@@ -123,4 +123,13 @@ public abstract class ImageUtils {
         }
         return false;
     }
+
+    public static android.graphics.Bitmap getBitmapFromAsset(android.content.Context context, String filePath) {
+        try (java.io.InputStream is = context.getAssets().open(filePath)) {
+            return android.graphics.BitmapFactory.decodeStream(is);
+        }
+        catch (java.io.IOException e) {
+            return null;
+        }
+    }
 }

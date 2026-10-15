@@ -295,6 +295,33 @@ public class DisplaySlidingWindow extends HorizontalScrollView {
         }
     }
 
+    /** @return true when the Termux terminal view (left content) is currently showing. */
+    public boolean isTerminalViewOpen() {
+        return mContentType == ContentType.LEFT_CONTENT;
+    }
+
+    /** @return true when the X11 settings panel (right content) is currently showing. */
+    public boolean isX11PreferenceOpen() {
+        return mContentType == ContentType.RIGHT_CONTENT;
+    }
+
+    /**
+     * Show the Termux terminal view, or slide back to the X11 display when it is already
+     * showing. Used by the {@code trigger terminal input} user action so that pressing the
+     * same key twice closes what the first press opened.
+     */
+    public void toggleTerminalView() {
+        setTerminalViewSwitchSlider(!isTerminalViewOpen());
+    }
+
+    /**
+     * Show the X11 settings panel, or slide back to the X11 display when it is already
+     * showing. Used by the {@code open preferences} user action.
+     */
+    public void toggleX11Preference() {
+        setX11PreferenceSwitchSlider(!isX11PreferenceOpen());
+    }
+
     public void changeLayoutOrientation(int landscapeOrientation) {
         mRefreshEnd = false;
         mLandscape = (landscapeOrientation != SCREEN_ORIENTATION_PORTRAIT);

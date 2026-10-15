@@ -317,4 +317,21 @@ public abstract class AppUtils {
             }
         }
     }
+
+    public static void setActivityTheme(android.app.Activity activity) {
+        android.content.SharedPreferences preferences =
+                androidx.preference.PreferenceManager.getDefaultSharedPreferences(activity);
+        int appTheme = preferences.getInt("app_theme", 0);
+        activity.setTheme(appTheme == 0 ? com.termux.x11.R.style.AppThemeLight : com.termux.x11.R.style.AppTheme);
+    }
+
+    public static int getThemeColor(android.content.Context context, int attrId) {
+        android.util.TypedValue typedValue = new android.util.TypedValue();
+        context.getTheme().resolveAttribute(attrId, typedValue, true);
+        return typedValue.data;
+    }
+
+    public static final String DIRECTORY_DOWNLOADS =
+            android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS).getPath();
 }

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="36dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingLeft="4dp"
+    android:paddingRight="4dp">
+
+    <ImageView
+        android:id="@+id/IVIcon"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/TVFileName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginLeft="6dp"
+        android:textColor="?attr/colorPrimaryText"
+        android:textSize="14sp"
+        android:singleLine="true" />
+
+    <TextView
+        android:id="@+id/TVFileMeta"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="6dp"
+        android:textColor="?attr/colorSecondaryText"
+        android:textSize="11sp"
+        android:singleLine="true" />
+
+    <CheckBox
+        android:id="@+id/CBSelect"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:visibility="gone" />
+</LinearLayout>

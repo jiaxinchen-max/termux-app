@@ -35,27 +35,47 @@ public class WinHandler {
     private final DatagramPacket sendPacket = new DatagramPacket(sendData.array(), 64);
     private final DatagramPacket receivePacket = new DatagramPacket(receiveData.array(), 64);
     private final ArrayDeque<Runnable> actions = new ArrayDeque<>();
-    private boolean initReceived = false;
+    boolean initReceived = false;
     private boolean running = false;
     private OnGetProcessInfoListener onGetProcessInfoListener;
     private ExternalController currentController;
     private final ArrayDeque<byte[]> gamepadStateQueue = new ArrayDeque<>();
     private InetAddress localhost;
     private byte dinputMapperType = DINPUT_MAPPER_TYPE_XINPUT;
-    private final MainActivity activity;
+    final MainActivity activity;
     private final List<Integer> gamepadClients = new CopyOnWriteArrayList<>();
+
+    private MIDIHandler midiHandler;
 
     public WinHandler(MainActivity activity) {
         this.activity = activity;
     }
 
-    private boolean sendPacket(int port) {
+    public MIDIHandler getMIDIhandler() {
+        if (midiHandler == null) midiHandler = new MIDIHandler(this);
+        return midiHandler;
+    }
+
+    boolean sendPacket(int port) {
         try {
             int size = sendData.position();
             if (size == 0) return false;
             sendPacket.setAddress(localhost);
             sendPacket.setPort(port);
             socket.send(sendPacket);
+            return true;
+        }
+        catch (IOException e) {
+            return false;
+        }
+    }
+
+    /** 发送任意数据包（MIDIHandler 等使用独立缓冲区时） */
+    boolean sendPacket(int port, byte[] data) {
+        try {
+            if (data == null || data.length == 0) return false;
+            DatagramPacket packet = new DatagramPacket(data, data.length, localhost, port);
+            socket.send(packet);
             return true;
         }
         catch (IOException e) {
@@ -175,7 +195,7 @@ public class WinHandler {
         });
     }
 
-    private void addAction(Runnable action) {
+    void addAction(Runnable action) {
         synchronized (actions) {
             actions.add(action);
             actions.notify();
@@ -298,7 +318,7 @@ public class WinHandler {
                         if (useVirtualGamepad) {
                             profile.getGamepadState().writeTo(sendData);
                         }
-                        else currentController.state.writeTo(sendData);
+                        else currentController.getGamepadState().writeTo(sendData);
                     }
 
                     sendPacket(port);
@@ -372,7 +392,7 @@ public class WinHandler {
                     if (useVirtualGamepad) {
                         profile.getGamepadState().writeTo(sendData);
                     }
-                    else currentController.state.writeTo(sendData);
+                    else currentController.getGamepadState().writeTo(sendData);
                 }
 
                 sendPacket(port);

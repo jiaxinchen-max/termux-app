@@ -358,4 +358,10 @@ public abstract class FileUtils {
             return "";
         }
     }
+
+    public static String getExtension(String filename) {
+        if (filename == null || filename.isEmpty()) return "";
+        int dotIndex = filename.lastIndexOf(".");
+        return dotIndex != -1 ? filename.substring(dotIndex + 1) : "";
+    }
 }

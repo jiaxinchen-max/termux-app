@@ -90,7 +90,7 @@ dependencies {
 
 static def isWindows() {
     println(System.properties['os.name']);
-    return System.properties['os.name'].contains('windows');
+    return System.properties['os.name'].toLowerCase().contains('windows');
 }
 
 static def isMacOS() {

@@ -37,4 +37,9 @@ public abstract class ArrayUtils {
         }
         return stringArray;
     }
+
+    public static boolean contains(int[] array, int value) {
+        for (int item : array) if (item == value) return true;
+        return false;
+    }
 }

@@ -26,14 +26,17 @@ import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.termux.x11.R;
 import com.termux.x11.controller.core.AppUtils;
+import com.termux.x11.controller.core.LocaleHelper;
 import com.termux.x11.controller.inputcontrols.Binding;
+import com.termux.x11.controller.inputcontrols.ControlElement;
 import com.termux.x11.controller.inputcontrols.ControlsProfile;
 import com.termux.x11.controller.inputcontrols.ExternalController;
 import com.termux.x11.controller.inputcontrols.ExternalControllerBinding;
+import com.termux.x11.controller.inputcontrols.GamepadState;
 import com.termux.x11.controller.inputcontrols.InputControlsManager;
 import com.termux.x11.controller.math.Mathf;
+import com.termux.x11.R;
 
 public class ExternalControllerBindingsActivity extends AppCompatActivity {
     private TextView emptyTextView;
@@ -44,6 +47,7 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        AppUtils.setActivityTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.external_controller_bindings_activity);
 
@@ -52,9 +56,22 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
         profile = InputControlsManager.loadProfile(this, ControlsProfile.getProfileFile(this, profileId));
         String controllerId = intent.getStringExtra("controller_id");
 
+        if (profile == null) {
+            AppUtils.showToast(this, R.string.no_profile_selected);
+            finish();
+            return;
+        }
+
         controller = profile.getController(controllerId);
         if (controller == null) {
             controller = profile.addController(controllerId);
+            if (controller == null) {
+                // 该控制器既不在配置里也不在当前连接列表中（例如已断开），
+                // 原实现会继续往下走并在 controller.getName() / profile.save() 处 NPE 闪退
+                AppUtils.showToast(this, R.string.press_any_button_on_your_controller);
+                finish();
+                return;
+            }
             profile.save();
         }
 
@@ -69,9 +86,17 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
         emptyTextView = findViewById(R.id.TVEmptyText);
         recyclerView = findViewById(R.id.RecyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
+
+        DividerItemDecoration itemDecoration = new DividerItemDecoration(this, DividerItemDecoration.VERTICAL);
+        itemDecoration.setDrawable(ContextCompat.getDrawable(this, R.drawable.list_item_divider));
+        recyclerView.addItemDecoration(itemDecoration);
         recyclerView.setAdapter(adapter = new ControllerBindingsAdapter());
         updateEmptyTextView();
+    }
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(LocaleHelper.setSystemLocale(newBase));
     }
 
     private void updateControllerBinding(int keyCode, Binding binding) {
@@ -98,7 +123,8 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
         int keyCode = KeyEvent.KEYCODE_UNKNOWN;
         Binding binding = Binding.NONE;
         final int[] axes = {MotionEvent.AXIS_X, MotionEvent.AXIS_Y, MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ, MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y};
-        final float[] values = {controller.state.thumbLX, controller.state.thumbLY, controller.state.thumbRX, controller.state.thumbRY, controller.state.getDPadX(), controller.state.getDPadY()};
+        GamepadState state = controller.getGamepadState();
+        final float[] values = {state.thumbLX, state.thumbLY, state.thumbRX, state.thumbRY, state.getDPadX(), state.getDPadY()};
 
         byte sign;
         for (int i = 0; i < axes.length; i++) {
@@ -127,8 +153,13 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
         if (event.getDeviceId() == controller.getDeviceId() && controller.updateStateFromMotionEvent(event)) {
-            if (controller.state.isPressed(ExternalController.IDX_BUTTON_L2)) updateControllerBinding(KeyEvent.KEYCODE_BUTTON_L2, Binding.NONE);
-            if (controller.state.isPressed(ExternalController.IDX_BUTTON_R2)) updateControllerBinding(KeyEvent.KEYCODE_BUTTON_R2, Binding.NONE);
+            GamepadState state = controller.getGamepadState();
+            // 叠加扳机轴值:部分手柄只以 AXIS_BRAKE/AXIS_GAS 上报扳机而不发按键事件,
+            // 只看 isPressed 会导致这类手柄无法在绑定界面录制 L2/R2。
+            // 死区阈值必须与触发侧(InputControlsView)一致,否则 0~死区 的弱轴值录进去也永远触发不了,
+            // 静止噪声还会误录
+            if (state.isPressed(ExternalController.IDX_BUTTON_L2) || state.triggerL > ControlElement.STICK_DEAD_ZONE) updateControllerBinding(KeyEvent.KEYCODE_BUTTON_L2, Binding.NONE);
+            if (state.isPressed(ExternalController.IDX_BUTTON_R2) || state.triggerR > ControlElement.STICK_DEAD_ZONE) updateControllerBinding(KeyEvent.KEYCODE_BUTTON_R2, Binding.NONE);
             processJoystickInput();
             return true;
         }
@@ -196,18 +227,18 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
                 String[] bindingEntries = null;
                 switch (holder.bindingType.getSelectedItemPosition()) {
                     case 0:
-                        bindingEntries = Binding.keyboardBindingLabels();
+                        bindingEntries = Binding.keyboardBindingLabels($this);
                         break;
                     case 1:
-                        bindingEntries = Binding.mouseBindingLabels();
+                        bindingEntries = Binding.mouseBindingLabels($this);
                         break;
                     case 2:
-                        bindingEntries = Binding.gamepadBindingLabels();
+                        bindingEntries = Binding.gamepadBindingLabels($this);
                         break;
                 }
 
                 holder.binding.setAdapter(new ArrayAdapter<>($this, android.R.layout.simple_spinner_dropdown_item, bindingEntries));
-                AppUtils.setSpinnerSelectionFromValue(holder.binding, item.getBinding().toString());
+                AppUtils.setSpinnerSelectionFromValue(holder.binding, item.getBinding().getDisplayName($this));
             };
 
             holder.bindingType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -268,7 +299,7 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
     private void animateItemView(int position) {
         final ControllerBindingsAdapter.ViewHolder holder = (ControllerBindingsAdapter.ViewHolder)recyclerView.findViewHolderForAdapterPosition(position);
         if (holder != null) {
-            final int color = ContextCompat.getColor(this, R.color.colorAccent);
+            final int color = AppUtils.getThemeColor(this, R.attr.colorAccent);
             final ValueAnimator animator = ValueAnimator.ofFloat(0.4f, 0.0f);
             animator.setDuration(200);
             animator.setInterpolator(new AccelerateDecelerateInterpolator());

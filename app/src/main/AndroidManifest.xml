@@ -75,6 +75,22 @@
             android:screenOrientation="sensor"
             android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
 
+        <activity
+            android:name="com.termux.x11.controller.IconPackManagerActivity"
+            android:exported="false"
+            android:screenOrientation="sensor"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
+        <activity
+            android:name="com.termux.x11.controller.IconPackDetailsActivity"
+            android:exported="false"
+            android:screenOrientation="sensor"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
+        <activity
+            android:name="com.termux.x11.controller.ImageFilePickerActivity"
+            android:exported="false"
+            android:screenOrientation="sensor"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
+
         <meta-data
             android:name="android.allow_multiple_resumed_activities"
             android:value="true" />

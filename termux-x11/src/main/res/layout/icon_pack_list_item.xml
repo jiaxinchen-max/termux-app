@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/RootView"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:background="?attr/panelBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <ImageView
+        android:id="@+id/IVPreview"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:background="@drawable/icon_background"
+        android:padding="4dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/icon_image_picker" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginLeft="12dp"
+        android:layout_marginRight="12dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/TVName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorPrimaryText"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/TVMeta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="?attr/colorSecondaryText"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/BTAction"
+        style="@style/ButtonNeutral"
+        android:layout_width="wrap_content"
+        android:layout_height="42dp"
+        android:layout_marginRight="8dp"
+        android:minWidth="88dp"
+        android:text="@string/enable_icon_pack" />
+
+    <ImageView
+        android:id="@+id/BTRemove"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:padding="2dp"
+        android:src="@drawable/remove_button" />
+</LinearLayout>

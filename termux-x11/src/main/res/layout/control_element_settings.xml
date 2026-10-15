@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <LinearLayout
+        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:padding="8dp">
 
         <TextView
@@ -16,8 +16,8 @@
             android:text="@string/type" />
 
         <Spinner
-            android:id="@+id/SType"
             style="@style/ComboBox"
+            android:id="@+id/SType"
             android:layout_width="match_parent" />
 
         <LinearLayout
@@ -32,34 +32,38 @@
                 android:text="@string/shape" />
 
             <Spinner
-                android:id="@+id/SShape"
                 style="@style/ComboBox"
+                android:id="@+id/SShape"
                 android:layout_width="match_parent" />
         </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:text="@string/scale"/>
 
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/scale" />
-
-            <TextView
-                android:id="@+id/TVScale"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
-        </LinearLayout>
-
-        <SeekBar
+        <com.termux.x11.controller.widget.SeekBar
             android:id="@+id/SBScale"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:max="150"
-            android:min="50" />
+            app:maxValue="400"
+            app:minValue="50"
+            app:step="5"
+            app:suffix="%" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/opacity" />
+
+        <com.termux.x11.controller.widget.SeekBar
+            android:id="@+id/SBOpacity"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:suffix="%"
+            app:step="5"
+            app:minValue="0"
+            app:maxValue="100" />
 
         <LinearLayout
             android:id="@+id/LLRangeOptions"
@@ -73,8 +77,8 @@
                 android:text="@string/range" />
 
             <Spinner
-                android:id="@+id/SRange"
                 style="@style/ComboBox"
+                android:id="@+id/SRange"
                 android:layout_width="match_parent" />
 
             <TextView
@@ -110,8 +114,44 @@
                 android:id="@+id/NPColumns"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:maxValue="8"
-                app:minValue="3" />
+                app:minValue="3"
+                app:maxValue="8" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/LLMIDIKeyOptions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/note" />
+
+            <Spinner
+                style="@style/ComboBox"
+                android:id="@+id/SNote"
+                android:layout_width="match_parent" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/LLRadialMenuOptions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/bindings" />
+
+            <com.termux.x11.controller.widget.NumberPicker
+                android:id="@+id/NPBindings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:minValue="3"
+                app:maxValue="6" />
         </LinearLayout>
 
         <LinearLayout
@@ -121,51 +161,69 @@
             android:orientation="vertical" />
 
         <LinearLayout
-            android:id="@+id/LLDPadBindings"
+            android:id="@+id/LLMouseBtn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
+            android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/binding_up" />
+                android:text="@string/mouse_button" />
 
             <Spinner
-                android:id="@+id/SBindingUp"
                 style="@style/ComboBox"
+                android:id="@+id/SMouseBtn"
                 android:layout_width="match_parent" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/LLDrift"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/binding_right" />
+                android:text="@string/x_drift" />
 
-            <Spinner
-                android:id="@+id/SBindingRight"
-                style="@style/ComboBox"
-                android:layout_width="match_parent" />
+            <com.termux.x11.controller.widget.SeekBar
+                android:id="@+id/SBXDrift"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:maxValue="500"
+                app:minValue="-500"
+                app:step="10"
+                app:suffix="px" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/binding_down" />
+                android:text="@string/y_drift" />
 
-            <Spinner
-                android:id="@+id/SBindingDown"
-                style="@style/ComboBox"
-                android:layout_width="match_parent" />
+            <com.termux.x11.controller.widget.SeekBar
+                android:id="@+id/SBYDrift"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:maxValue="500"
+                app:minValue="-500"
+                app:step="10"
+                app:suffix="px" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/binding_left" />
+                android:text="@string/dead_zone" />
 
-            <Spinner
-                android:id="@+id/SBindingLeft"
-                style="@style/ComboBox"
-                android:layout_width="match_parent" />
+            <com.termux.x11.controller.widget.SeekBar
+                android:id="@+id/SBDeadZone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:maxValue="300"
+                app:minValue="0"
+                app:step="10"
+                app:suffix="px" />
         </LinearLayout>
 
         <CheckBox
@@ -173,6 +231,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/toggle_switch" />
+
+        <CheckBox
+            android:id="@+id/CBMouseMoveMode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/move_mouse_when_pressed" />
 
         <LinearLayout
             android:id="@+id/LLCustomTextIcon"
@@ -186,21 +250,49 @@
                 android:text="@string/custom_text" />
 
             <EditText
-                android:id="@+id/ETCustomText"
                 style="@style/EditText"
+                android:id="@+id/ETCustomText"
+                android:maxLength="8"
                 android:layout_width="match_parent"
                 android:hint="@string/none"
-                android:inputType="textCapCharacters"
-                android:maxLength="8" />
-
-            <include
-                android:id="@+id/IPKSelectIcon"
-                layout="@layout/binding_icon_field" />
+                android:inputType="textCapCharacters" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/icon" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/IVCustomIconPreview"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/icon_background"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/icon_image_picker" />
+
+                <Button
+                    android:id="@+id/BTBrowseCustomIcon"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="@string/select_local_icon" />
+
+                <Button
+                    android:id="@+id/BTClearCustomIcon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/clear_icon" />
+            </LinearLayout>
 
             <HorizontalScrollView
                 android:layout_width="match_parent"
@@ -213,6 +305,64 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal" />
             </HorizontalScrollView>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/icon_size" />
+
+            <com.termux.x11.controller.widget.SeekBar
+                android:id="@+id/SBIconScale"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:maxValue="200"
+                app:minValue="40"
+                app:step="5"
+                app:suffix="%" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/icon_opacity" />
+
+            <com.termux.x11.controller.widget.SeekBar
+                android:id="@+id/SBIconOpacity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:maxValue="100"
+                app:minValue="0"
+                app:step="5"
+                app:suffix="%" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/pressed_color" />
+
+            <com.termux.x11.controller.widget.ColorPickerView
+                android:id="@+id/CPVPressedColor"
+                android:layout_width="84dp"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/text_color" />
+
+            <com.termux.x11.controller.widget.ColorPickerView
+                android:id="@+id/CPVTextColor"
+                android:layout_width="84dp"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/BTApplyColorsToAll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/apply_to_all" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

@@ -8,6 +8,8 @@ public class GamepadState {
     public float thumbLY = 0;
     public float thumbRX = 0;
     public float thumbRY = 0;
+    public float triggerL = 0;
+    public float triggerR = 0;
     public final boolean[] dpad = new boolean[4];
     public short buttons = 0;
 
@@ -24,16 +26,13 @@ public class GamepadState {
         return povHat;
     }
 
-    public void writeTo(ByteBuffer buffer) {
-        buffer.putShort(buttons);
-        buffer.put(getPovHat());
-        buffer.putShort((short)(thumbLX * Short.MAX_VALUE));
-        buffer.putShort((short)(thumbLY * Short.MAX_VALUE));
-        buffer.putShort((short)(thumbRX * Short.MAX_VALUE));
-        buffer.putShort((short)(thumbRY * Short.MAX_VALUE));
-    }
-
     public void setPressed(int buttonIdx, boolean pressed) {
+        if (buttonIdx == ExternalController.IDX_BUTTON_L2) {
+            triggerL = pressed ? 1.0f : 0.0f;
+        }
+        else if (buttonIdx == ExternalController.IDX_BUTTON_R2) {
+            triggerR = pressed ? 1.0f : 0.0f;
+        }
         int flag = 1<<buttonIdx;
         if (pressed) {
             buttons |= flag;
@@ -58,9 +57,21 @@ public class GamepadState {
         this.thumbLY = other.thumbLY;
         this.thumbRX = other.thumbRX;
         this.thumbRY = other.thumbRY;
+        this.triggerL = other.triggerL;
+        this.triggerR = other.triggerR;
         this.buttons = other.buttons;
         System.arraycopy(other.dpad, 0, this.dpad, 0, 4);
     }
+
+    public void writeTo(ByteBuffer buffer) {
+        buffer.putShort(buttons);
+        buffer.put(getPovHat());
+        buffer.putShort((short)(thumbLX * Short.MAX_VALUE));
+        buffer.putShort((short)(thumbLY * Short.MAX_VALUE));
+        buffer.putShort((short)(thumbRX * Short.MAX_VALUE));
+        buffer.putShort((short)(thumbRY * Short.MAX_VALUE));
+    }
+
     public byte[] toByteArray() {
         ByteBuffer buffer = ByteBuffer.allocate(11).order(ByteOrder.LITTLE_ENDIAN);
         writeTo(buffer);

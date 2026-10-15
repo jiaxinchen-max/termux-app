@@ -30,6 +30,13 @@
         <item>exact</item>
         <item>custom</item>
     </string-array>
+    <!-- Displayed text of displayResolutionMode. Values stay in displayResolutionVariants. -->
+    <string-array name="displayResolutionVariantsEntries">
+        <item>native</item>
+        <item>scaled</item>
+        <item>exact</item>
+        <item>custom</item>
+    </string-array>
     <string-array name="displayResolution">
         <item>320x200</item>
         <item>320x240</item>
@@ -56,6 +63,12 @@
         <item>3840x2160</item>
         <item>7680x4320</item>
     </string-array>
+    <!--
+      userActionsValues holds the STORED values (must stay English, they are what
+      TouchInputHandler switches on). userActionsEntries holds the DISPLAYED text and is
+      the one that gets localized in values-<locale>/arrays.xml. Keep both in sync:
+      same item count, same order.
+    -->
     <string-array name="userActionsValues">
         <item>no action</item>
         <item>toggle soft keyboard</item>
@@ -65,20 +78,52 @@
         <item>toggle fullscreen</item>
         <item>restart activity</item>
         <item>exit</item>
+        <item>trigger terminal input</item>
+    </string-array>
+    <string-array name="userActionsEntries">
+        <item>no action</item>
+        <item>toggle soft keyboard</item>
+        <item>toggle additional key bar</item>
+        <item>open preferences</item>
+        <item>release pointer and keyboard capture</item>
+        <item>toggle fullscreen</item>
+        <item>restart activity</item>
+        <item>exit</item>
+        <item>trigger terminal input</item>
     </string-array>
     <string-array name="userActionsVolumeDownValues">
         <item>@array/userActionsValues</item>
+        <item>send volume down</item>
+    </string-array>
+    <string-array name="userActionsVolumeDownEntries">
+        <item>@array/userActionsEntries</item>
         <item>send volume down</item>
     </string-array>
     <string-array name="userActionsVolumeUpValues">
         <item>@array/userActionsValues</item>
         <item>send volume up</item>
     </string-array>
+    <string-array name="userActionsVolumeUpEntries">
+        <item>@array/userActionsEntries</item>
+        <item>send volume up</item>
+    </string-array>
     <string-array name="userActionsMediaKeyValues">
         <item>@array/userActionsValues</item>
         <item>send media action</item>
     </string-array>
+    <string-array name="userActionsMediaKeyEntries">
+        <item>@array/userActionsEntries</item>
+        <item>send media action</item>
+    </string-array>
     <string-array name="forceOrientationVariants">
+        <item>auto</item>
+        <item>portrait</item>
+        <item>landscape</item>
+        <item>reverse portrait</item>
+        <item>reverse landscape</item>
+    </string-array>
+    <!-- Displayed text of forceOrientation. Values stay in forceOrientationVariants. -->
+    <string-array name="forceOrientationVariantsEntries">
         <item>auto</item>
         <item>portrait</item>
         <item>landscape</item>
@@ -175,5 +220,10 @@
     <string-array name="desktop_background_type_entries">
         <item>Image</item>
         <item>Solid Color</item>
+    </string-array>
+    <string-array name="touchpad_mode_entries">
+        <item>CP1 Direct touch</item>
+        <item>CP2 Direct touch（RA2)</item>
+        <item>V3(Dark)</item>
     </string-array>
 </resources>

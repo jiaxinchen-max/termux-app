@@ -1,6 +1,8 @@
 package com.termux.x11.controller.math;
 
 public abstract class Mathf {
+    public static final float EPSILON = 1e-5f;
+
     public static float clamp(float x, float min, float max) {
         return (x < min) ? min : ((x > max) ? max : x);
     }
@@ -23,5 +25,13 @@ public abstract class Mathf {
 
     public static float lengthSq(float x, float y) {
         return x * x + y * y;
+    }
+
+    public static float distance(float x0, float y0, float x1, float y1) {
+        return (float)Math.hypot(x0 - x1, y0 - y1);
+    }
+
+    public static float fract(float x) {
+        return x - (int)Math.floor(x);
     }
 }

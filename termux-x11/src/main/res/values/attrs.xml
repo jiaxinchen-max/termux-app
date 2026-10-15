@@ -14,4 +14,21 @@
     <declare-styleable name="ImagePickerView">
         <attr name="activityTypeCode" format="integer" />
     </declare-styleable>
+    <attr name="colorAccent" format="color" />
+    <attr name="colorError" format="color" />
+    <declare-styleable name="SeekBar">
+        <attr name="value" />
+        <attr name="minValue" />
+        <attr name="maxValue" />
+        <attr name="step" />
+        <attr name="suffix" format="string" />
+        <attr name="textSize" />
+    </declare-styleable>
+    <attr name="colorPrimaryText" format="color" />
+    <attr name="colorSecondaryText" format="color" />
+    <attr name="colorPrimarySurface" format="color" />
+    <attr name="colorPrimaryVariant" format="color" />
+    <attr name="colorSecondaryVariant" format="color" />
+    <attr name="panelBackground" format="reference" />
+    <attr name="toolboxBackground" format="reference" />
 </resources>

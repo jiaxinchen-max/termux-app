@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?attr/colorPrimarySurface">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingLeft="8dp"
+        android:paddingRight="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="2dp">
+
+        <Button
+            android:id="@+id/BTUp"
+            style="@style/ButtonNeutral"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="↑" />
+
+        <TextView
+            android:id="@+id/TVCurrentPath"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="6dp"
+            android:textColor="?attr/colorPrimaryText"
+            android:textSize="13sp"
+            android:ellipsize="middle"
+            android:singleLine="true" />
+
+        <Button
+            android:id="@+id/BTConfirm"
+            style="@style/ButtonNeutral"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="@string/ok" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/TVSelectionInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingBottom="2dp"
+        android:textColor="?attr/colorSecondaryText"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <View style="@style/HorizontalLine" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/RecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingLeft="8dp"
+        android:paddingRight="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="8dp"
+        android:clipToPadding="false" />
+
+    <TextView
+        android:id="@+id/TVEmptyText"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="@string/no_files_found"
+        android:textColor="?attr/colorSecondaryText"
+        android:textSize="16sp"
+        android:visibility="gone" />
+</LinearLayout>

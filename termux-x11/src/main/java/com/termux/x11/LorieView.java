@@ -341,6 +341,17 @@ public class LorieView extends SurfaceView implements InputStub {
     public final Pointer pointer = new Pointer(this);
     final public InputDeviceManager inputDeviceManager = new InputDeviceManager(this);
     public ScreenInfo screenInfo;
+    private final com.termux.x11.controller.renderer.Renderer renderer =
+            new com.termux.x11.controller.renderer.Renderer(this);
+
+    public com.termux.x11.controller.renderer.Renderer getRenderer() {
+        return renderer;
+    }
+
+    /** 指针被锁定时视为相对鼠标移动模式（winlator 语义） */
+    public boolean isRelativeMouseMovement() {
+        return cursorLocker != null && cursorLocker.isEnabled();
+    }
     public CursorLocker cursorLocker;
     public WinHandler winHandler;
 

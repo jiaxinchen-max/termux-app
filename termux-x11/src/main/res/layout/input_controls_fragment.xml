@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <LinearLayout
         android:orientation="vertical"
@@ -28,77 +28,96 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1" />
 
-            <ImageButton
-                style="@style/ListMenuButton"
-                android:id="@+id/BTAddProfile"
-                android:src="@drawable/icon_add" />
+            <LinearLayout style="@style/Toolbox">
+                <ImageButton
+                    style="@style/ListMenuButton"
+                    android:id="@+id/BTAddProfile"
+                    android:src="@drawable/icon_add" />
 
-            <ImageButton
-                style="@style/ListMenuButton"
-                android:id="@+id/BTEditProfile"
-                android:src="@drawable/icon_edit" />
+                <ImageButton
+                    style="@style/ListMenuButton"
+                    android:id="@+id/BTEditProfile"
+                    android:src="@drawable/icon_edit" />
 
-            <ImageButton
-                style="@style/ListMenuButton"
-                android:id="@+id/BTDuplicateProfile"
-                android:src="@drawable/icon_duplicate" />
+                <ImageButton
+                    style="@style/ListMenuButton"
+                    android:id="@+id/BTDuplicateProfile"
+                    android:src="@drawable/icon_duplicate" />
 
-            <ImageButton
-                style="@style/ListMenuButton"
-                android:id="@+id/BTRemoveProfile"
-                android:layout_marginRight="0dp"
-                android:src="@drawable/icon_remove" />
+                <ImageButton
+                    style="@style/ListMenuButton"
+                    android:id="@+id/BTRemoveProfile"
+                    android:layout_marginRight="0dp"
+                    android:src="@drawable/icon_remove" />
+            </LinearLayout>
         </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp">
+            android:text="@string/cursor_speed"/>
 
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/cursor_speed"/>
-
-            <TextView
-                android:id="@+id/TVCursorSpeed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
-        </LinearLayout>
-
-        <SeekBar
+        <com.termux.x11.controller.widget.SeekBar
             android:id="@+id/SBCursorSpeed"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:min="10"
-            android:max="200" />
+            app:suffix="%"
+            app:minValue="10"
+            app:maxValue="250" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/touchpad_mode"/>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="8dp">
+            android:gravity="center_vertical">
 
-            <TextView
+            <Spinner
+                style="@style/ComboBox"
+                android:id="@+id/STouchpadMode"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/overlay_opacity"/>
+                android:entries="@array/touchpad_mode_entries" />
 
-            <TextView
-                android:id="@+id/TVUiOpacity"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+            <ImageButton
+                style="@style/ListMenuButton"
+                android:id="@+id/BTTouchpadSettings"
+                android:layout_marginRight="0dp"
+                android:src="@drawable/icon_settings" />
         </LinearLayout>
 
-        <SeekBar
+        <CheckBox
+            android:id="@+id/CBMoveCursorToTouchpoint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/move_cursor_to_touchpoint"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/overlay_opacity"/>
+
+        <com.termux.x11.controller.widget.SeekBar
             android:id="@+id/SBOverlayOpacity"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:min="10"
-            android:max="100" />
+            app:suffix="%"
+            app:step="5"
+            app:minValue="10"
+            app:maxValue="100" />
+
+        <CheckBox
+            android:id="@+id/CBDisableMouseInput"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/disable_mouse_input"
+            android:layout_marginTop="8dp" />
 
         <View
             style="@style/HorizontalLine"
@@ -141,7 +160,7 @@
             android:layout_height="wrap_content"
             android:textStyle="bold"
             android:text="@string/external_controllers"
-            android:textColor="@color/colorPrimary"
+            android:textColor="?attr/colorPrimaryVariant"
             android:layout_marginTop="8dp" />
 
         <View style="@style/HorizontalLine" />

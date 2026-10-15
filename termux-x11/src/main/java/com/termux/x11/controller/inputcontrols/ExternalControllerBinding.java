@@ -48,31 +48,42 @@ public class ExternalControllerBinding {
         }
     }
 
+    /**
+     * 绑定列表显示的轴名称。用方向词而非 +/- 是因为 getKeyCodeForAxis 对 Y/RZ 做了取反
+     * (AXIS_Y_NEGATIVE 对应实际向下),仅凭 +/- 极易让人误判方向而改错绑定。
+     * 注意:此处仅影响显示,keyCode 保持不变,已保存的配置无需迁移。
+     */
     @NonNull
     @Override
     public String toString() {
         switch (keyCode) {
             case AXIS_X_NEGATIVE:
-                return "AXIS X-";
+                return "AXIS X LEFT";
             case AXIS_X_POSITIVE:
-                return "AXIS X+";
+                return "AXIS X RIGHT";
             case AXIS_Y_NEGATIVE:
-                return "AXIS Y-";
+                return "AXIS Y DOWN";
             case AXIS_Y_POSITIVE:
-                return "AXIS Y+";
+                return "AXIS Y UP";
             case AXIS_Z_NEGATIVE:
-                return "AXIS Z-";
+                return "AXIS Z LEFT";
             case AXIS_Z_POSITIVE:
-                return "AXIS Z+";
+                return "AXIS Z RIGHT";
             case AXIS_RZ_NEGATIVE:
-                return "AXIS RZ-";
+                return "AXIS RZ DOWN";
             case AXIS_RZ_POSITIVE:
-                return "AXIS RZ+";
+                return "AXIS RZ UP";
             default:
                 return KeyEvent.keyCodeToString(keyCode).replace("KEYCODE_", "").replace("_", " ");
         }
     }
 
+    /**
+     * 轴 + 方向 → 内部 keyCode。
+     * 注意 Y/RZ 与 HAT_Y 的 Y 轴约定相反:AXIS_Y/RZ 沿用摇杆的 Y 向上(故 sign>0 即向下
+     * 时返回 *_NEGATIVE),而 AXIS_HAT_Y 沿用 Android 的 Y 向下(sign>0 即 KEYCODE_DPAD_DOWN)。
+     * 二者读写同源,功能自洽;若要统一需同步迁移已存配置中 -3/-4 与 -7/-8 的语义,勿单独改动。
+     */
     public static int getKeyCodeForAxis(int axis, byte sign) {
         switch (axis) {
             case MotionEvent.AXIS_X:

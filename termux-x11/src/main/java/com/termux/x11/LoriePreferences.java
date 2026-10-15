@@ -105,7 +105,7 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
     protected TouchpadView touchpadView;
     protected Runnable editInputControlsCallback;
     protected Shortcut shortcut;
-    protected DownloadProgressDialog preloaderDialog;
+    public DownloadProgressDialog preloaderDialog;
     protected Callback<Uri> openFileCallback;
     protected float globalCursorSpeed = 1.0f;
     protected ControlsProfile profile;
@@ -123,6 +123,18 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
     protected interface TermuxActivityListener {
         void onX11PreferenceSwitchChange(boolean isOpen);
 
+        /**
+         * Show the Termux terminal view, or slide back to the X11 display if it is already
+         * showing. This is the "left" content of the sliding window.
+         */
+        void toggleTerminalView();
+
+        /**
+         * Show the X11 settings panel, or slide back to the X11 display if it is already
+         * showing. This is the "right" content of the sliding window.
+         */
+        void toggleX11Preference();
+
         void releaseSlider(boolean open);
 
         void onChangeOrientation(int landscape);
@@ -134,6 +146,12 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
         void openSoftwareKeyboard();
 
         void showProcessManager();
+
+        /**
+         * Send the given text to the currently running Termux terminal session,
+         * exactly as if the user had typed it on the terminal keyboard.
+         */
+        void sendTextToTerminal(String text);
 
         void changePreference(String key);
 
@@ -201,11 +219,22 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
         super.onCreate(savedInstanceState);
         prefs = new Prefs(this);
 
-        ActionBar actionBar = getSupportActionBar();
-        if (actionBar != null) {
-            actionBar.setDisplayHomeAsUpEnabled(true);
-            actionBar.setHomeButtonEnabled(true);
-        }
+        // Subclasses (TermuxActivity) call setContentView after super.onCreate,
+        // so defer toolbar setup until the view hierarchy is ready.
+        handler.post(() -> {
+            int toolbarId = getResources().getIdentifier("toolbar_preference", "id", getPackageName());
+            if (toolbarId != 0) {
+                View v = findViewById(toolbarId);
+                if (v instanceof androidx.appcompat.widget.Toolbar) {
+                    setSupportActionBar((androidx.appcompat.widget.Toolbar) v);
+                    ActionBar actionBar = getSupportActionBar();
+                    if (actionBar != null) {
+                        actionBar.setDisplayHomeAsUpEnabled(true);
+                        actionBar.setHomeButtonEnabled(true);
+                    }
+                }
+            }
+        });
 
         Uri ENABLED_ACCESSIBILITY_SERVICES = Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         Uri ACCESSIBILITY_ENABLED = Settings.Secure.getUriFor(Settings.Secure.ACCESSIBILITY_ENABLED);
@@ -404,9 +433,9 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
             setVisible("stylusIsMouse", stylusAvailable);
             setVisible("stylusButtonContactModifierMode", stylusAvailable);
 
-            setNoActionOptionText(findPreference("volumeDownAction"), "android volume control");
-            setNoActionOptionText(findPreference("volumeUpAction"), "android volume control");
-            setNoActionOptionText(findPreference("mediaKeysAction"), "android media control");
+            setNoActionOptionText(findPreference("volumeDownAction"), getString(R.string.no_action_volume_hint));
+            setNoActionOptionText(findPreference("volumeUpAction"), getString(R.string.no_action_volume_hint));
+            setNoActionOptionText(findPreference("mediaKeysAction"), getString(R.string.no_action_media_hint));
         }
 
         private void setTitle(CharSequence key, int resId) {
@@ -467,6 +496,10 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
             setEnabled("displayStretch", displayStretchEnabled);
             setEnabled("adjustResolution", displayStretchEnabled);
 
+            // Only meaningful for "auto": the other values already pin a fixed rotation and are
+            // never affected by the device rotation lock.
+            setEnabled("ignoreRotationLock", "auto".contentEquals(prefs.forceOrientation.get()));
+
             setEnabled("scaleTouchpad", "1".equals(prefs.touchMode.get()) && !"native".equals(prefs.displayResolutionMode.get()));
             setEnabled("showMouseHelper", "1".equals(prefs.touchMode.get()));
 
@@ -509,10 +542,15 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
             if (preference == null)
                 return;
             ListPreference p = (ListPreference) preference;
-            CharSequence[] options = p.getEntries();
-            for (int i = 0; i < options.length; i++) {
-                if ("no action".contentEquals(options[i]))
-                    options[i] = "no action (" + text + ")";
+            CharSequence[] entries = p.getEntries();
+            CharSequence[] values = p.getEntryValues();
+            if (entries == null || values == null)
+                return;
+            // Match on the stored value, not the displayed text: entries are localized while
+            // values stay English.
+            for (int i = 0; i < entries.length && i < values.length; i++) {
+                if ("no action".contentEquals(values[i]))
+                    entries[i] = entries[i] + " (" + text + ")";
             }
         }
 
@@ -591,6 +629,7 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
             Log.e("Preferences", "changed preference: " + key);
             handler.removeCallbacks(updateLayout);
             handler.postDelayed(updateLayout, 50);
+
 
             if ("displayScale".contentEquals(key)) {
                 int scale = (Integer) newValue;
@@ -710,13 +749,9 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
                             else if (pref.type == boolean.class)
                                 result += "\"" + pref.key + "\"=\"" + pref.asBoolean().get() + "\"\n";
                             else if (pref.type == String[].class) {
-                                String[] entries = context.getResources().getStringArray(pref.asList().entries);
-                                String[] values = context.getResources().getStringArray(pref.asList().values);
-                                String value = pref.asList().get();
-                                int index = Arrays.asList(values).indexOf(value);
-                                if (index != -1)
-                                    value = entries[index];
-                                result += "\"" + pref.key + "\"=\"" + value + "\"\n";
+                                // Report the stored value, not the localized entry: entries are localized
+                                // while values stay English (see res/values/arrays.xml).
+                                result += "\"" + pref.key + "\"=\"" + pref.asList().get() + "\"\n";
                             }
                         }
 
@@ -1137,6 +1172,11 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
     }
 
     //inout control
+    /** 避免与 TermuxActivity.getPreferences() 冲突，故使用独立命名 */
+    public SharedPreferences getX11Preferences() {
+        return PreferenceManager.getDefaultSharedPreferences(this);
+    }
+
     public InputControlsView getInputControlsView() {
         return inputControlsView;
     }
@@ -1214,12 +1254,11 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
             inputControlsView.setShowTouchscreenControls(cbShowTouchscreenControls.isChecked());
             int position = sProfile.getSelectedItemPosition();
             if (position > 0) {
-                if (cbEnableTouchScreen.isChecked()) {
-                    touchpadView.setTouchMode(TouchpadView.TouchMode.TOUCH_SCREEN);
-                } else {
-                    touchpadView.setTouchMode(TouchpadView.TouchMode.TRACK_PAD);
-                }
-                showInputControls(inputControlsManager.getProfiles().get(position - 1));
+                ControlsProfile targetProfile = inputControlsManager.getProfiles().get(position - 1);
+                // 勾选=直接触屏(V1)，否则沿用该按键配置里的触控板模式
+                touchpadView.setTouchpadMode(cbEnableTouchScreen.isChecked()
+                        ? TouchpadView.TOUCHPAD_MODE_V1 : targetProfile.getTouchpadMode());
+                showInputControls(targetProfile);
             } else {
                 hideInputControls();
             }

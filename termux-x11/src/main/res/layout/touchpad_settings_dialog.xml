@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/LLTouchpadSettingsContent"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/TVTouchpadSettingsTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:layout_marginBottom="12dp" />
+
+    <CheckBox
+        android:id="@+id/CBTwoFingersDrag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/two_fingers_drag" />
+
+    <CheckBox
+        android:id="@+id/CBTwoFingersScroll"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/two_fingers_scroll" />
+
+    <CheckBox
+        android:id="@+id/CBTwoFingersRightClick"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/two_fingers_right_click" />
+
+    <CheckBox
+        android:id="@+id/CBLongPressRightClick"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/long_press_right_click" />
+
+    <CheckBox
+        android:id="@+id/CBPinchZoomEnabled"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/pinch_zoom_enabled" />
+
+    <CheckBox
+        android:id="@+id/CBShortDragEnabled"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/short_drag_enabled" />
+
+</LinearLayout>

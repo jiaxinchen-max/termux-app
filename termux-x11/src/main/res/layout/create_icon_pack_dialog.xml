@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="320dp"
+    android:layout_height="wrap_content"
+    android:fillViewport="true">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/TVDialogTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/create_icon_pack_dialog_title"
+        android:textColor="?attr/colorPrimaryText"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/ETName"
+        style="@style/EditText"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:layout_marginTop="18dp"
+        android:hint="@string/icon_pack_name_hint" />
+
+    <EditText
+        android:id="@+id/ETAuthor"
+        style="@style/EditText"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:layout_marginTop="12dp"
+        android:hint="@string/icon_pack_author_hint" />
+
+    <TextView
+        android:id="@+id/TVSelectedIcons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:textColor="?attr/colorSecondaryText"
+        android:textSize="14sp" />
+
+    <Button
+        android:id="@+id/BTSelectIcons"
+        style="@style/ButtonNeutral"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="12dp"
+        android:text="@string/select_custom_icons" />
+
+    <Button
+        android:id="@+id/BTCreate"
+        style="@style/ButtonNeutral"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="12dp"
+        android:text="@string/create_short" />
+</LinearLayout>
+
+</ScrollView>
