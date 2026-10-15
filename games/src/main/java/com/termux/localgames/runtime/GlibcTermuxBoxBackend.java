@@ -1,6 +1,8 @@
 package com.termux.localgames.runtime;
 
 import com.termux.localgames.components.ComponentStoragePaths;
+import com.termux.localgames.components.index.ComponentDescriptor;
+import com.termux.localgames.components.index.ComponentType;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.GameRuntimeBackendType;
 import com.termux.localgames.domain.RuntimeProfile;
@@ -15,11 +17,20 @@ import java.util.Set;
 /** Existing TermuxBox runtime preserved as the default backend. */
 public final class GlibcTermuxBoxBackend implements GameRuntimeBackend {
 
-    public static final String TERMUX_GLIBC_RUNTIME_COMPONENT = "termux-glibc-runtime";
+    public static final String TERMUX_GLIBC_ID = "termux-glibc";
+
+    /** Host-managed: installed straight from the Termux glibc packages, so it is not a catalog
+     *  component. Only the task record that drives the install needs a descriptor. */
+    public static ComponentDescriptor termuxGlibcDescriptor() {
+        return new ComponentDescriptor(TERMUX_GLIBC_ID, "runtime", 1,
+            "https://github.com/termux/termux-packages", 1L, "", ComponentType.RUNTIME_SUPPORT,
+            "Termux glibc", "Termux repository", "Termux glibc runtime installed from packages",
+            "Termux GLIBC", false, false, true, "",
+            java.util.EnumSet.of(GameRuntimeBackendType.GLIBC_TERMUX_BOX));
+    }
 
     private static final Set<String> BASE_COMPONENTS = new LinkedHashSet<>(Arrays.asList(
-        TERMUX_GLIBC_RUNTIME_COMPONENT, "scripts", "box64-binaries", "prefix-apps", "libudev",
-        "en-ru-locale", "wine-fonts"));
+        "glibc_box64_0.2.7"));
 
     @Override
     public GameRuntimeBackendType getType() {
@@ -47,7 +58,7 @@ public final class GlibcTermuxBoxBackend implements GameRuntimeBackend {
     @Override
     public Set<String> requiredHostCapabilityIds(RuntimeProfile profile) {
         requireProfile(profile);
-        return java.util.Collections.singleton("termux-x11");
+        return new LinkedHashSet<>(Arrays.asList("termux-x11", TERMUX_GLIBC_ID));
     }
 
     @Override

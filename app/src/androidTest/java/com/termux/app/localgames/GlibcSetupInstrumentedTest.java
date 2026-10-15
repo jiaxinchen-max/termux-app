@@ -42,8 +42,8 @@ public class GlibcSetupInstrumentedTest {
     private static final String GAME_ID = "setup-smoke";
     private static final long TIMEOUT_MS = 12 * 60 * 1000;
     private static final String[] REQUIRED_COMPONENTS = {
-        "glibc-prefix", "scripts", "box64-binaries", "prefix-apps", "libudev",
-        "en-ru-locale", "virgl-mesa", "dxvk", "wine-9.3-vanilla-wow64"
+        "glibc-prefix", "scripts", "glibc_box64_0.2.7", "prefix-apps", "libudev",
+        "en-ru-locale", "virgl-mesa", "dxvk", "glibc_wine_9.3-vanilla"
     };
 
     @Test
@@ -63,7 +63,7 @@ public class GlibcSetupInstrumentedTest {
                 .save(new Game(GAME_ID, "Setup Smoke", "content://missing/tree/setup",
                     "Game.exe", ".", Collections.emptyList(), "", 0));
             new FileRuntimeProfileRepository(paths.getProfilesDirectory())
-                .save(new RuntimeProfile(GAME_ID, "wine-9.3-vanilla-wow64", "virgl", "dxvk",
+                .save(new RuntimeProfile(GAME_ID, "glibc_wine_9.3-vanilla", "virgl", "dxvk",
                     "pulseaudio", "1280x720", "STABILITY", Collections.emptyMap(), "xinput",
                     LaunchExecutionMode.APP_SHELL, Collections.emptyMap()));
 
@@ -79,7 +79,7 @@ public class GlibcSetupInstrumentedTest {
             assertTrue("bootstrap marker must be written",
                 new File(prefix, ".termux-box-bootstrap-done").isFile());
             assertEquals("prefix must record the activated wine package",
-                "wine-9.3-vanilla-wow64",
+                "glibc_wine_9.3-vanilla",
                 readFirstLine(new File(prefix, ".termux-box-wine-package")));
             assertTrue("box64 must exist in the launcher runtime",
                 new File(context.getFilesDir(), "usr/glibc/bin/box64").isFile());

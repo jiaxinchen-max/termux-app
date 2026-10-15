@@ -60,7 +60,7 @@ jobs:
                   + "/releases/download/" + .id + "-v" + (.version|tostring)
                   + "/" + .id + ".tar.xz")
               )
-          ' catalog-v1.json > repository/index-v1.json
+          ' ../../games/src/main/assets/termux-box-packages/index-v1.json > repository/index-v1.json
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

@@ -87,7 +87,7 @@ load_configs() {
     # ---- 2. Resolve container-specific variables (with defaults aligned to Winlator) ----
     export TERMUX_BOX_CONTAINER_DIR="${TERMUX_BOX_CONTAINER_DIR:-$TERMUX_BOX_ROOT/containers/container-1}"
     export TERMUX_BOX_CONTAINER_PREFIX="${TERMUX_BOX_CONTAINER_PREFIX:-$TERMUX_BOX_CONTAINER_DIR/prefix}"
-    export WINE_PATH="$TERMUX_GLIBC_DIR/${TERMUX_BOX_WINE_PACKAGE:-wine-9.0-staging-wow64}"
+    export WINE_PATH="$TERMUX_GLIBC_DIR/${TERMUX_BOX_WINE_PACKAGE:-glibc_wine_9.0-staging}"
     export WINEPREFIX="$TERMUX_BOX_CONTAINER_PREFIX"
     export RESOLUTION="${TERMUX_BOX_RESOLUTION:-1280x720}"
     if [ -z "${LC_ALL:-}" ] && [ -f "$TERMUX_OPT_DIR/locale.conf" ]; then

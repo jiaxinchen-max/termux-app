@@ -14,7 +14,7 @@
 # Only "wine" kind exists here -- GLIBC_TERMUX_BOX has exactly one box64 translation path (see
 # GlibcTermuxBoxBackend), so there is no per-build box64 choice to let a user override the way
 # ROOTFS_PROOT's ".../opt/box64/<id>/" custom-box64 flow does; box64 itself is upgraded through
-# the ordinary catalog Components page (box64-binaries / box64-proot-v0.4.4), not this script.
+# the ordinary catalog Components page (glibc_box64_0.2.7 / glibc_box64_0.4.4), not this script.
 #
 # wine:wine-tree -- archive containing bin/wine+bin/wineboot+lib*/wine at some depth (same
 #                   content-detection install_custom_rootfs_component.sh/

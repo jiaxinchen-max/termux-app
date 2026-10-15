@@ -19,7 +19,7 @@
 #   RUNTIME_ROOT_PATH    the exact string embedded into the "already warmed" marker files --
 #                        both callers must compute the identical value for a given container, or
 #                        warming up in one place does not skip anything in the other
-#   WINE_PACKAGE         e.g. "hangover-latest", "box64-wine-latest" or "box64-proton-latest"
+#   WINE_PACKAGE         e.g. "rootfs_hangover_11.16", "rootfs_wine_10.0" or "rootfs_proton_11.0-2"
 #   TEMPLATE_CACHE_DIR   only required by resolve_template_prefix_archive() (below), not by
 #                        warmup_rootfs_prefix() itself -- callers that build TEMPLATE_PREFIX_ARCHIVE
 #                        some other way (setup_rootfs_runtime.sh's BASE_ONLY template-build step
@@ -101,12 +101,12 @@ resolve_template_prefix_archive() {
 resolve_rootfs_translator() {
     RUNTIME_TRANSLATOR=${GAMES_RUNTIME_TRANSLATOR:-}
     [ -n "$RUNTIME_TRANSLATOR" ] || case "$WINE_PACKAGE" in
-        hangover-*) RUNTIME_TRANSLATOR=hangover ;;
+        rootfs_hangover_*) RUNTIME_TRANSLATOR=hangover ;;
         *) RUNTIME_TRANSLATOR=box64 ;;
     esac
     case "$RUNTIME_TRANSLATOR" in
         hangover)
-            case "$WINE_PACKAGE" in hangover-*|custom-wine-*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
+            case "$WINE_PACKAGE" in rootfs_hangover_*|custom-wine-*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
             # GUEST_COMMAND is the one binary actually exec'd for this translator (see
             # start_rootfs_game.sh's run_rootfs_wine()/game-launch dispatch, both keyed off
             # RUNTIME_TRANSLATOR, not a literal path match -- a custom hangover-family build's own
@@ -119,7 +119,7 @@ resolve_rootfs_translator() {
             [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || warmup_fail rootfs_wineboot_missing
             ;;
         box64)
-            case "$WINE_PACKAGE" in box64-wine*|box64-proton*|custom-wine-*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
+            case "$WINE_PACKAGE" in rootfs_wine_*|rootfs_proton_*|custom-wine-*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
             # Both box64-wine-* (Kron4ek vanilla) and box64-proton-* (Kron4ek's Proton build) are
             # portable x86_64 Wine builds translated by box64, installed under different /opt
             # directories (see setup-container.sh's step 3) -- but they are NOT binary-identical:
@@ -128,10 +128,10 @@ resolve_rootfs_translator() {
             # no bin/wine64 at all. Confirmed on-device: both launcher binaries are ~13KB ELF
             # stubs of the same shape, just under different names.
             case "$WINE_PACKAGE" in
-                box64-proton*) box64_wine_root=/opt/box64-proton; box64_wine_bin=wine ;;
+                rootfs_proton_*) box64_wine_root=/opt/box64-proton; box64_wine_bin=wine ;;
                 *) box64_wine_root=/opt/box64-wine; box64_wine_bin=wine64 ;;
             esac
-            GUEST_COMMAND=/opt/box64/box64-rootfs-mprotect-patch/bin/box64
+            GUEST_COMMAND=/opt/box64/rootfs_box64_0.4.5/bin/box64
             GUEST_WINE=${GAMES_CUSTOM_WINE_PATH:-$box64_wine_root/bin/$box64_wine_bin}
             # The biarch build's bin/wineboot is a #!/bin/sh wrapper script, not an ELF -- box64
             # cannot translate/exec it directly ("Not an ELF file"). wineboot is instead invoked
@@ -150,7 +150,7 @@ resolve_rootfs_translator() {
             [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || warmup_fail rootfs_wineboot_missing
             ;;
         fex)
-            case "$WINE_PACKAGE" in box64-wine*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
+            case "$WINE_PACKAGE" in rootfs_wine_*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
             GUEST_COMMAND=/usr/bin/FEXInterpreter
             GUEST_WINE=/opt/box64-wine/bin/wine
             GUEST_WINEBOOT=/opt/box64-wine/bin/wineboot
@@ -162,8 +162,8 @@ resolve_rootfs_translator() {
     esac
     # Box64 build choice is orthogonal to the Wine package/translator choice above (see
     # GameRuntimeOptionsView's "Box64 build" row) -- it only ever overrides GUEST_COMMAND, never
-    # the wine/wineboot paths resolved above. Every box64 build (the catalog's box64-rootfs,
-    # box64-rootfs-mprotect-patch, or any custom-box64-* sideload) lives at its own
+    # the wine/wineboot paths resolved above. Every box64 build (the catalog's rootfs_box64_0.4.5,
+    # rootfs_box64_0.4.5, or any custom-box64-* sideload) lives at its own
     # /opt/box64/<id>/bin/box64 (see setup-container.sh's box64 layout step), so selection is just
     # picking which id's directory to point GUEST_COMMAND at -- defaults to the mprotect-patched
     # build above if this is unset. Fails loudly (not a silent fallback) if the requested id's
@@ -202,6 +202,11 @@ resolve_rootfs_translator() {
 # whose --kill-on-exit then tears down the whole wine tree. Consequence: every caller MUST invoke
 # this in a subshell context -- either backgrounded (`... &`, already its own subshell) or wrapped
 # in `( ... )` -- NEVER as a bare foreground call, which would exec-replace the whole setup script.
+# BOX64_LD_LIBRARY_PATH: box64 only searches the paths it is given, and no box64 build finds a "lib"
+# directory next to its own binary. The x86_64 runtime libraries (libgcc_s.so.1 and friends, which a
+# box64-translated Wine's ntdll.so needs) live in the stock build's lib dir, and the mprotect-patch
+# build ships no lib dir at all. Without this, wineboot dies with "could not load ntdll.so" and the
+# whole RootFS rebuild fails with rootfs_prefix_initialization_failed.
 run_rootfs_maintenance_command() {
     exec "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
         -r "$ROOTFS_CANONICAL" \
@@ -216,6 +221,7 @@ run_rootfs_maintenance_command() {
         FONTCONFIG_PATH=/etc/fonts FONTCONFIG_FILE=/etc/fonts/fonts.conf \
         XDG_DATA_DIRS=/usr/local/share:/usr/share DISPLAY="${MAINTENANCE_DISPLAY:-:0}" \
         WINEPREFIX=/mnt/games/prefix WINEDLLOVERRIDES=mscoree,mshtml=d \
+        BOX64_LD_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu \
         "$@"
 }
 

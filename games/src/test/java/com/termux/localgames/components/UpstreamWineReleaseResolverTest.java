@@ -36,7 +36,7 @@ public class UpstreamWineReleaseResolverTest {
 
         ComponentDescriptor resolved = resolver.resolveHangoverSource(hangoverTemplate());
 
-        assertEquals("hangover-latest-debian13-source", resolved.getId());
+        assertEquals("rootfs_hangover_11.16", resolved.getId());
         assertEquals(293099520L, resolved.getSize());
         assertEquals("", resolved.getSha256());
         assertTrue(resolved.getUrl().endsWith("hangover_11.16_debian13_trixie_arm64.tar"));
@@ -60,7 +60,7 @@ public class UpstreamWineReleaseResolverTest {
 
         ComponentDescriptor resolved = resolver.resolveBox64Wine(box64WineTemplate());
 
-        assertEquals("box64-wine-latest", resolved.getId());
+        assertEquals("rootfs_wine_10.0", resolved.getId());
         assertEquals(99272636L, resolved.getSize());
         assertEquals("a1fe858b45d12c9b16b91c7601d9b934f68430f7b6b95e240212ab6e2a198d8a",
             resolved.getSha256());
@@ -93,7 +93,7 @@ public class UpstreamWineReleaseResolverTest {
 
         ComponentDescriptor resolved = resolver.resolveProtonWine(protonWineTemplate());
 
-        assertEquals("box64-proton-latest", resolved.getId());
+        assertEquals("rootfs_proton_11.0-2", resolved.getId());
         assertEquals(80017220L, resolved.getSize());
         assertEquals("f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595",
             resolved.getSha256());
@@ -147,7 +147,7 @@ public class UpstreamWineReleaseResolverTest {
     }
 
     private static ComponentDescriptor hangoverTemplate() {
-        return new ComponentDescriptor("hangover-latest-debian13-source", "runtime", 1,
+        return new ComponentDescriptor("rootfs_hangover_11.16", "runtime", 1,
             "https://github.com/AndreRH/hangover/releases/download/hangover-11.9/hangover_11.9_debian13_trixie_arm64.tar",
             273571840L, "896918679daa53d6d3a6a1c40132cd35a1d9edc7afdbc643f9bbb3e22b114348",
             ComponentType.RUNTIME_SUPPORT, "Debian 13 ImageFS Source", "Hangover (offline fallback)",
@@ -156,21 +156,21 @@ public class UpstreamWineReleaseResolverTest {
     }
 
     private static ComponentDescriptor box64WineTemplate() {
-        return new ComponentDescriptor("box64-wine-latest", "runtime", 2,
+        return new ComponentDescriptor("rootfs_wine_10.0", "runtime", 2,
             "https://github.com/Kron4ek/Wine-Builds/releases/download/10.0/wine-10.0-amd64-wow64.tar.xz",
             65074156L, "aeebbbf239e548f0136f1cd72a2e109dd9a572a8f703da3c09fa40d74d5c255f",
             ComponentType.TRANSLATOR, "Box64 + Wine (RootFS)", "Vanilla WoW64 (offline fallback)",
             "Portable vanilla Wine under the standalone Box64 translator.", "ROOTFS", false, false,
-            false, "box64-wine-latest", Collections.singleton(GameRuntimeBackendType.ROOTFS_PROOT));
+            false, "rootfs_wine_10.0", Collections.singleton(GameRuntimeBackendType.ROOTFS_PROOT));
     }
 
     private static ComponentDescriptor protonWineTemplate() {
-        return new ComponentDescriptor("box64-proton-latest", "runtime", 1,
+        return new ComponentDescriptor("rootfs_proton_11.0-2", "runtime", 1,
             "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-11.0-2/wine-proton-11.0-2-amd64-wow64.tar.xz",
             80017220L, "f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595",
             ComponentType.TRANSLATOR, "Box64 + Proton (RootFS)", "Proton WoW64 (offline fallback)",
             "Kron4ek's own Proton build under the standalone Box64 translator.", "ROOTFS", false,
-            false, false, "box64-proton-latest",
+            false, false, "rootfs_proton_11.0-2",
             Collections.singleton(GameRuntimeBackendType.ROOTFS_PROOT));
     }
 

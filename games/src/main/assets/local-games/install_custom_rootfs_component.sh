@@ -25,7 +25,7 @@
 #                     /opt/custom-wine/<componentId>/ inside the shared RootFS.
 # box64:box64-tree -- archive containing a `box64` executable at some depth. Only that one binary
 #                     is copied, to /opt/box64/<componentId>/bin/box64 -- the same per-id directory
-#                     convention catalog box64 builds use (box64-rootfs, box64-rootfs-mprotect-
+#                     convention catalog box64 builds use (rootfs_box64_0.4.5, rootfs_box64_0.4.5-mprotect-
 #                     patch); never a shared system location.
 
 set -eu
@@ -139,8 +139,8 @@ STAGE_DIR="$SHARED_ROOTFS_CONTAINER_DIRECTORY/.custom-install-stage/$COMPONENT_I
 runtime_complete() {
     root=$1
     [ -x "$root/usr/bin/env" ] &&
-        [ -x "$root/opt/box64/box64-rootfs/bin/box64" ] &&
-        [ -x "$root/opt/box64/box64-rootfs-mprotect-patch/bin/box64" ] &&
+        [ -x "$root/opt/box64/rootfs_box64_0.4.5/bin/box64" ] &&
+        [ -x "$root/opt/box64/rootfs_box64_0.4.5/bin/box64" ] &&
         [ -x "$root/usr/bin/wine" ] &&
         [ -x "$root/usr/bin/wineboot" ] &&
         [ -f "$root/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" ] &&
@@ -225,8 +225,8 @@ case "$KIND:$PAYLOAD_KIND" in
 
         progress "==> Installing $COMPONENT_ID into the shared RootFS"
         # Only the one binary is copied, to its own dedicated directory under the same
-        # /opt/box64/<id>/bin/box64 convention catalog builds use (box64-rootfs,
-        # box64-rootfs-mprotect-patch) -- never a shared system path, so a bad or malicious pick
+        # /opt/box64/<id>/bin/box64 convention catalog builds use (rootfs_box64_0.4.5,
+        # rootfs_box64_0.4.5) -- never a shared system path, so a bad or malicious pick
         # cannot affect any other container or translator. See this script's header comment.
         DEST="$SHARED_ROOTFS/opt/box64/$COMPONENT_ID/bin/box64"
         mkdir -p "$(dirname "$DEST")"

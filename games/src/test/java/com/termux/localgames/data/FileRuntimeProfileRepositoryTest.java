@@ -35,11 +35,11 @@ public class FileRuntimeProfileRepositoryTest {
         repository.save(current);
         repository.saveLastSuccessful(successful);
 
-        assertEquals("wine-9.3-vanilla-wow64",
+        assertEquals("glibc_wine_9.3-vanilla",
             repository.find("game-1").get().getWinePackage());
         assertEquals(LaunchExecutionMode.TERMINAL_SESSION,
             repository.find("game-1").get().getLaunchExecutionMode());
-        assertEquals("wine-8.18-staging-wow64",
+        assertEquals("glibc_wine_8.18-staging",
             repository.findLastSuccessful("game-1").get().getWinePackage());
         assertEquals(1, repository.list().size());
 
@@ -80,7 +80,7 @@ public class FileRuntimeProfileRepositoryTest {
         FileRuntimeProfileRepository repository = repository();
         RuntimeProfile base = RuntimeProfilePresets.create("game-1",
             RuntimeProfilePreset.RECOMMENDED);
-        RuntimeProfile rootfs = new RuntimeProfile(base.getId(), "hangover-latest",
+        RuntimeProfile rootfs = new RuntimeProfile(base.getId(), "rootfs_hangover_11.16",
             "rootfs-virgl-mesa", "rootfs-wined3d", base.getAudioDriver(), base.getResolution(),
             base.getBox64Preset(), base.getEnvironment(), base.getInputProfileId(),
             base.getLaunchExecutionMode(), base.getComponentVersions(),

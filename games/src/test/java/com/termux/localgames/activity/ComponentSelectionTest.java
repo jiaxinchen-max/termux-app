@@ -10,13 +10,13 @@ import java.util.List;
 public class ComponentSelectionTest {
 
     private static final List<ComponentSelection.Choice> CHOICES = ComponentSelection.choices(
-        new ComponentSelection.Choice("wine-9.3-vanilla-wow64", "Wine 9.3 Vanilla · 9.3 WoW64"),
-        new ComponentSelection.Choice("wine-8.18-staging-wow64", "Wine 8.18 Staging · 8.18 WoW64"));
+        new ComponentSelection.Choice("glibc_wine_9.3-vanilla", "Wine 9.3 Vanilla · 9.3 WoW64"),
+        new ComponentSelection.Choice("glibc_wine_8.18-staging", "Wine 8.18 Staging · 8.18 WoW64"));
 
     @Test
     public void showsCatalogLabelForPersistedTechnicalId() {
         assertEquals("Wine 9.3 Vanilla · 9.3 WoW64",
-            ComponentSelection.labelFor(CHOICES, "wine-9.3-vanilla-wow64"));
+            ComponentSelection.labelFor(CHOICES, "glibc_wine_9.3-vanilla"));
     }
 
     @Test
@@ -27,10 +27,10 @@ public class ComponentSelectionTest {
 
     @Test
     public void resolvesLabelAndRawValueBackToPersistedId() {
-        assertEquals("wine-8.18-staging-wow64",
+        assertEquals("glibc_wine_8.18-staging",
             ComponentSelection.valueFor(CHOICES, "Wine 8.18 Staging · 8.18 WoW64"));
-        assertEquals("wine-8.18-staging-wow64",
-            ComponentSelection.valueFor(CHOICES, "wine-8.18-staging-wow64"));
+        assertEquals("glibc_wine_8.18-staging",
+            ComponentSelection.valueFor(CHOICES, "glibc_wine_8.18-staging"));
     }
 
     @Test

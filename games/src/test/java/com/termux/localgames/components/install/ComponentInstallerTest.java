@@ -69,7 +69,7 @@ public class ComponentInstallerTest {
     public void installsWithoutAPreknownSha256TrustsTheComputedDigest() throws Exception {
         Fixture fixture = fixture();
         File archive = archive("hangover.tar.xz", "bin/runtime", "hangover-contents");
-        ComponentTask task = ComponentTask.queued("task-tofu", "hangover-latest-debian13-source",
+        ComponentTask task = ComponentTask.queued("task-tofu", "rootfs_hangover_11.16",
                 1, "https://example.invalid/hangover.tar.xz", archive.length(), "")
             .transition(ComponentTaskState.VERIFIED, archive.length(), "", "", "", "");
         fixture.repository.save(task);
@@ -79,7 +79,7 @@ public class ComponentInstallerTest {
             ComponentInstallListener.NONE);
 
         assertEquals(expectedSha256, installed.getSha256());
-        InstalledComponent active = fixture.installer.findActive("hangover-latest-debian13-source")
+        InstalledComponent active = fixture.installer.findActive("rootfs_hangover_11.16")
             .get();
         assertEquals(expectedSha256, active.getSha256());
         assertFalse(active.getSha256().isEmpty());
@@ -105,7 +105,7 @@ public class ComponentInstallerTest {
         // An ar archive (Debian .deb) is not a tar, so the installer must publish it as-is for a
         // shell step to install -- named from the download URL's basename.
         File deb = rawArchive("box64.deb", "box64 package bytes");
-        ComponentTask task = ComponentTask.queued("task-deb", "box64-rootfs", 1,
+        ComponentTask task = ComponentTask.queued("task-deb", "rootfs_box64_0.4.5", 1,
                 "https://example.invalid/box64-android_0.4.5_arm64.deb", deb.length(), sha256(deb))
             .transition(ComponentTaskState.VERIFIED, deb.length(), "", "", "", "");
         fixture.repository.save(task);
@@ -128,7 +128,7 @@ public class ComponentInstallerTest {
         // name that keeps its ".deb" extension -- not fall back to "<packageName>.payload", which
         // setup-container.sh's "find ... -name '*.deb'" dispatch would silently never match.
         File deb = rawArchive("box64.deb", "box64 package bytes");
-        ComponentTask task = ComponentTask.queued("task-deb-encoded", "box64-rootfs", 1,
+        ComponentTask task = ComponentTask.queued("task-deb-encoded", "rootfs_box64_0.4.5", 1,
                 "https://example.invalid/box64-android_0.4.5%2B20260908T103809.4e5f180-1_arm64.deb",
                 deb.length(), sha256(deb))
             .transition(ComponentTaskState.VERIFIED, deb.length(), "", "", "", "");

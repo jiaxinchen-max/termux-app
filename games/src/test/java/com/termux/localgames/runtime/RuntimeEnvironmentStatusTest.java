@@ -78,7 +78,7 @@ public class RuntimeEnvironmentStatusTest {
         GameStoragePaths paths = new GameStoragePaths(files);
         GameContainer container = new GameContainer("container-game-b", "Game B",
             GameRuntimeBackendType.ROOTFS_PROOT, GameContainer.ROOTFS_RUNTIME_PACKAGE,
-            RuntimeTranslator.HANGOVER, "hangover-latest", "rootfs-llvmpipe", "rootfs-wined3d",
+            RuntimeTranslator.HANGOVER, "rootfs_hangover_11.16", "rootfs-llvmpipe", "rootfs-wined3d",
             "pulseaudio", "1280x720", "INTERMEDIATE", Collections.emptyMap());
         new FileGameContainerRepository(paths.getContainersDirectory()).save(container);
 
@@ -109,8 +109,7 @@ public class RuntimeEnvironmentStatusTest {
 
     private static File createCompleteSharedRootfs(GameStoragePaths paths) throws Exception {
         File root = paths.getSharedRootfsDirectory();
-        for (String executable : new String[] {"usr/bin/env", "opt/box64/box64-rootfs/bin/box64",
-            "opt/box64/box64-rootfs-mprotect-patch/bin/box64", "usr/bin/wine", "usr/bin/wineboot"}) {
+        for (String executable : new String[] {"usr/bin/env", "opt/box64/rootfs_box64_0.4.5/bin/box64", "usr/bin/wine", "usr/bin/wineboot"}) {
             File file = new File(root, executable);
             assertTrue(file.getParentFile().isDirectory() || file.getParentFile().mkdirs());
             assertTrue(file.createNewFile());

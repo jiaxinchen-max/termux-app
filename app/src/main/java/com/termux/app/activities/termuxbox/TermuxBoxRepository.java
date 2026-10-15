@@ -202,7 +202,7 @@ public final class TermuxBoxRepository {
     public List<TermuxBoxPackageSpec> getBox64OnlyPackages() {
         List<TermuxBoxPackageSpec> result = new ArrayList<>();
         for (TermuxBoxPackageSpec spec : packages) {
-            if (!spec.wine && spec.name.startsWith("box64")) {
+            if (!spec.wine && spec.name.startsWith("glibc_box64_")) {
                 result.add(spec);
             }
         }
@@ -212,7 +212,7 @@ public final class TermuxBoxRepository {
     public List<TermuxBoxPackageSpec> getOtherPackages() {
         List<TermuxBoxPackageSpec> result = new ArrayList<>();
         for (TermuxBoxPackageSpec spec : packages) {
-            if (!spec.wine && !spec.name.startsWith("box64")) {
+            if (!spec.wine && !spec.name.startsWith("glibc_box64_")) {
                 result.add(spec);
             }
         }
@@ -493,7 +493,7 @@ public final class TermuxBoxRepository {
         for (TermuxBoxPackageSpec spec : getWinePackages()) {
             return spec.name;
         }
-        return "wine-9.3-vanilla-wow64";
+        return "glibc_wine_9.3-vanilla";
     }
 
     private String sanitizeId(String name) {

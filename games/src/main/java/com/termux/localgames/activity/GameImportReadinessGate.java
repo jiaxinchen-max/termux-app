@@ -23,7 +23,7 @@ import java.util.concurrent.ExecutorService;
  *  Readiness is checked on a background executor (file I/O) and resolved back onto the main
  *  thread, mirroring LocalGamesActivity.renderRuntimeStatus()'s own threading pattern. */
 final class GameImportReadinessGate {
-    private static final String TERMUX_GLIBC_RUNTIME_COMPONENT = "termux-glibc-runtime";
+    private static final String TERMUX_GLIBC_ID = "termux-glibc";
 
     private GameImportReadinessGate() {}
 
@@ -61,7 +61,7 @@ final class GameImportReadinessGate {
             builder.setPositiveButton(R.string.local_games_import_gate_build_glibc,
                 (dialog, which) -> {
                     String taskId = ComponentTasks.enqueue(activity,
-                        TERMUX_GLIBC_RUNTIME_COMPONENT);
+                        TERMUX_GLIBC_ID);
                     RuntimeSetupConsoleDialog.show(activity, taskId).setOnDismissListener(
                         consoleDialog -> require(activity, backgroundExecutor, onReady));
                 });

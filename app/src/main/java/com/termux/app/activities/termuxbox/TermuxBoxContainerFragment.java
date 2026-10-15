@@ -147,8 +147,8 @@ public class TermuxBoxContainerFragment extends Fragment {
         String[] wineVersionLabels;
         String[] wineVersionValues;
         if (installedWines.isEmpty()) {
-            wineVersionLabels = new String[]{"wine-9.0-staging-wow64"};
-            wineVersionValues = new String[]{"wine-9.0-staging-wow64"};
+            wineVersionLabels = new String[]{"glibc_wine_9.0-staging"};
+            wineVersionValues = new String[]{"glibc_wine_9.0-staging"};
         } else {
             wineVersionLabels = new String[installedWines.size()];
             wineVersionValues = new String[installedWines.size()];

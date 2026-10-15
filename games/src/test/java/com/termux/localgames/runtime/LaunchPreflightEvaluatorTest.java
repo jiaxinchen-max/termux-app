@@ -26,6 +26,8 @@ public class LaunchPreflightEvaluatorTest {
 
     private static final String SHA =
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    private static final String OTHER_SHA =
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
     @Test
     public void readyWhenAccessRuntimeComponentsAndStorageAreSatisfied() throws Exception {
@@ -39,7 +41,7 @@ public class LaunchPreflightEvaluatorTest {
             GameAccessState.ACCESSIBLE, true, 2L * 1024 * 1024 * 1024, installed);
 
         assertTrue(result.isReady());
-        assertEquals(10, result.getRequirements().size());
+        assertEquals(4, result.getRequirements().size());
         assertEquals(LaunchPreflightEvaluator.DEFAULT_PREFIX_RESERVE_BYTES,
             result.getStorageBudget().getRequiredBytes());
     }
@@ -86,11 +88,10 @@ public class LaunchPreflightEvaluatorTest {
 
     @Test
     public void rootfsBackendUsesVerifiedSourceAndTermuxBuilderCapabilities() throws Exception {
-        String[] ids = {"hangover-latest-debian13-source", "box64-rootfs",
-            "box64-rootfs-mprotect-patch", "rootfs-dxvk-2.7", "rootfs-dxvk-3.1",
-            "rootfs-dxvk-1.10.3", "box64-wine-latest", "box64-proton-latest"};
+        String[] ids = {"rootfs_hangover_11.16", "rootfs_box64_0.4.5", "rootfs_dxvk_2.7", "rootfs_dxvk_3.1",
+            "rootfs_dxvk_1.10.3", "rootfs_wine_10.0", "rootfs_proton_11.0-2"};
         ComponentIndex index = index(ids);
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -107,14 +108,14 @@ public class LaunchPreflightEvaluatorTest {
 
         assertTrue(result.isReady());
         // The whole framework-delivered base set is required before the shared image can build.
-        assertEquals(8, result.getRequirements().size());
+        assertEquals(7, result.getRequirements().size());
     }
 
     @Test
     public void rootfsBackendBlocksWhenHostProotIsMissing() throws Exception {
-        String[] ids = {"hangover-latest-debian13-source"};
+        String[] ids = {"rootfs_hangover_11.16"};
         ComponentIndex index = index(ids);
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
             "rootfs-virgl-mesa", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -131,9 +132,9 @@ public class LaunchPreflightEvaluatorTest {
 
     @Test
     public void rootfsVirglBlocksWhenHostServerIsMissing() throws Exception {
-        String[] ids = {"hangover-latest-debian13-source"};
+        String[] ids = {"rootfs_hangover_11.16"};
         ComponentIndex index = index(ids);
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
             "rootfs-virgl-mesa", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -152,6 +153,75 @@ public class LaunchPreflightEvaluatorTest {
         assertFalse(result.isReady());
         assertTrue(hasSubject(result, PreflightIssueCode.COMPONENT_MISSING,
             "virgl-server"));
+    }
+
+    @Test
+    public void rootfsAcceptsNewerInstalledVersionForComponentsResolvedAtRebuild() throws Exception {
+        // The rebuild resolves these three against upstream's latest release, so what is installed
+        // is routinely newer than the catalog's pinned offline-fallback entry. That must not block
+        // every launch (it used to fail with preflight_component_version_mismatch).
+        ComponentIndex index = rootfsIndex();
+        Map<String, InstalledComponentVersion> installed = rootfsInstalled(index);
+        for (String id : new String[] {RootfsSetupRecipe.DEFAULT_SOURCE,
+            RootfsSetupRecipe.BOX64_WINE_COMPONENT, RootfsSetupRecipe.BOX64_PROTON_COMPONENT}) {
+            installed.put(id, new InstalledComponentVersion(7, OTHER_SHA));
+        }
+
+        LaunchPreflightResult result = evaluateRootfs(index, installed);
+
+        assertFalse(has(result, PreflightIssueCode.COMPONENT_VERSION_MISMATCH));
+        assertTrue(result.isReady());
+    }
+
+    @Test
+    public void rootfsStillRequiresExactVersionForPinnedComponents() throws Exception {
+        ComponentIndex index = rootfsIndex();
+        Map<String, InstalledComponentVersion> installed = rootfsInstalled(index);
+        installed.put("rootfs_dxvk_2.7", new InstalledComponentVersion(1, OTHER_SHA));
+
+        LaunchPreflightResult result = evaluateRootfs(index, installed);
+
+        assertFalse(result.isReady());
+        assertTrue(hasSubject(result, PreflightIssueCode.COMPONENT_VERSION_MISMATCH,
+            "rootfs_dxvk_2.7"));
+    }
+
+    @Test
+    public void rootfsStillReportsMissingComponentsResolvedAtRebuild() throws Exception {
+        ComponentIndex index = rootfsIndex();
+        Map<String, InstalledComponentVersion> installed = rootfsInstalled(index);
+        installed.remove(RootfsSetupRecipe.DEFAULT_SOURCE);
+
+        LaunchPreflightResult result = evaluateRootfs(index, installed);
+
+        assertFalse(result.isReady());
+        assertTrue(hasSubject(result, PreflightIssueCode.COMPONENT_MISSING,
+            RootfsSetupRecipe.DEFAULT_SOURCE));
+    }
+
+    private static ComponentIndex rootfsIndex() throws Exception {
+        return index(RootfsSetupRecipe.DEFAULT_BASE_COMPONENTS.toArray(new String[0]));
+    }
+
+    private static Map<String, InstalledComponentVersion> rootfsInstalled(ComponentIndex index) {
+        Map<String, InstalledComponentVersion> installed = installed(index);
+        addHostCapability(installed, "termux-x11");
+        addHostCapability(installed, "proot");
+        addHostCapability(installed, "proot-distro");
+        return installed;
+    }
+
+    private static LaunchPreflightResult evaluateRootfs(
+            ComponentIndex index, Map<String, InstalledComponentVersion> installed) {
+        RuntimeProfile profile = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
+            "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
+            "INTERMEDIATE", Collections.emptyMap(), "xinput",
+            LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
+            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");
+        return new LaunchPreflightEvaluator(index,
+            LaunchPreflightEvaluator.DEFAULT_PREFIX_RESERVE_BYTES,
+            new RootfsProotBackend()).evaluate(profile, GameAccessState.ACCESSIBLE,
+            true, Long.MAX_VALUE, installed);
     }
 
     private static boolean has(LaunchPreflightResult result, PreflightIssueCode code) {
@@ -185,9 +255,9 @@ public class LaunchPreflightEvaluatorTest {
     }
 
     private static ComponentIndex index() throws Exception {
-        String[] ids = {"termux-glibc-runtime", "scripts", "box64-binaries", "prefix-apps",
+        String[] ids = {"termux-glibc", "scripts", "glibc_box64_0.2.7", "prefix-apps",
             "libudev", "en-ru-locale", "wine-fonts", "turnip", "dxvk",
-            "wine-9.3-vanilla-wow64"};
+            "glibc_wine_9.3-vanilla"};
         return index(ids);
     }
 
@@ -199,7 +269,7 @@ public class LaunchPreflightEvaluatorTest {
             boolean wine = ids[index].startsWith("wine-");
             String category = wine ? "wine" : "runtime";
             String type = wine ? "container" : "runtime_support";
-            String backend = "hangover-latest-debian13-source".equals(ids[index])
+            String backend = "rootfs_hangover_11.16".equals(ids[index])
                 ? "rootfs_proot" : "glibc_termux_box";
             json.append("{\"id\":\"").append(ids[index]).append("\",\"category\":\"")
                 .append(category).append("\",\"type\":\"").append(type)

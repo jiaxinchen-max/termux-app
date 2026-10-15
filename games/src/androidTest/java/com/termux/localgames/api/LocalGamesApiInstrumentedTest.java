@@ -525,7 +525,7 @@ public class LocalGamesApiInstrumentedTest {
                 com.termux.localgames.R.id.local_games_component_name)).getText().toString());
             assertTrue(((android.widget.TextView) firstWine.findViewById(
                 com.termux.localgames.R.id.local_games_component_metadata)).getText().toString()
-                .contains("wine-9.3-vanilla-wow64"));
+                .contains("glibc_wine_9.3-vanilla"));
         });
         assertEquals(7, sections.get());
         assertEquals(17, rows.get());

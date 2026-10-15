@@ -37,23 +37,22 @@ public class ComponentCatalogProjectionTest {
     public void bundledResourcesMapToTheirGameHubSlot() throws Exception {
         ComponentIndex index = bundledIndex();
         assertEquals(ComponentType.CONTAINER,
-            index.find("wine-9.3-vanilla-wow64").get().getType());
+            index.find("glibc_wine_9.3-vanilla").get().getType());
         assertEquals(ComponentType.GPU_DRIVER, index.find("turnip").get().getType());
         assertEquals(ComponentType.GPU_DRIVER, index.find("virgl-mesa").get().getType());
         assertEquals(ComponentType.DX_WRAPPER, index.find("dxvk").get().getType());
         assertEquals(ComponentType.DX_WRAPPER, index.find("wined3d").get().getType());
-        assertEquals(ComponentType.TRANSLATOR, index.find("box64-binaries").get().getType());
+        assertEquals(ComponentType.TRANSLATOR, index.find("glibc_box64_0.2.7").get().getType());
         assertEquals(ComponentType.TRANSLATOR,
-            index.find("box64-proot-v0.4.4").get().getType());
-        assertFalse(index.find("box64-proot-v0.4.4").get().isBase());
-        assertEquals("box64-0.2.7", index.find("box64-binaries").get().getDisplayName());
+            index.find("glibc_box64_0.4.4").get().getType());
+        assertFalse(index.find("glibc_box64_0.4.4").get().isBase());
+        assertEquals("box64-0.2.7", index.find("glibc_box64_0.2.7").get().getDisplayName());
         assertEquals("box64-0.4.4",
-            index.find("box64-proot-v0.4.4").get().getDisplayName());
+            index.find("glibc_box64_0.4.4").get().getDisplayName());
         assertEquals(ComponentType.RUNTIME_SUPPORT,
-            index.find("hangover-latest-debian13-source").get().getType());
-        assertEquals(ComponentType.RUNTIME_SUPPORT, index.find("scripts").get().getType());
-        assertEquals(ComponentType.RUNTIME_SUPPORT,
-            index.find("termux-glibc-runtime").get().getType());
+            index.find("rootfs_hangover_11.16").get().getType());
+        assertFalse(index.find("scripts").isPresent());
+        assertFalse(index.find("termux-glibc").isPresent());
     }
 
     @Test
@@ -91,9 +90,9 @@ public class ComponentCatalogProjectionTest {
             glibcContainers.add(descriptor.getId());
             assertTrue(descriptor.supportsBackend(GameRuntimeBackendType.GLIBC_TERMUX_BOX));
         }
-        assertTrue(glibcContainers.contains("wine-9.3-vanilla-wow64"));
+        assertTrue(glibcContainers.contains("glibc_wine_9.3-vanilla"));
         assertEquals("recommended Wine must be offered first",
-            "wine-9.3-vanilla-wow64", glibcContainers.get(0));
+            "glibc_wine_9.3-vanilla", glibcContainers.get(0));
         assertTrue("RootFS ImageFS source is not a selectable container",
             index.selectable(ComponentType.CONTAINER,
                 GameRuntimeBackendType.ROOTFS_PROOT).isEmpty());
@@ -112,8 +111,7 @@ public class ComponentCatalogProjectionTest {
     @Test
     public void prefixAppsStaysOneArchiveInsteadOfFakeMembers() throws Exception {
         ComponentIndex index = bundledIndex();
-        assertEquals(ComponentType.GENERAL_COMPONENT,
-            index.find("prefix-apps").get().getType());
+        assertFalse(index.find("prefix-apps").isPresent());
         assertFalse(index.find("mono").isPresent());
         assertFalse(index.find("gecko").isPresent());
         assertFalse(index.find("physx").isPresent());

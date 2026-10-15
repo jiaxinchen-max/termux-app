@@ -65,8 +65,8 @@ echo "[bootstrap] Loading configuration..."
 . "$CONTAINER_CONF"
 
 # ---- 2. Resolve container-specific variables (with defaults) ----
-export WINE_PATH="$TERMUX_GLIBC_DIR/${TERMUX_BOX_WINE_PACKAGE:-wine-9.0-staging-wow64}"
-TERMUX_BOX_WINE_PACKAGE="${TERMUX_BOX_WINE_PACKAGE:-wine-9.0-staging-wow64}"
+export WINE_PATH="$TERMUX_GLIBC_DIR/${TERMUX_BOX_WINE_PACKAGE:-glibc_wine_9.0-staging}"
+TERMUX_BOX_WINE_PACKAGE="${TERMUX_BOX_WINE_PACKAGE:-glibc_wine_9.0-staging}"
 export WINEPREFIX="${TERMUX_BOX_CONTAINER_PREFIX:-${TERMUX_BOX_ROOT}/containers/container-1/prefix}"
 CONTAINER_NAME="${TERMUX_BOX_CONTAINER_NAME:-unknown}"
 export PRIMARY_CORES="${PRIMARY_CORES:-0-1}"

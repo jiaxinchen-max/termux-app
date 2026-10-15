@@ -30,7 +30,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
     public Set<String> requiredComponentIds(RuntimeProfile profile, GameStoragePaths paths) {
         requireProfile(profile, paths);
         Set<String> result = new LinkedHashSet<>();
-        if (profile.getWinePackage().startsWith("hangover-")) {
+        if (profile.getWinePackage().startsWith("rootfs_hangover_")) {
             // The one shared base image is built from this whole set (Hangover source, Box64,
             // and every selectable DXVK), all delivered through the unified component framework.
             // A game's dxWrapper only picks which baked DXVK to use at launch, so every rootfs
@@ -101,8 +101,8 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
         String graphics = profile.getGraphicsDriver();
         String dx = profile.getDxWrapper();
         String audio = profile.getAudioDriver();
-        if (!(runtime.startsWith("hangover-") || runtime.startsWith("box64-wine") ||
-            runtime.startsWith("box64-proton") || runtime.startsWith("custom-wine-"))) {
+        if (!(runtime.startsWith("rootfs_hangover_") || runtime.startsWith("rootfs_wine_") ||
+            runtime.startsWith("rootfs_proton_") || runtime.startsWith("custom-wine-"))) {
             throw new IllegalArgumentException("runtime_engine_unsupported:" + runtime);
         }
         // paths == null means a caller that predates custom components (or a unit test) -- skip
@@ -139,10 +139,10 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
     }
 
 
-    /** Every versioned DXVK dxWrapper (rootfs-dxvk-2.7, rootfs-dxvk-3.1, ...) is a selectable
+    /** Every versioned DXVK dxWrapper (rootfs_dxvk_2.7, rootfs_dxvk_3.1, ...) is a selectable
      *  Vulkan Direct3D layer; the component id equals the dxWrapper value. */
     private static boolean isDxvk(String dx) {
-        return dx != null && dx.startsWith("rootfs-dxvk-");
+        return dx != null && dx.startsWith("rootfs_dxvk_");
     }
 
     private static void verifyManifest(File rootfs, RuntimeProfile profile) throws IOException {

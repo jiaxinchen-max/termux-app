@@ -19,30 +19,30 @@ public class TermuxRuntimeComponentProbeTest {
     @Test
     public void recognizesLegacyMetadataOnlyWhenRuntimeCapabilityExists() throws Exception {
         File files = temporary.newFolder("files");
-        installMetadata(files, "opt/package-manager/installed", "box64-binaries", "10");
-        installMetadata(files, "opt/package-manager/installed", "box64-proot-v0.4.4", "1");
+        installMetadata(files, "opt/package-manager/installed", "glibc_box64_0.2.7", "10");
+        installMetadata(files, "opt/package-manager/installed", "glibc_box64_0.4.4", "1");
         TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);
 
-        assertFalse(probe.isAvailable("box64-binaries"));
-        assertFalse(probe.isAvailable("box64-proot-v0.4.4"));
+        assertFalse(probe.isAvailable("glibc_box64_0.2.7"));
+        assertFalse(probe.isAvailable("glibc_box64_0.4.4"));
 
         write(new File(files, "usr/glibc/bin/box64"), "binary");
-        assertTrue(probe.isAvailable("box64-binaries"));
-        assertTrue(probe.isAvailable("box64-binaries", 10));
-        assertFalse(probe.isAvailable("box64-binaries", 9));
-        assertTrue(probe.isAvailable("box64-proot-v0.4.4"));
-        assertTrue(probe.isAvailable("box64-proot-v0.4.4", 1));
+        assertTrue(probe.isAvailable("glibc_box64_0.2.7"));
+        assertTrue(probe.isAvailable("glibc_box64_0.2.7", 10));
+        assertFalse(probe.isAvailable("glibc_box64_0.2.7", 9));
+        assertTrue(probe.isAvailable("glibc_box64_0.4.4"));
+        assertTrue(probe.isAvailable("glibc_box64_0.4.4", 1));
     }
 
     @Test
     public void recognizesCurrentMetadataAndWineCapability() throws Exception {
         File files = temporary.newFolder("files");
         installMetadata(files, "termux-box/package-manager/installed",
-            "wine-9.3-vanilla-wow64", "1");
-        write(new File(files, "usr/glibc/wine-9.3-vanilla-wow64/bin/wine"), "binary");
+            "glibc_wine_9.3-vanilla", "1");
+        write(new File(files, "usr/glibc/glibc_wine_9.3-vanilla/bin/wine"), "binary");
 
         assertTrue(new TermuxRuntimeComponentProbe(files)
-            .isAvailable("wine-9.3-vanilla-wow64"));
+            .isAvailable("glibc_wine_9.3-vanilla"));
     }
 
     @Test
@@ -50,7 +50,7 @@ public class TermuxRuntimeComponentProbeTest {
         File files = temporary.newFolder("glibc-files");
         TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);
 
-        assertFalse(probe.isAvailable("termux-glibc-runtime"));
+        assertFalse(probe.isAvailable("termux-glibc"));
         write(new File(files, "usr/glibc/lib/ld-linux-aarch64.so.1"), "loader");
         write(new File(files, "usr/glibc/lib/libc.so.6"), "libc");
         File runner = new File(files, "usr/bin/grun");
@@ -59,14 +59,14 @@ public class TermuxRuntimeComponentProbeTest {
 
         // Wine's X11 driver also needs libX11/libXrender/FreeType to render a visible
         // window; the base loader alone is not a ready runtime.
-        assertFalse(probe.isAvailable("termux-glibc-runtime"));
+        assertFalse(probe.isAvailable("termux-glibc"));
         write(new File(files, "usr/glibc/lib/libX11.so.6"), "x11");
         write(new File(files, "usr/glibc/lib/libXrender.so.1"), "xrender");
-        assertFalse(probe.isAvailable("termux-glibc-runtime"));
+        assertFalse(probe.isAvailable("termux-glibc"));
         write(new File(files, "usr/glibc/lib/libfreetype.so.6"), "freetype");
 
-        assertTrue(probe.isAvailable("termux-glibc-runtime"));
-        assertTrue(probe.isAvailable("termux-glibc-runtime", 1));
+        assertTrue(probe.isAvailable("termux-glibc"));
+        assertTrue(probe.isAvailable("termux-glibc", 1));
     }
 
     @Test

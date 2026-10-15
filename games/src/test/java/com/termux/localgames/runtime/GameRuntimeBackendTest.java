@@ -44,10 +44,10 @@ public class GameRuntimeBackendTest {
         Set<String> components = backend.requiredComponentIds(rootfsProfile());
 
         // The shared base image is built from the whole framework-delivered component set.
-        assertTrue(components.contains("hangover-latest-debian13-source"));
-        assertTrue(components.contains("box64-rootfs"));
-        assertTrue(components.contains("rootfs-dxvk-2.7"));
-        assertFalse(components.contains(GlibcTermuxBoxBackend.TERMUX_GLIBC_RUNTIME_COMPONENT));
+        assertTrue(components.contains("rootfs_hangover_11.16"));
+        assertTrue(components.contains("rootfs_box64_0.4.5"));
+        assertTrue(components.contains("rootfs_dxvk_2.7"));
+        assertFalse(components.contains(GlibcTermuxBoxBackend.TERMUX_GLIBC_ID));
         assertEquals(3, backend.requiredHostCapabilityIds(rootfsProfile()).size());
         assertTrue(backend.requiredHostCapabilityIds(rootfsProfile()).contains("termux-x11"));
         assertTrue(backend.requiredHostCapabilityIds(rootfsProfile()).contains("proot"));
@@ -57,8 +57,8 @@ public class GameRuntimeBackendTest {
     @Test
     public void rootfsBaseComponentsComeFromTheUnifiedFramework() {
         RootfsProotBackend backend = new RootfsProotBackend();
-        RuntimeProfile withDxvk = new RuntimeProfile("game-1", "hangover-latest",
-            "rootfs-llvmpipe", "rootfs-dxvk-2.7", "pulseaudio", "1280x720", "INTERMEDIATE",
+        RuntimeProfile withDxvk = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
+            "rootfs-llvmpipe", "rootfs_dxvk_2.7", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
             Collections.emptyMap(), GameRuntimeBackendType.ROOTFS_PROOT,
             "debian-13-games-rootfs", "container-game-1");
@@ -67,10 +67,10 @@ public class GameRuntimeBackendTest {
         // whole set is required before the shared base image can build, regardless of dxWrapper.
         Set<String> components = backend.requiredComponentIds(withDxvk);
 
-        assertTrue(components.contains("box64-rootfs"));
-        assertTrue(components.contains("rootfs-dxvk-2.7"));
-        assertTrue(components.contains("rootfs-dxvk-3.1"));
-        assertTrue(components.contains("rootfs-dxvk-1.10.3"));
+        assertTrue(components.contains("rootfs_box64_0.4.5"));
+        assertTrue(components.contains("rootfs_dxvk_2.7"));
+        assertTrue(components.contains("rootfs_dxvk_3.1"));
+        assertTrue(components.contains("rootfs_dxvk_1.10.3"));
     }
 
     @Test
@@ -104,7 +104,7 @@ public class GameRuntimeBackendTest {
         write(new File(rootfs, "etc/games-runtime.properties"), properties(
             "schemaVersion", "2", "runtimeBackend", "rootfs_proot",
             "architecture", "aarch64",
-            "runtimePackages", "hangover-latest,box64-wine-stable",
+            "runtimePackages", "rootfs_hangover_11.16,box64-wine-stable",
             "graphicsDrivers", "rootfs-virgl-mesa,rootfs-llvmpipe",
             "dxWrappers", "rootfs-dxvk,rootfs-wined3d",
             "audioDrivers", "pulseaudio,alsa"));
@@ -131,7 +131,7 @@ public class GameRuntimeBackendTest {
 
     @Test
     public void glibcBackendDoesNotPretendVortekIsTurnip() {
-        RuntimeProfile profile = new RuntimeProfile("game-1", "wine-9.3-vanilla-wow64",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "glibc_wine_9.3-vanilla",
             "vortek", "dxvk", "alsa", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
             Collections.emptyMap(), GameRuntimeBackendType.GLIBC_TERMUX_BOX, "");
@@ -146,8 +146,8 @@ public class GameRuntimeBackendTest {
 
     @Test
     public void rootfsBackendRejectsVirglWithDxvk() {
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
-            "rootfs-virgl-mesa", "rootfs-dxvk-2.7", "pulseaudio", "1280x720",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
+            "rootfs-virgl-mesa", "rootfs_dxvk_2.7", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
             GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");
@@ -163,7 +163,7 @@ public class GameRuntimeBackendTest {
 
     @Test
     public void rootfsVirglRequiresHostServerButLlvmpipeDoesNot() {
-        RuntimeProfile virgl = new RuntimeProfile("game-1", "hangover-latest",
+        RuntimeProfile virgl = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
             "rootfs-virgl-mesa", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -177,7 +177,7 @@ public class GameRuntimeBackendTest {
 
     @Test
     public void rootfsBackendRejectsCapabilitiesNotImplementedByLauncher() {
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
             "rootfs-vortek", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -193,7 +193,7 @@ public class GameRuntimeBackendTest {
 
     @Test
     public void rootfsBackendRejectsAudioNotImplementedByLauncher() {
-        RuntimeProfile profile = new RuntimeProfile("game-1", "hangover-latest",
+        RuntimeProfile profile = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
             "rootfs-virgl-mesa", "rootfs-wined3d", "alsa", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
@@ -208,7 +208,7 @@ public class GameRuntimeBackendTest {
     }
 
     private static RuntimeProfile rootfsProfile() {
-        return new RuntimeProfile("game-1", "hangover-latest", "rootfs-llvmpipe",
+        return new RuntimeProfile("game-1", "rootfs_hangover_11.16", "rootfs-llvmpipe",
             "rootfs-wined3d", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
             Collections.emptyMap(), GameRuntimeBackendType.ROOTFS_PROOT,
@@ -216,7 +216,7 @@ public class GameRuntimeBackendTest {
     }
 
     private static RuntimeProfile glibcProfile() {
-        return new RuntimeProfile("game-1", "wine-9.3-vanilla-wow64", "virgl",
+        return new RuntimeProfile("game-1", "glibc_wine_9.3-vanilla", "virgl",
             "dxvk", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
             Collections.emptyMap(), GameRuntimeBackendType.GLIBC_TERMUX_BOX, "");

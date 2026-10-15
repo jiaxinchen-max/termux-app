@@ -80,7 +80,7 @@ public class RuntimeInstallationGateTest {
 
     private static void saveComponentTask(File files, String taskId, ComponentTaskState state)
         throws Exception {
-        ComponentTask task = new ComponentTask(taskId, "termux-glibc-runtime", 1,
+        ComponentTask task = new ComponentTask(taskId, "termux-glibc", 1,
             "https://example.invalid/pkg", 1, "0".repeat(64), 1, "", "", state, "", "");
         new FileComponentTaskRepository(new ComponentStoragePaths(files).getTasksDirectory())
             .save(task);
@@ -90,7 +90,7 @@ public class RuntimeInstallationGateTest {
     private static void saveSetupTask(File files, String taskId,
                                           RuntimeSetupTaskState state) throws Exception {
         RuntimeSetupTask task = RuntimeSetupTask.queued(taskId, "debian-13-games-rootfs",
-            1, "a".repeat(64), "hangover-latest-debian13-source", "container-a", "container-a",
+            1, "a".repeat(64), "rootfs_hangover_11.16", "container-a", "container-a",
             false, 1L)
             .transition(state, "", 2L);
         new FileRuntimeSetupTaskRepository(

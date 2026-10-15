@@ -16,9 +16,9 @@ public class GlibcTermuxBoxBackendTest {
 
     @Test
     public void catalogWinePackageIsRequired() {
-        Set<String> required = backend.requiredComponentIds(profile("wine-9.3-vanilla-wow64"));
+        Set<String> required = backend.requiredComponentIds(profile("glibc_wine_9.3-vanilla"));
 
-        assertTrue(required.contains("wine-9.3-vanilla-wow64"));
+        assertTrue(required.contains("glibc_wine_9.3-vanilla"));
     }
 
     @Test

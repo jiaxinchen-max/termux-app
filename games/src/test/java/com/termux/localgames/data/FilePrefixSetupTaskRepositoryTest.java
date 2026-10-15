@@ -19,7 +19,7 @@ public class FilePrefixSetupTaskRepositoryTest {
         FilePrefixSetupTaskRepository first =
             new FilePrefixSetupTaskRepository(directory);
         PrefixSetupTask queued = PrefixSetupTask.queued("prefix-task-1", "game-1",
-            "wine-9.3-vanilla-wow64", 10);
+            "glibc_wine_9.3-vanilla", 10);
         first.save(queued.transition(RuntimeSetupTaskState.BUILDING, "", 20));
 
         PrefixSetupTask restored = new FilePrefixSetupTaskRepository(directory)
@@ -27,7 +27,7 @@ public class FilePrefixSetupTaskRepositoryTest {
 
         assertEquals(RuntimeSetupTaskState.BUILDING, restored.getState());
         assertEquals("game-1", restored.getGameId());
-        assertEquals("wine-9.3-vanilla-wow64", restored.getWinePackage());
+        assertEquals("glibc_wine_9.3-vanilla", restored.getWinePackage());
         assertTrue(new java.io.File(directory, "prefix-task-1.properties").isFile());
     }
 }

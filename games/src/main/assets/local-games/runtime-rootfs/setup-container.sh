@@ -45,12 +45,12 @@ locale-gen
 #   - a DXVK WoW64 tree (x64/ + x32/|x86/ at any depth) -> copy DLLs into
 #     /opt/games-runtime/<id>/{system32,syswow64} for start_rootfs_game.sh to pick per game.
 #   - a portable Wine build (bin/wine + bin/wineboot at any depth) -> copy the whole tree to its
-#     own /opt/<name> directory (box64-wine-latest -> /opt/box64-wine, box64-proton-latest ->
+#     own /opt/<name> directory (rootfs_wine_10.0 -> /opt/box64-wine, rootfs_proton_11.0-2 ->
 #     /opt/box64-proton) for the standalone Box64 translator path (rootfs_prefix_warmup.sh's
 #     "box64" case), as alternatives to Hangover's bundled wine+translator and to each other.
 #     Never apt-installed or registered with dpkg -- stays a self-contained, relocatable directory.
 #   - a box64 translator build (bin/box64 at any depth) -> copy the whole tree to its own
-#     /opt/box64/<id>/ directory keyed by component id (box64-rootfs, box64-rootfs-mprotect-patch,
+#     /opt/box64/<id>/ directory keyed by component id (rootfs_box64_0.4.5, rootfs_box64_0.4.5,
 #     or any custom-box64-* sideload), so multiple box64 builds coexist as distinct selectable
 #     translators (see rootfs_prefix_warmup.sh's GUEST_COMMAND resolution). Also tar.xz, never a
 #     .deb/apt package -- nothing writes to the shared /usr/local/bin anymore.
@@ -107,8 +107,8 @@ for compdir in "$COMPONENTS_ROOT"/*; do
     }
     cid=$(basename "$compdir")
     case "$cid" in
-        box64-wine-latest) dest=/opt/box64-wine ;;
-        box64-proton-latest) dest=/opt/box64-proton ;;
+        rootfs_wine_10.0) dest=/opt/box64-wine ;;
+        rootfs_proton_11.0-2) dest=/opt/box64-proton ;;
         *)
             printf '%s\n' "box64_wine_unknown_component:$cid" >&2
             exit 70
@@ -125,8 +125,8 @@ done
 # multiple builds coexist on disk, nothing overwrites another. No case-id whitelist needed (unlike
 # the Wine loop above) since every id maps to the same /opt/box64/<id>/ shape generically; a new
 # box64-shaped base component just works without teaching this script a new destination. Replaces
-# the old apt .deb + single-slot /usr/local/bin/box64 overlay scheme: box64-rootfs (stock) and
-# box64-rootfs-mprotect-patch (W^X fix, needed by box64-translated Wine -- see
+# the old apt .deb + single-slot /usr/local/bin/box64 overlay scheme: rootfs_box64_0.4.5 (stock) and
+# rootfs_box64_0.4.5 (W^X fix, needed by box64-translated Wine -- see
 # box64-wine-39bit-pitfalls.md) now both ship as tar.xz and coexist as distinct builds.
 for compdir in "$COMPONENTS_ROOT"/*; do
     [ -d "$compdir" ] || continue
@@ -145,8 +145,8 @@ install -m 0644 "$MANIFEST" /etc/games-runtime.properties
 rm -rf /var/lib/apt/lists/*
 
 test -x /usr/bin/env
-test -x /opt/box64/box64-rootfs/bin/box64
-test -x /opt/box64/box64-rootfs-mprotect-patch/bin/box64
+test -x /opt/box64/rootfs_box64_0.4.5/bin/box64
+test -x /opt/box64/rootfs_box64_0.4.5/bin/box64
 test -x /usr/bin/wine
 test -x /usr/bin/wineboot
 test -x /opt/box64-wine/bin/wine

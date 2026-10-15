@@ -105,7 +105,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     public static final String EXTRA_COMPONENT_GAME_ID =
         "com.termux.localgames.extra.COMPONENT_GAME_ID";
     private static final String INDEX_ASSET = "termux-box-packages/index-v1.json";
-    private static final String TERMUX_GLIBC_RUNTIME_COMPONENT = "termux-glibc-runtime";
+    private static final String TERMUX_GLIBC_ID = "termux-glibc";
     private static final String STATE_SELECTED_TAB = "local_games.selected_tab";
     private static final int TAB_LIBRARY = 0;
     private static final int TAB_COMPONENTS = 1;
@@ -1077,7 +1077,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 return getString(R.string.local_games_component_summary_dxvk);
             case "wined3d":
                 return getString(R.string.local_games_component_summary_wined3d);
-            case "box64-binaries":
+            case "glibc_box64_0.2.7":
                 return getString(R.string.local_games_component_summary_box64);
             case "prefix-apps":
                 return getString(R.string.local_games_component_summary_prefix_apps);
@@ -1085,7 +1085,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 return getString(R.string.local_games_component_summary_libudev);
             case "en-ru-locale":
                 return getString(R.string.local_games_component_summary_locale);
-            case "termux-glibc-runtime":
+            case "termux-glibc":
                 return getString(R.string.local_games_component_summary_glibc);
             case "scripts":
                 return getString(R.string.local_games_component_summary_scripts);
@@ -1300,7 +1300,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void showComponentInstallationConsole(String componentId, String taskId) {
-        if (TERMUX_GLIBC_RUNTIME_COMPONENT.equals(componentId)) {
+        if (TERMUX_GLIBC_ID.equals(componentId)) {
             RuntimeSetupConsoleDialog.show(this, taskId,
                 R.string.local_games_component_console_title);
         } else {
@@ -1360,7 +1360,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private static boolean isTermuxGlibcRuntime(ComponentDescriptor descriptor) {
-        return descriptor != null && TERMUX_GLIBC_RUNTIME_COMPONENT.equals(descriptor.getId());
+        return descriptor != null && TERMUX_GLIBC_ID.equals(descriptor.getId());
     }
 
     private static void disableActions(ItemLocalGamesComponentBinding row) {
@@ -1434,7 +1434,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void installGlibcRuntime() {
-        String taskId = ComponentTasks.enqueue(this, TERMUX_GLIBC_RUNTIME_COMPONENT);
+        String taskId = ComponentTasks.enqueue(this, TERMUX_GLIBC_ID);
         RuntimeSetupConsoleDialog.show(this, taskId)
             .setOnDismissListener(dialog -> renderRuntimeStatus());
         mainHandler.postDelayed(this::renderRuntimeStatus, 400);

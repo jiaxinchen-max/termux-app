@@ -351,7 +351,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
      */
     private void switchToRootfs() {
         String containerId = "container-" + UUID.randomUUID().toString().substring(0, 8);
-        RuntimeProfile draft = new RuntimeProfile(profile.getId(), "hangover-latest",
+        RuntimeProfile draft = new RuntimeProfile(profile.getId(), "rootfs_hangover_11.16",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", profile.getResolution(),
             profile.getBox64Preset(), profile.getEnvironment(), profile.getInputProfileId(),
             profile.getLaunchExecutionMode(), profile.getComponentVersions(),
@@ -375,14 +375,14 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     /** Mirrors switchToRootfs()'s own reset: ROOTFS-flavored choices like "rootfs-llvmpipe" or
-     *  "hangover-latest" aren't recognized by GlibcTermuxBoxBackend (and vice versa), so leaving
+     *  "rootfs_hangover_11.16" aren't recognized by GlibcTermuxBoxBackend (and vice versa), so leaving
      *  them in place after a bare backend switch doesn't surface until Save triggers a runtime
      *  warmup that fails deep in GlibcTermuxBoxBackend.graphicsComponent() with
      *  "renderer_unsupported:rootfs-llvmpipe" -- long after the user has moved on from this page.
      *  Reset to the same wine/graphics/dx/audio baseline RuntimeProfilePresets.RECOMMENDED uses
      *  for GLIBC_TERMUX_BOX, so a plain backend switch is guaranteed launchable on its own. */
     private void switchToGlibc() {
-        profile = new RuntimeProfile(profile.getId(), "wine-9.3-vanilla-wow64", "turnip", "dxvk",
+        profile = new RuntimeProfile(profile.getId(), "glibc_wine_9.3-vanilla", "turnip", "dxvk",
             "alsa", profile.getResolution(), profile.getBox64Preset(), profile.getEnvironment(),
             profile.getInputProfileId(), profile.getLaunchExecutionMode(),
             profile.getComponentVersions(), GameRuntimeBackendType.GLIBC_TERMUX_BOX, "",
@@ -407,7 +407,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 // saving a profile that will only fail later, at launch preflight.
                 String dx = profile.getDxWrapper();
                 if (rootfs && "rootfs-virgl-mesa".equals(value)
-                    && dx != null && dx.startsWith("rootfs-dxvk-")) {
+                    && dx != null && dx.startsWith("rootfs_dxvk_")) {
                     dx = "rootfs-wined3d";
                     Toast.makeText(getContext(),
                         "VirGL does not support DXVK; switched DirectX translation to WineD3D",
@@ -424,7 +424,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             dxChoices = "rootfs-virgl-mesa".equals(profile.getGraphicsDriver())
                 ? withCurrent(profile.getDxWrapper(), "rootfs-wined3d")
                 : withCurrent(profile.getDxWrapper(), "rootfs-wined3d",
-                    "rootfs-dxvk-2.7", "rootfs-dxvk-3.1", "rootfs-dxvk-1.10.3");
+                    "rootfs_dxvk_2.7", "rootfs_dxvk_3.1", "rootfs_dxvk_1.10.3");
         } else {
             dxChoices = withCurrent(profile.getDxWrapper(), "dxvk", "vkd3d", "wined3d");
         }
@@ -433,8 +433,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
                 profile.getEnvironment(), profile.getInputProfileId(), profile.getLaunchExecutionMode()));
         if (rootfs) {
-            // hangover-latest bundles its own translation layer inside the wine binary (apt-installed,
-            // shared system-wide). box64-wine-latest (Kron4ek vanilla) and box64-proton-latest
+            // rootfs_hangover_11.16 bundles its own translation layer inside the wine binary (apt-installed,
+            // shared system-wide). rootfs_wine_10.0 (Kron4ek vanilla) and rootfs_proton_11.0-2
             // (Kron4ek's own "Proton" build -- Valve's Proton wine patches without Proton's python
             // wrapper or bundled DXVK/vkd3d-proton) are both portable Wine builds run under the
             // standalone Box64 translator (see rootfs_prefix_warmup.sh's resolve_rootfs_translator)
@@ -448,7 +448,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             // otherwise show up here too and fail at launch once picked, since the registry is one
             // flat list shared by both backends (see CustomRuntimeComponent's own doc comment).
             addChoiceWithAddCustom("Wine package", profile.getWinePackage(),
-                new String[] {"hangover-latest", "box64-wine-latest", "box64-proton-latest"},
+                new String[] {"rootfs_hangover_11.16", "rootfs_wine_10.0", "rootfs_proton_11.0-2"},
                 customWineEntriesForBackend(true), null,
                 getContext().getString(R.string.local_games_custom_component_add_wine),
                 value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),
@@ -635,8 +635,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
      *  ends up with zero presets. */
     private String[] glibcWinePresetIds() {
         if (componentIndex == null) {
-            return new String[] {"wine-9.3-vanilla-wow64", "wine-9.0-staging-wow64",
-                "wine-8.18-staging-wow64"};
+            return new String[] {"glibc_wine_9.3-vanilla", "glibc_wine_9.0-staging",
+                "glibc_wine_8.18-staging"};
         }
         List<com.termux.localgames.components.index.ComponentDescriptor> entries =
             componentIndex.selectable(com.termux.localgames.components.index.ComponentType.CONTAINER,
@@ -663,7 +663,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     /** Parses the bundled component catalog once at construction so displayNameFor() can map a
-     *  preset component id (e.g. "box64-wine-latest") to its friendly catalog displayName instead
+     *  preset component id (e.g. "rootfs_wine_10.0") to its friendly catalog displayName instead
      *  of showing the raw id. Best-effort: a parse failure leaves componentIndex null and
      *  displayNameFor() falls back to showing raw ids, not a crash. */
     @Nullable

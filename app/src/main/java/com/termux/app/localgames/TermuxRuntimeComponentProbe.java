@@ -45,7 +45,7 @@ final class TermuxRuntimeComponentProbe {
             return executable(new File(glibcDirectory,
                 "opt/virgl/libvirgl_test_server.so"));
         }
-        if ("termux-glibc-runtime".equals(componentId)) {
+        if ("termux-glibc".equals(componentId)) {
             // Wine's X11 driver needs libX11/libXrender/FreeType beyond the base glibc
             // loader to render a visible window against Xlorie; require them here so an
             // incomplete runtime is reported as not-ready instead of appearing available.
@@ -79,8 +79,8 @@ final class TermuxRuntimeComponentProbe {
         switch (componentId) {
             case "scripts":
                 return new File(glibcDirectory, "opt/scripts").isDirectory();
-            case "box64-binaries":
-            case "box64-proot-v0.4.4":
+            case "glibc_box64_0.2.7":
+            case "glibc_box64_0.4.4":
                 return nonEmpty(new File(glibcDirectory, "bin/box64"));
             case "prefix-apps":
                 return new File(glibcDirectory, "opt/prefix").isDirectory();
@@ -109,7 +109,7 @@ final class TermuxRuntimeComponentProbe {
                 return new File(glibcDirectory, "opt/libs/d3d").isDirectory() ||
                     new File(glibcDirectory, "opt/prefix/d3d").isDirectory();
             default:
-                return componentId.startsWith("wine-") && nonEmpty(
+                return componentId.startsWith("glibc_wine_") && nonEmpty(
                     new File(glibcDirectory, componentId + "/bin/wine"));
         }
     }

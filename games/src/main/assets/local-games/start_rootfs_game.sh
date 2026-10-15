@@ -260,7 +260,7 @@ manifest_has runtimePackages "$WINE_PACKAGE" || terminal_failure rootfs_runtime_
 manifest_has graphicsDrivers "$GRAPHICS_DRIVER" || terminal_failure rootfs_graphics_driver_missing
 manifest_has dxWrappers "$DX_WRAPPER" || terminal_failure rootfs_dx_wrapper_missing
 case "$GRAPHICS_DRIVER:$DX_WRAPPER" in
-    rootfs-virgl-mesa:rootfs-dxvk-*)
+    rootfs-virgl-mesa:rootfs_dxvk_*)
         terminal_failure runtime_combination_unsupported:virgl_dxvk ;;
 esac
 warmup_fail() { terminal_failure "$1" null true; }
@@ -337,6 +337,7 @@ run_rootfs_command() {
             FONTCONFIG_PATH=/etc/fonts FONTCONFIG_FILE=/etc/fonts/fonts.conf \
             XDG_DATA_DIRS=/usr/local/share:/usr/share DISPLAY=:0 PULSE_SERVER=127.0.0.1 \
             WINEPREFIX="$GUEST_PREFIX" \
+            BOX64_LD_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu \
             "$@"
     else
         "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
@@ -353,6 +354,7 @@ run_rootfs_command() {
             PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
             FONTCONFIG_PATH=/etc/fonts FONTCONFIG_FILE=/etc/fonts/fonts.conf \
             XDG_DATA_DIRS=/usr/local/share:/usr/share DISPLAY=:0 WINEPREFIX="$GUEST_PREFIX" \
+            BOX64_LD_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu \
             "$@"
     fi
 }
@@ -479,7 +481,7 @@ case "${GAMES_LOCALE:-}" in
 esac
 
 case "$DX_WRAPPER" in
-    rootfs-dxvk-*)
+    rootfs_dxvk_*)
         # The dxWrapper value doubles as the install dir name set up by setup-container.sh.
         DXVK_SYSTEM32="$ROOTFS_CANONICAL/opt/games-runtime/$DX_WRAPPER/system32"
         DXVK_SYSWOW64="$ROOTFS_CANONICAL/opt/games-runtime/$DX_WRAPPER/syswow64"

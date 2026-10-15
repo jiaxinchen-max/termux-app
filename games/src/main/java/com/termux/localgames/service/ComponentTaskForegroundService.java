@@ -271,7 +271,7 @@ public final class ComponentTaskForegroundService extends Service {
                 paths.getRuntimeDirectory().getCanonicalPath()));
             String eventState = waitForTermuxGlibcEvent(event);
             if ("SUCCEEDED".equals(eventState) && host.isRuntimeComponentAvailable(
-                GlibcTermuxBoxBackend.TERMUX_GLIBC_RUNTIME_COMPONENT)) {
+                GlibcTermuxBoxBackend.TERMUX_GLIBC_ID)) {
                 current.transitionHostManagedTask(taskId, ComponentTaskState.INSTALLED, "", "",
                     this::publishTask);
                 return;
@@ -328,7 +328,7 @@ public final class ComponentTaskForegroundService extends Service {
     }
 
     private static boolean isTermuxGlibcRuntime(ComponentDescriptor descriptor) {
-        return descriptor != null && GlibcTermuxBoxBackend.TERMUX_GLIBC_RUNTIME_COMPONENT
+        return descriptor != null && GlibcTermuxBoxBackend.TERMUX_GLIBC_ID
             .equals(descriptor.getId());
     }
 
@@ -450,6 +450,9 @@ public final class ComponentTaskForegroundService extends Service {
 
     private ComponentDescriptor requiredDescriptor(String componentId) throws IOException {
         String id = requiredIdentifier(componentId, "componentId");
+        if (GlibcTermuxBoxBackend.TERMUX_GLIBC_ID.equals(id)) {
+            return GlibcTermuxBoxBackend.termuxGlibcDescriptor();
+        }
         return componentIndex.find(id).orElseThrow(
             () -> new IOException("Component is absent from bundled index: " + id));
     }

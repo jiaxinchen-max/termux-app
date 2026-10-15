@@ -21,7 +21,7 @@ public class RuntimeProfileConfigurationTest {
         RuntimeProfile compatibility = RuntimeProfilePresets.apply(recommended,
             RuntimeProfilePreset.COMPATIBILITY);
 
-        assertEquals("wine-9.3-vanilla-wow64", recommended.getWinePackage());
+        assertEquals("glibc_wine_9.3-vanilla", recommended.getWinePackage());
         assertEquals(GameRuntimeBackendType.GLIBC_TERMUX_BOX,
             recommended.getRuntimeBackendType());
         assertEquals("virgl", compatibility.getGraphicsDriver());
@@ -55,7 +55,7 @@ public class RuntimeProfileConfigurationTest {
     @Test
     public void mapsDetachedLegacyConfigurationToGameOwnedProfile() {
         LegacyRuntimeConfiguration legacy = new LegacyRuntimeConfiguration("container-1",
-            "Existing", "wine-9.0-staging-wow64", "vortek,gladio", "dxvk",
+            "Existing", "glibc_wine_9.0-staging", "vortek,gladio", "dxvk",
             "alsa", "1366x768", "INTERMEDIATE", "WINEESYNC=1", "xinput");
 
         RuntimeProfile mapped = new LegacyRuntimeProfileMapper().map("game-1", legacy);

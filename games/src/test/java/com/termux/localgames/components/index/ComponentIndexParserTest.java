@@ -29,41 +29,33 @@ public class ComponentIndexParserTest {
 
         assertEquals(2, index.getSchemaVersion());
         assertEquals("2026-09-13T01:00:00Z", index.getGeneratedAt());
-        assertEquals(26, index.getComponents().size());
-        ComponentDescriptor glibc = index.find("termux-glibc-runtime").get();
-        assertEquals("runtime", glibc.getCategory());
-        assertEquals(ComponentType.RUNTIME_SUPPORT, glibc.getType());
-        assertEquals("Termux GLIBC Runtime", glibc.getDisplayName());
-        assertTrue(glibc.isBase());
-        assertEquals(1, glibc.getVersion());
-        assertEquals(1L, glibc.getSize());
-        assertEquals("0000000000000000000000000000000000000000000000000000000000000000",
-            glibc.getSha256());
-        ComponentDescriptor source = index.find("hangover-latest-debian13-source").get();
+        assertEquals(16, index.getComponents().size());
+        assertFalse(index.find("termux-glibc").isPresent());
+        ComponentDescriptor source = index.find("rootfs_hangover_11.16").get();
         assertEquals(ComponentType.RUNTIME_SUPPORT, source.getType());
         assertTrue(source.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
         assertEquals(273571840L, source.getSize());
         assertEquals("896918679daa53d6d3a6a1c40132cd35a1d9edc7afdbc643f9bbb3e22b114348",
             source.getSha256());
-        ComponentDescriptor box64Rootfs = index.find("box64-rootfs").get();
+        ComponentDescriptor box64Rootfs = index.find("rootfs_box64_0.4.5").get();
         assertTrue(box64Rootfs.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
         assertEquals(ComponentType.TRANSLATOR, box64Rootfs.getType());
         // The three implementation-detail components are hidden from the user-facing list; a
         // representative selectable one is not.
         assertTrue(box64Rootfs.isHidden());
-        assertTrue(index.find("box64-rootfs-mprotect-patch").get().isHidden());
+        assertTrue(index.find("rootfs_box64_0.4.5").get().isHidden());
         assertTrue(source.isHidden());
-        assertFalse(index.find("box64-wine-latest").get().isHidden());
-        ComponentDescriptor rootfsDxvk = index.find("rootfs-dxvk-2.7").get();
+        assertFalse(index.find("rootfs_wine_10.0").get().isHidden());
+        ComponentDescriptor rootfsDxvk = index.find("rootfs_dxvk_2.7").get();
         assertEquals(ComponentType.DX_WRAPPER, rootfsDxvk.getType());
         assertTrue(rootfsDxvk.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
-        assertEquals("rootfs-dxvk-2.7", rootfsDxvk.getProfileValue());
-        assertTrue(index.find("rootfs-dxvk-3.1").isPresent());
-        assertTrue(index.find("rootfs-dxvk-1.10.3").isPresent());
-        ComponentDescriptor boxProton = index.find("box64-proton-latest").get();
+        assertEquals("rootfs_dxvk_2.7", rootfsDxvk.getProfileValue());
+        assertTrue(index.find("rootfs_dxvk_3.1").isPresent());
+        assertTrue(index.find("rootfs_dxvk_1.10.3").isPresent());
+        ComponentDescriptor boxProton = index.find("rootfs_proton_11.0-2").get();
         assertEquals(ComponentType.TRANSLATOR, boxProton.getType());
         assertTrue(boxProton.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
-        assertEquals("box64-proton-latest", boxProton.getProfileValue());
+        assertEquals("rootfs_proton_11.0-2", boxProton.getProfileValue());
     }
 
     @Test

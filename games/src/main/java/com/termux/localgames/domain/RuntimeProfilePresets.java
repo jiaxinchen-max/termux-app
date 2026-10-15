@@ -19,14 +19,14 @@ public final class RuntimeProfilePresets {
         switch (preset) {
             case RECOMMENDED:
                 environment.put("ZINK_DESCRIPTORS", "lazy");
-                return profile(gameId, "wine-9.3-vanilla-wow64", "turnip", "dxvk",
+                return profile(gameId, "glibc_wine_9.3-vanilla", "turnip", "dxvk",
                     "alsa", "1280x720", "INTERMEDIATE", environment, "xinput");
             case STABLE:
-                return profile(gameId, "wine-9.0-staging-wow64", "turnip", "dxvk",
+                return profile(gameId, "glibc_wine_9.0-staging", "turnip", "dxvk",
                     "alsa", "1280x720", "INTERMEDIATE", environment, "xinput");
             case COMPATIBILITY:
                 environment.put("MESA_GL_VERSION_OVERRIDE", "4.5");
-                return profile(gameId, "wine-8.18-staging-wow64", "virgl",
+                return profile(gameId, "glibc_wine_8.18-staging", "virgl",
                     "wined3d", "alsa", "1024x768", "STABILITY",
                     environment, "dinput");
             default:

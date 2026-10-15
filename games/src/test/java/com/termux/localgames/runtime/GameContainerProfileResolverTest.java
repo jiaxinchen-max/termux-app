@@ -53,13 +53,13 @@ public final class GameContainerProfileResolverTest {
         // *current* winePackage -- not the container's now-stale translator -- or
         // rootfs_prefix_warmup.sh's resolve_rootfs_translator() rejects the launch with
         // runtime_translator_package_mismatch (WINE_PACKAGE no longer matching RUNTIME_TRANSLATOR).
-        RuntimeProfile gameProfile = new RuntimeProfile("game-2", "box64-wine-latest",
+        RuntimeProfile gameProfile = new RuntimeProfile("game-2", "rootfs_wine_10.0",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "", LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
             GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", "container-stale");
         GameContainer staleContainer = new GameContainer("container-stale", "Independent container",
             GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", RuntimeTranslator.HANGOVER,
-            "hangover-latest", "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
+            "rootfs_hangover_11.16", "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap());
 
         RuntimeProfile resolved = new GameContainerProfileResolver()
@@ -87,7 +87,7 @@ public final class GameContainerProfileResolverTest {
             GameRuntimeBackendType.GLIBC_TERMUX_BOX, "", "default");
         GameContainer container = new GameContainer("default", "Global GLIBC",
             GameRuntimeBackendType.GLIBC_TERMUX_BOX, "", RuntimeTranslator.BOX64,
-            "wine-9.3-vanilla-wow64", "turnip", "dxvk", "alsa", "1280x720", "INTERMEDIATE",
+            "glibc_wine_9.3-vanilla", "turnip", "dxvk", "alsa", "1280x720", "INTERMEDIATE",
             Collections.emptyMap());
 
         RuntimeProfile resolved = new GameContainerProfileResolver()
