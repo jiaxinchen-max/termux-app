@@ -146,18 +146,23 @@ fi
 
 # ---- Early exit if already bootstrapped ----
 mkdir -p "$WINEPREFIX"
+RUNTIME_SWITCH=0
 if [ -e "$WINEPREFIX/.termux-box-bootstrap-done" ]; then
-    if [ -f "$WINEPREFIX/.termux-box-wine-package" ] &&
-       [ "$(sed -n '1p' "$WINEPREFIX/.termux-box-wine-package")" !=
-         "$TERMUX_BOX_WINE_PACKAGE" ]; then
-        echo "ERROR: Existing prefix uses a different Wine runtime."
-        exit 65
+    INSTALLED_RUNTIME=
+    if [ -f "$WINEPREFIX/.termux-box-wine-package" ]; then
+        INSTALLED_RUNTIME=$(sed -n '1p' "$WINEPREFIX/.termux-box-wine-package")
     fi
-    if [ ! -f "$WINEPREFIX/.termux-box-wine-package" ]; then
+    if [ -z "$INSTALLED_RUNTIME" ]; then
         printf '%s\n' "$TERMUX_BOX_WINE_PACKAGE" > "$WINEPREFIX/.termux-box-wine-package"
+        echo "[bootstrap] Prefix already initialized, skipping."
+        exit 0
+    elif [ "$INSTALLED_RUNTIME" = "$TERMUX_BOX_WINE_PACKAGE" ]; then
+        echo "[bootstrap] Prefix already initialized, skipping."
+        exit 0
     fi
-    echo "[bootstrap] Prefix already initialized, skipping."
-    exit 0
+    # Keep the prefix (installed games, saves) and let wineboot -u migrate it to the new runtime.
+    echo "[bootstrap] Prefix was built for $INSTALLED_RUNTIME; upgrading it for $TERMUX_BOX_WINE_PACKAGE."
+    RUNTIME_SWITCH=1
 fi
 
 if [ -f "$BOOTSTRAP_LOCK/pid" ]; then
@@ -218,9 +223,46 @@ unset LD_PRELOAD
 # ---- Initialize Wine prefix ----
 # Order matters: wineboot must run FIRST to create the proper directory structure
 # and C: drive mapping. Archives are extracted on top afterwards.
-echo "[bootstrap] Creating fresh prefix..."
-rm -rf "$WINEPREFIX"
+if [ "$RUNTIME_SWITCH" = 1 ]; then
+    echo "[bootstrap] Reusing existing prefix..."
+else
+    echo "[bootstrap] Creating fresh prefix..."
+    rm -rf "$WINEPREFIX"
+fi
 mkdir -p "$WINEPREFIX"
+
+# A newer Wine can add DLLs that other builtin DLLs forward to (e.g. advapi32 -> cryptbase). The
+# processes wineboot starts first load the new builtins before wineboot has copied those files into
+# an older prefix, and abort on the unresolved forward. Seed only what is missing; wineboot -u still
+# refreshes everything that already exists.
+seed_missing_dlls() {
+    [ -d "$1" ] && [ -d "$2" ] || return 0
+    for _dll in "$1"/*; do
+        [ -f "$_dll" ] || continue
+        [ -e "$2/${_dll##*/}" ] || cp "$_dll" "$2/" 2>/dev/null || true
+    done
+}
+if [ "$RUNTIME_SWITCH" = 1 ]; then
+    echo "[bootstrap] Seeding DLLs missing from the existing prefix..."
+    seed_missing_dlls "$WINE_PATH/lib/wine/x86_64-windows" "$WINEPREFIX/drive_c/windows/system32"
+    seed_missing_dlls "$WINE_PATH/lib/wine/i386-windows" "$WINEPREFIX/drive_c/windows/syswow64"
+fi
+
+# Used only as a hang guard: a healthy wineboot keeps the Wine processes busy until it exits by itself.
+proc_cpu_ticks() {
+    _sum=0; _n=0
+    for _p in /proc/[0-9]*; do
+        [ -r "$_p/stat" ] || continue
+        read -r _l < "$_p/stat" 2>/dev/null || continue
+        case "$_l" in
+            *wine*|*services.exe*|*explorer.exe*|*winedevice*|*svchost*|*plugplay*|*rundll32*|*start.exe*|*box64*) ;;
+            *) continue ;;
+        esac
+        set -- ${_l##*) }
+        _sum=$((_sum + ${12} + ${13})); _n=$((_n + 1))
+    done
+    CPU_TICKS=$_sum; CPU_PROCS=$_n
+}
 
 # Step A: Match Mobox initialization prerequisites without taking over display :0.
 echo "[bootstrap] Starting temporary X server..."
@@ -238,33 +280,37 @@ termux-x11 :97 >/dev/null 2>&1 &
 X11_PID=$!
 sleep 2
 
-# Step B: wineboot -u creates the prefix skeleton (directories, C: symlink, registry hives)
+# Step B: wineboot -u creates the prefix skeleton (directories, C: symlink, registry hives), or
+# migrates an existing prefix when the Wine runtime changed.
 echo "[bootstrap] Running wineboot (this may take several minutes)..."
 unset BOX64_DYNAREC_BIGBLOCK BOX64_DYNAREC_CALLRET WINEESYNC WINEESYNC_TERMUX
+# "," separates DLL names and ";" separates entries, so "a=d,b=d" would only disable "a". With
+# mscoree really disabled, wineboot never launches the Wine Mono installer prompt, which otherwise
+# blocks it forever once a display is available.
 DISPLAY=:97 LC_ALL="$LC_ALL" \
-WINEDLLOVERRIDES="winegstreamer=disabled,mscoree=disabled" \
+WINEDLLOVERRIDES="winegstreamer,mscoree=d" \
     run_with_affinity "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" wineboot -u &
 WINEBOOT_PID=$!
 WINEBOOT_ELAPSED=0
-REGISTRY_STABLE_COUNT=0
-REGISTRY_SIGNATURE=
+IDLE_COUNT=0
+PREV_TICKS=0
+# wineboot exits on its own once the prefix is fully initialised. Only force-stop it if it hangs
+# (all Wine processes idle for 30 s) or runs past the overall timeout.
 while kill -0 "$WINEBOOT_PID" 2>/dev/null; do
-    sleep 3
-    WINEBOOT_ELAPSED=$((WINEBOOT_ELAPSED + 3))
-    if [ -e "$WINEPREFIX/.update-timestamp" ] &&
-       [ -s "$WINEPREFIX/system.reg" ] &&
-       [ -s "$WINEPREFIX/user.reg" ] &&
-       [ -s "$WINEPREFIX/userdef.reg" ]; then
-        CURRENT_SIGNATURE=$(wc -c "$WINEPREFIX/system.reg" "$WINEPREFIX/user.reg" \
-            "$WINEPREFIX/userdef.reg" 2>/dev/null | tail -n 1)
-        if [ "$CURRENT_SIGNATURE" = "$REGISTRY_SIGNATURE" ]; then
-            REGISTRY_STABLE_COUNT=$((REGISTRY_STABLE_COUNT + 1))
+    sleep 1
+    WINEBOOT_ELAPSED=$((WINEBOOT_ELAPSED + 1))
+    proc_cpu_ticks
+    if [ "$CPU_PROCS" -gt 0 ]; then
+        # A drop in total ticks means a process exited, which is activity, not idleness.
+        CPU_DELTA=$((CPU_TICKS - PREV_TICKS))
+        if [ "$CPU_DELTA" -ge 0 ] && [ "$CPU_DELTA" -le 2 ]; then
+            IDLE_COUNT=$((IDLE_COUNT + 1))
         else
-            REGISTRY_SIGNATURE=$CURRENT_SIGNATURE
-            REGISTRY_STABLE_COUNT=0
+            IDLE_COUNT=0
         fi
-        if [ "$REGISTRY_STABLE_COUNT" -ge 5 ]; then
-            echo "[bootstrap] Registry is stable; stopping Wine services..."
+        PREV_TICKS=$CPU_TICKS
+        if [ "$IDLE_COUNT" -ge 30 ]; then
+            echo "[bootstrap] Wineboot is hung (Wine processes idle for 30s); stopping Wine services..."
             WINEPREFIX="$WINEPREFIX" "$GLIBC_BIN/box64" \
                 "$GLIBC_BIN/wineserver" -k >/dev/null 2>&1 || true
             break
@@ -364,8 +410,11 @@ fi
 echo "[bootstrap] Setting up drive mappings..."
 rm -rf "$WINEPREFIX/dosdevices/z:" 2>/dev/null || true
 ln -sf "$TERMUX_FILES_DIR" "$WINEPREFIX/dosdevices/z:"
-ln -sf /sdcard/Download "$WINEPREFIX/dosdevices/d:"
-ln -sf /sdcard/Android/data/com.termux/files/Download "$WINEPREFIX/dosdevices/e:"
+# wineboot may already have created d:/e: as links (some builds map d: to /sdcard); a plain
+# ln -sf would then follow the link and abort under set -e, so drop them first.
+rm -rf "$WINEPREFIX/dosdevices/d:" "$WINEPREFIX/dosdevices/e:" 2>/dev/null || true
+ln -sfn /sdcard/Download "$WINEPREFIX/dosdevices/d:"
+ln -sfn /sdcard/Android/data/com.termux/files/Download "$WINEPREFIX/dosdevices/e:"
 
 # Step E: Post-wineboot fixups (start menu, fonts, registry)
 if [ -d "$TERMUX_OPT_DIR/prefix/start" ]; then
