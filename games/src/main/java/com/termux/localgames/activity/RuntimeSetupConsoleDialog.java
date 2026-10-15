@@ -211,6 +211,16 @@ final class RuntimeSetupConsoleDialog extends Dialog {
         TerminalSession session = LocalGames.requireHost(getContext())
             .getRuntimeSetupTerminal(taskId);
         if (session == null) {
+            // No live session yet. If the task already reached a terminal state, one will never
+            // appear -- a fast, effectively no-op setup finishes before its session is ever
+            // observable. Without this, the poll loops forever and the dialog hangs on a blank
+            // black terminal. The host screen surfaces success/failure on its own, so just close.
+            TaskStatusLookup.Status taskStatus = statusLookup.lookup(taskId);
+            if (taskStatus != null
+                && (taskStatus.succeeded || taskStatus.failed || taskStatus.cancelled)) {
+                dismiss();
+                return;
+            }
             handler.postDelayed(this::attachSetupSession, 100);
             return;
         }

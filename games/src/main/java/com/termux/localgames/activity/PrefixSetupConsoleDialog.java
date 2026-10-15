@@ -135,6 +135,16 @@ final class PrefixSetupConsoleDialog extends Dialog {
         TerminalSession session = LocalGames.requireHost(getContext())
             .getRuntimeSetupTerminal(taskId);
         if (session == null) {
+            // No live session yet. If the task already reached a terminal state, one will never
+            // appear -- a fast, effectively no-op setup (e.g. switching to a Native backend whose
+            // GLIBC prefix is already provisioned) finishes before its session is ever observable.
+            // Without this, the poll loops forever and the dialog hangs on a blank black terminal.
+            // The Library screen surfaces success/failure on its own, so just close.
+            PrefixSetupTask task = readTask();
+            if (task != null && task.getState().isTerminal()) {
+                dismiss();
+                return;
+            }
             handler.postDelayed(this::attachSetupSession, 100);
             return;
         }
