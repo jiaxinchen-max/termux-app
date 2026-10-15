@@ -2,6 +2,9 @@ package com.termux.localgames.runtime;
 
 import static org.junit.Assert.assertEquals;
 
+import com.termux.localgames.data.FileCustomRuntimeComponentRepository;
+import com.termux.localgames.data.GameStoragePaths;
+import com.termux.localgames.domain.CustomRuntimeComponent;
 import com.termux.localgames.domain.GameContainer;
 import com.termux.localgames.domain.GameRuntimeBackendType;
 import com.termux.localgames.domain.LaunchExecutionMode;
@@ -10,11 +13,16 @@ import com.termux.localgames.domain.RuntimeProfilePreset;
 import com.termux.localgames.domain.RuntimeProfilePresets;
 import com.termux.localgames.domain.RuntimeTranslator;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.util.Collections;
 
 public final class GameContainerProfileResolverTest {
+
+    @Rule
+    public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test
     public void keepsGameLaunchSelectionsAndAppliesContainerSubstrate() {
@@ -58,5 +66,35 @@ public final class GameContainerProfileResolverTest {
             .resolve(gameProfile, staleContainer);
 
         assertEquals("box64", resolved.getEnvironment().get("GAMES_RUNTIME_TRANSLATOR"));
+    }
+
+    @Test
+    public void resolvesGlibcOriginCustomWineWithNullTranslatorToBox64() throws Exception {
+        // Regression test: a custom-wine-* component installed via the GLIBC_TERMUX_BOX flow is
+        // registered with translator == null by design (see CustomRuntimeComponent's doc comment
+        // -- that backend has exactly one translation path). resolveTranslator() used to chain
+        // Optional.map(CustomRuntimeComponent::getTranslator).orElseThrow(...), and
+        // Optional.map() treats a null-returning mapper as "absent", so a correctly-registered
+        // GLIBC-origin component was misreported as unregistered (custom_wine_not_registered).
+        GameStoragePaths paths = new GameStoragePaths(temporaryFolder.newFolder("files"));
+        new FileCustomRuntimeComponentRepository(paths.getCustomRuntimeComponentsDirectory())
+            .save(new CustomRuntimeComponent("custom-wine-protonglibc11",
+                CustomRuntimeComponent.Kind.WINE, null, "ProtonGlibc11", 1700000000L,
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".substring(0, 64)));
+        RuntimeProfile gameProfile = new RuntimeProfile("game-3", "custom-wine-protonglibc11",
+            "turnip", "dxvk", "alsa", "1280x720", "INTERMEDIATE", Collections.emptyMap(), "",
+            LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
+            GameRuntimeBackendType.GLIBC_TERMUX_BOX, "", "default");
+        GameContainer container = new GameContainer("default", "Global GLIBC",
+            GameRuntimeBackendType.GLIBC_TERMUX_BOX, "", RuntimeTranslator.BOX64,
+            "wine-9.3-vanilla-wow64", "turnip", "dxvk", "alsa", "1280x720", "INTERMEDIATE",
+            Collections.emptyMap());
+
+        RuntimeProfile resolved = new GameContainerProfileResolver()
+            .resolve(gameProfile, container, paths);
+
+        assertEquals("box64", resolved.getEnvironment().get("GAMES_RUNTIME_TRANSLATOR"));
+        assertEquals("/opt/custom-wine/custom-wine-protonglibc11/bin/wine",
+            resolved.getEnvironment().get("GAMES_CUSTOM_WINE_PATH"));
     }
 }

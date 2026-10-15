@@ -72,11 +72,19 @@ public final class GameContainerProfileResolver {
         if (winePackage.startsWith("box64-wine")) return RuntimeTranslator.BOX64;
         if (winePackage.startsWith("custom-wine-") && paths != null) {
             try {
-                return new FileCustomRuntimeComponentRepository(
+                CustomRuntimeComponent component = new FileCustomRuntimeComponentRepository(
                     paths.getCustomRuntimeComponentsDirectory()).find(winePackage)
-                    .map(CustomRuntimeComponent::getTranslator)
                     .orElseThrow(() -> new IllegalArgumentException(
                         "custom_wine_not_registered:" + winePackage));
+                // A null translator means this was installed via the GLIBC_TERMUX_BOX custom-wine
+                // flow (see CustomRuntimeComponent's own doc comment) -- that backend has exactly
+                // one translation path, so BOX64 is the only sensible value, same as every catalog
+                // GLIBC wine id already falls into via this method's final fallback below. Do not
+                // fold this into a single Optional.map(...).orElseThrow(...) chain: map() treats a
+                // null-returning mapper as "absent", which would misreport a correctly-registered
+                // GLIBC-origin component as unregistered.
+                RuntimeTranslator translator = component.getTranslator();
+                return translator != null ? translator : RuntimeTranslator.BOX64;
             } catch (IOException error) {
                 throw new IllegalArgumentException(
                     "custom_wine_lookup_failed:" + winePackage, error);
