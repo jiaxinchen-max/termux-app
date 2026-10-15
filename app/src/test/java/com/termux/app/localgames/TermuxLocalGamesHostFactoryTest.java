@@ -50,7 +50,7 @@ public class TermuxLocalGamesHostFactoryTest {
     }
 
     @Test
-    public void setupIntentAlwaysUsesBackgroundAppShell() {
+    public void setupIntentCreatesNamedTerminalSessionWithoutOpeningActivity() {
         Context context = RuntimeEnvironment.getApplication();
         RuntimeSetupRequest request = new RuntimeSetupRequest("build-1",
             "/private/setup.sh", "/private/build.setupspec", "/private/runtime");
@@ -58,13 +58,14 @@ public class TermuxLocalGamesHostFactoryTest {
         Intent intent = TermuxLocalGamesHostFactory.createSetupIntent(
             context, "/bin/sh", request);
 
-        assertEquals(ExecutionCommand.Runner.APP_SHELL.getName(), intent.getStringExtra(
+        assertEquals(ExecutionCommand.Runner.TERMINAL_SESSION.getName(), intent.getStringExtra(
             TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_RUNNER));
-        assertTrue(intent.getBooleanExtra(
-            TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_BACKGROUND, false));
-        assertNull(intent.getStringExtra(
-            TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_SESSION_ACTION));
-        assertEquals("games-runtime-build-1", intent.getStringExtra(
+        assertFalse(intent.getBooleanExtra(
+            TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_BACKGROUND, true));
+        assertEquals(Integer.toString(TermuxConstants.TERMUX_APP.TERMUX_SERVICE
+                .VALUE_EXTRA_SESSION_ACTION_SWITCH_TO_NEW_SESSION_AND_DONT_OPEN_ACTIVITY),
+            intent.getStringExtra(TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_SESSION_ACTION));
+        assertEquals("games-runtime-setup-build-1", intent.getStringExtra(
             TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_SHELL_NAME));
     }
 
