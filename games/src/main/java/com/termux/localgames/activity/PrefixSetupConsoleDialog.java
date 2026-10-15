@@ -168,6 +168,15 @@ final class PrefixSetupConsoleDialog extends Dialog {
             setupFailed = true;
             status.setText(RuntimeSetupTaskState.CANCELLED.name());
             return;
+        } else if (task.getState() == RuntimeSetupTaskState.SUCCEEDED) {
+            // The task finished before its terminal session ever became observable -- a fast,
+            // effectively no-op prefix setup (e.g. the prefix was already provisioned, so the
+            // session opened and closed between status polls). attachSetupSession() would
+            // otherwise keep polling getRuntimeSetupTerminal() forever for a session that no
+            // longer exists, leaving this dialog stuck on a blank black terminal. There is
+            // nothing left to show, so close -- mirroring refreshTerminal()'s dismiss-on-finish.
+            dismiss();
+            return;
         } else {
             status.setText(preparing + " (" + task.getState().name() + ")");
         }

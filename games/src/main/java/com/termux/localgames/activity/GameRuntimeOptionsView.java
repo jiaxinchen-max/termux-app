@@ -830,6 +830,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 if (task == null) return null;
                 return new RuntimeSetupConsoleDialog.TaskStatusLookup.Status(
                     task.getState() == CustomComponentInstallTaskState.FAILED, false,
+                    task.getState() == CustomComponentInstallTaskState.SUCCEEDED,
                     task.getState().name());
             } catch (IOException | RuntimeException ignored) {
                 return null;

@@ -1546,7 +1546,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
                     getFilesDir()).getBackupTasksDirectory()).find(id).orElse(null);
                 if (task == null) return null;
                 return new RuntimeSetupConsoleDialog.TaskStatusLookup.Status(
-                    task.getState() == RootfsBackupTaskState.FAILED, false, task.getState().name());
+                    task.getState() == RootfsBackupTaskState.FAILED, false,
+                    task.getState() == RootfsBackupTaskState.SUCCEEDED, task.getState().name());
             } catch (IOException | RuntimeException ignored) {
                 return null;
             }

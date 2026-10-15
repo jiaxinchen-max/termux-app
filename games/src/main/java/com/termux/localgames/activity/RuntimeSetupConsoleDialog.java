@@ -48,11 +48,20 @@ final class RuntimeSetupConsoleDialog extends Dialog {
         final class Status {
             final boolean failed;
             final boolean cancelled;
+            final boolean succeeded;
             final String stateName;
 
+            /** Back-compat for lookups whose task family cannot finish faster than its terminal
+             *  session becomes observable; such callers never need the succeeded signal. */
             Status(boolean failed, boolean cancelled, @NonNull String stateName) {
+                this(failed, cancelled, false, stateName);
+            }
+
+            Status(boolean failed, boolean cancelled, boolean succeeded,
+                   @NonNull String stateName) {
                 this.failed = failed;
                 this.cancelled = cancelled;
+                this.succeeded = succeeded;
                 this.stateName = stateName;
             }
         }
@@ -68,6 +77,7 @@ final class RuntimeSetupConsoleDialog extends Dialog {
                 return new TaskStatusLookup.Status(
                     task.getState() == RuntimeSetupTaskState.FAILED,
                     task.getState() == RuntimeSetupTaskState.CANCELLED,
+                    task.getState() == RuntimeSetupTaskState.SUCCEEDED,
                     task.getState().name());
             } catch (IOException | RuntimeException ignored) {
                 return null;
@@ -238,6 +248,14 @@ final class RuntimeSetupConsoleDialog extends Dialog {
         } else if (taskStatus.cancelled) {
             setupFailed = true;
             status.setText(taskStatus.stateName);
+            return;
+        } else if (taskStatus.succeeded) {
+            // The task finished before its terminal session ever became observable -- a fast,
+            // effectively no-op setup. attachSetupSession() would otherwise keep polling
+            // getRuntimeSetupTerminal() forever for a session that no longer exists, leaving this
+            // dialog stuck on a blank black terminal. Nothing is left to show, so close --
+            // mirroring refreshTerminal()'s dismiss-on-finish for the normal (slow) path.
+            dismiss();
             return;
         } else {
             status.setText(preparing + " (" + taskStatus.stateName + ")");
