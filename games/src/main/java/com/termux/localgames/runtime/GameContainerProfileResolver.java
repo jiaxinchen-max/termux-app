@@ -67,7 +67,7 @@ public final class GameContainerProfileResolver {
     /** Package-visible so GameContainerFactory can reuse the identical classification rule --
      *  duplicating this ternary independently (as both classes used to) is exactly how a third
      *  "custom-wine-" bucket would have silently diverged between the two call sites. */
-    static RuntimeTranslator resolveTranslator(String winePackage, @Nullable GameStoragePaths paths) {
+    public static RuntimeTranslator resolveTranslator(String winePackage, @Nullable GameStoragePaths paths) {
         if (winePackage.startsWith("rootfs_hangover_")) return RuntimeTranslator.HANGOVER;
         if (winePackage.startsWith("rootfs_wine_")) return RuntimeTranslator.BOX64;
         if (winePackage.startsWith("custom-wine-") && paths != null) {

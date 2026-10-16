@@ -446,15 +446,25 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             // (translator == null, installed under $TERMUX_GLIBC_DIR, not the shared RootFS) would
             // otherwise show up here too and fail at launch once picked, since the registry is one
             // flat list shared by both backends (see CustomRuntimeComponent's own doc comment).
+            RuntimeTranslator lockedTranslator = lockedRootfsTranslator();
             addChoiceWithAddCustom("Wine package", profile.getWinePackage(),
-                new String[] {"rootfs_hangover_11.16", "rootfs_wine_10.0", "rootfs_proton_11.0"},
-                customWineEntriesForBackend(true), null,
+                sameTranslatorOnly(new String[] {"rootfs_hangover_11.16", "rootfs_wine_10.0",
+                    "rootfs_proton_11.0"}, lockedTranslator),
+                sameTranslatorOnly(customWineEntriesForBackend(true), lockedTranslator), null,
                 getContext().getString(R.string.local_games_custom_component_add_wine),
                 value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),
                     profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
                     profile.getEnvironment(), profile.getInputProfileId(),
                     profile.getLaunchExecutionMode()),
                 () -> showAddCustomComponentFlow(CustomRuntimeComponent.Kind.WINE, true));
+            if (lockedTranslator != null) {
+                addHint("This container's Wine prefix was built for "
+                    + (lockedTranslator == RuntimeTranslator.HANGOVER ? "Hangover" : "Box64 Wine/Proton")
+                    + ", so only " + (lockedTranslator == RuntimeTranslator.HANGOVER
+                        ? "Hangover" : "Box64 Wine and Proton") + " builds can be selected. Switching between "
+                    + "Hangover and Box64 would need a new prefix and lose the saves in this one: to use the "
+                    + "other kind, switch the backend to GLIBC and back to RootFS to create a new container.");
+            }
         } else {
             // GLIBC_TERMUX_BOX has no translator choice (always box64), so unlike the ROOTFS row
             // above the presets come straight from the bundled catalog (every "container"-type
@@ -614,6 +624,62 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 render();
             })
             .show());
+    }
+
+    /** The translator a RootFS container's existing prefix was built for, or null while no prefix exists yet
+     *  (then any kind may still be chosen). Prefixes of different translators are not interchangeable and
+     *  a prefix holds the player's saves, so after the first save the kind is fixed. */
+    @Nullable
+    private RuntimeTranslator lockedRootfsTranslator() {
+        if (profile.getRuntimeBackendType() != GameRuntimeBackendType.ROOTFS_PROOT
+            || GameContainer.DEFAULT_ID.equals(profile.getContainerId())) {
+            return null;
+        }
+        File prefix = paths.getContainerPrefixDirectory(profile.getContainerId(),
+            GameRuntimeBackendType.ROOTFS_PROOT);
+        if (!new File(prefix, "system.reg").isFile()) return null;
+        try {
+            String recorded = firstLine(new File(prefix, ".games-runtime/translator"));
+            for (RuntimeTranslator translator : RuntimeTranslator.values()) {
+                if (translator.getStorageValue().equals(recorded)) return translator;
+            }
+            String marker = firstLine(new File(prefix, ".games-runtime/runtime"));
+            int separator = marker.indexOf('|');
+            if (separator >= 0 && separator + 1 < marker.length()) {
+                return GameContainerProfileResolver.resolveTranslator(marker.substring(separator + 1), paths);
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // Unreadable markers: do not restrict the choice.
+        }
+        return null;
+    }
+
+    private static String firstLine(File file) throws IOException {
+        if (!file.isFile()) return "";
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(
+            new java.io.FileInputStream(file), java.nio.charset.StandardCharsets.UTF_8))) {
+            String line = reader.readLine();
+            return line == null ? "" : line.trim();
+        }
+    }
+
+    private String[] sameTranslatorOnly(String[] presetIds, @Nullable RuntimeTranslator translator) {
+        if (translator == null) return presetIds;
+        List<String> kept = new ArrayList<>();
+        for (String id : presetIds) {
+            if (GameContainerProfileResolver.resolveTranslator(id, paths) == translator) kept.add(id);
+        }
+        return kept.toArray(new String[0]);
+    }
+
+    private List<CustomRuntimeComponent> sameTranslatorOnly(List<CustomRuntimeComponent> entries,
+                                                            @Nullable RuntimeTranslator translator) {
+        if (translator == null) return entries;
+        List<CustomRuntimeComponent> kept = new ArrayList<>();
+        for (CustomRuntimeComponent entry : entries) {
+            if (entry.getTranslator() == translator) kept.add(entry);
+        }
+        return kept;
     }
 
     /** Splits the flat WINE-kind custom registry by origin backend: ROOTFS custom builds always

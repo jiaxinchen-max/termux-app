@@ -371,26 +371,6 @@ prefix_translator() {
     printf '%s' "$prefix_translator_value"
 }
 
-# A prefix built for another translator (Hangover's ARM64-side PE files vs box64's x86_64 ones) cannot be
-# reused by this Wine, but it holds the player's saves and settings, so it is set aside rather than
-# deleted: one slot per translator, brought back when the player switches back.
-park_prefix() {
-    parked_translator=$(prefix_translator "$PREFIX_PATH" "$CURRENT_PREFIX_MARKER")
-    parked_slot="$PREFIX_PATH.backup-${parked_translator:-unknown}"
-    printf '%s\n' "Setting the existing ${parked_translator:-unknown} prefix aside." >> "$LOG_PATH"
-    rm -rf "$parked_slot"
-    mv "$PREFIX_PATH" "$parked_slot" || warmup_fail rootfs_prefix_backup_failed
-    mkdir -p "$PREFIX_PATH"
-}
-
-restore_parked_prefix() {
-    parked_slot="$PREFIX_PATH.backup-$RUNTIME_TRANSLATOR"
-    [ -d "$parked_slot" ] || return 1
-    rm -rf "$PREFIX_PATH"
-    mv "$parked_slot" "$PREFIX_PATH" || return 1
-    printf '%s\n' "Restored the earlier $RUNTIME_TRANSLATOR prefix." >> "$LOG_PATH"
-}
-
 # Warms this container's Wine prefix: `wineboot -u` (or a clone of a pre-booted template prefix,
 # see TEMPLATE_PREFIX_ARCHIVE above) plus CJK FontLink registry injection. Idempotent -- a
 # container whose markers already match is a handful of stat() calls, nothing more. Locale
@@ -411,18 +391,17 @@ warmup_rootfs_prefix() {
     if [ "$CURRENT_PREFIX_MARKER" != "$EXPECTED_PREFIX_MARKER" ]; then
         # A different Wine build of the same translator keeps the prefix (saves, settings, installed
         # programs) and updates it in place: the fallback below seeds the stubs the new build ships and runs
-        # `wineboot -u`, which also covers going back to an older build. Only a prefix of another
-        # translator is replaced, and then only after being set aside.
+        # `wineboot -u`, which also covers going back to an older build. A prefix of another translator
+        # (Hangover vs Box64) cannot be reused and must not be replaced -- it holds the player's data -- so the
+        # app never offers that switch, and this refuses it instead of deleting anything. A prefix with no
+        # runtime marker never finished initialising and is simply rebuilt.
         KEEP_PREFIX=0
-        if [ -f "$PREFIX_PATH/system.reg" ]; then
+        if [ -f "$PREFIX_PATH/system.reg" ] && [ -n "$CURRENT_PREFIX_MARKER" ]; then
             if [ "$(prefix_translator "$PREFIX_PATH" "$CURRENT_PREFIX_MARKER")" = "$RUNTIME_TRANSLATOR" ]; then
                 KEEP_PREFIX=1
             else
-                park_prefix
+                warmup_fail rootfs_prefix_translator_mismatch
             fi
-        fi
-        if [ "$KEEP_PREFIX" = 0 ] && restore_parked_prefix; then
-            KEEP_PREFIX=1
         fi
         # One template prefix is pre-booted per wine *package* (see setup_rootfs_runtime.sh's
         # BASE_ONLY path, which loops over every package games-runtime.properties's
