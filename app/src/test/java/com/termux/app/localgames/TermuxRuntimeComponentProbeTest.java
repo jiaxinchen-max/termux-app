@@ -46,6 +46,18 @@ public class TermuxRuntimeComponentProbeTest {
     }
 
     @Test
+    public void recognizesGlibcProtonBuildsLikeWineBuilds() throws Exception {
+        File files = temporary.newFolder("proton-files");
+        TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);
+
+        installMetadata(files, "termux-box/package-manager/installed",
+            "glibc_proton_11.0", "1");
+        assertFalse(probe.isAvailable("glibc_proton_11.0"));
+        write(new File(files, "usr/glibc/glibc_proton_11.0/bin/wine"), "binary");
+        assertTrue(probe.isAvailable("glibc_proton_11.0"));
+    }
+
+    @Test
     public void recognizesOfficialTermuxGlibcRuntimeWithoutComponentMetadata() throws Exception {
         File files = temporary.newFolder("glibc-files");
         TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);

@@ -362,7 +362,8 @@ public final class ComponentTaskForegroundService extends Service {
      *  can recover without network access. Never created here -- it's a read-only lookup target;
      *  LocalComponentCache treats a missing directory the same as an empty one. */
     private static File localComponentCacheDirectory() {
-        return new File(Environment.getExternalStorageDirectory(), "Downloads/component");
+        return new File(Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_DOWNLOADS), "component");
     }
 
     private File retainedDownloadDirectory() throws IOException {

@@ -438,9 +438,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             // (Kron4ek's own "Proton" build -- Valve's Proton wine patches without Proton's python
             // wrapper or bundled DXVK/vkd3d-proton) are both portable Wine builds run under the
             // standalone Box64 translator (see rootfs_prefix_warmup.sh's resolve_rootfs_translator)
-            // -- independent runtimes, selectable per game. All three are resolved against
-            // upstream's latest release at every RootFS rebuild instead of a pinned version (see
-            // UpstreamWineReleaseResolver), hence the "-latest" names rather than a version number.
+            // -- independent runtimes, selectable per game. All three are pinned catalog builds;
+            // the id carries the version.
             // Custom-installed builds (see showAddCustomComponentFlow) are appended after the three
             // presets, and a trailing "+ Add custom Wine build..." row launches that flow instead
             // of selecting a value. Filtered to translator != null: a GLIBC-origin custom entry

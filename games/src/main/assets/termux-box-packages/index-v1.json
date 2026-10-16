@@ -223,12 +223,52 @@
       "sha256": "7756313589dedca17ac88a31965b5f9bb29605ccc40d6c0385ba8547371a0649"
     },
     {
+      "id": "glibc_wine_10.0",
+      "category": "wine",
+      "type": "container",
+      "displayName": "wine_10.0",
+      "versionName": "10.0 WoW64",
+      "summary": "Default upstream-style Wine container with WoW64 support.",
+      "framework": "Wine WoW64",
+      "base": false,
+      "recommended": true,
+      "hidden": false,
+      "profileValue": "glibc_wine_10.0",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/glibc_wine_10.0-v1/glibc_wine_10.0.tar.xz",
+      "size": 82258916,
+      "sha256": "c1b9d8dfe6917dd1c50373cb1419533df59666497a2bfaa1d206a0ace5a41b00"
+    },
+    {
+      "id": "glibc_proton_11.0",
+      "category": "wine",
+      "type": "container",
+      "displayName": "proton_11.0",
+      "versionName": "11.0 WoW64 (Proton)",
+      "summary": "Default upstream-style Wine container with WoW64 support.",
+      "framework": "Wine WoW64",
+      "base": false,
+      "recommended": true,
+      "hidden": false,
+      "profileValue": "glibc_proton_11.0",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/glibc_proton_11.0-v1/glibc_proton_11.0.tar.xz",
+      "size": 91599396,
+      "sha256": "b34fdcd433620966c86b6c11231ddb2649b853281be837ede7c99407d3d61bc8"
+    },
+    {
       "id": "rootfs_hangover_11.16",
       "category": "runtime",
       "type": "runtime_support",
       "displayName": "hangover_11.16",
-      "versionName": "Hangover (offline fallback, last known 11.9)",
-      "summary": "Verified Debian source archive used to provision the optional RootFS runtime. Resolved against Hangover's latest release at every rebuild; this pinned entry is the offline fallback for a first install with no network.",
+      "versionName": "11.16",
+      "summary": "Hangover 11.16 Debian 13 ImageFS source, pinned.",
       "framework": "ROOTFS",
       "base": false,
       "recommended": false,
@@ -238,9 +278,9 @@
         "rootfs_proot"
       ],
       "version": 1,
-      "url": "https://github.com/AndreRH/hangover/releases/download/hangover-11.9/hangover_11.9_debian13_trixie_arm64.tar",
-      "size": 273571840,
-      "sha256": "896918679daa53d6d3a6a1c40132cd35a1d9edc7afdbc643f9bbb3e22b114348"
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/rootfs_hangover_11.16-v1/rootfs_hangover_11.16.tar",
+      "size": 293099520,
+      "sha256": "b5493f5903ab3c05f78bf4c03b06ac0005eb26f732437748c1592fefa45e861a"
     },
     {
       "id": "rootfs_box64_0.4.5",
@@ -327,8 +367,8 @@
       "category": "runtime",
       "type": "translator",
       "displayName": "wine_10.0",
-      "versionName": "Vanilla WoW64 (offline fallback, last known 10.0)",
-      "summary": "Portable vanilla (non-staging) Wine under the standalone Box64 translator, alternative to Hangover. Resolved against Kron4ek's latest release at every rebuild; the Wine 9.17+ fix for 39-bit kernels is present from 10.0 onward.",
+      "versionName": "10.0",
+      "summary": "Kron4ek vanilla Wine 10.0 WoW64 for Box64, pinned.",
       "framework": "ROOTFS",
       "base": false,
       "recommended": false,
@@ -337,8 +377,8 @@
       "runtimeBackends": [
         "rootfs_proot"
       ],
-      "version": 2,
-      "url": "https://github.com/Kron4ek/Wine-Builds/releases/download/10.0/wine-10.0-amd64-wow64.tar.xz",
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/rootfs_wine_10.0-v1/rootfs_wine_10.0.tar.xz",
       "size": 65074156,
       "sha256": "aeebbbf239e548f0136f1cd72a2e109dd9a572a8f703da3c09fa40d74d5c255f"
     },
@@ -347,8 +387,8 @@
       "category": "runtime",
       "type": "translator",
       "displayName": "proton_11.0-2",
-      "versionName": "Proton WoW64 (offline fallback, last known 11.0-2)",
-      "summary": "Kron4ek's own Proton build: Valve's Proton wine patches without the python wrapper or bundled DXVK/vkd3d-proton. Same box64-translated x86_64 shape as box64-wine-latest; resolved against Kron4ek's latest proton-* release at every rebuild.",
+      "versionName": "11.0-2",
+      "summary": "Kron4ek Proton 11.0-2 WoW64 for Box64, pinned.",
       "framework": "ROOTFS",
       "base": false,
       "recommended": false,
@@ -358,7 +398,7 @@
         "rootfs_proot"
       ],
       "version": 1,
-      "url": "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-11.0-2/wine-proton-11.0-2-amd64-wow64.tar.xz",
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/rootfs_proton_11.0-2-v1/rootfs_proton_11.0-2.tar.xz",
       "size": 80017220,
       "sha256": "f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595"
     }

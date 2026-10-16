@@ -61,10 +61,9 @@ public class ComponentInstallerTest {
         assertTrue(secondInstalled.getDirectory().isDirectory());
     }
 
-    /** Covers the two upstream-tracked wine components (Hangover, which publishes no checksum at
-     *  all) resolved without a pre-known sha256 -- see UpstreamWineReleaseResolver. The archive is
-     *  still hashed and the computed digest both becomes the receipt's sha256 and lets a later
-     *  "is this already installed" check succeed. */
+    /** Covers a component described without a pre-known sha256. The archive is still hashed and
+     *  the computed digest both becomes the receipt's sha256 and lets a later "is this already
+     *  installed" check succeed. */
     @Test
     public void installsWithoutAPreknownSha256TrustsTheComputedDigest() throws Exception {
         Fixture fixture = fixture();

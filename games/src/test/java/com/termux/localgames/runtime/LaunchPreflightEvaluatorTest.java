@@ -157,34 +157,18 @@ public class LaunchPreflightEvaluatorTest {
     }
 
     @Test
-    public void rootfsAcceptsNewerInstalledVersionForComponentsResolvedAtRebuild() throws Exception {
-        // The rebuild resolves these three against upstream's latest release, so what is installed
-        // is routinely newer than the catalog's pinned offline-fallback entry. That must not block
-        // every launch (it used to fail with preflight_component_version_mismatch).
-        ComponentIndex index = rootfsIndex();
-        Map<String, InstalledComponentVersion> installed = rootfsInstalled(index);
-        for (String id : new String[] {RootfsSetupRecipe.DEFAULT_SOURCE,
+    public void rootfsRequiresExactVersionForEveryPinnedComponent() throws Exception {
+        for (String id : new String[] {"rootfs_dxvk_2.7", RootfsSetupRecipe.DEFAULT_SOURCE,
             RootfsSetupRecipe.BOX64_WINE_COMPONENT, RootfsSetupRecipe.BOX64_PROTON_COMPONENT}) {
-            installed.put(id, new InstalledComponentVersion(7, OTHER_SHA));
+            ComponentIndex index = rootfsIndex();
+            Map<String, InstalledComponentVersion> installed = rootfsInstalled(index);
+            installed.put(id, new InstalledComponentVersion(1, OTHER_SHA));
+
+            LaunchPreflightResult result = evaluateRootfs(index, installed);
+
+            assertFalse(id, result.isReady());
+            assertTrue(id, hasSubject(result, PreflightIssueCode.COMPONENT_VERSION_MISMATCH, id));
         }
-
-        LaunchPreflightResult result = evaluateRootfs(index, installed);
-
-        assertFalse(has(result, PreflightIssueCode.COMPONENT_VERSION_MISMATCH));
-        assertTrue(result.isReady());
-    }
-
-    @Test
-    public void rootfsStillRequiresExactVersionForPinnedComponents() throws Exception {
-        ComponentIndex index = rootfsIndex();
-        Map<String, InstalledComponentVersion> installed = rootfsInstalled(index);
-        installed.put("rootfs_dxvk_2.7", new InstalledComponentVersion(1, OTHER_SHA));
-
-        LaunchPreflightResult result = evaluateRootfs(index, installed);
-
-        assertFalse(result.isReady());
-        assertTrue(hasSubject(result, PreflightIssueCode.COMPONENT_VERSION_MISMATCH,
-            "rootfs_dxvk_2.7"));
     }
 
     @Test

@@ -29,13 +29,13 @@ public class ComponentIndexParserTest {
 
         assertEquals(2, index.getSchemaVersion());
         assertEquals("2026-09-13T01:00:00Z", index.getGeneratedAt());
-        assertEquals(18, index.getComponents().size());
+        assertEquals(20, index.getComponents().size());
         assertFalse(index.find("termux-glibc").isPresent());
         ComponentDescriptor source = index.find("rootfs_hangover_11.16").get();
         assertEquals(ComponentType.RUNTIME_SUPPORT, source.getType());
         assertTrue(source.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
-        assertEquals(273571840L, source.getSize());
-        assertEquals("896918679daa53d6d3a6a1c40132cd35a1d9edc7afdbc643f9bbb3e22b114348",
+        assertEquals(293099520L, source.getSize());
+        assertEquals("b5493f5903ab3c05f78bf4c03b06ac0005eb26f732437748c1592fefa45e861a",
             source.getSha256());
         ComponentDescriptor box64Rootfs = index.find("rootfs_box64_0.4.5").get();
         assertTrue(box64Rootfs.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));

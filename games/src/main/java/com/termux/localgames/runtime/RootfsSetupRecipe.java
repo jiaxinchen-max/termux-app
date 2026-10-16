@@ -7,18 +7,12 @@ import java.util.List;
 /** Versioned recipe identity; payload bytes are bundled as Games assets. */
 public final class RootfsSetupRecipe {
     public static final String DEFAULT_PACKAGE = "debian-13-games-rootfs";
-    /** Resolved against the latest upstream Hangover release at every RootFS rebuild instead of
-     *  being pinned to a fixed version -- see UpstreamWineReleaseResolver /
-     *  RootfsRuntimeComponentPreparer. The id itself never needs a version bump again. */
+    /** Debian ImageFS source with Hangover; the id carries the pinned Hangover version. */
     public static final String DEFAULT_SOURCE = "rootfs_hangover_11.16";
-    /** Also resolved against upstream's latest release at every RootFS rebuild (Kron4ek's
-     *  vanilla Wine build, used by the standalone-Box64-translator path) -- see
-     *  UpstreamWineReleaseResolver / RootfsRuntimeComponentPreparer. */
+    /** Kron4ek's vanilla Wine build, used by the standalone-Box64-translator path. */
     public static final String BOX64_WINE_COMPONENT = "rootfs_wine_10.0";
-    /** Also resolved against upstream's latest release at every RootFS rebuild (Kron4ek's own
-     *  "Proton" build -- Valve's Proton wine patches without Proton's python wrapper or bundled
-     *  DXVK/vkd3d-proton, same box64-translated shape as BOX64_WINE_COMPONENT) -- see
-     *  UpstreamWineReleaseResolver / RootfsRuntimeComponentPreparer. */
+    /** Kron4ek's "Proton" build -- Valve's Proton wine patches without Proton's python wrapper or
+     *  bundled DXVK/vkd3d-proton, same box64-translated shape as BOX64_WINE_COMPONENT. */
     public static final String BOX64_PROTON_COMPONENT = "rootfs_proton_11.0-2";
     /**
      * Every component baked into the one shared RootFS base image, all delivered through the unified
@@ -43,16 +37,6 @@ public final class RootfsSetupRecipe {
             BOX64_PROTON_COMPONENT));
     public static final int DEFAULT_VERSION = 10;
 
-    /** True for the components resolved against upstream's latest release at every rebuild. Their
-     *  entries in the bundled catalog are only offline fallbacks (an older pinned version and sha256),
-     *  so the version and checksum actually installed legitimately differ from the catalog's. The
-     *  rebuild already verified what it installed, so callers must not compare these against the
-     *  catalog entry. */
-    public static boolean isResolvedAtRebuild(String componentId) {
-        return DEFAULT_SOURCE.equals(componentId)
-            || BOX64_WINE_COMPONENT.equals(componentId)
-            || BOX64_PROTON_COMPONENT.equals(componentId);
-    }
 
     private final String packageName;
     private final int version;

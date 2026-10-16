@@ -109,7 +109,8 @@ final class TermuxRuntimeComponentProbe {
                 return new File(glibcDirectory, "opt/libs/d3d").isDirectory() ||
                     new File(glibcDirectory, "opt/prefix/d3d").isDirectory();
             default:
-                return componentId.startsWith("glibc_wine_") && nonEmpty(
+                return (componentId.startsWith("glibc_wine_") ||
+                    componentId.startsWith("glibc_proton_")) && nonEmpty(
                     new File(glibcDirectory, componentId + "/bin/wine"));
         }
     }
