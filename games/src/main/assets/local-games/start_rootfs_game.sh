@@ -321,9 +321,12 @@ export WINEESYNC=0
 export WINEFSYNC=0
 unset LD_PRELOAD
 
+# NOTE: run_rootfs_command `exec`s proot, so a backgrounded call has $! == proot's own pid (kill and the
+# wait loops below then act on proot itself, not on an intermediate subshell). Never call it as a bare
+# foreground command -- that would replace this whole script; use a ( ... ) subshell, as run_rootfs_wine does.
 run_rootfs_command() {
     if [ "$GUEST_PULSE_SERVER" = 1 ]; then
-        "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
+        exec "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
             -r "$ROOTFS_CANONICAL" \
             -b /dev -b /proc -b /sys \
             -b "$TERMUX_FILES_DIR/usr/tmp:/tmp" \
@@ -340,7 +343,7 @@ run_rootfs_command() {
             BOX64_LD_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu \
             "$@"
     else
-        "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
+        exec "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
             -r "$ROOTFS_CANONICAL" \
             -b /dev -b /proc -b /sys \
             -b "$TERMUX_FILES_DIR/usr/tmp:/tmp" \
@@ -359,11 +362,37 @@ run_rootfs_command() {
     fi
 }
 
+# Runs the command, forwards a TERM/INT/HUP to it, then lets wineserver exit cleanly before proot ends the
+# session. proot's --kill-on-exit SIGKILLs a wineserver that is still alive, and a SIGKILLed wineserver has
+# not saved the registry (it saves on a timer and on a clean exit), so without this a `reg add`, or whatever
+# the game wrote to the registry in its last stretch, is lost.
+GAME_SESSION_SCRIPT=$(cat <<'EOS'
+"$@" &
+pid=$!
+trap 'kill "$pid" 2>/dev/null' TERM INT HUP
+wait "$pid"
+rc=$?
+while kill -0 "$pid" 2>/dev/null; do wait "$pid"; rc=$?; done
+trap - TERM INT HUP
+$GAMES_WINESERVER -k >/dev/null 2>&1
+timeout 15 $GAMES_WINESERVER -w >/dev/null 2>&1
+exit $rc
+EOS
+)
+run_game_session() {
+    if [ -n "${GUEST_WINESERVER:-}" ]; then
+        run_rootfs_command GAMES_WINESERVER="$GUEST_WINESERVER" /bin/sh -c "$GAME_SESSION_SCRIPT" \
+            game-session "$@"
+    else
+        run_rootfs_command "$@"
+    fi
+}
+
 run_rootfs_wine() {
     if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-        run_rootfs_command "$GUEST_WINE" "$@"
+        ( run_game_session "$GUEST_WINE" "$@" )
     else
-        run_rootfs_command "$GUEST_COMMAND" "$GUEST_WINE" "$@"
+        ( run_game_session "$GUEST_COMMAND" "$GUEST_WINE" "$@" )
     fi
 }
 
@@ -547,9 +576,9 @@ if [ -n "$GAMES_EFFECTIVE_CPU_CORES" ]; then
     # (GUEST_WINE is intentionally blank there), so taskset always failed with "No such file or
     # directory" whenever a CPU affinity was set together with the hangover translator.
     set -- -c "$GAMES_EFFECTIVE_CPU_CORES" "$GUEST_COMMAND" "$@"
-    run_rootfs_command /usr/bin/taskset "$@" >> "$LOG_PATH" 2>&1 &
+    run_game_session /usr/bin/taskset "$@" >> "$LOG_PATH" 2>&1 &
 else
-    run_rootfs_command "$GUEST_COMMAND" "$@" >> "$LOG_PATH" 2>&1 &
+    run_game_session "$GUEST_COMMAND" "$@" >> "$LOG_PATH" 2>&1 &
 fi
 PROOT_PID=$!
 emit RUNNING WAITING_FIRST_FRAME 90 null '' false waiting_first_frame
@@ -559,6 +588,13 @@ while kill -0 "$PROOT_PID" 2>/dev/null; do
     if [ -e "$CANCEL_PATH" ]; then
         CANCELLED=1
         kill "$PROOT_PID" 2>/dev/null || true
+        # The guest flushes the registry and exits on TERM; if it does not within a bounded time, stop it.
+        cancel_wait=0
+        while kill -0 "$PROOT_PID" 2>/dev/null && [ "$cancel_wait" -lt 25 ]; do
+            sleep 1
+            cancel_wait=$((cancel_wait + 1))
+        done
+        ! kill -0 "$PROOT_PID" 2>/dev/null || kill -9 "$PROOT_PID" 2>/dev/null || true
         break
     fi
     now=$(date +%s)

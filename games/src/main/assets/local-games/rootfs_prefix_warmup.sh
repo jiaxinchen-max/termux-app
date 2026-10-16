@@ -157,6 +157,16 @@ resolve_rootfs_translator() {
         [ -x "$ROOTFS_CANONICAL$custom_box64_bin" ] || warmup_fail custom_box64_id_invalid
         GUEST_COMMAND=$custom_box64_bin
     fi
+    # The wineserver that belongs to the selected Wine, run the same way as Wine itself. Callers use it to
+    # let wineserver shut down cleanly: proot's --kill-on-exit SIGKILLs a wineserver that is still alive when
+    # the main command ends, and a SIGKILLed wineserver has not saved the registry (it only does so on a
+    # timer and on a clean exit), so writes made in the last stretch -- wineboot's final steps, a `reg add`
+    # -- would silently vanish. Left empty (and the clean-shutdown step skipped) for an unexpected path.
+    case "$RUNTIME_TRANSLATOR" in
+        hangover) GUEST_WINESERVER=$(dirname "${GAMES_CUSTOM_WINE_PATH:-/usr/bin/wine}")/wineserver ;;
+        *) GUEST_WINESERVER="$GUEST_COMMAND $(dirname "$GUEST_WINE")/wineserver" ;;
+    esac
+    case "$GUEST_WINESERVER" in *[!A-Za-z0-9._/\ -]*) GUEST_WINESERVER= ;; esac
 }
 
 
@@ -208,6 +218,19 @@ run_rootfs_maintenance_command() {
         "$@"
 }
 
+# Runs the command, then lets wineserver exit cleanly so its registry changes are written before proot
+# tears the session down (see resolve_rootfs_translator). Same exec/subshell rules as
+# run_rootfs_maintenance_command, which it ends in.
+run_rootfs_maintenance_flush() {
+    if [ -n "${GUEST_WINESERVER:-}" ]; then
+        run_rootfs_maintenance_command GAMES_WINESERVER="$GUEST_WINESERVER" /bin/sh -c \
+            '"$@"; rc=$?; $GAMES_WINESERVER -k >/dev/null 2>&1; timeout 30 $GAMES_WINESERVER -w >/dev/null 2>&1; exit $rc' \
+            wineboot-session "$@"
+    else
+        run_rootfs_maintenance_command "$@"
+    fi
+}
+
 # Runs a real `wineboot -u` against $PREFIX_PATH through the maintenance proot session (which
 # disables the Mono/Gecko installers) and fails the warmup on timeout or a non-zero exit. Marker
 # files are the caller's job. The setup caller streams it through the silence watchdog; the launch
@@ -238,10 +261,10 @@ run_prefix_wineboot_update() {
         # run_rootfs_maintenance_command.)
         if command -v run_logged_watchdog >/dev/null 2>&1; then
             if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-                if run_logged_watchdog run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u; then
+                if run_logged_watchdog run_rootfs_maintenance_flush "$GUEST_WINEBOOT" -u; then
                     PREFIX_EXIT_CODE=0; else PREFIX_EXIT_CODE=$?; fi
             else
-                if run_logged_watchdog run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+                if run_logged_watchdog run_rootfs_maintenance_flush "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
                     ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u; then
                     PREFIX_EXIT_CODE=0; else PREFIX_EXIT_CODE=$?; fi
             fi
@@ -251,9 +274,9 @@ run_prefix_wineboot_update() {
             # foreground call would exec-replace this script: wrap each in a ( ) subshell so
             # the exec only replaces the subshell and PREFIX_EXIT_CODE still captures proot's.
             if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-                ( run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u ) >> "$LOG_PATH" 2>&1
+                ( run_rootfs_maintenance_flush "$GUEST_WINEBOOT" -u ) >> "$LOG_PATH" 2>&1
             else
-                ( run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+                ( run_rootfs_maintenance_flush "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
                     ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u ) >> "$LOG_PATH" 2>&1
             fi
             PREFIX_EXIT_CODE=$?
@@ -262,9 +285,9 @@ run_prefix_wineboot_update() {
         [ "$PREFIX_EXIT_CODE" -eq 0 ] || warmup_fail rootfs_prefix_initialization_failed
     else
         if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-            run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
+            run_rootfs_maintenance_flush "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
         else
-            run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+            run_rootfs_maintenance_flush "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
             ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u >> "$LOG_PATH" 2>&1 &
         fi
         PROOT_PID=$!
@@ -334,6 +357,40 @@ prefix_lacks_builtin_dlls() {
     return 1
 }
 
+# The translator (= PE machine type of the stubs in system32) a prefix was built for. Recorded in the
+# prefix itself; older prefixes without the record fall back to the package named in the runtime marker.
+# $1 prefix directory, $2 that prefix's runtime marker line ("<root>|<package>").
+prefix_translator() {
+    prefix_translator_value=$(sed -n '1p' "$1/.games-runtime/translator" 2>/dev/null || true)
+    if [ -z "$prefix_translator_value" ]; then
+        case "${2#*|}" in
+            rootfs_hangover_*) prefix_translator_value=hangover ;;
+            rootfs_wine_*|rootfs_proton_*) prefix_translator_value=box64 ;;
+        esac
+    fi
+    printf '%s' "$prefix_translator_value"
+}
+
+# A prefix built for another translator (Hangover's ARM64-side PE files vs box64's x86_64 ones) cannot be
+# reused by this Wine, but it holds the player's saves and settings, so it is set aside rather than
+# deleted: one slot per translator, brought back when the player switches back.
+park_prefix() {
+    parked_translator=$(prefix_translator "$PREFIX_PATH" "$CURRENT_PREFIX_MARKER")
+    parked_slot="$PREFIX_PATH.backup-${parked_translator:-unknown}"
+    printf '%s\n' "Setting the existing ${parked_translator:-unknown} prefix aside." >> "$LOG_PATH"
+    rm -rf "$parked_slot"
+    mv "$PREFIX_PATH" "$parked_slot" || warmup_fail rootfs_prefix_backup_failed
+    mkdir -p "$PREFIX_PATH"
+}
+
+restore_parked_prefix() {
+    parked_slot="$PREFIX_PATH.backup-$RUNTIME_TRANSLATOR"
+    [ -d "$parked_slot" ] || return 1
+    rm -rf "$PREFIX_PATH"
+    mv "$parked_slot" "$PREFIX_PATH" || return 1
+    printf '%s\n' "Restored the earlier $RUNTIME_TRANSLATOR prefix." >> "$LOG_PATH"
+}
+
 # Warms this container's Wine prefix: `wineboot -u` (or a clone of a pre-booted template prefix,
 # see TEMPLATE_PREFIX_ARCHIVE above) plus CJK FontLink registry injection. Idempotent -- a
 # container whose markers already match is a handful of stat() calls, nothing more. Locale
@@ -352,6 +409,21 @@ warmup_rootfs_prefix() {
     CURRENT_PREFIX_MARKER=
     [ ! -f "$PREFIX_MARKER" ] || CURRENT_PREFIX_MARKER=$(sed -n '1p' "$PREFIX_MARKER" 2>/dev/null)
     if [ "$CURRENT_PREFIX_MARKER" != "$EXPECTED_PREFIX_MARKER" ]; then
+        # A different Wine build of the same translator keeps the prefix (saves, settings, installed
+        # programs) and updates it in place: the fallback below seeds the stubs the new build ships and runs
+        # `wineboot -u`, which also covers going back to an older build. Only a prefix of another
+        # translator is replaced, and then only after being set aside.
+        KEEP_PREFIX=0
+        if [ -f "$PREFIX_PATH/system.reg" ]; then
+            if [ "$(prefix_translator "$PREFIX_PATH" "$CURRENT_PREFIX_MARKER")" = "$RUNTIME_TRANSLATOR" ]; then
+                KEEP_PREFIX=1
+            else
+                park_prefix
+            fi
+        fi
+        if [ "$KEEP_PREFIX" = 0 ] && restore_parked_prefix; then
+            KEEP_PREFIX=1
+        fi
         # One template prefix is pre-booted per wine *package* (see setup_rootfs_runtime.sh's
         # BASE_ONLY path, which loops over every package games-runtime.properties's
         # runtimePackages lists). Cloning another translator's template produced
@@ -362,7 +434,14 @@ warmup_rootfs_prefix() {
         # check is needed here: an empty/missing value means no template exists for this package
         # (e.g. a custom build, or one added to the recipe after the base was built), and this
         # container falls back to a real wineboot.
-        if [ -n "$TEMPLATE_PREFIX_ARCHIVE" ] && [ -f "$TEMPLATE_PREFIX_ARCHIVE" ]; then
+        if [ "$KEEP_PREFIX" = 1 ]; then
+            printf '%s\n' "Keeping the existing prefix and updating it for $WINE_PACKAGE." >> "$LOG_PATH"
+            mkdir -p "$PREFIX_MARKER_DIR"
+            if [ "$(sed -n '1p' "$PREFIX_MARKER_DIR/wine-dlls" 2>/dev/null)" != "$WINE_PACKAGE" ]; then
+                printf '%s\n' "$WINE_PACKAGE" > "$PREFIX_MARKER_DIR/wine-dlls-pending"
+            fi
+            printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
+        elif [ -n "$TEMPLATE_PREFIX_ARCHIVE" ] && [ -f "$TEMPLATE_PREFIX_ARCHIVE" ]; then
             # Clone a prefix that was already wineboot'd + FontLink'd once, during the shared base
             # build, instead of paying that cost again for every container. Only the
             # marker's recorded RUNTIME_ROOT_PATH is container-specific, so it is rewritten below
@@ -397,9 +476,10 @@ warmup_rootfs_prefix() {
         fi
     fi
 
-    # Fallback for prefixes that were not cloned from their own package's template (custom builds,
-    # prefixes created by earlier versions, a template that predates a package update): bring the
-    # prefix up to date for the requested Wine build, once. A prefix booted by another Wine build can
+    # Bring the prefix up to date for the requested Wine build, once. This is how a prefix kept across a
+    # switch between Wine builds of the same translator is upgraded (the switch above marks it pending), and
+    # the fallback for prefixes that were not cloned from their own package's template (custom builds,
+    # prefixes created by earlier versions, a template that predates a package update). A prefix booted by another Wine build can
     # lack PE stubs this one needs: advapi32 forwards SystemFunction036 to cryptbase.dll, the stub is
     # missing, and wineboot and the game abort with "unimplemented function
     # advapi32.dll.SystemFunction036". Keyed on a per-prefix record rather than on the runtime marker
@@ -424,6 +504,11 @@ warmup_rootfs_prefix() {
             mkdir -p "$PREFIX_MARKER_DIR"
             printf '%s\n' "$WINE_PACKAGE" > "$WINE_DLL_MARKER"
         fi
+    fi
+
+    if [ -f "$PREFIX_PATH/system.reg" ] && [ "${CANCELLED:-0}" != 1 ]; then
+        mkdir -p "$PREFIX_MARKER_DIR"
+        printf '%s\n' "$RUNTIME_TRANSLATOR" > "$PREFIX_MARKER_DIR/translator"
     fi
 
     # Wine runs an implicit `wineboot -u` on the next start whenever its own files are newer than
