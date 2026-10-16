@@ -82,7 +82,7 @@ final class TermuxRuntimeComponentProbe {
             case "glibc_box64_0.2.7":
             case "glibc_box64_0.4.4":
                 return nonEmpty(new File(glibcDirectory, "bin/box64"));
-            case "prefix-apps":
+            case "glibc_prefix-apps_2":
                 return new File(glibcDirectory, "opt/prefix").isDirectory();
             case "libudev":
                 return nonEmpty(new File(glibcDirectory, "lib/libudev.so.1"));

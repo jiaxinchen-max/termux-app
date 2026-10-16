@@ -37,11 +37,12 @@ public class LaunchPreflightEvaluatorTest {
 
         Map<String, InstalledComponentVersion> installed = installed(index);
         addHostCapability(installed, "termux-x11");
+        addHostCapability(installed, "termux-glibc");
         LaunchPreflightResult result = new LaunchPreflightEvaluator(index).evaluate(profile,
             GameAccessState.ACCESSIBLE, true, 2L * 1024 * 1024 * 1024, installed);
 
         assertTrue(result.isReady());
-        assertEquals(4, result.getRequirements().size());
+        assertEquals(5, result.getRequirements().size());
         assertEquals(LaunchPreflightEvaluator.DEFAULT_PREFIX_RESERVE_BYTES,
             result.getStorageBudget().getRequiredBytes());
     }
@@ -255,8 +256,7 @@ public class LaunchPreflightEvaluatorTest {
     }
 
     private static ComponentIndex index() throws Exception {
-        String[] ids = {"termux-glibc", "scripts", "glibc_box64_0.2.7", "prefix-apps",
-            "libudev", "en-ru-locale", "wine-fonts", "turnip", "dxvk",
+        String[] ids = {"glibc_box64_0.2.7", "glibc_prefix-apps_2", "turnip", "dxvk",
             "glibc_wine_9.3-vanilla"};
         return index(ids);
     }

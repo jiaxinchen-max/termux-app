@@ -1079,7 +1079,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 return getString(R.string.local_games_component_summary_wined3d);
             case "glibc_box64_0.2.7":
                 return getString(R.string.local_games_component_summary_box64);
-            case "prefix-apps":
+            case "glibc_prefix-apps_2":
                 return getString(R.string.local_games_component_summary_prefix_apps);
             case "libudev":
                 return getString(R.string.local_games_component_summary_libudev);

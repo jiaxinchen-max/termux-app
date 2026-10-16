@@ -111,6 +111,8 @@ public class ComponentCatalogProjectionTest {
     @Test
     public void prefixAppsStaysOneArchiveInsteadOfFakeMembers() throws Exception {
         ComponentIndex index = bundledIndex();
+        assertEquals(ComponentType.GENERAL_COMPONENT,
+            index.find("glibc_prefix-apps_2").get().getType());
         assertFalse(index.find("prefix-apps").isPresent());
         assertFalse(index.find("mono").isPresent());
         assertFalse(index.find("gecko").isPresent());

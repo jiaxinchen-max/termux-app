@@ -43,6 +43,26 @@
       "sha256": "bef12ae640dde59f1c34c145a55e2ca11c29b273c24429cc7ed6ca654a288bf0"
     },
     {
+      "id": "glibc_prefix-apps_2",
+      "category": "runtime",
+      "type": "general_component",
+      "displayName": "Windows Common Components",
+      "versionName": "Mobox v2",
+      "summary": "Shared Windows prefix applications and the DirectX overlay, from Mobox.",
+      "framework": "Wine Prefix",
+      "base": true,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/glibc_prefix-apps_2-v1/glibc_prefix-apps_2.tar.xz",
+      "size": 101877952,
+      "sha256": "ac6f4ec638f27365a0fa03d305abc867b78f8599756b65de9e4ffa3716ed3b50"
+    },
+    {
       "id": "dxvk",
       "category": "runtime",
       "type": "dx_wrapper",
@@ -137,10 +157,10 @@
       "runtimeBackends": [
         "glibc_termux_box"
       ],
-      "version": 1,
-      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/wine-9.0-staging-wow64-v1/wine-9.0-staging-wow64.tar.xz",
-      "size": 55201720,
-      "sha256": "5325cf0325e0f460911929e420f5f1d911f8ab758bd12cccbf0a5478a820ea16"
+      "version": 2,
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/glibc_wine_9.0-staging-v2/glibc_wine_9.0-staging.tar.xz",
+      "size": 71496716,
+      "sha256": "a497004edf6db8695ff9276d61299a62e9e6f1eee90199e07db9af008e8e389e"
     },
     {
       "id": "glibc_wine_8.18-staging",
@@ -157,10 +177,10 @@
       "runtimeBackends": [
         "glibc_termux_box"
       ],
-      "version": 1,
-      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/wine-8.18-staging-wow64-v1/wine-8.18-staging-wow64.tar.xz",
-      "size": 55065108,
-      "sha256": "5abb98a3869315d4df628acbc7498bc4bd1ac865386d39114cfa6bba5734fe65"
+      "version": 2,
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/glibc_wine_8.18-staging-v2/glibc_wine_8.18-staging.tar.xz",
+      "size": 70962032,
+      "sha256": "b2fcb0974112a1e4c41ed1a9ccc9de325e0caa743cbe5c601ffba933c7b2befd"
     },
     {
       "id": "glibc_wine_9.3-vanilla",
@@ -177,10 +197,10 @@
       "runtimeBackends": [
         "glibc_termux_box"
       ],
-      "version": 1,
-      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/wine-9.3-vanilla-wow64-v1/wine-9.3-vanilla-wow64.tar.xz",
-      "size": 63769784,
-      "sha256": "ab808331b466a380d3a09f8fda467d0e98334edfb60236e0139f4cfed53fb758"
+      "version": 2,
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/glibc_wine_9.3-vanilla-v2/glibc_wine_9.3-vanilla.tar.xz",
+      "size": 69363164,
+      "sha256": "7756313589dedca17ac88a31965b5f9bb29605ccc40d6c0385ba8547371a0649"
     },
     {
       "id": "rootfs_hangover_11.16",

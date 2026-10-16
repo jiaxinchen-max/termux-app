@@ -30,7 +30,7 @@ public final class GlibcTermuxBoxBackend implements GameRuntimeBackend {
     }
 
     private static final Set<String> BASE_COMPONENTS = new LinkedHashSet<>(Arrays.asList(
-        "glibc_box64_0.2.7"));
+        "glibc_box64_0.2.7", "glibc_prefix-apps_2"));
 
     @Override
     public GameRuntimeBackendType getType() {

@@ -29,7 +29,7 @@ public class ComponentIndexParserTest {
 
         assertEquals(2, index.getSchemaVersion());
         assertEquals("2026-09-13T01:00:00Z", index.getGeneratedAt());
-        assertEquals(16, index.getComponents().size());
+        assertEquals(17, index.getComponents().size());
         assertFalse(index.find("termux-glibc").isPresent());
         ComponentDescriptor source = index.find("rootfs_hangover_11.16").get();
         assertEquals(ComponentType.RUNTIME_SUPPORT, source.getType());
