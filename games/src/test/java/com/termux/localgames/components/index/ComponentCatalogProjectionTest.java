@@ -46,14 +46,32 @@ public class ComponentCatalogProjectionTest {
         assertEquals(ComponentType.TRANSLATOR,
             index.find("glibc_box64_0.4.4").get().getType());
         assertFalse(index.find("glibc_box64_0.4.4").get().isBase());
-        assertEquals("box64-0.2.7", index.find("glibc_box64_0.2.7").get().getDisplayName());
-        assertEquals("box64-0.4.4",
+        assertEquals("box64_0.2.7", index.find("glibc_box64_0.2.7").get().getDisplayName());
+        assertEquals("box64_0.4.4",
             index.find("glibc_box64_0.4.4").get().getDisplayName());
         assertEquals(ComponentType.RUNTIME_SUPPORT,
             index.find("rootfs_hangover_11.16").get().getType());
         assertEquals(ComponentType.RUNTIME_SUPPORT,
             index.find("glibc_scripts_29").get().getType());
         assertFalse(index.find("termux-glibc").isPresent());
+    }
+
+    @Test
+    public void displayNamesFollowComponentUnderscoreVersion() throws Exception {
+        // Ids are <env>_<component>_<version>; the user-facing name drops the env and keeps
+        // <component>_<version>. Components whose id predates the scheme (dxvk, turnip, ...) are
+        // profile enum values, so they only gain the version suffix.
+        for (ComponentDescriptor descriptor : bundledIndex().getComponents()) {
+            String id = descriptor.getId();
+            String expectedPrefix = id.replaceFirst("^(glibc|rootfs)_", "");
+            String name = descriptor.getDisplayName();
+            assertTrue(id + " -> " + name, name.matches("[a-z0-9-]+_[0-9][0-9A-Za-z.-]*"));
+            if (!expectedPrefix.equals(id)) {
+                assertEquals(expectedPrefix, name);
+            } else {
+                assertTrue(id + " -> " + name, name.startsWith(id + "_"));
+            }
+        }
     }
 
     @Test
