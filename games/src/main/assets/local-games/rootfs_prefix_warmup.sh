@@ -221,10 +221,14 @@ run_rootfs_maintenance_command() {
 # Runs the command, then lets wineserver exit cleanly so its registry changes are written before proot
 # tears the session down (see resolve_rootfs_translator). Same exec/subshell rules as
 # run_rootfs_maintenance_command, which it ends in.
+# A box64 `wineboot -u` is SIGKILLed at its very end, after all of its output (earlier logs show it as
+# `proot info: vpid 1: terminated with signal 9`); that used to be invisible because wineboot was proot's
+# first process, but as the wrapper's child it surfaces as exit status 137. The prefix is complete by then
+# (the clean wineserver shutdown above has just written it), so 137 counts as success once system.reg exists.
 run_rootfs_maintenance_flush() {
     if [ -n "${GUEST_WINESERVER:-}" ]; then
         run_rootfs_maintenance_command GAMES_WINESERVER="$GUEST_WINESERVER" /bin/sh -c \
-            '"$@"; rc=$?; $GAMES_WINESERVER -k >/dev/null 2>&1; timeout 30 $GAMES_WINESERVER -w >/dev/null 2>&1; exit $rc' \
+            '"$@"; rc=$?; $GAMES_WINESERVER -k >/dev/null 2>&1; timeout 30 $GAMES_WINESERVER -w >/dev/null 2>&1; [ "$rc" -ne 137 ] || [ ! -s /mnt/games/prefix/system.reg ] || rc=0; exit $rc' \
             wineboot-session "$@"
     else
         run_rootfs_maintenance_command "$@"
