@@ -90,7 +90,7 @@ public class LaunchPreflightEvaluatorTest {
     @Test
     public void rootfsBackendUsesVerifiedSourceAndTermuxBuilderCapabilities() throws Exception {
         String[] ids = {"rootfs_hangover_11.16", "rootfs_box64_0.4.5", "rootfs_dxvk_2.7", "rootfs_dxvk_3.1",
-            "rootfs_dxvk_1.10.3", "rootfs_wine_10.0", "rootfs_proton_11.0-2"};
+            "rootfs_dxvk_1.10.3", "rootfs_wine_10.0", "rootfs_proton_11.0"};
         ComponentIndex index = index(ids);
         RuntimeProfile profile = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",

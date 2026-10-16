@@ -52,10 +52,10 @@ public class ComponentIndexParserTest {
         assertEquals("rootfs_dxvk_2.7", rootfsDxvk.getProfileValue());
         assertTrue(index.find("rootfs_dxvk_3.1").isPresent());
         assertTrue(index.find("rootfs_dxvk_1.10.3").isPresent());
-        ComponentDescriptor boxProton = index.find("rootfs_proton_11.0-2").get();
+        ComponentDescriptor boxProton = index.find("rootfs_proton_11.0").get();
         assertEquals(ComponentType.TRANSLATOR, boxProton.getType());
         assertTrue(boxProton.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
-        assertEquals("rootfs_proton_11.0-2", boxProton.getProfileValue());
+        assertEquals("rootfs_proton_11.0", boxProton.getProfileValue());
     }
 
     @Test

@@ -45,7 +45,7 @@ locale-gen
 #   - a DXVK WoW64 tree (x64/ + x32/|x86/ at any depth) -> copy DLLs into
 #     /opt/games-runtime/<id>/{system32,syswow64} for start_rootfs_game.sh to pick per game.
 #   - a portable Wine build (bin/wine + bin/wineboot at any depth) -> copy the whole tree to its
-#     own /opt/<name> directory (rootfs_wine_10.0 -> /opt/box64-wine, rootfs_proton_11.0-2 ->
+#     own /opt/<name> directory (rootfs_wine_10.0 -> /opt/box64-wine, rootfs_proton_11.0 ->
 #     /opt/box64-proton) for the standalone Box64 translator path (rootfs_prefix_warmup.sh's
 #     "box64" case), as alternatives to Hangover's bundled wine+translator and to each other.
 #     Never apt-installed or registered with dpkg -- stays a self-contained, relocatable directory.
@@ -108,7 +108,7 @@ for compdir in "$COMPONENTS_ROOT"/*; do
     cid=$(basename "$compdir")
     case "$cid" in
         rootfs_wine_10.0) dest=/opt/box64-wine ;;
-        rootfs_proton_11.0-2) dest=/opt/box64-proton ;;
+        rootfs_proton_11.0) dest=/opt/box64-proton ;;
         *)
             printf '%s\n' "box64_wine_unknown_component:$cid" >&2
             exit 70

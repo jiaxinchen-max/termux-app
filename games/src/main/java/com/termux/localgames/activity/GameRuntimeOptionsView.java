@@ -434,7 +434,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 profile.getEnvironment(), profile.getInputProfileId(), profile.getLaunchExecutionMode()));
         if (rootfs) {
             // rootfs_hangover_11.16 bundles its own translation layer inside the wine binary (apt-installed,
-            // shared system-wide). rootfs_wine_10.0 (Kron4ek vanilla) and rootfs_proton_11.0-2
+            // shared system-wide). rootfs_wine_10.0 (Kron4ek vanilla) and rootfs_proton_11.0
             // (Kron4ek's own "Proton" build -- Valve's Proton wine patches without Proton's python
             // wrapper or bundled DXVK/vkd3d-proton) are both portable Wine builds run under the
             // standalone Box64 translator (see rootfs_prefix_warmup.sh's resolve_rootfs_translator)
@@ -447,7 +447,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             // otherwise show up here too and fail at launch once picked, since the registry is one
             // flat list shared by both backends (see CustomRuntimeComponent's own doc comment).
             addChoiceWithAddCustom("Wine package", profile.getWinePackage(),
-                new String[] {"rootfs_hangover_11.16", "rootfs_wine_10.0", "rootfs_proton_11.0-2"},
+                new String[] {"rootfs_hangover_11.16", "rootfs_wine_10.0", "rootfs_proton_11.0"},
                 customWineEntriesForBackend(true), null,
                 getContext().getString(R.string.local_games_custom_component_add_wine),
                 value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),

@@ -13,7 +13,7 @@ public final class RootfsSetupRecipe {
     public static final String BOX64_WINE_COMPONENT = "rootfs_wine_10.0";
     /** Kron4ek's "Proton" build -- Valve's Proton wine patches without Proton's python wrapper or
      *  bundled DXVK/vkd3d-proton, same box64-translated shape as BOX64_WINE_COMPONENT. */
-    public static final String BOX64_PROTON_COMPONENT = "rootfs_proton_11.0-2";
+    public static final String BOX64_PROTON_COMPONENT = "rootfs_proton_11.0";
     /**
      * Every component baked into the one shared RootFS base image, all delivered through the unified
      * component framework (download + sha256 + extract/raw-publish) and installed in-guest by

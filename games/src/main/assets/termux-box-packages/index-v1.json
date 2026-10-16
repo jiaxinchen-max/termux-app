@@ -383,22 +383,22 @@
       "sha256": "aeebbbf239e548f0136f1cd72a2e109dd9a572a8f703da3c09fa40d74d5c255f"
     },
     {
-      "id": "rootfs_proton_11.0-2",
+      "id": "rootfs_proton_11.0",
       "category": "runtime",
       "type": "translator",
-      "displayName": "proton_11.0-2",
-      "versionName": "11.0-2",
-      "summary": "Kron4ek Proton 11.0-2 WoW64 for Box64, pinned.",
+      "displayName": "proton_11.0",
+      "versionName": "11.0",
+      "summary": "Kron4ek Proton 11.0 WoW64 for Box64, pinned.",
       "framework": "ROOTFS",
       "base": false,
       "recommended": false,
       "hidden": false,
-      "profileValue": "rootfs_proton_11.0-2",
+      "profileValue": "rootfs_proton_11.0",
       "runtimeBackends": [
         "rootfs_proot"
       ],
       "version": 1,
-      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/rootfs_proton_11.0-2-v1/rootfs_proton_11.0-2.tar.xz",
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/rootfs_proton_11.0-v1/rootfs_proton_11.0.tar.xz",
       "size": 80017220,
       "sha256": "f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595"
     }
