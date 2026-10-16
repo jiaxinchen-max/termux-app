@@ -371,6 +371,14 @@ warmup_rootfs_prefix() {
         fi
     fi
 
+    # Wine runs an implicit `wineboot -u` on the next start whenever its own files are newer than
+    # the prefix's .update-timestamp, which is exactly what rebuilding the shared RootFS does to
+    # every existing prefix. That implicit wineboot has no mscoree/mshtml override, so it blocks
+    # on the Mono installer prompt until "boot event wait timed out" -- about five minutes before
+    # the game appears. Pin the prefix to "never auto-update"; this script is the only thing that
+    # (re)initialises it.
+    [ ! -f "$PREFIX_PATH/system.reg" ] || printf 'disable\n' > "$PREFIX_PATH/.update-timestamp"
+
     # Wine registers Linux fonts, but Hangover's `wine reg add` can report success without
     # persisting the value. Use the same .reg import path as Termux-box and also keep the CJK
     # TTC files in the Windows font directory for applications that enumerate only
