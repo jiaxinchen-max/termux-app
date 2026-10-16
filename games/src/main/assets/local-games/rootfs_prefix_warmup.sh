@@ -281,7 +281,8 @@ run_prefix_wineboot_update() {
         if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
             run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
         else
-            run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
+            run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+            ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u >> "$LOG_PATH" 2>&1 &
         fi
         PROOT_PID=$!
         PREFIX_LAST_SIZE=$(wc -c < "$LOG_PATH" 2>/dev/null || printf '0')
@@ -423,10 +424,17 @@ warmup_rootfs_prefix() {
     WINE_DLL_MARKER="$PREFIX_MARKER_DIR/wine-dlls"
     if [ -f "$PREFIX_PATH/system.reg" ] && [ "${CANCELLED:-0}" != 1 ] && \
         [ "$(sed -n '1p' "$WINE_DLL_MARKER" 2>/dev/null)" != "$WINE_PACKAGE" ]; then
-        if prefix_lacks_builtin_dlls; then
+        WINE_DLL_PENDING="$PREFIX_MARKER_DIR/wine-dlls-pending"
+        if prefix_lacks_builtin_dlls || \
+            [ "$(sed -n '1p' "$WINE_DLL_PENDING" 2>/dev/null)" = "$WINE_PACKAGE" ]; then
             printf '%s\n' "Updating the prefix for $WINE_PACKAGE (missing builtin DLL stubs)." >> "$LOG_PATH"
+            # Seeding makes the stubs exist, so remember that the update itself is still owed:
+            # a failure below leaves this record and the next launch retries the wineboot -u.
+            mkdir -p "$PREFIX_MARKER_DIR"
+            printf '%s\n' "$WINE_PACKAGE" > "$WINE_DLL_PENDING"
             seed_missing_prefix_dlls
             run_prefix_wineboot_update
+            [ "${CANCELLED:-0}" = 1 ] || rm -f "$WINE_DLL_PENDING"
         fi
         if [ "${CANCELLED:-0}" != 1 ]; then
             mkdir -p "$PREFIX_MARKER_DIR"
