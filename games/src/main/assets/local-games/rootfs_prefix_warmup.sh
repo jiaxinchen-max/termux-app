@@ -335,6 +335,21 @@ seed_missing_prefix_dlls() {
     done
 }
 
+# True when the Wine build ships a PE builtin that this prefix has no stub for yet.
+prefix_lacks_builtin_dlls() {
+    [ -n "${box64_wine_root:-}" ] || return 1
+    for dll_pair in x86_64-windows:system32 i386-windows:syswow64; do
+        dll_source="$ROOTFS_CANONICAL$box64_wine_root/lib/wine/${dll_pair%%:*}"
+        dll_target="$PREFIX_PATH/drive_c/windows/${dll_pair##*:}"
+        [ -d "$dll_source" ] && [ -d "$dll_target" ] || continue
+        for dll_file in "$dll_source"/*; do
+            [ -f "$dll_file" ] || continue
+            [ -e "$dll_target/${dll_file##*/}" ] || return 0
+        done
+    done
+    return 1
+}
+
 # Warms this container's Wine prefix: `wineboot -u` (or a clone of a pre-booted template prefix,
 # see TEMPLATE_PREFIX_ARCHIVE above) plus CJK FontLink registry injection. Idempotent -- a
 # container whose markers already match is a handful of stat() calls, nothing more. Locale
@@ -383,19 +398,6 @@ warmup_rootfs_prefix() {
                 --numeric-owner -xpf "$TEMPLATE_PREFIX_ARCHIVE" >> "$LOG_PATH" 2>&1; then
                 warmup_fail rootfs_prefix_template_extract_failed
             fi
-            # The template's own marker is "template|<package that built it>". A package of the same
-            # translator but another Wine build (e.g. Proton 11 on the Wine 10 template) needs the
-            # prefix brought up to date first; do it before the marker is written so a failure
-            # re-clones next time instead of leaving a half-updated prefix behind.
-            TEMPLATE_BUILDER=
-            [ ! -f "$PREFIX_MARKER" ] || TEMPLATE_BUILDER=$(sed -n '1p' "$PREFIX_MARKER" 2>/dev/null)
-            TEMPLATE_BUILDER=${TEMPLATE_BUILDER#*|}
-            if [ "$RUNTIME_TRANSLATOR" != hangover ] && [ -n "$TEMPLATE_BUILDER" ] && \
-                [ "$TEMPLATE_BUILDER" != "$WINE_PACKAGE" ]; then
-                printf '%s\n' "Updating the cloned prefix for $WINE_PACKAGE (template built by $TEMPLATE_BUILDER)." >> "$LOG_PATH"
-                seed_missing_prefix_dlls
-                run_prefix_wineboot_update
-            fi
             if [ "${CANCELLED:-0}" != 1 ]; then
                 mkdir -p "$PREFIX_MARKER_DIR"
                 printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
@@ -408,6 +410,27 @@ warmup_rootfs_prefix() {
                 mkdir -p "$PREFIX_MARKER_DIR"
                 printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
             fi
+        fi
+    fi
+
+    # Bring the prefix up to date for the requested Wine build, once per package. The template is
+    # pre-booted by one package per translator (box64: Wine 10), so another package of the same
+    # translator (Proton 11) can get a prefix without the PE stubs it needs: advapi32 forwards
+    # SystemFunction036 to cryptbase.dll, the stub is missing, and wineboot and the game abort with
+    # "unimplemented function advapi32.dll.SystemFunction036". Keyed on a per-prefix record rather
+    # than on the runtime marker so prefixes cloned by earlier versions heal themselves too. The
+    # record is written last, so a failed or cancelled update is retried on the next launch.
+    WINE_DLL_MARKER="$PREFIX_MARKER_DIR/wine-dlls"
+    if [ -f "$PREFIX_PATH/system.reg" ] && [ "${CANCELLED:-0}" != 1 ] && \
+        [ "$(sed -n '1p' "$WINE_DLL_MARKER" 2>/dev/null)" != "$WINE_PACKAGE" ]; then
+        if prefix_lacks_builtin_dlls; then
+            printf '%s\n' "Updating the prefix for $WINE_PACKAGE (missing builtin DLL stubs)." >> "$LOG_PATH"
+            seed_missing_prefix_dlls
+            run_prefix_wineboot_update
+        fi
+        if [ "${CANCELLED:-0}" != 1 ]; then
+            mkdir -p "$PREFIX_MARKER_DIR"
+            printf '%s\n' "$WINE_PACKAGE" > "$WINE_DLL_MARKER"
         fi
     fi
 
