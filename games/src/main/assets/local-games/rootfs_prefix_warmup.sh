@@ -157,11 +157,13 @@ resolve_rootfs_translator() {
         [ -x "$ROOTFS_CANONICAL$custom_box64_bin" ] || warmup_fail custom_box64_id_invalid
         GUEST_COMMAND=$custom_box64_bin
     fi
-    # The wineserver that belongs to the selected Wine, run the same way as Wine itself. Callers use it to
-    # let wineserver shut down cleanly: proot's --kill-on-exit SIGKILLs a wineserver that is still alive when
-    # the main command ends, and a SIGKILLed wineserver has not saved the registry (it only does so on a
-    # timer and on a clean exit), so writes made in the last stretch -- wineboot's final steps, a `reg add`
-    # -- would silently vanish. Left empty (and the clean-shutdown step skipped) for an unexpected path.
+    # The wineserver that belongs to the selected Wine, run the same way as Wine itself. The game launcher uses
+    # it to let wineserver shut down cleanly: proot's --kill-on-exit SIGKILLs a wineserver that is still alive
+    # when the main command ends, and a SIGKILLed wineserver has not saved the registry (it only does so on a
+    # timer and on a clean exit), so a short session's `reg add` -- the launcher's own DPI/theme settings --
+    # would silently vanish. wineboot does not need this: it runs long enough for the periodic save, and an
+    # unwrapped run leaves the same registry as a wrapped one. Left empty (clean shutdown skipped) for an
+    # unexpected path.
     case "$RUNTIME_TRANSLATOR" in
         hangover) GUEST_WINESERVER=$(dirname "${GAMES_CUSTOM_WINE_PATH:-/usr/bin/wine}")/wineserver ;;
         *) GUEST_WINESERVER="$GUEST_COMMAND $(dirname "$GUEST_WINE")/wineserver" ;;
@@ -187,6 +189,11 @@ resolve_rootfs_translator() {
 # override the identical wineboot completes cleanly in ~2.5 min. Prefix *initialisation* never
 # needs either runtime (they matter only when a game actually runs .NET/embedded-HTML code, which
 # is out of scope for building a base prefix); a game that needs .NET installs Mono separately.
+# WINEDEBUG=+wineboot adds wineboot's own progress trace to the log (about 100 lines per run) next to Wine's
+# usual error lines. A wineboot that finished prints `trace:wineboot:main Operation done`; the prefix update
+# itself shows as `update_wineprefix ... has been updated`. wineboot prints "Operation done" twice because
+# the first wineserver start runs an initial wineboot before the `-u` one. Success is still decided by
+# wineboot's own exit status; the trace is only there to explain a failure or a hang.
 # NOTE: this function `exec`s proot -- it REPLACES its (sub)shell rather than returning. That is
 # deliberate and required for the silence watchdog to work: dash does NOT exec-optimise a
 # backgrounded *function call* (verified on-device: `fn(){ sleep; }; fn &` leaves $! pointing at an
@@ -213,26 +220,9 @@ run_rootfs_maintenance_command() {
         PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
         FONTCONFIG_PATH=/etc/fonts FONTCONFIG_FILE=/etc/fonts/fonts.conf \
         XDG_DATA_DIRS=/usr/local/share:/usr/share DISPLAY="${MAINTENANCE_DISPLAY:-:0}" \
-        WINEPREFIX=/mnt/games/prefix WINEDLLOVERRIDES=mscoree,mshtml=d \
+        WINEPREFIX=/mnt/games/prefix WINEDLLOVERRIDES=mscoree,mshtml=d WINEDEBUG=+wineboot \
         BOX64_LD_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu \
         "$@"
-}
-
-# Runs the command, then lets wineserver exit cleanly so its registry changes are written before proot
-# tears the session down (see resolve_rootfs_translator). Same exec/subshell rules as
-# run_rootfs_maintenance_command, which it ends in.
-# A box64 `wineboot -u` is SIGKILLed at its very end, after all of its output (earlier logs show it as
-# `proot info: vpid 1: terminated with signal 9`); that used to be invisible because wineboot was proot's
-# first process, but as the wrapper's child it surfaces as exit status 137. The prefix is complete by then
-# (the clean wineserver shutdown above has just written it), so 137 counts as success once system.reg exists.
-run_rootfs_maintenance_flush() {
-    if [ -n "${GUEST_WINESERVER:-}" ]; then
-        run_rootfs_maintenance_command GAMES_WINESERVER="$GUEST_WINESERVER" /bin/sh -c \
-            '"$@"; rc=$?; $GAMES_WINESERVER -k >/dev/null 2>&1; timeout 30 $GAMES_WINESERVER -w >/dev/null 2>&1; [ "$rc" -ne 137 ] || [ ! -s /mnt/games/prefix/system.reg ] || rc=0; exit $rc' \
-            wineboot-session "$@"
-    else
-        run_rootfs_maintenance_command "$@"
-    fi
 }
 
 # Runs a real `wineboot -u` against $PREFIX_PATH through the maintenance proot session (which
@@ -265,10 +255,10 @@ run_prefix_wineboot_update() {
         # run_rootfs_maintenance_command.)
         if command -v run_logged_watchdog >/dev/null 2>&1; then
             if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-                if run_logged_watchdog run_rootfs_maintenance_flush "$GUEST_WINEBOOT" -u; then
+                if run_logged_watchdog run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u; then
                     PREFIX_EXIT_CODE=0; else PREFIX_EXIT_CODE=$?; fi
             else
-                if run_logged_watchdog run_rootfs_maintenance_flush "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+                if run_logged_watchdog run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
                     ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u; then
                     PREFIX_EXIT_CODE=0; else PREFIX_EXIT_CODE=$?; fi
             fi
@@ -278,9 +268,9 @@ run_prefix_wineboot_update() {
             # foreground call would exec-replace this script: wrap each in a ( ) subshell so
             # the exec only replaces the subshell and PREFIX_EXIT_CODE still captures proot's.
             if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-                ( run_rootfs_maintenance_flush "$GUEST_WINEBOOT" -u ) >> "$LOG_PATH" 2>&1
+                ( run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u ) >> "$LOG_PATH" 2>&1
             else
-                ( run_rootfs_maintenance_flush "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+                ( run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
                     ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u ) >> "$LOG_PATH" 2>&1
             fi
             PREFIX_EXIT_CODE=$?
@@ -289,9 +279,9 @@ run_prefix_wineboot_update() {
         [ "$PREFIX_EXIT_CODE" -eq 0 ] || warmup_fail rootfs_prefix_initialization_failed
     else
         if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-            run_rootfs_maintenance_flush "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
+            run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
         else
-            run_rootfs_maintenance_flush "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+            run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
             ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u >> "$LOG_PATH" 2>&1 &
         fi
         PROOT_PID=$!

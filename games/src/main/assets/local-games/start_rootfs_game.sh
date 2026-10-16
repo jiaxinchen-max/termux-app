@@ -376,9 +376,6 @@ while kill -0 "$pid" 2>/dev/null; do wait "$pid"; rc=$?; done
 trap - TERM INT HUP
 $GAMES_WINESERVER -k >/dev/null 2>&1
 timeout 15 $GAMES_WINESERVER -w >/dev/null 2>&1
-# Wine under box64 is SIGKILLed as it exits (proot used to swallow that as vpid 1's own status), so a
-# plain exit would otherwise be reported as a failure. Say so in the log instead of hiding it.
-[ "$rc" -ne 137 ] || { echo "wine ended with SIGKILL (137); treating it as a normal exit"; rc=0; }
 exit $rc
 EOS
 )
