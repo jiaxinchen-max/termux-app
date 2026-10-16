@@ -225,6 +225,116 @@ run_rootfs_maintenance_command() {
         "$@"
 }
 
+# Runs a real `wineboot -u` against $PREFIX_PATH through the maintenance proot session (which
+# disables the Mono/Gecko installers) and fails the warmup on timeout or a non-zero exit. Marker
+# files are the caller's job. The setup caller streams it through the silence watchdog; the launch
+# caller (CANCEL_PATH set) polls for a cancel request instead.
+run_prefix_wineboot_update() {
+    if [ -z "$CANCEL_PATH" ]; then
+        # Setup/pre-warm time (no interactive cancel -- see this file's header on CANCEL_PATH).
+        # Route wineboot through run_logged_watchdog so its ~2-3 min of output STREAMS LIVE into
+        # the setup console dialog (same visibility every other setup step already has via
+        # run_logged), instead of being swallowed into LOG_PATH with the terminal appearing
+        # frozen. The watchdog also replaces the old arbitrary `timeout 600` ceiling with a
+        # silence watchdog: wineboot may run as long as it keeps producing output, and is
+        # aborted only on sustained silence (a genuine deadlock), never a healthy-but-slow run.
+        # It returns 124 on watchdog fire, so the existing "-ne 124 -> timeout" check is reused.
+        #
+        # command -v guard: run_logged_watchdog is defined by setup_rootfs_runtime.sh, the only
+        # caller that reaches this branch (CANCEL_PATH is always empty there; the launch caller,
+        # which lacks the helper, always has a non-empty CANCEL_PATH and takes the else branch).
+        # The fallback preserves the old foreground behaviour if ever sourced without the helper.
+        #
+        # Why both translators are equally slow (~2-3 min): Hangover is native ARM64 for 64-bit
+        # code, but its 32-bit WoW64 half runs through WowBox64 (a box64-based dynarec, see the
+        # `[BOX64] WowBox64 arm64 (Hangover 11.9)` lines wineboot emits), and the late wine.inf
+        # phase spawns many 32-bit rundll32/setupapi helpers that all pay that JIT cost -- so a
+        # cold Hangover wineboot is nearly as heavy as a box64-wine one. (box64-wine's earlier
+        # `boot event wait timed out` hangs were NOT slowness: wineboot was blocking on the
+        # Mono/Gecko auto-installer, now disabled via WINEDLLOVERRIDES in
+        # run_rootfs_maintenance_command.)
+        if command -v run_logged_watchdog >/dev/null 2>&1; then
+            if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
+                if run_logged_watchdog run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u; then
+                    PREFIX_EXIT_CODE=0; else PREFIX_EXIT_CODE=$?; fi
+            else
+                if run_logged_watchdog run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+                    ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u; then
+                    PREFIX_EXIT_CODE=0; else PREFIX_EXIT_CODE=$?; fi
+            fi
+        else
+            # Fallback if run_logged_watchdog is somehow absent (never in practice -- setup
+            # always defines it). run_rootfs_maintenance_command execs proot, so a BARE
+            # foreground call would exec-replace this script: wrap each in a ( ) subshell so
+            # the exec only replaces the subshell and PREFIX_EXIT_CODE still captures proot's.
+            if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
+                ( run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u ) >> "$LOG_PATH" 2>&1
+            else
+                ( run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
+                    ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u ) >> "$LOG_PATH" 2>&1
+            fi
+            PREFIX_EXIT_CODE=$?
+        fi
+        [ "$PREFIX_EXIT_CODE" -ne 124 ] || warmup_fail rootfs_prefix_initialization_timeout
+        [ "$PREFIX_EXIT_CODE" -eq 0 ] || warmup_fail rootfs_prefix_initialization_failed
+    else
+        if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
+            run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
+        else
+            run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
+        fi
+        PROOT_PID=$!
+        PREFIX_LAST_SIZE=$(wc -c < "$LOG_PATH" 2>/dev/null || printf '0')
+        PREFIX_LAST_CHANGE=$(date +%s)
+        PREFIX_SILENCE=${PREFIX_SILENCE_TIMEOUT:-300}
+        # PROOT_PID is proot's real PID (run_rootfs_maintenance_command execs proot). Both kills
+        # below are SIGKILL, not the default SIGTERM: proot forwards SIGTERM to the guest init
+        # (Windows wineboot ignores it) and does not exit, so --kill-on-exit never fires and the
+        # wine tree keeps running (verified on-device). SIGKILL dies at the kernel, and ptrace
+        # EXITKILL then reaps every tracee, including the daemonised PPID=1 wineserver.
+        set +x
+        while kill -0 "$PROOT_PID" 2>/dev/null; do
+            [ ! -e "$CANCEL_PATH" ] || { CANCELLED=1; kill -9 "$PROOT_PID" 2>/dev/null || true; break; }
+            now=$(date +%s)
+            current_size=$(wc -c < "$LOG_PATH" 2>/dev/null || printf '0')
+            if [ "$current_size" != "$PREFIX_LAST_SIZE" ]; then
+                PREFIX_LAST_SIZE=$current_size
+                PREFIX_LAST_CHANGE=$now
+            elif [ $((now - PREFIX_LAST_CHANGE)) -ge "$PREFIX_SILENCE" ]; then
+                kill -9 "$PROOT_PID" 2>/dev/null || true
+                wait "$PROOT_PID" 2>/dev/null || true
+                PROOT_PID=
+                set -x
+                warmup_fail rootfs_prefix_initialization_timeout
+            fi
+            sleep 1
+        done
+        set -x
+        wait "$PROOT_PID"
+        PREFIX_EXIT_CODE=$?
+        PROOT_PID=
+        [ "${CANCELLED:-0}" = 1 ] || [ "$PREFIX_EXIT_CODE" -eq 0 ] || \
+            warmup_fail rootfs_prefix_initialization_failed
+    fi
+}
+
+# A Wine build ships PE stubs (e.g. cryptbase.dll) that a prefix created by an older build lacks.
+# The first processes wineboot starts load the new builtin advapi32, cannot resolve its forward
+# to cryptbase and abort, so copy what is missing into the prefix before updating it. Existing
+# files are left for wineboot -u to refresh. Host-side only; no proot session needed.
+seed_missing_prefix_dlls() {
+    [ -n "${box64_wine_root:-}" ] || return 0
+    for dll_pair in x86_64-windows:system32 i386-windows:syswow64; do
+        dll_source="$ROOTFS_CANONICAL$box64_wine_root/lib/wine/${dll_pair%%:*}"
+        dll_target="$PREFIX_PATH/drive_c/windows/${dll_pair##*:}"
+        [ -d "$dll_source" ] && [ -d "$dll_target" ] || continue
+        for dll_file in "$dll_source"/*; do
+            [ -f "$dll_file" ] || continue
+            [ -e "$dll_target/${dll_file##*/}" ] || cp "$dll_file" "$dll_target/" 2>/dev/null || true
+        done
+    done
+}
+
 # Warms this container's Wine prefix: `wineboot -u` (or a clone of a pre-booted template prefix,
 # see TEMPLATE_PREFIX_ARCHIVE above) plus CJK FontLink registry injection. Idempotent -- a
 # container whose markers already match is a handful of stat() calls, nothing more. Locale
@@ -273,97 +383,27 @@ warmup_rootfs_prefix() {
                 --numeric-owner -xpf "$TEMPLATE_PREFIX_ARCHIVE" >> "$LOG_PATH" 2>&1; then
                 warmup_fail rootfs_prefix_template_extract_failed
             fi
-            mkdir -p "$PREFIX_MARKER_DIR"
-            printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
-            printf '%s\n' "$RUNTIME_ROOT_PATH|$WINE_PACKAGE|Noto Sans CJK SC|v4" \
-                > "$PREFIX_MARKER_DIR/cjk-fonts"
-        elif [ -z "$CANCEL_PATH" ]; then
-            # Setup/pre-warm time (no interactive cancel -- see this file's header on CANCEL_PATH).
-            # Route wineboot through run_logged_watchdog so its ~2-3 min of output STREAMS LIVE into
-            # the setup console dialog (same visibility every other setup step already has via
-            # run_logged), instead of being swallowed into LOG_PATH with the terminal appearing
-            # frozen. The watchdog also replaces the old arbitrary `timeout 600` ceiling with a
-            # silence watchdog: wineboot may run as long as it keeps producing output, and is
-            # aborted only on sustained silence (a genuine deadlock), never a healthy-but-slow run.
-            # It returns 124 on watchdog fire, so the existing "-ne 124 -> timeout" check is reused.
-            #
-            # command -v guard: run_logged_watchdog is defined by setup_rootfs_runtime.sh, the only
-            # caller that reaches this branch (CANCEL_PATH is always empty there; the launch caller,
-            # which lacks the helper, always has a non-empty CANCEL_PATH and takes the else branch).
-            # The fallback preserves the old foreground behaviour if ever sourced without the helper.
-            #
-            # Why both translators are equally slow (~2-3 min): Hangover is native ARM64 for 64-bit
-            # code, but its 32-bit WoW64 half runs through WowBox64 (a box64-based dynarec, see the
-            # `[BOX64] WowBox64 arm64 (Hangover 11.9)` lines wineboot emits), and the late wine.inf
-            # phase spawns many 32-bit rundll32/setupapi helpers that all pay that JIT cost -- so a
-            # cold Hangover wineboot is nearly as heavy as a box64-wine one. (box64-wine's earlier
-            # `boot event wait timed out` hangs were NOT slowness: wineboot was blocking on the
-            # Mono/Gecko auto-installer, now disabled via WINEDLLOVERRIDES in
-            # run_rootfs_maintenance_command.)
-            if command -v run_logged_watchdog >/dev/null 2>&1; then
-                if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-                    if run_logged_watchdog run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u; then
-                        PREFIX_EXIT_CODE=0; else PREFIX_EXIT_CODE=$?; fi
-                else
-                    if run_logged_watchdog run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
-                        ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u; then
-                        PREFIX_EXIT_CODE=0; else PREFIX_EXIT_CODE=$?; fi
-                fi
-            else
-                # Fallback if run_logged_watchdog is somehow absent (never in practice -- setup
-                # always defines it). run_rootfs_maintenance_command execs proot, so a BARE
-                # foreground call would exec-replace this script: wrap each in a ( ) subshell so
-                # the exec only replaces the subshell and PREFIX_EXIT_CODE still captures proot's.
-                if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-                    ( run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u ) >> "$LOG_PATH" 2>&1
-                else
-                    ( run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" \
-                        ${GUEST_WINEBOOT_ARG:+"$GUEST_WINEBOOT_ARG"} -u ) >> "$LOG_PATH" 2>&1
-                fi
-                PREFIX_EXIT_CODE=$?
+            # The template's own marker is "template|<package that built it>". A package of the same
+            # translator but another Wine build (e.g. Proton 11 on the Wine 10 template) needs the
+            # prefix brought up to date first; do it before the marker is written so a failure
+            # re-clones next time instead of leaving a half-updated prefix behind.
+            TEMPLATE_BUILDER=
+            [ ! -f "$PREFIX_MARKER" ] || TEMPLATE_BUILDER=$(sed -n '1p' "$PREFIX_MARKER" 2>/dev/null)
+            TEMPLATE_BUILDER=${TEMPLATE_BUILDER#*|}
+            if [ "$RUNTIME_TRANSLATOR" != hangover ] && [ -n "$TEMPLATE_BUILDER" ] && \
+                [ "$TEMPLATE_BUILDER" != "$WINE_PACKAGE" ]; then
+                printf '%s\n' "Updating the cloned prefix for $WINE_PACKAGE (template built by $TEMPLATE_BUILDER)." >> "$LOG_PATH"
+                seed_missing_prefix_dlls
+                run_prefix_wineboot_update
             fi
-            [ "$PREFIX_EXIT_CODE" -ne 124 ] || warmup_fail rootfs_prefix_initialization_timeout
-            [ "$PREFIX_EXIT_CODE" -eq 0 ] || warmup_fail rootfs_prefix_initialization_failed
-            mkdir -p "$PREFIX_MARKER_DIR"
-            printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
+            if [ "${CANCELLED:-0}" != 1 ]; then
+                mkdir -p "$PREFIX_MARKER_DIR"
+                printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
+                printf '%s\n' "$RUNTIME_ROOT_PATH|$WINE_PACKAGE|Noto Sans CJK SC|v4" \
+                    > "$PREFIX_MARKER_DIR/cjk-fonts"
+            fi
         else
-            if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-                run_rootfs_maintenance_command "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
-            else
-                run_rootfs_maintenance_command "$GUEST_COMMAND" "$GUEST_WINEBOOT" -u >> "$LOG_PATH" 2>&1 &
-            fi
-            PROOT_PID=$!
-            PREFIX_LAST_SIZE=$(wc -c < "$LOG_PATH" 2>/dev/null || printf '0')
-            PREFIX_LAST_CHANGE=$(date +%s)
-            PREFIX_SILENCE=${PREFIX_SILENCE_TIMEOUT:-300}
-            # PROOT_PID is proot's real PID (run_rootfs_maintenance_command execs proot). Both kills
-            # below are SIGKILL, not the default SIGTERM: proot forwards SIGTERM to the guest init
-            # (Windows wineboot ignores it) and does not exit, so --kill-on-exit never fires and the
-            # wine tree keeps running (verified on-device). SIGKILL dies at the kernel, and ptrace
-            # EXITKILL then reaps every tracee, including the daemonised PPID=1 wineserver.
-            set +x
-            while kill -0 "$PROOT_PID" 2>/dev/null; do
-                [ ! -e "$CANCEL_PATH" ] || { CANCELLED=1; kill -9 "$PROOT_PID" 2>/dev/null || true; break; }
-                now=$(date +%s)
-                current_size=$(wc -c < "$LOG_PATH" 2>/dev/null || printf '0')
-                if [ "$current_size" != "$PREFIX_LAST_SIZE" ]; then
-                    PREFIX_LAST_SIZE=$current_size
-                    PREFIX_LAST_CHANGE=$now
-                elif [ $((now - PREFIX_LAST_CHANGE)) -ge "$PREFIX_SILENCE" ]; then
-                    kill -9 "$PROOT_PID" 2>/dev/null || true
-                    wait "$PROOT_PID" 2>/dev/null || true
-                    PROOT_PID=
-                    set -x
-                    warmup_fail rootfs_prefix_initialization_timeout
-                fi
-                sleep 1
-            done
-            set -x
-            wait "$PROOT_PID"
-            PREFIX_EXIT_CODE=$?
-            PROOT_PID=
-            [ "${CANCELLED:-0}" = 1 ] || [ "$PREFIX_EXIT_CODE" -eq 0 ] || \
-                warmup_fail rootfs_prefix_initialization_failed
+            run_prefix_wineboot_update
             if [ "${CANCELLED:-0}" != 1 ]; then
                 mkdir -p "$PREFIX_MARKER_DIR"
                 printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
@@ -376,7 +416,7 @@ warmup_rootfs_prefix() {
     # every existing prefix. That implicit wineboot has no mscoree/mshtml override, so it blocks
     # on the Mono installer prompt until "boot event wait timed out" -- about five minutes before
     # the game appears. Pin the prefix to "never auto-update"; this script is the only thing that
-    # (re)initialises it.
+    # (re)initialises it, and it does so explicitly when the Wine build actually changes.
     [ ! -f "$PREFIX_PATH/system.reg" ] || printf 'disable\n' > "$PREFIX_PATH/.update-timestamp"
 
     # Wine registers Linux fonts, but Hangover's `wine reg add` can report success without
