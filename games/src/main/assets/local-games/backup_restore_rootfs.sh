@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/sh
-# Backs up or restores the shared RootFS base + per-translator Wine prefix templates to/from a
+# Backs up or restores the shared RootFS base + per-package Wine prefix templates to/from a
 # single external-storage archive -- a disaster-recovery feature distinct from
 # setup_rootfs_runtime.sh's own build pipeline (which now mv's straight into place at publish
 # time, no archive/compress round trip -- see that script's runtime_complete/mv gate). Spec
@@ -148,7 +148,7 @@ if [ "$MODE" = backup ]; then
         fail rootfs_backup_stage_failed 70
     fi
     # The prefix templates are already independently compressed (built by
-    # setup_rootfs_runtime.sh's per-translator loop) -- copy them in as-is rather than
+    # setup_rootfs_runtime.sh's per-package loop) -- copy them in as-is rather than
     # decompressing and recompressing, which would just burn time for no size benefit.
     for prefix_archive in "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*; do
         [ -f "$prefix_archive" ] || continue

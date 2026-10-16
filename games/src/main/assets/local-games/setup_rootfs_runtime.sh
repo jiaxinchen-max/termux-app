@@ -191,7 +191,7 @@ BUILD_ROOTFS="$BUILD_DIRECTORY/rootfs"
 #    check -- see the runtime_complete/mv gate further down, which replaced the old
 #    build-archive-delete-extract round trip now that the build and the live shared RootFS can
 #    just be mv'd into place directly, same filesystem).
-#  - games-rootfs-base-prefix-<translator>.tar.*: the per-translator pre-booted Wine prefix
+#  - games-rootfs-base-prefix-<wine package>.tar.*: the per-package pre-booted Wine prefix
 #    templates (still genuinely archived -- cloned into many containers afterward, unlike the
 #    rootfs itself which only ever has the one live copy).
 TEMPLATE_CACHE_DIR="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-template-cache"
@@ -206,8 +206,8 @@ else
     TEMPLATE_COMPRESSOR=gzip
     TEMPLATE_PREFIX_EXT=gz
 fi
-# One prefix template is pre-booted per translator (see the BASE_ONLY loop below), not a single
-# fixed-name archive -- TEMPLATE_PREFIX_ARCHIVE itself is resolved per-container, per-translator,
+# One prefix template is pre-booted per wine package (see the BASE_ONLY loop below), not a single
+# fixed-name archive -- TEMPLATE_PREFIX_ARCHIVE itself is resolved per-container, per-package,
 # via rootfs_prefix_warmup.sh's resolve_template_prefix_archive() further down.
 TEMPLATE_PREFIX_ARCHIVE=
 # Sourced early (not just before the per-container warmup call further down) because BASE_ONLY
@@ -322,10 +322,9 @@ if [ "$BASE_ONLY" = true ]; then
     # A rebuild must actually rebuild, not silently reuse the already-published shared RootFS --
     # the gate below skips rebuilding whenever the recorded recipe still matches, so force a real
     # rebuild by clearing the record first. Harmless (a no-op delete) on a first-ever "Build" too.
-    # Every per-translator prefix template (games-rootfs-base-prefix-<translator>.tar.*, see the
-    # BASE_ONLY loop below -- one per distinct RUNTIME_TRANSLATOR bucket, not one per literal wine
-    # package) is rebuilt in lockstep with the rootfs for the same reason (the known hash-drift
-    # failure mode this session already fixed once for the rootfs side).
+    # Every per-package prefix template (games-rootfs-base-prefix-<wine package>.tar.*, see the
+    # BASE_ONLY loop below) is rebuilt in lockstep with the rootfs for the same reason (the known
+    # hash-drift failure mode this session already fixed once for the rootfs side).
     rm -f "$TEMPLATE_RECIPE"
     for stray_prefix in "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*; do
         [ -e "$stray_prefix" ] || continue
@@ -343,7 +342,7 @@ if [ -d "$TEMPLATE_CACHE_DIR" ]; then
     for stray_archive in "$TEMPLATE_CACHE_DIR"/*.tar.*; do
         [ -f "$stray_archive" ] || continue
         case "$stray_archive" in
-            # Every per-translator prefix template is a live artifact, not just one fixed name.
+            # Every per-package prefix template is a live artifact, not just one fixed name.
             "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*) continue ;;
         esac
         rm -f "$stray_archive"
@@ -381,25 +380,22 @@ if ! runtime_complete "$SHARED_ROOTFS" || \
         fail rootfs_shared_image_publish_failed 70
     runtime_complete "$SHARED_ROOTFS" || fail rootfs_shared_image_invalid 70
 
-    # Pre-boot one Wine prefix per *translator* (wineboot -u + CJK FontLink), archived alongside
-    # the rootfs, so every subsequent container extracts a ready-made prefix instead of paying the
-    # wineboot cost again (see rootfs_prefix_warmup.sh's resolve_template_prefix_archive() /
-    # TEMPLATE_PREFIX_ARCHIVE fast path). A Kron4ek box64-wine prefix and a Hangover prefix have
-    # incompatible ntdll/kernel32 layouts (confirmed: cloning the wrong one produced `wine: could
-    # not load kernel32.dll, status c000007b`) -- but that incompatibility is cross-architecture
-    # (Hangover's native ARM64 wine vs box64's translated x86_64 wine), not cross-wine-version: two
-    # wine packages that resolve_rootfs_translator() below maps to the SAME RUNTIME_TRANSLATOR
-    # (e.g. two box64-wine-* versions) share one compatible prefix, so only the first
-    # games-runtime.properties entry for each distinct translator actually gets a template built;
-    # later entries mapping to an already-built translator just reuse it. Read the package list
-    # from the manifest already staged into the build context, rather than hardcoding it, so
-    # adding a wine package to the recipe is enough on its own to pick up (or share) a pre-booted
-    # template; no edit needed here.
+    # Pre-boot one Wine prefix per wine *package* (wineboot -u + CJK FontLink), archived alongside
+    # the rootfs, so every subsequent container -- and every switch between packages -- extracts a
+    # ready-made prefix instead of paying the wineboot cost again (see rootfs_prefix_warmup.sh's
+    # resolve_template_prefix_archive() / TEMPLATE_PREFIX_ARCHIVE fast path). One per package, not
+    # per translator: a different Wine build of the same translator (Wine 10 vs Proton 11) ships PE
+    # stubs the other's prefix lacks, so sharing a template made the second package run a minutes-
+    # long wineboot -u inside the first container that used it. A Hangover prefix and a box64 prefix
+    # are also incompatible with each other (`wine: could not load kernel32.dll, status c000007b`).
+    # Doing the work here moves it to the explicit environment install, so saving a game's options
+    # and launching it only ever clone. Read the package list from the manifest already staged into
+    # the build context, rather than hardcoding it, so adding a wine package to the recipe is
+    # enough on its own to get a pre-booted template.
     runtime_packages=$(sed -n 's/^runtimePackages=//p' "$BUILD_CONTEXT/games-runtime.properties")
     [ -n "$runtime_packages" ] || fail rootfs_runtime_packages_missing 70
-    TEMPLATE_PREFIX_BUCKETS_BUILT=
     # One termux-x11 session for the whole loop below, started once and killed once, never
-    # restarted per translator: restarting it between iterations (even on a fresh display number)
+    # restarted per package: restarting it between iterations (even on a fresh display number)
     # left the second wineboot connected to a half-torn-down X session that never finished booting
     # (`boot event wait timed out`, looping until the wineboot timeout killed it) -- confirmed by
     # reproducing the SAME failure with a distinct display number per iteration (ruling out a
@@ -418,15 +414,8 @@ if ! runtime_complete "$SHARED_ROOTFS" || \
         WINE_PACKAGE=$template_wine_package
         ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS") || fail rootfs_unreadable 70
         resolve_rootfs_translator
-        case " $TEMPLATE_PREFIX_BUCKETS_BUILT " in
-            *" $RUNTIME_TRANSLATOR "*)
-                progress "==> Reusing the $RUNTIME_TRANSLATOR Wine prefix template for $template_wine_package"
-                IFS=','
-                continue
-                ;;
-        esac
-        progress "==> Pre-warming the $RUNTIME_TRANSLATOR Wine prefix template (via $template_wine_package)"
-        TEMPLATE_PREFIX_ARCHIVE_DESTINATION="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$RUNTIME_TRANSLATOR.tar.$TEMPLATE_PREFIX_EXT"
+        progress "==> Pre-warming the Wine prefix template for $template_wine_package"
+        TEMPLATE_PREFIX_ARCHIVE_DESTINATION="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.$TEMPLATE_PREFIX_EXT"
         TEMPLATE_PREFIX_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/prefix-build"
         TEMPLATE_HOME_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/home-build"
         rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
@@ -453,7 +442,6 @@ if ! runtime_complete "$SHARED_ROOTFS" || \
             fail rootfs_prefix_template_archive_failed 70
         fi
         rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
-        TEMPLATE_PREFIX_BUCKETS_BUILT="$TEMPLATE_PREFIX_BUCKETS_BUILT $RUNTIME_TRANSLATOR"
         IFS=','
     done
     IFS=$OLD_IFS

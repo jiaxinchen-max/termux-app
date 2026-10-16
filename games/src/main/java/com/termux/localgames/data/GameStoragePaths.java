@@ -122,8 +122,8 @@ public final class GameStoragePaths {
             backendType.getStorageValue());
     }
     /** Beside containers/ (never under it), mirroring setup_rootfs_runtime.sh's
-     *  TEMPLATE_CACHE_DIR, so it is never mistaken for a container. Holds the per-translator
-     *  pre-booted Wine prefix templates (games-rootfs-base-prefix-&lt;translator&gt;.tar.*) and the
+     *  TEMPLATE_CACHE_DIR, so it is never mistaken for a container. Holds the per-package
+     *  pre-booted Wine prefix templates (games-rootfs-base-prefix-&lt;wine package&gt;.tar.*) and the
      *  recorded recipeSha256 (games-rootfs-base.recipe) -- there is no RootFS base archive here
      *  any more: building/rebuilding the shared RootFS publishes it directly (a same-filesystem
      *  mv, see setup_rootfs_runtime.sh), and compressing it is now the dedicated, explicitly

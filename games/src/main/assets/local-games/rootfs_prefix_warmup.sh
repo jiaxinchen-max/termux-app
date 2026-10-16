@@ -24,11 +24,8 @@
 #                        warmup_rootfs_prefix() itself -- callers that build TEMPLATE_PREFIX_ARCHIVE
 #                        some other way (setup_rootfs_runtime.sh's BASE_ONLY template-build step
 #                        always passes "" instead, to force a real wineboot there) do not need it.
-#   RUNTIME_TRANSLATOR   only required by resolve_template_prefix_archive() (below); set by calling
-#                        resolve_rootfs_translator() first -- templates are keyed by translator
-#                        (hangover / box64 / fex), not by the literal WINE_PACKAGE string, since
-#                        that is the actual prefix-compatibility boundary (see that function's own
-#                        comment).
+#   WINE_PACKAGE         selects the template (one pre-booted prefix per package, see
+#                        resolve_template_prefix_archive()).
 #   PROOT_BIN            path to the proot binary
 #   TERMUX_FILES_DIR     Termux's `files` root
 #   LOG_PATH             appended to for diagnostics
@@ -61,34 +58,20 @@
 # installed build), so matching its *value* against a hardcoded "/usr/bin/wine" would silently
 # break for any custom hangover-family build.
 
-# Resolves the pre-booted prefix template for the *current* RUNTIME_TRANSLATOR (hangover / box64 /
-# fex -- see resolve_rootfs_translator() below, which must be called first). Templates are keyed by
-# translator, not by the literal WINE_PACKAGE string: two wine packages that resolve to the same
-# translator (e.g. two box64-wine-* versions) are the same host CPU architecture running the same
-# flavor of wine, and share one compatible prefix -- only a *cross*-translator swap (Hangover's
-# native ARM64 wine vs box64's translated x86_64 wine) produces an incompatible prefix layout
-# (confirmed: cloning the wrong one produced `wine: could not load kernel32.dll, status c000007b`).
-# setup_rootfs_runtime.sh's BASE_ONLY path builds one template per distinct translator found while
-# looping over games-runtime.properties's runtimePackages (see that loop for how it dedupes), so
-# this lookup can never name a translator the build side does not also know about. Requires
-# TEMPLATE_CACHE_DIR and RUNTIME_TRANSLATOR already set; sets TEMPLATE_PREFIX_ARCHIVE to the
-# archive path, or "" if no template exists yet for this translator (e.g. it was only just added to
-# the recipe and the base has not been rebuilt since -- warmup_rootfs_prefix() below falls back to
-# a real wineboot in that case, same as always happened for every package before per-translator
-# templates existed).
+# Resolves the pre-booted prefix template for the *current* WINE_PACKAGE. Templates are keyed by the
+# literal package, not by translator: a prefix records the PE stubs and registry of the Wine build
+# that booted it, and a different build of the same translator (Wine 10 vs Proton 11) needs a
+# wineboot -u of its own (it ships stubs the other lacks, e.g. cryptbase.dll) -- minutes of work
+# that used to be redone for every container and every package switch. Each package therefore gets
+# its own template, booted once by setup_rootfs_runtime.sh's BASE_ONLY path, and every container
+# merely clones it. Cloning a template of the wrong *translator* is still the worst case (Hangover's
+# native ARM64 wine vs box64's translated x86_64 wine produced `wine: could not load kernel32.dll,
+# status c000007b`), which per-package keys rule out as well. Requires TEMPLATE_CACHE_DIR already
+# set; sets TEMPLATE_PREFIX_ARCHIVE to the archive path, or "" if no template exists yet for this
+# package (e.g. a custom build, or one added to the recipe after the base was built --
+# warmup_rootfs_prefix() below falls back to a real wineboot in that case).
 resolve_template_prefix_archive() {
-    # A custom-installed Wine build (see install_custom_rootfs_component.sh) gets its own isolated
-    # template cache entry keyed by its literal componentId, rather than sharing the translator
-    # bucket's template -- unlike the two built-in presets per translator (verified compatible
-    # with each other, see this function's header comment above), a custom build's compatibility
-    # with whatever already-booted prefix a preset produced is unknown. The first container to use
-    # a given custom id pays a real wineboot once (warmup_rootfs_prefix()'s existing fallback,
-    # unchanged, handles TEMPLATE_PREFIX_ARCHIVE="" exactly like a brand-new translator would);
-    # every later container reusing the same custom id then clones that id's own template.
-    case "$WINE_PACKAGE" in
-        custom-wine-*) template_key=$WINE_PACKAGE ;;
-        *) template_key=$RUNTIME_TRANSLATOR ;;
-    esac
+    template_key=$WINE_PACKAGE
     if [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_key.tar.zst" ]; then
         TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_key.tar.zst"
     elif [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_key.tar.gz" ]; then
@@ -378,11 +361,10 @@ warmup_rootfs_prefix() {
         # versions) do share one prefix, though -- that incompatibility is cross-architecture, not
         # cross-wine-version. resolve_template_prefix_archive() (below, and by both other callers
         # of this function) already resolves TEMPLATE_PREFIX_ARCHIVE to the template for *this*
-        # container's own RUNTIME_TRANSLATOR specifically, so no further check is needed here: an
-        # empty/missing value simply means no template exists yet for this translator (e.g. it was
-        # just added to the recipe and the base hasn't been rebuilt since), and this container
-        # falls back to a real wineboot, exactly as every package did before per-translator
-        # templates existed.
+        # container's own WINE_PACKAGE specifically, so no further check is needed here: an
+        # empty/missing value simply means no template exists yet for this package (e.g. it was
+        # just added to the recipe and the base hasn't been rebuilt since, or it is a custom
+        # build), and this container falls back to a real wineboot.
         if [ -n "$TEMPLATE_PREFIX_ARCHIVE" ] && [ -f "$TEMPLATE_PREFIX_ARCHIVE" ]; then
             # Clone a prefix that was already wineboot'd + FontLink'd once, during the shared base
             # build, instead of paying that cost again for every container. Only the
@@ -414,13 +396,14 @@ warmup_rootfs_prefix() {
         fi
     fi
 
-    # Bring the prefix up to date for the requested Wine build, once per package. The template is
-    # pre-booted by one package per translator (box64: Wine 10), so another package of the same
-    # translator (Proton 11) can get a prefix without the PE stubs it needs: advapi32 forwards
-    # SystemFunction036 to cryptbase.dll, the stub is missing, and wineboot and the game abort with
-    # "unimplemented function advapi32.dll.SystemFunction036". Keyed on a per-prefix record rather
-    # than on the runtime marker so prefixes cloned by earlier versions heal themselves too. The
-    # record is written last, so a failed or cancelled update is retried on the next launch.
+    # Fallback for prefixes that were not cloned from their own package's template (custom builds,
+    # prefixes created by earlier versions, a template that predates a package update): bring the
+    # prefix up to date for the requested Wine build, once. A prefix booted by another Wine build can
+    # lack PE stubs this one needs: advapi32 forwards SystemFunction036 to cryptbase.dll, the stub is
+    # missing, and wineboot and the game abort with "unimplemented function
+    # advapi32.dll.SystemFunction036". Keyed on a per-prefix record rather than on the runtime marker
+    # so such prefixes heal themselves. The record is written last, so a failed or cancelled update
+    # is retried on the next run.
     WINE_DLL_MARKER="$PREFIX_MARKER_DIR/wine-dlls"
     if [ -f "$PREFIX_PATH/system.reg" ] && [ "${CANCELLED:-0}" != 1 ] && \
         [ "$(sed -n '1p' "$WINE_DLL_MARKER" 2>/dev/null)" != "$WINE_PACKAGE" ]; then
