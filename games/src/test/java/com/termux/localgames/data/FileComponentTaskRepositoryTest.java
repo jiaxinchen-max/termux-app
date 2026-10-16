@@ -43,6 +43,24 @@ public class FileComponentTaskRepositoryTest {
     }
 
     @Test
+    public void savesAndLoadsTaskWithEmptySha256() throws Exception {
+        // A package-managed component (termux-glibc) carries no archive hash, so its task is
+        // persisted with an empty sha256. Loading it back must not reject the empty value --
+        // ComponentTask itself treats "" as "not yet known". Regression for an install that
+        // failed with "Missing component task property: sha256".
+        File directory = temporaryFolder.newFolder("tasks");
+        FileComponentTaskRepository repository = new FileComponentTaskRepository(directory);
+        ComponentTask task = ComponentTask.queued("termux-glibc-task", "termux-glibc", 1,
+            "https://github.com/termux/termux-packages", 1, "");
+
+        repository.save(task);
+        ComponentTask restored = repository.find("termux-glibc-task").get();
+
+        assertEquals("", restored.getSha256());
+        assertEquals("termux-glibc", restored.getPackageName());
+    }
+
+    @Test
     public void listRecoversInterruptedReplacementBackup() throws Exception {
         File directory = temporaryFolder.newFolder("tasks");
         FileComponentTaskRepository repository = new FileComponentTaskRepository(directory);

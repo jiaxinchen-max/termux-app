@@ -94,7 +94,10 @@ public final class FileComponentTaskRepository implements ComponentTaskRepositor
                     Integer.parseInt(required(properties, "version")),
                     required(properties, "url"),
                     Long.parseLong(required(properties, "expectedSize")),
-                    required(properties, "sha256"),
+                    // Empty is valid: package-managed components (termux-glibc) and
+                    // not-yet-downloaded tasks carry no archive hash. ComponentTask itself
+                    // accepts "" here; only a present-but-malformed value is rejected downstream.
+                    properties.getProperty("sha256", ""),
                     Long.parseLong(required(properties, "downloadedBytes")),
                     properties.getProperty("etag", ""),
                     properties.getProperty("lastModified", ""),
