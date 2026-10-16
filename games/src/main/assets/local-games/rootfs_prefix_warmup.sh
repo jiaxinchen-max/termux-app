@@ -352,19 +352,16 @@ warmup_rootfs_prefix() {
     CURRENT_PREFIX_MARKER=
     [ ! -f "$PREFIX_MARKER" ] || CURRENT_PREFIX_MARKER=$(sed -n '1p' "$PREFIX_MARKER" 2>/dev/null)
     if [ "$CURRENT_PREFIX_MARKER" != "$EXPECTED_PREFIX_MARKER" ]; then
-        # One template prefix is pre-booted per *translator* (see setup_rootfs_runtime.sh's
+        # One template prefix is pre-booted per wine *package* (see setup_rootfs_runtime.sh's
         # BASE_ONLY path, which loops over every package games-runtime.properties's
-        # runtimePackages lists and dedupes by translator), not just Hangover's -- a Kron4ek
-        # box64-wine prefix and a Hangover prefix have incompatible ntdll/kernel32 layouts, so
-        # cloning the WRONG translator's template produced `wine: could not load kernel32.dll,
-        # status c000007b`. Two wine packages of the SAME translator (e.g. two box64-wine-*
-        # versions) do share one prefix, though -- that incompatibility is cross-architecture, not
-        # cross-wine-version. resolve_template_prefix_archive() (below, and by both other callers
-        # of this function) already resolves TEMPLATE_PREFIX_ARCHIVE to the template for *this*
-        # container's own WINE_PACKAGE specifically, so no further check is needed here: an
-        # empty/missing value simply means no template exists yet for this package (e.g. it was
-        # just added to the recipe and the base hasn't been rebuilt since, or it is a custom
-        # build), and this container falls back to a real wineboot.
+        # runtimePackages lists). Cloning another translator's template produced
+        # `wine: could not load kernel32.dll, status c000007b`, and another build's template of
+        # the same translator lacks PE stubs this build needs, hence the per-package key.
+        # resolve_template_prefix_archive() (below, and by both other callers of this function)
+        # resolves TEMPLATE_PREFIX_ARCHIVE to this container's own WINE_PACKAGE, so no further
+        # check is needed here: an empty/missing value means no template exists for this package
+        # (e.g. a custom build, or one added to the recipe after the base was built), and this
+        # container falls back to a real wineboot.
         if [ -n "$TEMPLATE_PREFIX_ARCHIVE" ] && [ -f "$TEMPLATE_PREFIX_ARCHIVE" ]; then
             # Clone a prefix that was already wineboot'd + FontLink'd once, during the shared base
             # build, instead of paying that cost again for every container. Only the
@@ -392,6 +389,10 @@ warmup_rootfs_prefix() {
             if [ "${CANCELLED:-0}" != 1 ]; then
                 mkdir -p "$PREFIX_MARKER_DIR"
                 printf '%s\n' "$EXPECTED_PREFIX_MARKER" > "$PREFIX_MARKER"
+                # This exact Wine build just created the prefix, so it is already current. Without
+                # this record the fallback below sees "no record" plus the stubs Wine never installs
+                # into a prefix (mono's, services.exe, ...) and runs a second, redundant wineboot -u.
+                printf '%s\n' "$WINE_PACKAGE" > "$PREFIX_MARKER_DIR/wine-dlls"
             fi
         fi
     fi

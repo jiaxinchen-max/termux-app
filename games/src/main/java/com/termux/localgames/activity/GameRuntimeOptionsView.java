@@ -1127,6 +1127,12 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             try {
                 profileRepository.save(toSave);
                 android.util.Log.d("GameRuntimeOptionsDebug", "profileRepository.save completed");
+                if (rootfs && !GameContainer.DEFAULT_ID.equals(toSave.getContainerId())) {
+                    // The setup task reads the Wine package from the container record, which would
+                    // otherwise keep the value from when the container was created and warm the
+                    // wrong package's prefix (leaving the real one to be built at launch).
+                    containerRepository.save(GameContainerFactory.fromProfile(toSave, paths));
+                }
                 String warmupTaskId = RuntimeWarmup.warm(getContext(), toSave);
                 if (saveGame) gameRepository.save(gameToSave);
                 post(() -> {
