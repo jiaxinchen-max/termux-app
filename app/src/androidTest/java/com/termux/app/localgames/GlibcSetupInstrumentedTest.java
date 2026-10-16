@@ -42,8 +42,8 @@ public class GlibcSetupInstrumentedTest {
     private static final String GAME_ID = "setup-smoke";
     private static final long TIMEOUT_MS = 12 * 60 * 1000;
     private static final String[] REQUIRED_COMPONENTS = {
-        "glibc-prefix", "scripts", "glibc_box64_0.2.7", "prefix-apps", "libudev",
-        "en-ru-locale", "virgl-mesa", "dxvk", "glibc_wine_9.3-vanilla"
+        "glibc_box64_0.2.7", "glibc_scripts_29", "glibc_prefix-apps_3",
+        "virgl-mesa", "dxvk", "glibc_wine_9.3-vanilla"
     };
 
     @Test

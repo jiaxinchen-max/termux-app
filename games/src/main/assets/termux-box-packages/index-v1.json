@@ -43,12 +43,32 @@
       "sha256": "bef12ae640dde59f1c34c145a55e2ca11c29b273c24429cc7ed6ca654a288bf0"
     },
     {
-      "id": "glibc_prefix-apps_2",
+      "id": "glibc_scripts_29",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Runtime Scripts",
+      "versionName": "v29",
+      "summary": "Launcher, environment and compatibility scripts with a pre-expanded base prefix overlay.",
+      "framework": "Termux GLIBC",
+      "base": true,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/glibc_scripts_29-v1/glibc_scripts_29.tar.xz",
+      "size": 12955572,
+      "sha256": "c6bd6c3a712f1657a7a0cdfac5af45cf7d7d0a1f042549ea05dfab69a62c26ef"
+    },
+    {
+      "id": "glibc_prefix-apps_3",
       "category": "runtime",
       "type": "general_component",
       "displayName": "Windows Common Components",
-      "versionName": "Mobox v2",
-      "summary": "Shared Windows prefix applications and the DirectX overlay, from Mobox.",
+      "versionName": "v3",
+      "summary": "Shared Windows prefix applications with a pre-expanded DirectX overlay.",
       "framework": "Wine Prefix",
       "base": true,
       "recommended": false,
@@ -58,9 +78,9 @@
         "glibc_termux_box"
       ],
       "version": 1,
-      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/glibc_prefix-apps_2-v1/glibc_prefix-apps_2.tar.xz",
-      "size": 101877952,
-      "sha256": "ac6f4ec638f27365a0fa03d305abc867b78f8599756b65de9e4ffa3716ed3b50"
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/glibc_prefix-apps_3-v1/glibc_prefix-apps_3.tar.xz",
+      "size": 119154216,
+      "sha256": "248d960f54f292496ed1b2f48ead53a5b0db697f8fc08d42a5f86e8ce9f22775"
     },
     {
       "id": "dxvk",

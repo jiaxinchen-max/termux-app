@@ -74,11 +74,11 @@ public class TermuxRuntimeComponentProbeTest {
         File files = temporary.newFolder("files");
         File installed = new File(files,
             "usr/glibc/opt/package-manager/installed");
-        write(new File(installed, "scripts"), "28\n");
+        write(new File(installed, "glibc_scripts_29"), "28\n");
         new File(files, "usr/glibc/opt/scripts").mkdirs();
         TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);
 
-        assertFalse(probe.isAvailable("scripts"));
+        assertFalse(probe.isAvailable("glibc_scripts_29"));
         assertFalse(probe.isAvailable("../scripts"));
     }
 

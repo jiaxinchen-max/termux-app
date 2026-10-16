@@ -77,12 +77,12 @@ final class TermuxRuntimeComponentProbe {
 
     private boolean hasRuntimeCapability(String componentId) {
         switch (componentId) {
-            case "scripts":
+            case "glibc_scripts_29":
                 return new File(glibcDirectory, "opt/scripts").isDirectory();
             case "glibc_box64_0.2.7":
             case "glibc_box64_0.4.4":
                 return nonEmpty(new File(glibcDirectory, "bin/box64"));
-            case "glibc_prefix-apps_2":
+            case "glibc_prefix-apps_3":
                 return new File(glibcDirectory, "opt/prefix").isDirectory();
             case "libudev":
                 return nonEmpty(new File(glibcDirectory, "lib/libudev.so.1"));

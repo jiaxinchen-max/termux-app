@@ -1079,7 +1079,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 return getString(R.string.local_games_component_summary_wined3d);
             case "glibc_box64_0.2.7":
                 return getString(R.string.local_games_component_summary_box64);
-            case "glibc_prefix-apps_2":
+            case "glibc_prefix-apps_3":
                 return getString(R.string.local_games_component_summary_prefix_apps);
             case "libudev":
                 return getString(R.string.local_games_component_summary_libudev);
@@ -1087,7 +1087,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 return getString(R.string.local_games_component_summary_locale);
             case "termux-glibc":
                 return getString(R.string.local_games_component_summary_glibc);
-            case "scripts":
+            case "glibc_scripts_29":
                 return getString(R.string.local_games_component_summary_scripts);
             default:
                 return descriptor.getType() == ComponentType.CONTAINER

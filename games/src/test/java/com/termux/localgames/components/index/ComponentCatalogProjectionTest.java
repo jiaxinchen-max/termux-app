@@ -51,7 +51,8 @@ public class ComponentCatalogProjectionTest {
             index.find("glibc_box64_0.4.4").get().getDisplayName());
         assertEquals(ComponentType.RUNTIME_SUPPORT,
             index.find("rootfs_hangover_11.16").get().getType());
-        assertFalse(index.find("scripts").isPresent());
+        assertEquals(ComponentType.RUNTIME_SUPPORT,
+            index.find("glibc_scripts_29").get().getType());
         assertFalse(index.find("termux-glibc").isPresent());
     }
 
@@ -112,7 +113,7 @@ public class ComponentCatalogProjectionTest {
     public void prefixAppsStaysOneArchiveInsteadOfFakeMembers() throws Exception {
         ComponentIndex index = bundledIndex();
         assertEquals(ComponentType.GENERAL_COMPONENT,
-            index.find("glibc_prefix-apps_2").get().getType());
+            index.find("glibc_prefix-apps_3").get().getType());
         assertFalse(index.find("prefix-apps").isPresent());
         assertFalse(index.find("mono").isPresent());
         assertFalse(index.find("gecko").isPresent());
