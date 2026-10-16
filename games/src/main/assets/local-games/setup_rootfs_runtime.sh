@@ -196,6 +196,9 @@ BUILD_ROOTFS="$BUILD_DIRECTORY/rootfs"
 #    rootfs itself which only ever has the one live copy).
 TEMPLATE_CACHE_DIR="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-template-cache"
 TEMPLATE_RECIPE="$TEMPLATE_CACHE_DIR/games-rootfs-base.recipe"
+# The recipe record below is written before anything else creates this directory, so a fresh
+# install (no cache yet) would otherwise fail its first build at the very last step.
+mkdir -p "$TEMPLATE_CACHE_DIR" || fail template_cache_directory_failed 70
 if command -v zstd >/dev/null 2>&1; then
     TEMPLATE_COMPRESSOR=zstd
     TEMPLATE_PREFIX_EXT=zst
@@ -269,7 +272,6 @@ printf '{"schemaVersion":1,"taskId":"%s","state":"BUILDING"}\n' "$TASK_ID" >> "$
 runtime_complete() {
     root=$1
     [ -x "$root/usr/bin/env" ] &&
-        [ -x "$root/opt/box64/rootfs_box64_0.4.5/bin/box64" ] &&
         [ -x "$root/opt/box64/rootfs_box64_0.4.5/bin/box64" ] &&
         [ -x "$root/usr/bin/wine" ] &&
         [ -x "$root/usr/bin/wineboot" ] &&

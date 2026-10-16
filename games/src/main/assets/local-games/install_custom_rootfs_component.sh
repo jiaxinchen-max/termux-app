@@ -140,7 +140,6 @@ runtime_complete() {
     root=$1
     [ -x "$root/usr/bin/env" ] &&
         [ -x "$root/opt/box64/rootfs_box64_0.4.5/bin/box64" ] &&
-        [ -x "$root/opt/box64/rootfs_box64_0.4.5/bin/box64" ] &&
         [ -x "$root/usr/bin/wine" ] &&
         [ -x "$root/usr/bin/wineboot" ] &&
         [ -f "$root/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" ] &&

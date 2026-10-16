@@ -146,7 +146,6 @@ rm -rf /var/lib/apt/lists/*
 
 test -x /usr/bin/env
 test -x /opt/box64/rootfs_box64_0.4.5/bin/box64
-test -x /opt/box64/rootfs_box64_0.4.5/bin/box64
 test -x /usr/bin/wine
 test -x /usr/bin/wineboot
 test -x /opt/box64-wine/bin/wine

@@ -49,7 +49,6 @@ public final class RuntimeEnvironmentStatus {
         File root = paths.getSharedRootfsDirectory();
         boolean complete = new File(root, "usr/bin/env").canExecute() &&
             new File(root, "opt/box64/rootfs_box64_0.4.5/bin/box64").canExecute() &&
-            new File(root, "opt/box64/rootfs_box64_0.4.5/bin/box64").canExecute() &&
             new File(root, "usr/bin/wine").canExecute() &&
             new File(root, "usr/bin/wineboot").canExecute() &&
             new File(root, "usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc").isFile() &&
