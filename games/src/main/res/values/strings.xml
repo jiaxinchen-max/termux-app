@@ -8,8 +8,6 @@
     <string name="local_games_import_hero_action">Import game</string>
     <string name="local_games_components_title">PC engine components</string>
     <string name="local_games_settings_title">Settings</string>
-    <string name="local_games_settings_mode_section">DEFAULT MODE</string>
-    <string name="local_games_settings_terminal_section">TERMINAL</string>
     <string name="local_games_runtime_label">Execution environment</string>
     <string name="local_games_reset_title">Resetting game runtime</string>
     <string name="local_games_reset_in_progress">Reset in progress…</string>
@@ -405,11 +403,9 @@
     <string name="local_game_session_keyboard_summary">Open the system soft keyboard without leaving the game.</string>
     <string name="local_game_session_keyboard_open">Open keyboard</string>
     <string name="local_game_action_engine">Engine</string>
-    <string name="local_games_settings_environment_section">ENVIRONMENTS</string>
     <string name="local_games_settings_native_environment">Native Environment</string>
     <string name="local_games_settings_proot_environment">Proot Environment</string>
     <string name="local_games_settings_orientation">Orientation</string>
-    <string name="local_games_settings_entry_status">%1$s · %2$s</string>
     <string name="local_games_environment_state_ready">Ready</string>
     <string name="local_games_environment_state_incomplete">Incomplete</string>
     <string name="local_games_environment_state_not_installed">Not installed</string>
@@ -424,4 +420,12 @@
     <string name="local_games_orientation_vertical">Vertical</string>
     <string name="local_games_orientation_horizontal">Horizontal</string>
     <string name="local_games_orientation_auto">Auto</string>
+    <string name="local_games_settings_status">Status</string>
+    <string name="local_games_environment_state_checking">Checking…</string>
+    <string name="local_games_environment_build_summary_install">Download and install it</string>
+    <string name="local_games_environment_build_summary_rebuild">Remove it, then download and install it again</string>
+    <string name="local_games_environment_native_restore_summary">Choose a backup file to restore from</string>
+    <string name="local_games_environment_native_backup_summary">Save it to a file you choose</string>
+    <string name="local_games_environment_proot_restore_summary">Restore the saved backup (%1$s)</string>
+    <string name="local_games_environment_proot_backup_summary">Save a backup to %1$s</string>
 </resources>

@@ -23,6 +23,7 @@ import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -59,6 +60,7 @@ import com.termux.localgames.data.GameLibraryItem;
 import com.termux.localgames.data.GameLibraryRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.data.OrientationPreference;
+import com.termux.localgames.data.SettingsPage;
 import com.termux.localgames.databinding.ActivityLocalGamesBinding;
 import com.termux.localgames.databinding.DialogGameActionsBinding;
 import com.termux.localgames.databinding.DialogGameLaunchBinding;
@@ -108,6 +110,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private static final String INDEX_ASSET = "termux-box-packages/index-v1.json";
     private static final String TERMUX_GLIBC_ID = "termux-glibc";
     private static final String STATE_SELECTED_TAB = "local_games.selected_tab";
+    private static final String STATE_SETTINGS_PAGE = "local_games.settings_page";
     private static final int TAB_LIBRARY = 0;
     private static final int TAB_COMPONENTS = 1;
     private static final int TAB_SETTINGS = 2;
@@ -153,6 +156,12 @@ public final class LocalGamesActivity extends AppCompatActivity {
         new ArrayList<>();
     private RuntimeSetupTask latestRuntimeSetupTask;
     private boolean rootfsRuntimeInstalled;
+    /** Which menu level the Settings page shows, and the environment states its rows display
+     *  (null until the first background check has finished). */
+    private SettingsPage settingsPage = SettingsPage.ROOT;
+    @Nullable private RuntimeReadinessState glibcStatus;
+    @Nullable private RuntimeReadinessState rootfsStatus;
+    private OnBackPressedCallback settingsBackCallback;
     @Nullable private String componentGameId;
     @Nullable private String componentContainerId;
     @Nullable private GameRuntimeBackendType componentBackend;
@@ -181,8 +190,13 @@ public final class LocalGamesActivity extends AppCompatActivity {
             ? (!TextUtils.isEmpty(componentGameId)
                 ? TAB_COMPONENTS : TAB_LIBRARY)
             : savedInstanceState.getInt(STATE_SELECTED_TAB, TAB_LIBRARY);
+        // Applied after the initial showPage() below: selecting the library item first runs
+        // showPage(TAB_LIBRARY), which resets the Settings level.
+        SettingsPage restoredSettingsPage = savedInstanceState == null ? SettingsPage.ROOT
+            : SettingsPage.fromOrdinal(savedInstanceState.getInt(STATE_SETTINGS_PAGE, 0));
         binding.localGamesToolbar.setNavigationOnClickListener(view -> {
-            if (selectedTab == TAB_LIBRARY) finish();
+            if (selectedTab == TAB_SETTINGS && !settingsPage.isRoot()) goBackInSettings();
+            else if (selectedTab == TAB_LIBRARY) finish();
             else showPage(TAB_LIBRARY);
         });
         binding.localGamesToolbar.setOnMenuItemClickListener(item -> {
@@ -204,7 +218,15 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding.localGamesComponentTaskConsole.setOnClickListener(view ->
             showActiveInstallationConsole());
         binding.localGamesSettingsButton.setOnClickListener(view -> showPage(TAB_SETTINGS));
-        configureEnvironmentSettings();
+        // Back from a second-level Settings page returns to the first level; everywhere else the
+        // callback is disabled and back behaves as before.
+        settingsBackCallback = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackPressed() {
+                goBackInSettings();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, settingsBackCallback);
         binding.localGamesNavigation.setOnItemSelectedListener(item -> {
             if (item.getItemId() == R.id.local_games_navigation_import) {
                 startImportFlow();
@@ -227,6 +249,9 @@ public final class LocalGamesActivity extends AppCompatActivity {
         int initialPage = selectedTab;
         binding.localGamesNavigation.setSelectedItemId(R.id.local_games_navigation_library);
         showPage(initialPage);
+        if (initialPage == TAB_SETTINGS && !restoredSettingsPage.isRoot()) {
+            openSettingsPage(restoredSettingsPage);
+        }
         ResetTasks.reconcileAll(this);
         RootfsBackupTasks.reconcileAll(this);
         renderRuntimeStatus();
@@ -321,6 +346,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         outState.putInt(STATE_SELECTED_TAB, selectedTab);
+        outState.putInt(STATE_SETTINGS_PAGE, settingsPage.ordinal());
         super.onSaveInstanceState(outState);
     }
 
@@ -375,6 +401,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         if (tab == TAB_COMPONENTS && TextUtils.isEmpty(componentGameId)) tab = TAB_LIBRARY;
         selectedTab = tab == TAB_COMPONENTS ? TAB_COMPONENTS :
             (tab == TAB_SETTINGS ? TAB_SETTINGS : TAB_LIBRARY);
+        if (selectedTab != TAB_SETTINGS) settingsPage = SettingsPage.ROOT;
         boolean showComponents = selectedTab == TAB_COMPONENTS;
         boolean showSettings = selectedTab == TAB_SETTINGS;
         binding.localGamesLibraryPage.setVisibility(
@@ -382,6 +409,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding.localGamesComponentsPage.setVisibility(showComponents ? View.VISIBLE : View.GONE);
         binding.localGamesSettingsPage.setVisibility(showSettings ? View.VISIBLE : View.GONE);
         updateChrome();
+        updateSettingsBackCallback();
         if (showComponents && started) scheduleCatalogRefresh(0);
         else if (showSettings) renderAppExperience();
         else if (started) loadLibraryAsync();
@@ -399,7 +427,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         if (selectedTab == TAB_COMPONENTS) {
             binding.localGamesToolbar.setTitle(R.string.local_games_tab_components);
         } else if (selectedTab == TAB_SETTINGS) {
-            binding.localGamesToolbar.setTitle(R.string.local_games_settings_title);
+            binding.localGamesToolbar.setTitle(settingsPageTitle(settingsPage));
         } else {
             binding.localGamesToolbar.setTitle(R.string.local_games_title);
         }
@@ -422,25 +450,16 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void initializeAppExperience() {
         try {
             appHost = LocalGames.requireHost(this);
-            binding.localGamesAppModeTerminal.setOnClickListener(view ->
-                confirmAppExperienceSwitch(AppExperienceMode.TERMINAL));
-            binding.localGamesAppModeGames.setOnClickListener(view ->
-                confirmAppExperienceSwitch(AppExperienceMode.GAMES));
-            binding.localGamesOpenTerminal.setOnClickListener(view -> appHost.openTerminal());
-            renderAppExperience();
-            updateChrome();
         } catch (RuntimeException error) {
             appHost = null;
-            binding.localGamesAppModeGroup.setEnabled(false);
-            binding.localGamesOpenTerminal.setEnabled(false);
         }
+        renderAppExperience();
+        updateChrome();
     }
 
+    /** The default mode is shown on the Settings menu; re-render it from the host's current mode. */
     private void renderAppExperience() {
-        if (binding == null || appHost == null) return;
-        AppExperienceMode mode = appHost.getAppExperienceMode();
-        binding.localGamesAppModeGroup.check(mode == AppExperienceMode.GAMES
-            ? R.id.local_games_app_mode_games : R.id.local_games_app_mode_terminal);
+        renderSettingsMenu();
     }
 
     private void confirmAppExperienceSwitch(AppExperienceMode target) {
@@ -1376,7 +1395,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
             startActivity(LocalGames.createFileManagerIntent(this)));
     }
 
-    /** Refreshes the readiness shown on the Native / Proot Environment entries in Settings. */
+    /** Refreshes the readiness shown on the Native / Proot Environment rows in Settings. */
     private void renderRuntimeStatus() {
         libraryExecutor.execute(() -> {
             GameStoragePaths paths = new GameStoragePaths(getFilesDir());
@@ -1387,25 +1406,20 @@ public final class LocalGamesActivity extends AppCompatActivity {
             mainHandler.post(() -> {
                 if (binding == null) return;
                 // A running reset reads as "incomplete" even if the files are not gone yet.
-                RuntimeReadinessState glibcVisual = activeGlibcReset != null
-                    ? RuntimeReadinessState.INCOMPLETE : glibcState;
-                binding.localGamesSettingsNative.setText(environmentEntryText(
-                    R.string.local_games_settings_native_environment, glibcVisual));
-                binding.localGamesSettingsProot.setText(environmentEntryText(
-                    R.string.local_games_settings_proot_environment, rootfsState));
+                glibcStatus = activeGlibcReset != null ? RuntimeReadinessState.INCOMPLETE : glibcState;
+                rootfsStatus = rootfsState;
+                renderSettingsMenu();
             });
         });
     }
 
-    private String environmentEntryText(int nameRes, RuntimeReadinessState state) {
-        int stateRes;
+    private String environmentStateLabel(@Nullable RuntimeReadinessState state) {
+        if (state == null) return getString(R.string.local_games_environment_state_checking);
         switch (state) {
-            case READY: stateRes = R.string.local_games_environment_state_ready; break;
-            case INCOMPLETE: stateRes = R.string.local_games_environment_state_incomplete; break;
-            default: stateRes = R.string.local_games_environment_state_not_installed; break;
+            case READY: return getString(R.string.local_games_environment_state_ready);
+            case INCOMPLETE: return getString(R.string.local_games_environment_state_incomplete);
+            default: return getString(R.string.local_games_environment_state_not_installed);
         }
-        return getString(R.string.local_games_settings_entry_status, getString(nameRes),
-            getString(stateRes));
     }
 
     private interface ReadinessAction {
@@ -1425,36 +1439,104 @@ public final class LocalGamesActivity extends AppCompatActivity {
         });
     }
 
-    // ---- Settings: Native Environment, Proot Environment, Orientation ----
+    // ---- Settings menu: first level and the Native / Proot Environment pages ----
 
-    private void configureEnvironmentSettings() {
-        binding.localGamesSettingsNative.setOnClickListener(view -> showEnvironmentMenu(
-            R.string.local_games_settings_native_environment, this::buildNativeFromNetwork,
-            this::restoreNativeFromFile, this::backupNativeToFile));
-        binding.localGamesSettingsProot.setOnClickListener(view -> showEnvironmentMenu(
-            R.string.local_games_settings_proot_environment, this::buildProotFromNetwork,
-            this::restoreProotFromFile, this::backupProotToFile));
-        binding.localGamesSettingsOrientation.setOnClickListener(view -> showOrientationMenu());
-        renderOrientationEntry();
+    private String settingsPageTitle(SettingsPage page) {
+        switch (page) {
+            case NATIVE: return getString(R.string.local_games_settings_native_environment);
+            case PROOT: return getString(R.string.local_games_settings_proot_environment);
+            default: return getString(R.string.local_games_settings_title);
+        }
     }
 
-    /** The three actions every environment offers, in the order the Settings design lists them. */
-    private void showEnvironmentMenu(int titleRes, Runnable buildFromNetwork,
-                                     Runnable restoreFromFile, Runnable backupToFile) {
-        CharSequence[] actions = {
-            getString(R.string.local_games_environment_build_from_network),
-            getString(R.string.local_games_environment_restore_from_file),
-            getString(R.string.local_games_environment_backup_to_file)
-        };
-        new MaterialAlertDialogBuilder(this)
-            .setTitle(titleRes)
-            .setItems(actions, (dialog, which) -> {
-                if (which == 0) buildFromNetwork.run();
-                else if (which == 1) restoreFromFile.run();
-                else backupToFile.run();
-            })
-            .setNegativeButton(android.R.string.cancel, null)
-            .show();
+    private void updateSettingsBackCallback() {
+        if (settingsBackCallback != null) {
+            settingsBackCallback.setEnabled(selectedTab == TAB_SETTINGS && !settingsPage.isRoot());
+        }
+    }
+
+    private void openSettingsPage(SettingsPage page) {
+        settingsPage = page;
+        renderSettingsMenu();
+        updateChrome();
+        updateSettingsBackCallback();
+    }
+
+    private void goBackInSettings() {
+        SettingsPage parent = settingsPage.parent();
+        if (parent != null) openSettingsPage(parent);
+    }
+
+    private void renderSettingsMenu() {
+        if (binding == null) return;
+        SettingsMenuBuilder menu = new SettingsMenuBuilder(this, binding.localGamesSettingsMenu);
+        menu.heading(settingsPageTitle(settingsPage));
+        switch (settingsPage) {
+            case NATIVE:
+                renderEnvironmentPage(menu, glibcStatus,
+                    getString(R.string.local_games_environment_native_restore_summary),
+                    getString(R.string.local_games_environment_native_backup_summary),
+                    this::buildNativeFromNetwork, this::restoreNativeFromFile, this::backupNativeToFile);
+                break;
+            case PROOT:
+                String backupPath = new GameStoragePaths(getFilesDir()).getExternalBackupFile().getPath();
+                renderEnvironmentPage(menu, rootfsStatus,
+                    getString(R.string.local_games_environment_proot_restore_summary, backupPath),
+                    getString(R.string.local_games_environment_proot_backup_summary, backupPath),
+                    this::buildProotFromNetwork, this::restoreProotFromFile, this::backupProotToFile);
+                break;
+            default:
+                renderSettingsRoot(menu);
+                break;
+        }
+    }
+
+    private void renderSettingsRoot(SettingsMenuBuilder menu) {
+        String modeTitle = getString(R.string.local_games_app_mode_title);
+        String terminalTitle = getString(R.string.local_games_open_terminal);
+        if (appHost != null) {
+            String[] modes = {getString(R.string.local_games_app_mode_terminal),
+                getString(R.string.local_games_app_mode_games)};
+            int checked = appHost.getAppExperienceMode() == AppExperienceMode.GAMES ? 1 : 0;
+            menu.choice(modeTitle, modes, checked, which -> confirmAppExperienceSwitch(
+                which == 1 ? AppExperienceMode.GAMES : AppExperienceMode.TERMINAL));
+            menu.row(terminalTitle, null, view -> appHost.openTerminal());
+        } else {
+            menu.row(modeTitle, null, null);
+            menu.row(terminalTitle, null, null);
+        }
+        menu.row(getString(R.string.local_games_settings_native_environment),
+            environmentStateLabel(glibcStatus), view -> openSettingsPage(SettingsPage.NATIVE));
+        menu.row(getString(R.string.local_games_settings_proot_environment),
+            environmentStateLabel(rootfsStatus), view -> openSettingsPage(SettingsPage.PROOT));
+        OrientationPreference[] choices = OrientationPreference.values();
+        String[] labels = new String[choices.length];
+        for (int index = 0; index < choices.length; index++) labels[index] = orientationLabel(choices[index]);
+        menu.choice(getString(R.string.local_games_settings_orientation), labels,
+            OrientationPreference.load(this).ordinal(), which -> {
+                choices[which].save(this);
+                renderSettingsMenu();
+                // Changing the requested orientation may recreate this Activity; the choice is
+                // already stored, so onCreate applies it again.
+                setRequestedOrientation(choices[which].getRequestedOrientation());
+            });
+    }
+
+    /** The second-level page every environment shares: its status and the three actions. */
+    private void renderEnvironmentPage(SettingsMenuBuilder menu, @Nullable RuntimeReadinessState state,
+                                       String restoreSummary, String backupSummary,
+                                       Runnable buildFromNetwork, Runnable restoreFromFile,
+                                       Runnable backupToFile) {
+        menu.row(getString(R.string.local_games_settings_status), environmentStateLabel(state), null);
+        menu.row(getString(R.string.local_games_environment_build_from_network),
+            getString(state == RuntimeReadinessState.NOT_READY
+                ? R.string.local_games_environment_build_summary_install
+                : R.string.local_games_environment_build_summary_rebuild),
+            view -> buildFromNetwork.run());
+        menu.row(getString(R.string.local_games_environment_restore_from_file), restoreSummary,
+            view -> restoreFromFile.run());
+        menu.row(getString(R.string.local_games_environment_backup_to_file), backupSummary,
+            view -> backupToFile.run());
     }
 
     private void buildNativeFromNetwork() {
@@ -1532,38 +1614,12 @@ public final class LocalGamesActivity extends AppCompatActivity {
         confirmBackupCreate();
     }
 
-    private void renderOrientationEntry() {
-        binding.localGamesSettingsOrientation.setText(getString(
-            R.string.local_games_settings_entry_status,
-            getString(R.string.local_games_settings_orientation),
-            orientationLabel(OrientationPreference.load(this))));
-    }
-
     private String orientationLabel(OrientationPreference choice) {
         switch (choice) {
             case VERTICAL: return getString(R.string.local_games_orientation_vertical);
             case HORIZONTAL: return getString(R.string.local_games_orientation_horizontal);
             default: return getString(R.string.local_games_orientation_auto);
         }
-    }
-
-    private void showOrientationMenu() {
-        OrientationPreference[] choices = OrientationPreference.values();
-        CharSequence[] labels = new CharSequence[choices.length];
-        for (int index = 0; index < choices.length; index++) labels[index] = orientationLabel(choices[index]);
-        new MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.local_games_settings_orientation)
-            .setSingleChoiceItems(labels, OrientationPreference.load(this).ordinal(),
-                (dialog, which) -> {
-                    dialog.dismiss();
-                    choices[which].save(this);
-                    renderOrientationEntry();
-                    // Changing the requested orientation may recreate this Activity; the choice is
-                    // already stored, so onCreate applies it again.
-                    setRequestedOrientation(choices[which].getRequestedOrientation());
-                })
-            .setNegativeButton(android.R.string.cancel, null)
-            .show();
     }
 
     /** Triggers the same shared termux-glibc-runtime component install used by the per-game

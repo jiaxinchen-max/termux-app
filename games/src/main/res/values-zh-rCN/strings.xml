@@ -8,8 +8,6 @@
     <string name="local_games_import_hero_action">导入游戏</string>
     <string name="local_games_components_title">PC 引擎组件</string>
     <string name="local_games_settings_title">设置</string>
-    <string name="local_games_settings_mode_section">默认模式</string>
-    <string name="local_games_settings_terminal_section">终端</string>
     <string name="local_games_runtime_label">运行环境</string>
     <string name="local_games_reset_title">正在重置游戏运行环境</string>
     <string name="local_games_reset_in_progress">正在重置…</string>
@@ -357,7 +355,6 @@
     <string name="local_game_session_keyboard_summary">不离开游戏，直接打开系统软键盘。</string>
     <string name="local_game_session_keyboard_open">打开键盘</string>
     <string name="local_game_action_engine">引擎</string>
-    <string name="local_games_settings_environment_section">运行环境</string>
     <string name="local_games_settings_native_environment">Native 环境</string>
     <string name="local_games_settings_proot_environment">Proot 环境</string>
     <string name="local_games_settings_orientation">屏幕方向</string>
@@ -375,4 +372,12 @@
     <string name="local_games_orientation_vertical">竖屏</string>
     <string name="local_games_orientation_horizontal">横屏</string>
     <string name="local_games_orientation_auto">自动</string>
+    <string name="local_games_settings_status">状态</string>
+    <string name="local_games_environment_state_checking">检查中…</string>
+    <string name="local_games_environment_build_summary_install">下载并安装</string>
+    <string name="local_games_environment_build_summary_rebuild">先移除，再重新下载并安装</string>
+    <string name="local_games_environment_native_restore_summary">选择备份文件进行恢复</string>
+    <string name="local_games_environment_native_backup_summary">保存到你选择的文件</string>
+    <string name="local_games_environment_proot_restore_summary">从已保存的备份恢复（%1$s）</string>
+    <string name="local_games_environment_proot_backup_summary">备份到 %1$s</string>
 </resources>
