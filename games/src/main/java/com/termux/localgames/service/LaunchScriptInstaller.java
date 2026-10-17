@@ -22,6 +22,8 @@ public final class LaunchScriptInstaller {
 
     private static final String BOOTSTRAP_ASSET = "bootstrap_termux_box.sh";
     private static final String PREFIX_SETUP_ASSET = "local-games/setup_glibc_prefix.sh";
+    /** Fonts + locale initialisation shared by bootstrap_termux_box.sh (setup time) and the launcher. */
+    private static final String PREFIX_EXTRAS_ASSET = "local-games/glibc_prefix_extras.sh";
     private static final String TERMUX_GLIBC_INSTALL_ASSET =
         "local-games/install_termux_glibc_runtime.sh";
     private static final String TERMUX_GLIBC_RESET_ASSET =
@@ -61,6 +63,8 @@ public final class LaunchScriptInstaller {
             installAsset(BOOTSTRAP_ASSET, new File(runtimeDirectory, "bootstrap_termux_box.sh"));
             installAsset(PREFIX_SETUP_ASSET,
                 new File(runtimeDirectory, "setup_glibc_prefix.sh"));
+            installAsset(PREFIX_EXTRAS_ASSET,
+                new File(runtimeDirectory, "glibc_prefix_extras.sh"));
         } else if (backend instanceof RootfsProotBackend) {
             // Co-located with start_rootfs_game.sh itself (same runtimeDirectory), so that
             // script can source it via a path relative to its own install location with no new

@@ -60,6 +60,26 @@ run_with_affinity() {
     "$@"
 }
 
+# ---- One-time game extras (CJK fonts + FontLink, zh_CN locales) ----
+# Done here, while the game is imported or its options are saved, so that launching never has to. The
+# functions live in glibc_prefix_extras.sh next to this script; they need a run_container_wine that runs the
+# prefix's own wine (called by its real path: $GLIBC_BIN/wine may still point at a previous build here).
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+[ ! -f "$SCRIPT_DIR/glibc_prefix_extras.sh" ] || . "$SCRIPT_DIR/glibc_prefix_extras.sh"
+run_container_wine() {
+    WINEDLLOVERRIDES="winegstreamer,mscoree=d" \
+        run_with_affinity "$GLIBC_BIN/box64" "$WINE_PATH/bin/wine" "$@"
+}
+prepare_game_extras() {
+    command -v ensure_games_wine_fonts >/dev/null 2>&1 || return 0
+    unset LD_PRELOAD
+    export GAMES_WINESERVER_BIN="$WINE_PATH/bin/wineserver"
+    TERMUX_BOX_RUN_DIR="$TERMUX_BOX_ROOT/run"
+    mkdir -p "$TERMUX_BOX_RUN_DIR"
+    ensure_games_wine_fonts || { echo "ERROR: Game font setup failed."; exit 1; }
+    ensure_games_cjk_locale
+}
+
 # ---- 1. Source container.conf (mandatory) ----
 echo "[bootstrap] Loading configuration..."
 . "$CONTAINER_CONF"
@@ -155,9 +175,11 @@ if [ -e "$WINEPREFIX/.termux-box-bootstrap-done" ]; then
     if [ -z "$INSTALLED_RUNTIME" ]; then
         printf '%s\n' "$TERMUX_BOX_WINE_PACKAGE" > "$WINEPREFIX/.termux-box-wine-package"
         echo "[bootstrap] Prefix already initialized, skipping."
+        prepare_game_extras
         exit 0
     elif [ "$INSTALLED_RUNTIME" = "$TERMUX_BOX_WINE_PACKAGE" ]; then
         echo "[bootstrap] Prefix already initialized, skipping."
+        prepare_game_extras
         exit 0
     fi
     # Keep the prefix (installed games, saves) and let wineboot -u migrate it to the new runtime.
@@ -451,6 +473,8 @@ fi
 touch "$WINEPREFIX/termux-boxmeta/fonts-fix-applied"
 touch "$WINEPREFIX/termux-boxmeta/dxdlls-fix-applied"
 
+# A failure here leaves the prefix unmarked, so the setup is retried instead of being left half-done.
+prepare_game_extras
 printf '%s\n' "$TERMUX_BOX_WINE_PACKAGE" > "$WINEPREFIX/.termux-box-wine-package"
 touch "$WINEPREFIX/.termux-box-bootstrap-done"
 echo "[bootstrap] Container '$CONTAINER_NAME' initialization complete."
