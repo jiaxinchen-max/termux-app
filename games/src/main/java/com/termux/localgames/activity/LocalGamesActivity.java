@@ -2,7 +2,6 @@ package com.termux.localgames.activity;
 
 import android.app.Dialog;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -59,6 +58,7 @@ import com.termux.localgames.data.GameAccessState;
 import com.termux.localgames.data.GameLibraryItem;
 import com.termux.localgames.data.GameLibraryRepository;
 import com.termux.localgames.data.GameStoragePaths;
+import com.termux.localgames.data.OrientationPreference;
 import com.termux.localgames.databinding.ActivityLocalGamesBinding;
 import com.termux.localgames.databinding.DialogGameActionsBinding;
 import com.termux.localgames.databinding.DialogGameLaunchBinding;
@@ -84,6 +84,7 @@ import com.termux.localgames.recovery.GameUninstallPlan;
 import com.termux.localgames.recovery.GameUninstaller;
 import com.termux.shared.android.PermissionUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -152,8 +153,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
         new ArrayList<>();
     private RuntimeSetupTask latestRuntimeSetupTask;
     private boolean rootfsRuntimeInstalled;
-    @Nullable private android.animation.ObjectAnimator glibcBladeBreathAnimator;
-    @Nullable private android.animation.ObjectAnimator containerBladeBreathAnimator;
     @Nullable private String componentGameId;
     @Nullable private String componentContainerId;
     @Nullable private GameRuntimeBackendType componentBackend;
@@ -172,6 +171,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setRequestedOrientation(OrientationPreference.load(this).getRequestedOrientation());
         binding = ActivityLocalGamesBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         configureResponsiveLibrary();
@@ -204,8 +204,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding.localGamesComponentTaskConsole.setOnClickListener(view ->
             showActiveInstallationConsole());
         binding.localGamesSettingsButton.setOnClickListener(view -> showPage(TAB_SETTINGS));
-        binding.localGamesBackupCreate.setOnClickListener(view -> confirmBackupCreate());
-        configureOrientationButton();
+        configureEnvironmentSettings();
         binding.localGamesNavigation.setOnItemSelectedListener(item -> {
             if (item.getItemId() == R.id.local_games_navigation_import) {
                 startImportFlow();
@@ -269,7 +268,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         // A reset runs behind RuntimeSetupConsoleDialog and control returns here once it
-        // finishes -- re-check both environments so the emblem reflects the new state.
+        // finishes -- re-check both environments so the Settings entries show the new state.
         renderRuntimeStatus();
     }
 
@@ -362,17 +361,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
             binding.localGamesEmptyState);
         binding.localGamesLibraryContent.addView(binding.localGamesShortcuts,
             Math.max(0, emptyIndex), params);
-    }
-
-    private void configureOrientationButton() {
-        boolean landscape = getResources().getConfiguration().orientation ==
-            Configuration.ORIENTATION_LANDSCAPE;
-        binding.localGamesRuntimeEmblem.localGamesEmblemHubTap.setContentDescription(getString(
-            landscape ? R.string.local_games_switch_portrait_description
-                : R.string.local_games_switch_landscape_description));
-        binding.localGamesRuntimeEmblem.localGamesEmblemHubTap.setOnClickListener(view ->
-            setRequestedOrientation(landscape ? ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                : ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE));
     }
 
     private void initializeLibrary() {
@@ -1388,6 +1376,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
             startActivity(LocalGames.createFileManagerIntent(this)));
     }
 
+    /** Refreshes the readiness shown on the Native / Proot Environment entries in Settings. */
     private void renderRuntimeStatus() {
         libraryExecutor.execute(() -> {
             GameStoragePaths paths = new GameStoragePaths(getFilesDir());
@@ -1397,26 +1386,184 @@ public final class LocalGamesActivity extends AppCompatActivity {
             ResetTask activeGlibcReset = findActiveResetTask(paths, ResetTarget.GLIBC);
             mainHandler.post(() -> {
                 if (binding == null) return;
+                // A running reset reads as "incomplete" even if the files are not gone yet.
                 RuntimeReadinessState glibcVisual = activeGlibcReset != null
                     ? RuntimeReadinessState.INCOMPLETE : glibcState;
-                glibcBladeBreathAnimator = applyBladeState(
-                    binding.localGamesRuntimeEmblem.localGamesEmblemGlibcBlade,
-                    binding.localGamesRuntimeEmblem.localGamesEmblemGlibcIcon,
-                    glibcVisual, glibcBladeBreathAnimator);
-                containerBladeBreathAnimator = applyBladeState(
-                    binding.localGamesRuntimeEmblem.localGamesEmblemContainerBlade,
-                    binding.localGamesRuntimeEmblem.localGamesEmblemContainerIcon,
-                    rootfsState, containerBladeBreathAnimator);
-                binding.localGamesRuntimeEmblem.localGamesEmblemGlibcTap.setOnClickListener(view -> {
-                    if (glibcState == RuntimeReadinessState.NOT_READY) confirmGlibcInstall();
-                    else confirmReset(ResetTarget.GLIBC, null);
-                });
-                binding.localGamesRuntimeEmblem.localGamesEmblemContainerTap.setOnClickListener(view -> {
-                    if (rootfsState == RuntimeReadinessState.NOT_READY) confirmRootfsInstall();
-                    else confirmRootfsRebuild();
-                });
+                binding.localGamesSettingsNative.setText(environmentEntryText(
+                    R.string.local_games_settings_native_environment, glibcVisual));
+                binding.localGamesSettingsProot.setText(environmentEntryText(
+                    R.string.local_games_settings_proot_environment, rootfsState));
             });
         });
+    }
+
+    private String environmentEntryText(int nameRes, RuntimeReadinessState state) {
+        int stateRes;
+        switch (state) {
+            case READY: stateRes = R.string.local_games_environment_state_ready; break;
+            case INCOMPLETE: stateRes = R.string.local_games_environment_state_incomplete; break;
+            default: stateRes = R.string.local_games_environment_state_not_installed; break;
+        }
+        return getString(R.string.local_games_settings_entry_status, getString(nameRes),
+            getString(stateRes));
+    }
+
+    private interface ReadinessAction {
+        void run(RuntimeReadinessState glibc, RuntimeReadinessState rootfs);
+    }
+
+    /** Reads both environments' readiness off the main thread, then runs {@code action} on it. */
+    private void withReadiness(ReadinessAction action) {
+        libraryExecutor.execute(() -> {
+            RuntimeEnvironmentStatus status =
+                new RuntimeEnvironmentStatus(new GameStoragePaths(getFilesDir()));
+            RuntimeReadinessState glibc = status.glibcState();
+            RuntimeReadinessState rootfs = status.rootfsState();
+            mainHandler.post(() -> {
+                if (binding != null) action.run(glibc, rootfs);
+            });
+        });
+    }
+
+    // ---- Settings: Native Environment, Proot Environment, Orientation ----
+
+    private void configureEnvironmentSettings() {
+        binding.localGamesSettingsNative.setOnClickListener(view -> showEnvironmentMenu(
+            R.string.local_games_settings_native_environment, this::buildNativeFromNetwork,
+            this::restoreNativeFromFile, this::backupNativeToFile));
+        binding.localGamesSettingsProot.setOnClickListener(view -> showEnvironmentMenu(
+            R.string.local_games_settings_proot_environment, this::buildProotFromNetwork,
+            this::restoreProotFromFile, this::backupProotToFile));
+        binding.localGamesSettingsOrientation.setOnClickListener(view -> showOrientationMenu());
+        renderOrientationEntry();
+    }
+
+    /** The three actions every environment offers, in the order the Settings design lists them. */
+    private void showEnvironmentMenu(int titleRes, Runnable buildFromNetwork,
+                                     Runnable restoreFromFile, Runnable backupToFile) {
+        CharSequence[] actions = {
+            getString(R.string.local_games_environment_build_from_network),
+            getString(R.string.local_games_environment_restore_from_file),
+            getString(R.string.local_games_environment_backup_to_file)
+        };
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(titleRes)
+            .setItems(actions, (dialog, which) -> {
+                if (which == 0) buildFromNetwork.run();
+                else if (which == 1) restoreFromFile.run();
+                else backupToFile.run();
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
+    }
+
+    private void buildNativeFromNetwork() {
+        if (showActiveInstallationConsole()) return;
+        withReadiness((glibc, rootfs) -> {
+            if (glibc == RuntimeReadinessState.NOT_READY) confirmGlibcInstall();
+            else confirmNativeRebuild();
+        });
+    }
+
+    /** An installed Native runtime is rebuilt as remove-then-install. The removal is the
+     *  package-manager reset (it purges the glibc packages before sweeping the directory, so
+     *  dpkg stays consistent); the install starts once that finished and the runtime is gone. */
+    private void confirmNativeRebuild() {
+        if (showActiveInstallationConsole()) return;
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.local_games_native_rebuild_confirm_title)
+            .setMessage(R.string.local_games_native_rebuild_confirm_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.local_games_native_rebuild_action, (dialog, which) -> {
+                String taskId = ResetTasks.enqueue(this, ResetTarget.GLIBC, null);
+                RuntimeSetupConsoleDialog.show(this, taskId).setOnDismissListener(consoleDialog -> {
+                    renderRuntimeStatus();
+                    withReadiness((glibc, rootfs) -> {
+                        if (glibc == RuntimeReadinessState.NOT_READY) installGlibcRuntime();
+                    });
+                });
+                mainHandler.postDelayed(this::renderRuntimeStatus, 400);
+            })
+            .show();
+    }
+
+    private void restoreNativeFromFile() {
+        startActivity(LocalGames.createRuntimeBackupIntent(this,
+            RuntimeBackupActivity.ACTION_RESTORE));
+    }
+
+    private void backupNativeToFile() {
+        withReadiness((glibc, rootfs) -> {
+            if (glibc != RuntimeReadinessState.READY) {
+                Toast.makeText(this, R.string.local_games_environment_backup_requires_install,
+                    Toast.LENGTH_LONG).show();
+                return;
+            }
+            startActivity(LocalGames.createRuntimeBackupIntent(this,
+                RuntimeBackupActivity.ACTION_EXPORT));
+        });
+    }
+
+    private void buildProotFromNetwork() {
+        if (showActiveInstallationConsole()) return;
+        withReadiness((glibc, rootfs) -> {
+            if (rootfs == RuntimeReadinessState.NOT_READY) confirmRootfsInstall();
+            else confirmRootfsRebuild();
+        });
+    }
+
+    /** The RootFS archive is several GB, so it is read in place from its fixed spot on external
+     *  storage instead of being copied through a file picker. */
+    private void restoreProotFromFile() {
+        if (showActiveInstallationConsole()) return;
+        File backup = new GameStoragePaths(getFilesDir()).getExternalBackupFile();
+        libraryExecutor.execute(() -> {
+            boolean exists = backup.isFile();
+            mainHandler.post(() -> {
+                if (binding == null) return;
+                if (exists) confirmBackupRestore();
+                else Toast.makeText(this, getString(R.string.local_games_environment_no_backup_file,
+                    backup.getPath()), Toast.LENGTH_LONG).show();
+            });
+        });
+    }
+
+    private void backupProotToFile() {
+        confirmBackupCreate();
+    }
+
+    private void renderOrientationEntry() {
+        binding.localGamesSettingsOrientation.setText(getString(
+            R.string.local_games_settings_entry_status,
+            getString(R.string.local_games_settings_orientation),
+            orientationLabel(OrientationPreference.load(this))));
+    }
+
+    private String orientationLabel(OrientationPreference choice) {
+        switch (choice) {
+            case VERTICAL: return getString(R.string.local_games_orientation_vertical);
+            case HORIZONTAL: return getString(R.string.local_games_orientation_horizontal);
+            default: return getString(R.string.local_games_orientation_auto);
+        }
+    }
+
+    private void showOrientationMenu() {
+        OrientationPreference[] choices = OrientationPreference.values();
+        CharSequence[] labels = new CharSequence[choices.length];
+        for (int index = 0; index < choices.length; index++) labels[index] = orientationLabel(choices[index]);
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.local_games_settings_orientation)
+            .setSingleChoiceItems(labels, OrientationPreference.load(this).ordinal(),
+                (dialog, which) -> {
+                    dialog.dismiss();
+                    choices[which].save(this);
+                    renderOrientationEntry();
+                    // Changing the requested orientation may recreate this Activity; the choice is
+                    // already stored, so onCreate applies it again.
+                    setRequestedOrientation(choices[which].getRequestedOrientation());
+                })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
     }
 
     /** Triggers the same shared termux-glibc-runtime component install used by the per-game
@@ -1454,32 +1601,20 @@ public final class LocalGamesActivity extends AppCompatActivity {
             .show();
     }
 
-    /** Deletes the current shared RootFS base archive (if any) and rebuilds it from scratch, as
-     *  one user-confirmed operation -- unlike the old reset-then-separately-rebuild flow, this
-     *  can never leave the base in a torn-down state the user has to remember to come back and
-     *  rebuild. Offers "restore from backup" as a second, much faster starting point whenever a
-     *  prior Backup actually exists on external storage (see the Settings page's "Backup current
-     *  environment" action) -- both routes end at the one live shared RootFS, so either is valid. */
+    /** Deletes the current shared RootFS base (if any) and rebuilds it from scratch, as one
+     *  user-confirmed operation -- unlike the old reset-then-separately-rebuild flow, this can
+     *  never leave the base in a torn-down state the user has to remember to come back and
+     *  rebuild. Restoring a saved backup instead is its own entry in the Proot Environment menu;
+     *  both routes end at the one live shared RootFS. */
     private void confirmRootfsRebuild() {
         if (showActiveInstallationConsole()) return;
-        GameStoragePaths paths = new GameStoragePaths(getFilesDir());
-        libraryExecutor.execute(() -> {
-            boolean backupExists = paths.getExternalBackupFile().isFile();
-            mainHandler.post(() -> {
-                if (showActiveInstallationConsole()) return;
-                MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
-                    .setTitle(R.string.local_games_rootfs_rebuild_confirm_title)
-                    .setMessage(R.string.local_games_rootfs_rebuild_confirm_message)
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.local_games_rootfs_rebuild_action, (dialog, which) ->
-                        installRootfsRuntime());
-                if (backupExists) {
-                    builder.setNeutralButton(R.string.local_games_backup_restore_action,
-                        (dialog, which) -> confirmBackupRestore());
-                }
-                builder.show();
-            });
-        });
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.local_games_rootfs_rebuild_confirm_title)
+            .setMessage(R.string.local_games_rootfs_rebuild_confirm_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.local_games_rootfs_rebuild_action, (dialog, which) ->
+                installRootfsRuntime())
+            .show();
     }
 
     /** Second confirmation for restoring the external backup over the current shared RootFS --
@@ -1502,7 +1637,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         showBackupConsole(taskId, R.string.local_games_backup_restore_console_title);
     }
 
-    /** Settings-page entry point -- creates/overwrites the one external backup archive from the
+    /** Proot Environment > Backup to file -- creates/overwrites the one external backup archive from the
      *  currently-published shared RootFS + Wine prefix templates. Requires the base to actually
      *  be built already; there is nothing to back up otherwise. */
     private void confirmBackupCreate() {
@@ -1569,7 +1704,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     /** Marks a Library card as "container build in progress" with a red/breathing background
-     *  (mirrors {@code applyBladeState}'s breathing treatment, applied to the card background
+     *  (a breathing color treatment applied to the card background
      *  instead of an icon's alpha), or restores the normal surface color when not building.
      *  Takes the row's root {@code View} rather than assuming {@code MaterialCardView} --
      *  the landscape variant (layout-land/item_local_game.xml) roots a plain LinearLayout with
@@ -1603,49 +1738,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
         libraryCardBreathAnimators.add(animator);
     }
 
-    /** Colors one blade + its icon for the given readiness state and starts/stops the
-     *  breathing alpha animation that flags "not settled yet". Returns the animator now
-     *  running on {@code blade}, or null if it is static (READY). */
-    @Nullable
-    private android.animation.ObjectAnimator applyBladeState(android.widget.ImageView blade,
-        android.widget.ImageView icon, RuntimeReadinessState state,
-        @Nullable android.animation.ObjectAnimator existingAnimator) {
-        if (existingAnimator != null) existingAnimator.cancel();
-        blade.setAlpha(1f);
-        int bladeColorRes;
-        int iconColorRes;
-        boolean breathing;
-        switch (state) {
-            case NOT_READY:
-            case INCOMPLETE:
-                // Both "nothing built yet" and "built but not fully settled" read the same
-                // visually (red + breathing) -- a separate amber accent for INCOMPLETE wasn't
-                // worth the extra color to distinguish.
-                bladeColorRes = R.color.local_games_error;
-                iconColorRes = R.color.local_games_emblem_icon_dark;
-                breathing = true;
-                break;
-            default:
-                bladeColorRes = R.color.local_games_emblem_neutral;
-                iconColorRes = R.color.local_games_on_surface;
-                breathing = false;
-                break;
-        }
-        blade.setImageTintList(android.content.res.ColorStateList.valueOf(
-            ContextCompat.getColor(this, bladeColorRes)));
-        icon.setImageTintList(android.content.res.ColorStateList.valueOf(
-            ContextCompat.getColor(this, iconColorRes)));
-        if (!breathing) return null;
-        android.animation.ObjectAnimator animator = android.animation.ObjectAnimator.ofFloat(
-            blade, View.ALPHA, 1f, 0.5f);
-        animator.setDuration(1100);
-        animator.setRepeatMode(android.animation.ObjectAnimator.REVERSE);
-        animator.setRepeatCount(android.animation.ObjectAnimator.INFINITE);
-        animator.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
-        animator.start();
-        return animator;
-    }
-
     @Nullable
     private ResetTask findActiveResetTask(GameStoragePaths paths, ResetTarget target) {
         try {
@@ -1657,21 +1749,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
             // The service remains the final gate if task persistence cannot be read here.
         }
         return null;
-    }
-
-    private void confirmReset(ResetTarget target, @Nullable String resetKey) {
-        if (showActiveInstallationConsole()) return;
-        new MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.local_games_reset_confirm_title)
-            .setMessage(R.string.local_games_reset_confirm_glibc)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.local_games_reset_action, (dialog, which) -> {
-                String taskId = ResetTasks.enqueue(this, target, resetKey);
-                RuntimeSetupConsoleDialog.show(this, taskId)
-                    .setOnDismissListener(consoleDialog -> renderRuntimeStatus());
-                mainHandler.postDelayed(this::renderRuntimeStatus, 400);
-            })
-            .show();
     }
 
     private static String safeMessage(Exception error) {
@@ -1686,8 +1763,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
     protected void onDestroy() {
         catalogExecutor.shutdownNow();
         libraryExecutor.shutdownNow();
-        if (glibcBladeBreathAnimator != null) glibcBladeBreathAnimator.cancel();
-        if (containerBladeBreathAnimator != null) containerBladeBreathAnimator.cancel();
         binding = null;
         super.onDestroy();
     }

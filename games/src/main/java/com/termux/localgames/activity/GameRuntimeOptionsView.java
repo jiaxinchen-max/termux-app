@@ -334,8 +334,6 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         addReadOnly("Container id", profile.getContainerId());
         addRow("Components", "Manage installed runtime components", true, view ->
             getContext().startActivity(LocalGames.createComponentsIntent(getContext(), game.getId())));
-        addRow("Backup runtime", "Export or restore GLIBC / RootFS runtimes", true, view ->
-            getContext().startActivity(LocalGames.createRuntimeBackupIntent(getContext())));
     }
 
     private String runtimeBackendLabel(GameRuntimeBackendType type) {

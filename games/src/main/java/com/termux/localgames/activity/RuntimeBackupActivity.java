@@ -33,6 +33,12 @@ import java.util.concurrent.Executors;
 
 /** SAF bridge around a visible Termux {@code tar} session. */
 public final class RuntimeBackupActivity extends AppCompatActivity {
+    /** Optional: open the matching file picker right after the screen is created. */
+    public static final String EXTRA_AUTO_ACTION = "com.termux.localgames.extra.RUNTIME_BACKUP_ACTION";
+    public static final String ACTION_EXPORT = "export";
+    public static final String ACTION_RESTORE = "restore";
+    private static final String[] ARCHIVE_MIME_TYPES = {"application/x-tar", "application/octet-stream"};
+
     private final ExecutorService executor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "GamesRuntimeBackupSaf"));
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -65,9 +71,14 @@ public final class RuntimeBackupActivity extends AppCompatActivity {
             R.string.local_games_runtime_backup_title,
             R.string.local_games_runtime_backup_description);
         binding.runtimeBackupExportGlibc.setOnClickListener(view -> requestExport(RuntimeBackupType.GLIBC));
-        binding.runtimeBackupRestore.setOnClickListener(view ->
-            openArchive.launch(new String[] {"application/x-tar", "application/octet-stream"}));
+        binding.runtimeBackupRestore.setOnClickListener(view -> openArchive.launch(ARCHIVE_MIME_TYPES));
         binding.runtimeBackupViewProcess.setOnClickListener(view -> showActiveConsole());
+        // Only on a fresh start: a recreation (rotation) must not pop the picker up a second time.
+        if (state == null) {
+            String action = getIntent().getStringExtra(EXTRA_AUTO_ACTION);
+            if (ACTION_EXPORT.equals(action)) requestExport(RuntimeBackupType.GLIBC);
+            else if (ACTION_RESTORE.equals(action)) openArchive.launch(ARCHIVE_MIME_TYPES);
+        }
     }
 
     private void requestExport(RuntimeBackupType type) {

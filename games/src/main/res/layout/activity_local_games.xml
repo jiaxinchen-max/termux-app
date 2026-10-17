@@ -23,15 +23,6 @@
             app:navigationIconTint="@color/local_games_on_surface"
             app:titleTextAppearance="@style/TextAppearance.MaterialComponents.Headline6"
             app:titleTextColor="@color/local_games_on_surface" />
-
-        <include
-            android:id="@+id/local_games_runtime_emblem"
-            layout="@layout/view_runtime_emblem"
-            android:layout_width="130.6dp"
-            android:layout_height="21.8dp"
-            android:layout_gravity="center_horizontal|top"
-            android:layout_marginTop="19.1dp" />
-
     </FrameLayout>
 
     <FrameLayout
@@ -391,7 +382,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="24dp"
                     android:letterSpacing="0.08"
-                    android:text="@string/local_games_settings_backup_section"
+                    android:text="@string/local_games_settings_environment_section"
                     android:textColor="@color/local_games_on_surface_secondary"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -411,20 +402,35 @@
                         android:orientation="vertical"
                         android:padding="18dp">
 
-                        <TextView
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/local_games_settings_native"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/local_games_backup_section_description"
-                            android:textColor="@color/local_games_on_surface_secondary"
-                            android:textSize="13sp" />
+                            android:layout_height="52dp"
+                            android:layout_marginTop="0dp"
+                            android:text="@string/local_games_settings_native_environment"
+                            android:textAllCaps="false"
+                            app:cornerRadius="14dp"
+                            app:strokeColor="@color/local_games_outline" />
 
                         <com.google.android.material.button.MaterialButton
-                            android:id="@+id/local_games_backup_create"
+                            android:id="@+id/local_games_settings_proot"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="match_parent"
                             android:layout_height="52dp"
                             android:layout_marginTop="14dp"
-                            android:text="@string/local_games_backup_create_action"
+                            android:text="@string/local_games_settings_proot_environment"
+                            android:textAllCaps="false"
+                            app:cornerRadius="14dp"
+                            app:strokeColor="@color/local_games_outline" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/local_games_settings_orientation"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:layout_marginTop="14dp"
+                            android:text="@string/local_games_settings_orientation"
                             android:textAllCaps="false"
                             app:cornerRadius="14dp"
                             app:strokeColor="@color/local_games_outline" />

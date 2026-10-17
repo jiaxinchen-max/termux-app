@@ -107,10 +107,19 @@ public final class LocalGames {
             .putExtra(GameAssetsActivity.EXTRA_GAME_ID, gameId);
     }
 
-    /** Opens offline export and verified restore for complete GLIBC or RootFS runtimes. */
+    /** Opens offline export and verified restore for the GLIBC runtime. */
     @NonNull
     public static Intent createRuntimeBackupIntent(@NonNull Context context) {
         return new Intent(context, RuntimeBackupActivity.class);
+    }
+
+    /** Same screen, but it immediately opens the system file picker for {@code action}
+     *  ({@link RuntimeBackupActivity#ACTION_EXPORT} or {@link RuntimeBackupActivity#ACTION_RESTORE}),
+     *  which is what the Native Environment menu's "Backup to file" / "Restore from file" use. */
+    @NonNull
+    public static Intent createRuntimeBackupIntent(@NonNull Context context, @NonNull String action) {
+        return createRuntimeBackupIntent(context)
+            .putExtra(RuntimeBackupActivity.EXTRA_AUTO_ACTION, action);
     }
 
     /** Opens the persistent task status page for one game. */
