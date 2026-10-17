@@ -88,7 +88,7 @@ final class TermuxRuntimeComponentProbe {
                 return nonEmpty(new File(glibcDirectory, "lib/libudev.so.1"));
             case "en-ru-locale":
                 return new File(glibcDirectory, "lib/locale").isDirectory();
-            case "wine-fonts":
+            case "glibc_fonts_1":
                 // Shared Wine fallback fonts are published straight into GLIBC fontconfig's
                 // scan directory; unlike Wine engines they do not contain a bin/wine payload.
                 return nonEmpty(new File(glibcDirectory,

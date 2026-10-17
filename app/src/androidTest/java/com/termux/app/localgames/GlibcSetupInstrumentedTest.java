@@ -42,7 +42,7 @@ public class GlibcSetupInstrumentedTest {
     private static final String GAME_ID = "setup-smoke";
     private static final long TIMEOUT_MS = 12 * 60 * 1000;
     private static final String[] REQUIRED_COMPONENTS = {
-        "glibc_box64_0.2.7", "glibc_scripts_29", "glibc_prefix-apps_3",
+        "glibc_box64_0.2.7", "glibc_scripts_29", "glibc_prefix-apps_3", "glibc_fonts_1",
         "virgl-mesa", "dxvk", "glibc_wine_9.3-vanilla"
     };
 

@@ -83,6 +83,26 @@
       "sha256": "248d960f54f292496ed1b2f48ead53a5b0db697f8fc08d42a5f86e8ce9f22775"
     },
     {
+      "id": "glibc_fonts_1",
+      "category": "runtime",
+      "type": "general_component",
+      "displayName": "fonts_1",
+      "versionName": "v1",
+      "summary": "Shared Noto font collection (including CJK) for Wine font fallback.",
+      "framework": "Termux GLIBC",
+      "base": true,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-box-packages/releases/download/glibc_fonts_1-v1/glibc_fonts_1.tar.xz",
+      "size": 36782928,
+      "sha256": "65667b32f649748c0aae129a6fedc9595389943c9926f03a955f4435276d982d"
+    },
+    {
       "id": "dxvk",
       "category": "runtime",
       "type": "dx_wrapper",
