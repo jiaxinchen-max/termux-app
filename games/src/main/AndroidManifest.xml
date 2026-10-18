@@ -51,13 +51,6 @@
             android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
 
         <activity
-            android:name=".activity.RuntimeBackupActivity"
-            android:exported="false"
-            android:label="@string/local_games_runtime_backup_title"
-            android:resizeableActivity="true"
-            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
-
-        <activity
             android:name=".activity.GameLaunchActivity"
             android:exported="false"
             android:label="@string/local_game_launch_title"

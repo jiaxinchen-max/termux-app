@@ -24,7 +24,7 @@ public final class RootfsBackupSpecCodec {
         if (!parent.isDirectory() && !parent.mkdirs()) throw new IOException("backup_spec_directory_failed");
         File temporary = new File(file.getPath() + ".tmp");
         try (FileOutputStream output = new FileOutputStream(temporary, false)) {
-            output.write(value.toString().getBytes(StandardCharsets.US_ASCII));
+            output.write(value.toString().getBytes(StandardCharsets.UTF_8));
             output.flush();
             output.getFD().sync();
         }
@@ -33,8 +33,7 @@ public final class RootfsBackupSpecCodec {
     }
 
     private static void text(StringBuilder output, String key, String value) {
-        if (value == null || value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0 ||
-            value.indexOf('=') >= 0) {
+        if (value == null || value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0) {
             throw new IllegalArgumentException("invalid backup spec value: " + key);
         }
         output.append(key).append('=').append(value).append('\n');

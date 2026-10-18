@@ -8,6 +8,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -24,6 +25,7 @@ import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.data.RootfsBackupSpecCodec;
 import com.termux.localgames.domain.RootfsBackupTask;
 import com.termux.localgames.domain.RootfsBackupTaskState;
+import com.termux.localgames.runtime.RuntimeBackupSharedStorage;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -77,11 +79,12 @@ public final class RootfsBackupForegroundService extends Service {
         String action = intent.getAction();
         String taskId = intent.getStringExtra(RootfsBackupTasks.EXTRA_TASK_ID);
         String kindName = intent.getStringExtra(RootfsBackupTasks.EXTRA_KIND);
+        String archive = intent.getStringExtra(RootfsBackupTasks.EXTRA_ARCHIVE);
         pendingCommands.incrementAndGet();
         executor.execute(() -> {
             try {
                 if (RootfsBackupTasks.ACTION_ENQUEUE.equals(action)) {
-                    enqueue(requiredId(taskId), requiredKind(kindName));
+                    enqueue(requiredId(taskId), requiredKind(kindName), archive);
                 } else if (RootfsBackupTasks.ACTION_RECONCILE.equals(action)) {
                     reconcile(requiredTask(requiredId(taskId)));
                 } else if (RootfsBackupTasks.ACTION_RECONCILE_ALL.equals(action)) {
@@ -105,9 +108,19 @@ public final class RootfsBackupForegroundService extends Service {
         super.onDestroy();
     }
 
-    private void enqueue(String taskId, RootfsBackupTask.Kind kind) throws Exception {
+    private void enqueue(String taskId, RootfsBackupTask.Kind kind, @Nullable String archive)
+        throws Exception {
         if (tasks.find(taskId).isPresent()) return;
-        RootfsBackupTask task = RootfsBackupTask.queued(taskId, kind, System.currentTimeMillis());
+        boolean outside = archive != null && !RuntimeBackupSharedStorage.isWithin(
+            Environment.getExternalStorageDirectory(), new File(archive));
+        RootfsBackupTask task = RootfsBackupTask.queued(taskId, kind,
+            archive == null || outside ? "" : archive, System.currentTimeMillis());
+        if (outside) {
+            // Persist the refusal so the watching UI sees a terminal task instead of waiting.
+            tasks.save(task);
+            transition(task, RootfsBackupTaskState.FAILED, "backup_destination_not_shared_storage");
+            return;
+        }
         tasks.save(task);
         prepareAndStart(task);
     }
@@ -119,8 +132,8 @@ public final class RootfsBackupForegroundService extends Service {
             File spec = new File(paths.getBackupSpecsDirectory(), task.getTaskId() + ".backupspec");
             File events = eventFile(task.getTaskId());
             File log = new File(paths.getBackupLogsDirectory(), task.getTaskId() + ".log");
-            new RootfsBackupSpecCodec().write(spec, task, paths.getExternalBackupFile(),
-                events, log);
+            new RootfsBackupSpecCodec().write(spec, task, task.getArchivePath().isEmpty()
+                ? paths.getExternalBackupFile() : new File(task.getArchivePath()), events, log);
             host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 script.getCanonicalPath(), spec.getCanonicalPath(),
                 paths.getBackupDirectory().getCanonicalPath()));

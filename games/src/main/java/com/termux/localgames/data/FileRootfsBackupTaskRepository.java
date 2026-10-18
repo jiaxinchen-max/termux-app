@@ -52,6 +52,7 @@ public final class FileRootfsBackupTaskRepository {
             value.setProperty("kind", task.getKind().name());
             value.setProperty("state", task.getState().name());
             value.setProperty("errorCode", task.getErrorCode());
+            value.setProperty("archivePath", task.getArchivePath());
             value.setProperty("createdAt", String.valueOf(task.getCreatedAt()));
             value.setProperty("updatedAt", String.valueOf(task.getUpdatedAt()));
             return value;
@@ -67,6 +68,7 @@ public final class FileRootfsBackupTaskRepository {
                     RootfsBackupTask.Kind.valueOf(required(value, "kind")),
                     RootfsBackupTaskState.valueOf(required(value, "state")),
                     value.getProperty("errorCode", ""),
+                    value.getProperty("archivePath", ""),
                     Long.parseLong(required(value, "createdAt")),
                     Long.parseLong(required(value, "updatedAt")));
             } catch (IllegalArgumentException error) {

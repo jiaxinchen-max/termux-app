@@ -196,7 +196,7 @@ public final class GameStoragePaths {
         return new File(getCustomComponentInstallDirectory(), "logs");
     }
     /** Where a SAF-picked local Wine/Box64 build is drained into app-private storage before the
-     *  install task reads it -- mirrors RuntimeBackupActivity's "stream immediately into
+     *  install task reads it -- mirrors the runtime backup flow's "stream immediately into
      *  app-private storage" precedent; no persisted SAF permission is kept. One staged file per
      *  task, deleted once the install task reaches a terminal state. */
     public File getCustomComponentStagingDirectory() {

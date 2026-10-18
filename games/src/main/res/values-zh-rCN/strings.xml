@@ -135,7 +135,6 @@
     <string name="local_games_tab_components">组件</string>
     <string name="local_games_components_description">按 PC 引擎中的实际用途管理组件，离开此页面后下载仍会继续。</string>
     <string name="local_games_start">开始</string>
-    <string name="local_games_runtime_backup_summary">GLIBC 与 PRootFS 运行环境归档</string>
     <string name="local_games_components_image_fs">RootFS</string>
     <string name="local_games_components_container">Wine</string>
     <string name="local_games_components_gpu">图形</string>
@@ -365,7 +364,6 @@
     <string name="local_games_environment_restore_from_file">从文件恢复</string>
     <string name="local_games_environment_backup_to_file">备份到文件</string>
     <string name="local_games_environment_backup_requires_install">请先安装环境再备份。</string>
-    <string name="local_games_environment_no_backup_file">未找到备份文件：%1$s。</string>
     <string name="local_games_native_rebuild_confirm_title">重建 Native 环境？</string>
     <string name="local_games_native_rebuild_confirm_message">将通过包管理器移除 Native（GLIBC）运行环境及已下载的组件，然后重新下载并安装，可能需要几分钟。</string>
     <string name="local_games_native_rebuild_action">重建</string>
@@ -378,6 +376,36 @@
     <string name="local_games_environment_build_summary_rebuild">先移除，再重新下载并安装</string>
     <string name="local_games_environment_native_restore_summary">选择备份文件进行恢复</string>
     <string name="local_games_environment_native_backup_summary">保存到你选择的文件</string>
-    <string name="local_games_environment_proot_restore_summary">从已保存的备份恢复（%1$s）</string>
-    <string name="local_games_environment_proot_backup_summary">备份到 %1$s</string>
+    <string name="local_games_backup_title">基础环境备份</string>
+    <string name="local_games_backup_channel">基础环境备份</string>
+    <string name="local_games_backup_create_console_title">正在创建备份</string>
+    <string name="local_games_backup_restore_console_title">正在从备份恢复</string>
+    <string name="local_games_backup_requires_base">请先构建基础环境再备份。</string>
+    <string name="local_games_backup_restore_action">从备份恢复</string>
+    <string name="local_games_backup_restore_confirm_title">从备份恢复？</string>
+    <string name="local_games_backup_restore_confirm_message">这会用所选备份替换当前共享的 RootFS 基础环境和 Wine 前缀模板。已安装的游戏仍可使用，可能需要几分钟。</string>
+    <string name="local_games_backup_create_done">备份已保存到：\n%1$s</string>
+    <string name="local_games_backup_restore_done">已从以下文件恢复：\n%1$s</string>
+    <string name="local_games_backup_failed">备份或恢复失败：%1$s</string>
+    <string name="local_games_runtime_backup_title">Native 环境备份</string>
+    <string name="local_games_runtime_backup_glibc">GLIBC / TermuxBox</string>
+    <string name="local_games_runtime_backup_restore">从文件恢复</string>
+    <string name="local_games_runtime_backup_restore_title">从备份恢复运行环境？</string>
+    <string name="local_games_runtime_backup_restore_message">校验归档后将替换已安装的 GLIBC 运行环境。继续前请先退出游戏。</string>
+    <string name="local_games_runtime_backup_working">处理中，请保持应用打开直到完成。</string>
+    <string name="local_games_runtime_backup_restored">%1$s 运行环境已恢复。</string>
+    <string name="local_games_runtime_backup_failed">运行环境备份失败：%1$s</string>
+    <string name="local_games_runtime_backup_console_title">运行环境归档进程</string>
+    <string name="local_games_runtime_backup_exported_to">备份已保存到：\n%1$s</string>
+    <string name="local_games_runtime_backup_insufficient_space">可用空间不足：约需 %1$s，当前仅有 %2$s。</string>
+    <string name="local_games_runtime_backup_destination_not_shared">请选择共享存储内的位置。</string>
+    <string name="local_games_chooser_title_save">备份保存到…</string>
+    <string name="local_games_chooser_title_restore">选择备份文件</string>
+    <string name="local_games_chooser_up">上一级</string>
+    <string name="local_games_chooser_save_here">保存到此处</string>
+    <string name="local_games_chooser_file_name">文件名</string>
+    <string name="local_games_chooser_empty">此处没有 %1$s 文件</string>
+    <string name="local_games_chooser_invalid_name">仅可使用英文字母、数字及 . _ - + = ( ) , 和空格。</string>
+    <string name="local_games_chooser_overwrite_title">替换已有文件？</string>
+    <string name="local_games_chooser_overwrite_message">同名文件已存在，将被替换。</string>
 </resources>

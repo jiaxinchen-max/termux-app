@@ -14,11 +14,18 @@ public final class RootfsBackupTask {
     private final Kind kind;
     private final RootfsBackupTaskState state;
     private final String errorCode;
+    private final String archivePath;
     private final long createdAt;
     private final long updatedAt;
 
     public RootfsBackupTask(String taskId, Kind kind, RootfsBackupTaskState state,
                             String errorCode, long createdAt, long updatedAt) {
+        this(taskId, kind, state, errorCode, "", createdAt, updatedAt);
+    }
+
+    /** {@code archivePath} is the archive the user chose; empty means the legacy fixed backup file. */
+    public RootfsBackupTask(String taskId, Kind kind, RootfsBackupTaskState state,
+                            String errorCode, String archivePath, long createdAt, long updatedAt) {
         this.taskId = requireId(taskId);
         if (kind == null || state == null || createdAt < 0 || updatedAt < createdAt) {
             throw new IllegalArgumentException("invalid rootfs backup task");
@@ -29,12 +36,21 @@ public final class RootfsBackupTask {
         if (!this.errorCode.isEmpty() && !this.errorCode.matches("[a-z0-9_:.+-]{1,128}")) {
             throw new IllegalArgumentException("invalid backup errorCode");
         }
+        this.archivePath = archivePath == null ? "" : archivePath;
+        if (this.archivePath.indexOf('\n') >= 0 || this.archivePath.indexOf('\r') >= 0
+            || (!this.archivePath.isEmpty() && !this.archivePath.startsWith("/"))) {
+            throw new IllegalArgumentException("invalid backup archivePath");
+        }
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
     public static RootfsBackupTask queued(String taskId, Kind kind, long now) {
-        return new RootfsBackupTask(taskId, kind, RootfsBackupTaskState.QUEUED, "", now, now);
+        return queued(taskId, kind, "", now);
+    }
+
+    public static RootfsBackupTask queued(String taskId, Kind kind, String archivePath, long now) {
+        return new RootfsBackupTask(taskId, kind, RootfsBackupTaskState.QUEUED, "", archivePath, now, now);
     }
 
     public RootfsBackupTask transition(RootfsBackupTaskState next, String error, long now) {
@@ -42,13 +58,14 @@ public final class RootfsBackupTask {
         if (next == null || next == RootfsBackupTaskState.QUEUED || now < updatedAt) {
             throw new IllegalArgumentException("invalid backup transition");
         }
-        return new RootfsBackupTask(taskId, kind, next, error, createdAt, now);
+        return new RootfsBackupTask(taskId, kind, next, error, archivePath, createdAt, now);
     }
 
     public String getTaskId() { return taskId; }
     public Kind getKind() { return kind; }
     public RootfsBackupTaskState getState() { return state; }
     public String getErrorCode() { return errorCode; }
+    public String getArchivePath() { return archivePath; }
     public long getCreatedAt() { return createdAt; }
     public long getUpdatedAt() { return updatedAt; }
 

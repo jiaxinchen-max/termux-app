@@ -11,6 +11,7 @@ import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.domain.RootfsBackupTask;
 import com.termux.localgames.service.RootfsBackupForegroundService;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 
@@ -26,21 +27,25 @@ public final class RootfsBackupTasks {
         "com.termux.localgames.action.RECONCILE_ALL_ROOTFS_BACKUP";
     public static final String EXTRA_TASK_ID = "com.termux.localgames.extra.BACKUP_TASK_ID";
     public static final String EXTRA_KIND = "com.termux.localgames.extra.BACKUP_KIND";
+    public static final String EXTRA_ARCHIVE = "com.termux.localgames.extra.BACKUP_ARCHIVE";
 
     private RootfsBackupTasks() {}
 
+    /** Backs up to the archive the user chose (inside shared storage). */
     @NonNull
-    public static String enqueueBackup(@NonNull Context context) {
-        return enqueue(context, RootfsBackupTask.Kind.BACKUP);
+    public static String enqueueBackup(@NonNull Context context, @NonNull File archive) {
+        return enqueue(context, RootfsBackupTask.Kind.BACKUP, archive);
+    }
+
+    /** Restores from the archive the user chose, read in place. */
+    @NonNull
+    public static String enqueueRestore(@NonNull Context context, @NonNull File archive) {
+        return enqueue(context, RootfsBackupTask.Kind.RESTORE, archive);
     }
 
     @NonNull
-    public static String enqueueRestore(@NonNull Context context) {
-        return enqueue(context, RootfsBackupTask.Kind.RESTORE);
-    }
-
-    @NonNull
-    private static String enqueue(@NonNull Context context, @NonNull RootfsBackupTask.Kind kind) {
+    private static String enqueue(@NonNull Context context, @NonNull RootfsBackupTask.Kind kind,
+                                  @NonNull File archive) {
         try {
             FileRootfsBackupTaskRepository repository = new FileRootfsBackupTaskRepository(
                 new GameStoragePaths(context.getFilesDir()).getBackupTasksDirectory());
@@ -60,7 +65,8 @@ public final class RootfsBackupTasks {
         Intent intent = new Intent(context, RootfsBackupForegroundService.class)
             .setAction(ACTION_ENQUEUE)
             .putExtra(EXTRA_TASK_ID, taskId)
-            .putExtra(EXTRA_KIND, kind.name());
+            .putExtra(EXTRA_KIND, kind.name())
+            .putExtra(EXTRA_ARCHIVE, archive.getAbsolutePath());
         start(context, intent);
         return taskId;
     }

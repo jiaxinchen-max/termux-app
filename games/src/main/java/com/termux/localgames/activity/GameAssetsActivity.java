@@ -23,7 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Read-only private asset inventory. Global runtime backups live in RuntimeBackupActivity. */
+/** Read-only private asset inventory. */
 public final class GameAssetsActivity extends AppCompatActivity {
     public static final String EXTRA_GAME_ID = "com.termux.localgames.extra.ASSET_GAME_ID";
 

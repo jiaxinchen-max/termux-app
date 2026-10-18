@@ -1,6 +1,8 @@
 package com.termux.localgames.runtime;
 
 import android.content.Context;
+import android.os.Environment;
+import android.os.StatFs;
 
 import androidx.annotation.Nullable;
 
@@ -23,12 +25,12 @@ import java.util.UUID;
 /**
  * Prepares a private job for the bundled Termux {@code tar} script.
  *
- * <p>Android's document providers expose streams, not POSIX paths, so Java only bridges a chosen
- * SAF document to a private temporary file. Archive creation, extraction, links, modes and tree
+ * <p>The export archive is written by the Termux session straight to the shared-storage file the
+ * user chose in the in-app chooser, and a restore reads the chosen archive in place; nothing is
+ * copied through the private job directory. Archive creation, extraction, links, modes and tree
  * moves are all performed by the actual Termux shell session.</p>
  */
 public final class RuntimeBackupManager {
-    private static final long MAX_ARCHIVE_BYTES = 256L * 1024L * 1024L * 1024L;
     private static final int BUFFER_SIZE = 128 * 1024;
 
     private final Context context;
@@ -44,19 +46,42 @@ public final class RuntimeBackupManager {
         paths = new GameStoragePaths(filesDirectory);
     }
 
-    public Job prepareExport(RuntimeBackupType type) throws IOException {
+    /**
+     * Exports straight to {@code archive}, a file the user chose in the in-app chooser. It must lie
+     * inside shared storage and its folder must have room for the whole archive.
+     */
+    public Job prepareExport(RuntimeBackupType type, File archive) throws IOException {
         requireExportSources(type);
-        Job job = createJob("export", type);
+        File folder = requireSharedFile(archive).getParentFile();
+        if (folder == null || !folder.isDirectory()) {
+            throw new IOException("runtime_backup_destination_not_shared_storage");
+        }
+        RuntimeBackupSharedStorage.requireExportSpace(
+            RuntimeBackupSharedStorage.estimateExportBytes(filesDirectory),
+            new StatFs(folder.getAbsolutePath()).getAvailableBytes());
+        Job job = createJob("export", type, archive);
         writeJob(job);
         return job;
     }
 
-    public Job prepareRestore(InputStream source) throws IOException {
-        if (source == null) throw new IllegalArgumentException("backup_source_required");
-        Job job = createJob("restore", null);
-        copy(source, job.archive);
+    /** Restores straight from {@code archive}; the file is read only and never deleted by cleanup. */
+    public Job prepareRestoreInPlace(File archive) throws IOException {
+        if (!requireSharedFile(archive).isFile() || !archive.canRead()) {
+            throw new IOException("runtime_backup_source_unavailable");
+        }
+        Job job = createJob("restore", null, archive);
         writeJob(job);
         return job;
+    }
+
+    private static File requireSharedFile(File file) throws IOException {
+        if (!Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
+            throw new IOException("runtime_backup_shared_storage_unavailable");
+        }
+        if (file == null || !RuntimeBackupSharedStorage.isWithin(Environment.getExternalStorageDirectory(), file)) {
+            throw new IOException("runtime_backup_destination_not_shared_storage");
+        }
+        return file;
     }
 
     /** Returns null while the Termux tar process is still running. */
@@ -84,23 +109,13 @@ public final class RuntimeBackupManager {
         throw new IOException("runtime_backup_result_invalid");
     }
 
-    public void copyExportTo(Job job, OutputStream destination, @Nullable CopyProgressListener listener)
-        throws IOException {
-        if (job == null || destination == null) throw new IllegalArgumentException("backup_destination_required");
-        if (!job.archive.isFile()) throw new IOException("runtime_backup_archive_missing");
-        try (InputStream input = new BufferedInputStream(new FileInputStream(job.archive), BUFFER_SIZE);
-             OutputStream output = new BufferedOutputStream(destination, BUFFER_SIZE)) {
-            copy(input, output, job.archive.length(), listener);
-            output.flush();
-        }
-    }
-
     public void cleanup(Job job) {
         if (job == null) return;
         try { deleteTree(job.directory); } catch (IOException ignored) { }
     }
 
-    private Job createJob(String operation, @Nullable RuntimeBackupType type) throws IOException {
+    private Job createJob(String operation, @Nullable RuntimeBackupType type, @Nullable File archive)
+        throws IOException {
         File jobs = new File(new File(filesDirectory, "games/runtime-backups"), "jobs");
         if (!jobs.isDirectory() && !jobs.mkdirs()) throw new IOException("runtime_backup_job_directory_failed");
         String taskId = "runtime-backup-" + UUID.randomUUID();
@@ -108,13 +123,12 @@ public final class RuntimeBackupManager {
         if (!directory.mkdirs()) throw new IOException("runtime_backup_job_create_failed");
         return new Job(taskId, operation, type, directory,
             new File(directory, "runtime-backup.sh"), new File(directory, "job.properties"),
-            new File(directory, "runtime.tar"), new File(directory, "result.properties"));
+            archive != null ? archive : new File(directory, "runtime.tar"),
+            new File(directory, "result.properties"));
     }
 
     private void requireExportSources(RuntimeBackupType type) throws IOException {
         if (type == null) throw new IllegalArgumentException("runtime_type_required");
-        requireDirectory(new File(filesDirectory, "games/components/install"),
-            "runtime_component_receipts_missing");
         requireDirectory(new File(paths.getTermuxPrefixDirectory(), "glibc"),
             "glibc_runtime_missing");
     }
@@ -146,33 +160,10 @@ public final class RuntimeBackupManager {
         }
     }
 
-    private static void copy(InputStream input, File target) throws IOException {
-        try (OutputStream output = new BufferedOutputStream(new FileOutputStream(target), BUFFER_SIZE)) {
-            copy(input, output);
-            output.flush();
-        }
-    }
-
     private static void copy(InputStream input, OutputStream output) throws IOException {
-        copy(input, output, -1L, null);
-    }
-
-    private static void copy(InputStream input, OutputStream output, long expectedBytes,
-                             @Nullable CopyProgressListener listener) throws IOException {
         byte[] buffer = new byte[BUFFER_SIZE];
-        long total = 0;
-        long lastReported = -8L * 1024L * 1024L;
         int read;
-        while ((read = input.read(buffer)) != -1) {
-            if (total > MAX_ARCHIVE_BYTES - read) throw new IOException("runtime_backup_size_limit");
-            output.write(buffer, 0, read);
-            total += read;
-            if (listener != null && total - lastReported >= 8L * 1024L * 1024L) {
-                lastReported = total;
-                listener.onProgress(total, expectedBytes);
-            }
-        }
-        if (listener != null) listener.onProgress(total, expectedBytes);
+        while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
     }
 
     private static String shellValue(String value) {
@@ -219,11 +210,8 @@ public final class RuntimeBackupManager {
         public File getScript() { return script; }
         public File getSpec() { return spec; }
         public File getDirectory() { return directory; }
+        public File getArchive() { return archive; }
         public boolean isExport() { return "export".equals(operation); }
-    }
-
-    public interface CopyProgressListener {
-        void onProgress(long copiedBytes, long totalBytes);
     }
 
     public static final class Outcome {

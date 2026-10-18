@@ -7,6 +7,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+import android.os.StatFs;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
@@ -74,7 +75,7 @@ import com.termux.localgames.domain.PrefixSetupTask;
 import com.termux.localgames.domain.ResetTarget;
 import com.termux.localgames.domain.ResetTask;
 import com.termux.localgames.domain.RootfsBackupTask;
-import com.termux.localgames.domain.RootfsBackupTaskState;
+import com.termux.localgames.runtime.RuntimeBackupSharedStorage;
 import com.termux.localgames.domain.RuntimeReadinessState;
 import com.termux.localgames.api.ResetTasks;
 import com.termux.localgames.runtime.RuntimeEnvironmentStatus;
@@ -88,6 +89,7 @@ import com.termux.shared.android.PermissionUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Date;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -254,6 +256,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         }
         ResetTasks.reconcileAll(this);
         RootfsBackupTasks.reconcileAll(this);
+        RuntimeBackupFlow.instance().attach(this, this::renderRuntimeStatus);
         renderRuntimeStatus();
         mainHandler.post(this::consumePendingSetupConsoleIntent);
     }
@@ -1281,7 +1284,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
         }
         RootfsBackupTask backup = findActiveBackupTask(paths);
         if (backup != null) {
-            showBackupConsole(backup.getTaskId(), backup.getKind() == RootfsBackupTask.Kind.BACKUP
+            RuntimeBackupFlow.instance().watchRootfsTask(backup.getTaskId(),
+                backup.getKind() == RootfsBackupTask.Kind.BACKUP
                 ? R.string.local_games_backup_create_console_title
                 : R.string.local_games_backup_restore_console_title);
             return true;
@@ -1479,10 +1483,9 @@ public final class LocalGamesActivity extends AppCompatActivity {
                     this::buildNativeFromNetwork, this::restoreNativeFromFile, this::backupNativeToFile);
                 break;
             case PROOT:
-                String backupPath = new GameStoragePaths(getFilesDir()).getExternalBackupFile().getPath();
                 renderEnvironmentPage(menu, rootfsStatus,
-                    getString(R.string.local_games_environment_proot_restore_summary, backupPath),
-                    getString(R.string.local_games_environment_proot_backup_summary, backupPath),
+                    getString(R.string.local_games_environment_native_restore_summary),
+                    getString(R.string.local_games_environment_native_backup_summary),
                     this::buildProotFromNetwork, this::restoreProotFromFile, this::backupProotToFile);
                 break;
             default:
@@ -1570,8 +1573,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void restoreNativeFromFile() {
-        startActivity(LocalGames.createRuntimeBackupIntent(this,
-            RuntimeBackupActivity.ACTION_RESTORE));
+        if (showActiveInstallationConsole()) return;
+        ensureBackupStoragePermission(() -> RuntimeBackupFlow.instance().startRestore());
     }
 
     private void backupNativeToFile() {
@@ -1581,8 +1584,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                     Toast.LENGTH_LONG).show();
                 return;
             }
-            startActivity(LocalGames.createRuntimeBackupIntent(this,
-                RuntimeBackupActivity.ACTION_EXPORT));
+            ensureBackupStoragePermission(() -> RuntimeBackupFlow.instance().startExport());
         });
     }
 
@@ -1594,20 +1596,12 @@ public final class LocalGamesActivity extends AppCompatActivity {
         });
     }
 
-    /** The RootFS archive is several GB, so it is read in place from its fixed spot on external
-     *  storage instead of being copied through a file picker. */
+    /** The RootFS archive is several GB, so it is read in place from the file chosen in the
+     *  shared-storage chooser instead of being copied anywhere first. */
     private void restoreProotFromFile() {
         if (showActiveInstallationConsole()) return;
-        File backup = new GameStoragePaths(getFilesDir()).getExternalBackupFile();
-        libraryExecutor.execute(() -> {
-            boolean exists = backup.isFile();
-            mainHandler.post(() -> {
-                if (binding == null) return;
-                if (exists) confirmBackupRestore();
-                else Toast.makeText(this, getString(R.string.local_games_environment_no_backup_file,
-                    backup.getPath()), Toast.LENGTH_LONG).show();
-            });
-        });
+        ensureBackupStoragePermission(() -> RuntimeBackupFlow.instance().pickArchive(
+            RuntimeBackupSharedStorage.ROOTFS_ARCHIVE_EXTENSION, this::confirmBackupRestore));
     }
 
     private void backupProotToFile() {
@@ -1677,74 +1671,70 @@ public final class LocalGamesActivity extends AppCompatActivity {
      *  a separate step from confirmRootfsRebuild()'s own dialog since this one explains what
      *  "restore" actually does (replaces the live base + Wine prefix templates) and is also the
      *  entry point showActiveInstallationConsole() routes back to if a restore is already running. */
-    private void confirmBackupRestore() {
+    private void confirmBackupRestore(File archive) {
         if (showActiveInstallationConsole()) return;
         new MaterialAlertDialogBuilder(this)
             .setTitle(R.string.local_games_backup_restore_confirm_title)
             .setMessage(R.string.local_games_backup_restore_confirm_message)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.local_games_backup_restore_action, (dialog, which) ->
-                ensureBackupStoragePermission(this::startBackupRestore))
+                startBackupRestore(archive))
             .show();
     }
 
-    private void startBackupRestore() {
-        String taskId = RootfsBackupTasks.enqueueRestore(this);
-        showBackupConsole(taskId, R.string.local_games_backup_restore_console_title);
+    private void startBackupRestore(File archive) {
+        String taskId = RootfsBackupTasks.enqueueRestore(this, archive);
+        RuntimeBackupFlow.instance().watchRootfsTask(taskId,
+            R.string.local_games_backup_restore_console_title);
     }
 
-    /** Proot Environment > Backup to file -- creates/overwrites the one external backup archive from the
-     *  currently-published shared RootFS + Wine prefix templates. Requires the base to actually
-     *  be built already; there is nothing to back up otherwise. */
+    /** Proot Environment > Backup to file -- checks that the base is built, lets the user choose a
+     *  file inside shared storage, checks free space, then archives the shared RootFS there. */
     private void confirmBackupCreate() {
         if (showActiveInstallationConsole()) return;
         GameStoragePaths paths = new GameStoragePaths(getFilesDir());
         libraryExecutor.execute(() -> {
             RuntimeReadinessState rootfsState = new RuntimeEnvironmentStatus(paths).rootfsState();
-            boolean overwriting = paths.getExternalBackupFile().isFile();
             mainHandler.post(() -> {
+                if (binding == null) return;
                 if (rootfsState != RuntimeReadinessState.READY) {
                     Toast.makeText(this, R.string.local_games_backup_requires_base,
                         Toast.LENGTH_LONG).show();
                     return;
                 }
                 if (showActiveInstallationConsole()) return;
-                new MaterialAlertDialogBuilder(this)
-                    .setTitle(R.string.local_games_backup_create_confirm_title)
-                    .setMessage(overwriting
-                        ? R.string.local_games_backup_create_overwrite_message
-                        : R.string.local_games_backup_create_confirm_message)
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.local_games_backup_create_action, (dialog, which) ->
-                        ensureBackupStoragePermission(this::startBackupCreate))
-                    .show();
+                ensureBackupStoragePermission(() -> RuntimeBackupFlow.instance().pickSaveFile(
+                    RuntimeBackupSharedStorage.ROOTFS_ARCHIVE_EXTENSION,
+                    RuntimeBackupSharedStorage.rootfsExportFileName(new Date()),
+                    this::startBackupCreate));
             });
         });
     }
 
-    private void startBackupCreate() {
-        String taskId = RootfsBackupTasks.enqueueBackup(this);
-        showBackupConsole(taskId, R.string.local_games_backup_create_console_title);
-    }
-
-    /** Same live-console chrome as RuntimeSetupConsoleDialog's other uses, but reading
-     *  RootfsBackupTask (no recipe/component/container, a smaller state machine, no CANCELLED)
-     *  instead of RuntimeSetupTask -- see that dialog's TaskStatusLookup. */
-    private void showBackupConsole(String taskId, int titleRes) {
-        RuntimeSetupConsoleDialog.TaskStatusLookup lookup = id -> {
+    /** Free space is checked off the main thread (the tree walk is large) before the task starts. */
+    private void startBackupCreate(File archive) {
+        GameStoragePaths paths = new GameStoragePaths(getFilesDir());
+        RuntimeBackupFlow flow = RuntimeBackupFlow.instance();
+        libraryExecutor.execute(() -> {
             try {
-                RootfsBackupTask task = new FileRootfsBackupTaskRepository(new GameStoragePaths(
-                    getFilesDir()).getBackupTasksDirectory()).find(id).orElse(null);
-                if (task == null) return null;
-                return new RuntimeSetupConsoleDialog.TaskStatusLookup.Status(
-                    task.getState() == RootfsBackupTaskState.FAILED, false,
-                    task.getState() == RootfsBackupTaskState.SUCCEEDED, task.getState().name());
-            } catch (IOException | RuntimeException ignored) {
-                return null;
+                File folder = archive.getParentFile();
+                if (folder == null || !folder.isDirectory()) {
+                    throw new IOException("runtime_backup_destination_not_shared_storage");
+                }
+                RuntimeBackupSharedStorage.requireRootfsBackupSpace(
+                    RuntimeBackupSharedStorage.estimateRootfsBackupBytes(
+                        paths.getSharedRootfsContainerDirectory(), paths.getTemplateArchiveCacheDirectory()),
+                    new StatFs(getFilesDir().getAbsolutePath()).getAvailableBytes(),
+                    new StatFs(folder.getAbsolutePath()).getAvailableBytes());
+            } catch (IOException | RuntimeException error) {
+                mainHandler.post(() -> flow.showFailure(error));
+                return;
             }
-        };
-        RuntimeSetupConsoleDialog.show(this, taskId, titleRes, lookup)
-            .setOnDismissListener(dialog -> renderRuntimeStatus());
+            mainHandler.post(() -> {
+                String taskId = RootfsBackupTasks.enqueueBackup(this, archive);
+                flow.watchRootfsTask(taskId, R.string.local_games_backup_create_console_title);
+            });
+        });
     }
 
     private void installRootfsRuntime() {
@@ -1817,6 +1807,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        RuntimeBackupFlow.instance().detach(this);
         catalogExecutor.shutdownNow();
         libraryExecutor.shutdownNow();
         binding = null;
