@@ -40,6 +40,12 @@ final class ComponentTaskConsoleDialog extends Dialog {
     private TextView state;
     private ProgressBar progress;
     private MaterialButton hide;
+    private LinearLayout content;
+    private TextView title;
+    private LinearLayout.LayoutParams stateParams;
+    private LinearLayout.LayoutParams progressParams;
+    private LinearLayout.LayoutParams outputParams;
+    private LinearLayout.LayoutParams actionParams;
     private boolean dismissed;
 
     private ComponentTaskConsoleDialog(@NonNull Context context, @NonNull String taskId) {
@@ -58,13 +64,11 @@ final class ComponentTaskConsoleDialog extends Dialog {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        int padding = dp(18);
-        LinearLayout content = new LinearLayout(getContext());
+        content = new LinearLayout(getContext());
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(padding, padding, padding, padding);
         FrostedWindow.clipToPanel(content, getContext());
 
-        TextView title = new TextView(getContext());
+        title = new TextView(getContext());
         title.setText(R.string.local_games_component_console_title);
         title.setTextColor(ContextCompat.getColor(getContext(), R.color.local_games_on_surface));
         title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
@@ -75,18 +79,16 @@ final class ComponentTaskConsoleDialog extends Dialog {
         state.setTextColor(ContextCompat.getColor(getContext(),
             R.color.local_games_on_surface_secondary));
         state.setTextSize(13);
-        LinearLayout.LayoutParams stateParams = new LinearLayout.LayoutParams(
+        stateParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        stateParams.topMargin = dp(8);
         content.addView(state, stateParams);
 
         progress = new ProgressBar(getContext(), null,
             android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         progress.setIndeterminate(true);
-        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
+        progressParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, dp(5));
-        progressParams.topMargin = dp(10);
         content.addView(progress, progressParams);
 
         output = new TextView(getContext());
@@ -97,20 +99,25 @@ final class ComponentTaskConsoleDialog extends Dialog {
             R.color.local_games_terminal_background, FrostedWindow.ROW_RADIUS_DP));
         output.setPadding(dp(10), dp(10), dp(10), dp(10));
         output.setMovementMethod(new ScrollingMovementMethod());
-        LinearLayout.LayoutParams outputParams = new LinearLayout.LayoutParams(
+        outputParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
-        outputParams.topMargin = dp(12);
         content.addView(output, outputParams);
 
         hide = new MaterialButton(getContext());
         hide.setText(R.string.local_games_component_console_hide);
         hide.setOnClickListener(view -> dismiss());
-        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(
+        actionParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         actionParams.gravity = Gravity.END;
-        actionParams.topMargin = dp(8);
+        hide.setMinHeight(dp(48));
+        hide.setMinimumHeight(dp(48));
         content.addView(hide, actionParams);
-        setContentView(content);
+        ConfigurationAwareFrameLayout root = new ConfigurationAwareFrameLayout(getContext());
+        root.addView(content, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        root.setListener(configuration -> applyWindowSize());
+        setContentView(root);
+        applyCompactness();
 
         Window window = getWindow();
         if (window != null) {
@@ -124,11 +131,33 @@ final class ComponentTaskConsoleDialog extends Dialog {
     @Override
     protected void onStart() {
         super.onStart();
+        applyWindowSize();
+    }
+
+    private void applyWindowSize() {
         Window window = getWindow();
         if (window == null) return;
-        int width = Math.round(getContext().getResources().getDisplayMetrics().widthPixels * .82f);
-        int height = Math.round(getContext().getResources().getDisplayMetrics().heightPixels * .64f);
+        android.util.DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
+        int width = DialogSizing.fractionOfWidthPx(metrics.widthPixels, .86f, metrics.density);
+        width = DialogSizing.clamp(width, DialogSizing.maxWidthPx(metrics.widthPixels, metrics.density));
+        int height = DialogSizing.consoleHeightPx(metrics.heightPixels, metrics.density);
         window.setLayout(width, height);
+        applyCompactness();
+    }
+
+    /** Smaller paddings in a short window so the log keeps a usable height. */
+    private void applyCompactness() {
+        if (content == null) return;
+        android.util.DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
+        boolean compact = metrics.heightPixels < dp(400);
+        int padding = dp(compact ? 10 : 18);
+        content.setPadding(padding, padding, padding, padding);
+        title.setTextSize(compact ? 16 : 20);
+        stateParams.topMargin = dp(compact ? 2 : 8);
+        progressParams.topMargin = dp(compact ? 4 : 10);
+        outputParams.topMargin = dp(compact ? 6 : 12);
+        actionParams.topMargin = dp(compact ? 2 : 8);
+        content.requestLayout();
     }
 
     @Override

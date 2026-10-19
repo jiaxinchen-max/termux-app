@@ -21,7 +21,7 @@
             android:orientation="horizontal"
             android:paddingStart="16dp"
             android:paddingTop="8dp"
-            android:paddingEnd="40dp"
+            android:paddingEnd="@dimen/local_games_menu_row_min_height"
             android:paddingBottom="8dp">
 
             <TextView
@@ -30,7 +30,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:ellipsize="end"
-                android:maxLines="1"
+                android:maxLines="2"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
                 android:textColor="@color/local_games_on_surface"
                 android:fontFamily="sans-serif-medium" />
@@ -48,7 +48,7 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/local_games_component_primary_action"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_height="@dimen/local_games_menu_row_min_height"
                 android:layout_marginStart="10dp"
                 android:minWidth="0dp"
                 android:paddingStart="14dp"

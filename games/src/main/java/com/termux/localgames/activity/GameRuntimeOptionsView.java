@@ -1,6 +1,7 @@
 package com.termux.localgames.activity;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.text.InputType;
@@ -19,6 +20,9 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.termux.localgames.R;
@@ -94,6 +98,10 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private LinearLayout progressHost;
     private ScrollView optionsScroll;
     private ExtendedFloatingActionButton saveFab;
+    private FrameLayout.LayoutParams saveFabParams;
+    private int saveFabInsetEnd;
+    private int saveFabInsetBottom;
+    private float lastDensity;
     private final String gameId;
     private final Listener listener;
     private Game game;
@@ -153,13 +161,17 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         // Same height and title size as every games toolbar; arrow and title share one centre line.
         header.setPadding(dp(4), 0, dp(4), 0);
         header.setMinimumHeight(getResources().getDimensionPixelSize(R.dimen.local_games_toolbar_height));
+        lastDensity = getResources().getDisplayMetrics().density;
+        int touchMin = getResources().getDimensionPixelSize(R.dimen.local_game_runtime_touch_min);
         ImageView back = new ImageView(getContext());
         back.setImageResource(R.drawable.local_games_ic_back);
         back.setImageTintList(android.content.res.ColorStateList.valueOf(color(R.color.local_games_on_surface)));
         back.setScaleType(ImageView.ScaleType.CENTER);
-        header.addView(back, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        back.setContentDescription(getContext().getString(
+            androidx.appcompat.R.string.abc_action_bar_up_description));
+        header.addView(back, new LinearLayout.LayoutParams(touchMin, touchMin));
         back.setOnClickListener(view -> navigateBack());
-        title = text("Runtime parameters", 20, R.color.local_games_on_surface);
+        title = text(s(R.string.local_game_runtime_title_default), 20, R.color.local_games_on_surface);
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         title.setIncludeFontPadding(false);
         title.setGravity(Gravity.CENTER_VERTICAL);
@@ -176,7 +188,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         help.setOnClickListener(view -> GamesHelpDialog.show(getContext(),
             R.string.local_games_runtime_options_help_title,
             R.string.local_games_runtime_options_help));
-        header.addView(help, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        header.addView(help, new LinearLayout.LayoutParams(touchMin, touchMin));
         innerContent.addView(header);
 
         progress = new ProgressBar(getContext());
@@ -192,7 +204,11 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         content.setOrientation(LinearLayout.VERTICAL);
         // Same horizontal inset as the Settings page menu (activity_local_games.xml).
         int pageInset = getResources().getDimensionPixelSize(R.dimen.local_games_page_horizontal_padding);
-        content.setPadding(pageInset, dp(8), pageInset, dp(28));
+        // The bottom padding keeps the last row scrollable above the extended Save FAB, in
+        // embedded and standalone use alike.
+        content.setPadding(pageInset, dp(8), pageInset,
+            getResources().getDimensionPixelSize(R.dimen.local_game_runtime_save_bar_clearance));
+        optionsScroll.setClipToPadding(false);
         optionsScroll.addView(content);
         optionsScroll.setVisibility(View.GONE);
         innerContent.addView(optionsScroll, new LinearLayout.LayoutParams(
@@ -206,7 +222,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         // Discard/Cancel/Save dialog -- see navigateBack(). Shares saveAndFinish() verbatim, so
         // its save-then-leave behavior matches that dialog's "Save" button exactly.
         saveFab = new ExtendedFloatingActionButton(getContext());
-        saveFab.setText("Save");
+        saveFab.setText(R.string.local_game_runtime_save);
+        saveFab.setMinimumHeight(touchMin);
         saveFab.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
             color(R.color.local_games_primary)));
         saveFab.setTextColor(color(R.color.local_games_on_primary));
@@ -217,11 +234,22 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         saveFab.setTranslationZ(0f);
         saveFab.setVisibility(View.GONE);
         saveFab.setOnClickListener(view -> saveAndFinish());
-        FrameLayout.LayoutParams fabParams = new FrameLayout.LayoutParams(
+        saveFabParams = new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        fabParams.gravity = Gravity.BOTTOM | Gravity.END;
-        fabParams.setMargins(dp(16), dp(16), dp(16), dp(16));
-        root.addView(saveFab, fabParams);
+        saveFabParams.gravity = Gravity.BOTTOM | Gravity.END;
+        applySaveFabMargins();
+        root.addView(saveFab, saveFabParams);
+        // Keep the FAB clear of the gesture bar / navigation bar when the window is laid out
+        // behind them; the system delivers no insets (and nothing changes) when it already fits.
+        ViewCompat.setOnApplyWindowInsetsListener(saveFab, (target, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
+                | WindowInsetsCompat.Type.displayCutout());
+            saveFabInsetEnd = bars.right;
+            saveFabInsetBottom = bars.bottom;
+            applySaveFabMargins();
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(saveFab);
 
         return root;
     }
@@ -251,7 +279,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             } catch (IOException | RuntimeException error) {
                 post(() -> {
                     if (!destroyed) {
-                        Toast.makeText(getContext(), "Unable to load runtime parameters", Toast.LENGTH_LONG).show();
+                        Toast.makeText(getContext(), R.string.local_game_runtime_load_failed, Toast.LENGTH_LONG).show();
                         close();
                     }
                 });
@@ -299,49 +327,52 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     private void renderRoot() {
-        title.setText(game.getName() + " · Runtime");
-        addMenu("General", game.getWorkingDirectory() + " · " + game.getExecutable(), Page.GENERAL);
-        addMenu("Runtime backend", runtimeBackendLabel(profile.getRuntimeBackendType()), Page.CONTAINER);
-        addMenu("Common", profile.getResolution() + " · "
+        title.setText(getContext().getString(R.string.local_game_runtime_title_root, game.getName()));
+        addMenu(s(R.string.local_game_runtime_menu_general), game.getWorkingDirectory() + " · " + game.getExecutable(), Page.GENERAL);
+        addMenu(s(R.string.local_game_runtime_menu_backend), runtimeBackendLabel(profile.getRuntimeBackendType()), Page.CONTAINER);
+        addMenu(s(R.string.local_game_runtime_menu_common), profile.getResolution() + " · "
             + profile.getGraphicsDriver() + " · " + profile.getDxWrapper(), Page.BASE);
-        addMenu("Wine configuration", "Theme, background, font, DPI and mouse overlay", Page.WINE);
-        addMenu("Function libraries", "Direct3D, DirectSound, DirectMusic, DirectShow and DirectPlay",
-            Page.LIBRARIES);
-        addMenu("Environment variables", profile.getEnvironment().isEmpty() ? "No overrides" :
-            profile.getEnvironment().size() + " overrides", Page.ENVIRONMENT);
-        addMenu("Set folders", "Drive letters and target paths", Page.FOLDERS);
-        addMenu("Advanced", "Box64, startup option, Windows version and CPU cores", Page.ADVANCED);
+        addMenu(s(R.string.local_game_runtime_menu_wine), s(R.string.local_game_runtime_menu_wine_summary), Page.WINE);
+        addMenu(s(R.string.local_game_runtime_menu_libraries),
+            s(R.string.local_game_runtime_menu_libraries_summary), Page.LIBRARIES);
+        addMenu(s(R.string.local_game_runtime_menu_environment), profile.getEnvironment().isEmpty()
+            ? s(R.string.local_game_runtime_env_none)
+            : getResources().getQuantityString(R.plurals.local_game_runtime_env_count,
+                profile.getEnvironment().size(), profile.getEnvironment().size()), Page.ENVIRONMENT);
+        addMenu(s(R.string.local_game_runtime_menu_folders), s(R.string.local_game_runtime_menu_folders_summary), Page.FOLDERS);
+        addMenu(s(R.string.local_game_runtime_menu_advanced), s(R.string.local_game_runtime_menu_advanced_summary), Page.ADVANCED);
     }
 
     private void renderGeneral() {
-        pageTitle("General");
-        addEdit("Game name", game.getName(), false, value -> {
+        pageTitle(s(R.string.local_game_runtime_menu_general));
+        addEdit(s(R.string.local_game_runtime_general_game_name), game.getName(), false, value -> {
             String trimmed = value.trim();
             if (!trimmed.isEmpty()) game = game.withLaunchDetails(trimmed,
                 game.getWorkingDirectory(), game.getArguments());
         });
-        addEdit("Working directory", game.getWorkingDirectory(), false, value -> {
+        addEdit(s(R.string.local_game_runtime_general_working_dir), game.getWorkingDirectory(), false, value -> {
             String trimmed = value.trim();
             game = game.withLaunchDetails(game.getName(), trimmed.isEmpty() ? "." : trimmed,
                 game.getArguments());
         });
-        addEdit("Launch arguments", LaunchArguments.format(game.getArguments()), false, value -> {
+        addEdit(s(R.string.local_game_runtime_general_launch_args), LaunchArguments.format(game.getArguments()), false, value -> {
             try {
                 game = game.withLaunchDetails(game.getName(), game.getWorkingDirectory(),
                     LaunchArguments.parse(value));
             } catch (IllegalArgumentException error) {
-                Toast.makeText(getContext(), "Launch arguments are invalid", Toast.LENGTH_LONG).show();
+                Toast.makeText(getContext(), R.string.local_game_runtime_general_launch_args_invalid,
+                    Toast.LENGTH_LONG).show();
             }
         });
-        addReadOnly("Executable", game.getExecutable());
+        addReadOnly(s(R.string.local_game_runtime_general_executable), game.getExecutable());
     }
 
     private void renderContainer() {
-        pageTitle("Runtime backend");
+        pageTitle(s(R.string.local_game_runtime_menu_backend));
         String[] backendLabels = { runtimeBackendLabel(GameRuntimeBackendType.GLIBC_TERMUX_BOX),
             runtimeBackendLabel(GameRuntimeBackendType.ROOTFS_PROOT) };
         int checked = profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT ? 1 : 0;
-        addChoice("Runtime backend", backendLabels, checked, which -> {
+        addChoice(s(R.string.local_game_runtime_menu_backend), backendLabels, checked, which -> {
             android.util.Log.d("GameRuntimeOptionsDebug", "backend choice which=" + which
                 + " checked=" + checked);
             if (which == checked) return;
@@ -354,10 +385,11 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             }
         });
         if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
-            addReadOnly("Rootfs package", profile.getRootfsPackage());
+            addReadOnly(s(R.string.local_game_runtime_backend_rootfs_package), profile.getRootfsPackage());
         }
-        addReadOnly("Container id", profile.getContainerId());
-        addRow("Components", "Manage installed runtime components", true, view ->
+        addReadOnly(s(R.string.local_game_runtime_backend_container_id), profile.getContainerId());
+        addRow(s(R.string.local_game_runtime_backend_components),
+            s(R.string.local_game_runtime_backend_components_summary), true, view ->
             getContext().startActivity(LocalGames.createComponentsIntent(getContext(), game.getId())));
     }
 
@@ -389,7 +421,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             android.util.Log.d("GameRuntimeOptionsDebug", "container saved to repository");
         } catch (IOException error) {
             android.util.Log.e("GameRuntimeOptionsDebug", "containerRepository.save failed", error);
-            Toast.makeText(getContext(), "Unable to create rootfs container", Toast.LENGTH_LONG).show();
+            Toast.makeText(getContext(), R.string.local_game_runtime_backend_container_failed,
+                Toast.LENGTH_LONG).show();
             return;
         }
         profile = new GameContainerProfileResolver().resolve(draft, container, paths);
@@ -413,8 +446,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     private void renderBase() {
-        pageTitle("Common");
-        addChoice("Game resolution", withCurrent(profile.getResolution(),
+        pageTitle(s(R.string.local_game_runtime_menu_common));
+        addChoice(s(R.string.local_game_runtime_common_resolution), withCurrent(profile.getResolution(),
                 "960x540", "1280x720", "1600x900", "1920x1080"), value ->
             replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
                 profile.getAudioDriver(), value, profile.getBox64Preset(), profile.getEnvironment(),
@@ -423,7 +456,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         String[] graphicsChoices = rootfs
             ? withCurrent(profile.getGraphicsDriver(), "rootfs-virgl-mesa", "rootfs-llvmpipe")
             : withCurrent(profile.getGraphicsDriver(), "turnip", "virgl", "llvmpipe");
-        addChoice("Graphics driver", graphicsChoices,
+        addChoice(s(R.string.local_game_runtime_common_graphics_driver), graphicsChoices,
             value -> {
                 // VirGL has no Vulkan path, so it cannot host DXVK (RootfsProotBackend.
                 // requireProfile() rejects that combination) -- fall back to WineD3D instead of
@@ -432,8 +465,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 if (rootfs && "rootfs-virgl-mesa".equals(value)
                     && dx != null && dx.startsWith("rootfs_dxvk_")) {
                     dx = "rootfs-wined3d";
-                    Toast.makeText(getContext(),
-                        "VirGL does not support DXVK; switched DirectX translation to WineD3D",
+                    Toast.makeText(getContext(), R.string.local_game_runtime_common_virgl_dxvk,
                         Toast.LENGTH_LONG).show();
                 }
                 replace(profile.getWinePackage(), value, dx, profile.getAudioDriver(),
@@ -451,7 +483,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         } else {
             dxChoices = withCurrent(profile.getDxWrapper(), "dxvk", "vkd3d", "wined3d");
         }
-        addChoice("DirectX translation", dxChoices,
+        addChoice(s(R.string.local_game_runtime_common_dx), dxChoices,
             value -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), value,
                 profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
                 profile.getEnvironment(), profile.getInputProfileId(), profile.getLaunchExecutionMode()));
@@ -470,7 +502,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             // otherwise show up here too and fail at launch once picked, since the registry is one
             // flat list shared by both backends (see CustomRuntimeComponent's own doc comment).
             RuntimeTranslator lockedTranslator = lockedRootfsTranslator();
-            addChoiceWithAddCustom("Wine package", profile.getWinePackage(),
+            addChoiceWithAddCustom(s(R.string.local_game_runtime_common_wine_package), profile.getWinePackage(),
                 sameTranslatorOnly(new String[] {"rootfs_hangover_11.16", "rootfs_wine_10.0",
                     "rootfs_proton_11.0"}, lockedTranslator),
                 sameTranslatorOnly(customWineEntriesForBackend(true), lockedTranslator), null,
@@ -481,12 +513,12 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                     profile.getLaunchExecutionMode()),
                 () -> showAddCustomComponentFlow(CustomRuntimeComponent.Kind.WINE, true));
             if (lockedTranslator != null) {
-                addHint("This container's Wine prefix was built for "
-                    + (lockedTranslator == RuntimeTranslator.HANGOVER ? "Hangover" : "Box64 Wine/Proton")
-                    + ", so only " + (lockedTranslator == RuntimeTranslator.HANGOVER
-                        ? "Hangover" : "Box64 Wine and Proton") + " builds can be selected. Switching between "
-                    + "Hangover and Box64 would need a new prefix and lose the saves in this one: to use the "
-                    + "other kind, switch the backend to GLIBC and back to RootFS to create a new container.");
+                boolean hangover = lockedTranslator == RuntimeTranslator.HANGOVER;
+                addHint(getContext().getString(R.string.local_game_runtime_common_locked_hint,
+                    s(hangover ? R.string.local_game_runtime_common_translator_hangover
+                        : R.string.local_game_runtime_common_translator_box64_short),
+                    s(hangover ? R.string.local_game_runtime_common_translator_hangover
+                        : R.string.local_game_runtime_common_translator_box64_long)));
             }
         } else {
             // GLIBC_TERMUX_BOX has no translator choice (always box64), so unlike the ROOTFS row
@@ -495,7 +527,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             // the three that ship as fixed presets today) instead of a hardcoded id list, and
             // custom entries are filtered to translator == null (the GLIBC-origin half of the
             // flat registry -- see the ROOTFS branch's comment above for why the split matters).
-            addChoiceWithAddCustom("Wine package", profile.getWinePackage(), glibcWinePresetIds(),
+            addChoiceWithAddCustom(s(R.string.local_game_runtime_common_wine_package), profile.getWinePackage(), glibcWinePresetIds(),
                 customWineEntriesForBackend(false), null,
                 getContext().getString(R.string.local_games_custom_component_add_wine),
                 value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),
@@ -504,36 +536,44 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                     profile.getLaunchExecutionMode()),
                 () -> showAddCustomComponentFlow(CustomRuntimeComponent.Kind.WINE, false));
         }
-        addChoice("Audio driver", withCurrent(profile.getAudioDriver(), "alsa", "pulseaudio"),
+        addChoice(s(R.string.local_game_runtime_common_audio_driver), withCurrent(profile.getAudioDriver(), "alsa", "pulseaudio"),
             value -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
                 value, profile.getResolution(), profile.getBox64Preset(), profile.getEnvironment(),
                 profile.getInputProfileId(), profile.getLaunchExecutionMode()));
-        addChoice("Show FPS", labels("Off", "On"), "1".equals(option("GAMES_SHOW_FPS")) ? 1 : 0,
+        addChoice(s(R.string.local_game_runtime_common_show_fps),
+            labels(s(R.string.local_game_runtime_common_off), s(R.string.local_game_runtime_common_on)), "1".equals(option("GAMES_SHOW_FPS")) ? 1 : 0,
             which -> setOption("GAMES_SHOW_FPS", which == 1 ? "1" : "0"));
     }
 
     private void renderWine() {
-        pageTitle("Wine configuration");
-        addChoice("Language", labels("Runtime default", "English", "Chinese (Simplified)"),
+        pageTitle(s(R.string.local_game_runtime_menu_wine));
+        addChoice(s(R.string.local_game_runtime_wine_language), labels(
+            s(R.string.local_game_runtime_wine_language_default),
+            s(R.string.local_game_runtime_wine_language_english),
+            s(R.string.local_game_runtime_wine_language_chinese)),
             localeChoiceIndex(option("GAMES_LOCALE")), which -> setOption("GAMES_LOCALE",
                 new String[] { "", "en_US.UTF-8", "zh_CN.UTF-8" }[which]));
-        addChoice("Theme", labels("Light", "Dark"), choiceIndex(option("GAMES_WINE_THEME"),
-            "Light", "Dark"), which -> setOption("GAMES_WINE_THEME", which == 0 ? "light" : "dark"));
-        addEdit("Background", option("GAMES_WINE_BACKGROUND"), false,
+        addChoice(s(R.string.local_game_runtime_wine_theme), labels(
+            s(R.string.local_game_runtime_wine_theme_light),
+            s(R.string.local_game_runtime_wine_theme_dark)),
+            "dark".equalsIgnoreCase(option("GAMES_WINE_THEME")) ? 1 : 0, which -> setOption("GAMES_WINE_THEME", which == 0 ? "light" : "dark"));
+        addEdit(s(R.string.local_game_runtime_wine_background), option("GAMES_WINE_BACKGROUND"), false,
             value -> setOption("GAMES_WINE_BACKGROUND", value));
-        addChoice("System font", labels("Tahoma", "Arial", "Segoe UI"),
+        addChoice(s(R.string.local_game_runtime_wine_font), labels("Tahoma", "Arial", "Segoe UI"),
             choiceIndex(option("GAMES_WINE_FONT"), "Tahoma", "Arial", "Segoe UI"),
             which -> setOption("GAMES_WINE_FONT", labels("Tahoma", "Arial", "Segoe UI")[which]));
         addChoice("DPI", labels("96", "120", "144", "192"),
             choiceIndex(option("GAMES_WINE_DPI"), "96", "120", "144", "192"),
             which -> setOption("GAMES_WINE_DPI", labels("96", "120", "144", "192")[which]));
-        addChoice("Mouse overlay offset", labels("Disable", "Force"),
+        addChoice(s(R.string.local_game_runtime_wine_mouse_overlay),
+            labels(s(R.string.local_game_runtime_wine_mouse_disable),
+                s(R.string.local_game_runtime_wine_mouse_force)),
             "force".equals(option("GAMES_MOUSE_WARP")) ? 1 : 0,
             which -> setOption("GAMES_MOUSE_WARP", which == 1 ? "force" : "disable"));
     }
 
     private void renderLibraries() {
-        pageTitle("Function libraries");
+        pageTitle(s(R.string.local_game_runtime_menu_libraries));
         addDllChoice("Direct3D", "GAMES_DLL_D3D");
         addDllChoice("DirectSound", "GAMES_DLL_DSOUND");
         addDllChoice("DirectMusic", "GAMES_DLL_DMUSIC");
@@ -542,17 +582,17 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     private void renderFolders() {
-        pageTitle("Set folders");
+        pageTitle(s(R.string.local_game_runtime_menu_folders));
         addEdit("D:", option("GAMES_DRIVE_D"), false, value -> setOption("GAMES_DRIVE_D", value));
         addEdit("E:", option("GAMES_DRIVE_E"), false, value -> setOption("GAMES_DRIVE_E", value));
     }
 
     private void renderEnvironment() {
-        pageTitle("Environment");
+        pageTitle(s(R.string.local_game_runtime_page_environment));
         for (Map.Entry<String, String> entry : profile.getEnvironment().entrySet()) {
             addEnvironmentEntry(entry.getKey(), entry.getValue());
         }
-        addRow("Add environment variable", "", true, view -> showAddEnvironmentVariable());
+        addRow(s(R.string.local_game_runtime_env_add_row), "", true, view -> showAddEnvironmentVariable());
     }
 
     private void addEnvironmentEntry(String key, String value) {
@@ -563,13 +603,13 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             input.setTextColor(color(R.color.local_games_on_surface));
             new FrostedDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
                 .setTitle(key)
-                .setView(input)
-                .setNegativeButton("Delete", (dialog, which) -> {
+                .setView(scrollable(input))
+                .setNegativeButton(R.string.local_game_runtime_env_delete, (dialog, which) -> {
                     setOption(key, "");
                     render();
                 })
                 .setNeutralButton(android.R.string.cancel, null)
-                .setPositiveButton("Apply", (dialog, which) -> {
+                .setPositiveButton(R.string.local_game_runtime_env_apply, (dialog, which) -> {
                     setOption(key, input.getText().toString());
                     render();
                 })
@@ -583,26 +623,27 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         int margin = dp(20);
         form.setPadding(margin, 0, margin, 0);
         EditText key = new EditText(getContext());
-        key.setHint("NAME");
+        key.setHint("NAME"); // the variable-name placeholder is an identifier format, not prose
         key.setSingleLine(true);
         key.setTextColor(color(R.color.local_games_on_surface));
         key.setHintTextColor(color(R.color.local_games_on_surface_secondary));
         form.addView(key);
         EditText value = new EditText(getContext());
-        value.setHint("Value");
+        value.setHint(R.string.local_game_runtime_env_value_hint);
         value.setSingleLine(false);
         value.setTextColor(color(R.color.local_games_on_surface));
         value.setHintTextColor(color(R.color.local_games_on_surface_secondary));
         form.addView(value);
         new FrostedDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
-            .setTitle("Add environment variable")
-            .setView(form)
+            .setTitle(R.string.local_game_runtime_env_add_title)
+            .setView(scrollable(form))
             .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton("Add", (dialog, which) -> {
+            .setPositiveButton(R.string.local_game_runtime_env_add_action, (dialog, which) -> {
                 String name = key.getText().toString().trim();
                 String optionValue = value.getText().toString();
                 if (!name.matches("[A-Za-z_][A-Za-z0-9_]*") || optionValue.isEmpty()) {
-                    Toast.makeText(getContext(), "Variable name or value is invalid", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getContext(), R.string.local_game_runtime_env_invalid,
+                        Toast.LENGTH_LONG).show();
                     return;
                 }
                 setOption(name, optionValue);
@@ -805,10 +846,12 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             hangover.setId(View.generateViewId());
             hangover.setText(R.string.local_games_custom_component_translator_hangover);
             hangover.setTextColor(color(R.color.local_games_on_surface));
+            hangover.setMinHeight(dp(48));
             RadioButton box64 = new RadioButton(getContext());
             box64.setId(View.generateViewId());
             box64.setText(R.string.local_games_custom_component_translator_box64);
             box64.setTextColor(color(R.color.local_games_on_surface));
+            box64.setMinHeight(dp(48));
             translatorGroup.addView(hangover);
             translatorGroup.addView(box64);
             translatorGroup.check(box64.getId());
@@ -819,7 +862,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             .setTitle(getContext().getString(kind == CustomRuntimeComponent.Kind.WINE
                 ? R.string.local_games_custom_component_add_wine
                 : R.string.local_games_custom_component_add_box64))
-            .setView(form)
+            .setView(scrollable(form))
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.local_games_custom_component_add_action, (dialog, which) -> {
                 String displayName = name.getText().toString().trim();
@@ -930,8 +973,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     private void renderAdvanced() {
-        pageTitle("Advanced");
-        addChoice("Box64 preset", withCurrent(profile.getBox64Preset(), "STABILITY", "INTERMEDIATE", "PERFORMANCE"),
+        pageTitle(s(R.string.local_game_runtime_menu_advanced));
+        addChoice(s(R.string.local_game_runtime_advanced_box64_preset), withCurrent(profile.getBox64Preset(), "STABILITY", "INTERMEDIATE", "PERFORMANCE"),
             value -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
                 profile.getAudioDriver(), profile.getResolution(), value, profile.getEnvironment(),
                 profile.getInputProfileId(), profile.getLaunchExecutionMode()));
@@ -940,24 +983,26 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             // of which Wine build is selected. "" means "no override" -- rootfs_prefix_warmup.sh
             // falls back to the apt-installed stock binary. See GAMES_CUSTOM_BOX64_ID wiring in
             // GameContainerProfileResolver.
-            addChoiceWithAddCustom("Box64 build", option("GAMES_CUSTOM_BOX64_ID"), new String[] {""},
+            addChoiceWithAddCustom(s(R.string.local_game_runtime_advanced_box64_build), option("GAMES_CUSTOM_BOX64_ID"), new String[] {""},
                 customBox64Entries, getContext().getString(R.string.local_games_box64_build_default),
                 getContext().getString(R.string.local_games_custom_component_add_box64),
                 value -> setOption("GAMES_CUSTOM_BOX64_ID", value),
                 () -> showAddCustomComponentFlow(CustomRuntimeComponent.Kind.BOX64, true));
         }
-        addChoice("Startup option", labels("App shell", "Terminal session"),
+        addChoice(s(R.string.local_game_runtime_advanced_startup),
+            labels(s(R.string.local_game_runtime_advanced_app_shell),
+                s(R.string.local_game_runtime_advanced_terminal)),
             profile.getLaunchExecutionMode() == LaunchExecutionMode.APP_SHELL ? 0 : 1,
             which -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
                 profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
                 profile.getEnvironment(), profile.getInputProfileId(), which == 0
                     ? LaunchExecutionMode.APP_SHELL : LaunchExecutionMode.TERMINAL_SESSION));
-        addChoice("Windows version", labels("Windows 7", "Windows 10", "Windows 11"),
+        addChoice(s(R.string.local_game_runtime_advanced_windows_version), labels("Windows 7", "Windows 10", "Windows 11"),
             choiceIndex(option("GAMES_WINDOWS_VERSION"), "Windows 7", "Windows 10", "Windows 11"),
             which -> setOption("GAMES_WINDOWS_VERSION",
                 labels("Windows 7", "Windows 10", "Windows 11")[which]));
-        addCpuCoreSelector("CPU cores", "GAMES_CPU_CORES");
-        addCpuCoreSelector("CPU cores (32-bit applications)", "GAMES_CPU_CORES_32");
+        addCpuCoreSelector(s(R.string.local_game_runtime_advanced_cpu_cores), "GAMES_CPU_CORES");
+        addCpuCoreSelector(s(R.string.local_game_runtime_advanced_cpu_cores_32), "GAMES_CPU_CORES_32");
     }
 
     private void pageTitle(String value) {
@@ -986,7 +1031,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     private void addChoice(String label, String[] values, int checked, IndexCallback callback) {
-        String current = checked >= 0 && checked < values.length ? values[checked] : "Not selected";
+        String current = checked >= 0 && checked < values.length ? values[checked]
+            : s(R.string.local_game_runtime_not_selected);
         addRow(label, current, true, view -> new FrostedDialogBuilder(getContext(),
             R.style.ThemeOverlay_TermuxLocalGames_Dialog)
             .setTitle(label)
@@ -999,19 +1045,17 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     private String valueFor(String label) {
-        if ("Execution method".equals(label)) return profile.getLaunchExecutionMode() ==
-            LaunchExecutionMode.APP_SHELL ? "App shell" : "Terminal session";
-        if ("Game resolution".equals(label)) return profile.getResolution();
-        if ("Graphics driver".equals(label)) return profile.getGraphicsDriver();
-        if ("DirectX translation".equals(label)) return profile.getDxWrapper();
-        if ("Wine package".equals(label)) return profile.getWinePackage();
-        if ("Audio driver".equals(label)) return profile.getAudioDriver();
-        if ("Box64 preset".equals(label)) return profile.getBox64Preset();
+        if (s(R.string.local_game_runtime_common_resolution).equals(label)) return profile.getResolution();
+        if (s(R.string.local_game_runtime_common_graphics_driver).equals(label)) return profile.getGraphicsDriver();
+        if (s(R.string.local_game_runtime_common_dx).equals(label)) return profile.getDxWrapper();
+        if (s(R.string.local_game_runtime_common_wine_package).equals(label)) return profile.getWinePackage();
+        if (s(R.string.local_game_runtime_common_audio_driver).equals(label)) return profile.getAudioDriver();
+        if (s(R.string.local_game_runtime_advanced_box64_preset).equals(label)) return profile.getBox64Preset();
         return emptyAs(profile.getInputProfileId(), "default");
     }
 
     private void addEdit(String label, String value, boolean multiline, EditCallback callback) {
-        addRow(label, value.isEmpty() ? "No overrides" : value.replace('\n', ' '), true, view -> {
+        addRow(label, value.isEmpty() ? s(R.string.local_game_runtime_env_none) : value.replace('\n', ' '), true, view -> {
             EditText input = new EditText(getContext());
             input.setText(value);
             input.setTextColor(color(R.color.local_games_on_surface));
@@ -1021,9 +1065,9 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             input.setMinLines(multiline ? 6 : 1);
             new FrostedDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
                 .setTitle(label)
-                .setView(input)
+                .setView(scrollable(input))
                 .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton("Apply", (dialog, which) -> {
+                .setPositiveButton(R.string.local_game_runtime_env_apply, (dialog, which) -> {
                     callback.edit(input.getText().toString());
                     render();
                 })
@@ -1042,7 +1086,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             .setTitle(label)
             .setMultiChoiceItems(cores, selected, (dialog, which, checked) -> selected[which] = checked)
             .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton("Apply", (dialog, which) -> {
+            .setPositiveButton(R.string.local_game_runtime_env_apply, (dialog, which) -> {
                 setOption(key, selectedCoreList(selected));
                 render();
             })
@@ -1050,7 +1094,9 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     private void addDllChoice(String label, String key) {
-        String[] values = labels("Built-in", "Native", "Native, built-in");
+        String[] values = labels(s(R.string.local_game_runtime_dll_builtin),
+            s(R.string.local_game_runtime_dll_native),
+            s(R.string.local_game_runtime_dll_native_builtin));
         addChoice(label, values, choiceIndex(option(key), values),
             which -> setOption(key, new String[] { "builtin", "native", "native,builtin" }[which]));
     }
@@ -1119,11 +1165,11 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         return value.toString();
     }
 
-    private static String selectedCoreSummary(boolean[] selected) {
+    private String selectedCoreSummary(boolean[] selected) {
         String value = selectedCoreList(selected);
-        if (value.isEmpty()) return "No cores selected";
+        if (value.isEmpty()) return s(R.string.local_game_runtime_advanced_no_cores);
         for (boolean core : selected) if (!core) return value;
-        return "All available";
+        return s(R.string.local_game_runtime_advanced_all_cores);
     }
 
     private void addRow(String label, String summary, boolean interactive, @Nullable View.OnClickListener listener) {
@@ -1160,11 +1206,13 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             + " profile.backend=" + profile.getRuntimeBackendType());
         if (profileChanged || gameChanged()) {
             new FrostedDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
-                .setTitle("Save runtime parameters?")
-                .setMessage("Changes apply only to " + game.getName() + ".")
-                .setNegativeButton("Discard", (dialog, which) -> close())
+                .setTitle(R.string.local_game_runtime_save_dialog_title)
+                .setMessage(getContext().getString(R.string.local_game_runtime_save_dialog_message,
+                    game.getName()))
+                .setNegativeButton(R.string.local_game_runtime_save_dialog_discard,
+                    (dialog, which) -> close())
                 .setNeutralButton(android.R.string.cancel, null)
-                .setPositiveButton("Save", (dialog, which) -> saveAndFinish())
+                .setPositiveButton(R.string.local_game_runtime_save, (dialog, which) -> saveAndFinish())
                 .show();
             return;
         }
@@ -1201,7 +1249,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 });
             } catch (IOException | RuntimeException error) {
                 android.util.Log.e("GameRuntimeOptionsDebug", "save failed", error);
-                post(() -> Toast.makeText(getContext(), "Unable to save runtime parameters",
+                post(() -> Toast.makeText(getContext(), R.string.local_game_runtime_save_failed,
                     Toast.LENGTH_LONG).show());
             }
         });
@@ -1227,6 +1275,47 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         view.setTextSize(sizeSp);
         view.setTextColor(color(colorRes));
         return view;
+    }
+
+    /** Wraps a dialog body so it scrolls instead of being clipped in a short (landscape / IME)
+     *  window; the dialog window itself is bounded by the platform, not by a fixed pixel size. */
+    private ScrollView scrollable(View body) {
+        ScrollView scroll = new ScrollView(getContext());
+        scroll.setFillViewport(false);
+        scroll.addView(body);
+        return scroll;
+    }
+
+    private String s(int resource) { return getContext().getString(resource); }
+
+    private void applySaveFabMargins() {
+        int margin = getResources().getDimensionPixelSize(R.dimen.local_game_runtime_fab_margin);
+        saveFabParams.setMargins(margin, margin, margin + saveFabInsetEnd,
+            margin + saveFabInsetBottom);
+        if (saveFab != null) saveFab.setLayoutParams(saveFabParams);
+    }
+
+    /** The host keeps this view across rotation (no recreation), so everything that was sized in
+     *  dp from the display density is refreshed here; the page, the edits and open dialogs stay. */
+    @Override
+    protected void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        float density = getResources().getDisplayMetrics().density;
+        header.setPadding(dp(4), 0, dp(4), 0);
+        header.setMinimumHeight(getResources().getDimensionPixelSize(R.dimen.local_games_toolbar_height));
+        int pageInset = getResources().getDimensionPixelSize(R.dimen.local_games_page_horizontal_padding);
+        content.setPadding(pageInset, dp(8), pageInset,
+            getResources().getDimensionPixelSize(R.dimen.local_game_runtime_save_bar_clearance));
+        applySaveFabMargins();
+        if (density != lastDensity) {
+            lastDensity = density;
+            if (profile != null && game != null) {
+                // Rows were built with the old density: rebuild them, keeping the scroll position.
+                int scrollY = optionsScroll.getScrollY();
+                render();
+                optionsScroll.post(() -> optionsScroll.scrollTo(0, scrollY));
+            }
+        }
     }
 
     private int color(int resource) { return ContextCompat.getColor(getContext(), resource); }

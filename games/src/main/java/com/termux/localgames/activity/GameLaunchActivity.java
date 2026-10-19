@@ -65,6 +65,7 @@ public final class GameLaunchActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityGameLaunchBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        fitContentWidth();
         orchestrator = new PersistentLocalGameOrchestrator(this);
         gameRepository = new FileGameRepository(new GameStoragePaths(getFilesDir()).getLibraryDirectory());
         gameId = getIntent().getStringExtra(EXTRA_GAME_ID);
@@ -82,6 +83,23 @@ public final class GameLaunchActivity extends AppCompatActivity {
         }
         if (TextUtils.isEmpty(taskId)) createOrReuseTask();
         else observeTask();
+    }
+
+    /** Centers the status block and caps it at local_game_launch_content_max_width on wide
+     *  windows; on narrow windows the side padding token applies. Re-evaluated on every layout. */
+    private void fitContentWidth() {
+        final int minSide = getResources().getDimensionPixelSize(R.dimen.local_game_launch_side_padding);
+        final int maxWidth = getResources().getDimensionPixelSize(R.dimen.local_game_launch_content_max_width);
+        binding.gameLaunchScroll.addOnLayoutChangeListener((view, left, top, right, bottom,
+                                                              oldLeft, oldTop, oldRight, oldBottom) -> {
+            int width = right - left;
+            int side = Math.max(minSide, (width - maxWidth) / 2);
+            if (binding.gameLaunchContent.getPaddingLeft() != side
+                || binding.gameLaunchContent.getPaddingRight() != side) {
+                binding.gameLaunchContent.setPadding(side, binding.gameLaunchContent.getPaddingTop(),
+                    side, binding.gameLaunchContent.getPaddingBottom());
+            }
+        });
     }
 
     @Override

@@ -12,6 +12,7 @@
             android:exported="false"
             android:label="@string/local_games_title"
             android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density"
             android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
 
         <activity
@@ -19,7 +20,7 @@
             android:exported="false"
             android:label="@string/local_game_file_manager_title"
             android:resizeableActivity="true"
-            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density"
             android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
 
         <activity
@@ -27,6 +28,7 @@
             android:exported="false"
             android:label="@string/local_game_detail_title"
             android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density"
             android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
 
         <activity
@@ -41,6 +43,7 @@
             android:exported="false"
             android:label="@string/local_game_runtime_profile_title"
             android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density"
             android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
 
         <activity

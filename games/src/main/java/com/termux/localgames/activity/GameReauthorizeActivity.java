@@ -44,7 +44,11 @@ public final class GameReauthorizeActivity extends AppCompatActivity {
                 expectedRoot = null;
             }
         }
-        treePicker.launch(SafPermissionManager.createOpenTreeIntent());
+        // After a rotation/recreation the first picker is still open (or its result is delivered
+        // to the re-registered launcher): launching again would stack a second picker.
+        if (savedInstanceState == null) {
+            treePicker.launch(SafPermissionManager.createOpenTreeIntent());
+        }
     }
 
     private void handleTreeResult(int resultCode, @Nullable Intent data) {

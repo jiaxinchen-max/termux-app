@@ -2,6 +2,7 @@ package com.termux.localgames.activity;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -19,6 +20,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
+import androidx.core.content.ContextCompat;
 
 import com.termux.localgames.R;
 import com.termux.localgames.api.LocalGames;
@@ -50,6 +52,8 @@ import java.util.concurrent.Executors;
 public final class GameFileManagerActivity extends AppCompatActivity {
 
     private static final int REQUEST_SHARED_STORAGE_PERMISSION = 8402;
+    private static final String STATE_BROWSED_DIRECTORY = "browsed_directory";
+    private static final int TILE_MARGIN_DP = 5;
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "GamesFileManagerIo"));
@@ -82,7 +86,45 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         binding.localGameFileManagerToolbar.setNavigationOnClickListener(view -> navigateUp());
         GamesHelpDialog.attach(binding.localGameFileManagerToolbar,
             R.string.local_game_file_manager_title, R.string.local_game_file_manager_help);
-        showHome();
+        WindowInsetsPadding.apply(binding.getRoot(), true, false, true, true);
+        File restored = restoreBrowsedDirectory(savedInstanceState);
+        if (restored != null) showLocal(restored);
+        else showHome();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (localCurrent != null) {
+            outState.putString(STATE_BROWSED_DIRECTORY, localCurrent.getPath());
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (binding == null) return;
+        // Keeps localCurrent (showLocal re-canonicalises it) and pendingSharedStorageAction.
+        File current = localCurrent;
+        if (current != null) showLocal(current);
+        else showHome();
+    }
+
+    /** Process-death safe restore of the browsed directory; null means "show Home". */
+    @Nullable
+    private File restoreBrowsedDirectory(@Nullable Bundle state) {
+        if (state == null) return null;
+        String path = state.getString(STATE_BROWSED_DIRECTORY);
+        if (path == null) return null;
+        File directory = new File(path);
+        File root = rootFor(directory);
+        if (root == null || !isWithin(root, directory) || !directory.isDirectory()) return null;
+        if (isWithin(sharedStorageRoot, directory)
+            && !PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
+                this, -1, false)) {
+            return null;
+        }
+        return directory;
     }
 
     @Override
@@ -315,7 +357,7 @@ public final class GameFileManagerActivity extends AppCompatActivity {
 
         TextView label = new TextView(this);
         label.setText(title);
-        label.setTextColor(getColor(directory ? R.color.local_games_on_surface :
+        label.setTextColor(ContextCompat.getColor(this, directory ? R.color.local_games_on_surface :
             R.color.local_games_on_surface_secondary));
         label.setTextSize(11);
         label.setGravity(Gravity.CENTER);
@@ -337,7 +379,7 @@ public final class GameFileManagerActivity extends AppCompatActivity {
     private void addEmpty(String message) {
         TextView empty = new TextView(this);
         empty.setText(message);
-        empty.setTextColor(getColor(R.color.local_games_on_surface_secondary));
+        empty.setTextColor(ContextCompat.getColor(this, R.color.local_games_on_surface_secondary));
         empty.setPadding(dp(8), dp(24), dp(8), dp(24));
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
         params.width = ViewGroup.LayoutParams.MATCH_PARENT;
@@ -347,16 +389,31 @@ public final class GameFileManagerActivity extends AppCompatActivity {
     }
 
     private int gridColumns() {
-        return getResources().getConfiguration().orientation ==
-            android.content.res.Configuration.ORIENTATION_LANDSCAPE ? 6 : 4;
+        float density = getResources().getDisplayMetrics().density;
+        return FileManagerGridColumns.columnsFor(Math.round(availableGridWidthPx() / density),
+            isLandscape());
+    }
+
+    private boolean isLandscape() {
+        return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+    }
+
+    /** Width of the grid content area. Uses the window's own width (screenWidthDp tracks
+     *  split-screen/freeform size, unlike the display metrics) minus the root and grid padding. */
+    private int availableGridWidthPx() {
+        float density = getResources().getDisplayMetrics().density;
+        int windowPx = Math.round(getResources().getConfiguration().screenWidthDp * density);
+        if (windowPx <= 0) windowPx = getResources().getDisplayMetrics().widthPixels;
+        View root = binding.getRoot();
+        View grid = binding.localGameFileManagerItems;
+        int padding = root.getPaddingLeft() + root.getPaddingRight()
+            + grid.getPaddingLeft() + grid.getPaddingRight();
+        return Math.max(0, windowPx - padding);
     }
 
     private int gridTileWidth() {
-        int horizontalPadding = dp(40);
-        int cellMargins = dp(10);
-        int available = Math.max(dp(96), getResources().getDisplayMetrics().widthPixels -
-            horizontalPadding - cellMargins * gridColumns());
-        return Math.max(dp(96), available / gridColumns());
+        return FileManagerGridColumns.tileWidthPx(availableGridWidthPx(), gridColumns(),
+            dp(TILE_MARGIN_DP));
     }
 
     private boolean isWithin(File root, File candidate) {

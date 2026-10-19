@@ -119,7 +119,7 @@
 
     <!-- In-game overlay left navigation: compact text buttons, tight tracking. -->
     <style name="Widget.TermuxLocalGames.OverlayNav" parent="Widget.MaterialComponents.Button.TextButton">
-        <item name="android:minHeight">40dp</item>
+        <item name="android:minHeight">@dimen/local_games_menu_row_min_height</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
         <item name="android:paddingLeft">8dp</item>
@@ -138,10 +138,10 @@
     </style>
 
     <style name="Widget.TermuxLocalGames.HelpButton" parent="Widget.MaterialComponents.Button.TextButton">
-        <item name="android:layout_width">36dp</item>
-        <item name="android:layout_height">36dp</item>
-        <item name="android:minWidth">36dp</item>
-        <item name="android:minHeight">36dp</item>
+        <item name="android:layout_width">@dimen/local_games_menu_row_min_height</item>
+        <item name="android:layout_height">@dimen/local_games_menu_row_min_height</item>
+        <item name="android:minWidth">@dimen/local_games_menu_row_min_height</item>
+        <item name="android:minHeight">@dimen/local_games_menu_row_min_height</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
         <item name="android:padding">0dp</item>

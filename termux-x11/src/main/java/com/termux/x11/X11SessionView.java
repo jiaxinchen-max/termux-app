@@ -2,6 +2,7 @@ package com.termux.x11;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.util.AttributeSet;
 import android.widget.FrameLayout;
@@ -13,6 +14,7 @@ import androidx.fragment.app.FragmentManager;
 
 import com.termux.x11.controller.winhandler.ProcessInfo;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -42,6 +44,20 @@ public final class X11SessionView extends FrameLayout {
 
         public int getProcessCount() { return processCount; }
         public long getMemoryBytes() { return memoryBytes; }
+    }
+
+    /** Id + display name of one on-screen controller layout; ids are the stable profile ids. */
+    public static final class InputProfile {
+        private final int id;
+        private final String name;
+
+        InputProfile(int id, @NonNull String name) {
+            this.id = id;
+            this.name = name;
+        }
+
+        public int getId() { return id; }
+        @NonNull public String getName() { return name; }
     }
 
     @Nullable private AppCompatActivity activity;
@@ -153,6 +169,45 @@ public final class X11SessionView extends FrameLayout {
 
     public boolean applyInputProfile(@NonNull String profileId) {
         return requireRuntime().applyGameInputProfile(profileId);
+    }
+
+    /**
+     * Forwards an Activity result of the controller editor. Returns true when the result belonged to
+     * the editor and the profile list / overlay were refreshed.
+     */
+    public boolean onHostActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        return runtime != null && runtime.onActivityResult(requestCode, resultCode, data);
+    }
+
+    /** Shows or hides the on-screen controller overlay while keeping the active profile. */
+    public void setInputControlsVisible(boolean visible) {
+        requireRuntime().setInputControlsVisible(visible);
+    }
+
+    public boolean isInputControlsVisible() {
+        return runtime != null && runtime.isInputControlsVisible();
+    }
+
+    /** Reloads and returns the selectable on-screen controller profiles (id + name). */
+    @NonNull
+    public List<InputProfile> getInputControlsProfiles() {
+        List<InputProfile> result = new ArrayList<>();
+        if (runtime == null) return result;
+        for (com.termux.x11.controller.inputcontrols.ControlsProfile profile : runtime.getInputControlsProfiles()) {
+            String name = profile.getName();
+            result.add(new InputProfile(profile.id, name == null ? "" : name));
+        }
+        return result;
+    }
+
+    /** Id of the profile shown by the overlay, or 0 when the overlay has no active profile. */
+    public int getActiveInputProfileId() {
+        return runtime == null ? 0 : runtime.getActiveInputControlsProfileId();
+    }
+
+    /** Opens the controller editor; the result must be forwarded to {@link #onHostActivityResult}. */
+    public void openInputControlsEditor() {
+        requireRuntime().openInputControlsEditor();
     }
 
     @NonNull

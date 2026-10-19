@@ -41,8 +41,8 @@
             android:layout_height="wrap_content"
             android:alignmentMode="alignMargins"
             android:columnCount="6"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
+            android:paddingStart="@dimen/local_games_page_horizontal_padding"
+            android:paddingEnd="@dimen/local_games_page_horizontal_padding"
             android:useDefaultMargins="false" />
     </ScrollView>
 </LinearLayout>

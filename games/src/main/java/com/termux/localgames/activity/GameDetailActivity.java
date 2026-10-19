@@ -2,11 +2,13 @@ package com.termux.localgames.activity;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.FrameLayout;
@@ -96,12 +98,15 @@ public final class GameDetailActivity extends AppCompatActivity {
     private String sidePanel = SIDE_PANEL_EDITOR;
     private int sidePanelGeneration;
     private GameRuntimeOptionsView runtimeOptionsView;
+    @Nullable private Bitmap currentCover;
+    private boolean formEnabled = true;
+    private boolean progressShown;
+    private boolean storageLoading;
+    @Nullable private String errorMessage;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        binding = ActivityGameDetailBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
         gameId = getIntent().getStringExtra(EXTRA_GAME_ID);
         GameStoragePaths paths = new GameStoragePaths(getFilesDir());
         gameRepository = new FileGameRepository(paths.getLibraryDirectory());
@@ -109,7 +114,26 @@ public final class GameDetailActivity extends AppCompatActivity {
         accessProbe = new SafGameAccessProbe(getContentResolver());
         artworkStore = new GameArtworkStore(getFilesDir());
         artworkLoader = new GameArtworkLoader(artworkStore);
+        bindContent();
+        if (savedInstanceState != null) {
+            restoredName = savedInstanceState.getString(STATE_NAME);
+            restoredWorkingDirectory = savedInstanceState.getString(STATE_WORKING_DIRECTORY);
+            restoredArguments = savedInstanceState.getString(STATE_ARGUMENTS);
+            sidePanel = savedInstanceState.getString(STATE_SIDE_PANEL, SIDE_PANEL_EDITOR);
+        }
+        if (TextUtils.isEmpty(gameId)) {
+            Toast.makeText(this, R.string.local_game_detail_missing, Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        loadGame(true);
+    }
 
+    /** Inflates the layout for the current resource set and wires every listener. Callbacks read
+     *  the {@code binding} field, never a captured binding, so a later rebind is picked up. */
+    private void bindContent() {
+        binding = ActivityGameDetailBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
         binding.gameDetailChangeCover.setOnClickListener(view -> coverPicker.launch(
             new Intent(Intent.ACTION_OPEN_DOCUMENT)
                 .addCategory(Intent.CATEGORY_OPENABLE)
@@ -123,18 +147,83 @@ public final class GameDetailActivity extends AppCompatActivity {
             if (game != null) startActivity(LocalGames.createGameLaunchIntent(this, game.getId()));
         });
         binding.gameDetailDelete.setOnClickListener(view -> confirmDelete());
-        if (savedInstanceState != null) {
-            restoredName = savedInstanceState.getString(STATE_NAME);
-            restoredWorkingDirectory = savedInstanceState.getString(STATE_WORKING_DIRECTORY);
-            restoredArguments = savedInstanceState.getString(STATE_ARGUMENTS);
-            sidePanel = savedInstanceState.getString(STATE_SIDE_PANEL, SIDE_PANEL_EDITOR);
+        if (!hasEmbeddedSidePanels()) {
+            int maxWidth = getResources().getDimensionPixelSize(
+                R.dimen.local_game_detail_content_max_width);
+            ViewGroup.LayoutParams params = binding.gameDetailContent.getLayoutParams();
+            params.width = getResources().getDisplayMetrics().widthPixels > maxWidth
+                ? maxWidth : ViewGroup.LayoutParams.MATCH_PARENT;
+            binding.gameDetailContent.setLayoutParams(params);
         }
-        if (TextUtils.isEmpty(gameId)) {
-            Toast.makeText(this, R.string.local_game_detail_missing, Toast.LENGTH_SHORT).show();
-            finish();
-            return;
+        WindowInsetsPadding.apply(binding.gameDetailContent, true, false, true, true);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        rebindForConfiguration();
+    }
+
+    /** The layout and layout-land variants are chosen at inflate time, so a rotation re-inflates
+     *  the screen and carries the form, cover, panel and live runtime editor over. */
+    private void rebindForConfiguration() {
+        if (destroyed || binding == null) return;
+        ActivityGameDetailBinding old = binding;
+        String name = textOf(old.gameDetailName);
+        String workingDirectory = textOf(old.gameDetailWorkingDirectory);
+        String arguments = textOf(old.gameDetailArguments);
+        CharSequence nameError = old.gameDetailNameLayout.getError();
+        CharSequence workingDirectoryError = old.gameDetailWorkingDirectoryLayout.getError();
+        CharSequence argumentsError = old.gameDetailArgumentsLayout.getError();
+        GameRuntimeOptionsView runtime = runtimeOptionsView;
+        if (runtime != null && runtime.getParent() instanceof ViewGroup) {
+            ((ViewGroup) runtime.getParent()).removeView(runtime);
         }
-        loadGame(true);
+        bindContent();
+        setProgressVisible(progressShown);
+        if (game != null) {
+            restoredName = name;
+            restoredWorkingDirectory = workingDirectory;
+            restoredArguments = arguments;
+            renderGame(currentCover, true);
+            binding.gameDetailNameLayout.setError(nameError);
+            binding.gameDetailWorkingDirectoryLayout.setError(workingDirectoryError);
+            binding.gameDetailArgumentsLayout.setError(argumentsError);
+            if (errorMessage != null) showError(errorMessage);
+            if (!hasEmbeddedSidePanels() && storageLoading) {
+                // No storage panel in this layout: drop the pending scan and its progress bar.
+                ++sidePanelGeneration;
+                storageLoading = false;
+                setProgressVisible(false);
+            }
+        }
+        attachRuntimeView();
+    }
+
+    /** Puts the live runtime editor back: into the landscape panel, or full screen in portrait
+     *  (where no panel exists) so unsaved edits survive the rotation. */
+    private void attachRuntimeView() {
+        GameRuntimeOptionsView runtime = runtimeOptionsView;
+        if (runtime == null) return;
+        FrameLayout panel = binding.getRoot().findViewById(R.id.game_detail_runtime_panel);
+        if (panel != null) {
+            runtime.setShowHeader(false);
+            panel.addView(runtime, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        } else if (SIDE_PANEL_RUNTIME.equals(sidePanel)) {
+            runtime.setShowHeader(true);
+            setContentView(runtime);
+        } else {
+            runtimeOptionsView = null;
+            runtime.release();
+        }
+    }
+
+    private void setProgressVisible(boolean visible) {
+        progressShown = visible;
+        if (binding == null) return;
+        if (visible) binding.gameDetailProgress.show();
+        else binding.gameDetailProgress.hide();
     }
 
     @Override
@@ -151,7 +240,7 @@ public final class GameDetailActivity extends AppCompatActivity {
 
     private void loadGame(boolean applyRestoredForm) {
         int generation = ++operationGeneration;
-        binding.gameDetailProgress.show();
+        setProgressVisible(true);
         binding.gameDetailContent.setVisibility(View.GONE);
         ioExecutor.execute(() -> {
             Optional<Game> found = Optional.empty();
@@ -177,7 +266,7 @@ public final class GameDetailActivity extends AppCompatActivity {
             String failure = error;
             runOnUiThread(() -> {
                 if (!isCurrent(generation)) return;
-                binding.gameDetailProgress.hide();
+                setProgressVisible(false);
                 if (failure != null) {
                     Toast.makeText(this, getString(R.string.local_games_library_load_failed,
                         failure), Toast.LENGTH_LONG).show();
@@ -216,8 +305,9 @@ public final class GameDetailActivity extends AppCompatActivity {
         binding.gameDetailRemoveCover.setVisibility(
             game.getArtworkUri().isEmpty() ? View.GONE : View.VISIBLE);
         binding.gameDetailLaunch.setEnabled(accessState == GameAccessState.ACCESSIBLE);
-        setFormEnabled(true);
+        setFormEnabled(formEnabled);
         clearErrors();
+        if (!hasEmbeddedSidePanels() && runtimeOptionsView == null) sidePanel = SIDE_PANEL_EDITOR;
         if (SIDE_PANEL_STORAGE.equals(sidePanel)) showStoragePanel();
         else if (SIDE_PANEL_RUNTIME.equals(sidePanel)) showRuntimePanel();
         else showEditorPanel();
@@ -243,7 +333,8 @@ public final class GameDetailActivity extends AppCompatActivity {
     }
 
     private boolean hasEmbeddedSidePanels() {
-        return findViewById(R.id.game_detail_editor_panel) != null;
+        return binding != null
+            && binding.getRoot().findViewById(R.id.game_detail_editor_panel) != null;
     }
 
     private void showEditorPanel() {
@@ -256,15 +347,17 @@ public final class GameDetailActivity extends AppCompatActivity {
         if (game == null || !hasEmbeddedSidePanels()) return;
         sidePanel = SIDE_PANEL_STORAGE;
         setSidePanelVisibility(View.GONE, View.VISIBLE, View.GONE);
-        TextView total = findViewById(R.id.game_detail_storage_total);
-        TextView error = findViewById(R.id.game_detail_storage_error);
-        LinearLayout categories = findViewById(R.id.game_detail_storage_categories);
+        TextView total = binding.getRoot().findViewById(R.id.game_detail_storage_total);
+        TextView error = binding.getRoot().findViewById(R.id.game_detail_storage_error);
+        LinearLayout categories =
+            binding.getRoot().findViewById(R.id.game_detail_storage_categories);
         total.setText(R.string.local_game_detail_side_panel_loading);
         error.setVisibility(View.GONE);
         categories.removeAllViews();
         int generation = ++sidePanelGeneration;
         String currentGameId = game.getId();
-        binding.gameDetailProgress.show();
+        storageLoading = true;
+        setProgressVisible(true);
         ioExecutor.execute(() -> {
             GameAssetInventory inventory = null;
             String failure = null;
@@ -277,7 +370,8 @@ public final class GameDetailActivity extends AppCompatActivity {
             String errorMessage = failure;
             runOnUiThread(() -> {
                 if (!isCurrentSidePanel(generation, SIDE_PANEL_STORAGE)) return;
-                binding.gameDetailProgress.hide();
+                storageLoading = false;
+                setProgressVisible(false);
                 renderStoragePanel(loaded, errorMessage);
             });
         });
@@ -285,9 +379,10 @@ public final class GameDetailActivity extends AppCompatActivity {
 
     private void renderStoragePanel(@Nullable GameAssetInventory inventory,
                                     @Nullable String errorMessage) {
-        TextView total = findViewById(R.id.game_detail_storage_total);
-        TextView error = findViewById(R.id.game_detail_storage_error);
-        LinearLayout categories = findViewById(R.id.game_detail_storage_categories);
+        TextView total = binding.getRoot().findViewById(R.id.game_detail_storage_total);
+        TextView error = binding.getRoot().findViewById(R.id.game_detail_storage_error);
+        LinearLayout categories =
+            binding.getRoot().findViewById(R.id.game_detail_storage_categories);
         categories.removeAllViews();
         if (inventory == null) {
             total.setText(R.string.local_game_detail_side_panel_unavailable);
@@ -318,7 +413,7 @@ public final class GameDetailActivity extends AppCompatActivity {
         sidePanel = SIDE_PANEL_RUNTIME;
         setSidePanelVisibility(View.GONE, View.GONE, View.VISIBLE);
         if (runtimeOptionsView != null) return;
-        FrameLayout panel = findViewById(R.id.game_detail_runtime_panel);
+        FrameLayout panel = binding.getRoot().findViewById(R.id.game_detail_runtime_panel);
         runtimeOptionsView = new GameRuntimeOptionsView(this, game.getId(),
             new GameRuntimeOptionsView.Listener() {
                 @Override public void onRuntimeOptionsClosed() { closeRuntimePanel(); }
@@ -343,19 +438,28 @@ public final class GameDetailActivity extends AppCompatActivity {
 
     private void setSidePanelVisibility(int editorVisibility, int storageVisibility,
                                         int runtimeVisibility) {
-        findViewById(R.id.game_detail_editor_panel).setVisibility(editorVisibility);
-        findViewById(R.id.game_detail_storage_panel).setVisibility(storageVisibility);
-        findViewById(R.id.game_detail_runtime_panel).setVisibility(runtimeVisibility);
+        View root = binding.getRoot();
+        root.findViewById(R.id.game_detail_editor_panel).setVisibility(editorVisibility);
+        root.findViewById(R.id.game_detail_storage_panel).setVisibility(storageVisibility);
+        root.findViewById(R.id.game_detail_runtime_panel).setVisibility(runtimeVisibility);
     }
 
     private void closeRuntimePanel() {
-        if (runtimeOptionsView != null) {
-            FrameLayout panel = findViewById(R.id.game_detail_runtime_panel);
-            panel.removeView(runtimeOptionsView);
-            runtimeOptionsView.release();
-            runtimeOptionsView = null;
+        GameRuntimeOptionsView view = runtimeOptionsView;
+        if (view == null) return;
+        runtimeOptionsView = null;
+        if (view.getParent() instanceof ViewGroup) {
+            ((ViewGroup) view.getParent()).removeView(view);
         }
-        if (!destroyed) showEditorPanel();
+        view.release();
+        if (destroyed || binding == null) return;
+        if (hasEmbeddedSidePanels()) {
+            showEditorPanel();
+        } else {
+            // Hosted full screen after a rotation to portrait: restore the detail content.
+            sidePanel = SIDE_PANEL_EDITOR;
+            rebindForConfiguration();
+        }
     }
 
     private boolean isCurrentSidePanel(int generation, String expectedPanel) {
@@ -434,7 +538,7 @@ public final class GameDetailActivity extends AppCompatActivity {
     private void persistGame(Game updated, int successMessage) {
         int generation = ++operationGeneration;
         setFormEnabled(false);
-        binding.gameDetailProgress.show();
+        setProgressVisible(true);
         ioExecutor.execute(() -> {
             String error = null;
             try {
@@ -445,7 +549,7 @@ public final class GameDetailActivity extends AppCompatActivity {
             String failure = error;
             runOnUiThread(() -> {
                 if (!isCurrent(generation)) return;
-                binding.gameDetailProgress.hide();
+                setProgressVisible(false);
                 setFormEnabled(true);
                 if (failure != null) {
                     showError(getString(R.string.local_game_detail_save_failed, failure));
@@ -463,7 +567,7 @@ public final class GameDetailActivity extends AppCompatActivity {
         Game current = game;
         int generation = ++operationGeneration;
         setFormEnabled(false);
-        binding.gameDetailProgress.show();
+        setProgressVisible(true);
         ioExecutor.execute(() -> {
             Game updated = null;
             Bitmap cover = null;
@@ -485,7 +589,7 @@ public final class GameDetailActivity extends AppCompatActivity {
             String failure = error;
             runOnUiThread(() -> {
                 if (!isCurrent(generation)) return;
-                binding.gameDetailProgress.hide();
+                setProgressVisible(false);
                 setFormEnabled(true);
                 if (failure != null) {
                     showError(getString(R.string.local_game_detail_cover_failed, failure));
@@ -504,7 +608,7 @@ public final class GameDetailActivity extends AppCompatActivity {
         Game current = game;
         int generation = ++operationGeneration;
         setFormEnabled(false);
-        binding.gameDetailProgress.show();
+        setProgressVisible(true);
         ioExecutor.execute(() -> {
             Game updated = null;
             String error = null;
@@ -519,7 +623,7 @@ public final class GameDetailActivity extends AppCompatActivity {
             String failure = error;
             runOnUiThread(() -> {
                 if (!isCurrent(generation)) return;
-                binding.gameDetailProgress.hide();
+                setProgressVisible(false);
                 setFormEnabled(true);
                 if (failure != null) {
                     showError(getString(R.string.local_game_detail_cover_failed, failure));
@@ -558,7 +662,7 @@ public final class GameDetailActivity extends AppCompatActivity {
         if (current == null) return;
         int generation = ++operationGeneration;
         setFormEnabled(false);
-        binding.gameDetailProgress.show();
+        setProgressVisible(true);
         ioExecutor.execute(() -> {
             String error = null;
             try {
@@ -570,7 +674,7 @@ public final class GameDetailActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 if (!isCurrent(generation)) return;
                 if (failure != null) {
-                    binding.gameDetailProgress.hide();
+                    setProgressVisible(false);
                     setFormEnabled(true);
                     showError(getString(R.string.local_game_detail_delete_failed, failure));
                 } else {
@@ -582,6 +686,7 @@ public final class GameDetailActivity extends AppCompatActivity {
     }
 
     private void renderCover(@Nullable Bitmap cover) {
+        currentCover = cover;
         if (cover == null) {
             binding.gameDetailCover.setPadding(dp(72), dp(72), dp(72), dp(72));
             binding.gameDetailCover.setImageResource(R.drawable.local_games_cover_placeholder);
@@ -592,6 +697,7 @@ public final class GameDetailActivity extends AppCompatActivity {
     }
 
     private void setFormEnabled(boolean enabled) {
+        formEnabled = enabled;
         binding.gameDetailName.setEnabled(enabled);
         binding.gameDetailWorkingDirectory.setEnabled(enabled);
         binding.gameDetailArguments.setEnabled(enabled);
@@ -609,6 +715,7 @@ public final class GameDetailActivity extends AppCompatActivity {
         binding.gameDetailWorkingDirectoryLayout.setError(null);
         binding.gameDetailArgumentsLayout.setError(null);
         binding.gameDetailError.setVisibility(View.GONE);
+        errorMessage = null;
     }
 
     private void captureFormForRestore() {
@@ -618,6 +725,7 @@ public final class GameDetailActivity extends AppCompatActivity {
     }
 
     private void showError(String error) {
+        errorMessage = error;
         binding.gameDetailError.setText(error);
         binding.gameDetailError.setVisibility(View.VISIBLE);
     }
@@ -645,8 +753,7 @@ public final class GameDetailActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (hasEmbeddedSidePanels() && SIDE_PANEL_RUNTIME.equals(sidePanel) &&
-            runtimeOptionsView != null) {
+        if (SIDE_PANEL_RUNTIME.equals(sidePanel) && runtimeOptionsView != null) {
             runtimeOptionsView.navigateBack();
             return;
         }

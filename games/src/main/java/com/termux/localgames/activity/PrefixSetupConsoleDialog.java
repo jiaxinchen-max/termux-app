@@ -84,7 +84,12 @@ final class PrefixSetupConsoleDialog extends Dialog {
         content.addView(terminalView, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        setContentView(content);
+        // Re-fit the golden box when the configuration (rotation, split screen) changes while open.
+        ConfigurationAwareFrameLayout root = new ConfigurationAwareFrameLayout(getContext());
+        root.addView(content, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        root.setListener(configuration -> applyWindowSize());
+        setContentView(root);
         terminalView.post(this::attachSetupSession);
         refreshStatus();
 
@@ -102,6 +107,10 @@ final class PrefixSetupConsoleDialog extends Dialog {
     @Override
     protected void onStart() {
         super.onStart();
+        applyWindowSize();
+    }
+
+    private void applyWindowSize() {
         Window window = getWindow();
         if (window == null) return;
         android.util.DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
@@ -118,7 +127,9 @@ final class PrefixSetupConsoleDialog extends Dialog {
         }
         int width = landscape ? dialogLong : dialogShort;
         int height = landscape ? dialogShort : dialogLong;
-        window.setLayout(width, height);
+        // Never larger than the window minus margins, however small the window is.
+        window.setLayout(DialogSizing.clamp(width, DialogSizing.maxWidthPx(screenWidth, metrics.density)),
+            DialogSizing.clamp(height, DialogSizing.maxHeightPx(screenHeight, metrics.density)));
     }
 
     @Override

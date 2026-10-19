@@ -124,6 +124,8 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     private InputControlsView inputControlsView;
     private TouchpadView touchpadView;
     private Runnable editInputControlsCallback;
+    /** Set by {@link #setInputControlsVisible(boolean)}: keeps the active profile but hides the overlay. */
+    private boolean inputControlsSuppressed;
     private Shortcut shortcut;
     private DownloadProgressDialog preloaderDialog;
     private float globalCursorSpeed = 1.0f;
@@ -1293,6 +1295,79 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         return controlsProfile;
     }
 
+    /**
+     * Snapshot of the selectable on-screen controller profiles (templates left out, except the one
+     * that is currently active). The manager's cached list is used on purpose: reloading would replace
+     * the profile instances that the overlay and the legacy input dialog compare by identity. The list
+     * is reloaded only when the editor returns.
+     */
+    @NonNull
+    public List<ControlsProfile> getInputControlsProfiles() {
+        List<ControlsProfile> result = new ArrayList<>();
+        if (inputControlsManager == null)
+            return result;
+        try {
+            int activeId = getActiveInputControlsProfileId();
+            for (ControlsProfile candidate : inputControlsManager.getProfiles(true)) {
+                if (candidate == null)
+                    continue;
+                boolean template = candidate.getName() != null && candidate.isTemplate();
+                if (!template || candidate.id == activeId)
+                    result.add(candidate);
+            }
+        } catch (RuntimeException error) {
+            // A broken profile file must not take the in-game control center down.
+            result.clear();
+        }
+        return result;
+    }
+
+    /** Id of the profile currently attached to the overlay, or 0 when no profile is active. */
+    public int getActiveInputControlsProfileId() {
+        ControlsProfile active = inputControlsView == null ? null : inputControlsView.getProfile();
+        return active == null ? 0 : active.id;
+    }
+
+    public boolean isInputControlsVisible() {
+        return inputControlsView != null && inputControlsView.getVisibility() == View.VISIBLE;
+    }
+
+    /**
+     * Shows or hides the overlay without forgetting the active profile. Showing is a no-op while no
+     * profile is active or the X11 display is not connected; the connection listener respects the
+     * hidden state until a profile is selected again.
+     */
+    public void setInputControlsVisible(boolean visible) {
+        inputControlsSuppressed = !visible;
+        if (inputControlsView == null || touchpadView == null)
+            return;
+        updateInputControlsVisibilityForConnection(LorieView.connected());
+    }
+
+    /**
+     * Starts the controller editor for the active profile. Once it returns,
+     * {@link #onActivityResult(int, int, Intent)} reloads the profile list and re-applies the
+     * previously active profile when it still exists.
+     */
+    public void openInputControlsEditor() {
+        if (inputControlsManager == null || inputControlsView == null)
+            return;
+        final int previousProfileId = getActiveInputControlsProfileId();
+        Intent intent = new Intent(mActivity, InputControllerActivity.class);
+        intent.putExtra("edit_input_controls", true);
+        intent.putExtra("selected_profile_id", previousProfileId);
+        editInputControlsCallback = () -> {
+            hideInputControls();
+            inputControlsManager.loadProfiles(true);
+            ControlsProfile restored = previousProfileId > 0 ? inputControlsManager.getProfile(previousProfileId) : null;
+            if (restored != null) {
+                profile = restored;
+                showInputControls(restored);
+            }
+        };
+        mActivity.startActivityForResult(intent, InputControllerActivity.EDIT_INPUT_CONTROLS_REQUEST_CODE);
+    }
+
     @Nullable
     public Shortcut getShortcut() {
         return shortcut;
@@ -1390,6 +1465,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     }
 
     private void showInputControls(ControlsProfile controlsProfile) {
+        inputControlsSuppressed = false;
         boolean connected = LorieView.connected();
         inputControlsView.setVisibility(connected ? View.VISIBLE : View.GONE);
         inputControlsView.requestFocus();
@@ -1409,13 +1485,15 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
             return;
 
         boolean hasProfile = inputControlsView.getProfile() != null;
-        if (!connected || !hasProfile)
+        boolean show = connected && hasProfile && !inputControlsSuppressed;
+        if (!connected || !hasProfile || inputControlsSuppressed)
             resetLockedCursorMode();
-        inputControlsView.setVisibility(connected && hasProfile ? View.VISIBLE : View.GONE);
-        touchpadView.setVisibility(connected && hasProfile ? View.VISIBLE : View.GONE);
+        inputControlsView.setVisibility(show ? View.VISIBLE : View.GONE);
+        touchpadView.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     public void hideInputControls() {
+        inputControlsSuppressed = false;
         resetLockedCursorMode();
         if (inputControlsView == null || touchpadView == null)
             return;

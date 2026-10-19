@@ -120,6 +120,20 @@ public final class RuntimeProfile {
             runtimeBackendType, rootfsPackage, containerId);
     }
 
+    /**
+     * Copy with another input selection. Unlike the permissive constructor (legacy profiles may hold
+     * an empty value), a new value must satisfy the encoding {@link LaunchSpec} enforces, so a
+     * persisted choice can never make the next launch fail validation.
+     */
+    public RuntimeProfile withInputProfileId(String value) {
+        if (value == null || !value.matches("(?:xinput|dinput)(?::[1-9][0-9]{0,5})?")) {
+            throw new IllegalArgumentException("invalidInputProfileId");
+        }
+        return new RuntimeProfile(id, winePackage, graphicsDriver, dxWrapper, audioDriver,
+            resolution, box64Preset, environment, value, launchExecutionMode,
+            componentVersions, runtimeBackendType, rootfsPackage, containerId);
+    }
+
     public RuntimeProfile withRuntimeBackend(GameRuntimeBackendType type, String rootfs) {
         return new RuntimeProfile(id, winePackage, graphicsDriver, dxWrapper, audioDriver,
             resolution, box64Preset, environment, inputProfileId, launchExecutionMode,

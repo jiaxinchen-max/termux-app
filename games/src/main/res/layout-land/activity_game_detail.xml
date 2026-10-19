@@ -27,16 +27,24 @@
         android:paddingBottom="20dp"
         android:visibility="gone">
 
-        <LinearLayout
+        <ScrollView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="0.78"
-            android:orientation="vertical"
+            android:clipToPadding="false"
+            android:fillViewport="true"
+            android:overScrollMode="never"
             android:paddingEnd="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="@dimen/local_game_detail_bottom_padding">
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
-                android:layout_height="168dp"
+                android:layout_height="@dimen/local_game_detail_land_cover_height"
                 app:cardBackgroundColor="@color/local_games_surface"
                 app:cardCornerRadius="8dp"
                 app:cardElevation="0dp"
@@ -48,14 +56,15 @@
                     android:layout_height="match_parent"
                     android:background="@drawable/local_games_bg_cover"
                     android:contentDescription="@string/local_game_cover_content_description"
-                    android:padding="36dp"
+                    android:padding="28dp"
                     android:scaleType="centerCrop"
                     android:src="@drawable/local_games_cover_placeholder" />
             </com.google.android.material.card.MaterialCardView>
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="36dp"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/local_game_detail_touch_min"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -75,7 +84,7 @@
                     android:id="@+id/game_detail_change_cover"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="36dp"
+                    android:layout_height="@dimen/local_game_detail_touch_min"
                     android:minWidth="0dp"
                     android:text="@string/local_game_detail_change_cover"
                     android:textAllCaps="false"
@@ -87,7 +96,7 @@
                     android:id="@+id/game_detail_remove_cover"
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="36dp"
+                    android:layout_height="@dimen/local_game_detail_touch_min"
                     android:minWidth="0dp"
                     android:text="@string/local_game_detail_remove_cover"
                     android:textAllCaps="false"
@@ -96,7 +105,7 @@
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="42dp"
+                android:layout_height="@dimen/local_game_detail_touch_min"
                 android:layout_marginTop="10dp"
                 android:orientation="horizontal">
 
@@ -132,7 +141,7 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/game_detail_launch"
                 android:layout_width="match_parent"
-                android:layout_height="46dp"
+                android:layout_height="@dimen/local_game_detail_touch_min"
                 android:layout_marginTop="8dp"
                 android:text="@string/local_game_detail_launch"
                 android:textAllCaps="false"
@@ -144,6 +153,7 @@
                 app:iconGravity="textStart"
                 app:iconTint="@color/local_games_on_primary" />
         </LinearLayout>
+        </ScrollView>
 
         <FrameLayout
             android:layout_width="0dp"
@@ -162,7 +172,8 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:paddingBottom="@dimen/local_game_detail_bottom_padding">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -281,7 +292,7 @@
                             android:id="@+id/game_detail_save"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="match_parent"
-                            android:layout_height="44dp"
+                            android:layout_height="@dimen/local_game_detail_touch_min"
                             android:layout_marginTop="10dp"
                             android:text="@string/local_game_detail_save"
                             android:textAllCaps="false"
@@ -293,7 +304,7 @@
                             android:id="@+id/game_detail_delete"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="match_parent"
-                            android:layout_height="44dp"
+                            android:layout_height="@dimen/local_game_detail_touch_min"
                             android:layout_marginTop="8dp"
                             android:text="@string/local_game_detail_delete"
                             android:textAllCaps="false"
@@ -318,7 +329,8 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:paddingBottom="@dimen/local_game_detail_bottom_padding">
 
                     <TextView
                         android:layout_width="match_parent"

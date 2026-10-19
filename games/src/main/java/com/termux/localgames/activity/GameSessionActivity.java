@@ -9,8 +9,12 @@ import android.os.Build;
 import android.text.format.Formatter;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -22,6 +26,7 @@ import com.google.android.material.button.MaterialButton;
 import com.termux.localgames.R;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.LaunchTasks;
+import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.data.LaunchSpecCodec;
 import com.termux.localgames.databinding.ActivityGameSessionBinding;
@@ -37,11 +42,13 @@ import com.termux.x11.X11SessionView;
 import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 /** Game session shell for one persisted launch task; process ownership remains in the Service. */
 public final class GameSessionActivity extends AppCompatActivity {
 
     private static final String STATE_CATEGORY = "session-control-category";
+    private static final String STATE_INPUT_SELECTION = "session-input-selection";
     private static final int CATEGORY_OPERATION = 0;
     private static final int CATEGORY_PERFORMANCE = 1;
     private static final int CATEGORY_SETTINGS = 2;
@@ -61,6 +68,10 @@ public final class GameSessionActivity extends AppCompatActivity {
     private LaunchTask currentTask;
     private int selectedCategory = CATEGORY_OPERATION;
     private AudioManager audioManager;
+    private GameVirtualControllerPanel virtualControllerPanel;
+    private String gameId;
+    /** Latest xinput/dinput[:id] selection of this session (frozen value until the user changes it). */
+    private String inputSelection;
 
     @NonNull
     public static Intent createIntent(@NonNull Context context, @NonNull String taskId) {
@@ -99,10 +110,25 @@ public final class GameSessionActivity extends AppCompatActivity {
         selectedCategory = savedInstanceState == null ? CATEGORY_OPERATION
             : savedInstanceState.getInt(STATE_CATEGORY, CATEGORY_OPERATION);
         configureControlCenter();
+        WindowInsetsPadding.apply(binding.gameSessionDrawerLayer, true, true, true, true);
+        applyOverlayLayout(getResources().getConfiguration());
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() { handleSessionBack(); }
         });
-        applyFrozenInputProfile(frozenSpec);
+        gameId = frozenSpec.getGameId();
+        String restoredSelection = savedInstanceState == null ? null
+            : savedInstanceState.getString(STATE_INPUT_SELECTION);
+        if (GameInputProfileChoices.isValidSelection(restoredSelection)
+            && restoredSelection.startsWith(GameInputProfileChoices.mapperOf(
+                frozenSpec.getInputProfileId()))) {
+            // Activity recreated (e.g. dark-mode switch): keep what the user picked in this session.
+            inputSelection = restoredSelection;
+            applyInputSelection(restoredSelection);
+        } else {
+            inputSelection = frozenSpec.getInputProfileId();
+            applyFrozenInputProfile(frozenSpec);
+        }
+        setUpVirtualControllerRow();
         observeTask();
     }
 
@@ -178,8 +204,46 @@ public final class GameSessionActivity extends AppCompatActivity {
     }
 
     private void applyFrozenInputProfile(@NonNull LaunchSpec spec) {
-        if (!binding.gameSessionX11.applyInputProfile(spec.getInputProfileId()))
+        applyInputSelection(spec.getInputProfileId());
+    }
+
+    private void applyInputSelection(@NonNull String selection) {
+        if (!binding.gameSessionX11.applyInputProfile(selection))
             binding.gameSessionInputWarning.setVisibility(View.VISIBLE);
+    }
+
+    /** Adds the "Virtual controller" row above the legacy Input row of the Operation panel. */
+    private void setUpVirtualControllerRow() {
+        LinearLayout host = new LinearLayout(this);
+        host.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(8);
+        int index = binding.gameSessionPanelOperation.indexOfChild(binding.gameSessionInput);
+        binding.gameSessionPanelOperation.addView(host, Math.max(0, index), params);
+        virtualControllerPanel = new GameVirtualControllerPanel(this, binding.gameSessionX11, host,
+            inputSelection, this::persistInputSelection);
+        virtualControllerPanel.render();
+    }
+
+    /** Applies nothing (the panel already did); remembers the choice for the next launch. */
+    private void persistInputSelection(@NonNull String selection) {
+        inputSelection = selection;
+        if (destroyed || gameId == null) return;
+        final String id = gameId;
+        final File profilesDirectory = new GameStoragePaths(getFilesDir()).getProfilesDirectory();
+        try {
+            ioExecutor.execute(() -> {
+                boolean saved = GameInputProfileChoices.persist(
+                    new FileRuntimeProfileRepository(profilesDirectory), id, selection);
+                if (!saved) runOnUiThread(() -> {
+                    if (!destroyed) Toast.makeText(this,
+                        R.string.local_game_virtual_controller_save_failed, Toast.LENGTH_LONG).show();
+                });
+            });
+        } catch (RejectedExecutionException ignored) {
+            // Activity is shutting down; the selection stays session-local.
+        }
     }
 
     private void observeTask() {
@@ -332,6 +396,7 @@ public final class GameSessionActivity extends AppCompatActivity {
 
     private void showControlDrawer() {
         if (binding.gameSessionDrawerLayer.getVisibility() == View.VISIBLE) return;
+        if (virtualControllerPanel != null) virtualControllerPanel.render();
         binding.gameSessionMenu.setVisibility(View.GONE);
         binding.gameSessionDrawerLayer.setVisibility(View.VISIBLE);
         binding.gameSessionDrawer.setTranslationX(binding.gameSessionDrawer.getWidth() > 0
@@ -407,8 +472,15 @@ public final class GameSessionActivity extends AppCompatActivity {
         return super.dispatchKeyEvent(event);
     }
 
+    @Override protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (binding != null && virtualControllerPanel != null)
+            virtualControllerPanel.onHostActivityResult(requestCode, resultCode, data);
+    }
+
     @Override protected void onSaveInstanceState(@NonNull Bundle outState) {
         outState.putInt(STATE_CATEGORY, selectedCategory);
+        if (inputSelection != null) outState.putString(STATE_INPUT_SELECTION, inputSelection);
         super.onSaveInstanceState(outState);
     }
 
@@ -429,11 +501,78 @@ public final class GameSessionActivity extends AppCompatActivity {
 
     @Override public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        if (binding != null) binding.gameSessionX11.onHostConfigurationChanged(newConfig);
+        if (binding != null) {
+            binding.gameSessionX11.onHostConfigurationChanged(newConfig);
+            applyOverlayLayout(newConfig);
+        }
+    }
+
+    /** Fits the control drawer to the current window: width, and side column vs. top strip. */
+    private void applyOverlayLayout(@NonNull Configuration config) {
+        float density = getResources().getDisplayMetrics().density;
+        int widthDp = config.screenWidthDp;
+        int heightDp = config.screenHeightDp;
+        if (widthDp <= 0 || heightDp <= 0) {
+            widthDp = Math.round(binding.getRoot().getWidth() / density);
+            heightDp = Math.round(binding.getRoot().getHeight() / density);
+        }
+        boolean compact = widthDp > 0
+            && OverlayDrawerSizing.compactNavigation(widthDp, heightDp);
+        int itemHeight = getResources().getDimensionPixelSize(R.dimen.local_games_menu_row_min_height);
+        int gap = getResources().getDimensionPixelSize(R.dimen.local_games_overlay_nav_gap);
+
+        ViewGroup.LayoutParams drawerParams = binding.gameSessionDrawer.getLayoutParams();
+        drawerParams.width = widthDp > 0
+            ? OverlayDrawerSizing.drawerWidthPx(Math.round(widthDp * density), density)
+            : dp(OverlayDrawerSizing.MAX_DRAWER_WIDTH_DP);
+        binding.gameSessionDrawer.setLayoutParams(drawerParams);
+        binding.gameSessionDrawer.setOrientation(
+            compact ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+
+        LinearLayout.LayoutParams hostParams =
+            (LinearLayout.LayoutParams) binding.gameSessionNavHost.getLayoutParams();
+        hostParams.width = compact ? ViewGroup.LayoutParams.MATCH_PARENT
+            : getResources().getDimensionPixelSize(R.dimen.local_games_overlay_nav_width);
+        hostParams.height = compact ? ViewGroup.LayoutParams.WRAP_CONTENT
+            : ViewGroup.LayoutParams.MATCH_PARENT;
+        binding.gameSessionNavHost.setLayoutParams(hostParams);
+
+        LinearLayout nav = binding.gameSessionNav;
+        ViewGroup targetParent = compact ? binding.gameSessionNavStrip : binding.gameSessionNavHost;
+        if (nav.getParent() != targetParent) {
+            ((ViewGroup) nav.getParent()).removeView(nav);
+            targetParent.addView(nav, new FrameLayout.LayoutParams(
+                compact ? ViewGroup.LayoutParams.WRAP_CONTENT : ViewGroup.LayoutParams.MATCH_PARENT,
+                compact ? ViewGroup.LayoutParams.WRAP_CONTENT : ViewGroup.LayoutParams.MATCH_PARENT));
+        }
+        binding.gameSessionNavStrip.setVisibility(compact ? View.VISIBLE : View.GONE);
+        nav.setOrientation(compact ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        for (View button : new View[] {
+            binding.gameSessionCategoryOperation, binding.gameSessionCategoryPerformance,
+            binding.gameSessionCategorySettings, binding.gameSessionCategoryKeyboard,
+            binding.gameSessionExit}) {
+            LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) button.getLayoutParams();
+            params.width = compact ? ViewGroup.LayoutParams.WRAP_CONTENT
+                : ViewGroup.LayoutParams.MATCH_PARENT;
+            params.height = itemHeight;
+            params.setMarginEnd(compact ? dp(4) : 0);
+            button.setLayoutParams(params);
+        }
+        binding.gameSessionNavSpacer.setVisibility(compact ? View.GONE : View.VISIBLE);
+
+        LinearLayout.LayoutParams contentParams =
+            (LinearLayout.LayoutParams) binding.gameSessionContent.getLayoutParams();
+        contentParams.width = compact ? ViewGroup.LayoutParams.MATCH_PARENT : 0;
+        contentParams.height = compact ? 0 : ViewGroup.LayoutParams.MATCH_PARENT;
+        contentParams.weight = 1f;
+        contentParams.setMarginStart(compact ? 0 : gap);
+        contentParams.topMargin = compact ? gap : 0;
+        binding.gameSessionContent.setLayoutParams(contentParams);
     }
 
     @Override protected void onDestroy() {
         destroyed = true;
+        if (virtualControllerPanel != null) virtualControllerPanel.dismiss();
         if (subscription != null) subscription.close();
         if (binding != null) binding.gameSessionX11.unbind();
         ioExecutor.shutdownNow();

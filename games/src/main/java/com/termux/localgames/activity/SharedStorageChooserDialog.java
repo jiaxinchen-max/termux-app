@@ -10,10 +10,13 @@ import android.text.InputType;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -41,6 +44,7 @@ final class SharedStorageChooserDialog {
      * field is pulled outwards by this much so its edge lines up with the other content.
      */
     private static final int EDIT_TEXT_BACKGROUND_INSET_DP = 4;
+    private static final int ROW_MIN_HEIGHT_DP = 48;
 
     interface OnChosen {
         void onChosen(File file);
@@ -59,6 +63,7 @@ final class SharedStorageChooserDialog {
     private TextView emptyView;
     private EditText nameInput;
     private AlertDialog dialog;
+    private ListView listView;
     @Nullable private AlertDialog overwriteDialog;
     private File current;
     private int generation;
@@ -75,6 +80,8 @@ final class SharedStorageChooserDialog {
             @Override
             public View getView(int position, @Nullable View convertView, ViewGroup parent) {
                 View row = super.getView(position, convertView, parent);
+                if (row instanceof TextView) ((TextView) row).setMinHeight(dp(ROW_MIN_HEIGHT_DP));
+                row.setMinimumHeight(dp(ROW_MIN_HEIGHT_DP));
                 // The stock row inset (list item padding) pushes entries right of the title, the
                 // path line and the file-name field; drop only the start side so they align.
                 row.setPaddingRelative(0, row.getPaddingTop(), row.getPaddingEnd(), row.getPaddingBottom());
@@ -129,7 +136,8 @@ final class SharedStorageChooserDialog {
         ListView list = new ListView(activity);
         list.setAdapter(adapter);
         list.setOnItemClickListener((parent, view, position, id) -> onEntryClicked(position));
-        content.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(300)));
+        listView = list;
+        content.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, listHeight()));
 
         emptyView = new TextView(activity);
         emptyView.setText(activity.getString(R.string.local_games_chooser_empty, extension));
@@ -143,6 +151,7 @@ final class SharedStorageChooserDialog {
             nameInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
             nameInput.setHint(R.string.local_games_chooser_file_name);
             nameInput.setText(defaultName);
+            nameInput.setMinimumHeight(dp(ROW_MIN_HEIGHT_DP));
             LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             nameParams.setMarginStart(-dp(EDIT_TEXT_BACKGROUND_INSET_DP));
@@ -150,19 +159,49 @@ final class SharedStorageChooserDialog {
             content.addView(nameInput, nameParams);
         }
 
+        // The scroll view keeps every control reachable when the window is short or the IME is
+        // open; the wrapper re-fits the list height when the window size changes.
+        ScrollView scroll = new ScrollView(activity);
+        scroll.setFillViewport(false);
+        scroll.addView(content, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        ConfigurationAwareFrameLayout contentRoot = new ConfigurationAwareFrameLayout(activity);
+        contentRoot.addView(scroll, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        contentRoot.setListener(configuration -> fitListHeight());
+
         MaterialAlertDialogBuilder builder = new FrostedDialogBuilder(activity)
             .setTitle(saveMode ? R.string.local_games_chooser_title_save
                 : R.string.local_games_chooser_title_restore)
-            .setView(content)
+            .setView(contentRoot)
             .setNegativeButton(android.R.string.cancel, null);
         if (saveMode) builder.setPositiveButton(R.string.local_games_chooser_save_here, null);
         dialog = builder.create();
         dialog.setOnDismissListener(d -> executor.shutdownNow());
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        }
         dialog.show();
         if (saveMode) {
             dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(view -> onSaveClicked());
         }
         navigate(root);
+    }
+
+    private int listHeight() {
+        android.util.DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
+        return DialogSizing.listHeightPx(metrics.heightPixels, metrics.density);
+    }
+
+    private void fitListHeight() {
+        if (listView == null) return;
+        ViewGroup.LayoutParams params = listView.getLayoutParams();
+        int height = listHeight();
+        if (params != null && params.height != height) {
+            params.height = height;
+            listView.setLayoutParams(params);
+        }
     }
 
     private void navigate(File directory) {

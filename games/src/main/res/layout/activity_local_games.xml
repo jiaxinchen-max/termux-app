@@ -1,10 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/local_games_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/local_games_background"
     android:orientation="vertical">
+
+    <!-- Landscape navigation (same three destinations as the bottom bar): one row of icon-only tabs
+         at the very top of the content, as tall as the system status bar. LocalGamesActivity sets the
+         height at run time (TopTabBarHeight; 24dp here is only the design-time default) and shows
+         exactly one of this row and the bottom bar, depending on the window orientation. Each tab is
+         a fixed local_games_top_tab_width wide and as tall as the row; the tabs run from the left
+         (Library, File manager, Settings) and the rest of the row stays empty. -->
+    <LinearLayout
+        android:id="@+id/local_games_top_tabs"
+        android:layout_width="match_parent"
+        android:layout_height="24dp"
+        android:background="@color/local_games_background"
+        android:gravity="start"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/local_games_top_tab_library"
+            android:layout_width="@dimen/local_games_top_tab_width"
+            android:layout_height="match_parent"
+            android:background="@drawable/local_games_bg_top_tab"
+            android:clickable="true"
+            android:contentDescription="@string/local_games_tab_library"
+            android:focusable="true"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/local_games_ic_library"
+            app:tint="@color/local_games_top_tab_tint" />
+
+        <ImageView
+            android:id="@+id/local_games_top_tab_file_manager"
+            android:layout_width="@dimen/local_games_top_tab_width"
+            android:layout_height="match_parent"
+            android:layout_marginStart="@dimen/local_games_top_tab_gap"
+            android:background="@drawable/local_games_bg_top_tab"
+            android:clickable="true"
+            android:contentDescription="@string/local_games_file_manager"
+            android:focusable="true"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/local_games_ic_folder"
+            app:tint="@color/local_games_top_tab_tint" />
+
+        <ImageView
+            android:id="@+id/local_games_top_tab_settings"
+            android:layout_width="@dimen/local_games_top_tab_width"
+            android:layout_height="match_parent"
+            android:layout_marginStart="@dimen/local_games_top_tab_gap"
+            android:background="@drawable/local_games_bg_top_tab"
+            android:clickable="true"
+            android:contentDescription="@string/local_games_settings_title"
+            android:focusable="true"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/local_games_ic_settings"
+            app:tint="@color/local_games_top_tab_tint" />
+    </LinearLayout>
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -90,40 +151,6 @@
                         android:textColor="@color/local_games_on_surface"
                         app:backgroundTint="@null"
                         app:icon="@drawable/local_games_ic_add"
-                        app:iconGravity="textTop"
-                        app:iconTint="@color/local_games_on_surface" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/local_games_file_manager_button"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_marginStart="8dp"
-                        android:layout_weight="1"
-                        android:background="@drawable/local_games_bg_shortcut"
-                        android:text="@string/local_games_file_manager"
-                        android:letterSpacing="0.02"
-                        android:textAllCaps="false"
-                        android:textColor="@color/local_games_on_surface"
-                        app:backgroundTint="@null"
-                        app:icon="@drawable/local_games_ic_folder"
-                        app:iconGravity="textTop"
-                        app:iconPadding="4dp"
-                        app:iconSize="24dp"
-                        app:iconTint="@color/local_games_on_surface" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/local_games_settings_button"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_marginStart="8dp"
-                        android:layout_weight="1"
-                        android:background="@drawable/local_games_bg_shortcut"
-                        android:text="@string/local_games_shortcut_settings"
-                        android:letterSpacing="0.02"
-                        android:textAllCaps="false"
-                        android:textColor="@color/local_games_on_surface"
-                        app:backgroundTint="@null"
-                        app:icon="@drawable/local_games_ic_settings"
                         app:iconGravity="textTop"
                         app:iconTint="@color/local_games_on_surface" />
                 </LinearLayout>
@@ -275,9 +302,11 @@
          in the page colour (no translucent fill, no elevation shadow/overlay), so light mode shows
          no lighter rectangle behind the icons and labels. -->
     <View
+        android:id="@+id/local_games_navigation_divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/local_games_outline" />
+        android:background="@color/local_games_outline"
+        android:importantForAccessibility="no" />
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/local_games_navigation"

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icon tint of the landscape top tabs: same colours as local_games_navigation_tint, keyed on the
+     selected state of a plain ImageView instead of the checked state of a navigation item. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/local_games_primary_text" android:state_selected="true" />
+    <item android:color="@color/local_games_on_surface_secondary" />
+</selector>

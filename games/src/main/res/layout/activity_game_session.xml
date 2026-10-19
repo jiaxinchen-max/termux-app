@@ -78,8 +78,19 @@
             android:orientation="horizontal"
             android:padding="@dimen/local_games_overlay_padding">
 
-            <LinearLayout
+            <FrameLayout
+                android:id="@+id/game_session_nav_host"
                 android:layout_width="@dimen/local_games_overlay_nav_width"
+                android:layout_height="match_parent">
+            <HorizontalScrollView
+                android:id="@+id/game_session_nav_strip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:visibility="gone" />
+            <LinearLayout
+                android:id="@+id/game_session_nav"
+                android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="top"
                 android:orientation="vertical">
@@ -87,7 +98,7 @@
                     android:id="@+id/game_session_category_operation"
                     style="@style/Widget.TermuxLocalGames.OverlayNav"
                     android:layout_width="match_parent"
-                    android:layout_height="40dp"
+                    android:layout_height="@dimen/local_games_menu_row_min_height"
                     android:gravity="start|center_vertical"
                     android:text="@string/local_game_session_operation"
                     android:textAllCaps="false" />
@@ -95,7 +106,7 @@
                     android:id="@+id/game_session_category_performance"
                     style="@style/Widget.TermuxLocalGames.OverlayNav"
                     android:layout_width="match_parent"
-                    android:layout_height="40dp"
+                    android:layout_height="@dimen/local_games_menu_row_min_height"
                     android:gravity="start|center_vertical"
                     android:text="@string/local_game_session_performance"
                     android:textAllCaps="false" />
@@ -103,7 +114,7 @@
                     android:id="@+id/game_session_category_settings"
                     style="@style/Widget.TermuxLocalGames.OverlayNav"
                     android:layout_width="match_parent"
-                    android:layout_height="40dp"
+                    android:layout_height="@dimen/local_games_menu_row_min_height"
                     android:gravity="start|center_vertical"
                     android:text="@string/local_game_session_settings"
                     android:textAllCaps="false" />
@@ -111,11 +122,12 @@
                     android:id="@+id/game_session_category_keyboard"
                     style="@style/Widget.TermuxLocalGames.OverlayNav"
                     android:layout_width="match_parent"
-                    android:layout_height="40dp"
+                    android:layout_height="@dimen/local_games_menu_row_min_height"
                     android:gravity="start|center_vertical"
                     android:text="@string/local_game_session_keyboard"
                     android:textAllCaps="false" />
                 <Space
+                    android:id="@+id/game_session_nav_spacer"
                     android:layout_width="1dp"
                     android:layout_height="0dp"
                     android:layout_weight="1" />
@@ -123,14 +135,16 @@
                     android:id="@+id/game_session_exit"
                     style="@style/Widget.TermuxLocalGames.OverlayNav"
                     android:layout_width="match_parent"
-                    android:layout_height="40dp"
+                    android:layout_height="@dimen/local_games_menu_row_min_height"
                     android:gravity="start|center_vertical"
                     android:text="@string/local_game_session_exit"
                     android:textAllCaps="false"
                     android:textColor="@color/local_games_error" />
             </LinearLayout>
+            </FrameLayout>
 
             <LinearLayout
+                android:id="@+id/game_session_content"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_marginStart="@dimen/local_games_overlay_nav_gap"
@@ -161,15 +175,20 @@
                         android:textSize="22sp" />
                 </LinearLayout>
 
-                <FrameLayout
+                <ScrollView
+                    android:id="@+id/game_session_panel_scroll"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:layout_marginTop="14dp"
-                    android:layout_weight="1">
+                    android:layout_weight="1"
+                    android:fillViewport="true">
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
                     <LinearLayout
                         android:id="@+id/game_session_panel_operation"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
+                        android:layout_height="wrap_content"
                         android:orientation="vertical">
                         <TextView
                             android:layout_width="match_parent"
@@ -208,7 +227,7 @@
                     <LinearLayout
                         android:id="@+id/game_session_panel_performance"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
+                        android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:visibility="gone">
                         <TextView
@@ -237,62 +256,57 @@
                             android:textAllCaps="false" />
                     </LinearLayout>
 
-                    <ScrollView
+                    <LinearLayout
                         android:id="@+id/game_session_panel_settings"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:fillViewport="true"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingBottom="18dp"
                         android:visibility="gone">
-                        <LinearLayout
+                        <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:paddingBottom="18dp">
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text="@string/local_game_session_brightness"
-                                android:textColor="@color/local_games_on_surface" />
-                            <SeekBar
-                                android:id="@+id/game_session_brightness"
-                                android:layout_width="match_parent"
-                                android:layout_height="48dp"
-                                android:max="100" />
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="8dp"
-                                android:text="@string/local_game_session_volume"
-                                android:textColor="@color/local_games_on_surface" />
-                            <SeekBar
-                                android:id="@+id/game_session_volume"
-                                android:layout_width="match_parent"
-                                android:layout_height="48dp" />
-                            <com.google.android.material.switchmaterial.SwitchMaterial
-                                android:id="@+id/game_session_mouse_helper"
-                                android:layout_width="match_parent"
-                                android:layout_height="48dp"
-                                android:layout_marginTop="8dp"
-                                android:text="@string/local_game_session_mouse_helper"
-                                android:textColor="@color/local_games_on_surface" />
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="8dp"
-                                android:text="@string/local_game_session_touch_sensitivity"
-                                android:textColor="@color/local_games_on_surface" />
-                            <SeekBar
-                                android:id="@+id/game_session_touch_sensitivity"
-                                android:layout_width="match_parent"
-                                android:layout_height="48dp"
-                                android:max="20" />
-                        </LinearLayout>
-                    </ScrollView>
+                            android:text="@string/local_game_session_brightness"
+                            android:textColor="@color/local_games_on_surface" />
+                        <SeekBar
+                            android:id="@+id/game_session_brightness"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:max="100" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/local_game_session_volume"
+                            android:textColor="@color/local_games_on_surface" />
+                        <SeekBar
+                            android:id="@+id/game_session_volume"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/game_session_mouse_helper"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/local_game_session_mouse_helper"
+                            android:textColor="@color/local_games_on_surface" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/local_game_session_touch_sensitivity"
+                            android:textColor="@color/local_games_on_surface" />
+                        <SeekBar
+                            android:id="@+id/game_session_touch_sensitivity"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:max="20" />
+                    </LinearLayout>
 
                     <LinearLayout
                         android:id="@+id/game_session_panel_keyboard"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
+                        android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:visibility="gone">
                         <TextView
@@ -309,6 +323,7 @@
                             android:textAllCaps="false" />
                     </LinearLayout>
                 </FrameLayout>
+                </ScrollView>
             </LinearLayout>
         </LinearLayout>
     </FrameLayout>

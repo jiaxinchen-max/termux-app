@@ -26,11 +26,12 @@
             android:id="@+id/game_detail_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
             android:orientation="vertical"
             android:paddingStart="16dp"
             android:paddingTop="10dp"
             android:paddingEnd="16dp"
-            android:paddingBottom="36dp"
+            android:paddingBottom="@dimen/local_game_detail_bottom_padding"
             android:visibility="gone">
 
             <com.google.android.material.card.MaterialCardView
@@ -74,7 +75,7 @@
                     android:id="@+id/game_detail_change_cover"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="44dp"
+                    android:layout_height="@dimen/local_game_detail_touch_min"
                     android:minWidth="0dp"
                     android:text="@string/local_game_detail_change_cover"
                     android:textAllCaps="false"
@@ -85,7 +86,7 @@
                     android:id="@+id/game_detail_remove_cover"
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="44dp"
+                    android:layout_height="@dimen/local_game_detail_touch_min"
                     android:text="@string/local_game_detail_remove_cover"
                     android:textAllCaps="false" />
             </LinearLayout>

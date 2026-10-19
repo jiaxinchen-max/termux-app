@@ -21,4 +21,26 @@
     <!-- Window dim behind dialogs while the dialog blur is active; FrostedWindow.DIM_WITH_BLUR uses
          the same value, so Material and self-drawn dialogs dim the page identically. -->
     <item name="local_games_dialog_dim_amount" format="float" type="dimen">0.30</item>
+    <!-- Game detail: minimum touch target, portrait content width cap, landscape cover height and
+         bottom padding that keeps the last control clear of the gesture bar. -->
+    <dimen name="local_game_detail_touch_min">48dp</dimen>
+    <dimen name="local_game_detail_content_max_width">600dp</dimen>
+    <dimen name="local_game_detail_land_cover_height">132dp</dimen>
+    <dimen name="local_game_detail_bottom_padding">36dp</dimen>
+    <!-- Runtime options: bottom padding of the scrollable page so the last row scrolls above the
+         extended Save FAB (48 dp tall + 16 dp margin) and the gesture bar. -->
+    <dimen name="local_game_runtime_save_bar_clearance">88dp</dimen>
+    <dimen name="local_game_runtime_fab_margin">16dp</dimen>
+    <dimen name="local_game_runtime_touch_min">48dp</dimen>
+    <!-- Launch status page: horizontal padding and the widest the status block may get. -->
+    <dimen name="local_game_launch_side_padding">24dp</dimen>
+    <dimen name="local_game_launch_content_max_width">480dp</dimen>
+    <!-- Landscape Library top tab bar: its height is the system status bar height at run time
+         (TopTabBarHeight); this is the fallback when the status bar height cannot be read. -->
+    <dimen name="local_games_top_tabs_fallback_height">24dp</dimen>
+    <!-- Each landscape top tab is this wide (compact: about twice the icon width) and as tall as the
+         bar; the tabs sit left to right with this gap between them (none: they touch) instead of
+         sharing the row equally. -->
+    <dimen name="local_games_top_tab_width">34dp</dimen>
+    <dimen name="local_games_top_tab_gap">0dp</dimen>
 </resources>

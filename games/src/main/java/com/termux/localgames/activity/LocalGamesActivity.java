@@ -1,5 +1,6 @@
 package com.termux.localgames.activity;
 
+import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.Intent;
 import android.content.res.Configuration;
@@ -18,16 +19,21 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.termux.localgames.R;
 import com.termux.localgames.api.ComponentTasks;
@@ -112,6 +118,13 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private static final String TERMUX_GLIBC_ID = "termux-glibc";
     private static final String STATE_SELECTED_TAB = "local_games.selected_tab";
     private static final String STATE_SETTINGS_PAGE = "local_games.settings_page";
+    private boolean navigationUpdating;
+    /** Last statusBars top inset delivered to the top tab bar, or -1 before the first dispatch. */
+    private int dispatchedStatusBarInsetPx = -1;
+    /** Whether {@link #dispatchedStatusBarInsetPx} was received in a landscape window. */
+    private boolean dispatchedStatusBarInsetLandscape;
+    /** False from a configuration change until the next insets dispatch: root insets are stale. */
+    private boolean insetsDispatchedSinceConfigChange;
     private static final int TAB_LIBRARY = 0;
     private static final int TAB_COMPONENTS = 1;
     private static final int TAB_SETTINGS = 2;
@@ -121,6 +134,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private static final int GAME_ACTION_CONTROLS = 3;
     private static final int GAME_ACTION_REAUTHORIZE = 4;
     private static final int GAME_ACTION_REMOVE = 5;
+    /** The launch sheet is a compact card; wider windows do not stretch it. */
+    private static final int LAUNCH_SHEET_MAX_WIDTH_DP = 440;
     private static final long REFRESH_INTERVAL_MILLIS = 1000;
     // External storage (MANAGE_EXTERNAL_STORAGE on API 30+) is requested lazily, only the first
     // time the user actually touches Backup/Restore -- not at app startup -- since nothing else
@@ -151,6 +166,11 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private int selectedTab;
     private int libraryGeneration;
     private int libraryColumns = 2;
+    /** The items and grid width of the last render, so the grid re-flows when its width changes
+     *  (rotation, split-screen resize) without reloading the data. */
+    @Nullable private List<GameLibraryItem> renderedLibraryItems;
+    private int renderedGridWidth;
+    @Nullable private PopupWindow moreMenuPopup;
     private Runnable pendingBackupStorageAction;
     private Map<String, BuildingTask> buildingGameTasks = Collections.emptyMap();
     private static final long BUILDING_POLL_MS = 2500L;
@@ -215,10 +235,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
             return true;
         });
         binding.localGamesAddButton.setOnClickListener(view -> startImportFlow());
-        binding.localGamesFileManagerButton.setOnClickListener(view -> startImportFlow());
         binding.localGamesComponentTaskConsole.setOnClickListener(view ->
             showActiveInstallationConsole());
-        binding.localGamesSettingsButton.setOnClickListener(view -> showPage(TAB_SETTINGS));
         // System BACK behaves like the toolbar arrow (LocalGamesBackNavigation): second-level
         // Settings page -> first level, any other non-Library page -> Library. On the Library tab
         // the callback is disabled and back leaves the screen as before.
@@ -229,17 +247,56 @@ public final class LocalGamesActivity extends AppCompatActivity {
             }
         };
         getOnBackPressedDispatcher().addCallback(this, settingsBackCallback);
-        binding.localGamesNavigation.setOnItemSelectedListener(item -> {
-            if (item.getItemId() == R.id.local_games_navigation_import) {
-                startImportFlow();
-                return false;
+        // One destination handler for both chromes: the bottom bar (portrait) and the icon tabs
+        // at the top (landscape).
+        binding.localGamesNavigation.setOnItemSelectedListener(item ->
+            onNavigationDestination(item.getItemId()));
+        binding.localGamesTopTabLibrary.setOnClickListener(view ->
+            onNavigationDestination(R.id.local_games_navigation_library));
+        binding.localGamesTopTabFileManager.setOnClickListener(view ->
+            onNavigationDestination(R.id.local_games_navigation_file_manager));
+        binding.localGamesTopTabSettings.setOnClickListener(view ->
+            onNavigationDestination(R.id.local_games_navigation_settings));
+        WindowInsetsPadding.apply(binding.localGamesRoot, true, true, true, true);
+        // The root insets are null before the window is attached and still the old orientation's
+        // while onConfigurationChanged runs, so the bar height is also (re)applied from every fresh
+        // dispatch: cold start, rotation and tab switches then all end at the status bar height.
+        // The dispatched value is remembered together with its orientation so that a portrait
+        // value is never reused for a landscape window.
+        ViewCompat.setOnApplyWindowInsetsListener(binding.localGamesTopTabs, (view, insets) -> {
+            dispatchedStatusBarInsetPx =
+                insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            dispatchedStatusBarInsetLandscape = isLandscape();
+            insetsDispatchedSinceConfigChange = true;
+            applyTopTabBarHeight(true);
+            return insets;
+        });
+        // Last line of defence: whenever the bar is laid out again (it just became visible, the
+        // window was resized by a rotation, a LayoutParams reset), re-check its height against
+        // freshly resolved sources instead of trusting whatever was applied earlier. Not forced, so
+        // a correct height ends the cycle.
+        binding.localGamesTopTabs.addOnLayoutChangeListener((view, left, top, right, bottom,
+                                                              oldLeft, oldTop, oldRight,
+                                                              oldBottom) -> {
+            if (view.getVisibility() == View.VISIBLE) {
+                view.post(() -> {
+                    if (binding != null) applyTopTabBarHeight(false);
+                });
             }
-            if (item.getItemId() == R.id.local_games_navigation_tools) {
-                showTools();
-                return false;
+        });
+        // The grid re-flows when its width changes (rotation, split-screen).
+        binding.localGamesLibraryItems.addOnLayoutChangeListener((view, left, top, right, bottom,
+                                                                   oldLeft, oldTop, oldRight,
+                                                                   oldBottom) -> {
+            int width = right - left;
+            if (renderedLibraryItems != null && width > 0 && width != renderedGridWidth) {
+                view.post(() -> {
+                    if (binding != null && renderedLibraryItems != null &&
+                        view.getWidth() != renderedGridWidth) {
+                        renderLibrary(renderedLibraryItems, libraryGeneration);
+                    }
+                });
             }
-            showPage(TAB_LIBRARY);
-            return true;
         });
         initializeAppExperience();
 
@@ -249,7 +306,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         RuntimeSetupTasks.reconcileAll(this);
         PrefixSetupTasks.reconcileAll(this);
         int initialPage = selectedTab;
-        binding.localGamesNavigation.setSelectedItemId(R.id.local_games_navigation_library);
+        syncNavigationSelection(R.id.local_games_navigation_library);
         showPage(initialPage);
         if (initialPage == TAB_SETTINGS && !restoredSettingsPage.isRoot()) {
             openSettingsPage(restoredSettingsPage);
@@ -305,6 +362,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         started = false;
         mainHandler.removeCallbacks(catalogRefresh);
         mainHandler.removeCallbacks(buildingPoll);
+        dismissMoreMenu();
         super.onStop();
     }
 
@@ -380,6 +438,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
         boolean landscape = getResources().getConfiguration().orientation ==
             Configuration.ORIENTATION_LANDSCAPE;
         binding.localGamesPageTitle.setVisibility(landscape ? View.GONE : View.VISIBLE);
+        // File manager and Settings are reached from the navigation (bottom bar in portrait, top
+        // icon tabs in landscape), so only the Import card stays on the Library page.
         binding.localGamesCount.setVisibility(landscape ? View.GONE : View.VISIBLE);
         ViewGroup parent = (ViewGroup) binding.localGamesShortcuts.getParent();
         if (parent != binding.localGamesLibraryContent) return;
@@ -424,8 +484,32 @@ public final class LocalGamesActivity extends AppCompatActivity {
             Configuration.ORIENTATION_LANDSCAPE;
         boolean gamesMode = appHost != null &&
             appHost.getAppExperienceMode() == AppExperienceMode.GAMES;
-        binding.localGamesNavigation.setVisibility(
-            selectedTab == TAB_LIBRARY && !landscape ? View.VISIBLE : View.GONE);
+        boolean topTabs = LocalGamesBackNavigation.topTabsVisible(
+            landscape, selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS);
+        boolean bottomBar = LocalGamesBackNavigation.bottomBarVisible(
+            landscape, selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS);
+        binding.localGamesNavigation.setVisibility(bottomBar ? View.VISIBLE : View.GONE);
+        binding.localGamesNavigationDivider.setVisibility(bottomBar ? View.VISIBLE : View.GONE);
+        binding.localGamesTopTabs.setVisibility(topTabs ? View.VISIBLE : View.GONE);
+        // Sized when it becomes visible, unconditionally: its previous LayoutParams height may
+        // come from the other orientation. The re-request makes the window deliver the insets of
+        // the current orientation, and the post runs once this pass's layout has settled.
+        if (TopTabBarHeight.shouldApplyNow(topTabs)) {
+            applyTopTabBarHeight(true);
+            ViewCompat.requestApplyInsets(binding.localGamesTopTabs);
+            binding.localGamesTopTabs.post(() -> {
+                if (binding != null) applyTopTabBarHeight(true);
+            });
+        }
+        if (selectedTab != TAB_COMPONENTS) {
+            int highlighted = LocalGamesBackNavigation.highlight(
+                selectedTab == TAB_SETTINGS) == LocalGamesBackNavigation.Highlight.SETTINGS
+                ? R.id.local_games_navigation_settings : R.id.local_games_navigation_library;
+            // The top tabs are plain views and always follow; the bottom bar is already on the
+            // tapped item while its own listener runs.
+            syncTopTabSelection(highlighted);
+            if (!navigationUpdating) syncNavigationSelection(highlighted);
+        }
         binding.localGamesToolbar.setVisibility(
             selectedTab != TAB_LIBRARY || (!gamesMode && !landscape) ? View.VISIBLE : View.GONE);
         if (selectedTab == TAB_COMPONENTS) {
@@ -437,18 +521,107 @@ public final class LocalGamesActivity extends AppCompatActivity {
         }
     }
 
-    private void showTools() {
-        CharSequence[] actions = {
-            getString(R.string.local_games_shortcut_settings),
-            getString(R.string.local_games_open_terminal)
-        };
-        new FrostedDialogBuilder(this)
-            .setTitle(R.string.local_games_tools_title)
-            .setItems(actions, (dialog, which) -> {
-                if (which == 0) showPage(TAB_SETTINGS);
-                else if (appHost != null) appHost.openTerminal();
-            })
-            .show();
+    /** Handles a tap on a navigation destination of either chrome; returns whether the bottom bar
+     *  should select the item (the File manager entry never becomes selected). */
+    private boolean onNavigationDestination(int itemId) {
+        // Programmatic syncs (showPage) must not re-enter navigation.
+        if (navigationUpdating) return true;
+        if (itemId == R.id.local_games_navigation_file_manager) {
+            // An entry, not a tab: returning from the file manager lands on the Library.
+            if (LocalGamesBackNavigation.showsLibraryBeforeFileManager(
+                    selectedTab == TAB_LIBRARY)) {
+                showPage(TAB_LIBRARY);
+            }
+            startImportFlow();
+            return false;
+        }
+        boolean settings = itemId == R.id.local_games_navigation_settings;
+        // Tapping the tab that is already showing does nothing, like re-selecting a bottom bar item.
+        if (selectedTab == (settings ? TAB_SETTINGS : TAB_LIBRARY)) return true;
+        navigationUpdating = true;
+        try {
+            showPage(settings ? TAB_SETTINGS : TAB_LIBRARY);
+        } finally {
+            navigationUpdating = false;
+        }
+        return true;
+    }
+
+    private boolean isLandscape() {
+        return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+    }
+
+    /** Sizes the landscape top tab bar to the system status bar: the live WindowInsets height if the
+     *  window is given it for the current orientation, else the orientation's
+     *  {@code status_bar_height*} resource, else 24 dp. The resource is read by name because that is
+     *  the only way to reach it; an unreadable value falls back. A hidden bar is not sized; with
+     *  {@code force} the height is applied even if it equals the current LayoutParams value, which
+     *  may have been resolved for the other orientation. */
+    @SuppressLint({"DiscouragedApi", "InternalInsetResource"})
+    private void applyTopTabBarHeight(boolean force) {
+        if (binding == null) return;
+        boolean visible = binding.localGamesTopTabs.getVisibility() == View.VISIBLE;
+        if (!TopTabBarHeight.shouldApplyNow(visible)) return;
+        boolean landscape = isLandscape();
+        int insetsPx = TopTabBarHeight.usableCachedInset(
+            dispatchedStatusBarInsetPx, dispatchedStatusBarInsetLandscape, landscape);
+        if (insetsPx < 0) {
+            insetsPx = 0;
+            WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(binding.localGamesRoot);
+            if (insets != null &&
+                TopTabBarHeight.rootInsetsTrusted(insetsDispatchedSinceConfigChange)) {
+                insetsPx = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            }
+        }
+        int resourcePx = 0;
+        for (String name : TopTabBarHeight.statusBarResourceNames(landscape)) {
+            int resourceId = getResources().getIdentifier(name, "dimen", "android");
+            resourcePx = resourceId > 0 ? getResources().getDimensionPixelSize(resourceId) : 0;
+            if (resourcePx > 0) break;
+        }
+        int height = TopTabBarHeight.resolve(insetsPx, resourcePx,
+            getResources().getDimensionPixelSize(R.dimen.local_games_top_tabs_fallback_height));
+        ViewGroup.LayoutParams params = binding.localGamesTopTabs.getLayoutParams();
+        if (TopTabBarHeight.needsApply(params.height, height, force)) {
+            params.height = height;
+            binding.localGamesTopTabs.setLayoutParams(params);
+        }
+    }
+
+    private void syncTopTabSelection(int menuItemId) {
+        binding.localGamesTopTabLibrary.setSelected(
+            menuItemId == R.id.local_games_navigation_library);
+        binding.localGamesTopTabSettings.setSelected(
+            menuItemId == R.id.local_games_navigation_settings);
+    }
+
+    /** Highlights the same destination in the bottom bar and the top tabs, without re-entering
+     *  navigation. */
+    private void syncNavigationSelection(int menuItemId) {
+        boolean wasUpdating = navigationUpdating;
+        navigationUpdating = true;
+        try {
+            binding.localGamesNavigation.setSelectedItemId(menuItemId);
+            syncTopTabSelection(menuItemId);
+        } finally {
+            navigationUpdating = wasUpdating;
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // The Activity is not recreated on rotation: tab, Settings level, open dialogs and the
+        // scroll positions stay as they are; only the orientation-dependent chrome is re-laid out.
+        dismissMoreMenu();
+        if (binding == null) return;
+        // Everything cached for the previous orientation (dispatched inset, root insets) is stale
+        // now; the bar is re-sized from the new orientation's sources right away and again once the
+        // rotated layout and the new insets have arrived (updateChrome posts that pass).
+        dispatchedStatusBarInsetPx = -1;
+        insetsDispatchedSinceConfigChange = false;
+        configureResponsiveLibrary();
+        updateChrome();
     }
 
     private void initializeAppExperience() {
@@ -589,11 +762,13 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding.localGamesCount.setText(getString(R.string.local_games_my_games_count,
             items.size()));
         binding.localGamesEmptyState.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
-        int gridWidth = binding.localGamesLibraryItems.getWidth();
-        if (gridWidth <= 0) gridWidth = getResources().getDisplayMetrics().widthPixels - dp(32);
+        int gridWidth = libraryGridWidth();
         boolean landscape = getResources().getConfiguration().orientation ==
             Configuration.ORIENTATION_LANDSCAPE;
-        libraryColumns = landscape ? Math.max(1, Math.min(4, gridWidth / dp(236))) : 2;
+        renderedLibraryItems = items;
+        renderedGridWidth = gridWidth;
+        libraryColumns = LibraryGridColumns.columnsFor(
+            Math.round(gridWidth / getResources().getDisplayMetrics().density), landscape);
         binding.localGamesLibraryItems.setColumnCount(libraryColumns);
         for (int index = 0; index < items.size(); index++) {
             GameLibraryItem item = items.get(index);
@@ -605,11 +780,21 @@ public final class LocalGamesActivity extends AppCompatActivity {
         }
     }
 
+    /** The width the grid has (or is about to have): its laid-out width, or, before the first
+     *  layout pass, the window width minus the page padding. */
+    private int libraryGridWidth() {
+        int laidOut = binding.localGamesLibraryItems.getWidth();
+        if (laidOut > 0) return laidOut;
+        int padding = 2 * getResources().getDimensionPixelSize(
+            R.dimen.local_games_page_horizontal_padding);
+        return Math.max(dp(140), getResources().getDisplayMetrics().widthPixels - padding);
+    }
+
     private void applyGameCardLayout(View card, int index) {
-        int gridWidth = binding.localGamesLibraryItems.getWidth();
-        if (gridWidth <= 0) gridWidth = getResources().getDisplayMetrics().widthPixels - dp(32);
+        int gridWidth = renderedGridWidth > 0 ? renderedGridWidth : libraryGridWidth();
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
-        params.width = Math.max(dp(140), gridWidth / libraryColumns - dp(8));
+        params.width = LibraryGridColumns.cardWidthPx(gridWidth, libraryColumns, dp(8),
+            getResources().getDisplayMetrics().density);
         params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
         params.columnSpec = GridLayout.spec(index % libraryColumns);
         params.rowSpec = GridLayout.spec(index / libraryColumns);
@@ -669,7 +854,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         content.gameLaunchSheetStart.setEnabled(
             item.getAccessState() == GameAccessState.ACCESSIBLE);
 
-        Dialog dialog = createPresentationDialog(content.getRoot());
+        Dialog dialog = createPresentationDialog(content.getRoot(), LAUNCH_SHEET_MAX_WIDTH_DP);
         content.gameLaunchSheetClose.setOnClickListener(view -> dialog.dismiss());
         content.gameLaunchSheetStart.setOnClickListener(view -> {
             dialog.dismiss();
@@ -685,7 +870,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
             dialog.dismiss();
             showActionsPresentation(item);
         });
-        dialog.setOnShowListener(ignored -> configureLaunchPresentationWindow(dialog));
         dialog.show();
 
         if (!game.getArtworkUri().isEmpty()) {
@@ -703,7 +887,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void showActionsPresentation(GameLibraryItem item) {
         Game game = item.getGame();
         DialogGameActionsBinding content = DialogGameActionsBinding.inflate(getLayoutInflater());
-        Dialog dialog = createPresentationDialog(content.getRoot());
+        Dialog dialog = createPresentationDialog(content.getRoot(), 0);
         content.gameActionsClose.setOnClickListener(view -> dialog.dismiss());
         content.gameActionsEngine.setOnClickListener(view -> {
             dialog.dismiss();
@@ -737,18 +921,25 @@ public final class LocalGamesActivity extends AppCompatActivity {
             dialog.dismiss();
             performGameAction(item, GAME_ACTION_REMOVE);
         });
-        dialog.setOnShowListener(ignored -> configureLaunchPresentationWindow(dialog));
         dialog.show();
     }
 
     /** Card overflow is intentionally text-only; the launch-sheet shortcut uses the icon grid. */
     private void showActionsTextMenu(GameLibraryItem item, View anchor) {
+        dismissMoreMenu();
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(8), dp(8), dp(8), dp(8));
-        content.setBackgroundResource(R.drawable.local_games_bg_dialog);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundResource(R.drawable.local_games_bg_dialog);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.addView(content, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         int width = textPopupWidth(item);
-        PopupWindow popup = new PopupWindow(content, width,
+        // The popup is bounded to the window and scrolls, so a short (landscape) window never
+        // pushes rows off screen; its position is clamped into the window as well.
+        PopupWindow popup = new PopupWindow(scroll, width,
             ViewGroup.LayoutParams.WRAP_CONTENT, true);
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         popup.setOutsideTouchable(true);
@@ -769,8 +960,29 @@ public final class LocalGamesActivity extends AppCompatActivity {
             GAME_ACTION_REMOVE);
         content.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
             View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-        popup.showAsDropDown(anchor, anchor.getWidth(),
-            -anchor.getHeight() - content.getMeasuredHeight());
+        View windowRoot = anchor.getRootView();
+        float density = getResources().getDisplayMetrics().density;
+        int height = Math.min(content.getMeasuredHeight(),
+            DialogSizing.maxHeightPx(windowRoot.getHeight(), density));
+        popup.setHeight(height);
+        int[] anchorLocation = new int[2];
+        anchor.getLocationInWindow(anchorLocation);
+        int margin = dp(8);
+        int left = DialogSizing.popupLeftPx(anchorLocation[0] + anchor.getWidth(), width,
+            windowRoot.getWidth(), margin);
+        int top = DialogSizing.popupTopPx(anchorLocation[1],
+            anchorLocation[1] + anchor.getHeight(), height, windowRoot.getHeight(), margin);
+        moreMenuPopup = popup;
+        popup.setOnDismissListener(() -> {
+            if (moreMenuPopup == popup) moreMenuPopup = null;
+        });
+        popup.showAtLocation(windowRoot, Gravity.TOP | Gravity.START, left, top);
+    }
+
+    private void dismissMoreMenu() {
+        PopupWindow popup = moreMenuPopup;
+        moreMenuPopup = null;
+        if (popup != null) popup.dismiss();
     }
 
     private void addTextPopupAction(LinearLayout parent, PopupWindow popup,
@@ -789,8 +1001,9 @@ public final class LocalGamesActivity extends AppCompatActivity {
             popup.dismiss();
             performGameAction(item, action);
         });
-        parent.addView(row, new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(44)));
+        // 48 dp touch target (R.dimen.local_games_menu_row_min_height).
+        parent.addView(row, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+            getResources().getDimensionPixelSize(R.dimen.local_games_menu_row_min_height)));
     }
 
     private int textPopupWidth(GameLibraryItem item) {
@@ -805,7 +1018,10 @@ public final class LocalGamesActivity extends AppCompatActivity {
         paint.setTextSize(getResources().getDisplayMetrics().scaledDensity * 16f);
         float widest = 0f;
         for (int label : labels) widest = Math.max(widest, paint.measureText(getString(label)));
-        return Math.round(widest) + dp(48);
+        int wanted = Math.round(widest) + dp(48);
+        // Never wider than the window (long labels, large font, split-screen).
+        return Math.min(wanted, DialogSizing.maxWidthPx(
+            getResources().getDisplayMetrics().widthPixels, getResources().getDisplayMetrics().density));
     }
 
     private void performGameAction(GameLibraryItem item, int action) {
@@ -832,41 +1048,55 @@ public final class LocalGamesActivity extends AppCompatActivity {
         }
     }
 
-    private void configurePresentationWindow(Dialog dialog) {
+    /** Dialog surface (glass fill, scrim): applied once when the sheet is shown. */
+    private void configurePresentationSurface(Dialog dialog) {
         Window window = dialog.getWindow();
         if (window == null) return;
         window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-        WindowManager.LayoutParams attributes = window.getAttributes();
-        boolean landscape = getResources().getConfiguration().orientation ==
-            Configuration.ORIENTATION_LANDSCAPE;
-        attributes.gravity = landscape ? Gravity.CENTER : Gravity.BOTTOM;
-        window.setAttributes(attributes);
         // The window background is the one glass fill (8 dp, hairline, blur on API 31+); the dialog
         // layouts themselves are transparent. Light mode gets the warm scrim instead of a black dim.
         FrostedWindow.applyDialogSurface(window, this);
         FrostedWindow.applyScrim(dialog);
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        int width = landscape ? Math.min(screenWidth - dp(96), dp(680)) : screenWidth - dp(16);
+    }
+
+    /**
+     * Size and gravity of a sheet for the current window: bottom sheet in portrait, centred card in
+     * landscape, never wider than {@code maxWidthDp} (0 = no extra cap) and never taller than the
+     * window. Re-run when the configuration changes while the sheet is open.
+     */
+    private void fitPresentationWindow(Dialog dialog, ConfigurationAwareFrameLayout root,
+                                       int maxWidthDp) {
+        Window window = dialog.getWindow();
+        if (window == null) return;
+        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+        boolean landscape = DialogSizing.isLandscape(metrics.widthPixels, metrics.heightPixels);
+        WindowManager.LayoutParams attributes = window.getAttributes();
+        attributes.gravity = landscape ? Gravity.CENTER : Gravity.BOTTOM;
+        window.setAttributes(attributes);
+        int width = landscape ? Math.min(metrics.widthPixels - dp(96), dp(680))
+            : metrics.widthPixels - dp(16);
+        if (maxWidthDp > 0) width = Math.min(width, dp(maxWidthDp));
+        width = Math.max(Math.min(dp(240), metrics.widthPixels), width);
+        root.setMaxHeightPx(DialogSizing.maxHeightPx(metrics.heightPixels, metrics.density));
         window.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
-    private void configureLaunchPresentationWindow(Dialog dialog) {
-        configurePresentationWindow(dialog);
-        Window window = dialog.getWindow();
-        if (window == null) return;
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        int screenHeight = getResources().getDisplayMetrics().heightPixels;
-        int maxWidth = Math.round(screenWidth * 0.82f);
-        int maxHeight = Math.round(screenHeight * 0.76f);
-        int height = Math.min(maxHeight, Math.round(maxWidth * 3f / 4f));
-        int width = Math.round(height * 4f / 3f);
-        window.setLayout(width, height);
-    }
-
-    private Dialog createPresentationDialog(View content) {
+    private Dialog createPresentationDialog(View content, int maxWidthDp) {
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        dialog.setContentView(content);
+        ConfigurationAwareFrameLayout root = new ConfigurationAwareFrameLayout(this);
+        root.addView(content, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        // The Activity is not recreated on rotation, so an open sheet re-fits itself; posted so the
+        // resources already describe the new window when the size is read.
+        root.setListener(ignored -> root.post(() -> {
+            if (dialog.isShowing()) fitPresentationWindow(dialog, root, maxWidthDp);
+        }));
+        dialog.setContentView(root);
+        dialog.setOnShowListener(ignored -> {
+            configurePresentationSurface(dialog);
+            fitPresentationWindow(dialog, root, maxWidthDp);
+        });
         return dialog;
     }
 
@@ -919,6 +1149,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void renderLibraryError(String message) {
         binding.localGamesLibraryLoading.hide();
         binding.localGamesLibraryItems.removeAllViews();
+        renderedLibraryItems = null;
         binding.localGamesEmptyState.setVisibility(View.GONE);
         binding.localGamesLibraryError.setText(getString(
             R.string.local_games_library_load_failed, message));
