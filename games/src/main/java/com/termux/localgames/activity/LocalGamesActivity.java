@@ -154,6 +154,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private int libraryColumns = 2;
     private Runnable pendingBackupStorageAction;
     private Map<String, BuildingTask> buildingGameTasks = Collections.emptyMap();
+    private static final long BUILDING_POLL_MS = 2500L;
+    private final Runnable buildingPoll = () -> loadLibraryAsync(true);
     private final List<android.animation.ObjectAnimator> libraryCardBreathAnimators =
         new ArrayList<>();
     private RuntimeSetupTask latestRuntimeSetupTask;
@@ -304,6 +306,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     protected void onStop() {
         started = false;
         mainHandler.removeCallbacks(catalogRefresh);
+        mainHandler.removeCallbacks(buildingPoll);
         super.onStop();
     }
 
@@ -488,10 +491,19 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void loadLibraryAsync() {
+        loadLibraryAsync(false);
+    }
+
+    /** A card is shown as "building" only for the pass that found its setup task running, and
+     *  nothing else re-renders the library when that task ends in the background. While any card
+     *  is building, re-check every few seconds ({@code pollOnly}: re-render only if the set of
+     *  building games changed, so the breathing animation is not restarted needlessly). */
+    private void loadLibraryAsync(boolean pollOnly) {
+        mainHandler.removeCallbacks(buildingPoll);
         if (!started || selectedTab != TAB_LIBRARY ||
             !libraryLoadInFlight.compareAndSet(false, true)) return;
         int generation = ++libraryGeneration;
-        binding.localGamesLibraryLoading.show();
+        if (!pollOnly) binding.localGamesLibraryLoading.show();
         binding.localGamesLibraryError.setVisibility(View.GONE);
         libraryExecutor.execute(() -> {
             List<GameLibraryItem> items = null;
@@ -544,11 +556,26 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 if (!started || binding == null || selectedTab != TAB_LIBRARY ||
                     generation != libraryGeneration) return;
                 if (failure == null) {
+                    boolean unchanged = pollOnly && sameBuilding(buildingGameTasks, loadedBuilding);
                     buildingGameTasks = loadedBuilding;
-                    renderLibrary(loaded, generation);
+                    if (!unchanged) renderLibrary(loaded, generation);
+                    else binding.localGamesLibraryLoading.hide();
+                    if (!loadedBuilding.isEmpty()) {
+                        mainHandler.postDelayed(buildingPoll, BUILDING_POLL_MS);
+                    }
                 } else renderLibraryError(failure);
             });
         });
+    }
+
+    private static boolean sameBuilding(Map<String, BuildingTask> before,
+                                        Map<String, BuildingTask> after) {
+        if (before.size() != after.size()) return false;
+        for (Map.Entry<String, BuildingTask> entry : before.entrySet()) {
+            BuildingTask other = after.get(entry.getKey());
+            if (other == null || !other.taskId.equals(entry.getValue().taskId)) return false;
+        }
+        return true;
     }
 
     private void renderLibrary(List<GameLibraryItem> items, int generation) {
