@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
+    android:background="@color/local_games_session_backdrop"
     android:keepScreenOn="true">
 
     <com.termux.x11.X11SessionView
@@ -15,7 +15,7 @@
         android:id="@+id/game_session_waiting"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#D9000000"
+        android:background="@color/local_games_session_waiting"
         android:gravity="center"
         android:orientation="vertical"
         android:padding="24dp">
@@ -44,8 +44,8 @@
         android:text="☰"
         android:textColor="@color/local_games_on_surface"
         android:textSize="20sp"
-        app:backgroundTint="#CC151B22"
-        app:cornerRadius="18dp" />
+        app:backgroundTint="@color/local_games_overlay"
+        app:cornerRadius="6dp" />
 
     <TextView
         android:id="@+id/game_session_input_warning"
@@ -53,17 +53,17 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="78dp"
-        android:background="#CC7A1F1F"
+        android:background="@color/local_games_banner_error"
         android:padding="10dp"
         android:text="@string/local_game_session_input_unavailable"
-        android:textColor="#FFFFFFFF"
+        android:textColor="@color/local_games_on_error"
         android:visibility="gone" />
 
     <FrameLayout
         android:id="@+id/game_session_drawer_layer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#99000000"
+        android:background="@color/local_games_scrim"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone">
@@ -73,45 +73,45 @@
             android:layout_width="460dp"
             android:layout_height="match_parent"
             android:layout_gravity="end"
-            android:background="@drawable/local_games_bg_dialog"
+            android:background="@drawable/local_games_bg_overlay"
             android:clickable="true"
             android:orientation="horizontal"
-            android:padding="18dp">
+            android:padding="@dimen/local_games_overlay_padding">
 
             <LinearLayout
-                android:layout_width="124dp"
+                android:layout_width="@dimen/local_games_overlay_nav_width"
                 android:layout_height="match_parent"
                 android:gravity="top"
                 android:orientation="vertical">
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/game_session_category_operation"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    style="@style/Widget.TermuxLocalGames.OverlayNav"
                     android:layout_width="match_parent"
-                    android:layout_height="54dp"
+                    android:layout_height="40dp"
                     android:gravity="start|center_vertical"
                     android:text="@string/local_game_session_operation"
                     android:textAllCaps="false" />
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/game_session_category_performance"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    style="@style/Widget.TermuxLocalGames.OverlayNav"
                     android:layout_width="match_parent"
-                    android:layout_height="54dp"
+                    android:layout_height="40dp"
                     android:gravity="start|center_vertical"
                     android:text="@string/local_game_session_performance"
                     android:textAllCaps="false" />
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/game_session_category_settings"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    style="@style/Widget.TermuxLocalGames.OverlayNav"
                     android:layout_width="match_parent"
-                    android:layout_height="54dp"
+                    android:layout_height="40dp"
                     android:gravity="start|center_vertical"
                     android:text="@string/local_game_session_settings"
                     android:textAllCaps="false" />
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/game_session_category_keyboard"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    style="@style/Widget.TermuxLocalGames.OverlayNav"
                     android:layout_width="match_parent"
-                    android:layout_height="54dp"
+                    android:layout_height="40dp"
                     android:gravity="start|center_vertical"
                     android:text="@string/local_game_session_keyboard"
                     android:textAllCaps="false" />
@@ -121,9 +121,9 @@
                     android:layout_weight="1" />
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/game_session_exit"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    style="@style/Widget.TermuxLocalGames.OverlayNav"
                     android:layout_width="match_parent"
-                    android:layout_height="54dp"
+                    android:layout_height="40dp"
                     android:gravity="start|center_vertical"
                     android:text="@string/local_game_session_exit"
                     android:textAllCaps="false"
@@ -133,7 +133,7 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_marginStart="18dp"
+                android:layout_marginStart="@dimen/local_games_overlay_nav_gap"
                 android:layout_weight="1"
                 android:orientation="vertical">
                 <LinearLayout
@@ -148,8 +148,8 @@
                         android:layout_weight="1"
                         android:text="@string/local_game_session_operation_title"
                         android:textColor="@color/local_games_on_surface"
-                        android:textSize="22sp"
-                        android:textStyle="bold" />
+                        android:textSize="19sp"
+                        android:fontFamily="sans-serif-medium" />
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/game_session_close_drawer"
                         style="@style/Widget.MaterialComponents.Button.TextButton"
@@ -178,28 +178,28 @@
                             android:textColor="@color/local_games_on_surface_secondary" />
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/game_session_input"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            style="@style/Widget.TermuxLocalGames.OverlayRow"
                             android:layout_width="match_parent"
-                            android:layout_height="58dp"
-                            android:layout_marginTop="16dp"
+                            android:layout_height="@dimen/local_games_menu_row_min_height"
+                            android:layout_marginTop="8dp"
                             android:gravity="start|center_vertical"
                             android:text="@string/local_game_session_input"
                             android:textAllCaps="false" />
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/game_session_processes"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            style="@style/Widget.TermuxLocalGames.OverlayRow"
                             android:layout_width="match_parent"
-                            android:layout_height="58dp"
-                            android:layout_marginTop="10dp"
+                            android:layout_height="@dimen/local_games_menu_row_min_height"
+                            android:layout_marginTop="8dp"
                             android:gravity="start|center_vertical"
                             android:text="@string/local_game_session_processes"
                             android:textAllCaps="false" />
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/game_session_logs"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            style="@style/Widget.TermuxLocalGames.OverlayRow"
                             android:layout_width="match_parent"
-                            android:layout_height="58dp"
-                            android:layout_marginTop="10dp"
+                            android:layout_height="@dimen/local_games_menu_row_min_height"
+                            android:layout_marginTop="8dp"
                             android:gravity="start|center_vertical"
                             android:text="@string/local_game_session_logs"
                             android:textAllCaps="false" />
@@ -224,14 +224,14 @@
                             android:id="@+id/game_session_process_refresh"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="match_parent"
-                            android:layout_height="56dp"
+                            android:layout_height="48dp"
                             android:layout_marginTop="12dp"
                             android:text="@string/local_game_session_process_refresh"
                             android:textAllCaps="false" />
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/game_session_process_open"
                             android:layout_width="match_parent"
-                            android:layout_height="56dp"
+                            android:layout_height="48dp"
                             android:layout_marginTop="10dp"
                             android:text="@string/local_game_session_process_open"
                             android:textAllCaps="false" />
@@ -271,7 +271,7 @@
                             <com.google.android.material.switchmaterial.SwitchMaterial
                                 android:id="@+id/game_session_mouse_helper"
                                 android:layout_width="match_parent"
-                                android:layout_height="56dp"
+                                android:layout_height="48dp"
                                 android:layout_marginTop="8dp"
                                 android:text="@string/local_game_session_mouse_helper"
                                 android:textColor="@color/local_games_on_surface" />
@@ -303,7 +303,7 @@
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/game_session_keyboard"
                             android:layout_width="match_parent"
-                            android:layout_height="58dp"
+                            android:layout_height="48dp"
                             android:layout_marginTop="18dp"
                             android:text="@string/local_game_session_keyboard_open"
                             android:textAllCaps="false" />

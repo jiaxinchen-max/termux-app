@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="local_games_primary">#E3A35C</color>
+    <color name="local_games_primary_dark">#C98A47</color>
+    <color name="local_games_primary_text">#E3A35C</color>
+    <color name="local_games_secondary">#EDBB84</color>
+    <color name="local_games_on_primary">#2A1C10</color>
+    <color name="local_games_background">#17110D</color>
+    <color name="local_games_surface">#8542342B</color>
+    <color name="local_games_surface_elevated">#99503E34</color>
+    <color name="local_games_surface_high">#A85C4A3F</color>
+    <color name="local_games_surface_pressed">#40E3A35C</color>
+    <color name="local_games_outline">#1AFFE8CE</color>
+    <color name="local_games_on_surface">#F3EBE2</color>
+    <color name="local_games_on_surface_secondary">#B3A598</color>
+    <color name="local_games_success">#7FD3A4</color>
+    <color name="local_games_success_text">#7FD3A4</color>
+    <color name="local_games_success_container">#1A7FD3A4</color>
+    <color name="local_games_success_outline">#4D7FD3A4</color>
+    <color name="local_games_error">#F0837A</color>
+    <color name="local_games_error_container">#1AF0837A</color>
+    <color name="local_games_error_outline">#4DF0837A</color>
+    <color name="local_games_on_error">#FFF8F0</color>
+    <color name="local_games_banner_error">#D98A332D</color>
+    <color name="local_games_scrim">#B317110D</color>
+    <color name="local_games_overlay">#BD201813</color>
+    <color name="local_games_overlay_game">#D9201813</color>
+    <color name="local_games_dialog_outline">#40FFE8CE</color>
+    <!-- Dark mode keeps the previous black window dim, so no extra scrim is drawn. -->
+    <color name="local_games_dialog_scrim">#00000000</color>
+    <color name="local_games_dialog_scrim_noblur">#00000000</color>
+    <color name="local_games_nav_indicator">#29E3A35C</color>
+    <color name="local_games_session_backdrop">#FF000000</color>
+    <color name="local_games_session_waiting">#E617110D</color>
+    <color name="local_games_cover">#3A2B20</color>
+    <color name="local_games_console_background">#120D0A</color>
+    <color name="local_games_icon_base">#FFFFFFFF</color>
+    <color name="local_games_icon_folder">#F0C53A</color>
+    <color name="local_games_icon_folder_front">#FFF1B2</color>
+    <color name="local_games_icon_file">#B8A590</color>
+    <color name="local_games_icon_file_front">#F3EBE2</color>
+    <color name="local_games_icon_file_fold">#8C7C6B</color>
+    <color name="local_games_icon_warning">#F4B45F</color>
+    <color name="local_games_terminal_background">#FF000000</color>
+    <color name="local_games_terminal_text">#FFFFFFFF</color>
+    <color name="local_games_terminal_secondary">#B3A598</color>
+    <color name="local_games_system_bar_legacy">#17110D</color>
+    <!-- true: light system bars icons are dark (light mode) -->
+    <bool name="local_games_light_system_bars">false</bool>
+</resources>

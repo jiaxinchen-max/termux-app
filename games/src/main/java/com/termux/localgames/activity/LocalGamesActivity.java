@@ -29,7 +29,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
 import com.termux.localgames.api.ComponentTasks;
 import com.termux.localgames.api.RootfsBackupTasks;
@@ -199,9 +198,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         SettingsPage restoredSettingsPage = savedInstanceState == null ? SettingsPage.ROOT
             : SettingsPage.fromOrdinal(savedInstanceState.getInt(STATE_SETTINGS_PAGE, 0));
         binding.localGamesToolbar.setNavigationOnClickListener(view -> {
-            if (selectedTab == TAB_SETTINGS && !settingsPage.isRoot()) goBackInSettings();
-            else if (selectedTab == TAB_LIBRARY) finish();
-            else showPage(TAB_LIBRARY);
+            if (!navigateBackInLibraryScreen()) finish();
         });
         binding.localGamesToolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() != R.id.local_games_action_help) return false;
@@ -222,12 +219,13 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding.localGamesComponentTaskConsole.setOnClickListener(view ->
             showActiveInstallationConsole());
         binding.localGamesSettingsButton.setOnClickListener(view -> showPage(TAB_SETTINGS));
-        // Back from a second-level Settings page returns to the first level; everywhere else the
-        // callback is disabled and back behaves as before.
+        // System BACK behaves like the toolbar arrow (LocalGamesBackNavigation): second-level
+        // Settings page -> first level, any other non-Library page -> Library. On the Library tab
+        // the callback is disabled and back leaves the screen as before.
         settingsBackCallback = new OnBackPressedCallback(false) {
             @Override
             public void handleOnBackPressed() {
-                goBackInSettings();
+                navigateBackInLibraryScreen();
             }
         };
         getOnBackPressedDispatcher().addCallback(this, settingsBackCallback);
@@ -444,7 +442,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
             getString(R.string.local_games_shortcut_settings),
             getString(R.string.local_games_open_terminal)
         };
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(R.string.local_games_tools_title)
             .setItems(actions, (dialog, which) -> {
                 if (which == 0) showPage(TAB_SETTINGS);
@@ -473,7 +471,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
             renderAppExperience();
             return;
         }
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(R.string.local_games_app_mode_restart_title)
             .setMessage(R.string.local_games_app_mode_restart_message)
             .setNegativeButton(android.R.string.cancel, (dialog, which) -> renderAppExperience())
@@ -626,7 +624,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         row.localGameAccessStatus.setText(accessLabel(item.getAccessState()));
         row.localGameAccessStatus.setTextColor(ContextCompat.getColor(this,
             item.getAccessState() == GameAccessState.ACCESSIBLE
-                ? R.color.local_games_success : R.color.local_games_error));
+                ? R.color.local_games_success_text : R.color.local_games_error));
         row.localGameLastPlayed.setText(game.getLastPlayedAt() == 0
             ? getString(R.string.local_game_never_played)
             : getString(R.string.local_game_last_played, DateUtils.formatDateTime(this,
@@ -667,7 +665,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         content.gameLaunchSheetStatus.setText(accessLabel(item.getAccessState()));
         content.gameLaunchSheetStatus.setTextColor(ContextCompat.getColor(this,
             item.getAccessState() == GameAccessState.ACCESSIBLE
-                ? R.color.local_games_success : R.color.local_games_error));
+                ? R.color.local_games_success_text : R.color.local_games_error));
         content.gameLaunchSheetStart.setEnabled(
             item.getAccessState() == GameAccessState.ACCESSIBLE);
 
@@ -724,11 +722,17 @@ public final class LocalGamesActivity extends AppCompatActivity {
             performGameAction(item, GAME_ACTION_CONTROLS);
         });
         boolean reauthorize = item.getAccessState() != GameAccessState.ACCESSIBLE;
-        content.gameActionsReauthorize.setVisibility(reauthorize ? View.VISIBLE : View.GONE);
-        content.gameActionsReauthorize.setOnClickListener(view -> {
-            dialog.dismiss();
-            performGameAction(item, GAME_ACTION_REAUTHORIZE);
-        });
+        if (reauthorize) {
+            content.gameActionsReauthorize.setOnClickListener(view -> {
+                dialog.dismiss();
+                performGameAction(item, GAME_ACTION_REAUTHORIZE);
+            });
+        } else {
+            // GridLayout keeps a cell for GONE children, which left a hole before Remove; take
+            // the cell out so Controls and Remove sit next to each other.
+            ((ViewGroup) content.gameActionsReauthorize.getParent())
+                .removeView(content.gameActionsReauthorize);
+        }
         content.gameActionsRemove.setOnClickListener(view -> {
             dialog.dismiss();
             performGameAction(item, GAME_ACTION_REMOVE);
@@ -742,13 +746,13 @@ public final class LocalGamesActivity extends AppCompatActivity {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(8), dp(8), dp(8), dp(8));
-        content.setBackgroundResource(R.drawable.local_games_bg_panel);
+        content.setBackgroundResource(R.drawable.local_games_bg_dialog);
         int width = textPopupWidth(item);
         PopupWindow popup = new PopupWindow(content, width,
             ViewGroup.LayoutParams.WRAP_CONTENT, true);
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         popup.setOutsideTouchable(true);
-        popup.setElevation(dp(10));
+        popup.setElevation(dp(3));
         addTextPopupAction(content, popup, item, R.string.local_game_action_engine,
             GAME_ACTION_ENGINE);
         addTextPopupAction(content, popup, item, R.string.local_game_action_edit,
@@ -777,6 +781,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
             ? R.color.local_games_error : R.color.local_games_on_surface));
         row.setTextSize(16);
         row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setIncludeFontPadding(false);
         row.setSingleLine(true);
         row.setEllipsize(android.text.TextUtils.TruncateAt.END);
         row.setPadding(dp(16), 0, dp(16), 0);
@@ -830,14 +835,16 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void configurePresentationWindow(Dialog dialog) {
         Window window = dialog.getWindow();
         if (window == null) return;
-        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
         WindowManager.LayoutParams attributes = window.getAttributes();
-        attributes.dimAmount = 0.78f;
         boolean landscape = getResources().getConfiguration().orientation ==
             Configuration.ORIENTATION_LANDSCAPE;
         attributes.gravity = landscape ? Gravity.CENTER : Gravity.BOTTOM;
         window.setAttributes(attributes);
+        // The window background is the one glass fill (8 dp, hairline, blur on API 31+); the dialog
+        // layouts themselves are transparent. Light mode gets the warm scrim instead of a black dim.
+        FrostedWindow.applyDialogSurface(window, this);
+        FrostedWindow.applyScrim(dialog);
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
         int width = landscape ? Math.min(screenWidth - dp(96), dp(680)) : screenWidth - dp(16);
         window.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -864,7 +871,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void confirmRemove(Game game) {
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(getString(R.string.local_game_detail_delete_title, game.getName()))
             .setMessage(R.string.local_game_detail_delete_message)
             .setNegativeButton(android.R.string.cancel, null)
@@ -1482,7 +1489,24 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private void updateSettingsBackCallback() {
         if (settingsBackCallback != null) {
-            settingsBackCallback.setEnabled(selectedTab == TAB_SETTINGS && !settingsPage.isRoot());
+            settingsBackCallback.setEnabled(LocalGamesBackNavigation.interceptsSystemBack(
+                selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS, settingsPage.isRoot()));
+        }
+    }
+
+    /** Performs one back step inside this screen; returns false when the Library tab is showing
+     *  and nothing was navigated (the caller then leaves the screen). */
+    private boolean navigateBackInLibraryScreen() {
+        switch (LocalGamesBackNavigation.resolve(
+            selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS, settingsPage.isRoot())) {
+            case GO_UP_IN_SETTINGS:
+                goBackInSettings();
+                return true;
+            case SHOW_LIBRARY:
+                showPage(TAB_LIBRARY);
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -1501,7 +1525,12 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void renderSettingsMenu() {
         if (binding == null) return;
         SettingsMenuBuilder menu = new SettingsMenuBuilder(this, binding.localGamesSettingsMenu);
-        menu.heading(settingsPageTitle(settingsPage));
+        // updateChrome() shows this page's title in the toolbar while the Settings tab is selected,
+        // so a big heading with the same text underneath would only repeat it.
+        String pageTitle = settingsPageTitle(settingsPage);
+        if (!SettingsMenuBuilder.repeatsToolbarTitle(selectedTab == TAB_SETTINGS, pageTitle, pageTitle)) {
+            menu.heading(pageTitle);
+        }
         switch (settingsPage) {
             case NATIVE:
                 renderEnvironmentPage(menu, glibcStatus,
@@ -1582,7 +1611,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
      *  dpkg stays consistent); the install starts once that finished and the runtime is gone. */
     private void confirmNativeRebuild() {
         if (showActiveInstallationConsole()) return;
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(R.string.local_games_native_rebuild_confirm_title)
             .setMessage(R.string.local_games_native_rebuild_confirm_message)
             .setNegativeButton(android.R.string.cancel, null)
@@ -1648,7 +1677,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
      *  not game-specific. */
     private void confirmGlibcInstall() {
         if (showActiveInstallationConsole()) return;
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(R.string.local_games_install_confirm_title)
             .setMessage(R.string.local_games_install_confirm_glibc)
             .setNegativeButton(android.R.string.cancel, null)
@@ -1669,7 +1698,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
      *  list when no such container exists yet, without navigating there. */
     private void confirmRootfsInstall() {
         if (showActiveInstallationConsole()) return;
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(R.string.local_games_install_confirm_title)
             .setMessage(R.string.local_games_install_confirm_rootfs)
             .setNegativeButton(android.R.string.cancel, null)
@@ -1685,7 +1714,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
      *  both routes end at the one live shared RootFS. */
     private void confirmRootfsRebuild() {
         if (showActiveInstallationConsole()) return;
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(R.string.local_games_rootfs_rebuild_confirm_title)
             .setMessage(R.string.local_games_rootfs_rebuild_confirm_message)
             .setNegativeButton(android.R.string.cancel, null)
@@ -1700,7 +1729,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
      *  entry point showActiveInstallationConsole() routes back to if a restore is already running. */
     private void confirmBackupRestore(File archive) {
         if (showActiveInstallationConsole()) return;
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(R.string.local_games_backup_restore_confirm_title)
             .setMessage(R.string.local_games_backup_restore_confirm_message)
             .setNegativeButton(android.R.string.cancel, null)

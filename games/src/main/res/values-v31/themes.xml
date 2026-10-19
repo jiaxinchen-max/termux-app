@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- API 31+: blur whatever sits behind a dialog window (about 22 dp). Below API 31 the
+         translucent fill alone is used. -->
+    <style name="ThemeOverlay.TermuxLocalGames.Dialog" parent="ThemeOverlay.TermuxLocalGames.Dialog.Base">
+        <item name="android:windowBackgroundBlurRadius">22dp</item>
+        <item name="android:windowBlurBehindEnabled">true</item>
+        <item name="android:windowBlurBehindRadius">22dp</item>
+    </style>
+</resources>

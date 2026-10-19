@@ -264,6 +264,8 @@
     <string name="local_game_session_task_missing">游戏会话已不存在。</string>
     <string name="local_games_tab_settings">设置</string>
     <string name="local_games_help">说明</string>
+    <string name="local_games_runtime_options_help_title">运行参数</string>
+    <string name="local_games_runtime_options_help">设置此游戏的运行方式：执行环境、Wine 与 Box64 版本、图形及其他启动参数。点击“保存”后更改才会生效；返回时会询问保存或放弃更改。</string>
     <string name="local_games_settings_help">终端模式以集成 X11 的终端为主界面；游戏模式默认进入游戏库，终端只管理进程和会话。切换模式会重启 App。游戏模式下“打开终端会话”仅打开会话终端，不集成 X11。</string>
     <string name="local_games_app_mode_title">默认模式</string>
     <string name="local_games_app_mode_terminal">终端模式</string>

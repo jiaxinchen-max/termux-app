@@ -9,12 +9,9 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/local_game_file_manager_toolbar"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:background="@color/local_games_background"
+        android:layout_height="@dimen/local_games_toolbar_height"
         android:title="@string/local_game_file_manager_title"
-        app:navigationIcon="@drawable/local_games_ic_back"
-        app:navigationIconTint="@color/local_games_on_surface"
-        app:titleTextColor="@color/local_games_on_surface" />
+        app:navigationIcon="@drawable/local_games_ic_back" />
 
     <TextView
         android:id="@+id/local_game_file_manager_location"

@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp"
     app:cardBackgroundColor="@color/local_games_surface"
-    app:cardCornerRadius="18dp"
+    app:cardCornerRadius="8dp"
     app:cardElevation="0dp"
     app:strokeWidth="0dp">
 
@@ -33,7 +33,7 @@
                 android:maxLines="1"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
                 android:textColor="@color/local_games_on_surface"
-                android:textStyle="bold" />
+                android:fontFamily="sans-serif-medium" />
 
             <TextView
                 android:id="@+id/local_games_component_metadata"
@@ -54,7 +54,7 @@
                 android:paddingStart="14dp"
                 android:paddingEnd="14dp"
                 android:textAllCaps="false"
-                app:cornerRadius="12dp"
+                app:cornerRadius="6dp"
                 android:visibility="gone" />
         </LinearLayout>
 

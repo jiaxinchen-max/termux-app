@@ -64,7 +64,7 @@
             android:resizeableActivity="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|density|screenLayout|keyboard|keyboardHidden|navigation"
             android:screenOrientation="sensorLandscape"
-            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.Session" />
 
         <service
             android:name=".service.ComponentTaskForegroundService"

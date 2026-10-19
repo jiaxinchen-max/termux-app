@@ -18,7 +18,6 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.button.MaterialButton;
 import com.termux.localgames.R;
 import com.termux.localgames.api.LocalGames;
@@ -244,7 +243,7 @@ public final class GameSessionActivity extends AppCompatActivity {
     private void confirmSafeExit() {
         if (destroyed || exitRequested || exitConfirmationVisible || isFinishing()) return;
         exitConfirmationVisible = true;
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(R.string.local_game_session_exit_title)
             .setMessage(R.string.local_game_session_exit_message)
             .setNegativeButton(android.R.string.cancel, null)
@@ -306,7 +305,7 @@ public final class GameSessionActivity extends AppCompatActivity {
         button.setBackgroundResource(selected
             ? R.drawable.local_games_bg_shortcut : android.R.color.transparent);
         button.setTextColor(ContextCompat.getColor(this, selected
-            ? R.color.local_games_on_surface : R.color.local_games_on_surface_secondary));
+            ? R.color.local_games_primary_text : R.color.local_games_on_surface_secondary));
     }
 
     private void refreshProcessSummary() {
@@ -369,7 +368,7 @@ public final class GameSessionActivity extends AppCompatActivity {
         String message = task == null || task.getLogRef().isEmpty()
             ? getString(R.string.local_game_session_log_pending)
             : task.getLogRef();
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(R.string.local_game_session_logs)
             .setMessage(message)
             .setPositiveButton(android.R.string.ok, null)

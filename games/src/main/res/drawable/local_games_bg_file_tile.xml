@@ -1,14 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
-            <solid android:color="#263543" />
-            <corners android:radius="14dp" />
+            <solid android:color="@color/local_games_surface_pressed" />
+            <corners android:radius="8dp" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="#00101720" />
-            <corners android:radius="14dp" />
+            <solid android:color="@android:color/transparent" />
+            <corners android:radius="8dp" />
         </shape>
     </item>
 </selector>

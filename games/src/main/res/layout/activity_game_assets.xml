@@ -8,8 +8,8 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/game_assets_toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        app:navigationIcon="@drawable/abc_ic_ab_back_material"
+        android:layout_height="@dimen/local_games_toolbar_height"
+        app:navigationIcon="@drawable/local_games_ic_back"
         app:title="@string/local_game_assets_title" />
 
     <com.google.android.material.progressindicator.LinearProgressIndicator

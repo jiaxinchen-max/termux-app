@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- API 27+: system bars use the page background and the icon appearance follows the mode. -->
+    <style name="Theme.TermuxLocalGames.DayNight.NoActionBar" parent="Theme.TermuxLocalGames.DayNight.Base">
+        <item name="android:statusBarColor">@color/local_games_background</item>
+        <item name="android:navigationBarColor">@color/local_games_background</item>
+        <item name="android:windowLightStatusBar">@bool/local_games_light_system_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/local_games_light_system_bars</item>
+    </style>
+
+    <!-- Session: dark neutral bars in both modes, so the bar icons are light. -->
+    <style name="Theme.TermuxLocalGames.DayNight.Session" parent="Theme.TermuxLocalGames.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/local_games_session_backdrop</item>
+        <item name="android:statusBarColor">@color/local_games_session_backdrop</item>
+        <item name="android:navigationBarColor">@color/local_games_session_backdrop</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

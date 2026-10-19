@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="136dp"
         app:cardBackgroundColor="@color/local_games_surface"
-        app:cardCornerRadius="22dp"
+        app:cardCornerRadius="8dp"
         app:cardElevation="0dp"
         app:strokeColor="@color/local_games_outline"
         app:strokeWidth="1dp">
@@ -35,7 +35,7 @@
         android:maxLines="1"
         android:textColor="@color/local_games_on_surface"
         android:textSize="18sp"
-        android:textStyle="bold" />
+        android:fontFamily="sans-serif-medium" />
 
     <TextView
         android:id="@+id/local_game_executable"
@@ -54,7 +54,7 @@
         android:layout_marginTop="4dp"
         android:ellipsize="end"
         android:singleLine="true"
-        android:textColor="@color/local_games_success"
+        android:textColor="@color/local_games_success_text"
         android:textSize="11sp" />
 
     <TextView
@@ -79,11 +79,12 @@
             android:layout_width="0dp"
             android:layout_height="44dp"
             android:layout_weight="1"
+            android:letterSpacing="0.02"
             android:text="@string/local_game_card_details"
             android:textAllCaps="false"
             android:textColor="@color/local_games_on_surface"
             app:backgroundTint="@color/local_games_surface_elevated"
-            app:cornerRadius="16dp" />
+            app:cornerRadius="6dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/local_game_more"
@@ -95,6 +96,6 @@
             android:textColor="@color/local_games_on_surface"
             android:textSize="21sp"
             app:backgroundTint="@color/local_games_surface_elevated"
-            app:cornerRadius="16dp" />
+            app:cornerRadius="6dp" />
     </LinearLayout>
 </LinearLayout>

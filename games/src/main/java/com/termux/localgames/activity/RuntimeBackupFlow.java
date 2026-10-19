@@ -10,7 +10,6 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
 import com.termux.localgames.api.LaunchHostException;
 import com.termux.localgames.api.LocalGames;
@@ -141,7 +140,7 @@ final class RuntimeBackupFlow {
         if (activity == null) return;
         if (isRunning()) { showConsole(); return; }
         pickArchive(RuntimeBackupSharedStorage.ARCHIVE_EXTENSION, file -> {
-            restoreConfirmation = new MaterialAlertDialogBuilder(activity)
+            restoreConfirmation = new FrostedDialogBuilder(activity)
                 .setTitle(R.string.local_games_runtime_backup_restore_title)
                 .setMessage(R.string.local_games_runtime_backup_restore_message)
                 .setNegativeButton(android.R.string.cancel, null)
@@ -358,7 +357,7 @@ final class RuntimeBackupFlow {
         Activity activity = host;
         if (activity == null) { pendingReport = () -> showMessage(titleRes, message); return; }
         shownReport = () -> showMessage(titleRes, message);
-        resultDialog = new MaterialAlertDialogBuilder(activity)
+        resultDialog = new FrostedDialogBuilder(activity)
             .setTitle(titleRes)
             .setMessage(message)
             .setPositiveButton(android.R.string.ok, (dialog, which) -> shownReport = null)

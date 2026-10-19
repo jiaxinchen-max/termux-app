@@ -5,19 +5,19 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFFFF"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@color/local_games_icon_base"
         android:strokeWidth="1.6"
         android:pathData="M7,2 h10 a2,2 0 0 1 2,2 v16 a2,2 0 0 1 -2,2 H7 a2,2 0 0 1 -2,-2 V4 a2,2 0 0 1 2,-2 Z" />
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFFFF"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@color/local_games_icon_base"
         android:strokeWidth="1.6"
         android:strokeLineCap="round"
         android:pathData="M19,9 V18 a2,2 0 0 1 -2,2 H9" />
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFFFF"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@color/local_games_icon_base"
         android:strokeWidth="1.6"
         android:strokeLineCap="round"
         android:pathData="M19,9 L16.6,6.6 M19,9 L21.4,6.6" />

@@ -52,7 +52,7 @@ final class GameImportReadinessGate {
             if (message.length() > 0) message.append('\n');
             message.append(activity.getString(R.string.local_games_import_gate_rootfs_missing));
         }
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(activity)
+        MaterialAlertDialogBuilder builder = new FrostedDialogBuilder(activity)
             .setTitle(R.string.local_games_import_gate_title)
             .setMessage(message.toString())
             .setCancelable(false)

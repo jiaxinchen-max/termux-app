@@ -2,8 +2,6 @@ package com.termux.localgames.activity;
 
 import android.app.Dialog;
 import android.content.Context;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -11,6 +9,7 @@ import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.core.content.ContextCompat;
 import androidx.annotation.NonNull;
 
 import com.termux.localgames.R;
@@ -64,19 +63,21 @@ final class PrefixSetupConsoleDialog extends Dialog {
 
         LinearLayout content = new LinearLayout(getContext());
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setBackgroundColor(Color.BLACK);
+        FrostedWindow.clipToPanel(content, getContext());
         content.setContentDescription(
             getContext().getString(R.string.local_games_prefix_setup_console_title));
 
         status = new TextView(getContext());
-        status.setTextColor(Color.rgb(170, 185, 210));
+        status.setTextColor(ContextCompat.getColor(getContext(),
+            R.color.local_games_terminal_secondary));
         status.setTextSize(13);
         status.setPadding(dp(8), dp(8), dp(8), 0);
         content.addView(status, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         terminalView = new TerminalView(getContext(), null);
-        terminalView.setBackgroundColor(Color.BLACK);
+        terminalView.setBackgroundColor(ContextCompat.getColor(getContext(),
+            R.color.local_games_terminal_background));
         terminalView.setTerminalViewClient(new TermuxTerminalViewClientBase());
         TermuxAppSharedPreferences preferences = TermuxAppSharedPreferences.build(getContext());
         terminalView.setTextSize(preferences == null ? 14 : preferences.getFontSize());
@@ -89,8 +90,9 @@ final class PrefixSetupConsoleDialog extends Dialog {
 
         Window window = getWindow();
         if (window != null) {
-            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+            FrostedWindow.applyPanelSurface(window, getContext(), R.color.local_games_terminal_background);
+            FrostedWindow.applyScrim(this);
         }
     }
 

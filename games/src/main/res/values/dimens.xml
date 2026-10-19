@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- One height for every games toolbar (layouts and the programmatic runtime-options header). -->
+    <dimen name="local_games_toolbar_height">56dp</dimen>
+    <!-- Menu rows (title with optional summary and chevron), in the Settings / runtime-options menus
+         (FrostedMenuRow) and in the in-game overlay: 48 dp. -->
+    <dimen name="local_games_menu_row_min_height">48dp</dimen>
+    <!-- The Save extended FAB: lower than the 48 dp Material default. -->
+    <dimen name="local_games_save_button_min_height">40dp</dimen>
+    <!-- In-game overlay drawer: outer padding, left navigation column and the gap to the panel
+         (6-8 dp spacing system). -->
+    <dimen name="local_games_overlay_padding">12dp</dimen>
+    <dimen name="local_games_overlay_nav_width">104dp</dimen>
+    <dimen name="local_games_overlay_nav_gap">8dp</dimen>
+    <!-- Horizontal page padding shared by the Settings menu (activity_local_games) and the
+         programmatic runtime-options page (GameRuntimeOptionsView), so their rows line up. -->
+    <dimen name="local_games_page_horizontal_padding">16dp</dimen>
+    <!-- Left/right inset of a Material dialog title panel; dialog content views (backup chooser)
+         use the same value so they share the title's left edge. -->
+    <dimen name="local_games_dialog_content_inset">24dp</dimen>
+    <!-- Window dim behind dialogs while the dialog blur is active; FrostedWindow.DIM_WITH_BLUR uses
+         the same value, so Material and self-drawn dialogs dim the page identically. -->
+    <item name="local_games_dialog_dim_amount" format="float" type="dimen">0.30</item>
+</resources>

@@ -4,12 +4,12 @@
     android:viewportWidth="48"
     android:viewportHeight="48">
     <path
-        android:fillColor="#AEBBCC"
+        android:fillColor="@color/local_games_icon_file"
         android:pathData="M12,5H28L38,15V41C38,42.1 37.1,43 36,43H12C10.9,43 10,42.1 10,41V7C10,5.9 10.9,5 12,5Z" />
     <path
-        android:fillColor="#EAF2F9"
+        android:fillColor="@color/local_games_icon_file_front"
         android:pathData="M28,5V15H38Z" />
     <path
-        android:fillColor="#62758B"
+        android:fillColor="@color/local_games_icon_file_fold"
         android:pathData="M16,23H32V26H16ZM16,30H32V33H16Z" />
 </vector>

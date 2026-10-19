@@ -9,12 +9,9 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/game_launch_toolbar"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:background="@color/local_games_background"
+        android:layout_height="@dimen/local_games_toolbar_height"
         android:title="@string/local_game_launch_title"
-        app:navigationIcon="@drawable/local_games_ic_back"
-        app:navigationIconTint="@color/local_games_on_surface"
-        app:titleTextColor="@color/local_games_on_surface" />
+        app:navigationIcon="@drawable/local_games_ic_back" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -33,7 +30,7 @@
             android:gravity="center"
             android:textColor="@color/local_games_on_surface"
             android:textSize="24sp"
-            android:textStyle="bold" />
+            android:fontFamily="sans-serif-medium" />
 
         <Space
             android:layout_width="match_parent"

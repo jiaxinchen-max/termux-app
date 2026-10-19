@@ -20,7 +20,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.data.FileGameRepository;
@@ -223,7 +222,7 @@ public final class GameFileManagerActivity extends AppCompatActivity {
             DateFormat.getDateTimeInstance().format(new Date(file.lastModified())),
             getString(looksExecutable ? R.string.local_game_file_details_looks_executable
                 : R.string.local_game_file_details_not_executable));
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(file.getName())
             .setMessage(details + "\n\n" + getString(R.string.local_game_file_details_c_drive_tip))
             .setNegativeButton(android.R.string.cancel, null)

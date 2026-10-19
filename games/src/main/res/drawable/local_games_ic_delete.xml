@@ -5,6 +5,6 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:fillColor="#FFFFFFFF"
+        android:fillColor="@color/local_games_icon_base"
         android:pathData="M9,3h6l1,2h4v2H4V5h4zM6,9h12v11c0,0.55 -0.45,1 -1,1H7c-0.55,0 -1,-0.45 -1,-1zM9,11v7h2v-7zM13,11v7h2v-7z" />
 </vector>

@@ -3,34 +3,36 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/local_games_bg_dialog"
     android:orientation="vertical"
     android:padding="16dp">
 
-    <LinearLayout
+    <!-- The title is centred over the full dialog width; the close button floats at the end and
+         the title keeps the button's width free on both sides so it never shifts off-centre. -->
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:layout_height="wrap_content">
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
             android:gravity="center"
+            android:paddingStart="36dp"
+            android:paddingEnd="36dp"
             android:text="@string/local_game_actions_title"
             android:textColor="@color/local_games_on_surface"
             android:textSize="11sp"
-            android:textStyle="bold" />
+            android:fontFamily="sans-serif-medium" />
         <com.google.android.material.button.MaterialButton
             android:id="@+id/game_actions_close"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="36dp"
             android:layout_height="28dp"
+            android:layout_gravity="end|center_vertical"
             android:contentDescription="@string/local_games_close"
             android:text="×"
             android:textColor="@color/local_games_on_surface_secondary"
             android:textSize="20sp" />
-    </LinearLayout>
+    </FrameLayout>
 
     <ScrollView
         android:layout_width="match_parent"
@@ -63,7 +65,7 @@
             android:text="@string/local_game_action_engine"
             android:textAllCaps="false"
             android:textSize="10sp"
-            app:cornerRadius="12dp"
+            app:cornerRadius="6dp"
             app:icon="@drawable/local_games_ic_settings"
             app:iconGravity="textTop"
             app:iconPadding="4dp"
@@ -86,7 +88,7 @@
             android:text="@string/local_game_action_edit"
             android:textAllCaps="false"
             android:textSize="10sp"
-            app:cornerRadius="12dp"
+            app:cornerRadius="6dp"
             app:icon="@drawable/local_games_ic_component"
             app:iconGravity="textTop"
             app:iconPadding="4dp"
@@ -109,7 +111,7 @@
             android:text="@string/local_game_action_assets"
             android:textAllCaps="false"
             android:textSize="10sp"
-            app:cornerRadius="12dp"
+            app:cornerRadius="6dp"
             app:icon="@drawable/local_games_ic_download"
             app:iconGravity="textTop"
             app:iconPadding="4dp"
@@ -132,7 +134,7 @@
             android:text="@string/local_game_action_input"
             android:textAllCaps="false"
             android:textSize="10sp"
-            app:cornerRadius="12dp"
+            app:cornerRadius="6dp"
             app:icon="@drawable/local_games_ic_library"
             app:iconGravity="textTop"
             app:iconPadding="4dp"
@@ -155,7 +157,7 @@
             android:text="@string/local_game_action_reauthorize"
             android:textAllCaps="false"
             android:textSize="10sp"
-            app:cornerRadius="12dp"
+            app:cornerRadius="6dp"
             app:icon="@drawable/local_games_ic_library"
             app:iconGravity="textTop"
             app:iconPadding="4dp"
@@ -179,7 +181,7 @@
             android:textAllCaps="false"
             android:textColor="@color/local_games_error"
             android:textSize="10sp"
-            app:cornerRadius="12dp"
+            app:cornerRadius="6dp"
             app:icon="@drawable/local_games_ic_delete"
             app:iconGravity="textTop"
             app:iconPadding="4dp"

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bottom navigation item background: a subtle accent tint behind icon and label for the selected
+     item (6 dp radius, low alpha) and a light press tint; nothing otherwise. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <inset
+            android:insetLeft="8dp"
+            android:insetTop="6dp"
+            android:insetRight="8dp"
+            android:insetBottom="6dp">
+            <shape android:shape="rectangle">
+                <solid android:color="@color/local_games_nav_indicator" />
+                <corners android:radius="6dp" />
+            </shape>
+        </inset>
+    </item>
+    <item android:state_pressed="true">
+        <inset
+            android:insetLeft="8dp"
+            android:insetTop="6dp"
+            android:insetRight="8dp"
+            android:insetBottom="6dp">
+            <shape android:shape="rectangle">
+                <solid android:color="@color/local_games_surface_pressed" />
+                <corners android:radius="6dp" />
+            </shape>
+        </inset>
+    </item>
+    <item android:drawable="@android:color/transparent" />
+</selector>

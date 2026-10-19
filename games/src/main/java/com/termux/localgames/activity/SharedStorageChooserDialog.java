@@ -36,6 +36,11 @@ import java.util.concurrent.Executors;
  */
 final class SharedStorageChooserDialog {
     private static final String ROOT_LABEL = "~/storage/shared";
+    /**
+     * Horizontal inset AppCompat's default EditText background adds on each side; the file-name
+     * field is pulled outwards by this much so its edge lines up with the other content.
+     */
+    private static final int EDIT_TEXT_BACKGROUND_INSET_DP = 4;
 
     interface OnChosen {
         void onChosen(File file);
@@ -66,7 +71,16 @@ final class SharedStorageChooserDialog {
         this.extension = extension;
         this.callback = callback;
         this.current = root;
-        adapter = new ArrayAdapter<>(activity, android.R.layout.simple_list_item_1, new ArrayList<>());
+        adapter = new ArrayAdapter<String>(activity, android.R.layout.simple_list_item_1, new ArrayList<>()) {
+            @Override
+            public View getView(int position, @Nullable View convertView, ViewGroup parent) {
+                View row = super.getView(position, convertView, parent);
+                // The stock row inset (list item padding) pushes entries right of the title, the
+                // path line and the file-name field; drop only the start side so they align.
+                row.setPaddingRelative(0, row.getPaddingTop(), row.getPaddingEnd(), row.getPaddingBottom());
+                return row;
+            }
+        };
     }
 
     /**
@@ -100,7 +114,9 @@ final class SharedStorageChooserDialog {
     private void show(@Nullable String defaultName) {
         LinearLayout content = new LinearLayout(activity);
         content.setOrientation(LinearLayout.VERTICAL);
-        int pad = dp(20);
+        // Title, path line, list rows and file-name field share the title panel's left/right inset
+        // (one dimens token), so they all start on the same vertical line.
+        int pad = activity.getResources().getDimensionPixelSize(R.dimen.local_games_dialog_content_inset);
         content.setPadding(pad, dp(8), pad, 0);
 
         pathView = new TextView(activity);
@@ -127,10 +143,14 @@ final class SharedStorageChooserDialog {
             nameInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
             nameInput.setHint(R.string.local_games_chooser_file_name);
             nameInput.setText(defaultName);
-            content.addView(nameInput);
+            LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            nameParams.setMarginStart(-dp(EDIT_TEXT_BACKGROUND_INSET_DP));
+            nameParams.setMarginEnd(-dp(EDIT_TEXT_BACKGROUND_INSET_DP));
+            content.addView(nameInput, nameParams);
         }
 
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(activity)
+        MaterialAlertDialogBuilder builder = new FrostedDialogBuilder(activity)
             .setTitle(saveMode ? R.string.local_games_chooser_title_save
                 : R.string.local_games_chooser_title_restore)
             .setView(content)
@@ -195,7 +215,7 @@ final class SharedStorageChooserDialog {
             callback.onChosen(target);
             return;
         }
-        overwriteDialog = new MaterialAlertDialogBuilder(activity)
+        overwriteDialog = new FrostedDialogBuilder(activity)
             .setTitle(R.string.local_games_chooser_overwrite_title)
             .setMessage(activity.getString(R.string.local_games_chooser_overwrite_message, name))
             .setNegativeButton(android.R.string.cancel, null)
@@ -220,7 +240,7 @@ final class SharedStorageChooserDialog {
         TypedArray attributes = activity.obtainStyledAttributes(new int[] {android.R.attr.textColorSecondary});
         try {
             ColorStateList colors = attributes.getColorStateList(0);
-            return colors != null ? colors.getDefaultColor() : Color.LTGRAY;
+            return colors != null ? colors.getDefaultColor() : androidx.core.content.ContextCompat.getColor(activity, R.color.local_games_on_surface_secondary);
         } finally {
             attributes.recycle();
         }

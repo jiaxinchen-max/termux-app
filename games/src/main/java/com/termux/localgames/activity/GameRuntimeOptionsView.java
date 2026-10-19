@@ -8,6 +8,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
@@ -19,7 +20,6 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.termux.localgames.R;
 import com.termux.localgames.api.CustomComponentInstallTasks;
@@ -150,15 +150,33 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
         header = new LinearLayout(getContext());
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(16), 0, dp(16), 0);
-        header.setMinimumHeight(dp(48));
-        TextView back = text("‹", 34, R.color.local_games_on_surface);
-        back.setGravity(Gravity.CENTER);
-        header.addView(back, new LinearLayout.LayoutParams(dp(34), dp(48)));
+        // Same height and title size as every games toolbar; arrow and title share one centre line.
+        header.setPadding(dp(4), 0, dp(4), 0);
+        header.setMinimumHeight(getResources().getDimensionPixelSize(R.dimen.local_games_toolbar_height));
+        ImageView back = new ImageView(getContext());
+        back.setImageResource(R.drawable.local_games_ic_back);
+        back.setImageTintList(android.content.res.ColorStateList.valueOf(color(R.color.local_games_on_surface)));
+        back.setScaleType(ImageView.ScaleType.CENTER);
+        header.addView(back, new LinearLayout.LayoutParams(dp(48), dp(48)));
         back.setOnClickListener(view -> navigateBack());
-        title = text("Runtime parameters", 18, R.color.local_games_on_surface);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        header.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1));
+        title = text("Runtime parameters", 20, R.color.local_games_on_surface);
+        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        title.setIncludeFontPadding(false);
+        title.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0,
+            LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        titleParams.setMarginStart(dp(8));
+        header.addView(title, titleParams);
+        // The same "?" help action every games toolbar has (icon, description, GamesHelpDialog).
+        ImageView help = new ImageView(getContext());
+        help.setImageResource(R.drawable.local_games_ic_help);
+        help.setImageTintList(android.content.res.ColorStateList.valueOf(color(R.color.local_games_on_surface)));
+        help.setScaleType(ImageView.ScaleType.CENTER);
+        help.setContentDescription(getContext().getString(R.string.local_games_help));
+        help.setOnClickListener(view -> GamesHelpDialog.show(getContext(),
+            R.string.local_games_runtime_options_help_title,
+            R.string.local_games_runtime_options_help));
+        header.addView(help, new LinearLayout.LayoutParams(dp(48), dp(48)));
         innerContent.addView(header);
 
         progress = new ProgressBar(getContext());
@@ -172,7 +190,9 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         optionsScroll.setFillViewport(true);
         content = new LinearLayout(getContext());
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(20), dp(8), dp(20), dp(28));
+        // Same horizontal inset as the Settings page menu (activity_local_games.xml).
+        int pageInset = getResources().getDimensionPixelSize(R.dimen.local_games_page_horizontal_padding);
+        content.setPadding(pageInset, dp(8), pageInset, dp(28));
         optionsScroll.addView(content);
         optionsScroll.setVisibility(View.GONE);
         innerContent.addView(optionsScroll, new LinearLayout.LayoutParams(
@@ -189,7 +209,12 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         saveFab.setText("Save");
         saveFab.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
             color(R.color.local_games_primary)));
-        saveFab.setTextColor(color(R.color.local_games_background));
+        saveFab.setTextColor(color(R.color.local_games_on_primary));
+        // Matte like the rest of the page: no elevation shadow and no state-list animator (which
+        // would raise the FAB's elevation/translationZ on press and hover).
+        saveFab.setStateListAnimator(null);
+        saveFab.setElevation(0f);
+        saveFab.setTranslationZ(0f);
         saveFab.setVisibility(View.GONE);
         saveFab.setOnClickListener(view -> saveAndFinish());
         FrameLayout.LayoutParams fabParams = new FrameLayout.LayoutParams(
@@ -536,7 +561,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             input.setText(value);
             input.setSingleLine(false);
             input.setTextColor(color(R.color.local_games_on_surface));
-            new MaterialAlertDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
+            new FrostedDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
                 .setTitle(key)
                 .setView(input)
                 .setNegativeButton("Delete", (dialog, which) -> {
@@ -569,7 +594,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         value.setTextColor(color(R.color.local_games_on_surface));
         value.setHintTextColor(color(R.color.local_games_on_surface_secondary));
         form.addView(value);
-        new MaterialAlertDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
+        new FrostedDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
             .setTitle("Add environment variable")
             .setView(form)
             .setNegativeButton(android.R.string.cancel, null)
@@ -609,7 +634,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         }
         displayLabels[valuesArray.length] = addCustomLabel;
         int checked = indexOf(valuesArray, currentValue);
-        addRow(label, displayLabels[checked], true, view -> new MaterialAlertDialogBuilder(
+        addRow(label, displayLabels[checked], true, view -> new FrostedDialogBuilder(
             getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
             .setTitle(label)
             .setSingleChoiceItems(displayLabels, checked, (dialog, which) -> {
@@ -790,7 +815,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             form.addView(translatorGroup);
         }
         RadioGroup finalTranslatorGroup = translatorGroup;
-        new MaterialAlertDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
+        new FrostedDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
             .setTitle(getContext().getString(kind == CustomRuntimeComponent.Kind.WINE
                 ? R.string.local_games_custom_component_add_wine
                 : R.string.local_games_custom_component_add_box64))
@@ -939,7 +964,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         title.setText(value);
         if (header.getVisibility() != View.VISIBLE) {
             TextView heading = text(value, 20, R.color.local_games_on_surface);
-            heading.setTypeface(Typeface.DEFAULT_BOLD);
+            heading.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             params.setMargins(dp(4), dp(4), dp(4), dp(14));
@@ -962,7 +987,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     private void addChoice(String label, String[] values, int checked, IndexCallback callback) {
         String current = checked >= 0 && checked < values.length ? values[checked] : "Not selected";
-        addRow(label, current, true, view -> new MaterialAlertDialogBuilder(getContext(),
+        addRow(label, current, true, view -> new FrostedDialogBuilder(getContext(),
             R.style.ThemeOverlay_TermuxLocalGames_Dialog)
             .setTitle(label)
             .setSingleChoiceItems(values, checked, (dialog, which) -> {
@@ -994,7 +1019,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             input.setInputType(multiline ? InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE
                 : InputType.TYPE_CLASS_TEXT);
             input.setMinLines(multiline ? 6 : 1);
-            new MaterialAlertDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
+            new FrostedDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
                 .setTitle(label)
                 .setView(input)
                 .setNegativeButton(android.R.string.cancel, null)
@@ -1012,7 +1037,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         boolean[] selected = selectedCores(option(key), coreCount);
         for (int index = 0; index < coreCount; index++) cores[index] = "CPU" + index;
         String current = selectedCoreSummary(selected);
-        addRow(label, current, true, view -> new MaterialAlertDialogBuilder(getContext(),
+        addRow(label, current, true, view -> new FrostedDialogBuilder(getContext(),
             R.style.ThemeOverlay_TermuxLocalGames_Dialog)
             .setTitle(label)
             .setMultiChoiceItems(cores, selected, (dialog, which, checked) -> selected[which] = checked)
@@ -1102,35 +1127,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     private void addRow(String label, String summary, boolean interactive, @Nullable View.OnClickListener listener) {
-        LinearLayout row = new LinearLayout(getContext());
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(18), dp(13), dp(14), dp(13));
-        row.setBackground(rowBackground());
-        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        rowParams.bottomMargin = dp(8);
-        content.addView(row, rowParams);
-        LinearLayout copy = new LinearLayout(getContext());
-        copy.setOrientation(LinearLayout.VERTICAL);
-        TextView labelView = text(label, 17, R.color.local_games_on_surface);
-        copy.addView(labelView);
-        if (summary != null && !summary.isEmpty()) {
-            TextView summaryView = text(summary, 13, R.color.local_games_on_surface_secondary);
-            summaryView.setMaxLines(2);
-            LinearLayout.LayoutParams summaryParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            summaryParams.topMargin = dp(3);
-            copy.addView(summaryView, summaryParams);
-        }
-        row.addView(copy, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        if (interactive) {
-            TextView arrow = text("›", 30, R.color.local_games_primary);
-            arrow.setGravity(Gravity.CENTER);
-            row.addView(arrow, new LinearLayout.LayoutParams(dp(28), dp(36)));
-            row.setClickable(true);
-            row.setOnClickListener(listener);
-        }
+        FrostedMenuRow.add(getContext(), content, label, summary, 2, interactive, listener);
     }
 
     private void addHint(String value) {
@@ -1162,7 +1159,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             + (baseline == null ? "null" : baseline.getRuntimeBackendType())
             + " profile.backend=" + profile.getRuntimeBackendType());
         if (profileChanged || gameChanged()) {
-            new MaterialAlertDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
+            new FrostedDialogBuilder(getContext(), R.style.ThemeOverlay_TermuxLocalGames_Dialog)
                 .setTitle("Save runtime parameters?")
                 .setMessage("Changes apply only to " + game.getName() + ".")
                 .setNegativeButton("Discard", (dialog, which) -> close())
@@ -1224,20 +1221,12 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         if (listener != null) listener.onRuntimeOptionsClosed();
     }
 
-    private TextView text(String value, int sizeSp, int colorRes) {
+    private TextView text(String value, float sizeSp, int colorRes) {
         TextView view = new TextView(getContext());
         view.setText(value);
         view.setTextSize(sizeSp);
         view.setTextColor(color(colorRes));
         return view;
-    }
-
-    private android.graphics.drawable.GradientDrawable rowBackground() {
-        android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
-        shape.setColor(color(R.color.local_games_surface));
-        shape.setCornerRadius(dp(18));
-        shape.setStroke(dp(1), color(R.color.local_games_outline));
-        return shape;
     }
 
     private int color(int resource) { return ContextCompat.getColor(getContext(), resource); }

@@ -13,16 +13,12 @@
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/local_games_toolbar"
             android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:background="@color/local_games_background"
+            android:layout_height="@dimen/local_games_toolbar_height"
             app:menu="@menu/local_games_help"
             android:paddingStart="8dp"
             android:paddingEnd="8dp"
             android:title="@string/local_games_title"
-            app:navigationIcon="@drawable/local_games_ic_back"
-            app:navigationIconTint="@color/local_games_on_surface"
-            app:titleTextAppearance="@style/TextAppearance.MaterialComponents.Headline6"
-            app:titleTextColor="@color/local_games_on_surface" />
+            app:navigationIcon="@drawable/local_games_ic_back" />
     </FrameLayout>
 
     <FrameLayout
@@ -43,9 +39,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingStart="16dp"
+                android:paddingStart="@dimen/local_games_page_horizontal_padding"
                 android:paddingTop="12dp"
-                android:paddingEnd="16dp"
+                android:paddingEnd="@dimen/local_games_page_horizontal_padding"
                 android:paddingBottom="28dp">
 
                 <LinearLayout
@@ -57,11 +53,11 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:letterSpacing="0.12"
+                        android:letterSpacing="0.04"
                         android:text="@string/local_games_library_eyebrow"
-                        android:textColor="@color/local_games_primary"
+                        android:textColor="@color/local_games_primary_text"
                         android:textSize="11sp"
-                        android:textStyle="bold" />
+                        android:fontFamily="sans-serif-medium" />
 
                 </LinearLayout>
 
@@ -73,7 +69,7 @@
                     android:text="@string/local_games_pc_games"
                     android:textColor="@color/local_games_on_surface"
                     android:textSize="26sp"
-                    android:textStyle="bold" />
+                    android:fontFamily="sans-serif-medium" />
 
                 <LinearLayout
                     android:id="@+id/local_games_shortcuts"
@@ -89,6 +85,7 @@
                         android:layout_weight="1"
                         android:background="@drawable/local_games_bg_shortcut"
                         android:text="@string/local_games_import_hero_action"
+                        android:letterSpacing="0.02"
                         android:textAllCaps="false"
                         android:textColor="@color/local_games_on_surface"
                         app:backgroundTint="@null"
@@ -104,6 +101,7 @@
                         android:layout_weight="1"
                         android:background="@drawable/local_games_bg_shortcut"
                         android:text="@string/local_games_file_manager"
+                        android:letterSpacing="0.02"
                         android:textAllCaps="false"
                         android:textColor="@color/local_games_on_surface"
                         app:backgroundTint="@null"
@@ -121,6 +119,7 @@
                         android:layout_weight="1"
                         android:background="@drawable/local_games_bg_shortcut"
                         android:text="@string/local_games_shortcut_settings"
+                        android:letterSpacing="0.02"
                         android:textAllCaps="false"
                         android:textColor="@color/local_games_on_surface"
                         app:backgroundTint="@null"
@@ -137,7 +136,7 @@
                     android:text="@string/local_games_library_heading"
                     android:textColor="@color/local_games_on_surface"
                     android:textSize="20sp"
-                    android:textStyle="bold" />
+                    android:fontFamily="sans-serif-medium" />
 
                 <com.google.android.material.progressindicator.LinearProgressIndicator
                     android:id="@+id/local_games_library_loading"
@@ -184,7 +183,7 @@
                         android:text="@string/local_games_empty_title"
                         android:textColor="@color/local_games_on_surface"
                         android:textSize="18sp"
-                        android:textStyle="bold" />
+                        android:fontFamily="sans-serif-medium" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -211,9 +210,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingStart="16dp"
+                android:paddingStart="@dimen/local_games_page_horizontal_padding"
                 android:paddingTop="0dp"
-                android:paddingEnd="16dp"
+                android:paddingEnd="@dimen/local_games_page_horizontal_padding"
                 android:paddingBottom="28dp">
 
                 <com.google.android.material.button.MaterialButton
@@ -265,21 +264,32 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingStart="16dp"
+                android:paddingStart="@dimen/local_games_page_horizontal_padding"
                 android:paddingTop="12dp"
-                android:paddingEnd="16dp"
+                android:paddingEnd="@dimen/local_games_page_horizontal_padding"
                 android:paddingBottom="28dp" />
         </ScrollView>
     </FrameLayout>
+
+    <!-- One hairline separates the content from the bar; the bar itself is a single opaque layer
+         in the page colour (no translucent fill, no elevation shadow/overlay), so light mode shows
+         no lighter rectangle behind the icons and labels. -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/local_games_outline" />
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/local_games_navigation"
         android:layout_width="match_parent"
         android:layout_height="72dp"
-        android:background="@color/local_games_surface"
+        android:background="@color/local_games_background"
+        android:elevation="0dp"
+        app:elevation="0dp"
         app:itemIconSize="23dp"
+        app:itemBackground="@drawable/local_games_bg_nav_item"
         app:itemIconTint="@color/local_games_navigation_tint"
-        app:itemRippleColor="@color/local_games_surface_high"
+        app:itemRippleColor="@android:color/transparent"
         app:itemTextColor="@color/local_games_navigation_tint"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/local_games_bottom_navigation" />

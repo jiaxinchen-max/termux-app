@@ -4,6 +4,6 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:fillColor="#A9B6CA"
+        android:fillColor="@color/local_games_on_surface_secondary"
         android:pathData="M9,6L15,12L9,18L7.6,16.6L12.2,12L7.6,7.4Z" />
 </vector>

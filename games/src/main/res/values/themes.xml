@@ -1,31 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.TermuxLocalGames.DayNight.NoActionBar" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <!-- Warm frosted-matte theme. All colours come from values/colors.xml (light) and
+         values-night/colors.xml (dark), so the module follows the system dark/light setting only. -->
+    <style name="Theme.TermuxLocalGames.DayNight.Base" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/local_games_primary</item>
         <item name="colorPrimaryVariant">@color/local_games_primary_dark</item>
         <item name="colorSecondary">@color/local_games_secondary</item>
         <item name="colorSurface">@color/local_games_surface</item>
         <item name="colorOnSurface">@color/local_games_on_surface</item>
-        <item name="colorOnPrimary">@color/local_games_background</item>
+        <item name="colorOnPrimary">@color/local_games_on_primary</item>
+        <item name="colorOnSecondary">@color/local_games_on_primary</item>
+        <item name="colorOnBackground">@color/local_games_on_surface</item>
         <item name="colorError">@color/local_games_error</item>
+        <item name="colorOnError">@color/local_games_on_error</item>
         <item name="android:colorBackground">@color/local_games_background</item>
         <item name="android:windowBackground">@color/local_games_background</item>
         <item name="android:textColorPrimary">@color/local_games_on_surface</item>
         <item name="android:textColorSecondary">@color/local_games_on_surface_secondary</item>
-        <item name="android:statusBarColor">@color/local_games_background</item>
-        <item name="android:navigationBarColor">@color/local_games_background</item>
         <item name="android:fontFamily">sans</item>
+        <item name="elevationOverlayEnabled">false</item>
         <item name="materialButtonStyle">@style/Widget.TermuxLocalGames.Button</item>
+        <item name="extendedFloatingActionButtonStyle">@style/Widget.TermuxLocalGames.ExtendedFab</item>
+        <item name="textAppearanceButton">@style/TextAppearance.TermuxLocalGames.Button</item>
+        <item name="toolbarStyle">@style/Widget.TermuxLocalGames.Toolbar</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.TermuxLocalGames.Dialog</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.TermuxLocalGames.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.TermuxLocalGames.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.TermuxLocalGames.Medium</item>
         <item name="android:windowActionModeOverlay">true</item>
+    </style>
+
+    <!-- Below API 27 the system bar icon colour cannot follow the mode, so the bars use a dark
+         fallback colour there (white icons stay legible); values-v27 uses the page background and
+         the light/dark icon appearance. -->
+    <style name="Theme.TermuxLocalGames.DayNight.NoActionBar" parent="Theme.TermuxLocalGames.DayNight.Base">
+        <item name="android:statusBarColor">@color/local_games_system_bar_legacy</item>
+        <item name="android:navigationBarColor">@color/local_games_system_bar_legacy</item>
+    </style>
+
+    <!-- 6 dp for buttons / tiles / chip-buttons, 8 dp for cards / panels / dialogs / sheets. -->
+    <style name="ShapeAppearance.TermuxLocalGames.Small" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">6dp</item>
+    </style>
+
+    <style name="ShapeAppearance.TermuxLocalGames.Medium" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">8dp</item>
     </style>
 
     <style name="Widget.TermuxLocalGames.Button" parent="Widget.MaterialComponents.Button">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:minHeight">52dp</item>
+        <item name="android:minHeight">48dp</item>
         <item name="android:textAllCaps">false</item>
-        <item name="cornerRadius">14dp</item>
-        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="cornerRadius">6dp</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <!-- One button text appearance for every button (filled, outlined, text, dialog, extended FAB):
+         medium weight, never all-caps, small tracking. -->
+    <style name="TextAppearance.TermuxLocalGames.Button" parent="TextAppearance.MaterialComponents.Button">
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="textAllCaps">false</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.TermuxLocalGames.Button" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">6dp</item>
+    </style>
+
+    <!-- The Save extended FAB follows the same shape as the other buttons (6 dp, not a pill). -->
+    <style name="Widget.TermuxLocalGames.ExtendedFab" parent="Widget.MaterialComponents.ExtendedFloatingActionButton">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.TermuxLocalGames.Button</item>
+        <item name="android:minHeight">@dimen/local_games_save_button_min_height</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <!-- Every games toolbar: same height, title size/weight, background and back-arrow tint. -->
+    <style name="TextAppearance.TermuxLocalGames.ToolbarTitle" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <style name="Widget.TermuxLocalGames.Toolbar" parent="Widget.MaterialComponents.Toolbar">
+        <item name="android:background">@color/local_games_background</item>
+        <item name="android:minHeight">@dimen/local_games_toolbar_height</item>
+        <item name="maxButtonHeight">@dimen/local_games_toolbar_height</item>
+        <item name="titleTextAppearance">@style/TextAppearance.TermuxLocalGames.ToolbarTitle</item>
+        <item name="titleTextColor">@color/local_games_on_surface</item>
+        <item name="navigationIconTint">@color/local_games_on_surface</item>
+    </style>
+
+    <!-- In-game overlay rows: menu-row geometry (48 dp, 6 dp radius, hairline). -->
+    <style name="Widget.TermuxLocalGames.OverlayRow" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:minHeight">@dimen/local_games_menu_row_min_height</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingLeft">18dp</item>
+        <item name="android:paddingRight">14dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:gravity">start|center_vertical</item>
+        <item name="android:textSize">15.5sp</item>
+        <item name="android:textColor">@color/local_games_on_surface</item>
+        <item name="cornerRadius">6dp</item>
+        <item name="strokeColor">@color/local_games_outline</item>
+        <item name="backgroundTint">@color/local_games_surface</item>
+    </style>
+
+    <!-- In-game overlay left navigation: compact text buttons, tight tracking. -->
+    <style name="Widget.TermuxLocalGames.OverlayNav" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:minHeight">40dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingLeft">8dp</item>
+        <item name="android:paddingRight">8dp</item>
+        <item name="android:gravity">start|center_vertical</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+
+    <!-- The game session: the window and the system bars use the dark neutral surface behind the game in
+         both modes, so letterbox bars never show the light page colour. -->
+    <style name="Theme.TermuxLocalGames.DayNight.Session" parent="Theme.TermuxLocalGames.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/local_games_session_backdrop</item>
+        <item name="android:statusBarColor">@color/local_games_session_backdrop</item>
+        <item name="android:navigationBarColor">@color/local_games_session_backdrop</item>
     </style>
 
     <style name="Widget.TermuxLocalGames.HelpButton" parent="Widget.MaterialComponents.Button.TextButton">
@@ -36,16 +145,33 @@
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
         <item name="android:padding">0dp</item>
-        <item name="android:textColor">@color/local_games_primary</item>
+        <item name="android:textColor">@color/local_games_primary_text</item>
         <item name="android:textSize">18sp</item>
-        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 
-    <style name="ThemeOverlay.TermuxLocalGames.Dialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
-        <item name="colorSurface">@color/local_games_surface</item>
+    <!-- Frosted dialog: translucent surface + hairline, 8 dp corners. The window blur (API 31+)
+         comes from values-v31/themes.xml and FrostedWindow. -->
+    <style name="ThemeOverlay.TermuxLocalGames.Dialog.Base" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="colorSurface">@color/local_games_overlay</item>
         <item name="colorOnSurface">@color/local_games_on_surface</item>
-        <item name="android:colorBackground">@color/local_games_surface</item>
+        <item name="android:colorBackground">@color/local_games_overlay</item>
         <item name="android:textColorPrimary">@color/local_games_on_surface</item>
         <item name="android:textColorSecondary">@color/local_games_on_surface_secondary</item>
+        <item name="colorPrimary">@color/local_games_primary_text</item>
+        <item name="elevationOverlayEnabled">false</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">@dimen/local_games_dialog_dim_amount</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.TermuxLocalGames.Medium</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.TermuxLocalGames.DialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.TermuxLocalGames.DialogButton</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.TermuxLocalGames.DialogButton</item>
+    </style>
+
+    <style name="ThemeOverlay.TermuxLocalGames.Dialog" parent="ThemeOverlay.TermuxLocalGames.Dialog.Base" />
+
+    <style name="Widget.TermuxLocalGames.DialogButton" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/local_games_primary_text</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 </resources>

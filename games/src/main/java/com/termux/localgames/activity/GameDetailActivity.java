@@ -19,7 +19,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
 import com.termux.localgames.api.LocalGames;
 import com.termux.localgames.api.LocalGamesHost;
@@ -543,7 +542,7 @@ public final class GameDetailActivity extends AppCompatActivity {
             getString(R.string.local_game_detail_uninstall_configuration)
         };
         boolean[] selections = new boolean[options.length];
-        new MaterialAlertDialogBuilder(this)
+        new FrostedDialogBuilder(this)
             .setTitle(getString(R.string.local_game_detail_uninstall_title, game.getName()))
             .setMultiChoiceItems(options, selections,
                 (dialog, which, checked) -> selections[which] = checked)

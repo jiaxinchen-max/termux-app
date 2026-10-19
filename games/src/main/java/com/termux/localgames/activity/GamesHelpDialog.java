@@ -5,7 +5,6 @@ import android.content.Context;
 import androidx.annotation.StringRes;
 
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.localgames.R;
 
 /** Small, explicit entry point for non-essential feature guidance. */
@@ -22,7 +21,7 @@ final class GamesHelpDialog {
     }
 
     static void show(Context context, @StringRes int title, @StringRes int message) {
-        new MaterialAlertDialogBuilder(context)
+        new FrostedDialogBuilder(context)
             .setTitle(title)
             .setMessage(message)
             .setPositiveButton(android.R.string.ok, null)
@@ -30,7 +29,7 @@ final class GamesHelpDialog {
     }
 
     static void show(Context context, CharSequence title, CharSequence message) {
-        new MaterialAlertDialogBuilder(context)
+        new FrostedDialogBuilder(context)
             .setTitle(title)
             .setMessage(message)
             .setPositiveButton(android.R.string.ok, null)

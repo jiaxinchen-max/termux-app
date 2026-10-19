@@ -1,16 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="local_games_primary">#22C7E8</color>
-    <color name="local_games_primary_dark">#0799B8</color>
-    <color name="local_games_secondary">#69D8ED</color>
-    <color name="local_games_background">#070B12</color>
-    <color name="local_games_surface">#101720</color>
-    <color name="local_games_surface_elevated">#17212D</color>
-    <color name="local_games_surface_high">#1D2A38</color>
-    <color name="local_games_outline">#263543</color>
-    <color name="local_games_on_surface">#F4F7FA</color>
-    <color name="local_games_on_surface_secondary">#97A7B7</color>
-    <color name="local_games_success">#54D6A0</color>
-    <color name="local_games_error">#FF717B</color>
-    <color name="local_games_scrim">#B3070B12</color>
+    <color name="local_games_primary">#A8651F</color>
+    <color name="local_games_primary_dark">#8A5018</color>
+    <color name="local_games_primary_text">#96561A</color>
+    <color name="local_games_secondary">#B97A35</color>
+    <color name="local_games_on_primary">#FFFFFF</color>
+    <color name="local_games_background">#F3ECE3</color>
+    <color name="local_games_surface">#9EFFFBF5</color>
+    <color name="local_games_surface_elevated">#B8FFFCF7</color>
+    <color name="local_games_surface_high">#D0FFFDF9</color>
+    <color name="local_games_surface_pressed">#33A8651F</color>
+    <color name="local_games_outline">#1F5A3C1E</color>
+    <color name="local_games_on_surface">#2B211A</color>
+    <color name="local_games_on_surface_secondary">#74665A</color>
+    <color name="local_games_success">#2F8A5C</color>
+    <color name="local_games_success_text">#25744B</color>
+    <color name="local_games_success_container">#1A2F8A5C</color>
+    <color name="local_games_success_outline">#4D2F8A5C</color>
+    <color name="local_games_error">#B8473F</color>
+    <color name="local_games_error_container">#1AB8473F</color>
+    <color name="local_games_error_outline">#4DB8473F</color>
+    <color name="local_games_on_error">#FFF8F0</color>
+    <color name="local_games_banner_error">#E6B8473F</color>
+    <color name="local_games_scrim">#99F3ECE3</color>
+    <color name="local_games_overlay">#C7FCF7F0</color>
+    <!-- In-game overlay (session drawer) fill: a little more opaque so the game window controls do not ghost through. -->
+    <color name="local_games_overlay_game">#E6FCF7F0</color>
+    <!-- Dialog / popup edge hairline: a bit stronger than the generic outline so dialogs separate from the page. -->
+    <color name="local_games_dialog_outline">#2E5A3C1E</color>
+    <!-- Warm, light dialog scrim (drawn by the app, a black window dim cannot be tinted). With and without window blur. -->
+    <color name="local_games_dialog_scrim">#66F3ECE3</color>
+    <color name="local_games_dialog_scrim_noblur">#99F3ECE3</color>
+    <!-- Selected bottom-navigation item: accent tint, low alpha. -->
+    <color name="local_games_nav_indicator">#1FA8651F</color>
+    <color name="local_games_session_backdrop">#FF000000</color>
+    <color name="local_games_session_waiting">#E6F3ECE3</color>
+    <color name="local_games_cover">#E8D3B8</color>
+    <color name="local_games_console_background">#F7F1E8</color>
+    <color name="local_games_icon_base">#FFFFFFFF</color>
+    <color name="local_games_icon_folder">#C98A2E</color>
+    <color name="local_games_icon_folder_front">#E8B456</color>
+    <color name="local_games_icon_file">#9A8670</color>
+    <color name="local_games_icon_file_front">#F6EEE4</color>
+    <color name="local_games_icon_file_fold">#B7A48D</color>
+    <color name="local_games_icon_warning">#B97A1E</color>
+    <color name="local_games_terminal_background">#FF000000</color>
+    <color name="local_games_terminal_text">#FFFFFFFF</color>
+    <color name="local_games_terminal_secondary">#B3A598</color>
+    <color name="local_games_system_bar_legacy">#8C7C6B</color>
+    <!-- true: light system bars icons are dark (light mode) -->
+    <bool name="local_games_light_system_bars">true</bool>
 </resources>

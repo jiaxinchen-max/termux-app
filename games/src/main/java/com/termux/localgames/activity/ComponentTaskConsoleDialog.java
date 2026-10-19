@@ -2,8 +2,6 @@ package com.termux.localgames.activity;
 
 import android.app.Dialog;
 import android.content.Context;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -16,6 +14,7 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import androidx.core.content.ContextCompat;
 import androidx.annotation.NonNull;
 
 import com.google.android.material.button.MaterialButton;
@@ -63,16 +62,18 @@ final class ComponentTaskConsoleDialog extends Dialog {
         LinearLayout content = new LinearLayout(getContext());
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(padding, padding, padding, padding);
-        content.setBackgroundColor(Color.rgb(12, 16, 27));
+        FrostedWindow.clipToPanel(content, getContext());
 
         TextView title = new TextView(getContext());
         title.setText(R.string.local_games_component_console_title);
-        title.setTextColor(Color.WHITE);
+        title.setTextColor(ContextCompat.getColor(getContext(), R.color.local_games_on_surface));
+        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         title.setTextSize(20);
         content.addView(title);
 
         state = new TextView(getContext());
-        state.setTextColor(Color.rgb(170, 185, 210));
+        state.setTextColor(ContextCompat.getColor(getContext(),
+            R.color.local_games_on_surface_secondary));
         state.setTextSize(13);
         LinearLayout.LayoutParams stateParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -89,10 +90,11 @@ final class ComponentTaskConsoleDialog extends Dialog {
         content.addView(progress, progressParams);
 
         output = new TextView(getContext());
-        output.setTextColor(Color.WHITE);
+        output.setTextColor(ContextCompat.getColor(getContext(), R.color.local_games_terminal_text));
         output.setTextSize(13);
         output.setTypeface(android.graphics.Typeface.MONOSPACE);
-        output.setBackgroundColor(Color.BLACK);
+        output.setBackground(FrostedWindow.surface(getContext(),
+            R.color.local_games_terminal_background, FrostedWindow.ROW_RADIUS_DP));
         output.setPadding(dp(10), dp(10), dp(10), dp(10));
         output.setMovementMethod(new ScrollingMovementMethod());
         LinearLayout.LayoutParams outputParams = new LinearLayout.LayoutParams(
@@ -112,8 +114,9 @@ final class ComponentTaskConsoleDialog extends Dialog {
 
         Window window = getWindow();
         if (window != null) {
-            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+            FrostedWindow.applyPanelSurface(window, getContext(), R.color.local_games_console_background);
+            FrostedWindow.applyScrim(this);
         }
         refresh();
     }

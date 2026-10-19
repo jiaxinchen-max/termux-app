@@ -3,7 +3,6 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/local_games_bg_dialog"
     android:orientation="vertical"
     android:padding="12dp">
 
@@ -49,14 +48,14 @@
                 android:maxLines="2"
                 android:textColor="@color/local_games_on_surface"
                 android:textSize="20sp"
-                android:textStyle="bold" />
+                android:fontFamily="sans-serif-medium" />
 
             <TextView
                 android:id="@+id/game_launch_sheet_status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:textColor="@color/local_games_success"
+                android:textColor="@color/local_games_success_text"
                 android:textSize="13sp" />
         </LinearLayout>
     </LinearLayout>
@@ -68,7 +67,7 @@
         android:text="@string/local_game_launch_description_title"
         android:textColor="@color/local_games_on_surface"
         android:textSize="16sp"
-        android:textStyle="bold" />
+        android:fontFamily="sans-serif-medium" />
 
     <TextView
         android:layout_width="match_parent"
@@ -100,7 +99,7 @@
             android:insetTop="0dp"
             android:paddingTop="0dp"
             android:paddingBottom="0dp"
-            app:cornerRadius="12dp"
+            app:cornerRadius="6dp"
             app:icon="@drawable/local_games_ic_more_actions"
             app:iconGravity="textStart"
             app:iconSize="24dp"
@@ -119,7 +118,7 @@
             android:insetTop="0dp"
             android:paddingTop="0dp"
             android:paddingBottom="0dp"
-            app:cornerRadius="12dp"
+            app:cornerRadius="6dp"
             app:icon="@drawable/local_games_ic_desktop"
             app:iconGravity="textStart"
             app:iconSize="24dp"
@@ -140,9 +139,9 @@
             android:paddingBottom="0dp"
             android:text="@string/local_game_detail_launch"
             android:textAllCaps="false"
-            android:textColor="@color/local_games_on_surface"
+            android:textColor="@color/local_games_on_primary"
             android:textSize="16sp"
-            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium"
             app:backgroundTint="@null" />
     </LinearLayout>
 </LinearLayout>
