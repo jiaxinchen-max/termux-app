@@ -7,7 +7,6 @@ import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Build;
 import android.os.SystemClock;
-import android.text.format.Formatter;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -76,14 +75,14 @@ public final class GameSessionActivity extends AppCompatActivity {
     /** True from the start of the slide-out until the drawer layer is actually hidden. */
     private boolean drawerHiding;
     /**
-     * Where the open drawer is: its tabbed top level or the Process manager sub-page. Rotation
-     * re-lays the drawer out in place (configChanges), so the sub-page stays open across it; an
-     * Activity re-creation starts again at the closed drawer's top level.
+     * The task manager embedded in the Performance page; created on first need and then kept for
+     * the Activity's life (its refresh timer only runs while that page is visible, see
+     * {@link #updateProcessRefresh()}). Null until then.
      */
-    private GameSessionBackPolicy.DrawerLevel drawerLevel = GameSessionBackPolicy.DrawerLevel.TOP;
-    /** The embedded task manager while the Process manager sub-page exists, else null. */
     @Nullable
     private TaskManagerPanel processPanel;
+    /** True between onResume and onPause: the refresh timer never runs while paused. */
+    private boolean hostResumed;
     private LaunchTask currentTask;
     private int selectedCategory = CATEGORY_OPERATION;
     private AudioManager audioManager;
@@ -128,7 +127,7 @@ public final class GameSessionActivity extends AppCompatActivity {
             @Override public void onFirstFramePresented() { reportFirstFrame(); }
             @Override public void onControlCenterRequested() { showControlDrawer(); }
             @Override public void onExitRequested() { requestSafeExitConfirmation(); }
-            @Override public boolean onProcessManagerRequested() { return showProcessManagerPage(); }
+            @Override public boolean onProcessManagerRequested() { return showPerformancePage(); }
         });
         selectedCategory = savedInstanceState == null ? CATEGORY_OPERATION
             : savedInstanceState.getInt(STATE_CATEGORY, CATEGORY_OPERATION);
@@ -163,13 +162,9 @@ public final class GameSessionActivity extends AppCompatActivity {
         binding.gameSessionCloseDrawer.setOnClickListener(view -> hideControlDrawer());
         binding.gameSessionDrawerLayer.setOnClickListener(view -> hideControlDrawer());
         binding.gameSessionDrawer.setOnClickListener(view -> { });
-        binding.gameSessionBack.setOnClickListener(view -> navigateDrawerUp());
         binding.gameSessionProcessNewTask.setOnClickListener(view -> {
             if (processPanel != null) processPanel.showNewTaskPrompt();
         });
-        binding.gameSessionProcesses.setOnClickListener(view -> binding.gameSessionX11.showProcessManager());
-        binding.gameSessionProcessOpen.setOnClickListener(view -> binding.gameSessionX11.showProcessManager());
-        binding.gameSessionProcessRefresh.setOnClickListener(view -> refreshProcessSummary());
         binding.gameSessionLogs.setOnClickListener(view -> showRuntimeLog());
         binding.gameSessionCategoryOperation.setOnClickListener(view -> selectCategory(CATEGORY_OPERATION));
         binding.gameSessionCategoryPerformance.setOnClickListener(view -> selectCategory(CATEGORY_PERFORMANCE));
@@ -363,7 +358,11 @@ public final class GameSessionActivity extends AppCompatActivity {
         selectedCategory = category;
         binding.gameSessionPanelOperation.setVisibility(
             category == CATEGORY_OPERATION ? View.VISIBLE : View.GONE);
-        binding.gameSessionPanelPerformance.setVisibility(
+        // Performance is its own page (the embedded task manager with a fixed footer), not a panel
+        // of the scrolling panel container.
+        binding.gameSessionPanelScroll.setVisibility(
+            category == CATEGORY_PERFORMANCE ? View.GONE : View.VISIBLE);
+        binding.gameSessionProcessPage.setVisibility(
             category == CATEGORY_PERFORMANCE ? View.VISIBLE : View.GONE);
         binding.gameSessionPanelSettings.setVisibility(
             category == CATEGORY_SETTINGS ? View.VISIBLE : View.GONE);
@@ -373,7 +372,6 @@ public final class GameSessionActivity extends AppCompatActivity {
         switch (category) {
             case CATEGORY_PERFORMANCE:
                 title = R.string.local_game_session_performance_title;
-                refreshProcessSummary();
                 break;
             case CATEGORY_SETTINGS:
                 title = R.string.local_game_session_settings_title;
@@ -390,6 +388,8 @@ public final class GameSessionActivity extends AppCompatActivity {
         setCategorySelected(binding.gameSessionCategoryPerformance, category == CATEGORY_PERFORMANCE);
         setCategorySelected(binding.gameSessionCategorySettings, category == CATEGORY_SETTINGS);
         setCategorySelected(binding.gameSessionCategoryKeyboard, category == CATEGORY_KEYBOARD);
+        applyProcessPageLayout();
+        updateProcessRefresh();
     }
 
     private void setCategorySelected(@NonNull MaterialButton button, boolean selected) {
@@ -398,28 +398,6 @@ public final class GameSessionActivity extends AppCompatActivity {
             ? R.drawable.local_games_bg_shortcut : android.R.color.transparent);
         button.setTextColor(ContextCompat.getColor(this, selected
             ? R.color.local_games_primary_text : R.color.local_games_on_surface_secondary));
-    }
-
-    private void refreshProcessSummary() {
-        binding.gameSessionProcessSummary.setText(
-            R.string.local_game_session_process_summary_pending);
-        X11SessionView sessionView = binding.gameSessionX11;
-        ioExecutor.execute(() -> {
-            X11SessionView.ProcessSummary summary = sessionView.collectProcessSummary();
-            int count = summary.getProcessCount();
-            long totalMemory = summary.getMemoryBytes();
-            runOnUiThread(() -> {
-                if (destroyed || binding == null) return;
-                if (count == 0) {
-                    binding.gameSessionProcessSummary.setText(
-                        R.string.local_game_session_process_summary_empty);
-                } else {
-                    binding.gameSessionProcessSummary.setText(getString(
-                        R.string.local_game_session_process_summary,
-                        count, Formatter.formatFileSize(this, totalMemory)));
-                }
-            });
-        });
     }
 
     private void showControlDrawer() {
@@ -431,12 +409,13 @@ public final class GameSessionActivity extends AppCompatActivity {
             drawerHiding = false;
             binding.gameSessionDrawer.animate().cancel();
             binding.gameSessionDrawer.animate().translationX(0).translationY(0).setDuration(180).start();
-            if (processPanel != null) processPanel.start();
+            updateProcessRefresh();
             return;
         }
         cancelDrawerAnimation();
         binding.gameSessionMenu.setVisibility(View.GONE);
         binding.gameSessionDrawerLayer.setVisibility(View.VISIBLE);
+        updateProcessRefresh();
         // The drawer's size is only known after layout: park it off-screen and slide it in on the
         // first draw, so no frame shows it at rest first.
         final View drawer = binding.gameSessionDrawer;
@@ -457,7 +436,7 @@ public final class GameSessionActivity extends AppCompatActivity {
             || binding.gameSessionDrawerLayer.getVisibility() != View.VISIBLE) return;
         drawerHiding = true;
         // The process refresh must not keep running behind a closing/closed drawer.
-        if (processPanel != null) processPanel.stop();
+        stopProcessRefresh();
         float hidden = drawerHiddenOffset();
         binding.gameSessionDrawer.animate()
             .translationX(drawerBottomSheet ? 0 : hidden)
@@ -470,7 +449,7 @@ public final class GameSessionActivity extends AppCompatActivity {
     private void finishHidingDrawer() {
         drawerHiding = false;
         if (binding == null) return;
-        leaveProcessPage();
+        stopProcessRefresh();
         binding.gameSessionDrawerLayer.setVisibility(View.GONE);
         binding.gameSessionMenu.setVisibility(View.VISIBLE);
     }
@@ -524,8 +503,7 @@ public final class GameSessionActivity extends AppCompatActivity {
 
     /**
      * BACK drives the control drawer, never the exit question (that is the Exit button's job):
-     * closed drawer -> open it; open drawer inside a sub-level -> one level up; open drawer at its
-     * top level -> close it. Ignored while the exit confirmation is showing or about to show. BACK
+     * closed drawer -> open it; open drawer -> close it. Ignored while the exit confirmation is showing or about to show. BACK
      * reaches this through the back callback, onBackPressed and dispatchKeyEvent, so a repeat within
      * a few milliseconds is the same press (without the guard open and close would cancel out).
      */
@@ -536,13 +514,10 @@ public final class GameSessionActivity extends AppCompatActivity {
         lastBackHandledAtMs = now;
         boolean drawerOpen = binding.gameSessionDrawerLayer.getVisibility() == View.VISIBLE
             && !drawerHiding;
-        switch (GameSessionBackPolicy.decide(drawerOpen, drawerLevel,
+        switch (GameSessionBackPolicy.decide(drawerOpen, false,
             exitConfirmationVisible || exitConfirmationPending || exitRequested)) {
             case OPEN_DRAWER:
                 showControlDrawer();
-                break;
-            case NAVIGATE_UP:
-                navigateDrawerUp();
                 break;
             case CLOSE_DRAWER:
                 hideControlDrawer();
@@ -554,16 +529,23 @@ public final class GameSessionActivity extends AppCompatActivity {
     }
 
     /**
-     * Opens the Process manager as a sub-page of the drawer (instead of the task manager dialog).
-     * Returns false when the task manager cannot start yet, so the default dialog path decides.
+     * Opens the drawer on the Performance page (the host's "show process manager" request, instead
+     * of the task manager dialog). Returns false when the task manager cannot start yet, so the
+     * default dialog path decides.
      */
-    private boolean showProcessManagerPage() {
+    private boolean showPerformancePage() {
         if (binding == null || destroyed) return false;
-        if (drawerLevel == GameSessionBackPolicy.DrawerLevel.PROCESS_MANAGER && processPanel != null) {
-            showControlDrawer();
-            processPanel.start();
-            return true;
-        }
+        if (!ensureProcessPanel()) return false;
+        selectCategory(CATEGORY_PERFORMANCE);
+        showControlDrawer();
+        updateProcessRefresh();
+        return true;
+    }
+
+    /** Creates the embedded task manager on first need; false while the X11 runtime is not bound yet. */
+    private boolean ensureProcessPanel() {
+        if (processPanel != null) return true;
+        if (binding == null || destroyed) return false;
         View content = TaskManagerPanel.inflateContent(this, binding.gameSessionProcessHost);
         TaskManagerPanel panel;
         try {
@@ -583,52 +565,38 @@ public final class GameSessionActivity extends AppCompatActivity {
         binding.gameSessionProcessHost.addView(content);
         binding.gameSessionProcessCount.setText(getString(com.termux.x11.R.string.processes) + ": 0");
         processPanel = panel;
-        drawerLevel = GameSessionBackPolicy.DrawerLevel.PROCESS_MANAGER;
-        applyDrawerLevel();
         applyProcessPageLayout();
-        try {
-            panel.start();
-        } catch (IllegalStateException winHandlerNotReady) {
-            leaveProcessPage();
-            return false;
-        }
-        showControlDrawer();
         return true;
     }
 
-    /** Back arrow and BACK: from a sub-page go one level up (the menu it was opened from). */
-    private void navigateDrawerUp() {
-        if (binding == null || !drawerLevel.isSubLevel()) return;
-        leaveProcessPage();
-    }
-
-    /** Stops the refresh timer and tears the sub-page down, back to the drawer's top level. */
-    private void leaveProcessPage() {
-        if (processPanel != null) {
-            processPanel.stop();
-            processPanel = null;
+    /**
+     * The one place that decides whether the 1s process refresh runs: only while the Performance
+     * page is selected, the drawer is open (not sliding out) and the Activity is resumed. Called on
+     * every state change that could flip that; starting and stopping are both idempotent.
+     */
+    private void updateProcessRefresh() {
+        if (binding == null || destroyed) return;
+        boolean drawerOpen = binding.gameSessionDrawerLayer.getVisibility() == View.VISIBLE
+            && !drawerHiding;
+        boolean wanted = drawerOpen && hostResumed && selectedCategory == CATEGORY_PERFORMANCE;
+        if (!wanted) {
+            stopProcessRefresh();
+            return;
         }
-        if (binding == null) return;
-        binding.gameSessionProcessHost.removeAllViews();
-        drawerLevel = drawerLevel.up();
-        applyDrawerLevel();
+        if (!ensureProcessPanel()) return;
+        try {
+            processPanel.start();
+        } catch (IllegalStateException winHandlerNotReady) {
+            // Nothing was started; selecting the page again retries.
+        }
     }
 
-    /** Shows the page and header of the current drawer level. */
-    private void applyDrawerLevel() {
-        boolean page = drawerLevel == GameSessionBackPolicy.DrawerLevel.PROCESS_MANAGER;
-        binding.gameSessionNavHost.setVisibility(page ? View.GONE : View.VISIBLE);
-        binding.gameSessionPanelScroll.setVisibility(page ? View.GONE : View.VISIBLE);
-        binding.gameSessionProcessPage.setVisibility(page ? View.VISIBLE : View.GONE);
-        binding.gameSessionBack.setVisibility(page ? View.VISIBLE : View.GONE);
-        // The side nav (which carries Exit) is hidden on a sub-page: keep Exit in the header.
-        binding.gameSessionExit.setVisibility(drawerBottomSheet ? View.GONE : View.VISIBLE);
-        binding.gameSessionExitCompact.setVisibility(drawerBottomSheet || page ? View.VISIBLE : View.GONE);
-        if (page) binding.gameSessionPanelTitle.setText(R.string.local_game_session_processes);
-        else selectCategory(selectedCategory);
+    /** Cancels the refresh timer if it runs (the panel and its views are kept for the next start). */
+    private void stopProcessRefresh() {
+        if (processPanel != null) processPanel.stop();
     }
 
-    /** Sizes the sub-page for the current window and drawer form (re-run on rotation, in place). */
+    /** Sizes the Performance page for the current window and drawer form (re-run on rotation, in place). */
     private void applyProcessPageLayout() {
         if (processPanel == null || binding == null) return;
         Configuration config = getResources().getConfiguration();
@@ -657,7 +625,7 @@ public final class GameSessionActivity extends AppCompatActivity {
     }
 
     /**
-     * The sub-page always scrolls as one page: the host (dashboard + fully expanded list) sits in the
+     * The Performance page always scrolls as one page: the host (dashboard + fully expanded list) sits in the
      * page's ScrollView. The footer stays fixed below it when the window is tall enough; otherwise it is
      * moved to the end of the scrolled content. Views are only re-parented (never rebuilt), so rotation
      * keeps the rows and the refresh timer.
@@ -716,10 +684,16 @@ public final class GameSessionActivity extends AppCompatActivity {
 
     @Override protected void onResume() {
         super.onResume();
-        if (binding != null) binding.gameSessionX11.onHostResume();
+        hostResumed = true;
+        if (binding != null) {
+            binding.gameSessionX11.onHostResume();
+            updateProcessRefresh();
+        }
     }
 
     @Override protected void onPause() {
+        hostResumed = false;
+        stopProcessRefresh();
         if (binding != null) binding.gameSessionX11.onHostPause();
         super.onPause();
     }
@@ -811,8 +785,7 @@ public final class GameSessionActivity extends AppCompatActivity {
         // Compact: the nav strip scrolls, so its last item (Exit) can sit out of view; Exit lives in
         // the panel header next to the close button instead. The side nav keeps its own Exit.
         binding.gameSessionExit.setVisibility(compact ? View.GONE : View.VISIBLE);
-        binding.gameSessionExitCompact.setVisibility(
-            compact || drawerLevel.isSubLevel() ? View.VISIBLE : View.GONE);
+        binding.gameSessionExitCompact.setVisibility(compact ? View.VISIBLE : View.GONE);
 
         LinearLayout.LayoutParams contentParams =
             (LinearLayout.LayoutParams) binding.gameSessionContent.getLayoutParams();
@@ -822,7 +795,7 @@ public final class GameSessionActivity extends AppCompatActivity {
         contentParams.setMarginStart(compact ? 0 : gap);
         contentParams.topMargin = compact ? gap : 0;
         binding.gameSessionContent.setLayoutParams(contentParams);
-        // Rotation with the Process manager sub-page open: keep it and re-flow it for the new form.
+        // Rotation with the Performance page open: keep it and re-flow it for the new form.
         applyProcessPageLayout();
     }
 

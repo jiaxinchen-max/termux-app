@@ -64,37 +64,17 @@ public class GameSessionBackPolicyTest {
     }
 
     @Test
-    public void drawerLevelDecisionTable() {
-        GameSessionBackPolicy.DrawerLevel top = GameSessionBackPolicy.DrawerLevel.TOP;
-        GameSessionBackPolicy.DrawerLevel page = GameSessionBackPolicy.DrawerLevel.PROCESS_MANAGER;
-        // drawer closed: BACK opens it whatever level was left behind
-        assertEquals(GameSessionBackPolicy.Action.OPEN_DRAWER, GameSessionBackPolicy.decide(false, top, false));
-        assertEquals(GameSessionBackPolicy.Action.OPEN_DRAWER, GameSessionBackPolicy.decide(false, page, false));
-        // drawer open at top: close; inside the process manager sub-page: one level up
-        assertEquals(GameSessionBackPolicy.Action.CLOSE_DRAWER, GameSessionBackPolicy.decide(true, top, false));
-        assertEquals(GameSessionBackPolicy.Action.NAVIGATE_UP, GameSessionBackPolicy.decide(true, page, false));
-        // a dialog (exit question, affinity, new task) handles BACK itself
-        for (GameSessionBackPolicy.DrawerLevel level : GameSessionBackPolicy.DrawerLevel.values()) {
-            assertEquals(GameSessionBackPolicy.Action.IGNORE, GameSessionBackPolicy.decide(true, level, true));
-            assertEquals(GameSessionBackPolicy.Action.IGNORE, GameSessionBackPolicy.decide(false, level, true));
-        }
+    public void sessionBackIsOpenWhenClosedAndCloseWhenOpen() {
+        // The session has no drawer sub-level: BACK alternates open <-> close, never navigates up.
+        assertEquals(GameSessionBackPolicy.Action.OPEN_DRAWER, GameSessionBackPolicy.decide(false, false, false));
+        assertEquals(GameSessionBackPolicy.Action.CLOSE_DRAWER, GameSessionBackPolicy.decide(true, false, false));
+        assertEquals(GameSessionBackPolicy.Action.OPEN_DRAWER, GameSessionBackPolicy.decide(false, false, false));
     }
 
     @Test
-    public void processManagerIsASubLevelThatReturnsToTop() {
-        assertFalse(GameSessionBackPolicy.DrawerLevel.TOP.isSubLevel());
-        assertTrue(GameSessionBackPolicy.DrawerLevel.PROCESS_MANAGER.isSubLevel());
-        assertEquals(GameSessionBackPolicy.DrawerLevel.TOP,
-            GameSessionBackPolicy.DrawerLevel.PROCESS_MANAGER.up());
-        assertEquals(GameSessionBackPolicy.DrawerLevel.TOP, GameSessionBackPolicy.DrawerLevel.TOP.up());
-    }
-
-    @Test
-    public void subPageBackSequenceWalksUpThenClosesThenReopens() {
-        GameSessionBackPolicy.DrawerLevel level = GameSessionBackPolicy.DrawerLevel.PROCESS_MANAGER;
-        assertEquals(GameSessionBackPolicy.Action.NAVIGATE_UP, GameSessionBackPolicy.decide(true, level, false));
-        level = level.up();
-        assertEquals(GameSessionBackPolicy.Action.CLOSE_DRAWER, GameSessionBackPolicy.decide(true, level, false));
-        assertEquals(GameSessionBackPolicy.Action.OPEN_DRAWER, GameSessionBackPolicy.decide(false, level, false));
+    public void aDialogIgnoresBackWhileThePerformancePageIsOpen() {
+        // Affinity, New Task and the exit question are dialogs that handle BACK themselves.
+        assertEquals(GameSessionBackPolicy.Action.IGNORE, GameSessionBackPolicy.decide(true, false, true));
+        assertEquals(GameSessionBackPolicy.Action.IGNORE, GameSessionBackPolicy.decide(false, false, true));
     }
 }

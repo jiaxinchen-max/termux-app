@@ -264,8 +264,12 @@ public class LocalGamesApiInstrumentedTest {
             scenario.onActivity(activity -> {
                 activity.findViewById(com.termux.localgames.R.id.game_session_category_performance)
                     .performClick();
+                // The Performance page is the embedded task manager: its page container and its
+                // footer (Processes count + New Task) are what the drawer shows.
                 assertEquals(View.VISIBLE, activity.findViewById(
-                    com.termux.localgames.R.id.game_session_process_summary).getVisibility());
+                    com.termux.localgames.R.id.game_session_process_page).getVisibility());
+                assertEquals(View.VISIBLE, activity.findViewById(
+                    com.termux.localgames.R.id.game_session_process_new_task).getVisibility());
                 activity.findViewById(com.termux.localgames.R.id.game_session_category_settings)
                     .performClick();
                 assertEquals(View.VISIBLE, activity.findViewById(

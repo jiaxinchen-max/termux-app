@@ -3,51 +3,28 @@ package com.termux.localgames.activity;
 /**
  * Pure BACK decision for the game session, shared by every orientation and every BACK route.
  *
- * <p>BACK drives the control drawer only: it opens a closed drawer, steps back out of a drawer
- * sub-level, and closes an open drawer at its top level. It never asks to exit the game; leaving
- * is the Exit button's job.
+ * <p>BACK drives the control drawer only: it opens a closed drawer and closes an open one. The
+ * drawer currently has no sub-level (the task manager lives on the Performance page), so the
+ * sub-level input is kept for a future nested page but the session passes {@code false}. BACK
+ * never asks to exit the game; leaving is the Exit button's job.
  */
 final class GameSessionBackPolicy {
 
     enum Action {
         /** The drawer is closed: slide it in. */
         OPEN_DRAWER,
-        /** The drawer is open inside a sub-level: go back to the menu one level up. */
+        /** The drawer is open inside a sub-level (none exists today): go back one level up. */
         NAVIGATE_UP,
-        /** The drawer is open at its top level: slide it out. */
+        /** The drawer is open with no sub-level: slide it out. */
         CLOSE_DRAWER,
         /** A dialog is showing or about to show (it handles BACK itself), or the game is exiting. */
         IGNORE
-    }
-
-    /**
-     * Where the open drawer currently is. TOP is the tabbed menu (Operation, Performance, ...);
-     * every other level is a sub-page opened from it, which BACK and the page's back arrow leave
-     * one level up.
-     */
-    enum DrawerLevel {
-        TOP(false),
-        /** Operation -> Process manager, the task manager embedded in the drawer. */
-        PROCESS_MANAGER(true);
-
-        private final boolean subLevel;
-
-        DrawerLevel(boolean subLevel) { this.subLevel = subLevel; }
-
-        boolean isSubLevel() { return subLevel; }
-
-        /** The level BACK / the back arrow returns to. */
-        DrawerLevel up() { return TOP; }
     }
 
     /** One physical BACK can arrive through several routes; repeats this close together are one. */
     static final long DUPLICATE_WINDOW_MS = 250L;
 
     private GameSessionBackPolicy() {}
-
-    static Action decide(boolean drawerOpen, DrawerLevel level, boolean dialogShowingOrPending) {
-        return decide(drawerOpen, level.isSubLevel(), dialogShowingOrPending);
-    }
 
     static Action decide(boolean drawerOpen, boolean drawerHasSubLevel,
                          boolean dialogShowingOrPending) {

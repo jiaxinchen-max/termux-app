@@ -24,8 +24,34 @@ public class DrawerProcessPageSizingTest {
         assertTrue(r.layout.fullDashboard);
         assertEquals(411 - 2 * DrawerProcessPageSizing.DRAWER_PADDING_DP, r.panelWidthDp);
         int sheet = r.panelHeightDp + 2 * DrawerProcessPageSizing.DRAWER_PADDING_DP
-            + DrawerProcessPageSizing.HEADER_DP + DrawerProcessPageSizing.FOOTER_DP;
+            + DrawerProcessPageSizing.HEADER_DP + DrawerProcessPageSizing.FOOTER_DP
+            + DrawerProcessPageSizing.SHEET_NAV_STRIP_DP;
         assertTrue(sheet <= Math.round(914 * 0.85f));
+    }
+
+    @Test
+    public void portraitSheetReservesTabStripHeaderAndFooterUnderTheCap() {
+        int[][] windows = {{360, 640}, {411, 914}, {393, 852}, {600, 1024}};
+        for (int[] w : windows) {
+            DrawerProcessPageSizing.Result r = compute(w[0], w[1], 8);
+            int cap = Math.round(
+                (w[1] - DrawerProcessPageSizing.SHEET_SYSTEM_INSETS_DP) * OverlayDrawerSizing.BOTTOM_SHEET_MAX_HEIGHT_FRACTION);
+            // everything stacked in the sheet: padding, tab strip, header, page = panel + footer
+            int stacked = 2 * DrawerProcessPageSizing.DRAWER_PADDING_DP
+                + DrawerProcessPageSizing.SHEET_NAV_STRIP_DP + DrawerProcessPageSizing.HEADER_DP
+                + r.panelHeightDp + DrawerProcessPageSizing.FOOTER_DP;
+            assertTrue("window " + w[0] + "x" + w[1], stacked <= cap);
+            assertTrue(r.panelHeightDp > DrawerProcessPageSizing.MIN_PANEL_HEIGHT_DP);
+        }
+    }
+
+    @Test
+    public void sideDrawerDoesNotReserveTheTabStrip() {
+        DrawerProcessPageSizing.Result r = compute(891, 411, 8);
+        int expected = Math.max(DrawerProcessPageSizing.MIN_PANEL_HEIGHT_DP, 411
+            - DrawerProcessPageSizing.SYSTEM_INSETS_DP - 2 * DrawerProcessPageSizing.DRAWER_PADDING_DP
+            - DrawerProcessPageSizing.HEADER_DP - DrawerProcessPageSizing.FOOTER_DP);
+        assertEquals(expected, r.panelHeightDp);
     }
 
     @Test
@@ -105,5 +131,26 @@ public class DrawerProcessPageSizingTest {
         assertEquals(0, r.panelWidthDp);
         assertEquals(DrawerProcessPageSizing.MIN_PANEL_HEIGHT_DP, r.panelHeightDp);
         assertTrue(r.layout.stackInfoPanel);
+    }
+
+    @Test
+    public void footerFixedDependsOnlyOnWindowHeightForBothDrawerForms() {
+        int threshold = DrawerProcessPageSizing.FIXED_FOOTER_MIN_WINDOW_HEIGHT_DP;
+        for (OverlayDrawerSizing.Placement placement : OverlayDrawerSizing.Placement.values()) {
+            for (int width : new int[] {360, 891, 1280}) {
+                assertTrue(DrawerProcessPageSizing.compute(width, threshold, placement, 8).footerFixed);
+                assertFalse(DrawerProcessPageSizing.compute(width, threshold - 1, placement, 8).footerFixed);
+            }
+        }
+    }
+
+    @Test
+    public void performancePageAlwaysUsesTheStackedWholePageLayout() {
+        int[][] windows = {{360, 640}, {411, 914}, {891, 411}, {1280, 800}, {300, 300}};
+        for (int[] w : windows) {
+            DrawerProcessPageSizing.Result r = compute(w[0], w[1], 8);
+            assertTrue(r.layout.stackInfoPanel);
+            assertTrue(r.panelHeightDp >= DrawerProcessPageSizing.MIN_PANEL_HEIGHT_DP);
+        }
     }
 }
