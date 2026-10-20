@@ -566,6 +566,8 @@ public class LocalGamesApiInstrumentedTest {
                         com.termux.localgames.R.id.local_game_name);
                     android.widget.TextView access = rows.getChildAt(index).findViewById(
                         com.termux.localgames.R.id.local_game_access_status);
+                    // The last grid item is the Import card, which has no game views.
+                    if (title == null || access == null) continue;
                     if (name.contentEquals(title.getText())) {
                         found.set(access.getText().toString().equals(activity.getString(
                             com.termux.localgames.R.string.local_game_permission_lost)));

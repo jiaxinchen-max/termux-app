@@ -132,29 +132,6 @@
                     android:textSize="26sp"
                     android:fontFamily="sans-serif-medium" />
 
-                <LinearLayout
-                    android:id="@+id/local_games_shortcuts"
-                    android:layout_width="match_parent"
-                    android:layout_height="92dp"
-                    android:layout_marginTop="20dp"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/local_games_add_button"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1"
-                        android:background="@drawable/local_games_bg_shortcut"
-                        android:text="@string/local_games_import_hero_action"
-                        android:letterSpacing="0.02"
-                        android:textAllCaps="false"
-                        android:textColor="@color/local_games_on_surface"
-                        app:backgroundTint="@null"
-                        app:icon="@drawable/local_games_ic_add"
-                        app:iconGravity="textTop"
-                        app:iconTint="@color/local_games_on_surface" />
-                </LinearLayout>
-
                 <TextView
                     android:id="@+id/local_games_count"
                     android:layout_width="match_parent"
@@ -192,35 +169,6 @@
                     android:orientation="horizontal"
                     android:rowOrderPreserved="false"
                     android:useDefaultMargins="false" />
-
-                <LinearLayout
-                    android:id="@+id/local_games_empty_state"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="32dp"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:padding="24dp"
-                    android:visibility="gone">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:text="@string/local_games_empty_title"
-                        android:textColor="@color/local_games_on_surface"
-                        android:textSize="18sp"
-                        android:fontFamily="sans-serif-medium" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:gravity="center"
-                        android:text="@string/local_games_empty_message"
-                        android:textColor="@color/local_games_on_surface_secondary"
-                        android:textSize="13sp" />
-                </LinearLayout>
             </LinearLayout>
         </ScrollView>
 

@@ -23,8 +23,6 @@
     <string name="local_games_import_gate_rootfs_missing">RootFS 基础环境未就绪。</string>
     <string name="local_games_import_gate_build_glibc">去构建 GLIBC</string>
     <string name="local_games_import_gate_build_rootfs">去构建 RootFS</string>
-    <string name="local_games_empty_title">暂无本地游戏</string>
-    <string name="local_games_empty_message">导入已安装的 Windows 游戏，开始建立游戏库。</string>
     <string name="local_games_add_game">添加本地游戏</string>
     <string name="local_games_library_heading">游戏库</string>
     <string name="local_games_library_load_failed">无法加载游戏库：%1$s</string>

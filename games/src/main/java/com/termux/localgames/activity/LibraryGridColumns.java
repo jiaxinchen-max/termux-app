@@ -30,6 +30,23 @@ final class LibraryGridColumns {
         return Math.max(2, Math.min(PORTRAIT_MAX_COLUMNS, columns));
     }
 
+    /** Grid column of the item at {@code index} when the grid has {@code columns} columns. */
+    static int columnOf(int index, int columns) {
+        return index % Math.max(1, columns);
+    }
+
+    /** Grid row of the item at {@code index} when the grid has {@code columns} columns. */
+    static int rowOf(int index, int columns) {
+        return index / Math.max(1, columns);
+    }
+
+    /** The Import card is the last grid item: it sits right after the last game card (so it is
+     *  the only item of an empty library, and shares the last row with the games when a cell is
+     *  free). */
+    static int importCardIndex(int gameCount) {
+        return Math.max(0, gameCount);
+    }
+
     /** Card width inside a grid {@code gridWidthPx} wide: the column share minus the gutter, never
      *  below {@link #MIN_CARD_DP}. */
     static int cardWidthPx(int gridWidthPx, int columns, int gutterPx, float density) {

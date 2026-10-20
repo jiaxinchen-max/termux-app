@@ -73,6 +73,7 @@ import com.termux.localgames.databinding.DialogGameLaunchBinding;
 import com.termux.localgames.databinding.ItemLocalGamesComponentBinding;
 import com.termux.localgames.databinding.ItemLocalGamesComponentSectionBinding;
 import com.termux.localgames.databinding.ItemLocalGameBinding;
+import com.termux.localgames.databinding.ItemLocalGameImportBinding;
 import com.termux.localgames.domain.ComponentTask;
 import com.termux.localgames.domain.Game;
 import com.termux.localgames.domain.GameRuntimeBackendType;
@@ -234,7 +235,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
             }
             return true;
         });
-        binding.localGamesAddButton.setOnClickListener(view -> startImportFlow());
         binding.localGamesComponentTaskConsole.setOnClickListener(view ->
             showActiveInstallationConsole());
         // System BACK behaves like the toolbar arrow (LocalGamesBackNavigation): second-level
@@ -293,7 +293,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 view.post(() -> {
                     if (binding != null && renderedLibraryItems != null &&
                         view.getWidth() != renderedGridWidth) {
-                        renderLibrary(renderedLibraryItems, libraryGeneration);
+                        populateLibraryGrid(renderedLibraryItems, libraryGeneration);
                     }
                 });
             }
@@ -302,6 +302,9 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
         initializeCatalog();
         initializeLibrary();
+        // The Import card is always the last grid item: it is there from the first frame, before
+        // (and independent of) any library load.
+        populateLibraryGrid(Collections.emptyList(), libraryGeneration);
         ComponentTasks.reconcile(this);
         RuntimeSetupTasks.reconcileAll(this);
         PrefixSetupTasks.reconcileAll(this);
@@ -439,18 +442,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
             Configuration.ORIENTATION_LANDSCAPE;
         binding.localGamesPageTitle.setVisibility(landscape ? View.GONE : View.VISIBLE);
         // File manager and Settings are reached from the navigation (bottom bar in portrait, top
-        // icon tabs in landscape), so only the Import card stays on the Library page.
+        // icon tabs in landscape); Import is the last card of the game grid itself.
         binding.localGamesCount.setVisibility(landscape ? View.GONE : View.VISIBLE);
-        ViewGroup parent = (ViewGroup) binding.localGamesShortcuts.getParent();
-        if (parent != binding.localGamesLibraryContent) return;
-        parent.removeView(binding.localGamesShortcuts);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(landscape ? 68 : 92));
-        params.topMargin = dp(landscape ? 12 : 20);
-        int emptyIndex = binding.localGamesLibraryContent.indexOfChild(
-            binding.localGamesEmptyState);
-        binding.localGamesLibraryContent.addView(binding.localGamesShortcuts,
-            Math.max(0, emptyIndex), params);
     }
 
     private void initializeLibrary() {
@@ -752,6 +745,16 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void renderLibrary(List<GameLibraryItem> items, int generation) {
         binding.localGamesLibraryLoading.hide();
         binding.localGamesLibraryError.setVisibility(View.GONE);
+        binding.localGamesCount.setText(getString(R.string.local_games_my_games_count,
+            items.size()));
+        populateLibraryGrid(items, generation);
+    }
+
+    /** Rebuilds the grid: the game cards in order, then the Import card as the last item,
+     *  unconditionally (no games yet, loading, load failure or a full library alike). Every
+     *  render, poll refresh and rotation reflow goes through here, so the Import card always
+     *  follows the last game card in the freshly computed columns. */
+    private void populateLibraryGrid(List<GameLibraryItem> items, int generation) {
         binding.localGamesLibraryItems.removeAllViews();
         // Rows are fully reinflated on every pass -- cancel animators from the previous pass so
         // they do not keep running (and ticking the UI thread) against now-detached views.
@@ -759,9 +762,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
             animator.cancel();
         }
         libraryCardBreathAnimators.clear();
-        binding.localGamesCount.setText(getString(R.string.local_games_my_games_count,
-            items.size()));
-        binding.localGamesEmptyState.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
         int gridWidth = libraryGridWidth();
         boolean landscape = getResources().getConfiguration().orientation ==
             Configuration.ORIENTATION_LANDSCAPE;
@@ -778,6 +778,12 @@ public final class LocalGamesActivity extends AppCompatActivity {
             renderGameRow(row, item, generation);
             binding.localGamesLibraryItems.addView(row.getRoot());
         }
+        ItemLocalGameImportBinding importCard = ItemLocalGameImportBinding.inflate(
+            getLayoutInflater(), binding.localGamesLibraryItems, false);
+        applyGameCardLayout(importCard.getRoot(), LibraryGridColumns.importCardIndex(items.size()),
+            true);
+        importCard.getRoot().setOnClickListener(view -> startImportFlow());
+        binding.localGamesLibraryItems.addView(importCard.getRoot());
     }
 
     /** The width the grid has (or is about to have): its laid-out width, or, before the first
@@ -791,13 +797,20 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void applyGameCardLayout(View card, int index) {
+        applyGameCardLayout(card, index, false);
+    }
+
+    /** Places a card in its grid cell. The Import card ({@code fillRow}) stretches to the tallest
+     *  card of its row; game cards keep their own height. */
+    private void applyGameCardLayout(View card, int index, boolean fillRow) {
         int gridWidth = renderedGridWidth > 0 ? renderedGridWidth : libraryGridWidth();
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
         params.width = LibraryGridColumns.cardWidthPx(gridWidth, libraryColumns, dp(8),
             getResources().getDisplayMetrics().density);
         params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
-        params.columnSpec = GridLayout.spec(index % libraryColumns);
-        params.rowSpec = GridLayout.spec(index / libraryColumns);
+        params.columnSpec = GridLayout.spec(LibraryGridColumns.columnOf(index, libraryColumns));
+        int row = LibraryGridColumns.rowOf(index, libraryColumns);
+        params.rowSpec = fillRow ? GridLayout.spec(row, GridLayout.FILL) : GridLayout.spec(row);
         params.setMargins(dp(4), dp(4), dp(4), dp(12));
         card.setLayoutParams(params);
     }
@@ -1148,12 +1161,11 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private void renderLibraryError(String message) {
         binding.localGamesLibraryLoading.hide();
-        binding.localGamesLibraryItems.removeAllViews();
-        renderedLibraryItems = null;
-        binding.localGamesEmptyState.setVisibility(View.GONE);
         binding.localGamesLibraryError.setText(getString(
             R.string.local_games_library_load_failed, message));
         binding.localGamesLibraryError.setVisibility(View.VISIBLE);
+        // Importing does not depend on the library load: the grid keeps the Import card alone.
+        populateLibraryGrid(Collections.emptyList(), libraryGeneration);
     }
 
     private void scheduleCatalogRefresh(long delayMillis) {

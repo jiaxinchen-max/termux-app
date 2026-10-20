@@ -62,8 +62,6 @@
     <string name="local_games_import_gate_rootfs_missing">RootFS base environment is not ready yet.</string>
     <string name="local_games_import_gate_build_glibc">Build GLIBC</string>
     <string name="local_games_import_gate_build_rootfs">Build RootFS</string>
-    <string name="local_games_empty_title">No local games</string>
-    <string name="local_games_empty_message">Import an installed Windows game to start building your library.</string>
     <string name="local_games_add_game">Add local game</string>
     <string name="local_games_library_heading">Game library</string>
     <string name="local_games_library_load_failed">Unable to load the game library: %1$s</string>
