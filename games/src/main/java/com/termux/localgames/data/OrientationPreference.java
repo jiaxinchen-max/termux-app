@@ -6,8 +6,10 @@ import android.content.pm.ActivityInfo;
 
 import androidx.annotation.NonNull;
 
-/** The library screen's orientation choice from Settings: portrait, landscape, or whatever the
- *  device's auto-rotate setting says. Kept as a stored preference so it survives restarts. */
+/** The orientation choice from Settings: portrait, landscape, or whatever the device's auto-rotate
+ *  setting says. It applies to the library screen (via {@link #getRequestedOrientation()}) and to
+ *  the game session (via {@code GameSessionOrientation}). Kept as a stored preference so it
+ *  survives restarts. */
 public enum OrientationPreference {
     VERTICAL("vertical", ActivityInfo.SCREEN_ORIENTATION_PORTRAIT),
     HORIZONTAL("horizontal", ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE),

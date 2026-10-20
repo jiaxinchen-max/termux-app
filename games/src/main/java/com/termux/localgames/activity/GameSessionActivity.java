@@ -6,10 +6,13 @@ import android.content.res.Configuration;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Build;
+import android.os.SystemClock;
 import android.text.format.Formatter;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -29,6 +32,7 @@ import com.termux.localgames.api.LaunchTasks;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.GameStoragePaths;
 import com.termux.localgames.data.LaunchSpecCodec;
+import com.termux.localgames.data.OrientationPreference;
 import com.termux.localgames.databinding.ActivityGameSessionBinding;
 import com.termux.localgames.domain.LaunchSpec;
 import com.termux.localgames.domain.LaunchStage;
@@ -65,6 +69,11 @@ public final class GameSessionActivity extends AppCompatActivity {
     private boolean exitConfirmationVisible;
     private volatile boolean exitConfirmationPending;
     private boolean libraryReturnStarted;
+    private long lastBackHandledAtMs = -1L;
+    /** True while the drawer is a bottom sheet (compact window); false for the right-side drawer. */
+    private boolean drawerBottomSheet;
+    /** True from the start of the slide-out until the drawer layer is actually hidden. */
+    private boolean drawerHiding;
     private LaunchTask currentTask;
     private int selectedCategory = CATEGORY_OPERATION;
     private AudioManager audioManager;
@@ -82,6 +91,8 @@ public final class GameSessionActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // The session follows the Settings "Orientation" choice (the manifest no longer pins landscape).
+        setRequestedOrientation(GameSessionOrientation.requestedFor(OrientationPreference.load(this)));
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             finish();
             return;
@@ -149,6 +160,7 @@ public final class GameSessionActivity extends AppCompatActivity {
         binding.gameSessionCategorySettings.setOnClickListener(view -> selectCategory(CATEGORY_SETTINGS));
         binding.gameSessionCategoryKeyboard.setOnClickListener(view -> selectCategory(CATEGORY_KEYBOARD));
         binding.gameSessionExit.setOnClickListener(view -> requestSafeExitConfirmation());
+        binding.gameSessionExitCompact.setOnClickListener(view -> requestSafeExitConfirmation());
         configureSessionSettings();
         selectCategory(selectedCategory);
     }
@@ -395,37 +407,75 @@ public final class GameSessionActivity extends AppCompatActivity {
     }
 
     private void showControlDrawer() {
-        if (binding.gameSessionDrawerLayer.getVisibility() == View.VISIBLE) return;
+        boolean layerVisible = binding.gameSessionDrawerLayer.getVisibility() == View.VISIBLE;
+        if (layerVisible && !drawerHiding) return;
         if (virtualControllerPanel != null) virtualControllerPanel.render();
+        if (layerVisible) {
+            // Re-opened while sliding out: turn around from where it is instead of restarting.
+            drawerHiding = false;
+            binding.gameSessionDrawer.animate().cancel();
+            binding.gameSessionDrawer.animate().translationX(0).translationY(0).setDuration(180).start();
+            return;
+        }
+        cancelDrawerAnimation();
         binding.gameSessionMenu.setVisibility(View.GONE);
         binding.gameSessionDrawerLayer.setVisibility(View.VISIBLE);
-        binding.gameSessionDrawer.setTranslationX(binding.gameSessionDrawer.getWidth() > 0
-            ? binding.gameSessionDrawer.getWidth() : dp(460));
-        binding.gameSessionDrawer.animate().translationX(0).setDuration(180).start();
+        // The drawer's size is only known after layout: park it off-screen and slide it in on the
+        // first draw, so no frame shows it at rest first.
+        final View drawer = binding.gameSessionDrawer;
+        drawer.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+            @Override public boolean onPreDraw() {
+                drawer.getViewTreeObserver().removeOnPreDrawListener(this);
+                if (binding == null || drawerHiding
+                    || binding.gameSessionDrawerLayer.getVisibility() != View.VISIBLE) return true;
+                setDrawerTranslation(drawer, drawerHiddenOffset());
+                drawer.animate().translationX(0).translationY(0).setDuration(180).start();
+                return true;
+            }
+        });
     }
 
     private void hideControlDrawer() {
-        hideControlDrawer(null);
+        if (binding == null || drawerHiding
+            || binding.gameSessionDrawerLayer.getVisibility() != View.VISIBLE) return;
+        drawerHiding = true;
+        float hidden = drawerHiddenOffset();
+        binding.gameSessionDrawer.animate()
+            .translationX(drawerBottomSheet ? 0 : hidden)
+            .translationY(drawerBottomSheet ? hidden : 0)
+            .setDuration(160)
+            .withEndAction(this::finishHidingDrawer)
+            .start();
     }
 
-    private void hideControlDrawer(@Nullable Runnable afterHidden) {
-        if (binding == null ||
-            binding.gameSessionDrawerLayer.getVisibility() != View.VISIBLE) {
-            if (afterHidden != null) afterHidden.run();
-            return;
+    private void finishHidingDrawer() {
+        drawerHiding = false;
+        if (binding == null) return;
+        binding.gameSessionDrawerLayer.setVisibility(View.GONE);
+        binding.gameSessionMenu.setVisibility(View.VISIBLE);
+    }
+
+    /** Stops any running slide and puts the drawer back at rest, whichever way it was sliding. */
+    private void cancelDrawerAnimation() {
+        binding.gameSessionDrawer.animate().cancel();
+        binding.gameSessionDrawer.setTranslationX(0);
+        binding.gameSessionDrawer.setTranslationY(0);
+        drawerHiding = false;
+    }
+
+    /** Distance that moves the drawer fully off its edge: its width (side) or height (bottom sheet). */
+    private float drawerHiddenOffset() {
+        View drawer = binding.gameSessionDrawer;
+        if (drawerBottomSheet) {
+            return drawer.getHeight() > 0 ? drawer.getHeight() : binding.getRoot().getHeight();
         }
-        binding.gameSessionDrawer.animate()
-            .translationX(binding.gameSessionDrawer.getWidth() > 0
-                ? binding.gameSessionDrawer.getWidth() : dp(460))
-            .setDuration(160)
-            .withEndAction(() -> {
-                if (binding != null) {
-                    binding.gameSessionDrawerLayer.setVisibility(View.GONE);
-                    binding.gameSessionMenu.setVisibility(View.VISIBLE);
-                    if (afterHidden != null) afterHidden.run();
-                }
-            })
-            .start();
+        return drawer.getWidth() > 0 ? drawer.getWidth()
+            : dp(OverlayDrawerSizing.MAX_DRAWER_WIDTH_DP);
+    }
+
+    private void setDrawerTranslation(@NonNull View drawer, float offset) {
+        drawer.setTranslationX(drawerBottomSheet ? 0 : offset);
+        drawer.setTranslationY(drawerBottomSheet ? offset : 0);
     }
 
     private void showRuntimeLog() {
@@ -452,13 +502,49 @@ public final class GameSessionActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * BACK drives the control drawer, never the exit question (that is the Exit button's job):
+     * closed drawer -> open it; open drawer inside a sub-level -> one level up; open drawer at its
+     * top level -> close it. Ignored while the exit confirmation is showing or about to show. BACK
+     * reaches this through the back callback, onBackPressed and dispatchKeyEvent, so a repeat within
+     * a few milliseconds is the same press (without the guard open and close would cancel out).
+     */
     private void handleSessionBack() {
-        if (binding != null &&
-            binding.gameSessionDrawerLayer.getVisibility() == View.VISIBLE) {
-            hideControlDrawer();
-        } else {
-            showControlDrawer();
+        if (binding == null) return;
+        long now = SystemClock.uptimeMillis();
+        if (GameSessionBackPolicy.isDuplicate(lastBackHandledAtMs, now)) return;
+        lastBackHandledAtMs = now;
+        boolean drawerOpen = binding.gameSessionDrawerLayer.getVisibility() == View.VISIBLE
+            && !drawerHiding;
+        switch (GameSessionBackPolicy.decide(drawerOpen, drawerHasSubLevel(),
+            exitConfirmationVisible || exitConfirmationPending || exitRequested)) {
+            case OPEN_DRAWER:
+                showControlDrawer();
+                break;
+            case NAVIGATE_UP:
+                navigateDrawerUp();
+                break;
+            case CLOSE_DRAWER:
+                hideControlDrawer();
+                break;
+            case IGNORE:
+            default:
+                break;
         }
+    }
+
+    /**
+     * The drawer is flat today: Operation/Performance/Settings/Keyboard are peer tabs of an
+     * always-visible navigation, and everything they open (process manager, input controls, runtime
+     * log, controller profile picker) is a dialog that handles BACK itself. When a panel gains a real
+     * sub-level, report it here and step out of it in {@link #navigateDrawerUp()}.
+     */
+    private boolean drawerHasSubLevel() {
+        return false;
+    }
+
+    private void navigateDrawerUp() {
+        // No sub-level exists yet, so GameSessionBackPolicy never asks for this.
     }
 
     @Override public void onBackPressed() { handleSessionBack(); }
@@ -516,15 +602,34 @@ public final class GameSessionActivity extends AppCompatActivity {
             widthDp = Math.round(binding.getRoot().getWidth() / density);
             heightDp = Math.round(binding.getRoot().getHeight() / density);
         }
-        boolean compact = widthDp > 0
-            && OverlayDrawerSizing.compactNavigation(widthDp, heightDp);
+        boolean compact = widthDp > 0 && OverlayDrawerSizing.placementFor(widthDp, heightDp)
+            == OverlayDrawerSizing.Placement.BOTTOM_SHEET;
+        // The placement may flip under an open drawer (rotation): drop any half-run slide first.
+        boolean wasHiding = drawerHiding;
+        cancelDrawerAnimation();
+        if (wasHiding) finishHidingDrawer();
+        drawerBottomSheet = compact;
         int itemHeight = getResources().getDimensionPixelSize(R.dimen.local_games_menu_row_min_height);
         int gap = getResources().getDimensionPixelSize(R.dimen.local_games_overlay_nav_gap);
 
-        ViewGroup.LayoutParams drawerParams = binding.gameSessionDrawer.getLayoutParams();
-        drawerParams.width = widthDp > 0
-            ? OverlayDrawerSizing.drawerWidthPx(Math.round(widthDp * density), density)
-            : dp(OverlayDrawerSizing.MAX_DRAWER_WIDTH_DP);
+        // Compact: full-width bottom sheet, content height capped by CappedHeightLinearLayout.
+        // Otherwise: full-height column on the right edge.
+        FrameLayout.LayoutParams drawerParams =
+            (FrameLayout.LayoutParams) binding.gameSessionDrawer.getLayoutParams();
+        if (compact) {
+            drawerParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            drawerParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            drawerParams.gravity = Gravity.BOTTOM;
+        } else {
+            drawerParams.width = widthDp > 0
+                ? OverlayDrawerSizing.drawerWidthPx(Math.round(widthDp * density), density)
+                : dp(OverlayDrawerSizing.MAX_DRAWER_WIDTH_DP);
+            drawerParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
+            drawerParams.gravity = Gravity.END;
+        }
+        binding.gameSessionDrawer.setCapHeight(compact);
+        binding.gameSessionDrawer.setBackgroundResource(compact
+            ? R.drawable.local_games_bg_overlay_sheet : R.drawable.local_games_bg_overlay);
         binding.gameSessionDrawer.setLayoutParams(drawerParams);
         binding.gameSessionDrawer.setOrientation(
             compact ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
@@ -559,6 +664,10 @@ public final class GameSessionActivity extends AppCompatActivity {
             button.setLayoutParams(params);
         }
         binding.gameSessionNavSpacer.setVisibility(compact ? View.GONE : View.VISIBLE);
+        // Compact: the nav strip scrolls, so its last item (Exit) can sit out of view; Exit lives in
+        // the panel header next to the close button instead. The side nav keeps its own Exit.
+        binding.gameSessionExit.setVisibility(compact ? View.GONE : View.VISIBLE);
+        binding.gameSessionExitCompact.setVisibility(compact ? View.VISIBLE : View.GONE);
 
         LinearLayout.LayoutParams contentParams =
             (LinearLayout.LayoutParams) binding.gameSessionContent.getLayoutParams();

@@ -66,7 +66,6 @@
             android:label="@string/local_game_session_title"
             android:resizeableActivity="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|density|screenLayout|keyboard|keyboardHidden|navigation"
-            android:screenOrientation="sensorLandscape"
             android:theme="@style/Theme.TermuxLocalGames.DayNight.Session" />
 
         <service
