@@ -103,6 +103,15 @@ public final class LorieViewRuntimeApi {
         default DialogPalette getDialogPalette() {
             return null;
         }
+
+        /**
+         * Lets the host show the task manager inside its own UI instead of the default dialog.
+         * Return true when the host took over (the dialog is then not shown); the host builds its
+         * view with {@link com.termux.x11.controller.winhandler.TaskManagerPanel}.
+         */
+        default boolean showEmbeddedProcessManager() {
+            return false;
+        }
     }
 
     public interface DisplayConnectionListener {

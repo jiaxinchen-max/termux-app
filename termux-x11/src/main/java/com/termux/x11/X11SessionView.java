@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.util.AttributeSet;
+import android.view.View;
 import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
@@ -32,6 +33,11 @@ public final class X11SessionView extends FrameLayout {
         default void onFirstFramePresented() { }
         default void onControlCenterRequested() { }
         default void onExitRequested() { }
+        /**
+         * The process manager was requested. Return true after showing it inside the host UI (via
+         * {@link #createTaskManagerPanel}); false keeps the default task manager dialog.
+         */
+        default boolean onProcessManagerRequested() { return false; }
     }
 
     public static final class ProcessSummary {
@@ -177,6 +183,18 @@ public final class X11SessionView extends FrameLayout {
         requireRuntime().showProcessManagerDialog();
     }
 
+    /**
+     * Creates the embeddable task manager over a view inflated with
+     * {@link com.termux.x11.controller.winhandler.TaskManagerPanel#inflateContent}; the caller owns
+     * start()/stop() and must stop it when leaving the page.
+     */
+    @NonNull
+    public com.termux.x11.controller.winhandler.TaskManagerPanel createTaskManagerPanel(
+        @NonNull View panelRoot,
+        @NonNull com.termux.x11.controller.winhandler.TaskManagerPanel.Listener panelListener) {
+        return requireRuntime().createTaskManagerPanel(panelRoot, panelListener);
+    }
+
     public boolean applyInputProfile(@NonNull String profileId) {
         return requireRuntime().applyGameInputProfile(profileId);
     }
@@ -274,6 +292,7 @@ public final class X11SessionView extends FrameLayout {
         }
         @Override public void openSoftKeyboard() { toggleKeyboard(); }
         @Override public void showProcessManager() { X11SessionView.this.showProcessManager(); }
+        @Override public boolean showEmbeddedProcessManager() { return listener.onProcessManagerRequested(); }
         @NonNull @Override public Prefs getX11Prefs() { return requireRuntime().getX11Prefs(); }
         @Nullable @Override public LorieViewRuntimeApi.ActivityIntegration getX11ActivityIntegration() {
             return this;

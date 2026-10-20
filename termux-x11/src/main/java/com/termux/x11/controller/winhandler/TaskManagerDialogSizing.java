@@ -86,36 +86,64 @@ public final class TaskManagerDialogSizing {
         int height = Math.min(Math.min((int) Math.floor(h * HEIGHT_FRACTION), availHeight), MAX_HEIGHT_DP);
         height = Math.max(height, Math.min(MIN_HEIGHT_DP, (int) Math.floor(h)));
 
-        int pid;
-        int memory;
-        if (!stack) {
-            pid = 60;
-            memory = 110;
-        } else if (width >= 340) {
-            pid = 52;
-            memory = 84;
-        } else if (width >= 300) {
-            pid = 44;
-            memory = 72;
-        } else {
-            pid = 36;
-            memory = 56;
-        }
+        int[] columnsDp = columnWidthsDp(stack, width);
+        int pid = columnsDp[0];
+        int memory = columnsDp[1];
 
         int columns = 1;
         boolean sideBySide = false;
         int infoHeight = 0;
         if (stack) {
-            sideBySide = width >= CARDS_SIDE_BY_SIDE_MIN_WIDTH_DP;
-            if (width >= CPU_TWO_COLUMN_MIN_WIDTH_DP && cores > 1) columns = 2;
-            int rows = (cores + columns - 1) / columns;
-            int cpuCard = CARD_PADDING_DP + CARD_TITLE_DP + rows * CPU_LINE_DP;
-            int memoryCard = CARD_PADDING_DP + CARD_TITLE_DP + CPU_LINE_DP;
-            int wanted = sideBySide ? Math.max(cpuCard, memoryCard) : cpuCard + CARD_GAP_DP + memoryCard;
-            int cap = height - DIALOG_CHROME_DP - MIN_TABLE_PANEL_DP - CARD_GAP_DP;
-            infoHeight = Math.min(wanted, Math.max(MIN_INFO_PANEL_DP, cap));
+            sideBySide = cardsSideBySide(width);
+            columns = cpuGridColumns(width, cores);
+            infoHeight = dashboardHeightDp(width, height - DIALOG_CHROME_DP, cores);
         }
         return new Result(width, height, stack, pid, memory, columns, sideBySide, infoHeight);
+    }
+
+    /**
+     * Layout of the task manager embedded in a host panel (the games drawer sub-page). The panel is
+     * always stacked (dashboard above the process list), so only the container size matters: no
+     * dialog margins, no dialog chrome. {@code containerHeightDp} is the height left for the panel
+     * itself, i.e. without the host's header and footer.
+     */
+    public static Result computeEmbedded(float containerWidthDp, float containerHeightDp, int cpuCores) {
+        int cores = Math.max(1, cpuCores);
+        int width = (int) Math.floor(Math.max(0f, containerWidthDp));
+        int height = (int) Math.floor(Math.max(0f, containerHeightDp));
+        int[] columnsDp = columnWidthsDp(true, width);
+        return new Result(width, height, true, columnsDp[0], columnsDp[1],
+            cpuGridColumns(width, cores), cardsSideBySide(width), dashboardHeightDp(width, height, cores));
+    }
+
+    /** {pid, memory} column widths for a stacked/wide layout of the given panel width. */
+    private static int[] columnWidthsDp(boolean stack, int width) {
+        if (!stack) return new int[] {60, 110};
+        if (width >= 340) return new int[] {52, 84};
+        if (width >= 300) return new int[] {44, 72};
+        return new int[] {36, 56};
+    }
+
+    private static boolean cardsSideBySide(int width) {
+        return width >= CARDS_SIDE_BY_SIDE_MIN_WIDTH_DP;
+    }
+
+    private static int cpuGridColumns(int width, int cores) {
+        return width >= CPU_TWO_COLUMN_MIN_WIDTH_DP && cores > 1 ? 2 : 1;
+    }
+
+    /**
+     * Height of the scrollable dashboard: its wanted height, but never so tall that fewer than five
+     * process rows remain in {@code availableHeightDp} (never below the minimum dashboard height).
+     */
+    private static int dashboardHeightDp(int width, int availableHeightDp, int cores) {
+        int columns = cpuGridColumns(width, cores);
+        int rows = (cores + columns - 1) / columns;
+        int cpuCard = CARD_PADDING_DP + CARD_TITLE_DP + rows * CPU_LINE_DP;
+        int memoryCard = CARD_PADDING_DP + CARD_TITLE_DP + CPU_LINE_DP;
+        int wanted = cardsSideBySide(width) ? Math.max(cpuCard, memoryCard) : cpuCard + CARD_GAP_DP + memoryCard;
+        int cap = availableHeightDp - MIN_TABLE_PANEL_DP - CARD_GAP_DP;
+        return Math.min(wanted, Math.max(MIN_INFO_PANEL_DP, cap));
     }
 
     /** Width for the content of dialogs opened from the task manager (CPU affinity list, input). */

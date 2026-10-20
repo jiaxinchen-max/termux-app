@@ -155,6 +155,14 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
+                    <ImageButton
+                        android:id="@+id/game_session_back"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/abc_action_bar_up_description"
+                        android:src="@drawable/local_games_ic_back"
+                        android:visibility="gone" />
                     <TextView
                         android:id="@+id/game_session_panel_title"
                         android:layout_width="0dp"
@@ -335,6 +343,58 @@
                     </LinearLayout>
                 </FrameLayout>
                 </ScrollView>
+
+                <LinearLayout
+                    android:id="@+id/game_session_process_page"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_marginTop="14dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+                    <!-- The sub-page always scrolls as one page (portrait sheet and landscape side column):
+                         the process panel (dashboard + fully expanded list) lives in this ScrollView; the
+                         footer stays below it, or is moved to the end of the content in short windows. -->
+                    <ScrollView
+                        android:id="@+id/game_session_process_scroll"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:overScrollMode="ifContentScrolls">
+                        <LinearLayout
+                            android:id="@+id/game_session_process_scroll_content"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+                            <FrameLayout
+                                android:id="@+id/game_session_process_host"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content" />
+                        </LinearLayout>
+                    </ScrollView>
+                    <LinearLayout
+                        android:id="@+id/game_session_process_footer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+                        <TextView
+                            android:id="@+id/game_session_process_count"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textColor="@color/local_games_on_surface"
+                            android:textSize="14sp" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/game_session_process_new_task"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="48dp"
+                            android:text="@string/new_task"
+                            android:textAllCaps="false" />
+                    </LinearLayout>
+                </LinearLayout>
             </LinearLayout>
         </com.termux.localgames.activity.CappedHeightLinearLayout>
     </FrameLayout>

@@ -573,12 +573,29 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         return mHost.getDialogPalette();
     }
 
+    /** Lets the wrapped host (e.g. the games session) show the task manager inside its own UI. */
+    @Override
+    public boolean showEmbeddedProcessManager() {
+        return mHost.showEmbeddedProcessManager();
+    }
+
     public void showProcessManager() {
         mX11WinHandlerController.showProcessManagerDialog();
     }
 
     public void showProcessManagerDialog() {
         mX11WinHandlerController.showProcessManagerDialog();
+    }
+
+    /**
+     * Builds a task manager panel over {@code panelRoot} (inflated from
+     * {@code TaskManagerPanel.inflateContent}) for hosts that embed it instead of the dialog.
+     */
+    @NonNull
+    public com.termux.x11.controller.winhandler.TaskManagerPanel createTaskManagerPanel(
+        @NonNull android.view.View panelRoot,
+        @NonNull com.termux.x11.controller.winhandler.TaskManagerPanel.Listener listener) {
+        return new com.termux.x11.controller.winhandler.TaskManagerPanel(this, panelRoot, getDialogPalette(), listener);
     }
 
     private void setupInputController() {

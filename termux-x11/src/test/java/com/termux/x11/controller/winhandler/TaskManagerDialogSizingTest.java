@@ -150,4 +150,47 @@ public class TaskManagerDialogSizingTest {
         assertEquals(1, TaskManagerDialogSizing.compute(411f, 914f, 1).cpuGridColumns);
         assertEquals(1, TaskManagerDialogSizing.compute(411f, 914f, 0).cpuGridColumns);
     }
+
+    @Test
+    public void embeddedIsAlwaysStackedWithFullDashboardAndNoDialogMargins() {
+        TaskManagerDialogSizing.Result r = TaskManagerDialogSizing.computeEmbedded(380f, 520f, 8);
+        assertTrue(r.stackInfoPanel);
+        assertTrue(r.fullDashboard);
+        assertEquals(380, r.widthDp);
+        assertEquals(520, r.heightDp);
+        assertEquals(2, r.cpuGridColumns);
+        assertTrue(r.cardsSideBySide);
+        assertEquals(52, r.pidColumnDp);
+        // at least five process rows remain below the dashboard
+        assertTrue(r.heightDp - r.infoPanelHeightDp - TaskManagerDialogSizing.CARD_GAP_DP
+            >= TaskManagerDialogSizing.MIN_TABLE_PANEL_DP);
+    }
+
+    @Test
+    public void embeddedNarrowSideColumnStacksCardsAndCapsDashboardHeight() {
+        TaskManagerDialogSizing.Result r = TaskManagerDialogSizing.computeEmbedded(280f, 300f, 8);
+        assertTrue(r.stackInfoPanel);
+        assertFalse(r.cardsSideBySide);
+        assertEquals(1, r.cpuGridColumns);
+        assertEquals(TaskManagerDialogSizing.MIN_INFO_PANEL_DP, r.infoPanelHeightDp);
+    }
+
+    @Test
+    public void embeddedTallContainerShowsWholeDashboard() {
+        TaskManagerDialogSizing.Result r = TaskManagerDialogSizing.computeEmbedded(300f, 900f, 4);
+        assertEquals(2, r.cpuGridColumns);
+        assertFalse(r.cardsSideBySide);
+        int cpuCard = TaskManagerDialogSizing.CARD_PADDING_DP + TaskManagerDialogSizing.CARD_TITLE_DP + 2 * TaskManagerDialogSizing.CPU_LINE_DP;
+        int memCard = TaskManagerDialogSizing.CARD_PADDING_DP + TaskManagerDialogSizing.CARD_TITLE_DP + TaskManagerDialogSizing.CPU_LINE_DP;
+        assertEquals(cpuCard + TaskManagerDialogSizing.CARD_GAP_DP + memCard, r.infoPanelHeightDp);
+    }
+
+    @Test
+    public void embeddedNegativeOrZeroSizesAreClampedAndSingleCoreUsesOneColumn() {
+        TaskManagerDialogSizing.Result r = TaskManagerDialogSizing.computeEmbedded(-5f, 0f, 0);
+        assertEquals(0, r.widthDp);
+        assertEquals(0, r.heightDp);
+        assertEquals(1, r.cpuGridColumns);
+        assertEquals(1, TaskManagerDialogSizing.computeEmbedded(400f, 600f, 1).cpuGridColumns);
+    }
 }

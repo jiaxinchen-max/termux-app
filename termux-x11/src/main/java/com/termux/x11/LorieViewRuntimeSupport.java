@@ -415,6 +415,7 @@ final class X11WinHandlerController {
     }
 
     void showProcessManagerDialog() {
+        if (mHost.showEmbeddedProcessManager()) return;
         new TaskManagerDialog(mHost).show();
     }
 }

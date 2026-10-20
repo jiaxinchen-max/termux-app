@@ -20,10 +20,34 @@ final class GameSessionBackPolicy {
         IGNORE
     }
 
+    /**
+     * Where the open drawer currently is. TOP is the tabbed menu (Operation, Performance, ...);
+     * every other level is a sub-page opened from it, which BACK and the page's back arrow leave
+     * one level up.
+     */
+    enum DrawerLevel {
+        TOP(false),
+        /** Operation -> Process manager, the task manager embedded in the drawer. */
+        PROCESS_MANAGER(true);
+
+        private final boolean subLevel;
+
+        DrawerLevel(boolean subLevel) { this.subLevel = subLevel; }
+
+        boolean isSubLevel() { return subLevel; }
+
+        /** The level BACK / the back arrow returns to. */
+        DrawerLevel up() { return TOP; }
+    }
+
     /** One physical BACK can arrive through several routes; repeats this close together are one. */
     static final long DUPLICATE_WINDOW_MS = 250L;
 
     private GameSessionBackPolicy() {}
+
+    static Action decide(boolean drawerOpen, DrawerLevel level, boolean dialogShowingOrPending) {
+        return decide(drawerOpen, level.isSubLevel(), dialogShowingOrPending);
+    }
 
     static Action decide(boolean drawerOpen, boolean drawerHasSubLevel,
                          boolean dialogShowingOrPending) {
