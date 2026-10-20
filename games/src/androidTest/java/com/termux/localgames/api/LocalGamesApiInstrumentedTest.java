@@ -38,6 +38,7 @@ import com.termux.localgames.artwork.GameArtworkStore;
 import com.termux.localgames.data.FileGameRepository;
 import com.termux.localgames.data.FileRuntimeProfileRepository;
 import com.termux.localgames.data.GameStoragePaths;
+import com.termux.localgames.data.OrientationPreference;
 import com.termux.localgames.data.FileLaunchTaskRepository;
 import com.termux.localgames.domain.Game;
 import com.termux.localgames.domain.LaunchExecutionMode;
@@ -102,20 +103,23 @@ public class LocalGamesApiInstrumentedTest {
     }
 
     @Test
-    public void gameLibraryProvidesManualOrientationToggle() {
-        try (ActivityScenario<LocalGamesActivity> scenario =
-                 ActivityScenario.launch(LocalGamesActivity.class)) {
-            scenario.onActivity(activity -> {
-                boolean landscape = activity.getResources().getConfiguration().orientation ==
-                    android.content.res.Configuration.ORIENTATION_LANDSCAPE;
-                View orientation = activity.findViewById(
-                    com.termux.localgames.R.id.local_games_orientation_button);
-                assertEquals(View.VISIBLE, orientation.getVisibility());
-                orientation.performClick();
-                assertEquals(landscape ? ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                        : ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
-                    activity.getRequestedOrientation());
-            });
+    public void gameLibraryAppliesStoredOrientationPreference() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        OrientationPreference original = OrientationPreference.load(context);
+        try {
+            for (OrientationPreference choice : new OrientationPreference[] {
+                OrientationPreference.VERTICAL, OrientationPreference.HORIZONTAL,
+                OrientationPreference.AUTO}) {
+                choice.save(context);
+                assertEquals(choice, OrientationPreference.load(context));
+                try (ActivityScenario<LocalGamesActivity> scenario =
+                         ActivityScenario.launch(LocalGamesActivity.class)) {
+                    scenario.onActivity(activity -> assertEquals(choice.getRequestedOrientation(),
+                        activity.getRequestedOrientation()));
+                }
+            }
+        } finally {
+            original.save(context);
         }
     }
 
@@ -433,12 +437,12 @@ public class LocalGamesApiInstrumentedTest {
             marker.delete();
             new GameUninstaller(context.getFilesDir()).execute(
                 GameUninstallPlan.keepPrivateAssets(gameId)
-                    .withSelections(true, true, true, true, true));
+                    .withSelections(true, true, true, true));
         }
     }
 
     @Test
-    public void assetsInventorySnapshotAndRecreationUsePrivateStorage() throws Exception {
+    public void assetsInventoryAndRecreationUsePrivateStorage() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         String gameId = "instrumented-assets-game";
         GameStoragePaths paths = new GameStoragePaths(context.getFilesDir());
@@ -453,16 +457,15 @@ public class LocalGamesApiInstrumentedTest {
         try (ActivityScenario<GameAssetsActivity> scenario = ActivityScenario.launch(
             LocalGames.createGameAssetsIntent(context, gameId))) {
             assertTrue(waitForAssetCategories(scenario));
-            scenario.onActivity(activity -> activity.findViewById(
-                com.termux.localgames.R.id.game_assets_create_snapshot).performClick());
-            assertTrue(waitForSnapshotRows(scenario));
             scenario.recreate();
             assertTrue(waitForAssetCategories(scenario));
-            assertTrue(waitForSnapshotRows(scenario));
+            scenario.onActivity(activity -> assertEquals("Assets Test",
+                ((android.widget.TextView) activity.findViewById(
+                    com.termux.localgames.R.id.game_assets_game_name)).getText().toString()));
         } finally {
             new GameUninstaller(context.getFilesDir()).execute(
                 GameUninstallPlan.keepPrivateAssets(gameId)
-                    .withSelections(true, true, true, true, true));
+                    .withSelections(true, true, true, true));
         }
     }
 
@@ -591,10 +594,10 @@ public class LocalGamesApiInstrumentedTest {
             scenario.onActivity(activity -> {
                 android.widget.TextView title = activity.findViewById(
                     com.termux.localgames.R.id.game_detail_name);
-                android.widget.TextView access = activity.findViewById(
-                    com.termux.localgames.R.id.game_detail_access_status);
-                found.set(name.contentEquals(title.getText()) && access.getText().toString().equals(
-                    activity.getString(com.termux.localgames.R.string.local_game_permission_lost)));
+                View launch = activity.findViewById(com.termux.localgames.R.id.game_detail_launch);
+                // The detail screen no longer shows an access label; a game whose folder
+                // permission is lost is rendered with Launch blocked.
+                found.set(name.contentEquals(title.getText()) && !launch.isEnabled());
             });
             if (found.get()) return true;
             Thread.sleep(50);
@@ -617,20 +620,7 @@ public class LocalGamesApiInstrumentedTest {
         for (int attempt = 0; attempt < 100; attempt++) {
             scenario.onActivity(activity -> ready.set(((android.widget.LinearLayout)
                 activity.findViewById(com.termux.localgames.R.id.game_assets_categories))
-                .getChildCount() == 5));
-            if (ready.get()) return true;
-            Thread.sleep(50);
-        }
-        return false;
-    }
-
-    private static boolean waitForSnapshotRows(ActivityScenario<GameAssetsActivity> scenario)
-        throws InterruptedException {
-        AtomicBoolean ready = new AtomicBoolean();
-        for (int attempt = 0; attempt < 100; attempt++) {
-            scenario.onActivity(activity -> ready.set(((android.widget.LinearLayout)
-                activity.findViewById(com.termux.localgames.R.id.game_assets_snapshot_items))
-                .getChildCount() > 0));
+                .getChildCount() == 4));
             if (ready.get()) return true;
             Thread.sleep(50);
         }
