@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
+    android:id="@+id/LLTaskManagerRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     android:orientation="horizontal">
 
     <LinearLayout
-        android:layout_width="430dp"
+        android:id="@+id/LLTablePanel"
+        android:layout_width="0dp"
         android:layout_height="match_parent"
+        android:layout_weight="1"
         android:orientation="vertical"
         android:background="@drawable/bordered_panel"
         android:padding="8dp">
@@ -19,30 +22,34 @@
             android:layout_marginBottom="4dp">
 
             <TextView
+                android:id="@+id/THName"
                 style="@style/TableHeadBackground"
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:text="@string/process_name" />
 
             <TextView
+                android:id="@+id/THPid"
                 style="@style/TableHeadBackground"
                 android:layout_width="60dp"
                 android:text="@string/pid" />
 
             <TextView
+                android:id="@+id/THMemory"
                 style="@style/TableHeadBackground"
                 android:layout_width="110dp"
                 android:text="@string/memory" />
 
             <View
+                android:id="@+id/THMenu"
                 style="@style/TableHeadBackground"
                 android:layout_width="40dp" />
         </LinearLayout>
 
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:minHeight="140dp">
+            android:layout_height="0dp"
+            android:layout_weight="1">
 
             <ScrollView
                 android:layout_width="match_parent"
@@ -66,16 +73,20 @@
     </LinearLayout>
 
     <ScrollView
+        android:id="@+id/SVInfoPanel"
         android:layout_width="140dp"
         android:layout_height="wrap_content"
+        android:fillViewport="true"
         android:layout_marginLeft="8dp">
 
         <LinearLayout
+            android:id="@+id/LLInfoPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
             <LinearLayout
+                android:id="@+id/LLCpuPanel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -91,12 +102,13 @@
 
                 <LinearLayout
                     android:id="@+id/LLCPUInfo"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical" />
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/LLMemoryPanel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"

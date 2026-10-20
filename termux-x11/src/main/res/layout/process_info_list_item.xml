@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="horizontal"
     android:layout_width="match_parent"
-    android:layout_height="38dp"
+    android:layout_height="40dp"
     android:gravity="center_vertical">
 
     <ImageView
@@ -22,12 +22,16 @@
 
     <TextView
         android:id="@+id/TVPID"
+        android:maxLines="1"
+        android:ellipsize="end"
         android:layout_width="60dp"
         android:layout_height="wrap_content"
         android:paddingLeft="4dp" />
 
     <TextView
         android:id="@+id/TVMemoryUsage"
+        android:maxLines="1"
+        android:ellipsize="end"
         android:layout_width="110dp"
         android:layout_height="wrap_content"
         android:paddingLeft="4dp" />
@@ -35,11 +39,16 @@
     <RelativeLayout
         android:layout_width="40dp"
         android:layout_height="40dp"
+        android:minWidth="40dp"
+        android:minHeight="40dp"
         android:gravity="center">
 
         <ImageButton
             style="@style/ListMenuButton"
             android:id="@+id/BTMenu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="0dp"
             android:src="@drawable/icon_list_item_menu" />
     </RelativeLayout>
 </LinearLayout>

@@ -567,6 +567,12 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         mActivity.finishAffinity();
     }
 
+    @Override
+    @Nullable
+    public com.termux.x11.controller.contentdialog.DialogPalette getDialogPalette() {
+        return mHost.getDialogPalette();
+    }
+
     public void showProcessManager() {
         mX11WinHandlerController.showProcessManagerDialog();
     }

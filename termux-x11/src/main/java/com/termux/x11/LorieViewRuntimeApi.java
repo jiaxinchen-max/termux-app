@@ -8,6 +8,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentManager;
 import androidx.viewpager.widget.ViewPager;
 
+import com.termux.x11.controller.contentdialog.DialogPalette;
 import com.termux.x11.controller.core.DownloadProgressDialog;
 import com.termux.x11.controller.widget.InputControlsView;
 import com.termux.x11.controller.winhandler.ProcessInfo;
@@ -92,6 +93,16 @@ public final class LorieViewRuntimeApi {
         void stopDesktop();
 
         void onX11PreferenceChanged(String key);
+
+        /**
+         * Host visual style for task-manager dialogs. A host that embeds the X11 session in its
+         * own themed UI (games) returns its palette; the terminal host keeps the default null,
+         * which leaves the stock termux-x11 look unchanged.
+         */
+        @Nullable
+        default DialogPalette getDialogPalette() {
+            return null;
+        }
     }
 
     public interface DisplayConnectionListener {

@@ -110,6 +110,7 @@ public final class GameSessionActivity extends AppCompatActivity {
         binding = ActivityGameSessionBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         orchestrator = new PersistentLocalGameOrchestrator(this);
+        binding.gameSessionX11.setDialogPaletteProvider(() -> GameDialogPalettes.frosted(this));
         binding.gameSessionX11.bind(this, frozenSpec.getResolution(), new X11SessionView.Listener() {
             @Override public void onConnectionChanged(boolean connected) {
                 reportConnection(connected);

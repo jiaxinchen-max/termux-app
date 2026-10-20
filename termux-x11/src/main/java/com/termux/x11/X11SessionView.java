@@ -12,6 +12,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
 
+import com.termux.x11.controller.contentdialog.DialogPalette;
 import com.termux.x11.controller.winhandler.ProcessInfo;
 
 import java.util.ArrayList;
@@ -63,6 +64,7 @@ public final class X11SessionView extends FrameLayout {
     @Nullable private AppCompatActivity activity;
     @Nullable private LorieViewRuntimeController runtime;
     @Nullable private HostAdapter hostAdapter;
+    @Nullable private DialogPalette.Provider dialogPaletteProvider;
     @NonNull private Listener listener = new Listener() { };
     private TermuxScreenView displayView;
 
@@ -84,6 +86,14 @@ public final class X11SessionView extends FrameLayout {
     private void initialize(@NonNull Context context) {
         displayView = new TermuxScreenView(context);
         addView(displayView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    }
+
+    /**
+     * Lets the embedding product style the task manager dialogs. Without a provider the dialogs
+     * keep the stock termux-x11 look.
+     */
+    public void setDialogPaletteProvider(@Nullable DialogPalette.Provider provider) {
+        this.dialogPaletteProvider = provider;
     }
 
     public void bind(@NonNull AppCompatActivity activity,
@@ -274,6 +284,10 @@ public final class X11SessionView extends FrameLayout {
         @Override public void stopDesktop() { listener.onExitRequested(); }
         @Override public void onX11PreferenceChanged(String key) {
             if (runtime != null) runtime.applyX11PreferenceChange(key);
+        }
+        @Nullable @Override public DialogPalette getDialogPalette() {
+            DialogPalette.Provider provider = dialogPaletteProvider;
+            return provider == null ? null : provider.getDialogPalette();
         }
         @Override public void onX11PreferenceSwitchChange(boolean isOpen) { }
         @Override public void releaseSlider(boolean open) {
