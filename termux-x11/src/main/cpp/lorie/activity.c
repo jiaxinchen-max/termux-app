@@ -493,6 +493,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, __unused void *reserved) {
             {"surfaceChanged", "(Landroid/view/Surface;)V", (void *)&rendererSetWindow},
             {"setViewport", "(IIIIII)V", (void *)&rendererSetViewport},
             {"setRendererZoom", "(I)V", (void *)&rendererSetZoom},
+            {"getRenderedFrameCount", "()J", (void *)&rendererGetPresentedFrameCount},
             {"setFiltering", "(I)V", (void *)&rendererSetFiltering},
             {"connect", "(I)V", (void *)&connect_},
             {"connected", "()Z", (void *)&connected},

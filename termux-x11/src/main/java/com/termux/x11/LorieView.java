@@ -1073,6 +1073,20 @@ public class LorieView extends SurfaceView implements InputStub {
     @FastNative static native void sendWindowChange(int width, int height, int framerate, String name);
     @FastNative static native void setViewport(int x, int y, int width, int height, int expectedWidth, int expectedHeight);
     @FastNative private static native void setRendererZoom(int percent);
+    @FastNative private static native long getRenderedFrameCount();
+
+    /**
+     * Cumulative number of frames the Lorie renderer has presented to the output surface since the
+     * process started, or -1 when the native renderer is not available. Never reset; callers take
+     * differences over time to get a presented-frame rate.
+     */
+    public static long renderedFrameCount() {
+        try {
+            return getRenderedFrameCount();
+        } catch (UnsatisfiedLinkError notLoaded) {
+            return -1L;
+        }
+    }
 
     public void adjustRendererZoom(int delta) {
         rendererZoom = MathUtils.clamp(rendererZoom + delta, 100, 400);

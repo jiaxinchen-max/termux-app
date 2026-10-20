@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.Color;
 import android.os.Build;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
@@ -27,6 +28,9 @@ import com.termux.x11.controller.contentdialog.DialogPalette;
 import com.termux.x11.controller.core.CPUStatus;
 import com.termux.x11.controller.core.ProcessHelper;
 import com.termux.x11.controller.core.StringUtils;
+import com.termux.x11.controller.winhandler.metrics.MetricChartView;
+import com.termux.x11.controller.winhandler.metrics.MetricSeries;
+import com.termux.x11.controller.winhandler.metrics.PerformanceMetricsSampler;
 import com.termux.x11.controller.widget.CPUListView;
 
 import java.util.List;
@@ -65,6 +69,29 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
     private int processInfoSequence;
     private TaskManagerDialogSizing.Result sizing;
     private boolean pageScroll;
+    /** Games host only: the 60 s history; null keeps the dialog's text-only dashboard. */
+    @Nullable
+    private PerformanceMetricsSampler metrics;
+    private boolean metricsExpanded;
+    private static final int CHART_HEIGHT_DP = 96;
+    private ChartBlock fpsChart;
+    private ChartBlock cpuChart;
+    private ChartBlock memoryChart;
+
+    /** One chart of the expanded dashboard: title, latest value and the line chart. */
+    private static final class ChartBlock {
+        final LinearLayout box;
+        final TextView title;
+        final TextView value;
+        final MetricChartView chart;
+
+        ChartBlock(LinearLayout box, TextView title, TextView value, MetricChartView chart) {
+            this.box = box;
+            this.title = title;
+            this.value = value;
+            this.chart = chart;
+        }
+    }
 
     /** Inflates the panel layout into {@code parent} (not attached) for use with the constructor. */
     @NonNull
@@ -85,6 +112,7 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
         this.palette = palette;
         this.listener = listener;
         applyPalette();
+        find(R.id.BTMetricsToggle).setOnClickListener(v -> setMetricsExpanded(!metricsExpanded));
     }
 
     private <T extends View> T find(int id) {
@@ -117,6 +145,38 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
         for (int i = 0; i < container.getChildCount(); i++) applyColumnWidths(container.getChildAt(i), density);
         setColumnWidth(find(R.id.THPid), result.pidColumnDp, density);
         setColumnWidth(find(R.id.THMemory), result.memoryColumnDp, density);
+    }
+
+    /**
+     * Host switch: enables the Expand/Collapse dashboard (latest FPS line, 60 s charts) over the
+     * history held by {@code sampler}. Pass null to disable. The sampler is fed by the host
+     * independently of this panel's refresh timer, so the charts already have history when the
+     * page is first opened. Collapsed (text) is the default.
+     */
+    public void setMetricsSampler(@Nullable PerformanceMetricsSampler sampler) {
+        if (metrics != null) metrics.setListener(null);
+        metrics = sampler;
+        if (sampler != null) {
+            ensureCharts();
+            sampler.setListener(this::onMetricsChanged);
+        }
+        find(R.id.LLMetricsHeader).setVisibility(sampler != null ? View.VISIBLE : View.GONE);
+        applyMetricsMode();
+    }
+
+    public boolean isMetricsExpanded() {
+        return metricsExpanded;
+    }
+
+    /** Shows the charts (true) or the text cards (false); the host persists this across recreation. */
+    public void setMetricsExpanded(boolean expanded) {
+        metricsExpanded = expanded;
+        applyMetricsMode();
+    }
+
+    /** Releases the sampler listener; call when the panel is dropped. */
+    public void release() {
+        if (metrics != null) metrics.setListener(null);
     }
 
     /** Starts listening for process info and refreshing once per second. */
@@ -311,6 +371,105 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
         ((TextView) find(R.id.TVMemoryTitle)).setTextColor(palette.accent);
         ((TextView) find(R.id.TVEmptyText)).setTextColor(palette.onSurfaceSecondary);
         ((TextView) find(R.id.TVMemoryInfo)).setTextColor(palette.onSurface);
+        ((TextView) find(R.id.TVFpsInfo)).setTextColor(palette.onSurface);
+        ((TextView) find(R.id.TVMetricsToggle)).setTextColor(palette.accent);
+        ((ImageView) find(R.id.IVMetricsToggle)).setColorFilter(palette.accent);
+        GradientDrawable toggle = new GradientDrawable();
+        toggle.setColor(Color.TRANSPARENT);
+        toggle.setCornerRadius(Math.min(palette.cornerRadiusDp, 6f) * activity.getResources().getDisplayMetrics().density);
+        toggle.setStroke(Math.max(1, Math.round(activity.getResources().getDisplayMetrics().density)), palette.accent);
+        find(R.id.BTMetricsToggle).setBackground(toggle);
+    }
+
+    private void ensureCharts() {
+        if (fpsChart != null) return;
+        LinearLayout container = find(R.id.LLChartsPanel);
+        fpsChart = createChartBlock(container, activity.getString(R.string.metrics_fps), false, false);
+        cpuChart = createChartBlock(container, "CPU", true, true);
+        memoryChart = createChartBlock(container, activity.getString(R.string.memory), true, true);
+    }
+
+    private ChartBlock createChartBlock(LinearLayout container, String titleText, boolean percent, boolean topGap) {
+        float density = activity.getResources().getDisplayMetrics().density;
+        int pad = Math.round(8 * density);
+        LinearLayout box = new LinearLayout(activity);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(pad, pad, pad, pad);
+        if (palette != null) box.setBackground(panelBackground(palette.panel, Math.min(palette.cornerRadiusDp, 6f)));
+        else box.setBackgroundResource(R.drawable.bordered_panel);
+
+        LinearLayout row = new LinearLayout(activity);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        TextView title = new TextView(activity);
+        title.setText(titleText);
+        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+        title.setTextColor(palette != null ? palette.accent : activity.getColor(R.color.colorPrimary));
+        row.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView value = new TextView(activity);
+        value.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        if (palette != null) value.setTextColor(palette.onSurface);
+        row.addView(value, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        box.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        MetricChartView chart = new MetricChartView(activity);
+        if (palette != null) {
+            chart.setLineColor(palette.accent);
+            chart.setGridColor((palette.outline & 0x00FFFFFF) | 0x66000000);
+            chart.setTextColor(palette.onSurfaceSecondary);
+        }
+        LinearLayout.LayoutParams chartParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Math.round(CHART_HEIGHT_DP * density));
+        chartParams.topMargin = Math.round(4 * density);
+        box.addView(chart, chartParams);
+
+        LinearLayout.LayoutParams boxParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        if (topGap) boxParams.topMargin = Math.round(8 * density);
+        container.addView(box, boxParams);
+        return new ChartBlock(box, title, value, chart);
+    }
+
+    /** Shows either the text cards (collapsed) or the charts (expanded) and updates the toggle. */
+    private void applyMetricsMode() {
+        boolean enabled = metrics != null;
+        boolean expanded = enabled && metricsExpanded;
+        find(R.id.LLInfoPanel).setVisibility(expanded ? View.GONE : View.VISIBLE);
+        find(R.id.LLChartsPanel).setVisibility(expanded ? View.VISIBLE : View.GONE);
+        find(R.id.TVFpsInfo).setVisibility(expanded ? View.INVISIBLE : View.VISIBLE);
+        ((TextView) find(R.id.TVMetricsToggle)).setText(expanded ? R.string.metrics_collapse : R.string.metrics_expand);
+        ((ImageView) find(R.id.IVMetricsToggle)).setImageResource(
+            expanded ? R.drawable.ic_metrics_collapse : R.drawable.ic_metrics_expand);
+        if (enabled) onMetricsChanged();
+    }
+
+    /** Sampler callback (UI thread): refreshes the FPS line and, when shown, the charts. */
+    private void onMetricsChanged() {
+        PerformanceMetricsSampler sampler = metrics;
+        if (sampler == null) return;
+        MetricSeries fps = sampler.fps();
+        String fpsText = formatFps(fps.latest());
+        ((TextView) find(R.id.TVFpsInfo)).setText(activity.getString(R.string.metrics_fps_line, fpsText));
+        if (!metricsExpanded || fpsChart == null) return;
+        fpsChart.chart.bind(fps, false);
+        fpsChart.value.setText(Double.isNaN(fps.latest()) ? fpsText : activity.getString(R.string.metrics_fps_value, fpsText));
+        cpuChart.chart.bind(sampler.cpu(), true);
+        cpuChart.value.setText(formatPercent(sampler.cpu()));
+        memoryChart.chart.bind(sampler.memory(), true);
+        String memory = formatPercent(sampler.memory());
+        if (sampler.memoryTotalBytes() > 0) {
+            memory += " \u00b7 " + StringUtils.formatBytes(sampler.memoryUsedBytes(), false)
+                + "/" + StringUtils.formatBytes(sampler.memoryTotalBytes());
+        }
+        memoryChart.value.setText(memory);
+    }
+
+    private String formatFps(double value) {
+        return Double.isNaN(value) ? activity.getString(R.string.metrics_unavailable) : String.valueOf(Math.round(value));
+    }
+
+    private String formatPercent(MetricSeries series) {
+        double latest = series.latest();
+        return Double.isNaN(latest) ? activity.getString(R.string.metrics_unavailable) : Math.round(latest) + "%";
     }
 
     private void update() {

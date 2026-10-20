@@ -82,6 +82,67 @@
         android:layout_marginLeft="8dp">
 
         <LinearLayout
+            android:id="@+id/LLInfoColumn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Games Performance page only (TaskManagerPanel.setMetricsSampler): latest FPS line and the
+                 Expand/Collapse switch between the text cards and the 60 s charts. -->
+            <LinearLayout
+                android:id="@+id/LLMetricsHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/TVFpsInfo"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/BTMetricsToggle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bordered_panel"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:minHeight="36dp"
+                    android:orientation="horizontal"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="8dp">
+
+                    <TextView
+                        android:id="@+id/TVMetricsToggle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:id="@+id/IVMetricsToggle"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="4dp"
+                        android:importantForAccessibility="no" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/LLChartsPanel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone" />
+
+        <LinearLayout
             android:id="@+id/LLInfoPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -130,6 +191,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content" />
             </LinearLayout>
+        </LinearLayout>
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

@@ -375,6 +375,12 @@
     <string name="end_process">End Process</string>
     <string name="new_task">New Task</string>
     <string name="processes">Processes</string>
+    <string name="metrics_expand">Expand</string>
+    <string name="metrics_collapse">Collapse</string>
+    <string name="metrics_fps">FPS</string>
+    <string name="metrics_fps_line">FPS: %1$s</string>
+    <string name="metrics_fps_value">%1$s fps</string>
+    <string name="metrics_unavailable">--</string>
     <string name="orientation">Orientation</string>
     <string name="horizontal">Horizontal</string>
     <string name="vertical">Vertical</string>

@@ -339,6 +339,12 @@
     <string name="end_process">结束进程</string>
     <string name="new_task">新建任务</string>
     <string name="processes">进程</string>
+    <string name="metrics_expand">展开</string>
+    <string name="metrics_collapse">收起</string>
+    <string name="metrics_fps">帧率</string>
+    <string name="metrics_fps_line">FPS：%1$s</string>
+    <string name="metrics_fps_value">%1$s 帧/秒</string>
+    <string name="metrics_unavailable">--</string>
     <string name="orientation">方向</string>
     <string name="horizontal">水平方向</string>
     <string name="vertical">竖直方向</string>

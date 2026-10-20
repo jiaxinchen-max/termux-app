@@ -42,6 +42,8 @@ import com.termux.localgames.runtime.TaskObserver;
 import com.termux.localgames.service.PersistentLocalGameOrchestrator;
 import com.termux.x11.X11SessionView;
 import com.termux.x11.controller.winhandler.TaskManagerPanel;
+import com.termux.x11.controller.winhandler.metrics.PerformanceMetricsRecorder;
+import com.termux.x11.controller.winhandler.metrics.PerformanceMetricsSampler;
 
 import java.io.File;
 import java.util.concurrent.ExecutorService;
@@ -53,6 +55,7 @@ public final class GameSessionActivity extends AppCompatActivity {
 
     private static final String STATE_CATEGORY = "session-control-category";
     private static final String STATE_INPUT_SELECTION = "session-input-selection";
+    private static final String STATE_METRICS_EXPANDED = "session-metrics-expanded";
     private static final int CATEGORY_OPERATION = 0;
     private static final int CATEGORY_PERFORMANCE = 1;
     private static final int CATEGORY_SETTINGS = 2;
@@ -83,6 +86,17 @@ public final class GameSessionActivity extends AppCompatActivity {
     private TaskManagerPanel processPanel;
     /** True between onResume and onPause: the refresh timer never runs while paused. */
     private boolean hostResumed;
+    /** True while the X11 display is connected, i.e. the game session is actually running. */
+    private boolean displayConnected;
+    /**
+     * Last minute of FPS/CPU/memory for the Performance page. One instance per Activity (a new
+     * session starts empty); sampled by {@link #metricsRecorder} independently of the Performance
+     * page being visible.
+     */
+    private final PerformanceMetricsSampler metricsSampler = new PerformanceMetricsSampler();
+    private PerformanceMetricsRecorder metricsRecorder;
+    /** The Expand/Collapse choice; survives Activity recreation through the saved state. */
+    private boolean metricsExpanded;
     private LaunchTask currentTask;
     private int selectedCategory = CATEGORY_OPERATION;
     private AudioManager audioManager;
@@ -122,6 +136,8 @@ public final class GameSessionActivity extends AppCompatActivity {
         binding.gameSessionX11.setDialogPaletteProvider(() -> GameDialogPalettes.frosted(this));
         binding.gameSessionX11.bind(this, frozenSpec.getResolution(), new X11SessionView.Listener() {
             @Override public void onConnectionChanged(boolean connected) {
+                displayConnected = connected;
+                updateMetricsSampling();
                 reportConnection(connected);
             }
             @Override public void onFirstFramePresented() { reportFirstFrame(); }
@@ -129,6 +145,11 @@ public final class GameSessionActivity extends AppCompatActivity {
             @Override public void onExitRequested() { requestSafeExitConfirmation(); }
             @Override public boolean onProcessManagerRequested() { return showPerformancePage(); }
         });
+        metricsExpanded = savedInstanceState != null
+            && savedInstanceState.getBoolean(STATE_METRICS_EXPANDED, false);
+        // FPS = frames the X11/Lorie renderer presented (cumulative counter, differenced per second).
+        metricsRecorder = new PerformanceMetricsRecorder(this, metricsSampler,
+            X11SessionView::getRenderedFrameCount);
         selectedCategory = savedInstanceState == null ? CATEGORY_OPERATION
             : savedInstanceState.getInt(STATE_CATEGORY, CATEGORY_OPERATION);
         configureControlCenter();
@@ -565,6 +586,9 @@ public final class GameSessionActivity extends AppCompatActivity {
         binding.gameSessionProcessHost.addView(content);
         binding.gameSessionProcessCount.setText(getString(com.termux.x11.R.string.processes) + ": 0");
         processPanel = panel;
+        // Games host switch: Expand/Collapse dashboard over the session's metric history.
+        panel.setMetricsExpanded(metricsExpanded);
+        panel.setMetricsSampler(metricsSampler);
         applyProcessPageLayout();
         return true;
     }
@@ -589,6 +613,17 @@ public final class GameSessionActivity extends AppCompatActivity {
         } catch (IllegalStateException winHandlerNotReady) {
             // Nothing was started; selecting the page again retries.
         }
+    }
+
+    /**
+     * The one place that decides whether metric sampling runs: only while the Activity is resumed and
+     * the display is connected (game running); independent of the Performance page. Start and stop
+     * are idempotent; stopping cancels the worker so nothing leaks while paused.
+     */
+    private void updateMetricsSampling() {
+        if (metricsRecorder == null || destroyed) return;
+        if (hostResumed && displayConnected) metricsRecorder.start();
+        else metricsRecorder.stop();
     }
 
     /** Cancels the refresh timer if it runs (the panel and its views are kept for the next start). */
@@ -678,6 +713,8 @@ public final class GameSessionActivity extends AppCompatActivity {
 
     @Override protected void onSaveInstanceState(@NonNull Bundle outState) {
         outState.putInt(STATE_CATEGORY, selectedCategory);
+        outState.putBoolean(STATE_METRICS_EXPANDED,
+            processPanel != null ? processPanel.isMetricsExpanded() : metricsExpanded);
         if (inputSelection != null) outState.putString(STATE_INPUT_SELECTION, inputSelection);
         super.onSaveInstanceState(outState);
     }
@@ -689,10 +726,12 @@ public final class GameSessionActivity extends AppCompatActivity {
             binding.gameSessionX11.onHostResume();
             updateProcessRefresh();
         }
+        updateMetricsSampling();
     }
 
     @Override protected void onPause() {
         hostResumed = false;
+        updateMetricsSampling();
         stopProcessRefresh();
         if (binding != null) binding.gameSessionX11.onHostPause();
         super.onPause();
@@ -801,7 +840,9 @@ public final class GameSessionActivity extends AppCompatActivity {
 
     @Override protected void onDestroy() {
         destroyed = true;
+        if (metricsRecorder != null) metricsRecorder.stop();
         if (processPanel != null) {
+            processPanel.release();
             processPanel.stop();
             processPanel = null;
         }

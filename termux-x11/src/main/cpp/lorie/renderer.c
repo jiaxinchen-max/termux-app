@@ -133,6 +133,10 @@ static jclass lorieViewClass = NULL;
 static jmethodID setRendererViewportMethod = NULL;
 static jmethodID onRendererFramePresentedMethod = NULL;
 static bool firstFrameReported = true;
+// Cumulative number of frames the renderer thread successfully handed to the output surface
+// (eglSwapBuffers). Never reset: the Java side differences it once per second to get a real
+// presented-frame rate (see LorieView.getRenderedFrameCount).
+static volatile uint64_t presentedFrameCount = 0;
 static int reportedViewportX = -1, reportedViewportY = -1, reportedViewportW = -1, reportedViewportH = -1;
 static float reportedSourceLeft = -1.f, reportedSourceTop = -1.f, reportedSourceWidth = -1.f, reportedSourceHeight = -1.f;
 
@@ -589,6 +593,10 @@ void rendererSetViewport(__unused JNIEnv *env, __unused jclass clazz, int x, int
     pthread_mutex_unlock(&stateLock);
 }
 
+jlong rendererGetPresentedFrameCount(__unused JNIEnv *env, __unused jclass clazz) {
+    return (jlong) __atomic_load_n(&presentedFrameCount, __ATOMIC_RELAXED);
+}
+
 void rendererSetZoom(__unused JNIEnv *env, __unused jclass clazz, int percent) {
     pthread_mutex_lock(&stateLock);
     zoomPercent = percent < 100 ? 100 : (percent > 400 ? 400 : percent);
@@ -954,7 +962,7 @@ void rendererRedrawLocked(bool* waitingForBuffers) {
 
     if (eglSwapBuffers(egl_display, sfc) != EGL_TRUE)
         printEglError("Failed to swap buffers", __LINE__);
-    else if (!firstFrameReported && rendererEnv && lorieViewClass && onRendererFramePresentedMethod) {
+    else if (__atomic_add_fetch(&presentedFrameCount, 1, __ATOMIC_RELAXED) && !firstFrameReported && rendererEnv && lorieViewClass && onRendererFramePresentedMethod) {
         firstFrameReported = true;
         (*rendererEnv)->CallStaticVoidMethod(rendererEnv, lorieViewClass, onRendererFramePresentedMethod);
         if ((*rendererEnv)->ExceptionCheck(rendererEnv)) {

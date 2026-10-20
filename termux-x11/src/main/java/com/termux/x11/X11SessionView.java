@@ -195,6 +195,14 @@ public final class X11SessionView extends FrameLayout {
         return requireRuntime().createTaskManagerPanel(panelRoot, panelListener);
     }
 
+    /**
+     * Cumulative number of frames the X11/Lorie renderer has presented (-1 when unavailable). A
+     * once-per-second difference is the presented frame rate of the X11 surface.
+     */
+    public static long getRenderedFrameCount() {
+        return LorieView.renderedFrameCount();
+    }
+
     public boolean applyInputProfile(@NonNull String profileId) {
         return requireRuntime().applyGameInputProfile(profileId);
     }
