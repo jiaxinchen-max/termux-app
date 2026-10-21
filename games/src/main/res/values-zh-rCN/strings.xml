@@ -254,7 +254,6 @@
     <string name="local_game_session_waiting_frame">显示已连接，正在等待首帧…</string>
     <string name="local_game_session_running">游戏运行中</string>
     <string name="local_game_session_keyboard">键盘</string>
-    <string name="local_game_session_input">输入</string>
     <string name="local_game_session_exit">退出</string>
     <string name="local_game_session_exit_title">退出游戏？</string>
     <string name="local_game_session_exit_message">将安全停止游戏、Wine、音频和显示进程。</string>

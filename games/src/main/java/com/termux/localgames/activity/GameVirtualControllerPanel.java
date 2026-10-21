@@ -21,7 +21,7 @@ import java.util.List;
  * The "Virtual controller" entry of the in-game Operation panel and its drawer sub-page.
  *
  * <p>The entry row shows the profile currently attached to the on-screen controller (read live
- * from the session, so it never disagrees with the legacy Input dialog) and opens the sub-page
+ * from the session, so it never disagrees with the controller actually in use) and opens the sub-page
  * through {@code openPage}. The sub-page lists Off and every profile as single-choice rows;
  * choosing one applies it at once and reports the new {@code inputProfileId} (mapper prefix kept,
  * see {@link GameInputProfileChoices}) to the {@link Listener} for persistence. An "Edit controls"

@@ -223,15 +223,6 @@
                             android:layout_height="wrap_content"
                             android:text="@string/local_game_session_input_summary"
                             android:textColor="@color/local_games_on_surface_secondary" />
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/game_session_input"
-                            style="@style/Widget.TermuxLocalGames.OverlayRow"
-                            android:layout_width="match_parent"
-                            android:layout_height="@dimen/local_games_menu_row_min_height"
-                            android:layout_marginTop="8dp"
-                            android:gravity="start|center_vertical"
-                            android:text="@string/local_game_session_input"
-                            android:textAllCaps="false" />
                     </LinearLayout>
 
                     <LinearLayout

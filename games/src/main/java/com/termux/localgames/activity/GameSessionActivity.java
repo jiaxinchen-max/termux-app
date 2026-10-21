@@ -186,7 +186,6 @@ public final class GameSessionActivity extends AppCompatActivity {
     private void configureControlCenter() {
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         binding.gameSessionKeyboard.setOnClickListener(view -> binding.gameSessionX11.toggleKeyboard());
-        binding.gameSessionInput.setOnClickListener(view -> binding.gameSessionX11.showInputControls());
         binding.gameSessionMenu.setOnClickListener(view -> showControlDrawer());
         binding.gameSessionCloseDrawer.setOnClickListener(view -> hideControlDrawer());
         binding.gameSessionDrawerLayer.setOnClickListener(view -> hideControlDrawer());
@@ -266,8 +265,8 @@ public final class GameSessionActivity extends AppCompatActivity {
     }
 
     /**
-     * Adds the "Virtual controller" row above the legacy Input row of the Operation panel; the row
-     * opens the Virtual controller sub-page.
+     * Adds the "Virtual controller" row, the Operation panel's only controller entry, below its
+     * summary; the row opens the Virtual controller sub-page.
      */
     private void setUpVirtualControllerRow() {
         LinearLayout host = new LinearLayout(this);
@@ -275,8 +274,7 @@ public final class GameSessionActivity extends AppCompatActivity {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.topMargin = dp(8);
-        int index = binding.gameSessionPanelOperation.indexOfChild(binding.gameSessionInput);
-        binding.gameSessionPanelOperation.addView(host, Math.max(0, index), params);
+        binding.gameSessionPanelOperation.addView(host, params);
         virtualControllerPanel = new GameVirtualControllerPanel(this, binding.gameSessionX11, host,
             binding.gameSessionVcList, binding.gameSessionVcNotice, inputSelection,
             this::persistInputSelection, this::openVirtualControllerPage);

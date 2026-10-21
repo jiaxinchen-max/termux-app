@@ -303,7 +303,6 @@
     <string name="local_game_session_waiting_frame">Display connected · waiting for first frame…</string>
     <string name="local_game_session_running">Game is running</string>
     <string name="local_game_session_keyboard">Keyboard</string>
-    <string name="local_game_session_input">Input</string>
     <string name="local_game_session_exit">Exit</string>
     <string name="local_game_session_exit_title">Exit the game?</string>
     <string name="local_game_session_exit_message">The game, Wine, audio and display processes will be stopped safely.</string>
