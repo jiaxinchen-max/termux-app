@@ -16,7 +16,6 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -108,6 +107,8 @@ public final class GameSessionActivity extends AppCompatActivity {
     private int selectedCategory = CATEGORY_OPERATION;
     private AudioManager audioManager;
     private GameVirtualControllerPanel virtualControllerPanel;
+    /** True while the Virtual controller sub-page (third drawer level) replaces the Operation panel. */
+    private boolean virtualControllerPageOpen;
     private String gameId;
     /** Latest xinput/dinput[:id] selection of this session (frozen value until the user changes it). */
     private String inputSelection;
@@ -193,6 +194,7 @@ public final class GameSessionActivity extends AppCompatActivity {
         binding.gameSessionProcessNewTask.setOnClickListener(view -> {
             if (processPanel != null) processPanel.showNewTaskPrompt();
         });
+        binding.gameSessionPanelBack.setOnClickListener(view -> setVirtualControllerPageOpen(false));
         binding.gameSessionCategoryOperation.setOnClickListener(view -> selectCategory(CATEGORY_OPERATION));
         binding.gameSessionCategoryPerformance.setOnClickListener(view -> selectCategory(CATEGORY_PERFORMANCE));
         binding.gameSessionCategorySettings.setOnClickListener(view -> selectCategory(CATEGORY_SETTINGS));
@@ -263,7 +265,10 @@ public final class GameSessionActivity extends AppCompatActivity {
             binding.gameSessionInputWarning.setVisibility(View.VISIBLE);
     }
 
-    /** Adds the "Virtual controller" row above the legacy Input row of the Operation panel. */
+    /**
+     * Adds the "Virtual controller" row above the legacy Input row of the Operation panel; the row
+     * opens the Virtual controller sub-page.
+     */
     private void setUpVirtualControllerRow() {
         LinearLayout host = new LinearLayout(this);
         host.setOrientation(LinearLayout.VERTICAL);
@@ -273,7 +278,8 @@ public final class GameSessionActivity extends AppCompatActivity {
         int index = binding.gameSessionPanelOperation.indexOfChild(binding.gameSessionInput);
         binding.gameSessionPanelOperation.addView(host, Math.max(0, index), params);
         virtualControllerPanel = new GameVirtualControllerPanel(this, binding.gameSessionX11, host,
-            inputSelection, this::persistInputSelection);
+            binding.gameSessionVcList, binding.gameSessionVcNotice, inputSelection,
+            this::persistInputSelection, this::openVirtualControllerPage);
         virtualControllerPanel.render();
     }
 
@@ -288,8 +294,9 @@ public final class GameSessionActivity extends AppCompatActivity {
                 boolean saved = GameInputProfileChoices.persist(
                     new FileRuntimeProfileRepository(profilesDirectory), id, selection);
                 if (!saved) runOnUiThread(() -> {
-                    if (!destroyed) Toast.makeText(this,
-                        R.string.local_game_virtual_controller_save_failed, Toast.LENGTH_LONG).show();
+                    if (!destroyed && virtualControllerPanel != null) {
+                        virtualControllerPanel.showNotice(R.string.local_game_virtual_controller_save_failed);
+                    }
                 });
             });
         } catch (RejectedExecutionException ignored) {
@@ -385,8 +392,8 @@ public final class GameSessionActivity extends AppCompatActivity {
 
     private void selectCategory(int category) {
         selectedCategory = category;
-        binding.gameSessionPanelOperation.setVisibility(
-            category == CATEGORY_OPERATION ? View.VISIBLE : View.GONE);
+        // Picking any category (including Operation again) returns to that category's top level.
+        setVirtualControllerPageOpen(false);
         // Performance and Logs are their own pages (a fixed footer / a list that scrolls itself), not
         // panels of the scrolling panel container.
         binding.gameSessionPanelScroll.setVisibility(
@@ -425,6 +432,39 @@ public final class GameSessionActivity extends AppCompatActivity {
         applyProcessPageLayout();
         updateProcessRefresh();
         updateLogPage();
+    }
+
+    /** Opens the Virtual controller sub-page (a row of the Operation panel leads here). */
+    private void openVirtualControllerPage() {
+        if (binding == null || destroyed) return;
+        selectCategory(CATEGORY_OPERATION);
+        if (virtualControllerPanel != null) {
+            virtualControllerPanel.clearNotice();
+            virtualControllerPanel.render();
+        }
+        setVirtualControllerPageOpen(true);
+    }
+
+    /**
+     * Shows or leaves the Virtual controller sub-page. The page only exists under the Operation
+     * category: while open it replaces the Operation panel and the header gets a back button and the
+     * page title.
+     */
+    private void setVirtualControllerPageOpen(boolean open) {
+        if (binding == null) return;
+        boolean onOperation = selectedCategory == CATEGORY_OPERATION;
+        virtualControllerPageOpen = open && onOperation;
+        binding.gameSessionPanelOperation.setVisibility(
+            onOperation && !virtualControllerPageOpen ? View.VISIBLE : View.GONE);
+        binding.gameSessionPanelVirtualController.setVisibility(
+            virtualControllerPageOpen ? View.VISIBLE : View.GONE);
+        binding.gameSessionPanelBack.setVisibility(virtualControllerPageOpen ? View.VISIBLE : View.GONE);
+        if (onOperation) {
+            binding.gameSessionPanelTitle.setText(virtualControllerPageOpen
+                ? R.string.local_game_virtual_controller : R.string.local_game_session_operation_title);
+        }
+        if (virtualControllerPageOpen) binding.gameSessionPanelScroll.scrollTo(0, 0);
+        else if (virtualControllerPanel != null) virtualControllerPanel.render();
     }
 
     private void setCategorySelected(@NonNull MaterialButton button, boolean selected) {
@@ -541,10 +581,13 @@ public final class GameSessionActivity extends AppCompatActivity {
         lastBackHandledAtMs = now;
         boolean drawerOpen = binding.gameSessionDrawerLayer.getVisibility() == View.VISIBLE
             && !drawerHiding;
-        switch (GameSessionBackPolicy.decide(drawerOpen, false,
+        switch (GameSessionBackPolicy.decide(drawerOpen, virtualControllerPageOpen,
             exitConfirmationVisible || exitConfirmationPending || exitRequested)) {
             case OPEN_DRAWER:
                 showControlDrawer();
+                break;
+            case NAVIGATE_UP:
+                setVirtualControllerPageOpen(false);
                 break;
             case CLOSE_DRAWER:
                 hideControlDrawer();
@@ -877,7 +920,6 @@ public final class GameSessionActivity extends AppCompatActivity {
             processPanel.stop();
             processPanel = null;
         }
-        if (virtualControllerPanel != null) virtualControllerPanel.dismiss();
         if (logPanel != null) {
             logPanel.release();
             logPanel = null;

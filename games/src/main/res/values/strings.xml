@@ -510,7 +510,9 @@
     <string name="local_game_virtual_controller">Virtual controller</string>
     <string name="local_game_virtual_controller_description">Virtual controller: %1$s</string>
     <string name="local_game_virtual_controller_off">Off</string>
-    <string name="local_game_virtual_controller_edit">Edit controls…</string>
+    <string name="local_game_virtual_controller_edit">Edit controls</string>
+    <string name="local_game_virtual_controller_page_summary">Choose the on-screen controller layout for this game. A choice applies at once.</string>
+    <string name="local_game_virtual_controller_back">Back</string>
     <string name="local_game_virtual_controller_unnamed">Controller %1$d</string>
     <string name="local_game_virtual_controller_apply_failed">This controller layout could not be applied.</string>
     <string name="local_game_virtual_controller_editor_failed">The controller editor could not be opened.</string>

@@ -2,6 +2,8 @@ package com.termux.localgames.activity;
 
 import android.content.Context;
 import android.content.res.ColorStateList;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.ImageView;
@@ -21,6 +23,9 @@ import com.termux.localgames.R;
  * The title block and the chevron are both centred on the row's centre line; rows are at least
  * {@code local_games_menu_row_min_height} (48 dp) tall, also without a summary, and text
  * views drop the extra font padding that otherwise makes text sit high in its line box.
+ *
+ * <p>{@link #addChoice} is the single-choice variant used by in-drawer pages: the same row, but
+ * the selected one is tinted with an accent outline and ends with a check mark instead of a chevron.</p>
  */
 final class FrostedMenuRow {
 
@@ -43,13 +48,46 @@ final class FrostedMenuRow {
                             @NonNull CharSequence label, @Nullable CharSequence summary,
                             int summaryMaxLines, boolean interactive,
                             @Nullable View.OnClickListener onClick) {
+        LinearLayout row = build(context, parent, label, summary, summaryMaxLines,
+            FrostedWindow.surface(context, R.color.local_games_surface, FrostedWindow.ROW_RADIUS_DP));
+        if (interactive) {
+            addTrailingIcon(context, row, R.drawable.local_games_ic_chevron_right);
+            row.setClickable(true);
+            row.setOnClickListener(onClick);
+        }
+        return row;
+    }
+
+    /**
+     * Adds one single-choice row: like {@link #add} but the {@code selected} row gets the accent
+     * outline, a tinted fill and a trailing check mark (and is reported as selected to
+     * accessibility), while the others end without an icon. Always clickable.
+     */
+    static LinearLayout addChoice(@NonNull Context context, @NonNull LinearLayout parent,
+                                  @NonNull CharSequence label, @Nullable CharSequence summary,
+                                  boolean selected, @Nullable View.OnClickListener onClick) {
+        Drawable background = selected
+            ? selectedSurface(context)
+            : FrostedWindow.surface(context, R.color.local_games_surface, FrostedWindow.ROW_RADIUS_DP);
+        LinearLayout row = build(context, parent, label, summary, 1, background);
+        if (selected) addTrailingIcon(context, row, R.drawable.local_games_ic_check);
+        row.setSelected(selected);
+        row.setClickable(true);
+        row.setOnClickListener(onClick);
+        return row;
+    }
+
+    /** The row frame (padding, background, gap) with its title block, appended to {@code parent}. */
+    private static LinearLayout build(Context context, LinearLayout parent, CharSequence label,
+                                      @Nullable CharSequence summary, int summaryMaxLines,
+                                      Drawable background) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(context, PADDING_START_DP), dp(context, PADDING_VERTICAL_DP),
             dp(context, PADDING_END_DP), dp(context, PADDING_VERTICAL_DP));
         row.setMinimumHeight(context.getResources().getDimensionPixelSize(R.dimen.local_games_menu_row_min_height));
-        row.setBackground(FrostedWindow.surface(context, R.color.local_games_surface, FrostedWindow.ROW_RADIUS_DP));
+        row.setBackground(background);
         LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         rowParams.bottomMargin = dp(context, ROW_GAP_DP);
@@ -68,20 +106,27 @@ final class FrostedMenuRow {
             copy.addView(summaryView, summaryParams);
         }
         row.addView(copy, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-
-        if (interactive) {
-            ImageView chevron = new ImageView(context);
-            chevron.setImageResource(R.drawable.local_games_ic_chevron_right);
-            chevron.setImageTintList(ColorStateList.valueOf(
-                ContextCompat.getColor(context, R.color.local_games_primary_text)));
-            chevron.setScaleType(ImageView.ScaleType.CENTER);
-            chevron.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-            row.addView(chevron, new LinearLayout.LayoutParams(
-                dp(context, CHEVRON_BOX_DP), dp(context, CHEVRON_BOX_DP)));
-            row.setClickable(true);
-            row.setOnClickListener(onClick);
-        }
         return row;
+    }
+
+    private static void addTrailingIcon(Context context, LinearLayout row, int drawableRes) {
+        ImageView icon = new ImageView(context);
+        icon.setImageResource(drawableRes);
+        icon.setImageTintList(ColorStateList.valueOf(
+            ContextCompat.getColor(context, R.color.local_games_primary_text)));
+        icon.setScaleType(ImageView.ScaleType.CENTER);
+        icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        row.addView(icon, new LinearLayout.LayoutParams(
+            dp(context, CHEVRON_BOX_DP), dp(context, CHEVRON_BOX_DP)));
+    }
+
+    /** The selected-row frame: the pressed-accent tint with a 1.5 dp primary outline. */
+    private static Drawable selectedSurface(Context context) {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setColor(ContextCompat.getColor(context, R.color.local_games_surface_pressed));
+        shape.setCornerRadius(dp(context, FrostedWindow.ROW_RADIUS_DP));
+        shape.setStroke(Math.round(dp(context, 1) * 1.5f), ContextCompat.getColor(context, R.color.local_games_primary));
+        return shape;
     }
 
     private static TextView text(Context context, CharSequence value, float sizeSp, @ColorRes int colorRes) {

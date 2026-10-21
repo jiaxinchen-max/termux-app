@@ -163,6 +163,15 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
+                    <ImageButton
+                        android:id="@+id/game_session_panel_back"
+                        style="?attr/borderlessButtonStyle"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_marginEnd="4dp"
+                        android:contentDescription="@string/local_game_virtual_controller_back"
+                        android:src="@drawable/local_games_ic_back"
+                        android:visibility="gone" />
                     <TextView
                         android:id="@+id/game_session_panel_title"
                         android:layout_width="0dp"
@@ -290,6 +299,35 @@
                             android:layout_marginTop="18dp"
                             android:text="@string/local_game_session_keyboard_open"
                             android:textAllCaps="false" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/game_session_panel_virtual_controller"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+                        <!-- Third level of the drawer: opened from the Virtual controller row of the
+                             Operation panel; the rows are added by GameVirtualControllerPanel. -->
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/local_game_virtual_controller_page_summary"
+                            android:textColor="@color/local_games_on_surface_secondary" />
+                        <LinearLayout
+                            android:id="@+id/game_session_vc_list"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="vertical" />
+                        <TextView
+                            android:id="@+id/game_session_vc_notice"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/local_games_error"
+                            android:textSize="13sp"
+                            android:visibility="gone" />
                     </LinearLayout>
                 </FrameLayout>
                 </ScrollView>

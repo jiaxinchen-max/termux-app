@@ -1,20 +1,15 @@
 package com.termux.localgames.activity;
 
 import android.app.Activity;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
+import androidx.annotation.StringRes;
 
 import com.termux.localgames.R;
 import com.termux.x11.X11SessionView;
@@ -23,12 +18,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The "Virtual controller" row of the in-game Operation panel plus its Frosted profile dialog.
+ * The "Virtual controller" entry of the in-game Operation panel and its drawer sub-page.
  *
- * <p>The row shows the profile currently attached to the on-screen controller (read live from the
- * session, so it never disagrees with the legacy Input dialog). Choosing a line in the dialog applies
- * it at once and reports the new {@code inputProfileId} (mapper prefix kept, see
- * {@link GameInputProfileChoices}) to the {@link Listener} for persistence.</p>
+ * <p>The entry row shows the profile currently attached to the on-screen controller (read live
+ * from the session, so it never disagrees with the legacy Input dialog) and opens the sub-page
+ * through {@code openPage}. The sub-page lists Off and every profile as single-choice rows;
+ * choosing one applies it at once and reports the new {@code inputProfileId} (mapper prefix kept,
+ * see {@link GameInputProfileChoices}) to the {@link Listener} for persistence. An "Edit controls"
+ * row opens the editor. Problems are reported as an inline notice on the page, never as a popup.</p>
  */
 final class GameVirtualControllerPanel {
 
@@ -38,44 +35,38 @@ final class GameVirtualControllerPanel {
         void onInputProfileSelected(@NonNull String inputProfileId);
     }
 
-    private static final int ROW_MIN_HEIGHT_DP = 48;
-
     private final Activity activity;
     private final X11SessionView session;
-    private final LinearLayout host;
+    private final LinearLayout entryHost;
+    private final LinearLayout pageList;
+    private final TextView notice;
     private final Listener listener;
+    private final Runnable openPage;
     private final String mapperSelection;
     /** Profile id last applied/persisted through this panel; 0 = off. */
     private int trackedProfileId;
-    @Nullable private AlertDialog dialog;
 
     GameVirtualControllerPanel(@NonNull Activity activity, @NonNull X11SessionView session,
-                               @NonNull LinearLayout host, @NonNull String initialSelection,
-                               @NonNull Listener listener) {
+                               @NonNull LinearLayout entryHost, @NonNull LinearLayout pageList,
+                               @NonNull TextView notice, @NonNull String initialSelection,
+                               @NonNull Listener listener, @NonNull Runnable openPage) {
         this.activity = activity;
         this.session = session;
-        this.host = host;
+        this.entryHost = entryHost;
+        this.pageList = pageList;
+        this.notice = notice;
         this.listener = listener;
+        this.openPage = openPage;
         String mapper = GameInputProfileChoices.mapperOf(initialSelection);
         this.mapperSelection = mapper == null ? "xinput" : mapper;
         this.trackedProfileId = GameInputProfileChoices.profileIdOf(initialSelection);
     }
 
-    /** Rebuilds the row from the live session state (call when the drawer opens). */
+    /** Rebuilds the entry row and the sub-page rows from the live session state. */
     void render() {
-        host.removeAllViews();
         List<GameInputProfileChoices.Choice> choices = currentChoices();
-        String summary = GameInputProfileChoices.summary(choices, offLabel());
-        LinearLayout row = FrostedMenuRow.add(activity, host,
-            activity.getString(R.string.local_game_virtual_controller), summary, 1, true,
-            view -> showDialog());
-        ViewGroup.LayoutParams params = row.getLayoutParams();
-        if (params instanceof LinearLayout.LayoutParams) {
-            ((LinearLayout.LayoutParams) params).bottomMargin = 0; // spacing comes from the host
-            row.setLayoutParams(params);
-        }
-        row.setContentDescription(activity.getString(
-            R.string.local_game_virtual_controller_description, summary));
+        renderEntry(choices);
+        renderPage(choices);
     }
 
     /**
@@ -95,62 +86,42 @@ final class GameVirtualControllerPanel {
         return true;
     }
 
-    /** Closes the dialog (Activity going away). */
-    void dismiss() {
-        AlertDialog shown = dialog;
-        dialog = null;
-        if (shown != null && shown.isShowing()) shown.dismiss();
+    /** Shows {@code messageRes} on the sub-page (below the rows). */
+    void showNotice(@StringRes int messageRes) {
+        notice.setText(messageRes);
+        notice.setVisibility(View.VISIBLE);
     }
 
-    private void showDialog() {
-        if (dialog != null && dialog.isShowing()) return;
-        List<GameInputProfileChoices.Choice> choices = currentChoices();
-        List<String> labels = new ArrayList<>();
-        for (GameInputProfileChoices.Choice choice : choices) labels.add(choice.label);
-        int checked = GameInputProfileChoices.checkedIndex(choices);
+    void clearNotice() {
+        notice.setText("");
+        notice.setVisibility(View.GONE);
+    }
 
-        ListView list = new ListView(activity);
-        list.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
-        list.setAdapter(new ArrayAdapter<String>(activity,
-            android.R.layout.simple_list_item_single_choice, labels) {
-            @NonNull
-            @Override
-            public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-                View row = super.getView(position, convertView, parent);
-                row.setMinimumHeight(dp(ROW_MIN_HEIGHT_DP));
-                if (row instanceof TextView) ((TextView) row).setMinHeight(dp(ROW_MIN_HEIGHT_DP));
-                return row;
-            }
-        });
-        list.setItemChecked(checked, true);
-        ConfigurationAwareFrameLayout content = new ConfigurationAwareFrameLayout(activity);
-        content.addView(list, new ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, listHeight()));
-        content.setListener(configuration -> {
-            ViewGroup.LayoutParams params = list.getLayoutParams();
-            int height = listHeight();
-            if (params != null && params.height != height) {
-                params.height = height;
-                list.setLayoutParams(params);
-            }
-        });
+    private void renderEntry(@NonNull List<GameInputProfileChoices.Choice> choices) {
+        entryHost.removeAllViews();
+        String summary = GameInputProfileChoices.summary(choices, offLabel());
+        LinearLayout row = FrostedMenuRow.add(activity, entryHost,
+            activity.getString(R.string.local_game_virtual_controller), summary, 1, true,
+            view -> openPage.run());
+        ViewGroup.LayoutParams params = row.getLayoutParams();
+        if (params instanceof LinearLayout.LayoutParams) {
+            ((LinearLayout.LayoutParams) params).bottomMargin = 0; // spacing comes from the host
+            row.setLayoutParams(params);
+        }
+        row.setContentDescription(activity.getString(
+            R.string.local_game_virtual_controller_description, summary));
+    }
 
-        AlertDialog created = new FrostedDialogBuilder(activity)
-            .setTitle(R.string.local_game_virtual_controller)
-            .setView(content)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setNeutralButton(R.string.local_game_virtual_controller_edit,
-                (d, which) -> openEditor())
-            .create();
-        list.setOnItemClickListener((parent, view, position, id) -> {
-            created.dismiss();
-            select(choices.get(position).profileId);
-        });
-        created.setOnDismissListener((DialogInterface d) -> {
-            if (dialog == created) dialog = null;
-        });
-        dialog = created;
-        created.show();
+    private void renderPage(@NonNull List<GameInputProfileChoices.Choice> choices) {
+        pageList.removeAllViews();
+        for (GameInputProfileChoices.Choice choice : choices) {
+            final int profileId = choice.profileId;
+            FrostedMenuRow.addChoice(activity, pageList, choice.label, null, choice.checked,
+                view -> select(profileId));
+        }
+        FrostedMenuRow.add(activity, pageList,
+            activity.getString(R.string.local_game_virtual_controller_edit), null, 1, true,
+            view -> openEditor());
     }
 
     private void select(int profileId) {
@@ -158,7 +129,7 @@ final class GameVirtualControllerPanel {
         try {
             selection = GameInputProfileChoices.compose(mapperSelection, profileId);
         } catch (IllegalArgumentException error) {
-            toast(R.string.local_game_virtual_controller_apply_failed);
+            showNotice(R.string.local_game_virtual_controller_apply_failed);
             return;
         }
         boolean applied;
@@ -168,11 +139,12 @@ final class GameVirtualControllerPanel {
             applied = false;
         }
         if (!applied) {
-            toast(R.string.local_game_virtual_controller_apply_failed);
             render();
+            showNotice(R.string.local_game_virtual_controller_apply_failed);
             return;
         }
         trackedProfileId = profileId;
+        clearNotice();
         render();
         listener.onInputProfileSelected(selection);
     }
@@ -180,8 +152,9 @@ final class GameVirtualControllerPanel {
     private void openEditor() {
         try {
             session.openInputControlsEditor();
+            clearNotice();
         } catch (RuntimeException error) { // ActivityNotFoundException, unbound session
-            toast(R.string.local_game_virtual_controller_editor_failed);
+            showNotice(R.string.local_game_virtual_controller_editor_failed);
         }
     }
 
@@ -203,18 +176,5 @@ final class GameVirtualControllerPanel {
 
     private String offLabel() {
         return activity.getString(R.string.local_game_virtual_controller_off);
-    }
-
-    private int listHeight() {
-        DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
-        return DialogSizing.listHeightPx(metrics.heightPixels, metrics.density);
-    }
-
-    private int dp(int value) {
-        return Math.round(value * activity.getResources().getDisplayMetrics().density);
-    }
-
-    private void toast(int messageRes) {
-        Toast.makeText(activity, messageRes, Toast.LENGTH_LONG).show();
     }
 }
