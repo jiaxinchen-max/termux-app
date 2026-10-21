@@ -3,8 +3,9 @@ package com.termux.x11.controller.winhandler;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
-import android.graphics.drawable.GradientDrawable;
+import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
@@ -73,6 +74,8 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
     /** Games host only: the 60 s history; null keeps the dialog's text-only dashboard. */
     @Nullable
     private PerformanceMetricsSampler metrics;
+    private final ProcessIconLoader iconLoader = new ProcessIconLoader();
+    private static final Object DEFAULT_ICON_TAG = new Object();
     private boolean metricsExpanded;
     /** Compact grid cell: the expanded dashboard is two rows of two charts. */
     private static final int CHART_HEIGHT_DP = 64;
@@ -179,6 +182,7 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
 
     /** Releases the sampler listener; call when the panel is dropped. */
     public void release() {
+        iconLoader.release();
         if (metrics != null) metrics.setListener(null);
     }
 
@@ -376,7 +380,6 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
         ((TextView) find(R.id.TVEmptyText)).setTextColor(palette.onSurfaceSecondary);
         ((TextView) find(R.id.TVMemoryInfo)).setTextColor(palette.onSurface);
         ((TextView) find(R.id.TVFpsInfo)).setTextColor(palette.onSurface);
-        ((TextView) find(R.id.TVMetricsToggle)).setTextColor(palette.accent);
         ((ImageView) find(R.id.IVMetricsToggle)).setColorFilter(palette.accent);
         GradientDrawable toggle = new GradientDrawable();
         toggle.setColor(Color.TRANSPARENT);
@@ -460,7 +463,8 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
         find(R.id.LLChartsPanel).setVisibility(expanded ? View.VISIBLE : View.GONE);
         find(R.id.TVFpsInfo).setVisibility(expanded ? View.INVISIBLE : View.VISIBLE);
         find(R.id.TVTemperatureInfo).setVisibility(expanded ? View.INVISIBLE : View.VISIBLE);
-        ((TextView) find(R.id.TVMetricsToggle)).setText(expanded ? R.string.metrics_collapse : R.string.metrics_expand);
+        find(R.id.BTMetricsToggle).setContentDescription(
+            activity.getString(expanded ? R.string.metrics_collapse : R.string.metrics_expand));
         ((ImageView) find(R.id.IVMetricsToggle)).setImageResource(
             expanded ? R.drawable.ic_metrics_collapse : R.drawable.ic_metrics_expand);
         if (enabled) onMetricsChanged();
@@ -641,13 +645,30 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
         itemView.findViewById(R.id.BTMenu).setOnClickListener((v) -> showListItemMenu(v, processInfo));
 
         ImageView ivIcon = itemView.findViewById(R.id.IVIcon);
-        if (ivIcon != null)
-            ivIcon.setImageResource(R.drawable.taskmgr_process);
+        if (ivIcon != null) bindProcessIcon(ivIcon, processInfo);
 
         if (index >= childCount) container.addView(itemView);
 
         if (index == numProcesses - 1 && childCount > numProcesses) {
             for (int i = childCount - 1; i >= numProcesses; i--) container.removeViewAt(i);
+        }
+    }
+
+    /**
+     * The process's real program icon once the background lookup found it, otherwise the default
+     * (accent-tinted) icon. The row is only touched when what it shows changes.
+     */
+    private void bindProcessIcon(ImageView icon, ProcessInfo processInfo) {
+        Bitmap real = iconLoader.get(processInfo.pid, processInfo.name);
+        if (real != null) {
+            if (icon.getTag() == real) return;
+            icon.clearColorFilter();
+            icon.setImageBitmap(real);
+            icon.setTag(real);
+        } else if (icon.getTag() != DEFAULT_ICON_TAG) {
+            icon.setImageResource(R.drawable.ic_process_default);
+            icon.setColorFilter(palette != null ? palette.accent : activity.getColor(R.color.colorPrimary));
+            icon.setTag(DEFAULT_ICON_TAG);
         }
     }
 
