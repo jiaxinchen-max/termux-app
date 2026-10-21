@@ -12,6 +12,9 @@
     <dimen name="local_games_overlay_padding">12dp</dimen>
     <dimen name="local_games_overlay_nav_width">104dp</dimen>
     <dimen name="local_games_overlay_nav_gap">8dp</dimen>
+    <!-- Session log viewer: monospace line text size and the touch size of its Refresh button. -->
+    <dimen name="local_games_log_text_size">11sp</dimen>
+    <dimen name="local_games_log_button_size">48dp</dimen>
     <!-- Horizontal page padding shared by the Settings menu (activity_local_games) and the
          programmatic runtime-options page (GameRuntimeOptionsView), so their rows line up. -->
     <dimen name="local_games_page_horizontal_padding">16dp</dimen>

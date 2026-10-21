@@ -44,6 +44,9 @@
     <color name="local_games_terminal_background">#FF000000</color>
     <color name="local_games_terminal_text">#FFFFFFFF</color>
     <color name="local_games_terminal_secondary">#B3A598</color>
+    <color name="local_games_log_warn">#F4B45F</color>
+    <color name="local_games_log_warn_container">#26F4B45F</color>
+    <color name="local_games_log_debug">#B3A598</color>
     <color name="local_games_system_bar_legacy">#17110D</color>
     <!-- true: light system bars icons are dark (light mode) -->
     <bool name="local_games_light_system_bars">false</bool>

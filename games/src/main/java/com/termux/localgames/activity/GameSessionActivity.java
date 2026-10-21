@@ -60,9 +60,13 @@ public final class GameSessionActivity extends AppCompatActivity {
     private static final int CATEGORY_PERFORMANCE = 1;
     private static final int CATEGORY_SETTINGS = 2;
     private static final int CATEGORY_KEYBOARD = 3;
+    private static final int CATEGORY_LOGS = 4;
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "GamesSessionIo"));
+    /** Reads the launch log for the Logs page; separate so a large log never delays {@link #ioExecutor}'s session reports. */
+    private final ExecutorService logExecutor = Executors.newSingleThreadExecutor(runnable ->
+        new Thread(runnable, "GamesSessionLog"));
     private ActivityGameSessionBinding binding;
     private PersistentLocalGameOrchestrator orchestrator;
     private Subscription subscription;
@@ -98,6 +102,9 @@ public final class GameSessionActivity extends AppCompatActivity {
     /** The Expand/Collapse choice; survives Activity recreation through the saved state. */
     private boolean metricsExpanded;
     private LaunchTask currentTask;
+    /** The Logs page controller; created the first time that page is shown. Null until then. */
+    @Nullable
+    private GameLogPanel logPanel;
     private int selectedCategory = CATEGORY_OPERATION;
     private AudioManager audioManager;
     private GameVirtualControllerPanel virtualControllerPanel;
@@ -186,11 +193,11 @@ public final class GameSessionActivity extends AppCompatActivity {
         binding.gameSessionProcessNewTask.setOnClickListener(view -> {
             if (processPanel != null) processPanel.showNewTaskPrompt();
         });
-        binding.gameSessionLogs.setOnClickListener(view -> showRuntimeLog());
         binding.gameSessionCategoryOperation.setOnClickListener(view -> selectCategory(CATEGORY_OPERATION));
         binding.gameSessionCategoryPerformance.setOnClickListener(view -> selectCategory(CATEGORY_PERFORMANCE));
         binding.gameSessionCategorySettings.setOnClickListener(view -> selectCategory(CATEGORY_SETTINGS));
         binding.gameSessionCategoryKeyboard.setOnClickListener(view -> selectCategory(CATEGORY_KEYBOARD));
+        binding.gameSessionCategoryLogs.setOnClickListener(view -> selectCategory(CATEGORY_LOGS));
         binding.gameSessionExit.setOnClickListener(view -> requestSafeExitConfirmation());
         binding.gameSessionExitCompact.setOnClickListener(view -> requestSafeExitConfirmation());
         configureSessionSettings();
@@ -307,6 +314,7 @@ public final class GameSessionActivity extends AppCompatActivity {
 
     private void render(LaunchTask task) {
         currentTask = task;
+        if (logPanel != null) logPanel.setLogRef(task.getLogRef());
         if (task.getState().isTerminal()) {
             if ((!exitConfirmationVisible && !exitConfirmationPending) || exitRequested)
                 returnToGameLibrary();
@@ -379,10 +387,11 @@ public final class GameSessionActivity extends AppCompatActivity {
         selectedCategory = category;
         binding.gameSessionPanelOperation.setVisibility(
             category == CATEGORY_OPERATION ? View.VISIBLE : View.GONE);
-        // Performance is its own page (the embedded task manager with a fixed footer), not a panel
-        // of the scrolling panel container.
+        // Performance and Logs are their own pages (a fixed footer / a list that scrolls itself), not
+        // panels of the scrolling panel container.
         binding.gameSessionPanelScroll.setVisibility(
-            category == CATEGORY_PERFORMANCE ? View.GONE : View.VISIBLE);
+            category == CATEGORY_PERFORMANCE || category == CATEGORY_LOGS ? View.GONE : View.VISIBLE);
+        binding.gameSessionLogPage.setVisibility(category == CATEGORY_LOGS ? View.VISIBLE : View.GONE);
         binding.gameSessionProcessPage.setVisibility(
             category == CATEGORY_PERFORMANCE ? View.VISIBLE : View.GONE);
         binding.gameSessionPanelSettings.setVisibility(
@@ -400,6 +409,9 @@ public final class GameSessionActivity extends AppCompatActivity {
             case CATEGORY_KEYBOARD:
                 title = R.string.local_game_session_keyboard_title;
                 break;
+            case CATEGORY_LOGS:
+                title = R.string.local_game_session_logs;
+                break;
             default:
                 title = R.string.local_game_session_operation_title;
                 break;
@@ -409,8 +421,10 @@ public final class GameSessionActivity extends AppCompatActivity {
         setCategorySelected(binding.gameSessionCategoryPerformance, category == CATEGORY_PERFORMANCE);
         setCategorySelected(binding.gameSessionCategorySettings, category == CATEGORY_SETTINGS);
         setCategorySelected(binding.gameSessionCategoryKeyboard, category == CATEGORY_KEYBOARD);
+        setCategorySelected(binding.gameSessionCategoryLogs, category == CATEGORY_LOGS);
         applyProcessPageLayout();
         updateProcessRefresh();
+        updateLogPage();
     }
 
     private void setCategorySelected(@NonNull MaterialButton button, boolean selected) {
@@ -431,12 +445,14 @@ public final class GameSessionActivity extends AppCompatActivity {
             binding.gameSessionDrawer.animate().cancel();
             binding.gameSessionDrawer.animate().translationX(0).translationY(0).setDuration(180).start();
             updateProcessRefresh();
+            updateLogPage();
             return;
         }
         cancelDrawerAnimation();
         binding.gameSessionMenu.setVisibility(View.GONE);
         binding.gameSessionDrawerLayer.setVisibility(View.VISIBLE);
         updateProcessRefresh();
+        updateLogPage();
         // The drawer's size is only known after layout: park it off-screen and slide it in on the
         // first draw, so no frame shows it at rest first.
         final View drawer = binding.gameSessionDrawer;
@@ -456,8 +472,10 @@ public final class GameSessionActivity extends AppCompatActivity {
         if (binding == null || drawerHiding
             || binding.gameSessionDrawerLayer.getVisibility() != View.VISIBLE) return;
         drawerHiding = true;
-        // The process refresh must not keep running behind a closing/closed drawer.
+        // The process refresh must not keep running behind a closing/closed drawer, and the log
+        // search keyboard must not stay up over the game.
         stopProcessRefresh();
+        updateLogPage();
         float hidden = drawerHiddenOffset();
         binding.gameSessionDrawer.animate()
             .translationX(drawerBottomSheet ? 0 : hidden)
@@ -496,18 +514,6 @@ public final class GameSessionActivity extends AppCompatActivity {
     private void setDrawerTranslation(@NonNull View drawer, float offset) {
         drawer.setTranslationX(drawerBottomSheet ? 0 : offset);
         drawer.setTranslationY(drawerBottomSheet ? offset : 0);
-    }
-
-    private void showRuntimeLog() {
-        LaunchTask task = currentTask;
-        String message = task == null || task.getLogRef().isEmpty()
-            ? getString(R.string.local_game_session_log_pending)
-            : task.getLogRef();
-        new FrostedDialogBuilder(this)
-            .setTitle(R.string.local_game_session_logs)
-            .setMessage(message)
-            .setPositiveButton(android.R.string.ok, null)
-            .show();
     }
 
     private void safeExit() {
@@ -613,6 +619,31 @@ public final class GameSessionActivity extends AppCompatActivity {
         } catch (IllegalStateException winHandlerNotReady) {
             // Nothing was started; selecting the page again retries.
         }
+    }
+
+    /**
+     * The one place that decides whether the Logs page is "shown" (its log is loaded on becoming
+     * shown): only while that page is selected and the drawer is open (not sliding out). Called on
+     * every state change that could flip that; the panel ignores a repeated state.
+     */
+    private void updateLogPage() {
+        if (binding == null || destroyed) return;
+        boolean drawerOpen = binding.gameSessionDrawerLayer.getVisibility() == View.VISIBLE
+            && !drawerHiding;
+        if (drawerOpen && selectedCategory == CATEGORY_LOGS) {
+            ensureLogPanel().setShown(true);
+        } else if (logPanel != null) {
+            logPanel.setShown(false);
+        }
+    }
+
+    private GameLogPanel ensureLogPanel() {
+        if (logPanel == null) {
+            logPanel = new GameLogPanel(this, logExecutor, binding.gameSessionLogList,
+                binding.gameSessionLogStatus, binding.gameSessionLogRefresh);
+            logPanel.setLogRef(currentTask == null ? null : currentTask.getLogRef());
+        }
+        return logPanel;
     }
 
     /**
@@ -812,7 +843,7 @@ public final class GameSessionActivity extends AppCompatActivity {
         for (View button : new View[] {
             binding.gameSessionCategoryOperation, binding.gameSessionCategoryPerformance,
             binding.gameSessionCategorySettings, binding.gameSessionCategoryKeyboard,
-            binding.gameSessionExit}) {
+            binding.gameSessionCategoryLogs, binding.gameSessionExit}) {
             LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) button.getLayoutParams();
             params.width = compact ? ViewGroup.LayoutParams.WRAP_CONTENT
                 : ViewGroup.LayoutParams.MATCH_PARENT;
@@ -847,9 +878,14 @@ public final class GameSessionActivity extends AppCompatActivity {
             processPanel = null;
         }
         if (virtualControllerPanel != null) virtualControllerPanel.dismiss();
+        if (logPanel != null) {
+            logPanel.release();
+            logPanel = null;
+        }
         if (subscription != null) subscription.close();
         if (binding != null) binding.gameSessionX11.unbind();
         ioExecutor.shutdownNow();
+        logExecutor.shutdownNow();
         binding = null;
         super.onDestroy();
     }

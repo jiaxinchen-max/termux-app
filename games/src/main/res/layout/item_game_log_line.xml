@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One row of the in-game log viewer: line-number gutter, level badge and the (wrapping) line text.
+     Colors and the number-gutter width are set by GameLogAdapter. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingStart="4dp"
+    android:paddingTop="1dp"
+    android:paddingEnd="4dp"
+    android:paddingBottom="1dp">
+
+    <TextView
+        android:id="@+id/game_log_number"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:paddingEnd="6dp"
+        android:textColor="@color/local_games_on_surface_secondary"
+        android:textSize="@dimen/local_games_log_text_size"
+        android:typeface="monospace" />
+
+    <TextView
+        android:id="@+id/game_log_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingEnd="6dp"
+        android:textSize="@dimen/local_games_log_text_size"
+        android:textStyle="bold"
+        android:typeface="monospace" />
+
+    <TextView
+        android:id="@+id/game_log_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="@color/local_games_on_surface"
+        android:textSize="@dimen/local_games_log_text_size"
+        android:typeface="monospace" />
+</LinearLayout>

@@ -47,6 +47,10 @@
     <color name="local_games_terminal_background">#FF000000</color>
     <color name="local_games_terminal_text">#FFFFFFFF</color>
     <color name="local_games_terminal_secondary">#B3A598</color>
+    <!-- Session log viewer: level text colors (error reuses local_games_error) and tinted row fills. -->
+    <color name="local_games_log_warn">#955A0E</color>
+    <color name="local_games_log_warn_container">#1FB97A1E</color>
+    <color name="local_games_log_debug">#74665A</color>
     <color name="local_games_system_bar_legacy">#8C7C6B</color>
     <!-- true: light system bars icons are dark (light mode) -->
     <bool name="local_games_light_system_bars">true</bool>

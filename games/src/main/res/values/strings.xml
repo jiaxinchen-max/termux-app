@@ -382,6 +382,13 @@
     <string name="local_game_session_settings">Settings</string>
     <string name="local_game_session_logs">Runtime logs</string>
     <string name="local_game_session_log_pending">Runtime log is not available yet.</string>
+    <string name="local_game_session_logs_nav">Logs</string>
+    <string name="local_game_session_log_refresh">Refresh log</string>
+    <string name="local_game_session_log_empty">The log is empty.</string>
+    <string name="local_game_session_log_read_failed">Could not read the log.</string>
+    <string name="local_game_session_log_range">Lines %1$d–%2$d of %3$d · scroll up for earlier lines</string>
+    <string name="local_game_session_log_buffer_limit">Lines %1$d–%2$d of %3$d · buffer limit reached, refresh to return to the latest lines</string>
+    <string name="local_game_session_log_loading_earlier">Loading earlier lines…</string>
     <string name="local_game_session_close">Close control center</string>
     <string name="local_game_session_operation_title">Operation</string>
     <string name="local_game_session_performance_title">Performance</string>

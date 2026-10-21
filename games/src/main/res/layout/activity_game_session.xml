@@ -126,6 +126,14 @@
                     android:gravity="start|center_vertical"
                     android:text="@string/local_game_session_keyboard"
                     android:textAllCaps="false" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/game_session_category_logs"
+                    style="@style/Widget.TermuxLocalGames.OverlayNav"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/local_games_menu_row_min_height"
+                    android:gravity="start|center_vertical"
+                    android:text="@string/local_game_session_logs_nav"
+                    android:textAllCaps="false" />
                 <Space
                     android:id="@+id/game_session_nav_spacer"
                     android:layout_width="1dp"
@@ -214,15 +222,6 @@
                             android:layout_marginTop="8dp"
                             android:gravity="start|center_vertical"
                             android:text="@string/local_game_session_input"
-                            android:textAllCaps="false" />
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/game_session_logs"
-                            style="@style/Widget.TermuxLocalGames.OverlayRow"
-                            android:layout_width="match_parent"
-                            android:layout_height="@dimen/local_games_menu_row_min_height"
-                            android:layout_marginTop="8dp"
-                            android:gravity="start|center_vertical"
-                            android:text="@string/local_game_session_logs"
                             android:textAllCaps="false" />
                     </LinearLayout>
 
@@ -345,6 +344,54 @@
                             android:text="@string/new_task"
                             android:textAllCaps="false" />
                     </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/game_session_log_page"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_marginTop="14dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+                    <!-- The Logs page: a status line (displayed range / loading / errors) with the Refresh
+                         button above the log list, which owns its own scrolling and pages in older
+                         lines when scrolled to its top (like the Performance page, it lives outside
+                         the scrolling panel container). -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+                        <TextView
+                            android:id="@+id/game_session_log_status"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textColor="@color/local_games_on_surface_secondary"
+                            android:textSize="12sp" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/game_session_log_refresh"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="@dimen/local_games_log_button_size"
+                            android:layout_height="@dimen/local_games_log_button_size"
+                            android:contentDescription="@string/local_game_session_log_refresh"
+                            android:insetLeft="0dp"
+                            android:insetRight="0dp"
+                            android:minWidth="0dp"
+                            android:padding="0dp"
+                            android:text="↻"
+                            android:textSize="18sp" />
+                    </LinearLayout>
+                    <ListView
+                        android:id="@+id/game_session_log_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_marginTop="6dp"
+                        android:layout_weight="1"
+                        android:divider="@null"
+                        android:dividerHeight="0dp"
+                        android:scrollbars="vertical" />
                 </LinearLayout>
             </LinearLayout>
         </com.termux.localgames.activity.CappedHeightLinearLayout>
