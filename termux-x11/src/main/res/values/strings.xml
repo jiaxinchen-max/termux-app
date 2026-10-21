@@ -381,6 +381,9 @@
     <string name="metrics_fps_line">FPS: %1$s</string>
     <string name="metrics_fps_value">%1$s fps</string>
     <string name="metrics_unavailable">--</string>
+    <string name="metrics_temperature">Temperature</string>
+    <string name="metrics_temperature_value">%1$s °C</string>
+    <string name="metrics_temperature_line">Temperature: %1$s</string>
     <string name="orientation">Orientation</string>
     <string name="horizontal">Horizontal</string>
     <string name="vertical">Vertical</string>

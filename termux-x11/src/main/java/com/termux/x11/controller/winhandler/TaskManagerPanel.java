@@ -34,6 +34,7 @@ import com.termux.x11.controller.winhandler.metrics.PerformanceMetricsSampler;
 import com.termux.x11.controller.widget.CPUListView;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -73,10 +74,12 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
     @Nullable
     private PerformanceMetricsSampler metrics;
     private boolean metricsExpanded;
-    private static final int CHART_HEIGHT_DP = 96;
+    /** Compact grid cell: the expanded dashboard is two rows of two charts. */
+    private static final int CHART_HEIGHT_DP = 64;
     private ChartBlock fpsChart;
     private ChartBlock cpuChart;
     private ChartBlock memoryChart;
+    private ChartBlock temperatureChart;
 
     /** One chart of the expanded dashboard: title, latest value and the line chart. */
     private static final class ChartBlock {
@@ -369,6 +372,7 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
         }
         ((TextView) find(R.id.TVCPUTitle)).setTextColor(palette.accent);
         ((TextView) find(R.id.TVMemoryTitle)).setTextColor(palette.accent);
+        ((TextView) find(R.id.TVTemperatureInfo)).setTextColor(palette.onSurface);
         ((TextView) find(R.id.TVEmptyText)).setTextColor(palette.onSurfaceSecondary);
         ((TextView) find(R.id.TVMemoryInfo)).setTextColor(palette.onSurface);
         ((TextView) find(R.id.TVFpsInfo)).setTextColor(palette.onSurface);
@@ -384,32 +388,52 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
     private void ensureCharts() {
         if (fpsChart != null) return;
         LinearLayout container = find(R.id.LLChartsPanel);
-        fpsChart = createChartBlock(container, activity.getString(R.string.metrics_fps), false, false);
-        cpuChart = createChartBlock(container, "CPU", true, true);
-        memoryChart = createChartBlock(container, activity.getString(R.string.memory), true, true);
+        LinearLayout top = createChartRow(container, false);
+        LinearLayout bottom = createChartRow(container, true);
+        fpsChart = createChartBlock(top, activity.getString(R.string.metrics_fps), false);
+        cpuChart = createChartBlock(top, "CPU", true);
+        memoryChart = createChartBlock(bottom, activity.getString(R.string.memory), false);
+        temperatureChart = createChartBlock(bottom, activity.getString(R.string.metrics_temperature), true);
     }
 
-    private ChartBlock createChartBlock(LinearLayout container, String titleText, boolean percent, boolean topGap) {
+    /** One row of the 2 x 2 chart grid; its two cells share the width equally. */
+    private LinearLayout createChartRow(LinearLayout container, boolean topGap) {
         float density = activity.getResources().getDisplayMetrics().density;
-        int pad = Math.round(8 * density);
+        LinearLayout row = new LinearLayout(activity);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        if (topGap) rowParams.topMargin = Math.round(8 * density);
+        container.addView(row, rowParams);
+        return row;
+    }
+
+    private ChartBlock createChartBlock(LinearLayout row, String titleText, boolean leftGap) {
+        float density = activity.getResources().getDisplayMetrics().density;
+        int pad = Math.round(6 * density);
         LinearLayout box = new LinearLayout(activity);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(pad, pad, pad, pad);
         if (palette != null) box.setBackground(panelBackground(palette.panel, Math.min(palette.cornerRadiusDp, 6f)));
         else box.setBackgroundResource(R.drawable.bordered_panel);
 
-        LinearLayout row = new LinearLayout(activity);
-        row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout header = new LinearLayout(activity);
+        header.setOrientation(LinearLayout.HORIZONTAL);
         TextView title = new TextView(activity);
         title.setText(titleText);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
         title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+        title.setSingleLine(true);
         title.setTextColor(palette != null ? palette.accent : activity.getColor(R.color.colorPrimary));
-        row.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView value = new TextView(activity);
-        value.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        value.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
+        value.setSingleLine(true);
+        value.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        value.setGravity(android.view.Gravity.END);
         if (palette != null) value.setTextColor(palette.onSurface);
-        row.addView(value, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        box.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        header.addView(value, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        box.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         MetricChartView chart = new MetricChartView(activity);
         if (palette != null) {
@@ -419,13 +443,12 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
         }
         LinearLayout.LayoutParams chartParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Math.round(CHART_HEIGHT_DP * density));
-        chartParams.topMargin = Math.round(4 * density);
+        chartParams.topMargin = Math.round(2 * density);
         box.addView(chart, chartParams);
 
-        LinearLayout.LayoutParams boxParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        if (topGap) boxParams.topMargin = Math.round(8 * density);
-        container.addView(box, boxParams);
+        LinearLayout.LayoutParams boxParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        if (leftGap) boxParams.leftMargin = Math.round(8 * density);
+        row.addView(box, boxParams);
         return new ChartBlock(box, title, value, chart);
     }
 
@@ -436,6 +459,7 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
         find(R.id.LLInfoPanel).setVisibility(expanded ? View.GONE : View.VISIBLE);
         find(R.id.LLChartsPanel).setVisibility(expanded ? View.VISIBLE : View.GONE);
         find(R.id.TVFpsInfo).setVisibility(expanded ? View.INVISIBLE : View.VISIBLE);
+        find(R.id.TVTemperatureInfo).setVisibility(expanded ? View.INVISIBLE : View.VISIBLE);
         ((TextView) find(R.id.TVMetricsToggle)).setText(expanded ? R.string.metrics_collapse : R.string.metrics_expand);
         ((ImageView) find(R.id.IVMetricsToggle)).setImageResource(
             expanded ? R.drawable.ic_metrics_collapse : R.drawable.ic_metrics_expand);
@@ -449,6 +473,9 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
         MetricSeries fps = sampler.fps();
         String fpsText = formatFps(fps.latest());
         ((TextView) find(R.id.TVFpsInfo)).setText(activity.getString(R.string.metrics_fps_line, fpsText));
+        MetricSeries temperature = sampler.temperature();
+        String temperatureText = formatTemperature(temperature.latest());
+        ((TextView) find(R.id.TVTemperatureInfo)).setText(activity.getString(R.string.metrics_temperature_line, temperatureText));
         if (!metricsExpanded || fpsChart == null) return;
         fpsChart.chart.bind(fps, false);
         fpsChart.value.setText(Double.isNaN(fps.latest()) ? fpsText : activity.getString(R.string.metrics_fps_value, fpsText));
@@ -461,6 +488,14 @@ public final class TaskManagerPanel implements OnGetProcessInfoListener {
                 + "/" + StringUtils.formatBytes(sampler.memoryTotalBytes());
         }
         memoryChart.value.setText(memory);
+        temperatureChart.chart.bindTemperature(temperature);
+        temperatureChart.value.setText(temperatureText);
+    }
+
+    /** "31.5 \u00b0C", or the unavailable placeholder when there is no reading. */
+    private String formatTemperature(double celsius) {
+        if (Double.isNaN(celsius)) return activity.getString(R.string.metrics_unavailable);
+        return activity.getString(R.string.metrics_temperature_value, String.format(Locale.US, "%.1f", celsius));
     }
 
     private String formatFps(double value) {

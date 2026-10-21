@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Feeds a {@link PerformanceMetricsSampler} once per second while it is started. The sysfs CPU
- * read, the memory query and the frame-counter read run on a single daemon worker thread; the
+ * read, the memory query, the temperature read and the frame-counter read run on a single daemon worker thread; the
  * results are delivered to the sampler on the main thread. {@link #stop()} shuts the worker down and
  * drops any result still in flight, so nothing keeps running (or posts) after the host pauses.
  *
@@ -71,8 +71,10 @@ public final class PerformanceMetricsRecorder {
                 final long total = info.totalMem;
                 final long used = Math.max(0L, total - info.availMem);
                 final double memoryPercent = total > 0 ? used * 100d / total : 0d;
+                // An unreadable sensor is NaN for this second; it never drops the other metrics.
+                final double temperature = TemperatureReader.readBatteryCelsius(appContext);
                 mainHandler.post(() -> {
-                    if (token == generation) sampler.addSample(fps, cpu, memoryPercent, used, total);
+                    if (token == generation) sampler.addSample(fps, cpu, memoryPercent, used, total, temperature);
                 });
             } catch (RuntimeException ignored) {
                 // A failed read must not kill the schedule; the second is simply skipped.

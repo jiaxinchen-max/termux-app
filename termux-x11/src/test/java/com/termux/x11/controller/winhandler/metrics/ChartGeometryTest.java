@@ -23,6 +23,19 @@ public class ChartGeometryTest {
         assertEquals(420, ChartGeometry.fpsAxisMax(361), 0);
     }
 
+    @Test public void temperatureAxisSteps() {
+        assertEquals(50, ChartGeometry.temperatureAxisMax(Double.NaN), 0);
+        assertEquals(50, ChartGeometry.temperatureAxisMax(0), 0);
+        assertEquals(50, ChartGeometry.temperatureAxisMax(-3), 0);
+        assertEquals(50, ChartGeometry.temperatureAxisMax(31.5), 0);
+        assertEquals(50, ChartGeometry.temperatureAxisMax(50), 0);
+        assertEquals(60, ChartGeometry.temperatureAxisMax(50.1), 0);
+        assertEquals(80, ChartGeometry.temperatureAxisMax(61), 0);
+        assertEquals(100, ChartGeometry.temperatureAxisMax(99), 0);
+        assertEquals(120, ChartGeometry.temperatureAxisMax(120), 0);
+        assertEquals(140, ChartGeometry.temperatureAxisMax(121), 0);
+    }
+
     @Test public void fullWindowSpansWidth() {
         assertEquals(10f, ChartGeometry.xFor(0, 60, 10f, 590f), F);
         assertEquals(600f, ChartGeometry.xFor(59, 60, 10f, 590f), F);

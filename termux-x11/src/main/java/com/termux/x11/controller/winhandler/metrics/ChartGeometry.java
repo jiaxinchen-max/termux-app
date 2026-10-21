@@ -3,6 +3,7 @@ package com.termux.x11.controller.winhandler.metrics;
 /** Pure mapping from samples to plot coordinates for {@code MetricChartView}. */
 public final class ChartGeometry {
     private static final double[] FPS_STEPS = {30, 60, 90, 120, 144, 165, 240, 360};
+    private static final double[] TEMPERATURE_STEPS = {50, 60, 80, 100, 120};
 
     private ChartGeometry() { }
 
@@ -21,6 +22,18 @@ public final class ChartGeometry {
             if (peak <= step) return step;
         }
         return Math.ceil(peak / 60d) * 60d;
+    }
+
+    /**
+     * Upper axis bound in degrees Celsius (the lower bound is a fixed 0): the smallest step that
+     * holds {@code peak}; always at least 50. NaN/non-positive peaks (no data) give 50.
+     */
+    public static double temperatureAxisMax(double peak) {
+        if (Double.isNaN(peak) || peak <= 0) return TEMPERATURE_STEPS[0];
+        for (double step : TEMPERATURE_STEPS) {
+            if (peak <= step) return step;
+        }
+        return Math.ceil(peak / 20d) * 20d;
     }
 
     /**

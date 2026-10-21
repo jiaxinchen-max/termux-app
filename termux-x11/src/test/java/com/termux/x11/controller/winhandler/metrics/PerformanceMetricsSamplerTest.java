@@ -66,4 +66,42 @@ public class PerformanceMetricsSamplerTest {
         s.addSample(1, 1, 1, 1, 1);
         assertEquals(0, calls[0]);
     }
+
+    @Test public void temperatureSeriesGetsOneValuePerSample() {
+        PerformanceMetricsSampler s = new PerformanceMetricsSampler();
+        s.addSample(60, 25, 50, 1000, 2000, 31.5);
+        s.addSample(60, 25, 50, 1000, 2000, 32.0);
+        assertEquals(2, s.temperature().size());
+        assertEquals(32.0, s.temperature().latest(), D);
+        assertEquals(31.5, s.temperature().min(), D);
+    }
+
+    @Test public void fiveArgumentSampleHasNoTemperature() {
+        PerformanceMetricsSampler s = new PerformanceMetricsSampler();
+        s.addSample(60, 25, 50, 1000, 2000);
+        assertEquals(1, s.temperature().size());
+        assertTrue(Double.isNaN(s.temperature().latest()));
+        assertTrue(!s.temperature().hasData());
+    }
+
+    @Test public void unreadableTemperatureIsNanAndOthersContinue() {
+        PerformanceMetricsSampler s = new PerformanceMetricsSampler();
+        s.addSample(60, 25, 50, 1, 2, Double.NaN);
+        s.addSample(60, 25, 50, 1, 2, Double.POSITIVE_INFINITY);
+        s.addSample(60, 25, 50, 1, 2, 900);
+        s.addSample(60, 25, 50, 1, 2, -273);
+        assertEquals(4, s.temperature().size());
+        assertTrue(!s.temperature().hasData());
+        assertEquals(4, s.fps().size());
+        assertEquals(4, s.cpu().size());
+        assertEquals(4, s.memory().size());
+    }
+
+    @Test public void temperatureKeepsOnlyLastSixtySecondsAndClears() {
+        PerformanceMetricsSampler s = new PerformanceMetricsSampler();
+        for (int i = 0; i < 61; i++) s.addSample(i, i, i, i, 100, 20 + i % 10);
+        assertEquals(60, s.temperature().size());
+        s.clear();
+        assertTrue(s.temperature().isEmpty());
+    }
 }

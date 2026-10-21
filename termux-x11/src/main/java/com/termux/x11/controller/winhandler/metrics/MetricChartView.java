@@ -17,6 +17,9 @@ import androidx.annotation.Nullable;
  * no allocations in {@link #onDraw}.
  */
 public final class MetricChartView extends View {
+    /** What the vertical axis measures. */
+    private enum Axis { PERCENT, FPS, TEMPERATURE }
+
     private final Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint gridPaint = new Paint();
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -24,7 +27,7 @@ public final class MetricChartView extends View {
     private final float density;
 
     @Nullable private MetricSeries series;
-    private boolean percentAxis = true;
+    private Axis axis = Axis.PERCENT;
     private String axisTopLabel = "100%";
     private String axisBottomLabel = "0";
     private String timeStartLabel = "60s";
@@ -49,8 +52,17 @@ public final class MetricChartView extends View {
      * @param percentAxis true for a fixed 0-100% axis, false for an FPS axis scaled to the peak
      */
     public void bind(@NonNull MetricSeries series, boolean percentAxis) {
+        bind(series, percentAxis ? Axis.PERCENT : Axis.FPS);
+    }
+
+    /** Binds a temperature series (degrees Celsius): axis 0..N °C scaled to the peak. */
+    public void bindTemperature(@NonNull MetricSeries series) {
+        bind(series, Axis.TEMPERATURE);
+    }
+
+    private void bind(@NonNull MetricSeries series, @NonNull Axis axis) {
         this.series = series;
-        this.percentAxis = percentAxis;
+        this.axis = axis;
         onDataChanged();
     }
 
@@ -75,16 +87,24 @@ public final class MetricChartView extends View {
         invalidate();
     }
 
-    /** The current upper axis bound ("100%" for percent charts; "0-N fps" scale for FPS). */
+    /** The current upper axis bound ("100%" for percent charts; "0-N fps" / "0-N °C" scales otherwise). */
     public double axisMax() {
-        if (percentAxis) return ChartGeometry.percentAxisMax();
-        return ChartGeometry.fpsAxisMax(series == null ? Double.NaN : series.max());
+        double peak = series == null ? Double.NaN : series.max();
+        switch (axis) {
+            case FPS: return ChartGeometry.fpsAxisMax(peak);
+            case TEMPERATURE: return ChartGeometry.temperatureAxisMax(peak);
+            default: return ChartGeometry.percentAxisMax();
+        }
     }
 
     /** Call when the bound series changed (new sample or cleared); redraws only then. */
     public void onDataChanged() {
         double axisMax = axisMax();
-        axisTopLabel = percentAxis ? "100%" : Math.round(axisMax) + " fps";
+        switch (axis) {
+            case FPS: axisTopLabel = Math.round(axisMax) + " fps"; break;
+            case TEMPERATURE: axisTopLabel = Math.round(axisMax) + " \u00b0C"; break;
+            default: axisTopLabel = "100%";
+        }
         drawnAxisMax = axisMax;
         invalidate();
     }
