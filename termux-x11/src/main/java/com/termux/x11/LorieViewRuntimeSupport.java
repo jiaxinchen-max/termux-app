@@ -424,6 +424,7 @@ final class X11WindowModeController {
     @NonNull
     private final LorieViewRuntimeApi.LorieHost mHost;
     private boolean mManageHostOrientation = true;
+    private boolean mImmersive = false;
 
     X11WindowModeController(@NonNull LorieViewRuntimeApi.LorieHost host) {
         mHost = host;
@@ -431,6 +432,11 @@ final class X11WindowModeController {
 
     void setManageHostOrientation(boolean manageHostOrientation) {
         mManageHostOrientation = manageHostOrientation;
+    }
+
+    /** Forces the fullscreen + hide-cutout handling regardless of the X11 preferences. */
+    void setImmersive(boolean immersive) {
+        mImmersive = immersive;
     }
 
     void applyWindowPreferences(boolean hasFocus) {
@@ -442,8 +448,8 @@ final class X11WindowModeController {
 
         Window window = activity.getWindow();
         View decorView = window.getDecorView();
-        boolean fullscreen = prefs.fullscreen.get();
-        boolean hideCutout = prefs.hideCutout.get();
+        boolean fullscreen = mImmersive || prefs.fullscreen.get();
+        boolean hideCutout = mImmersive || prefs.hideCutout.get();
         boolean reseed = prefs.Reseed.get();
 
         int requestedOrientation = getRequestedOrientation(prefs.forceOrientation.get());

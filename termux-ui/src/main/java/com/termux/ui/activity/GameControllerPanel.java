@@ -345,6 +345,10 @@ final class GameControllerPanel {
             entries.add(new GameInputProfileChoices.Entry(profile.getId(), profile.getName(),
                 profile.isPortrait()));
         }
+        android.util.DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
+        boolean portraitScreen = metrics.heightPixels > metrics.widthPixels;
+        entries = GameInputProfileChoices.forScreenOrientation(entries, portraitScreen,
+            session.getActiveInputProfileId());
         return GameInputProfileChoices.build(entries, session.getActiveInputProfileId(), offLabel(),
             activity.getString(R.string.local_game_controller_unnamed),
             activity.getString(R.string.local_game_controller_landscape),

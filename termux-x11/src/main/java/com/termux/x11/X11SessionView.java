@@ -78,6 +78,7 @@ public final class X11SessionView extends FrameLayout {
     @Nullable private LorieViewRuntimeController runtime;
     @Nullable private HostAdapter hostAdapter;
     @Nullable private DialogPalette.Provider dialogPaletteProvider;
+    private boolean immersive = false;
     @NonNull private Listener listener = new Listener() { };
     private TermuxScreenView displayView;
 
@@ -126,6 +127,7 @@ public final class X11SessionView extends FrameLayout {
         runtime = new LorieViewRuntimeController(hostAdapter, PREFERENCE_NAMESPACE);
         runtime.setX11ActivityIntegration(hostAdapter);
         runtime.setManageHostOrientation(false);
+        runtime.setImmersive(immersive);
         runtime.setTerminalToolbarEnabled(false);
         runtime.attachTermuxScreenView(displayView);
         runtime.setX11ConnectionStateListener(this.listener::onConnectionChanged);
@@ -168,6 +170,16 @@ public final class X11SessionView extends FrameLayout {
 
     public void onHostPause() {
         if (runtime != null) runtime.onPause();
+    }
+
+    /**
+     * Runs the host window immersive while it has focus: status and navigation bars hidden (a swipe
+     * from the screen edge shows them transiently) and the content laid out under the display cutout.
+     * Off by default; takes effect with the next window focus change.
+     */
+    public void setImmersive(boolean immersive) {
+        this.immersive = immersive;
+        if (runtime != null) runtime.setImmersive(immersive);
     }
 
     public void onHostWindowFocusChanged(boolean hasFocus) {

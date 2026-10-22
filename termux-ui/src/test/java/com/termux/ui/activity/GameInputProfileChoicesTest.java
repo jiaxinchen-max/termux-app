@@ -153,6 +153,42 @@ public class GameInputProfileChoicesTest {
     }
 
     @Test
+    public void listShowsOnlyLayoutsOfTheScreenOrientation() {
+        List<GameInputProfileChoices.Entry> all = Arrays.asList(
+            new GameInputProfileChoices.Entry(1, "RTS", false),
+            new GameInputProfileChoices.Entry(2, "Pad", true),
+            new GameInputProfileChoices.Entry(3, "FPS", false));
+
+        List<GameInputProfileChoices.Entry> landscape =
+            GameInputProfileChoices.forScreenOrientation(all, false, 0);
+        assertEquals(Arrays.asList(1, 3), Arrays.asList(landscape.get(0).id, landscape.get(1).id));
+        assertEquals(2, landscape.size());
+
+        List<GameInputProfileChoices.Entry> portrait =
+            GameInputProfileChoices.forScreenOrientation(all, true, 0);
+        assertEquals(1, portrait.size());
+        assertEquals(2, portrait.get(0).id);
+    }
+
+    @Test
+    public void activeLayoutStaysListedEvenWhenItsOrientationDoesNotMatch() {
+        List<GameInputProfileChoices.Entry> all = Arrays.asList(
+            new GameInputProfileChoices.Entry(1, "RTS", false),
+            new GameInputProfileChoices.Entry(2, "Pad", true));
+
+        List<GameInputProfileChoices.Entry> portrait =
+            GameInputProfileChoices.forScreenOrientation(all, true, 1);
+        assertEquals(2, portrait.size());
+        assertEquals(1, portrait.get(0).id);
+        assertTrue(GameInputProfileChoices.build(portrait, 1, OFF, UNNAMED).get(1).checked);
+    }
+
+    @Test
+    public void forScreenOrientationToleratesNullInput() {
+        assertTrue(GameInputProfileChoices.forScreenOrientation(null, false, 0).isEmpty());
+    }
+
+    @Test
     public void activeProfileIsTheOnlyCheckedChoice() {
         List<GameInputProfileChoices.Choice> choices = GameInputProfileChoices.build(
             Arrays.asList(entry(1, "RTS"), entry(2, "FPS")), 2, OFF, UNNAMED);

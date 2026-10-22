@@ -115,6 +115,23 @@ final class GameInputProfileChoices {
     }
 
     /**
+     * The profiles that belong in the list for a screen: only layouts designed for the screen's
+     * orientation. The layout that is active right now stays listed whatever its orientation, so the
+     * list never claims the controller is off while a hidden layout is still in use.
+     */
+    @NonNull
+    static List<Entry> forScreenOrientation(@Nullable List<Entry> profiles, boolean portraitScreen,
+                                            int activeProfileId) {
+        List<Entry> result = new ArrayList<>();
+        if (profiles == null) return result;
+        for (Entry entry : profiles) {
+            if (entry == null) continue;
+            if (entry.portrait == portraitScreen || entry.id == activeProfileId) result.add(entry);
+        }
+        return result;
+    }
+
+    /**
      * Display model: "Off" first, then every distinct selectable profile in the given order. Entries
      * whose id cannot be encoded are dropped; blank names fall back to {@code unnamedFormat}
      * (a {@code %d} format). An active id that is not offered (or {@link #OFF}) checks "Off".

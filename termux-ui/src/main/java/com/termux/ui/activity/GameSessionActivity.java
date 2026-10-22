@@ -138,10 +138,20 @@ public final class GameSessionActivity extends AppCompatActivity {
             finish();
             return;
         }
+        // Immersive session: the content also covers the display cutout area (the system bars are
+        // hidden by the X11 host on window focus, see X11SessionView#setImmersive).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            WindowManager.LayoutParams windowAttributes = getWindow().getAttributes();
+            windowAttributes.layoutInDisplayCutoutMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().setAttributes(windowAttributes);
+        }
         binding = ActivityGameSessionBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         orchestrator = new PersistentLocalGameOrchestrator(this);
         binding.gameSessionX11.setDialogPaletteProvider(() -> GameDialogPalettes.frosted(this));
+        binding.gameSessionX11.setImmersive(true);
         binding.gameSessionX11.bind(this, frozenSpec.getResolution(), new X11SessionView.Listener() {
             @Override public void onConnectionChanged(boolean connected) {
                 displayConnected = connected;
@@ -819,6 +829,8 @@ public final class GameSessionActivity extends AppCompatActivity {
         if (binding != null) {
             binding.gameSessionX11.onHostConfigurationChanged(newConfig);
             applyOverlayLayout(newConfig);
+            // The controller list only shows the layouts of the screen's orientation.
+            if (controllerPanel != null) controllerPanel.render();
         }
     }
 

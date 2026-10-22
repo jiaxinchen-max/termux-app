@@ -284,6 +284,14 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         mX11WindowModeController.setManageHostOrientation(manageHostOrientation);
     }
 
+    /**
+     * Lets an embedded host run immersive (system bars hidden, content under the display cutout)
+     * whatever the stored X11 fullscreen/hide-cutout preferences say.
+     */
+    public void setImmersive(boolean immersive) {
+        mX11WindowModeController.setImmersive(immersive);
+    }
+
     /** Removes the terminal extra-keys presentation from standalone non-terminal hosts. */
     public void setTerminalToolbarEnabled(boolean enabled) {
         mTerminalToolbarEnabled = enabled;
