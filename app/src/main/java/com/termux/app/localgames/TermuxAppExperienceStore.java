@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 
 import androidx.annotation.NonNull;
 
-import com.termux.localgames.api.AppExperienceMode;
+import com.termux.ui.api.AppExperienceMode;
 
 /** Main-app owner for the process-frozen Terminal/Games mode. */
 public final class TermuxAppExperienceStore {

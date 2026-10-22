@@ -5,7 +5,7 @@ import android.content.Intent;
 
 import androidx.annotation.NonNull;
 
-import com.termux.localgames.api.LocalGames;
+import com.termux.ui.api.LocalGames;
 
 /** Host-app navigation adapter for the module-owned Local Games activity. */
 public final class TermuxLocalGamesEntry {

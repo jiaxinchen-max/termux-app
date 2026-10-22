@@ -50,7 +50,7 @@ cd submodule
 ./gradlew :<module>:testDebugUnitTest --no-daemon -Dorg.gradle.jvmargs=-Xmx4g   # test a single module, no native involved — prefer this day-to-day
 ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs=-Xmx4g                 # full app build, requires native submodules to be in place
 ```
-Run the unit tests for whichever module you changed (e.g. `:games:testDebugUnitTest`, `:termux-x11:testDebugUnitTest`); only run a full `assembleDebug` when the blast radius of a change is unclear.
+Run the unit tests for whichever module you changed (e.g. `:termux-ui:testDebugUnitTest`, `:termux-x11:testDebugUnitTest`); only run a full `assembleDebug` when the blast radius of a change is unclear.
 
 To determine whether a test failure was caused by your change, **compare before/after with `git stash`** rather than guessing — and don't assume some failures are "always been there, safe to ignore." If a test has been failing long-term and is confirmed obsolete, delete it outright instead of keeping it around as a noise source — keep "tests pass = BUILD SUCCESSFUL" as the clean bar.
 
@@ -73,10 +73,10 @@ Two runtime backends:
 - `GameRuntimeBackendType.GLIBC_TERMUX_BOX`: runs box64+wine directly from the Termux glibc prefix. Componentization, on-demand downloads, UI, and preflight gating are all mature here — treat it as the reference implementation pattern.
 - `GameRuntimeBackendType.ROOTFS_PROOT`: a Debian 13 + proot container. This architecture is newer and still evolving — confirm the current implementation state before changing anything; don't assume some intermediate design discussed historically is the final state.
 
-Unified component install framework (`games/src/main/java/com/termux/localgames/components/`):
+Unified component install framework (`termux-ui/src/main/java/com/termux/ui/components/`):
 - `SafeTarXzExtractor`: auto-detects xz / gzip / plain tar by file magic bytes; anything else (e.g. a `.deb`, which is an ar archive, not a tar) goes through a **raw passthrough publish** path.
 - `ComponentInstaller`: download → sha256 verify → extract/raw-publish → write to an immutable version directory + receipt → (optionally, depending on backend) activate.
-- The component catalog lives at `games/src/main/assets/termux-box-packages/index-v1.json`. When adding a component, `url`/`size`/`sha256` **must be real, downloadable, verified values** — never fabricated. If a placeholder is genuinely needed, the `url` must be a syntactically valid but unreachable domain (e.g. `https://example.invalid/...`), not an arbitrary string — otherwise `ComponentDescriptor`'s URL validation throws `MalformedURLException`, which **breaks parsing of the entire component catalog**, taking down every other component with it.
+- The component catalog lives at `termux-ui/src/main/assets/termux-box-packages/index-v1.json`. When adding a component, `url`/`size`/`sha256` **must be real, downloadable, verified values** — never fabricated. If a placeholder is genuinely needed, the `url` must be a syntactically valid but unreachable domain (e.g. `https://example.invalid/...`), not an arbitrary string — otherwise `ComponentDescriptor`'s URL validation throws `MalformedURLException`, which **breaks parsing of the entire component catalog**, taking down every other component with it.
 
 ### termux-x11 module (X11 desktop)
 Provides a full Xserver plus containerized Wine desktop management (`Container`/`WineRegistryEditor`/`WineThemeManager` etc. under the `controller` package) — a separate "container" concept from the one in the `games` module. The two share similar naming but are different implementations; be careful not to conflate them when making changes.

@@ -1,0 +1,16 @@
+package com.termux.ui.domain;
+
+public enum RuntimeSetupTaskState {
+    QUEUED,
+    PREPARING,
+    BUILDING,
+    VERIFYING,
+    ACTIVATING,
+    SUCCEEDED,
+    FAILED,
+    CANCELLED;
+
+    public boolean isTerminal() {
+        return this == SUCCEEDED || this == FAILED || this == CANCELLED;
+    }
+}

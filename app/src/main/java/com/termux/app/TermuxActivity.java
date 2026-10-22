@@ -103,7 +103,7 @@ import com.termux.x11.TermuxScreenView;
 import com.termux.x11.LoriePreferences;
 import com.termux.x11.LorieView;
 import com.termux.x11.LorieViewRuntimeController;
-import com.termux.localgames.api.AppExperienceMode;
+import com.termux.ui.api.AppExperienceMode;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;

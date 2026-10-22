@@ -3,7 +3,7 @@ package com.termux.app.localgames;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.termux.localgames.api.AppExperienceMode;
+import com.termux.ui.api.AppExperienceMode;
 
 import org.junit.Test;
 

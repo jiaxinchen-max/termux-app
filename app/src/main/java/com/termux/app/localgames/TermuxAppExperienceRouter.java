@@ -2,7 +2,7 @@ package com.termux.app.localgames;
 
 import androidx.annotation.NonNull;
 
-import com.termux.localgames.api.AppExperienceMode;
+import com.termux.ui.api.AppExperienceMode;
 
 /** Pure routing policy used before TermuxActivity initializes UI capabilities. */
 public final class TermuxAppExperienceRouter {

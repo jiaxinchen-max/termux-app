@@ -5,7 +5,7 @@ import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
 
-import com.termux.localgames.api.AppExperienceMode;
+import com.termux.ui.api.AppExperienceMode;
 
 import org.junit.Before;
 import org.junit.Test;

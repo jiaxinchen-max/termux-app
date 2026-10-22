@@ -1,0 +1,49 @@
+package com.termux.ui.api;
+
+import android.content.Context;
+import android.content.Intent;
+import android.os.Build;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import com.termux.ui.domain.ResetTarget;
+import com.termux.ui.service.ResetRuntimeForegroundService;
+
+import java.util.UUID;
+
+/** Public command surface for purging one runtime environment back to not-installed. */
+public final class ResetTasks {
+    public static final String ACTION_ENQUEUE = "com.termux.ui.action.ENQUEUE_RESET";
+    public static final String ACTION_RECONCILE_ALL =
+        "com.termux.ui.action.RECONCILE_ALL_RESET";
+    public static final String EXTRA_TASK_ID = "com.termux.ui.extra.RESET_TASK_ID";
+    public static final String EXTRA_TARGET = "com.termux.ui.extra.RESET_TARGET";
+    public static final String EXTRA_RESET_KEY = "com.termux.ui.extra.RESET_KEY";
+
+    private ResetTasks() {}
+
+    @NonNull
+    public static String enqueue(@NonNull Context context, @NonNull ResetTarget target,
+                                @Nullable String resetKey) {
+        String taskId = "reset-" + UUID.randomUUID().toString();
+        Intent intent = new Intent(context, ResetRuntimeForegroundService.class)
+            .setAction(ACTION_ENQUEUE)
+            .putExtra(EXTRA_TASK_ID, taskId)
+            .putExtra(EXTRA_TARGET, target.name());
+        if (resetKey != null) intent.putExtra(EXTRA_RESET_KEY, resetKey);
+        start(context, intent);
+        return taskId;
+    }
+
+    public static void reconcileAll(@NonNull Context context) {
+        start(context, new Intent(context, ResetRuntimeForegroundService.class)
+            .setAction(ACTION_RECONCILE_ALL));
+    }
+
+    private static void start(Context context, Intent intent) {
+        Context application = context.getApplicationContext();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) application.startForegroundService(intent);
+        else application.startService(intent);
+    }
+}

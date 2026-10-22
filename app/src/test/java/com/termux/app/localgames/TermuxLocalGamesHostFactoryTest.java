@@ -8,9 +8,9 @@ import static org.junit.Assert.assertTrue;
 import android.content.Context;
 import android.content.Intent;
 
-import com.termux.localgames.api.LaunchRequest;
-import com.termux.localgames.api.RuntimeSetupRequest;
-import com.termux.localgames.domain.LaunchExecutionMode;
+import com.termux.ui.api.LaunchRequest;
+import com.termux.ui.api.RuntimeSetupRequest;
+import com.termux.ui.domain.LaunchExecutionMode;
 import com.termux.shared.shell.command.ExecutionCommand;
 import com.termux.shared.termux.TermuxConstants;
 

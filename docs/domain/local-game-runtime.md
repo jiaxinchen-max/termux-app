@@ -42,10 +42,10 @@
 - Task Owner：Orchestrator Service，负责任务状态、恢复、取消和清理。
 - Execution Owner：Termux adapter 与 shell，负责进程和运行环境。
 - Display/Input Owner：Termux:X11 runtime，负责 Surface、输入和控制器。
-- App Experience Owner：主 `app` 持久化 `AppExperienceMode` 并执行冷重启；`:games` 仅通过 Host 查询或请求切换。
+- App Experience Owner：主 `app` 持久化 `AppExperienceMode` 并执行冷重启；`:termux-ui` 仅通过 Host 查询或请求切换。
 - Component Owner：组件仓库与下载服务，负责版本、partial、校验和原子安装。
 - Component Task Owner：模块私有前台 Service，负责命令串行化、通知和进程重建恢复。
-- Integration Owner：主 `app` 的 `LocalGamesHost` adapter，只负责把 app 内 TermuxService 能力提供给 `:games`。
+- Integration Owner：主 `app` 的 `LocalGamesHost` adapter，只负责把 app 内 TermuxService 能力提供给 `:termux-ui`。
 - Import Owner：`GameImportActivity` 只编排授权、扫描、用户确认和 Game 保存；目录读取由 SAF adapter 执行，规则由纯 Java scanner 执行。
 - Library Owner：`LocalGamesActivity`/`GameDetailActivity` 只按 game-id 加载、编辑和展示；`GameLibraryRepository` 聚合实时权限，`GameArtworkStore` 拥有私有封面事务。
 - Runtime Profile Owner：`GameRuntimeProfileActivity` 只编辑和展示；`FileRuntimeProfileRepository` 拥有当前/上次成功快照，`LaunchPreflightEvaluator` 拥有启动门禁规则。
@@ -57,10 +57,10 @@
 
 ## 模块边界
 
-- `:games` 拥有产品 UI、Activity、领域、数据、组件和任务编排。
-- `:app` 依赖并初始化 `:games`，提供 Termux 执行 Host。
-- `:games` 可以依赖 `termux-shared` 和 `termux-x11`，但不得依赖 `:app`。
-- 只有 `com.termux.localgames.api` 是主应用可依赖的稳定接口。
+- `:termux-ui` 拥有产品 UI、Activity、领域、数据、组件和任务编排。
+- `:app` 依赖并初始化 `:termux-ui`，提供 Termux 执行 Host。
+- `:termux-ui` 可以依赖 `termux-shared` 和 `termux-x11`，但不得依赖 `:app`。
+- 只有 `com.termux.ui.api` 是主应用可依赖的稳定接口。
 
 ## 不变量
 
@@ -72,8 +72,8 @@
 6. 游戏卸载默认不删除外部游戏目录和存档。
 7. RUNNING 必须同时具备有效游戏进程和可操作 X11 会话证据。
 8. 任务进入终态后必须完成或明确记录未完成的清理动作。
-9. `:games` 不得引用 `com.termux.app.*`，主应用能力必须经过公开 Host 契约。
-10. 组件索引必须来自 `:games`，但合并后的 asset 路径保持 `termux-box-packages/index-v1.json`。
+9. `:termux-ui` 不得引用 `com.termux.app.*`，主应用能力必须经过公开 Host 契约。
+10. 组件索引必须来自 `:termux-ui`，但合并后的 asset 路径保持 `termux-box-packages/index-v1.json`。
 11. 组件归档必须在 app 私有 staging 中完成路径和链接检查，写入 receipt 后才能发布版本目录。
 12. active pointer 只引用不可变版本目录；切换失败保留旧 active，rollback 交换 active/previous。
 13. 仅 QUEUED、DOWNLOADING、VERIFYING、VERIFIED、INSTALLING 自动恢复；FAILED 需 retry，PAUSED 需 resume。

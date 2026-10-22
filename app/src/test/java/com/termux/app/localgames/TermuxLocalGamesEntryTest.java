@@ -21,7 +21,7 @@ public class TermuxLocalGamesEntryTest {
         Intent intent = TermuxLocalGamesEntry.createIntent(context);
 
         assertNotNull(intent.getComponent());
-        assertEquals("com.termux.localgames.activity.LocalGamesActivity",
+        assertEquals("com.termux.ui.activity.LocalGamesActivity",
             intent.getComponent().getClassName());
     }
 }
