@@ -542,6 +542,19 @@ apply_rootfs_game_options
 [ -n "${GAMES_DLL_DSHOW:-}" ] && export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}quartz=${GAMES_DLL_DSHOW}"
 [ -n "${GAMES_DLL_DPLAY:-}" ] && export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}dplayx=${GAMES_DLL_DPLAY}"
 
+# Controller: release the patched xinput/dinput DLLs and winhandler.exe into the prefix (the game is then started
+# through winhandler.exe, the Wine end of the controller bridge) and switch the DLLs on. A failure only costs the
+# controller; the game then starts directly, as before. dinput* in the input profile selects the DInput mapper.
+. "$(dirname "$SCRIPT_PATH")/controller_runtime.sh"
+if install_games_controller_runtime "$PREFIX_PATH" "$(dirname "$SCRIPT_PATH")" >> "$LOG_PATH" 2>&1; then
+    CONTROLLER_WRAPPER=$GAMES_CONTROLLER_WINHANDLER_WINDOWS_PATH
+else
+    printf 'WARNING: controller runtime could not be installed; the on-screen controller is unavailable.\n' >> "$LOG_PATH"
+    CONTROLLER_WRAPPER=
+fi
+case "$INPUT_PROFILE_ID" in dinput*) CONTROLLER_MAPPER=0 ;; *) CONTROLLER_MAPPER=1 ;; esac
+export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}$(games_controller_dll_overrides "$CONTROLLER_MAPPER")"
+
 [ ! -e "$CANCEL_PATH" ] || CANCELLED=1
 if [ "$CANCELLED" = 1 ]; then
     emit CANCELLED COMPLETE 100 null cancelled false cancelled
@@ -561,9 +574,9 @@ if [ "$DESKTOP_ONLY" = 1 ]; then
         set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION"
     fi
 elif [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-    set -- explorer "/desktop=shell,$RESOLUTION" "$GUEST_EXECUTABLE" "$@"
+    set -- explorer "/desktop=shell,$RESOLUTION" ${CONTROLLER_WRAPPER:+"$CONTROLLER_WRAPPER"} "$GUEST_EXECUTABLE" "$@"
 else
-    set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION" "$GUEST_EXECUTABLE" "$@"
+    set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION" ${CONTROLLER_WRAPPER:+"$CONTROLLER_WRAPPER"} "$GUEST_EXECUTABLE" "$@"
 fi
 GAMES_EFFECTIVE_CPU_CORES="${GAMES_CPU_CORES:-${GAMES_CPU_CORES_32:-}}"
 if [ -n "$GAMES_EFFECTIVE_CPU_CORES" ]; then

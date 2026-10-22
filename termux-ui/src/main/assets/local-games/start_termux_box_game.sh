@@ -42,7 +42,10 @@ mkdir -p "$TERMUX_BOX_ROOT" "$TERMUX_BOX_RUN_DIR"
 # ---- Helpers ----
 # ensure_games_wine_fonts / ensure_games_cjk_locale: done when the game is imported or saved (by the prefix
 # setup task); here they are only a marker check, kept as a safety net for prefixes that predate that step.
-. "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/glibc_prefix_extras.sh"
+GAMES_RUNTIME_SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$GAMES_RUNTIME_SCRIPT_DIR/glibc_prefix_extras.sh"
+# install_games_controller_runtime / games_controller_dll_overrides: the patched xinput/dinput DLLs and winhandler.exe
+. "$GAMES_RUNTIME_SCRIPT_DIR/controller_runtime.sh"
 
 # Run command with CPU affinity if taskset is available and functional,
 # otherwise fall back to direct execution.
@@ -486,6 +489,15 @@ ensure_games_wine_fonts || exit 1
 ensure_games_cjk_locale
 apply_game_options
 
+# Release the controller DLLs and winhandler.exe into this prefix. A failure only costs the controller: the game
+# then starts directly, as before.
+if install_games_controller_runtime "$WINEPREFIX" "$GAMES_RUNTIME_SCRIPT_DIR"; then
+    CONTROLLER_WRAPPER=$GAMES_CONTROLLER_WINHANDLER_WINDOWS_PATH
+else
+    echo "WARNING: controller runtime could not be installed; the on-screen controller is unavailable."
+    CONTROLLER_WRAPPER=
+fi
+
 # The game profile may override the runtime locale without changing the shared
 # Termux GLIBC locale setting.
 case "${GAMES_LOCALE:-}" in
@@ -506,15 +518,7 @@ fi
 
 # Build WINEDLLOVERRIDES from container gamepad mapper type
 # 0 = Standard (DInput), 1 = XInput
-WINE_DLL_OVERRIDES=""
-case "${TERMUX_BOX_GAMEPAD_MAPPER:-1}" in
-    0)
-        WINE_DLL_OVERRIDES="dinput=native;dinput8=native;"
-        ;;
-    1)
-        WINE_DLL_OVERRIDES="xinput1_1=native;xinput1_2=native;xinput1_3=native;xinput1_4=native;xinput9_1_0=native;xinputuap=native;"
-        ;;
-esac
+WINE_DLL_OVERRIDES=$(games_controller_dll_overrides "${TERMUX_BOX_GAMEPAD_MAPPER:-1}")
 [ -n "${GAMES_DLL_D3D:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}d3d8,d3d9,d3d10core,d3d11,dxgi=${GAMES_DLL_D3D};"
 [ -n "${GAMES_DLL_DSOUND:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}dsound=${GAMES_DLL_DSOUND};"
 [ -n "${GAMES_DLL_DMUSIC:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}dmusic=${GAMES_DLL_DMUSIC};"
@@ -545,8 +549,9 @@ if [ "${TERMUX_BOX_DESKTOP_ONLY:-0}" = 1 ]; then
     DISPLAY=:0 LC_ALL="$LC_ALL" run_container_wine explorer /desktop=shell,"$RESOLUTION" \
         >>"${TERMUX_BOX_LAUNCH_LOG:-/dev/null}" 2>&1 &
 else
+    # The game is started through winhandler.exe (the Wine end of the controller bridge) when it is installed.
     DISPLAY=:0 LC_ALL="$LC_ALL" run_container_wine explorer /desktop=shell,"$RESOLUTION" \
-        "$WINDOWS_TARGET" "$@" >>"${TERMUX_BOX_LAUNCH_LOG:-/dev/null}" 2>&1 &
+        ${CONTROLLER_WRAPPER:+"$CONTROLLER_WRAPPER"} "$WINDOWS_TARGET" "$@" >>"${TERMUX_BOX_LAUNCH_LOG:-/dev/null}" 2>&1 &
 fi
 WINE_PID=$!
 
