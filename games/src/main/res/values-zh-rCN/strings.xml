@@ -488,13 +488,13 @@
         <item quantity="other">%1$d 项覆盖</item>
     </plurals>
 
-    <string name="local_game_virtual_controller">虚拟控制器</string>
-    <string name="local_game_virtual_controller_description">虚拟控制器：%1$s</string>
-    <string name="local_game_virtual_controller_off">关闭</string>
-    <string name="local_game_virtual_controller_edit">编辑按键</string>
-    <string name="local_game_virtual_controller_page_summary">选择本游戏使用的屏幕虚拟手柄布局，点选后立即生效。</string>
-    <string name="local_game_virtual_controller_back">返回</string>
-    <string name="local_game_virtual_controller_none">还没有控制器布局，可以用“编辑按键”创建。</string>
+    <string name="local_game_controller">控制器</string>
+    <string name="local_game_controller_description">控制器：%1$s</string>
+    <string name="local_game_controller_off">关闭</string>
+    <string name="local_game_controller_edit">编辑按键</string>
+    <string name="local_game_controller_page_summary">选择本游戏使用的屏幕控制器布局，点选后立即生效。</string>
+    <string name="local_game_controller_back">返回</string>
+    <string name="local_game_controller_none">还没有控制器布局，可以用“编辑按键”创建。</string>
     <string name="local_game_pointer_options_title">输入选项</string>
     <string name="local_game_pointer_options_need_controller">先在上面选一个控制器，才能使用这些选项。</string>
     <string name="local_game_pointer_lock_cursor">锁定光标</string>
@@ -504,8 +504,10 @@
     <string name="local_game_pointer_show_controls">显示触屏控件</string>
     <string name="local_game_pointer_show_controls_summary">显示所选控制器的屏幕按键。</string>
     <string name="local_game_pointer_apply_failed">无法应用这些选项。</string>
-    <string name="local_game_virtual_controller_unnamed">控制器 %1$d</string>
-    <string name="local_game_virtual_controller_apply_failed">无法应用该控制器布局。</string>
-    <string name="local_game_virtual_controller_editor_failed">无法打开控制器编辑器。</string>
-    <string name="local_game_virtual_controller_save_failed">无法保存该选择，下次启动将不会恢复。</string>
+    <string name="local_game_controller_unnamed">控制器 %1$d</string>
+    <string name="local_game_controller_landscape">横屏</string>
+    <string name="local_game_controller_portrait">竖屏</string>
+    <string name="local_game_controller_apply_failed">无法应用该控制器布局。</string>
+    <string name="local_game_controller_editor_failed">无法打开控制器编辑器。</string>
+    <string name="local_game_controller_save_failed">无法保存该选择，下次启动将不会恢复。</string>
 </resources>

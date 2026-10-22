@@ -4,7 +4,7 @@ package com.termux.localgames.activity;
  * Pure BACK decision for the game session, shared by every orientation and every BACK route.
  *
  * <p>BACK drives the control drawer only: it opens a closed drawer, closes an open one, and inside
- * a sub-level (the Virtual controller page under Operation) first goes back one level up. BACK
+ * a sub-level (the Controller page under Operation) first goes back one level up. BACK
  * never asks to exit the game; leaving is the Exit button's job.
  */
 final class GameSessionBackPolicy {
@@ -12,7 +12,7 @@ final class GameSessionBackPolicy {
     enum Action {
         /** The drawer is closed: slide it in. */
         OPEN_DRAWER,
-        /** The drawer is open inside a sub-level (the Virtual controller page): go back one level up. */
+        /** The drawer is open inside a sub-level (the Controller page): go back one level up. */
         NAVIGATE_UP,
         /** The drawer is open with no sub-level: slide it out. */
         CLOSE_DRAWER,

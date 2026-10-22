@@ -506,13 +506,13 @@
         <item quantity="other">%1$d overrides</item>
     </plurals>
 
-    <string name="local_game_virtual_controller">Virtual controller</string>
-    <string name="local_game_virtual_controller_description">Virtual controller: %1$s</string>
-    <string name="local_game_virtual_controller_off">Off</string>
-    <string name="local_game_virtual_controller_edit">Edit controls</string>
-    <string name="local_game_virtual_controller_page_summary">Choose the on-screen controller layout for this game. A choice applies at once.</string>
-    <string name="local_game_virtual_controller_back">Back</string>
-    <string name="local_game_virtual_controller_none">No controller layouts yet. Use Edit controls to create one.</string>
+    <string name="local_game_controller">Controller</string>
+    <string name="local_game_controller_description">Controller: %1$s</string>
+    <string name="local_game_controller_off">Off</string>
+    <string name="local_game_controller_edit">Edit controls</string>
+    <string name="local_game_controller_page_summary">Choose the on-screen controller layout for this game. A choice applies at once.</string>
+    <string name="local_game_controller_back">Back</string>
+    <string name="local_game_controller_none">No controller layouts yet. Use Edit controls to create one.</string>
     <string name="local_game_pointer_options_title">Input options</string>
     <string name="local_game_pointer_options_need_controller">Pick a controller above to use these options.</string>
     <string name="local_game_pointer_lock_cursor">Lock cursor</string>
@@ -522,8 +522,10 @@
     <string name="local_game_pointer_show_controls">Show touchscreen controls</string>
     <string name="local_game_pointer_show_controls_summary">Draw the on-screen buttons of the selected controller.</string>
     <string name="local_game_pointer_apply_failed">These options could not be applied.</string>
-    <string name="local_game_virtual_controller_unnamed">Controller %1$d</string>
-    <string name="local_game_virtual_controller_apply_failed">This controller layout could not be applied.</string>
-    <string name="local_game_virtual_controller_editor_failed">The controller editor could not be opened.</string>
-    <string name="local_game_virtual_controller_save_failed">This choice could not be saved for the next launch.</string>
+    <string name="local_game_controller_unnamed">Controller %1$d</string>
+    <string name="local_game_controller_landscape">Landscape</string>
+    <string name="local_game_controller_portrait">Portrait</string>
+    <string name="local_game_controller_apply_failed">This controller layout could not be applied.</string>
+    <string name="local_game_controller_editor_failed">The controller editor could not be opened.</string>
+    <string name="local_game_controller_save_failed">This choice could not be saved for the next launch.</string>
 </resources>

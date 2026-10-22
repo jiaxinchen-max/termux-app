@@ -5,7 +5,7 @@ import androidx.annotation.NonNull;
 import com.termux.x11.X11SessionView.PointerMode;
 
 /**
- * The Lock cursor and Touch screen mode switches of the Virtual controller page and the pointer
+ * The Lock cursor and Touch screen mode switches of the Controller page and the pointer
  * mode they stand for. The two switches exclude each other: locking the cursor wins and shows the
  * touch screen switch as off and disabled; with neither on the pointer works like a touchpad.
  */

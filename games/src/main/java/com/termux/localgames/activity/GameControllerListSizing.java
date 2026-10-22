@@ -1,7 +1,7 @@
 package com.termux.localgames.activity;
 
 /**
- * Size of the controller list box on the Virtual controller page: it always shows exactly
+ * Size of the controller list box on the Controller page: it always shows exactly
  * {@link #VISIBLE_ROWS} rows (a fixed height, so the page below does not move when profiles come
  * and go) and scrolls inside itself when there are more. Pure pixel arithmetic, no Android types.
  */

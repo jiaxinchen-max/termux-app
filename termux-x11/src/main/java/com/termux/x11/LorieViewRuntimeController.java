@@ -62,6 +62,7 @@ import com.termux.x11.controller.container.Shortcut;
 import com.termux.x11.controller.InputControllerActivity;
 import com.termux.x11.controller.contentdialog.ContentDialog;
 import com.termux.x11.controller.core.DownloadProgressDialog;
+import com.termux.x11.controller.inputcontrols.ControlsOrientation;
 import com.termux.x11.controller.inputcontrols.ControlsProfile;
 import com.termux.x11.controller.inputcontrols.InputControlsManager;
 import com.termux.x11.controller.widget.InputControlsView;
@@ -1401,6 +1402,11 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         updateInputControlsVisibilityForConnection(LorieView.connected());
     }
 
+    private boolean isHostScreenPortrait() {
+        android.util.DisplayMetrics metrics = mActivity.getResources().getDisplayMetrics();
+        return ControlsOrientation.ofSize(metrics.widthPixels, metrics.heightPixels) == ControlsOrientation.PORTRAIT;
+    }
+
     /**
      * Starts the controller editor for the active profile. Once it returns,
      * {@link #onActivityResult(int, int, Intent)} reloads the profile list and re-applies the
@@ -1413,6 +1419,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         Intent intent = new Intent(mActivity, InputControllerActivity.class);
         intent.putExtra("edit_input_controls", true);
         intent.putExtra("selected_profile_id", previousProfileId);
+        intent.putExtra(InputControllerActivity.EXTRA_HOST_SCREEN_PORTRAIT, isHostScreenPortrait());
         editInputControlsCallback = () -> {
             hideInputControls();
             inputControlsManager.loadProfiles(true);
@@ -1491,6 +1498,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
             Intent intent = new Intent(mActivity, InputControllerActivity.class);
             intent.putExtra("edit_input_controls", true);
             intent.putExtra("selected_profile_id", position > 0 ? inputControlsManager.getProfiles().get(position - 1).id : 0);
+            intent.putExtra(InputControllerActivity.EXTRA_HOST_SCREEN_PORTRAIT, isHostScreenPortrait());
             editInputControlsCallback = () -> {
                 hideInputControls();
                 inputControlsManager.loadProfiles(true);

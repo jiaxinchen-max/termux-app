@@ -37,6 +37,7 @@ import com.termux.x11.controller.core.AppUtils;
 import com.termux.x11.controller.core.Callback;
 import com.termux.x11.controller.core.FileUtils;
 import com.termux.x11.controller.core.HttpUtils;
+import com.termux.x11.controller.inputcontrols.ControlsOrientation;
 import com.termux.x11.controller.inputcontrols.ControlsProfile;
 import com.termux.x11.controller.inputcontrols.ExternalController;
 import com.termux.x11.controller.inputcontrols.InputControlsManager;
@@ -155,7 +156,11 @@ public class InputControlsFragment extends Fragment {
         sbUiOpacity.setProgress((int)(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100));
 
         view.findViewById(R.id.BTAddProfile).setOnClickListener((v) -> ContentDialog.prompt(context, R.string.profile_name, null, (name) -> {
-            currentProfile = manager.createProfile(name);
+            // A new profile is designed for the orientation of the screen this page was opened from.
+            boolean hostPortrait = requireActivity().getIntent()
+                .getBooleanExtra(InputControllerActivity.EXTRA_HOST_SCREEN_PORTRAIT, false);
+            currentProfile = manager.createProfile(name,
+                hostPortrait ? ControlsOrientation.PORTRAIT : ControlsOrientation.LANDSCAPE);
             loadProfileSpinner(sProfile);
             updateLayout.run();
         }));
@@ -309,7 +314,8 @@ public class InputControlsFragment extends Fragment {
         for (int i = 0; i < profiles.size(); i++) {
             ControlsProfile profile = profiles.get(i);
             if (profile == currentProfile) selectedPosition = i + 1;
-            values.add(profile.getName());
+            values.add(profile.getName() + " \u00b7 " + getString(profile.getOrientation() == ControlsOrientation.PORTRAIT
+                ? R.string.profile_orientation_portrait : R.string.profile_orientation_landscape));
         }
 
         spinner.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_dropdown_item, values));

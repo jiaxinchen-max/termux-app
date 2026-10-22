@@ -16,6 +16,12 @@ import com.termux.x11.controller.core.PreloaderDialog;
 public class InputControllerActivity extends AppCompatActivity {
 
     public static final int EDIT_INPUT_CONTROLS_REQUEST_CODE = 103;
+    /**
+     * Boolean extra: the screen the activity was launched from is portrait. This activity is always
+     * shown in portrait itself, so its own screen cannot tell the orientation of the game; a new
+     * controller profile starts in the orientation passed here.
+     */
+    public static final String EXTRA_HOST_SCREEN_PORTRAIT = "host_screen_portrait";
     public static final byte PERMISSION_WRITE_EXTERNAL_STORAGE_REQUEST_CODE = 1;
     public static final byte OPEN_FILE_REQUEST_CODE = 2;
     public static final byte OPEN_DIRECTORY_REQUEST_CODE = 4;

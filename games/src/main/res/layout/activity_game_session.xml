@@ -169,7 +169,7 @@
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:layout_marginEnd="4dp"
-                        android:contentDescription="@string/local_game_virtual_controller_back"
+                        android:contentDescription="@string/local_game_controller_back"
                         android:src="@drawable/local_games_ic_back"
                         android:visibility="gone" />
                     <TextView
@@ -293,26 +293,26 @@
                     </LinearLayout>
 
                     <LinearLayout
-                        android:id="@+id/game_session_panel_virtual_controller"
+                        android:id="@+id/game_session_panel_controller"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:visibility="gone">
-                        <!-- Third level of the drawer: opened from the Virtual controller row of the
-                             Operation panel; the rows are added by GameVirtualControllerPanel. -->
+                        <!-- Third level of the drawer: opened from the Controller row of the
+                             Operation panel; the rows are added by GameControllerPanel. -->
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="@string/local_game_virtual_controller_page_summary"
+                            android:text="@string/local_game_controller_page_summary"
                             android:textColor="@color/local_games_on_surface_secondary" />
                         <LinearLayout
-                            android:id="@+id/game_session_vc_list"
+                            android:id="@+id/game_session_controller_list"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:orientation="vertical" />
                         <TextView
-                            android:id="@+id/game_session_vc_notice"
+                            android:id="@+id/game_session_controller_notice"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"

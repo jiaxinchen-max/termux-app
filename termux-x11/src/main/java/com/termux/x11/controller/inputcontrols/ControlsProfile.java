@@ -22,6 +22,7 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
     public final int id;
     private String name;
     private float cursorSpeed = 1.0f;
+    private ControlsOrientation orientation = ControlsOrientation.DEFAULT;
     private final ArrayList<ControlElement> elements = new ArrayList<>();
     private final ArrayList<ExternalController> controllers = new ArrayList<>();
     private final List<ControlElement> immutableElements = Collections.unmodifiableList(elements);
@@ -51,6 +52,15 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
 
     public void setCursorSpeed(float cursorSpeed) {
         this.cursorSpeed = cursorSpeed;
+    }
+
+    /** Screen orientation this profile is designed for; landscape unless the file says otherwise. */
+    public ControlsOrientation getOrientation() {
+        return orientation;
+    }
+
+    public void setOrientation(ControlsOrientation orientation) {
+        this.orientation = orientation != null ? orientation : ControlsOrientation.DEFAULT;
     }
 
     public boolean isVirtualGamepad() {
@@ -128,6 +138,7 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
             data.put("id", id);
             data.put("name", name);
             data.put("cursorSpeed", Float.valueOf(cursorSpeed));
+            data.put("orientation", orientation.storageValue());
 
             JSONArray elementsJSONArray = new JSONArray();
             if (!elementsLoaded && file.isFile()) {

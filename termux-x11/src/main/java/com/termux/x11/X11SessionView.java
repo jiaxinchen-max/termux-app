@@ -53,18 +53,25 @@ public final class X11SessionView extends FrameLayout {
         public long getMemoryBytes() { return memoryBytes; }
     }
 
-    /** Id + display name of one on-screen controller layout; ids are the stable profile ids. */
+    /**
+     * Id, display name and screen orientation of one on-screen controller layout; ids are the stable
+     * profile ids.
+     */
     public static final class InputProfile {
         private final int id;
         private final String name;
+        private final boolean portrait;
 
-        InputProfile(int id, @NonNull String name) {
+        InputProfile(int id, @NonNull String name, boolean portrait) {
             this.id = id;
             this.name = name;
+            this.portrait = portrait;
         }
 
         public int getId() { return id; }
         @NonNull public String getName() { return name; }
+        /** True for a portrait layout, false for a landscape one (the default of older layouts). */
+        public boolean isPortrait() { return portrait; }
     }
 
     @Nullable private AppCompatActivity activity;
@@ -231,7 +238,8 @@ public final class X11SessionView extends FrameLayout {
         if (runtime == null) return result;
         for (com.termux.x11.controller.inputcontrols.ControlsProfile profile : runtime.getInputControlsProfiles()) {
             String name = profile.getName();
-            result.add(new InputProfile(profile.id, name == null ? "" : name));
+            result.add(new InputProfile(profile.id, name == null ? "" : name,
+                profile.getOrientation() == com.termux.x11.controller.inputcontrols.ControlsOrientation.PORTRAIT));
         }
         return result;
     }

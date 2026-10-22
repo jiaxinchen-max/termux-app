@@ -106,9 +106,9 @@ public final class GameSessionActivity extends AppCompatActivity {
     private GameLogPanel logPanel;
     private int selectedCategory = CATEGORY_OPERATION;
     private AudioManager audioManager;
-    private GameVirtualControllerPanel virtualControllerPanel;
-    /** True while the Virtual controller sub-page (third drawer level) replaces the Operation panel. */
-    private boolean virtualControllerPageOpen;
+    private GameControllerPanel controllerPanel;
+    /** True while the Controller sub-page (third drawer level) replaces the Operation panel. */
+    private boolean controllerPageOpen;
     private String gameId;
     /** Latest xinput/dinput[:id] selection of this session (frozen value until the user changes it). */
     private String inputSelection;
@@ -179,7 +179,7 @@ public final class GameSessionActivity extends AppCompatActivity {
             inputSelection = frozenSpec.getInputProfileId();
             applyFrozenInputProfile(frozenSpec);
         }
-        setUpVirtualControllerRow();
+        setUpControllerRow();
         observeTask();
     }
 
@@ -193,7 +193,7 @@ public final class GameSessionActivity extends AppCompatActivity {
         binding.gameSessionProcessNewTask.setOnClickListener(view -> {
             if (processPanel != null) processPanel.showNewTaskPrompt();
         });
-        binding.gameSessionPanelBack.setOnClickListener(view -> setVirtualControllerPageOpen(false));
+        binding.gameSessionPanelBack.setOnClickListener(view -> setControllerPageOpen(false));
         binding.gameSessionCategoryOperation.setOnClickListener(view -> selectCategory(CATEGORY_OPERATION));
         binding.gameSessionCategoryPerformance.setOnClickListener(view -> selectCategory(CATEGORY_PERFORMANCE));
         binding.gameSessionCategorySettings.setOnClickListener(view -> selectCategory(CATEGORY_SETTINGS));
@@ -265,20 +265,20 @@ public final class GameSessionActivity extends AppCompatActivity {
     }
 
     /**
-     * Adds the "Virtual controller" row, the Operation panel's only controller entry, below its
-     * summary; the row opens the Virtual controller sub-page.
+     * Adds the "Controller" row, the Operation panel's only controller entry, below its
+     * summary; the row opens the Controller sub-page.
      */
-    private void setUpVirtualControllerRow() {
+    private void setUpControllerRow() {
         LinearLayout host = new LinearLayout(this);
         host.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.topMargin = dp(8);
         binding.gameSessionPanelOperation.addView(host, params);
-        virtualControllerPanel = new GameVirtualControllerPanel(this, binding.gameSessionX11, host,
-            binding.gameSessionVcList, binding.gameSessionVcNotice, inputSelection,
-            this::persistInputSelection, this::openVirtualControllerPage);
-        virtualControllerPanel.render();
+        controllerPanel = new GameControllerPanel(this, binding.gameSessionX11, host,
+            binding.gameSessionControllerList, binding.gameSessionControllerNotice, inputSelection,
+            this::persistInputSelection, this::openControllerPage);
+        controllerPanel.render();
     }
 
     /** Applies nothing (the panel already did); remembers the choice for the next launch. */
@@ -292,8 +292,8 @@ public final class GameSessionActivity extends AppCompatActivity {
                 boolean saved = GameInputProfileChoices.persist(
                     new FileRuntimeProfileRepository(profilesDirectory), id, selection);
                 if (!saved) runOnUiThread(() -> {
-                    if (!destroyed && virtualControllerPanel != null) {
-                        virtualControllerPanel.showNotice(R.string.local_game_virtual_controller_save_failed);
+                    if (!destroyed && controllerPanel != null) {
+                        controllerPanel.showNotice(R.string.local_game_controller_save_failed);
                     }
                 });
             });
@@ -391,7 +391,7 @@ public final class GameSessionActivity extends AppCompatActivity {
     private void selectCategory(int category) {
         selectedCategory = category;
         // Picking any category (including Operation again) returns to that category's top level.
-        setVirtualControllerPageOpen(false);
+        setControllerPageOpen(false);
         // Performance and Logs are their own pages (a fixed footer / a list that scrolls itself), not
         // panels of the scrolling panel container.
         binding.gameSessionPanelScroll.setVisibility(
@@ -432,37 +432,37 @@ public final class GameSessionActivity extends AppCompatActivity {
         updateLogPage();
     }
 
-    /** Opens the Virtual controller sub-page (a row of the Operation panel leads here). */
-    private void openVirtualControllerPage() {
+    /** Opens the Controller sub-page (a row of the Operation panel leads here). */
+    private void openControllerPage() {
         if (binding == null || destroyed) return;
         selectCategory(CATEGORY_OPERATION);
-        if (virtualControllerPanel != null) {
-            virtualControllerPanel.clearNotice();
-            virtualControllerPanel.render();
+        if (controllerPanel != null) {
+            controllerPanel.clearNotice();
+            controllerPanel.render();
         }
-        setVirtualControllerPageOpen(true);
+        setControllerPageOpen(true);
     }
 
     /**
-     * Shows or leaves the Virtual controller sub-page. The page only exists under the Operation
+     * Shows or leaves the Controller sub-page. The page only exists under the Operation
      * category: while open it replaces the Operation panel and the header gets a back button and the
      * page title.
      */
-    private void setVirtualControllerPageOpen(boolean open) {
+    private void setControllerPageOpen(boolean open) {
         if (binding == null) return;
         boolean onOperation = selectedCategory == CATEGORY_OPERATION;
-        virtualControllerPageOpen = open && onOperation;
+        controllerPageOpen = open && onOperation;
         binding.gameSessionPanelOperation.setVisibility(
-            onOperation && !virtualControllerPageOpen ? View.VISIBLE : View.GONE);
-        binding.gameSessionPanelVirtualController.setVisibility(
-            virtualControllerPageOpen ? View.VISIBLE : View.GONE);
-        binding.gameSessionPanelBack.setVisibility(virtualControllerPageOpen ? View.VISIBLE : View.GONE);
+            onOperation && !controllerPageOpen ? View.VISIBLE : View.GONE);
+        binding.gameSessionPanelController.setVisibility(
+            controllerPageOpen ? View.VISIBLE : View.GONE);
+        binding.gameSessionPanelBack.setVisibility(controllerPageOpen ? View.VISIBLE : View.GONE);
         if (onOperation) {
-            binding.gameSessionPanelTitle.setText(virtualControllerPageOpen
-                ? R.string.local_game_virtual_controller : R.string.local_game_session_operation_title);
+            binding.gameSessionPanelTitle.setText(controllerPageOpen
+                ? R.string.local_game_controller : R.string.local_game_session_operation_title);
         }
-        if (virtualControllerPageOpen) binding.gameSessionPanelScroll.scrollTo(0, 0);
-        else if (virtualControllerPanel != null) virtualControllerPanel.render();
+        if (controllerPageOpen) binding.gameSessionPanelScroll.scrollTo(0, 0);
+        else if (controllerPanel != null) controllerPanel.render();
     }
 
     private void setCategorySelected(@NonNull MaterialButton button, boolean selected) {
@@ -476,7 +476,7 @@ public final class GameSessionActivity extends AppCompatActivity {
     private void showControlDrawer() {
         boolean layerVisible = binding.gameSessionDrawerLayer.getVisibility() == View.VISIBLE;
         if (layerVisible && !drawerHiding) return;
-        if (virtualControllerPanel != null) virtualControllerPanel.render();
+        if (controllerPanel != null) controllerPanel.render();
         if (layerVisible) {
             // Re-opened while sliding out: turn around from where it is instead of restarting.
             drawerHiding = false;
@@ -579,13 +579,13 @@ public final class GameSessionActivity extends AppCompatActivity {
         lastBackHandledAtMs = now;
         boolean drawerOpen = binding.gameSessionDrawerLayer.getVisibility() == View.VISIBLE
             && !drawerHiding;
-        switch (GameSessionBackPolicy.decide(drawerOpen, virtualControllerPageOpen,
+        switch (GameSessionBackPolicy.decide(drawerOpen, controllerPageOpen,
             exitConfirmationVisible || exitConfirmationPending || exitRequested)) {
             case OPEN_DRAWER:
                 showControlDrawer();
                 break;
             case NAVIGATE_UP:
-                setVirtualControllerPageOpen(false);
+                setControllerPageOpen(false);
                 break;
             case CLOSE_DRAWER:
                 hideControlDrawer();
@@ -779,8 +779,8 @@ public final class GameSessionActivity extends AppCompatActivity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (binding != null && virtualControllerPanel != null)
-            virtualControllerPanel.onHostActivityResult(requestCode, resultCode, data);
+        if (binding != null && controllerPanel != null)
+            controllerPanel.onHostActivityResult(requestCode, resultCode, data);
     }
 
     @Override protected void onSaveInstanceState(@NonNull Bundle outState) {

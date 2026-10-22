@@ -130,6 +130,29 @@ public class GameInputProfileChoicesTest {
     }
 
     @Test
+    public void orientationTagsAreAppendedToEveryProfileLabel() {
+        List<GameInputProfileChoices.Choice> choices = GameInputProfileChoices.build(
+            Arrays.asList(new GameInputProfileChoices.Entry(1, "RTS", false),
+                new GameInputProfileChoices.Entry(2, "FPS", true),
+                new GameInputProfileChoices.Entry(3, "  ", true)),
+            2, OFF, UNNAMED, "Landscape", "Portrait");
+
+        assertEquals(OFF, choices.get(0).label);
+        assertEquals("RTS \u00b7 Landscape", choices.get(1).label);
+        assertEquals("FPS \u00b7 Portrait", choices.get(2).label);
+        assertEquals("Controller 3 \u00b7 Portrait", choices.get(3).label);
+        assertEquals("FPS \u00b7 Portrait", GameInputProfileChoices.summary(choices, OFF));
+    }
+
+    @Test
+    public void labelsStayPlainWithoutOrientationTags() {
+        List<GameInputProfileChoices.Choice> choices = GameInputProfileChoices.build(
+            Collections.singletonList(new GameInputProfileChoices.Entry(1, "RTS", true)), 0, OFF, UNNAMED);
+
+        assertEquals("RTS", choices.get(1).label);
+    }
+
+    @Test
     public void activeProfileIsTheOnlyCheckedChoice() {
         List<GameInputProfileChoices.Choice> choices = GameInputProfileChoices.build(
             Arrays.asList(entry(1, "RTS"), entry(2, "FPS")), 2, OFF, UNNAMED);

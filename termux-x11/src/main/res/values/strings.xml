@@ -253,6 +253,9 @@
     <string name="profile">Profile</string>
     <string name="select_profile">Select Profile</string>
     <string name="profile_name">Profile Name</string>
+    <string name="profile_orientation_landscape">Landscape</string>
+    <string name="profile_orientation_portrait">Portrait</string>
+    <string name="profile_orientation_switch">Switch between landscape and portrait layout</string>
     <string name="name">Name</string>
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>

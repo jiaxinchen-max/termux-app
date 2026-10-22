@@ -24,6 +24,7 @@ import android.widget.FrameLayout;
 
 import com.termux.x11.controller.inputcontrols.Binding;
 import com.termux.x11.controller.inputcontrols.ControlElement;
+import com.termux.x11.controller.inputcontrols.ControlsOrientation;
 import com.termux.x11.controller.inputcontrols.ControlsProfile;
 import com.termux.x11.controller.inputcontrols.ExternalController;
 import com.termux.x11.controller.inputcontrols.ExternalControllerBinding;
@@ -166,14 +167,14 @@ public class InputControlsView extends View {
         int previousLayoutWidth = controlLayoutWidth;
         int previousLayoutHeight = controlLayoutHeight;
 
-        controlLayoutWidth = Math.max(width, height);
-        controlLayoutHeight = Math.min(width, height);
-        snappingSize = Math.max(1, controlLayoutWidth / 100);
-        controlLayoutWidth = Math.max(snappingSize, (int) Mathf.roundTo(controlLayoutWidth, snappingSize));
-        controlLayoutHeight = Math.max(snappingSize, (int) Mathf.roundTo(controlLayoutHeight, snappingSize));
-        controlLayoutScale = Math.min((float) width / controlLayoutWidth, (float) height / controlLayoutHeight);
-        controlLayoutOffsetX = (width - controlLayoutWidth * controlLayoutScale) * 0.5f;
-        controlLayoutOffsetY = (height - controlLayoutHeight * controlLayoutScale) * 0.5f;
+        ControlsOrientation orientation = profile != null ? profile.getOrientation() : ControlsOrientation.DEFAULT;
+        ControlLayoutGeometry geometry = ControlLayoutGeometry.compute(orientation, width, height);
+        controlLayoutWidth = geometry.layoutWidth;
+        controlLayoutHeight = geometry.layoutHeight;
+        snappingSize = geometry.snappingSize;
+        controlLayoutScale = geometry.scale;
+        controlLayoutOffsetX = geometry.offsetX;
+        controlLayoutOffsetY = geometry.offsetY;
 
         if (profile != null && profile.isElementsLoaded()
             && (snappingSize != previousSnappingSize
@@ -225,19 +226,15 @@ public class InputControlsView extends View {
         int width = getMaxWidth();
         int height = getMaxHeight();
 
-        for (int i = 0; i < width; i += snappingSize) {
-            canvas.drawLine(i, 0, i, height, paint);
-            canvas.drawLine(0, i, width, i, paint);
-        }
+        for (int i = 0; i < width; i += snappingSize) canvas.drawLine(i, 0, i, height, paint);
+        for (int i = 0; i < height; i += snappingSize) canvas.drawLine(0, i, width, i, paint);
 
         float cx = Mathf.roundTo(width * 0.5f, snappingSize);
         float cy = Mathf.roundTo(height * 0.5f, snappingSize);
         paint.setColor(0xff424242);
 
-        for (int i = 0; i < width; i += snappingSize * 2) {
-            canvas.drawLine(cx, i, cx, i + snappingSize, paint);
-            canvas.drawLine(i, cy, i + snappingSize, cy, paint);
-        }
+        for (int i = 0; i < height; i += snappingSize * 2) canvas.drawLine(cx, i, cx, i + snappingSize, paint);
+        for (int i = 0; i < width; i += snappingSize * 2) canvas.drawLine(i, cy, i + snappingSize, cy, paint);
 
         paint.setAntiAlias(true);
     }

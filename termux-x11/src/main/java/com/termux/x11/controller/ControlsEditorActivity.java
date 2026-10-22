@@ -2,6 +2,7 @@ package com.termux.x11.controller;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
@@ -32,6 +33,7 @@ import com.termux.x11.controller.core.FileUtils;
 import com.termux.x11.controller.core.UnitUtils;
 import com.termux.x11.controller.inputcontrols.Binding;
 import com.termux.x11.controller.inputcontrols.ControlElement;
+import com.termux.x11.controller.inputcontrols.ControlsOrientation;
 import com.termux.x11.controller.inputcontrols.ControlsProfile;
 import com.termux.x11.controller.inputcontrols.InputControlsManager;
 import com.termux.x11.controller.math.Mathf;
@@ -51,6 +53,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
 
     private InputControlsView inputControlsView;
     private ControlsProfile profile;
+    private TextView orientationButton;
     protected LoadCallBack<Uri> openFileCallback;
 
     public void setOpenFileCallback(LoadCallBack<Uri> openFileCallback) {
@@ -61,13 +64,16 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
     public void onCreate(Bundle bundle) {
         super.onCreate(bundle);
         AppUtils.hideSystemUI(this);
+
+        profile = InputControlsManager.loadProfile(this, ControlsProfile.getProfileFile(this, getIntent().getIntExtra("profile_id", 0)));
+        // A profile is edited in its own orientation, so the editor shows it unscaled.
+        setRequestedOrientation(requestedScreenOrientation(profile.getOrientation()));
         setContentView(R.layout.controls_editor_activity);
 
         inputControlsView = new InputControlsView(this);
         inputControlsView.setEditMode(true);
         inputControlsView.setOverlayOpacity(0.6f);
 
-        profile = InputControlsManager.loadProfile(this, ControlsProfile.getProfileFile(this, getIntent().getIntExtra("profile_id", 0)));
         ((TextView) findViewById(R.id.TVProfileName)).setText(profile.getName());
         inputControlsView.setProfile(profile);
 
@@ -77,6 +83,37 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         container.findViewById(R.id.BTAddElement).setOnClickListener(this);
         container.findViewById(R.id.BTRemoveElement).setOnClickListener(this);
         container.findViewById(R.id.BTElementSettings).setOnClickListener(this);
+        orientationButton = container.findViewById(R.id.BTOrientation);
+        orientationButton.setOnClickListener(this);
+        updateOrientationButton();
+    }
+
+    private static int requestedScreenOrientation(ControlsOrientation orientation) {
+        return orientation == ControlsOrientation.PORTRAIT
+            ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+    }
+
+    private void updateOrientationButton() {
+        orientationButton.setText(profile.getOrientation() == ControlsOrientation.PORTRAIT
+            ? R.string.profile_orientation_portrait : R.string.profile_orientation_landscape);
+    }
+
+    /**
+     * Switches the profile between its landscape and portrait layout: the new orientation is saved
+     * (element positions are stored as fractions of the layout box, so they are kept), the profile is
+     * reloaded into the new layout box and the editor turns to the new orientation.
+     */
+    private void switchOrientation() {
+        ControlsOrientation next = profile.getOrientation().opposite();
+        // Saved while the view still has the old layout box, so the stored fractions stay valid.
+        profile.setOrientation(next);
+        profile.save();
+        profile = InputControlsManager.loadProfile(this, ControlsProfile.getProfileFile(this, profile.id));
+        inputControlsView.setProfile(profile);
+        updateOrientationButton();
+        setRequestedOrientation(requestedScreenOrientation(next));
+        inputControlsView.invalidate();
     }
 
     @Override
@@ -90,6 +127,8 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
             if (!inputControlsView.removeElement()) {
                 AppUtils.showToast(this, R.string.no_control_element_selected);
             }
+        } else if (id == R.id.BTOrientation) {
+            switchOrientation();
         } else if (id == R.id.BTElementSettings) {
             ControlElement selectedElement = inputControlsView.getSelectedElement();
             if (selectedElement != null) {

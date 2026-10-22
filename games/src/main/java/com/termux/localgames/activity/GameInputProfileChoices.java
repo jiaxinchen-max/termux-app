@@ -18,12 +18,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Pure logic behind the in-game "Virtual controller" row: composing and parsing the per-game
+ * Pure logic behind the in-game "Controller" row: composing and parsing the per-game
  * {@code inputProfileId} and turning the available touch profiles into a display model.
  *
  * <p>Encoding (identical to the {@code LaunchSpec} constraint
  * {@code (xinput|dinput)(:[1-9][0-9]{0,5})?}): the mapper prefix {@code xinput|dinput} alone means
- * "virtual controller off"; {@code <prefix>:<id>} selects the touch profile whose numeric
+ * "controller off"; {@code <prefix>:<id>} selects the touch profile whose numeric
  * {@code InputControlsManager} id is {@code <id>}. The id is the manager's own integer id, so no
  * mapping table is needed; only profiles whose id lies in {@code 1..999999} can be expressed and
  * every other id is simply not offered.</p>
@@ -32,8 +32,10 @@ final class GameInputProfileChoices {
 
     /** Largest profile id the encoding can carry (six digits). */
     static final int MAX_PROFILE_ID = 999_999;
-    /** Selection meaning "no virtual controller". */
+    /** Selection meaning "no controller". */
     static final int OFF = 0;
+
+    private static final String ORIENTATION_SEPARATOR = " \u00b7 ";
 
     private static final Pattern SELECTION =
         Pattern.compile("(xinput|dinput)(?::([1-9][0-9]{0,5}))?");
@@ -44,10 +46,17 @@ final class GameInputProfileChoices {
     static final class Entry {
         final int id;
         @NonNull final String name;
+        /** True for a portrait layout, false for a landscape one. */
+        final boolean portrait;
 
         Entry(int id, @Nullable String name) {
+            this(id, name, false);
+        }
+
+        Entry(int id, @Nullable String name, boolean portrait) {
             this.id = id;
             this.name = name == null ? "" : name;
+            this.portrait = portrait;
         }
     }
 
@@ -113,6 +122,18 @@ final class GameInputProfileChoices {
     @NonNull
     static List<Choice> build(@Nullable List<Entry> profiles, int activeProfileId,
                               @NonNull String offLabel, @NonNull String unnamedFormat) {
+        return build(profiles, activeProfileId, offLabel, unnamedFormat, null, null);
+    }
+
+    /**
+     * Like {@link #build(List, int, String, String)}; when both tags are given, each profile label
+     * ends with its orientation tag ({@code "<label> · <tag>"}), so landscape and portrait layouts
+     * can be told apart in the list.
+     */
+    @NonNull
+    static List<Choice> build(@Nullable List<Entry> profiles, int activeProfileId,
+                              @NonNull String offLabel, @NonNull String unnamedFormat,
+                              @Nullable String landscapeTag, @Nullable String portraitTag) {
         Set<Integer> seen = new HashSet<>();
         List<Entry> offered = new ArrayList<>();
         if (profiles != null) {
@@ -127,6 +148,9 @@ final class GameInputProfileChoices {
         for (Entry entry : offered) {
             String name = entry.name.trim();
             String label = name.isEmpty() ? String.format(Locale.ROOT, unnamedFormat, entry.id) : name;
+            if (landscapeTag != null && portraitTag != null) {
+                label += ORIENTATION_SEPARATOR + (entry.portrait ? portraitTag : landscapeTag);
+            }
             result.add(new Choice(entry.id, label, entry.id == activeProfileId));
         }
         return Collections.unmodifiableList(result);

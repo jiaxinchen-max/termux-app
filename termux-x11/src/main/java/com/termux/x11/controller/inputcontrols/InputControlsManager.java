@@ -6,6 +6,7 @@ import android.content.res.AssetManager;
 import android.media.MediaScannerConnection;
 import android.os.Environment;
 import android.util.JsonReader;
+import android.util.JsonToken;
 
 import androidx.preference.PreferenceManager;
 
@@ -112,8 +113,13 @@ public class InputControlsManager {
     }
 
     public ControlsProfile createProfile(String name) {
+        return createProfile(name, ControlsOrientation.DEFAULT);
+    }
+
+    public ControlsProfile createProfile(String name, ControlsOrientation orientation) {
         ControlsProfile profile = new ControlsProfile(context, ++maxProfileId);
         profile.setName(name);
+        profile.setOrientation(orientation);
         profile.save();
         profiles.add(profile);
         return profile;
@@ -206,7 +212,7 @@ public class InputControlsManager {
             int profileId = 0;
             String profileName = null;
             float cursorSpeed = Float.NaN;
-            int fieldsRead = 0;
+            ControlsOrientation orientation = ControlsOrientation.DEFAULT;
 
             reader.beginObject();
             while (reader.hasNext()) {
@@ -214,18 +220,19 @@ public class InputControlsManager {
 
                 if (name.equals("id")) {
                     profileId = reader.nextInt();
-                    fieldsRead++;
                 }
                 else if (name.equals("name")) {
                     profileName = reader.nextString();
-                    fieldsRead++;
                 }
                 else if (name.equals("cursorSpeed")) {
                     cursorSpeed = (float) reader.nextDouble();
-                    fieldsRead++;
+                }
+                else if (name.equals("orientation")) {
+                    if (reader.peek() == JsonToken.STRING)
+                        orientation = ControlsOrientation.fromStorage(reader.nextString());
+                    else reader.skipValue();
                 }
                 else {
-                    if (fieldsRead == 3) break;
                     reader.skipValue();
                 }
             }
@@ -233,6 +240,7 @@ public class InputControlsManager {
             ControlsProfile profile = new ControlsProfile(context, profileId);
             profile.setName(profileName);
             profile.setCursorSpeed(cursorSpeed);
+            profile.setOrientation(orientation);
             return profile;
         }
         catch (IOException e) {
