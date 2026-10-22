@@ -241,6 +241,48 @@ public final class X11SessionView extends FrameLayout {
         return runtime == null ? 0 : runtime.getActiveInputControlsProfileId();
     }
 
+    /** How touches are interpreted while a controller profile is active. */
+    public enum PointerMode {
+        /** Touches move a pointer like a touchpad. */
+        TOUCHPAD,
+        /** Touches act directly where the screen is touched. */
+        TOUCH_SCREEN,
+        /** The pointer is captured, for games that need relative mouse movement. */
+        LOCKED_CURSOR
+    }
+
+    /** Current pointer mode (touch screen, the default, while the session is not bound). */
+    @NonNull
+    public PointerMode getPointerMode() {
+        if (runtime == null) return PointerMode.TOUCH_SCREEN;
+        switch (runtime.getTouchMode()) {
+            case TRACK_PAD: return PointerMode.TOUCHPAD;
+            case LOCKED_CURSOR: return PointerMode.LOCKED_CURSOR;
+            default: return PointerMode.TOUCH_SCREEN;
+        }
+    }
+
+    /** Applies a pointer mode; false (nothing changed) while no controller profile is active. */
+    public boolean setPointerMode(@NonNull PointerMode mode) {
+        com.termux.x11.controller.widget.TouchpadView.TouchMode touchMode;
+        switch (mode) {
+            case TOUCHPAD: touchMode = com.termux.x11.controller.widget.TouchpadView.TouchMode.TRACK_PAD; break;
+            case LOCKED_CURSOR: touchMode = com.termux.x11.controller.widget.TouchpadView.TouchMode.LOCKED_CURSOR; break;
+            default: touchMode = com.termux.x11.controller.widget.TouchpadView.TouchMode.TOUCH_SCREEN; break;
+        }
+        return requireRuntime().applyTouchMode(touchMode);
+    }
+
+    /** Whether the active profile's touchscreen controls are shown (true while not bound). */
+    public boolean isShowTouchscreenControls() {
+        return runtime == null || runtime.isShowTouchscreenControls();
+    }
+
+    /** Shows or hides the active profile's touchscreen controls; false while no profile is active. */
+    public boolean setShowTouchscreenControls(boolean show) {
+        return requireRuntime().applyShowTouchscreenControls(show);
+    }
+
     /** Opens the controller editor; the result must be forwarded to {@link #onHostActivityResult}. */
     public void openInputControlsEditor() {
         requireRuntime().openInputControlsEditor();

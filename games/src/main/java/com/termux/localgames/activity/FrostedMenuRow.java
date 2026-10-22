@@ -6,6 +6,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -15,6 +16,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.termux.localgames.R;
 
 /**
@@ -25,7 +27,8 @@ import com.termux.localgames.R;
  * views drop the extra font padding that otherwise makes text sit high in its line box.
  *
  * <p>{@link #addChoice} is the single-choice variant used by in-drawer pages: the same row, but
- * the selected one is tinted with an accent outline and ends with a check mark instead of a chevron.</p>
+ * the selected one is tinted with an accent outline and ends with a check mark instead of a chevron.
+ * {@link #addToggle} is the on/off variant: the same row ending in a switch, dimmed when disabled.</p>
  */
 final class FrostedMenuRow {
 
@@ -74,6 +77,32 @@ final class FrostedMenuRow {
         row.setSelected(selected);
         row.setClickable(true);
         row.setOnClickListener(onClick);
+        return row;
+    }
+
+    /**
+     * Adds one on/off row: like {@link #add} but it ends with a switch and the whole row toggles it.
+     * A disabled row is dimmed and ignores touches. {@code onChanged} only reports changes made by
+     * the user, never the initial {@code checked} state.
+     */
+    static LinearLayout addToggle(@NonNull Context context, @NonNull LinearLayout parent,
+                                  @NonNull CharSequence label, @Nullable CharSequence summary,
+                                  boolean checked, boolean enabled,
+                                  @NonNull CompoundButton.OnCheckedChangeListener onChanged) {
+        LinearLayout row = build(context, parent, label, summary, 2,
+            FrostedWindow.surface(context, R.color.local_games_surface, FrostedWindow.ROW_RADIUS_DP));
+        SwitchMaterial toggle = new SwitchMaterial(context);
+        toggle.setChecked(checked);
+        toggle.setEnabled(enabled);
+        toggle.setOnCheckedChangeListener(onChanged);
+        row.addView(toggle, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        row.setEnabled(enabled);
+        row.setAlpha(enabled ? 1f : 0.5f);
+        if (enabled) {
+            row.setClickable(true);
+            row.setOnClickListener(view -> toggle.toggle());
+        }
         return row;
     }
 

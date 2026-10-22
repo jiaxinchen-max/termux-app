@@ -512,6 +512,16 @@
     <string name="local_game_virtual_controller_edit">Edit controls</string>
     <string name="local_game_virtual_controller_page_summary">Choose the on-screen controller layout for this game. A choice applies at once.</string>
     <string name="local_game_virtual_controller_back">Back</string>
+    <string name="local_game_virtual_controller_none">No controller layouts yet. Use Edit controls to create one.</string>
+    <string name="local_game_pointer_options_title">Input options</string>
+    <string name="local_game_pointer_options_need_controller">Pick a controller above to use these options.</string>
+    <string name="local_game_pointer_lock_cursor">Lock cursor</string>
+    <string name="local_game_pointer_lock_cursor_summary">Capture the pointer for games that need relative mouse movement.</string>
+    <string name="local_game_pointer_touch_screen">Touch screen mode</string>
+    <string name="local_game_pointer_touch_screen_summary">On: touches act directly where you tap. Off: touches move a pointer like a touchpad.</string>
+    <string name="local_game_pointer_show_controls">Show touchscreen controls</string>
+    <string name="local_game_pointer_show_controls_summary">Draw the on-screen buttons of the selected controller.</string>
+    <string name="local_game_pointer_apply_failed">These options could not be applied.</string>
     <string name="local_game_virtual_controller_unnamed">Controller %1$d</string>
     <string name="local_game_virtual_controller_apply_failed">This controller layout could not be applied.</string>
     <string name="local_game_virtual_controller_editor_failed">The controller editor could not be opened.</string>

@@ -1351,6 +1351,40 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         return active == null ? 0 : active.id;
     }
 
+    /** Pointer mode of the controller overlay; the overlay's default (touch screen) before it exists. */
+    @NonNull
+    public TouchpadView.TouchMode getTouchMode() {
+        return touchpadView == null ? TouchpadView.TouchMode.TOUCH_SCREEN : touchpadView.getTouchMode();
+    }
+
+    /**
+     * Sets the pointer mode the way the Input dialog did on confirm: the cursor locker follows the
+     * locked-cursor mode and the overlay's touchpad takes the mode. Does nothing and returns false
+     * while no controller profile is active (the overlay, and with it the touchpad, is hidden then).
+     */
+    public boolean applyTouchMode(@NonNull TouchpadView.TouchMode mode) {
+        if (touchpadView == null || xServer == null || xServer.cursorLocker == null
+            || inputControlsView == null || inputControlsView.getProfile() == null)
+            return false;
+        xServer.cursorLocker.setEnabled(mode == TouchpadView.TouchMode.LOCKED_CURSOR);
+        touchpadView.setTouchMode(mode);
+        return true;
+    }
+
+    /** Whether the overlay draws and handles the active profile's touchscreen controls. */
+    public boolean isShowTouchscreenControls() {
+        return inputControlsView == null || inputControlsView.isShowTouchscreenControls();
+    }
+
+    /** Shows or hides the active profile's touchscreen controls; false while no profile is active. */
+    public boolean applyShowTouchscreenControls(boolean show) {
+        if (inputControlsView == null || inputControlsView.getProfile() == null)
+            return false;
+        inputControlsView.setShowTouchscreenControls(show);
+        inputControlsView.invalidate();
+        return true;
+    }
+
     public boolean isInputControlsVisible() {
         return inputControlsView != null && inputControlsView.getVisibility() == View.VISIBLE;
     }
