@@ -570,7 +570,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
 
     @Override
     @Nullable
-    public com.termux.x11.controller.contentdialog.DialogPalette getDialogPalette() {
+    public com.termux.x11.session.DialogPalette getDialogPalette() {
         return mHost.getDialogPalette();
     }
 
@@ -593,10 +593,10 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
      * {@code TaskManagerPanel.inflateContent}) for hosts that embed it instead of the dialog.
      */
     @NonNull
-    public com.termux.x11.controller.winhandler.TaskManagerPanel createTaskManagerPanel(
+    public com.termux.x11.session.TaskManagerPanel createTaskManagerPanel(
         @NonNull android.view.View panelRoot,
-        @NonNull com.termux.x11.controller.winhandler.TaskManagerPanel.Listener listener) {
-        return new com.termux.x11.controller.winhandler.TaskManagerPanel(this, panelRoot, getDialogPalette(), listener);
+        @NonNull com.termux.x11.session.TaskManagerPanel.Listener listener) {
+        return new com.termux.x11.session.TaskManagerPanel(this, panelRoot, getDialogPalette(), listener);
     }
 
     private void setupInputController() {

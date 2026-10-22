@@ -1,7 +1,5 @@
 package com.termux.ui.data;
 
-import android.os.Environment;
-
 import com.termux.ui.domain.GameRuntimeBackendType;
 
 import java.io.File;
@@ -160,19 +158,6 @@ public final class GameStoragePaths {
     }
     public File getBackupLogsDirectory() {
         return new File(getBackupDirectory(), "logs");
-    }
-    /** Where a user-triggered base-environment backup is written to / read from. Deliberately
-     *  NOT under {@link #filesDirectory} (unlike every other path in this class) -- the whole
-     *  point of this feature is to survive an app data clear or uninstall, so it has to live on
-     *  real external/shared storage (requires MANAGE_EXTERNAL_STORAGE, already declared in
-     *  AndroidManifest.xml; see PermissionUtils). Single fixed name, not one per backup: only the
-     *  most recent backup is ever kept (see RootfsBackupForegroundService) -- the backup/restore
-     *  UI is a straight overwrite, not a version picker. */
-    public File getExternalBackupDirectory() {
-        return new File(Environment.getExternalStorageDirectory(), "TermuxGames/backups");
-    }
-    public File getExternalBackupFile() {
-        return new File(getExternalBackupDirectory(), "games-base-backup.tar.zst");
     }
     /** Registry of user-installed custom Wine/Box64 builds -- see CustomRuntimeComponent /
      *  FileCustomRuntimeComponentRepository. Small, app-private, independent of the install task

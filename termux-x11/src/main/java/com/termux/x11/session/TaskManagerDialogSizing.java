@@ -1,4 +1,4 @@
-package com.termux.x11.controller.winhandler;
+package com.termux.x11.session;
 
 /**
  * Pure sizing rules for the task manager dialog. Input is the usable window size in dp, output is

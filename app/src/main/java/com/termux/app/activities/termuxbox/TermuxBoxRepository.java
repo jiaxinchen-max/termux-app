@@ -139,7 +139,7 @@ public final class TermuxBoxRepository {
     private List<TermuxBoxPackageSpec> parsePackageIndex(String json) throws IOException {
         try {
             JSONObject root = new JSONObject(json);
-            // The :games module ships this asset path and it merges into this APK, so
+            // The :termux-ui module ships this asset path and it merges into this APK, so
             // both readers must track the same schema. v2 adds presentation/compatibility
             // fields that are ignored here; the delivery fields read below are the contract.
             int schemaVersion = root.optInt("schemaVersion", 0);

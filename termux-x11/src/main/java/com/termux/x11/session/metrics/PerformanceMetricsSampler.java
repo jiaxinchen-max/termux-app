@@ -1,4 +1,4 @@
-package com.termux.x11.controller.winhandler.metrics;
+package com.termux.x11.session.metrics;
 
 /**
  * Holds the last minute of FPS / CPU % / memory % / temperature (one point per second) for the

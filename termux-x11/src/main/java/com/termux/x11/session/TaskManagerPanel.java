@@ -1,5 +1,9 @@
-package com.termux.x11.controller.winhandler;
+package com.termux.x11.session;
 
+import com.termux.x11.controller.winhandler.WinHandler;
+import com.termux.x11.controller.winhandler.OnGetProcessInfoListener;
+import com.termux.x11.controller.winhandler.ProcessIconLoader;
+import com.termux.x11.controller.winhandler.ProcessInfo;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
@@ -25,13 +29,13 @@ import androidx.annotation.Nullable;
 import com.termux.x11.LorieViewRuntimeApi;
 import com.termux.x11.R;
 import com.termux.x11.controller.contentdialog.ContentDialog;
-import com.termux.x11.controller.contentdialog.DialogPalette;
+import com.termux.x11.session.DialogPalette;
 import com.termux.x11.controller.core.CPUStatus;
 import com.termux.x11.controller.core.ProcessHelper;
 import com.termux.x11.controller.core.StringUtils;
-import com.termux.x11.controller.winhandler.metrics.MetricChartView;
-import com.termux.x11.controller.winhandler.metrics.MetricSeries;
-import com.termux.x11.controller.winhandler.metrics.PerformanceMetricsSampler;
+import com.termux.x11.session.metrics.MetricChartView;
+import com.termux.x11.session.metrics.MetricSeries;
+import com.termux.x11.session.metrics.PerformanceMetricsSampler;
 import com.termux.x11.controller.widget.CPUListView;
 
 import java.util.List;
@@ -40,7 +44,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 /**
- * Task manager content (dashboard + process list + 1s refresh) shared by {@link TaskManagerDialog}
+ * Task manager content (dashboard + process list + 1s refresh) shared by {@link com.termux.x11.controller.winhandler.TaskManagerDialog}
  * and hosts that embed it in their own UI (the games drawer sub-page). The panel owns the process
  * collection/refresh logic; the hosts only decide where the view lives, which
  * {@link TaskManagerDialogSizing.Result} to apply and what to do with the process count and with

@@ -13,7 +13,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
 
-import com.termux.x11.controller.contentdialog.DialogPalette;
+import com.termux.x11.session.DialogPalette;
 import com.termux.x11.controller.winhandler.ProcessInfo;
 
 import java.util.ArrayList;
@@ -192,13 +192,13 @@ public final class X11SessionView extends FrameLayout {
 
     /**
      * Creates the embeddable task manager over a view inflated with
-     * {@link com.termux.x11.controller.winhandler.TaskManagerPanel#inflateContent}; the caller owns
+     * {@link com.termux.x11.session.TaskManagerPanel#inflateContent}; the caller owns
      * start()/stop() and must stop it when leaving the page.
      */
     @NonNull
-    public com.termux.x11.controller.winhandler.TaskManagerPanel createTaskManagerPanel(
+    public com.termux.x11.session.TaskManagerPanel createTaskManagerPanel(
         @NonNull View panelRoot,
-        @NonNull com.termux.x11.controller.winhandler.TaskManagerPanel.Listener panelListener) {
+        @NonNull com.termux.x11.session.TaskManagerPanel.Listener panelListener) {
         return requireRuntime().createTaskManagerPanel(panelRoot, panelListener);
     }
 

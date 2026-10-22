@@ -38,7 +38,7 @@ import com.termux.ui.artwork.GameArtworkStore;
 import com.termux.ui.data.FileGameRepository;
 import com.termux.ui.data.FileRuntimeProfileRepository;
 import com.termux.ui.data.GameStoragePaths;
-import com.termux.ui.data.OrientationPreference;
+import com.termux.ui.platform.OrientationPreference;
 import com.termux.ui.data.FileLaunchTaskRepository;
 import com.termux.ui.domain.Game;
 import com.termux.ui.domain.LaunchExecutionMode;

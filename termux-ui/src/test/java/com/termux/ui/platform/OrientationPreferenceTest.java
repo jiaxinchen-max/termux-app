@@ -1,4 +1,4 @@
-package com.termux.ui.data;
+package com.termux.ui.platform;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;

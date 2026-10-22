@@ -1,7 +1,5 @@
 package com.termux.ui.data;
 
-import android.util.Log;
-
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -13,6 +11,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
  * directory scan and the tmp+fsync+rename dance.
  */
 public final class PropertiesTaskStore<T> {
-    private static final String TAG = "PropertiesTaskStore";
+    private static final Logger LOG = Logger.getLogger("PropertiesTaskStore");
 
     public interface Codec<T> {
         String taskId(T task);
@@ -94,7 +94,7 @@ public final class PropertiesTaskStore<T> {
             try {
                 result.add(read(file));
             } catch (IOException error) {
-                Log.w(TAG, "skipping unreadable task file: " + file.getName(), error);
+                LOG.log(Level.WARNING, "skipping unreadable task file: " + file.getName(), error);
             }
         }
         return result;

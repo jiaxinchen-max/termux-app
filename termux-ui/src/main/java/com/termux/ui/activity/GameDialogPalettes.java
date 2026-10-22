@@ -6,7 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
 import com.termux.ui.R;
-import com.termux.x11.controller.contentdialog.DialogPalette;
+import com.termux.x11.session.DialogPalette;
 
 /**
  * Builds the warm Frosted dialog palette handed to the embedded X11 session so the task manager

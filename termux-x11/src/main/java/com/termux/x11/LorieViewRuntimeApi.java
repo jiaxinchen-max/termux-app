@@ -8,7 +8,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentManager;
 import androidx.viewpager.widget.ViewPager;
 
-import com.termux.x11.controller.contentdialog.DialogPalette;
+import com.termux.x11.session.DialogPalette;
 import com.termux.x11.controller.core.DownloadProgressDialog;
 import com.termux.x11.controller.widget.InputControlsView;
 import com.termux.x11.controller.winhandler.ProcessInfo;
@@ -107,7 +107,7 @@ public final class LorieViewRuntimeApi {
         /**
          * Lets the host show the task manager inside its own UI instead of the default dialog.
          * Return true when the host took over (the dialog is then not shown); the host builds its
-         * view with {@link com.termux.x11.controller.winhandler.TaskManagerPanel}.
+         * view with {@link com.termux.x11.session.TaskManagerPanel}.
          */
         default boolean showEmbeddedProcessManager() {
             return false;

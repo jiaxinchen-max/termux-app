@@ -1,4 +1,4 @@
-package com.termux.x11.controller.winhandler.metrics;
+package com.termux.x11.session.metrics;
 
 import android.app.ActivityManager;
 import android.content.Context;

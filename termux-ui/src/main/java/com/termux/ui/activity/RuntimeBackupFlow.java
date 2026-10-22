@@ -10,6 +10,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 
+import com.termux.ui.platform.ExternalBackupLocation;
 import com.termux.ui.R;
 import com.termux.ui.api.LaunchHostException;
 import com.termux.ui.api.LocalGames;
@@ -18,7 +19,7 @@ import com.termux.ui.data.FileRootfsBackupTaskRepository;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.domain.RootfsBackupTask;
 import com.termux.ui.domain.RootfsBackupTaskState;
-import com.termux.ui.runtime.RuntimeBackupManager;
+import com.termux.ui.platform.RuntimeBackupManager;
 import com.termux.ui.runtime.RuntimeBackupSharedStorage;
 import com.termux.ui.runtime.RuntimeBackupType;
 
@@ -335,7 +336,7 @@ final class RuntimeBackupFlow {
         Activity activity = host;
         if (activity == null) { pendingReport = () -> showRootfsResult(task); return; }
         String archive = task.getArchivePath().isEmpty()
-            ? new GameStoragePaths(activity.getFilesDir()).getExternalBackupFile().getPath()
+            ? ExternalBackupLocation.file().getPath()
             : task.getArchivePath();
         String message;
         if (task.getState() == RootfsBackupTaskState.SUCCEEDED) {

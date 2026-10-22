@@ -1,6 +1,6 @@
 package com.termux.ui.activity;
 
-import com.termux.x11.controller.winhandler.TaskManagerDialogSizing;
+import com.termux.x11.session.TaskManagerDialogSizing;
 
 /**
  * Pure layout rules for the Performance page of the control drawer (the embedded task manager). In both drawer forms

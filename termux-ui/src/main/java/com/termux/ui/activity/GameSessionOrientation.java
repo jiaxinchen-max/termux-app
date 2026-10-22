@@ -4,7 +4,7 @@ import android.content.pm.ActivityInfo;
 
 import androidx.annotation.NonNull;
 
-import com.termux.ui.data.OrientationPreference;
+import com.termux.ui.platform.OrientationPreference;
 
 /** Pure mapping from the Settings "Orientation" choice to the game session's requested orientation. */
 final class GameSessionOrientation {

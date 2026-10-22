@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
  * Results (including "no icon") are cached per pid and name, so a reused pid cannot show a stale
  * icon. Every failure just means "no icon"; the caller then shows its default icon.
  */
-final class ProcessIconLoader {
+public final class ProcessIconLoader {
     private static final int TARGET_PX = 64;
     private static final int MAX_ICON_PX = 96;
     private static final int MAX_CACHE_ENTRIES = 64;
@@ -54,7 +54,7 @@ final class ProcessIconLoader {
      * schedules the lookup, so the icon shows up on a later bind. Main thread.
      */
     @Nullable
-    Bitmap get(int pid, @NonNull String name) {
+    public Bitmap get(int pid, @NonNull String name) {
         if (released) return null;
         String key = pid + ":" + name;
         synchronized (cache) {
@@ -88,7 +88,7 @@ final class ProcessIconLoader {
     }
 
     /** Stops the worker and drops the cache; the loader returns nothing afterwards. Main thread. */
-    void release() {
+    public void release() {
         released = true;
         if (worker != null) worker.shutdownNow();
         worker = null;

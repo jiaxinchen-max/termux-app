@@ -1,4 +1,4 @@
-package com.termux.x11.controller.winhandler;
+package com.termux.x11.session;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

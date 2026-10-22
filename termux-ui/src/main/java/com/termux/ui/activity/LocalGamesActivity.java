@@ -65,7 +65,7 @@ import com.termux.ui.data.GameAccessState;
 import com.termux.ui.data.GameLibraryItem;
 import com.termux.ui.data.GameLibraryRepository;
 import com.termux.ui.data.GameStoragePaths;
-import com.termux.ui.data.OrientationPreference;
+import com.termux.ui.platform.OrientationPreference;
 import com.termux.ui.data.SettingsPage;
 import com.termux.ui.databinding.ActivityLocalGamesBinding;
 import com.termux.ui.databinding.DialogGameActionsBinding;

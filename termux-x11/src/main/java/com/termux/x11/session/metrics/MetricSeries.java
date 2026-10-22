@@ -1,4 +1,4 @@
-package com.termux.x11.controller.winhandler.metrics;
+package com.termux.x11.session.metrics;
 
 /**
  * Fixed-capacity ring buffer of one-sample-per-second metric values (the most recent

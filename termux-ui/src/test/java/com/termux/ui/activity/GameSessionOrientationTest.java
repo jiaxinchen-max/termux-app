@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 
 import android.content.pm.ActivityInfo;
 
-import com.termux.ui.data.OrientationPreference;
+import com.termux.ui.platform.OrientationPreference;
 
 import org.junit.Test;
 

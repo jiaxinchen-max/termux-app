@@ -1,5 +1,7 @@
 package com.termux.x11.controller.winhandler;
 
+import com.termux.x11.session.TaskManagerPanel;
+import com.termux.x11.session.TaskManagerDialogSizing;
 import android.app.Activity;
 import android.util.DisplayMetrics;
 import android.view.View;

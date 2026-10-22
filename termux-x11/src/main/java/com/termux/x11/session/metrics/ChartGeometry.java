@@ -1,4 +1,4 @@
-package com.termux.x11.controller.winhandler.metrics;
+package com.termux.x11.session.metrics;
 
 /** Pure mapping from samples to plot coordinates for {@code MetricChartView}. */
 public final class ChartGeometry {

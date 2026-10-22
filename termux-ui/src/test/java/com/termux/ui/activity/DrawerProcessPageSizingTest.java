@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.termux.x11.controller.winhandler.TaskManagerDialogSizing;
+import com.termux.x11.session.TaskManagerDialogSizing;
 
 import org.junit.Test;
 

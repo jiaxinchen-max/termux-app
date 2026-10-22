@@ -30,7 +30,7 @@ import com.termux.ui.api.LaunchTasks;
 import com.termux.ui.data.FileRuntimeProfileRepository;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.data.LaunchSpecCodec;
-import com.termux.ui.data.OrientationPreference;
+import com.termux.ui.platform.OrientationPreference;
 import com.termux.ui.databinding.ActivityGameSessionBinding;
 import com.termux.ui.domain.LaunchSpec;
 import com.termux.ui.domain.LaunchStage;
@@ -40,9 +40,9 @@ import com.termux.ui.runtime.Subscription;
 import com.termux.ui.runtime.TaskObserver;
 import com.termux.ui.service.PersistentLocalGameOrchestrator;
 import com.termux.x11.X11SessionView;
-import com.termux.x11.controller.winhandler.TaskManagerPanel;
-import com.termux.x11.controller.winhandler.metrics.PerformanceMetricsRecorder;
-import com.termux.x11.controller.winhandler.metrics.PerformanceMetricsSampler;
+import com.termux.x11.session.TaskManagerPanel;
+import com.termux.x11.session.metrics.PerformanceMetricsRecorder;
+import com.termux.x11.session.metrics.PerformanceMetricsSampler;
 
 import java.io.File;
 import java.util.concurrent.ExecutorService;
@@ -715,7 +715,7 @@ public final class GameSessionActivity extends AppCompatActivity {
         DrawerProcessPageSizing.Result sizing = DrawerProcessPageSizing.compute(widthDp, heightDp,
             drawerBottomSheet ? OverlayDrawerSizing.Placement.BOTTOM_SHEET
                 : OverlayDrawerSizing.Placement.SIDE,
-            com.termux.x11.controller.core.CPUStatus.getCurrentClockSpeeds().length);
+            Runtime.getRuntime().availableProcessors());
         LinearLayout.LayoutParams pageParams =
             (LinearLayout.LayoutParams) binding.gameSessionProcessPage.getLayoutParams();
         if (sizing.explicitHeight) {

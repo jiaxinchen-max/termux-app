@@ -1,5 +1,6 @@
 package com.termux.x11.controller.contentdialog;
 
+import com.termux.x11.session.DialogPalette;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.res.ColorStateList;

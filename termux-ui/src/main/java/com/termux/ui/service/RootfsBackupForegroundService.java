@@ -14,6 +14,7 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import com.termux.ui.platform.ExternalBackupLocation;
 import com.termux.ui.R;
 import com.termux.ui.activity.LocalGamesActivity;
 import com.termux.ui.api.LocalGames;
@@ -133,7 +134,7 @@ public final class RootfsBackupForegroundService extends Service {
             File events = eventFile(task.getTaskId());
             File log = new File(paths.getBackupLogsDirectory(), task.getTaskId() + ".log");
             new RootfsBackupSpecCodec().write(spec, task, task.getArchivePath().isEmpty()
-                ? paths.getExternalBackupFile() : new File(task.getArchivePath()), events, log);
+                ? ExternalBackupLocation.file() : new File(task.getArchivePath()), events, log);
             host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 script.getCanonicalPath(), spec.getCanonicalPath(),
                 paths.getBackupDirectory().getCanonicalPath()));

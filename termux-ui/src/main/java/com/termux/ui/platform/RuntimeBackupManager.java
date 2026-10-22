@@ -1,4 +1,4 @@
-package com.termux.ui.runtime;
+package com.termux.ui.platform;
 
 import android.content.Context;
 import android.os.Environment;
@@ -7,6 +7,8 @@ import android.os.StatFs;
 import androidx.annotation.Nullable;
 
 import com.termux.ui.data.GameStoragePaths;
+import com.termux.ui.runtime.RuntimeBackupSharedStorage;
+import com.termux.ui.runtime.RuntimeBackupType;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;

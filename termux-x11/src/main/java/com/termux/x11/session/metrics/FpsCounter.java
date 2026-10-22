@@ -1,4 +1,4 @@
-package com.termux.x11.controller.winhandler.metrics;
+package com.termux.x11.session.metrics;
 
 /**
  * Turns a cumulative presented-frame counter into frames per second by differencing consecutive

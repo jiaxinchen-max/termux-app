@@ -1,4 +1,4 @@
-package com.termux.ui.data;
+package com.termux.ui.platform;
 
 import android.content.Context;
 import android.content.SharedPreferences;

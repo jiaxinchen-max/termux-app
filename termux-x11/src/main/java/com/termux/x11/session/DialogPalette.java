@@ -1,4 +1,4 @@
-package com.termux.x11.controller.contentdialog;
+package com.termux.x11.session;
 
 /**
  * Optional colour palette a host can supply so ContentDialogs (task manager and its child dialogs)
