@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 # Verifies controller_runtime.sh: the patched xinput/dinput DLLs are installed as shipped (builtin marker intact) into
 # the Wine runtime for the native launcher, and as marker-free copies into the prefix (64-bit and 32-bit layouts) for
-# the rootfs launcher; winhandler.exe is released into the prefix; the release is idempotent, a symlinked stub is
+# the rootfs launcher, and the Hangover build of the DLLs, marker intact, into the guest Wine and the prefix of an
+# arm64 Hangover container; winhandler.exe is released into the prefix; the release is idempotent, a symlinked stub is
 # replaced instead of written through, the launchers use it, and the DLL override strings are right.
 
 set -eu
@@ -102,6 +103,59 @@ install_games_controller_runtime "$PB" "$RUNTIME" "$WORK/no-wine" && fail "Wine 
 install_games_controller_runtime "$WORK/missing" "$RUNTIME" && fail "missing prefix accepted"
 EMPTY="$WORK/empty"; mkdir -p "$EMPTY"
 install_games_controller_runtime "$P32" "$EMPTY" && fail "missing payload accepted"
+
+# --- arm64 Hangover: its own DLL build, marker intact, in the guest Wine and in the prefix ---
+HANGOVER_STAGE="$RUNTIME/controller-stage/wine-hangover"
+HWINE="$WORK/hwine"
+PH="$WORK/ph"
+mkdir -p "$HWINE/aarch64-windows" "$HWINE/i386-windows" "$PH/drive_c/windows/system32" "$PH/drive_c/windows/syswow64"
+echo stock-a64 > "$HWINE/aarch64-windows/xinput1_3.dll"
+echo stock-i386 > "$HWINE/i386-windows/xinput1_3.dll"
+echo untouched > "$HWINE/aarch64-windows/kernel32.dll"
+echo prefix-stock-a64 > "$PH/drive_c/windows/system32/xinput1_3.dll"
+echo prefix-stock-i386 > "$PH/drive_c/windows/syswow64/xinput1_3.dll"
+install_games_controller_hangover "$PH" "$RUNTIME" "$HWINE" || fail "Hangover install failed"
+# pe_machine <file>: the PE machine type (0xaa64) is the little-endian word after the PE signature.
+pe_machine() { _pe=$(od -An -tu4 -j60 -N4 "$1" | tr -d ' '); od -An -tx2 -j$((_pe + 4)) -N2 "$1" | tr -d ' '; }
+for dll in dinput dinput8 xinput1_1 xinput1_2 xinput1_3 xinput1_4 xinput9_1_0 xinputuap; do
+    same "$HANGOVER_STAGE/aarch64-windows/$dll.dll" "$HWINE/aarch64-windows/$dll.dll" || fail "Hangover Wine aarch64 $dll.dll"
+    same "$HANGOVER_STAGE/aarch64-windows/$dll.dll" "$PH/drive_c/windows/system32/$dll.dll" || fail "Hangover system32/$dll.dll"
+    same "$HANGOVER_STAGE/i386-windows/$dll.dll" "$PH/drive_c/windows/syswow64/$dll.dll" || fail "Hangover syswow64/$dll.dll"
+    [ "$(pe_machine "$PH/drive_c/windows/system32/$dll.dll")" = aa64 ] || fail "Hangover system32/$dll.dll is not an arm64 DLL"
+    [ "$(marker "$PH/drive_c/windows/system32/$dll.dll")" = 'Wine builtin DLL' ] || fail "Hangover system32/$dll.dll lost the builtin marker"
+    [ "$(marker "$PH/drive_c/windows/syswow64/$dll.dll")" = 'Wine builtin DLL' ] || fail "Hangover syswow64/$dll.dll lost the builtin marker"
+done
+[ "$(cat "$HWINE/aarch64-windows/xinput1_3.dll.stock")" = stock-a64 ] || fail "Hangover Wine stock aarch64 DLL was not kept"
+[ "$(cat "$HWINE/i386-windows/xinput1_3.dll.stock")" = stock-i386 ] || fail "Hangover Wine stock i386 DLL was not kept"
+[ "$(cat "$PH/drive_c/windows/system32/xinput1_3.dll.stock")" = prefix-stock-a64 ] || fail "prefix stock DLL was not kept"
+[ "$(cat "$HWINE/aarch64-windows/kernel32.dll")" = untouched ] || fail "an unrelated Hangover Wine file was modified"
+same "$PAYLOAD/winhandler.exe" "$PH/drive_c/windows/winhandler.exe" || fail "winhandler.exe in a Hangover prefix"
+# No x86 DLL of the native trees reaches an arm64 prefix.
+for dll in dinput dinput8 xinput1_1 xinput1_2 xinput1_3 xinput1_4 xinput9_1_0 xinputuap; do
+    same "$NATIVE_STAGE/x86_64-windows/$dll.dll" "$PH/drive_c/windows/system32/$dll.dll" && fail "x86_64 $dll.dll was copied into an arm64 prefix"
+done
+# Idempotent: nothing is rewritten and the first stock file stays.
+touch -d '2001-01-01 00:00:00' "$PH/drive_c/windows/system32/xinput1_3.dll" "$HWINE/aarch64-windows/xinput1_3.dll"
+install_games_controller_hangover "$PH" "$RUNTIME" "$HWINE" || fail "second Hangover install failed"
+[ "$(date -r "$PH/drive_c/windows/system32/xinput1_3.dll" +%Y)" = 2001 ] || fail "identical Hangover prefix DLL was rewritten"
+[ "$(date -r "$HWINE/aarch64-windows/xinput1_3.dll" +%Y)" = 2001 ] || fail "identical Hangover Wine DLL was rewritten"
+[ "$(cat "$PH/drive_c/windows/system32/xinput1_3.dll.stock")" = prefix-stock-a64 ] || fail "the Hangover stock backup was overwritten"
+# Without a Hangover tree in the archive, or without the guest Wine dir, nothing is touched.
+NOHANGOVER="$WORK/no-hangover"
+mkdir -p "$NOHANGOVER/unpack"
+tar -xf "$RUNTIME/controller_wine.tar" -C "$NOHANGOVER/unpack"
+rm -rf "$NOHANGOVER/unpack/wine-hangover"
+tar -cf "$NOHANGOVER/controller_wine.tar" -C "$NOHANGOVER/unpack" wine
+cp "$PAYLOAD/winhandler.exe" "$NOHANGOVER/controller_winhandler.exe"
+PN="$WORK/pn"
+mkdir -p "$PN/drive_c/windows/system32"
+install_games_controller_hangover "$PN" "$NOHANGOVER" "$HWINE" && fail "archive without wine-hangover/ accepted"
+[ -z "$(ls "$PN/drive_c/windows/system32")" ] || fail "a failed Hangover install touched the prefix"
+install_games_controller_hangover "$PN" "$RUNTIME" "$WORK/no-wine" && fail "Hangover install without a guest Wine accepted"
+[ -z "$(ls "$PN/drive_c/windows/system32")" ] || fail "an install without a guest Wine touched the prefix"
+# The rootfs launcher uses it for Hangover only, and never switches these DLLs to native there.
+grep -q 'install_games_controller_hangover "\$PREFIX_PATH" .* "\$ROOTFS_CANONICAL/usr/lib/wine"' "$ASSETS/start_rootfs_game.sh" || fail "rootfs launcher does not install the Hangover DLLs"
+grep -qF '[ "$RUNTIME_TRANSLATOR" != hangover ] || CONTROLLER_DLL_OVERRIDES=' "$ASSETS/start_rootfs_game.sh" || fail "rootfs launcher still applies native overrides under Hangover"
 
 # --- override strings ---
 # games_overrides <gamepad mapper> [NAME=value ...]: the controller overrides for that Libraries setting.

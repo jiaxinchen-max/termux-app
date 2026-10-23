@@ -8,6 +8,10 @@
 #     load order use them. Wine's "native" mode rejects a file with that marker, and with "native,builtin" it silently
 #     falls back to the stock builtin. The rootfs launcher copies marker-free versions into the prefix instead, for
 #     the "native" settings of Runtime > Libraries;
+#   * for an arm64 Hangover Wine (rootfs launcher) the archive also carries wine-hangover/aarch64-windows and
+#     wine-hangover/i386-windows, built from Hangover's own Wine source. Those keep the builtin marker and go both into the
+#     guest Wine's lib/wine and into the prefix's system32/syswow64: Wine only loads a builtin DLL when a file of that name
+#     exists there, and it must not be switched to "native" (which rejects the marker);
 #   * winhandler.exe, a wrapper the game is started through: it runs the real program and is the Wine end of
 #     the controller / process bridge the app talks to over UDP (WinHandler, ports 7946/7947).
 # This replaces the removed setMoBoxEnv script, which unpacked the DLLs into the shared Wine runtime and
@@ -76,7 +80,6 @@ _games_controller_stage() {
 # its lib/wine/x86_64-windows and lib/wine/i386-windows, as shipped, so that Wine loads them as builtin DLLs. Without
 # one (rootfs launcher) marker-free copies go into the prefix: a prefix with a syswow64 directory is 64-bit, so
 # x86_64 DLLs go to system32 and i386 DLLs to syswow64; otherwise system32 is 32-bit and takes the i386 DLLs.
-# GAMES_CONTROLLER_PREFIX_DLLS=0 skips the prefix DLL copies (winhandler.exe is still installed).
 # Returns non-zero when the payload is missing or cannot be copied; the caller then starts the game the old way (a
 # missing controller must never keep a game from starting).
 install_games_controller_runtime() {
@@ -96,18 +99,48 @@ install_games_controller_runtime() {
             _installed=1
         done
         [ "$_installed" = 1 ] || return 1
-    elif [ "${GAMES_CONTROLLER_PREFIX_DLLS:-1}" = 0 ]; then
-        # An arm64 Wine (Hangover) cannot load the x86_64/i386 copies, and their presence in system32 breaks it.
-        :
     elif [ -d "$_syswow64" ]; then
         _games_controller_copy_dlls "$_runtime_dir/controller-stage/wine-native/x86_64-windows" "$_system32" || return 1
         _games_controller_copy_dlls "$_runtime_dir/controller-stage/wine-native/i386-windows" "$_syswow64" || return 1
     else
         _games_controller_copy_dlls "$_runtime_dir/controller-stage/wine-native/i386-windows" "$_system32" || return 1
     fi
-    _winhandler="$_prefix/drive_c/windows/winhandler.exe"
-    if [ "$(_games_controller_sum "$_runtime_dir/controller_winhandler.exe")" != "$(_games_controller_sum "$_winhandler")" ]; then
-        cp -f "$_runtime_dir/controller_winhandler.exe" "$_winhandler" || return 1
+    _games_controller_install_winhandler "$_prefix" "$_runtime_dir"
+}
+
+# install_games_controller_hangover <wine prefix> <runtime dir> <guest wine dir>
+# The arm64 Hangover counterpart of install_games_controller_runtime; <guest wine dir> is the Wine's lib/wine directory
+# (<rootfs>/usr/lib/wine). The shipped wine-hangover DLLs, builtin marker intact, go into <guest wine dir>/<arch>-windows
+# and into the prefix (aarch64 to system32, i386 to syswow64). The x86 DLLs of wine/ are never used here: an arm64 Wine
+# cannot load them and they break its processes. A replaced file is kept once as <name>.stock.
+# Returns non-zero when the archive has no wine-hangover/ tree or a copy fails; nothing is installed then.
+install_games_controller_hangover() {
+    _prefix=$1
+    _runtime_dir=$2
+    _wine_dir=$3
+    _system32="$_prefix/drive_c/windows/system32"
+    _syswow64="$_prefix/drive_c/windows/syswow64"
+    [ -d "$_system32" ] && [ -d "$_wine_dir/aarch64-windows" ] || return 1
+    [ -f "$_runtime_dir/controller_winhandler.exe" ] || return 1
+    _games_controller_stage "$_runtime_dir" || return 1
+    _hangover="$_runtime_dir/controller-stage/wine-hangover"
+    [ -f "$_hangover/aarch64-windows/xinput1_3.dll" ] || return 1
+    _games_controller_copy_dlls "$_hangover/aarch64-windows" "$_wine_dir/aarch64-windows" keep || return 1
+    _games_controller_copy_dlls "$_hangover/aarch64-windows" "$_system32" keep || return 1
+    if [ -d "$_wine_dir/i386-windows" ]; then
+        _games_controller_copy_dlls "$_hangover/i386-windows" "$_wine_dir/i386-windows" keep || return 1
+    fi
+    if [ -d "$_syswow64" ]; then
+        _games_controller_copy_dlls "$_hangover/i386-windows" "$_syswow64" keep || return 1
+    fi
+    _games_controller_install_winhandler "$_prefix" "$_runtime_dir"
+}
+
+# Copies winhandler.exe into the prefix unless it is already there.
+_games_controller_install_winhandler() {
+    _winhandler="$1/drive_c/windows/winhandler.exe"
+    if [ "$(_games_controller_sum "$2/controller_winhandler.exe")" != "$(_games_controller_sum "$_winhandler")" ]; then
+        cp -f "$2/controller_winhandler.exe" "$_winhandler" || return 1
     fi
 }
 

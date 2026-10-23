@@ -546,8 +546,14 @@ apply_rootfs_game_options
 # through winhandler.exe, the Wine end of the controller bridge) and switch the DLLs on. A failure only costs the
 # controller; the game then starts directly, as before. dinput* in the input profile selects the DInput mapper.
 . "$(dirname "$SCRIPT_PATH")/controller_runtime.sh"
-[ "$RUNTIME_TRANSLATOR" != hangover ] || export GAMES_CONTROLLER_PREFIX_DLLS=0
-if install_games_controller_runtime "$PREFIX_PATH" "$(dirname "$SCRIPT_PATH")" >> "$LOG_PATH" 2>&1; then
+# The arm64 Hangover Wine takes its own build of the DLLs (wine-hangover/ in the payload) as builtin DLLs from the guest
+# Wine's lib/wine and from the prefix; the x86 copies would break it, and "native" would reject the builtin marker.
+if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
+    install_games_controller_hangover "$PREFIX_PATH" "$(dirname "$SCRIPT_PATH")" "$ROOTFS_CANONICAL/usr/lib/wine" >> "$LOG_PATH" 2>&1
+else
+    install_games_controller_runtime "$PREFIX_PATH" "$(dirname "$SCRIPT_PATH")" >> "$LOG_PATH" 2>&1
+fi
+if [ $? -eq 0 ]; then
     CONTROLLER_WRAPPER=$GAMES_CONTROLLER_WINHANDLER_WINDOWS_PATH
 else
     printf 'WARNING: controller runtime could not be installed; the on-screen controller is unavailable.\n' >> "$LOG_PATH"
@@ -557,6 +563,7 @@ case "$INPUT_PROFILE_ID" in dinput*) CONTROLLER_MAPPER=0 ;; *) CONTROLLER_MAPPER
 # Empty while the DirectInput / XInput library setting is empty (builtin); a chosen mode makes the marker-free prefix
 # copies of the patched DLLs load.
 CONTROLLER_DLL_OVERRIDES=$(games_controller_dll_overrides "$CONTROLLER_MAPPER")
+[ "$RUNTIME_TRANSLATOR" != hangover ] || CONTROLLER_DLL_OVERRIDES=
 [ -z "$CONTROLLER_DLL_OVERRIDES" ] || export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}$CONTROLLER_DLL_OVERRIDES"
 
 [ ! -e "$CANCEL_PATH" ] || CANCELLED=1
