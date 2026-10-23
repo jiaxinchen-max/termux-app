@@ -19,10 +19,10 @@
         android:layout_height="wrap_content"
         android:ellipsize="middle"
         android:maxLines="2"
-        android:paddingStart="28dp"
-        android:paddingTop="4dp"
-        android:paddingEnd="20dp"
-        android:paddingBottom="8dp"
+        android:paddingStart="16dp"
+        android:paddingTop="0dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="4dp"
         android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
         android:textColor="@color/local_games_on_surface_secondary" />
 
@@ -32,8 +32,8 @@
         android:layout_weight="1"
         android:clipToPadding="false"
         android:fillViewport="true"
-        android:paddingTop="6dp"
-        android:paddingBottom="20dp">
+        android:paddingTop="2dp"
+        android:paddingBottom="12dp">
 
         <GridLayout
             android:id="@+id/local_game_file_manager_items"
@@ -41,8 +41,8 @@
             android:layout_height="wrap_content"
             android:alignmentMode="alignMargins"
             android:columnCount="6"
-            android:paddingStart="@dimen/local_games_page_horizontal_padding"
-            android:paddingEnd="@dimen/local_games_page_horizontal_padding"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
             android:useDefaultMargins="false" />
     </ScrollView>
 </LinearLayout>

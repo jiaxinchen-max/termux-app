@@ -2,7 +2,7 @@
 <!-- Dialog / popup window background: the ONE glass fill layer. A plain shape (no inset) so the
      8 dp radius also drives the window blur region on API 31+. Inner containers stay transparent. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="@color/local_games_overlay" />
+    <solid android:color="@color/local_games_dialog_surface" />
     <corners android:radius="8dp" />
     <stroke android:width="1dp" android:color="@color/local_games_dialog_outline" />
 </shape>

@@ -4,12 +4,14 @@ package com.termux.ui.activity;
 final class FileManagerGridColumns {
 
     /** Smallest cell width including both side margins. */
-    static final int MIN_CELL_DP = 104;
-    /** Portrait switches from 2 to 3 columns once this much grid width is available. */
-    static final int PORTRAIT_THREE_COLUMN_DP = 440;
-    static final int PORTRAIT_MIN_COLUMNS = 2;
-    static final int PORTRAIT_MAX_COLUMNS = 3;
-    static final int LANDSCAPE_MAX_COLUMNS = 8;
+    static final int MIN_CELL_DP = 84;
+    /** Portrait switches from 3 to 4 columns once this much grid width is available. */
+    static final int PORTRAIT_FOUR_COLUMN_DP = 440;
+    static final int PORTRAIT_MIN_COLUMNS = 3;
+    static final int PORTRAIT_MAX_COLUMNS = 4;
+    static final int LANDSCAPE_MAX_COLUMNS = 10;
+    /** List mode goes to two rows per line once this much width is available (landscape only). */
+    static final int LIST_TWO_COLUMN_DP = 560;
 
     private FileManagerGridColumns() {}
 
@@ -21,9 +23,14 @@ final class FileManagerGridColumns {
         if (landscape) {
             return Math.min(LANDSCAPE_MAX_COLUMNS, fit);
         }
-        int wanted = availableWidthDp >= PORTRAIT_THREE_COLUMN_DP
+        int wanted = availableWidthDp >= PORTRAIT_FOUR_COLUMN_DP
             ? PORTRAIT_MAX_COLUMNS : PORTRAIT_MIN_COLUMNS;
         return Math.min(wanted, fit);
+    }
+
+    /** Columns of list mode: one row per line, two on a wide landscape window. */
+    static int listColumnsFor(int availableWidthDp, boolean landscape) {
+        return landscape && availableWidthDp >= LIST_TWO_COLUMN_DP ? 2 : 1;
     }
 
     /** Width of a tile (cell width minus both margins) so that {@code columns} cells fill the

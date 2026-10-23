@@ -156,6 +156,8 @@
     <string name="local_game_file_details_looks_executable">Looks like a Windows executable.</string>
     <string name="local_game_file_details_not_executable">Doesn\'t look like a Windows executable.</string>
     <string name="local_game_file_details_c_drive_tip">Tip: games load and run faster when copied/extracted into the game\'s own C: drive (its Wine prefix) instead of running in place.</string>
+    <string name="local_game_file_manager_view_list">List view</string>
+    <string name="local_game_file_manager_view_grid">Grid view</string>
     <string name="local_games_file_manager">File manager</string>
     <string name="local_game_import_permission_lost">Folder access is no longer available. Choose the folder again to restore access.</string>
     <string name="local_game_reauthorize_wrong_folder">Choose the same folder this game was originally imported from.</string>

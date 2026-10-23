@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.text.format.Formatter;
 import android.view.Gravity;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -53,7 +54,12 @@ public final class GameFileManagerActivity extends AppCompatActivity {
 
     private static final int REQUEST_SHARED_STORAGE_PERMISSION = 8402;
     private static final String STATE_BROWSED_DIRECTORY = "browsed_directory";
-    private static final int TILE_MARGIN_DP = 5;
+    private static final int TILE_MARGIN_DP = 3;
+    private static final int TILE_HEIGHT_DP = 80;
+    private static final int TILE_ICON_DP = 36;
+    private static final int ROW_MIN_HEIGHT_DP = 40;
+    private static final int ROW_ICON_DP = 26;
+    private static final int ROW_MARGIN_DP = 1;
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "GamesFileManagerIo"));
@@ -66,6 +72,7 @@ public final class GameFileManagerActivity extends AppCompatActivity {
     private File gameFilesRoot;
     private File sharedStorageRoot;
     private File localCurrent;
+    private FileManagerViewMode viewMode = FileManagerViewMode.GRID;
     @Nullable private Runnable pendingSharedStorageAction;
     private boolean destroyed;
 
@@ -84,8 +91,24 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         }
         sharedStorageRoot = Environment.getExternalStorageDirectory();
         binding.localGameFileManagerToolbar.setNavigationOnClickListener(view -> navigateUp());
+        viewMode = FileManagerViewMode.load(this);
+        binding.localGameFileManagerToolbar.inflateMenu(R.menu.local_games_file_manager);
         GamesHelpDialog.attach(binding.localGameFileManagerToolbar,
             R.string.local_game_file_manager_title, R.string.local_game_file_manager_help);
+        // attach() installed the help-only listener; replace it with one that also handles the toggle.
+        binding.localGameFileManagerToolbar.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == R.id.local_games_action_view_mode) {
+                toggleViewMode();
+                return true;
+            }
+            if (item.getItemId() == R.id.local_games_action_help) {
+                GamesHelpDialog.show(this, R.string.local_game_file_manager_title,
+                    R.string.local_game_file_manager_help);
+                return true;
+            }
+            return false;
+        });
+        updateViewModeAction();
         WindowInsetsPadding.apply(binding.getRoot(), true, false, true, true);
         File restored = restoreBrowsedDirectory(savedInstanceState);
         if (restored != null) showLocal(restored);
@@ -108,6 +131,27 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         File current = localCurrent;
         if (current != null) showLocal(current);
         else showHome();
+    }
+
+    private void toggleViewMode() {
+        viewMode = viewMode.toggled();
+        viewMode.save(this);
+        updateViewModeAction();
+        File current = localCurrent;
+        if (current != null) showLocal(current);
+        else showHome();
+    }
+
+    /** The toolbar action shows the mode a tap switches to. */
+    private void updateViewModeAction() {
+        MenuItem action = binding.localGameFileManagerToolbar.getMenu()
+            .findItem(R.id.local_games_action_view_mode);
+        if (action == null) return;
+        boolean toList = viewMode == FileManagerViewMode.GRID;
+        action.setIcon(toList ? R.drawable.local_games_ic_view_list
+            : R.drawable.local_games_ic_view_grid);
+        action.setTitle(toList ? R.string.local_game_file_manager_view_list
+            : R.string.local_game_file_manager_view_grid);
     }
 
     /** Process-death safe restore of the browsed directory; null means "show Home". */
@@ -188,11 +232,11 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         binding.localGameFileManagerLocation.setText(
             R.string.local_game_file_manager_internal_storage);
         clearRows();
-        addTile(getString(R.string.local_game_file_manager_game_files), true,
+        addEntry(getString(R.string.local_game_file_manager_game_files), null, true,
             view -> showLocal(gameFilesRoot), null);
-        addTile(getString(R.string.local_game_file_manager_private_files), true,
+        addEntry(getString(R.string.local_game_file_manager_private_files), null, true,
             view -> showLocal(filesRoot), null);
-        addTile(getString(R.string.local_game_file_manager_shared_storage), true,
+        addEntry(getString(R.string.local_game_file_manager_shared_storage), null, true,
             view -> ensureSharedStoragePermission(() -> showLocal(sharedStorageRoot)), null);
     }
 
@@ -245,9 +289,11 @@ public final class GameFileManagerActivity extends AppCompatActivity {
                 if (entry.isDirectory()) {
                     // Folders are purely navigable now -- no "⋯"/import-as-folder action. A game
                     // is always a specific file the user picked (see request #1).
-                    addTile(entry.getName(), true, view -> showLocal(entry), null);
+                    addEntry(entry.getName(), entrySubtitle(entry), true, view -> showLocal(entry),
+                        null);
                 } else {
-                    addTile(entry.getName(), false, view -> showFileDetails(entry),
+                    addEntry(entry.getName(), entrySubtitle(entry), false,
+                        view -> showFileDetails(entry),
                         view -> showFileImportMenu(view, entry));
                 }
             }
@@ -329,6 +375,87 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         binding.localGameFileManagerItems.setColumnCount(gridColumns());
     }
 
+    /** Second line of a list row: size and date for a file, date for a folder. */
+    private String entrySubtitle(File entry) {
+        String date = DateFormat.getDateInstance(DateFormat.SHORT)
+            .format(new Date(entry.lastModified()));
+        if (entry.isDirectory()) return getString(R.string.local_game_file_manager_folder, date);
+        return getString(R.string.local_game_file_manager_file,
+            Formatter.formatShortFileSize(this, Math.max(0, entry.length())), date);
+    }
+
+    private void addEntry(String title, @Nullable String subtitle, boolean directory,
+                          @Nullable View.OnClickListener onTap,
+                          @Nullable View.OnClickListener onLongPress) {
+        if (viewMode == FileManagerViewMode.LIST) {
+            addRow(title, subtitle, directory, onTap, onLongPress);
+        } else {
+            addTile(title, directory, onTap, onLongPress);
+        }
+    }
+
+    private void addRow(String title, @Nullable String subtitle, boolean directory,
+                        @Nullable View.OnClickListener onTap,
+                        @Nullable View.OnClickListener onLongPress) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(dp(ROW_MIN_HEIGHT_DP));
+        row.setPadding(dp(8), dp(3), dp(8), dp(3));
+        row.setBackgroundResource(R.drawable.local_games_bg_file_tile);
+        row.setOnClickListener(onTap);
+        row.setEnabled(onTap != null);
+        if (onLongPress != null) {
+            row.setOnLongClickListener(view -> {
+                onLongPress.onClick(view);
+                return true;
+            });
+        }
+
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(directory ? R.drawable.local_games_ic_folder :
+            R.drawable.local_games_ic_file);
+        icon.setContentDescription(null);
+        row.addView(icon, new LinearLayout.LayoutParams(dp(ROW_ICON_DP), dp(ROW_ICON_DP)));
+
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams textsParams = new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        textsParams.setMarginStart(dp(10));
+        row.addView(texts, textsParams);
+
+        TextView name = new TextView(this);
+        name.setText(title);
+        name.setTextColor(ContextCompat.getColor(this, directory ? R.color.local_games_on_surface :
+            R.color.local_games_on_surface_secondary));
+        name.setTextSize(13);
+        name.setSingleLine(true);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+        texts.addView(name, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        if (subtitle != null) {
+            TextView detail = new TextView(this);
+            detail.setText(subtitle);
+            detail.setTextColor(ContextCompat.getColor(this,
+                R.color.local_games_on_surface_secondary));
+            detail.setTextSize(10);
+            detail.setSingleLine(true);
+            detail.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            texts.addView(detail, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+
+        GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+        params.width = gridTileWidth();
+        params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED);
+        params.setMargins(dp(ROW_MARGIN_DP * 3), dp(ROW_MARGIN_DP), dp(ROW_MARGIN_DP * 3),
+            dp(ROW_MARGIN_DP));
+        binding.localGameFileManagerItems.addView(row, params);
+    }
+
     private void addTile(String title, boolean directory, @Nullable View.OnClickListener onTap,
                          @Nullable View.OnClickListener onLongPress) {
         FrameLayout tile = new FrameLayout(this);
@@ -345,7 +472,7 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setGravity(Gravity.CENTER_HORIZONTAL);
-        content.setPadding(dp(8), dp(10), dp(8), dp(4));
+        content.setPadding(dp(4), dp(6), dp(4), dp(2));
         tile.addView(content, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
@@ -353,26 +480,27 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         icon.setImageResource(directory ? R.drawable.local_games_ic_folder :
             R.drawable.local_games_ic_file);
         icon.setContentDescription(null);
-        content.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        content.addView(icon, new LinearLayout.LayoutParams(dp(TILE_ICON_DP), dp(TILE_ICON_DP)));
 
         TextView label = new TextView(this);
         label.setText(title);
         label.setTextColor(ContextCompat.getColor(this, directory ? R.color.local_games_on_surface :
             R.color.local_games_on_surface_secondary));
-        label.setTextSize(11);
+        label.setTextSize(10);
         label.setGravity(Gravity.CENTER);
         label.setMaxLines(2);
         label.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(40));
-        labelParams.topMargin = dp(5);
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(28));
+        labelParams.topMargin = dp(2);
         content.addView(label, labelParams);
 
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
         params.width = gridTileWidth();
-        params.height = dp(112);
+        params.height = dp(TILE_HEIGHT_DP);
         params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED);
-        params.setMargins(dp(5), dp(5), dp(5), dp(5));
+        params.setMargins(dp(TILE_MARGIN_DP), dp(TILE_MARGIN_DP), dp(TILE_MARGIN_DP),
+            dp(TILE_MARGIN_DP));
         binding.localGameFileManagerItems.addView(tile, params);
     }
 
@@ -380,7 +508,7 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         TextView empty = new TextView(this);
         empty.setText(message);
         empty.setTextColor(ContextCompat.getColor(this, R.color.local_games_on_surface_secondary));
-        empty.setPadding(dp(8), dp(24), dp(8), dp(24));
+        empty.setPadding(dp(8), dp(16), dp(8), dp(16));
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
         params.width = ViewGroup.LayoutParams.MATCH_PARENT;
         params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -390,8 +518,10 @@ public final class GameFileManagerActivity extends AppCompatActivity {
 
     private int gridColumns() {
         float density = getResources().getDisplayMetrics().density;
-        return FileManagerGridColumns.columnsFor(Math.round(availableGridWidthPx() / density),
-            isLandscape());
+        int widthDp = Math.round(availableGridWidthPx() / density);
+        return viewMode == FileManagerViewMode.LIST
+            ? FileManagerGridColumns.listColumnsFor(widthDp, isLandscape())
+            : FileManagerGridColumns.columnsFor(widthDp, isLandscape());
     }
 
     private boolean isLandscape() {
@@ -412,8 +542,9 @@ public final class GameFileManagerActivity extends AppCompatActivity {
     }
 
     private int gridTileWidth() {
-        return FileManagerGridColumns.tileWidthPx(availableGridWidthPx(), gridColumns(),
-            dp(TILE_MARGIN_DP));
+        int margin = viewMode == FileManagerViewMode.LIST ? dp(ROW_MARGIN_DP * 3)
+            : dp(TILE_MARGIN_DP);
+        return FileManagerGridColumns.tileWidthPx(availableGridWidthPx(), gridColumns(), margin);
     }
 
     private boolean isWithin(File root, File candidate) {

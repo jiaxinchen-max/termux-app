@@ -153,9 +153,9 @@
     <!-- Frosted dialog: translucent surface + hairline, 8 dp corners. The window blur (API 31+)
          comes from values-v31/themes.xml and FrostedWindow. -->
     <style name="ThemeOverlay.TermuxLocalGames.Dialog.Base" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
-        <item name="colorSurface">@color/local_games_overlay</item>
+        <item name="colorSurface">@color/local_games_dialog_surface</item>
         <item name="colorOnSurface">@color/local_games_on_surface</item>
-        <item name="android:colorBackground">@color/local_games_overlay</item>
+        <item name="android:colorBackground">@color/local_games_dialog_surface</item>
         <item name="android:textColorPrimary">@color/local_games_on_surface</item>
         <item name="android:textColorSecondary">@color/local_games_on_surface_secondary</item>
         <item name="colorPrimary">@color/local_games_primary_text</item>

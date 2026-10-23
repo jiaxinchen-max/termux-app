@@ -25,6 +25,7 @@
     <color name="local_games_scrim">#B317110D</color>
     <color name="local_games_overlay">#BD201813</color>
     <color name="local_games_overlay_game">#D9201813</color>
+    <color name="local_games_dialog_surface">#94201813</color>
     <color name="local_games_dialog_outline">#40FFE8CE</color>
     <!-- Dark mode keeps the previous black window dim, so no extra scrim is drawn. -->
     <color name="local_games_dialog_scrim">#00000000</color>

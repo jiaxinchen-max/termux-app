@@ -130,6 +130,8 @@
     <string name="local_game_import_save_failed">无法保存游戏：%1$s</string>
     <string name="local_game_import_complete">游戏已导入</string>
     <string name="local_games_tab_library">游戏库</string>
+    <string name="local_game_file_manager_view_list">列表视图</string>
+    <string name="local_game_file_manager_view_grid">网格视图</string>
     <string name="local_games_file_manager">文件管理器</string>
     <string name="local_games_tab_components">组件</string>
     <string name="local_games_components_description">按 PC 引擎中的实际用途管理组件，离开此页面后下载仍会继续。</string>

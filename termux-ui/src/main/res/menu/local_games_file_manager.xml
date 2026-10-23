@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <!-- Icon/title are swapped at runtime to show the mode a tap switches to. -->
+    <item
+        android:id="@+id/local_games_action_view_mode"
+        android:icon="@drawable/local_games_ic_view_list"
+        android:title="@string/local_game_file_manager_view_list"
+        app:showAsAction="always" />
+</menu>

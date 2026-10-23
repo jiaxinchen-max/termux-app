@@ -26,6 +26,8 @@
     <color name="local_games_overlay">#C7FCF7F0</color>
     <!-- In-game overlay (session drawer) fill: a little more opaque so the game window controls do not ghost through. -->
     <color name="local_games_overlay_game">#E6FCF7F0</color>
+    <!-- Dialog / popup window fill: clearly more translucent than the generic overlay (about 55% vs 78%); the blur (API 31+) keeps text readable. -->
+    <color name="local_games_dialog_surface">#8CFCF7F0</color>
     <!-- Dialog / popup edge hairline: a bit stronger than the generic outline so dialogs separate from the page. -->
     <color name="local_games_dialog_outline">#2E5A3C1E</color>
     <!-- Warm, light dialog scrim (drawn by the app, a black window dim cannot be tinted). With and without window blur. -->
