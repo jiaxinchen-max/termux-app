@@ -86,6 +86,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private RuntimeProfileRepository profileRepository;
     private FileGameRepository gameRepository;
     private GameContainerRepository containerRepository;
+    /** The container created for this page the first time PRoot is chosen; reused afterwards. */
+    private String draftRootfsContainerId;
     private FileCustomRuntimeComponentRepository customComponents;
     @Nullable private final ComponentIndex componentIndex;
     private GameStoragePaths paths;
@@ -405,7 +407,12 @@ public final class GameRuntimeOptionsView extends LinearLayout {
      * GLIBC on the next load or launch (the bug this page exists to fix).
      */
     private void switchToRootfs() {
-        String containerId = "container-" + UUID.randomUUID().toString().substring(0, 8);
+        // One container per editing session: toggling the backend back and forth must not leave a new
+        // abandoned container behind every time.
+        if (draftRootfsContainerId == null) {
+            draftRootfsContainerId = "container-" + UUID.randomUUID().toString().substring(0, 8);
+        }
+        String containerId = draftRootfsContainerId;
         RuntimeProfile draft = new RuntimeProfile(profile.getId(), "rootfs_hangover_11.16",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", profile.getResolution(),
             profile.getBox64Preset(), profile.getEnvironment(), profile.getInputProfileId(),

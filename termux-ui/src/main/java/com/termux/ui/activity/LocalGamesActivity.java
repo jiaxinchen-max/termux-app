@@ -15,6 +15,7 @@ import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.text.format.Formatter;
 import android.view.Gravity;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -90,6 +91,7 @@ import com.termux.ui.domain.RuntimeSetupTask;
 import com.termux.ui.domain.RuntimeProfile;
 import com.termux.ui.importer.SafGameAccessProbe;
 import com.termux.ui.recovery.GameUninstallPlan;
+import com.termux.ui.recovery.GameOrphanSweeper;
 import com.termux.ui.recovery.GameUninstaller;
 import com.termux.shared.android.PermissionUtils;
 
@@ -674,6 +676,15 @@ public final class LocalGamesActivity extends AppCompatActivity {
             Map<String, BuildingTask> building = new HashMap<>();
             String error = null;
             try {
+                // Containers and profiles that removed games or abandoned edits left behind are reclaimed
+                // here; a failed sweep never keeps the library from loading.
+                if (!pollOnly) {
+                    try {
+                        GameOrphanSweeper.sweep(getFilesDir());
+                    } catch (IOException | RuntimeException sweepError) {
+                        Log.w("LocalGamesActivity", "orphan sweep failed", sweepError);
+                    }
+                }
                 items = libraryRepository.load();
                 GameStoragePaths gamePaths = new GameStoragePaths(getFilesDir());
                 FileRuntimeProfileRepository profiles =
