@@ -378,6 +378,10 @@
     <string name="local_games_backup_channel">基础环境备份</string>
     <string name="local_games_backup_create_console_title">正在创建备份</string>
     <string name="local_games_backup_restore_console_title">正在从备份恢复</string>
+    <string name="local_games_backup_templates_title">是否包含 Wine prefix 模板?</string>
+    <string name="local_games_backup_templates_message">模板是新游戏克隆用的现成 Wine prefix,可以重新生成。不包含可以让备份更小,恢复时会重新生成它们,多花几分钟。</string>
+    <string name="local_games_backup_templates_include">包含</string>
+    <string name="local_games_backup_templates_exclude">不包含</string>
     <string name="local_games_backup_requires_base">请先构建基础环境再备份。</string>
     <string name="local_games_backup_restore_action">从备份恢复</string>
     <string name="local_games_backup_restore_confirm_title">从备份恢复？</string>

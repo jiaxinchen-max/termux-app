@@ -17,6 +17,7 @@ public final class RootfsBackupSpecCodec {
         StringBuilder value = new StringBuilder("schemaVersion=1\n");
         text(value, "taskId", task.getTaskId());
         text(value, "mode", task.getKind() == RootfsBackupTask.Kind.BACKUP ? "backup" : "restore");
+        text(value, "includePrefixTemplates", String.valueOf(task.includesPrefixTemplates()));
         text(value, "backupArchivePath", canonical(backupArchivePath));
         text(value, "eventsPath", canonical(eventsPath));
         text(value, "logPath", canonical(logPath));

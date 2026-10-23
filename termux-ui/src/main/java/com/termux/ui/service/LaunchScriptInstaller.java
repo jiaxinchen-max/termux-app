@@ -117,6 +117,8 @@ public final class LaunchScriptInstaller {
      *  installer calls for one task. */
     public File installBackupRestoreRootfs() throws IOException {
         installRootfsScriptCommon();
+        // A restore sources it to rebuild the Wine prefix templates a backup did not include.
+        installRootfsPrefixWarmup();
         File script = new File(runtimeDirectory, "backup_restore_rootfs.sh");
         installAsset(ROOTFS_BACKUP_RESTORE_ASSET, script);
         return script;

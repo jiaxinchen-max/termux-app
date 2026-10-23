@@ -7,6 +7,9 @@
 #   schemaVersion=1
 #   taskId=<id>
 #   mode=backup|restore
+#   includePrefixTemplates=true|false   (backup only; absent = true) whether the Wine prefix templates
+#                                        go into the archive -- they can be rebuilt, so leaving them out
+#                                        only makes the archive smaller
 #   backupArchivePath=<absolute external-storage path, read for restore / written for backup>
 #   eventsPath=<private events jsonl path, under .../games/runtime/backup/events/>
 #   logPath=<private log path, under .../games/runtime/backup/logs/>
@@ -26,6 +29,7 @@ MODE=
 BACKUP_ARCHIVE_PATH=
 EVENTS_PATH=
 LOG_PATH=
+INCLUDE_PREFIX_TEMPLATES=true
 COMPLETED=false
 FAILURE_CODE=backup_script_failed
 
@@ -60,12 +64,14 @@ while IFS='=' read -r key value; do
         backupArchivePath) BACKUP_ARCHIVE_PATH=$value ;;
         eventsPath) EVENTS_PATH=$value ;;
         logPath) LOG_PATH=$value ;;
+        includePrefixTemplates) INCLUDE_PREFIX_TEMPLATES=$value ;;
         '') ;;
         *) fail invalid_backup_spec 64 ;;
     esac
 done < "$SPEC_PATH"
 
 case "$MODE" in backup|restore) ;; *) fail invalid_backup_spec 64 ;; esac
+case "$INCLUDE_PREFIX_TEMPLATES" in true|false) ;; *) fail invalid_backup_spec 64 ;; esac
 case "$TASK_ID" in ''|*[!A-Za-z0-9._-]*) fail invalid_backup_identifier 64 ;; esac
 # Deliberately NOT required to live under the app's own private storage (PRIVATE_ROOT below) --
 # this is the one path in the whole RootFS pipeline that is expected to point at external/shared
@@ -102,6 +108,9 @@ mkdir -p "$events_directory" "$logs_directory" || fail backup_output_directory_f
 # convention, same as start_rootfs_game.sh finding rootfs_prefix_warmup.sh. Defines progress(),
 # run_logged(), run_logged_watchdog().
 . "$(dirname "$SCRIPT_PATH")/rootfs_script_common.sh"
+# Sourced (inside a subshell) only by the restore branch, to rebuild missing prefix templates.
+PREFIX_WARMUP_SCRIPT="$(dirname "$SCRIPT_PATH")/rootfs_prefix_warmup.sh"
+warmup_fail() { fail "$1" 70; }
 
 PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
 SHARED_ROOTFS_CONTAINER_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-shared-rootfs"
@@ -149,11 +158,16 @@ if [ "$MODE" = backup ]; then
     fi
     # The prefix templates are already independently compressed (built by
     # setup_rootfs_runtime.sh's per-package loop) -- copy them in as-is rather than
-    # decompressing and recompressing, which would just burn time for no size benefit.
-    for prefix_archive in "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*; do
-        [ -f "$prefix_archive" ] || continue
-        cp -a "$prefix_archive" "$STAGING_DIRECTORY/"
-    done
+    # decompressing and recompressing, which would just burn time for no size benefit. They are
+    # optional: a restore rebuilds whatever template the archive does not carry.
+    if [ "$INCLUDE_PREFIX_TEMPLATES" = true ]; then
+        for prefix_archive in "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*; do
+            [ -f "$prefix_archive" ] || continue
+            cp -a "$prefix_archive" "$STAGING_DIRECTORY/"
+        done
+    else
+        progress '==> Leaving the Wine prefix templates out of the backup'
+    fi
     # Carries forward the exact recipe hash the backed-up RootFS was built from, so a restore can
     # tell whether the restored content still matches the current recipe (see the restore branch
     # below) instead of either always forcing a redundant rebuild or trusting stale content
@@ -216,6 +230,20 @@ else
         esac
     fi
     rm -rf "$STAGING_DIRECTORY"
+    # A backup made without the prefix templates restores a base that has none (or only some) of them:
+    # rebuild the missing ones now, as the base build does, so every container clones instead of paying
+    # a full wineboot. The base itself is already restored and usable, so a failure here only warns --
+    # a container then falls back to its own wineboot, exactly as before templates existed.
+    runtime_packages=$(sed -n 's/^runtimePackages=//p' "$SHARED_ROOTFS/etc/games-runtime.properties" 2>/dev/null)
+    if [ -n "$runtime_packages" ] && [ -f "$PREFIX_WARMUP_SCRIPT" ]; then
+        progress '==> Rebuilding the Wine prefix templates the backup did not include'
+        TEMPLATE_COMPRESSOR=$ARCHIVE_COMPRESSOR
+        TEMPLATE_PREFIX_EXT=zst
+        [ "$ARCHIVE_COMPRESSOR" = zstd ] || TEMPLATE_PREFIX_EXT=gz
+        TERMUX_FILES_DIR="$TERMUX_FILES_ROOT"
+        ( . "$PREFIX_WARMUP_SCRIPT" && build_prefix_templates "$runtime_packages" true ) || \
+            progress '==> WARNING: some Wine prefix templates could not be rebuilt; containers will create their own prefix'
+    fi
     progress '==> Restore completed'
 fi
 

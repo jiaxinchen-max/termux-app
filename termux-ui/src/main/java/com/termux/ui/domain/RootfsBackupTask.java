@@ -15,6 +15,7 @@ public final class RootfsBackupTask {
     private final RootfsBackupTaskState state;
     private final String errorCode;
     private final String archivePath;
+    private final boolean includePrefixTemplates;
     private final long createdAt;
     private final long updatedAt;
 
@@ -26,6 +27,14 @@ public final class RootfsBackupTask {
     /** {@code archivePath} is the archive the user chose; empty means the legacy fixed backup file. */
     public RootfsBackupTask(String taskId, Kind kind, RootfsBackupTaskState state,
                             String errorCode, String archivePath, long createdAt, long updatedAt) {
+        this(taskId, kind, state, errorCode, archivePath, true, createdAt, updatedAt);
+    }
+
+    /** {@code includePrefixTemplates} only matters for a backup: whether the Wine prefix templates go
+     *  into the archive (they can be rebuilt, so leaving them out only makes it smaller). */
+    public RootfsBackupTask(String taskId, Kind kind, RootfsBackupTaskState state,
+                            String errorCode, String archivePath, boolean includePrefixTemplates,
+                            long createdAt, long updatedAt) {
         this.taskId = requireId(taskId);
         if (kind == null || state == null || createdAt < 0 || updatedAt < createdAt) {
             throw new IllegalArgumentException("invalid rootfs backup task");
@@ -41,6 +50,7 @@ public final class RootfsBackupTask {
             || (!this.archivePath.isEmpty() && !this.archivePath.startsWith("/"))) {
             throw new IllegalArgumentException("invalid backup archivePath");
         }
+        this.includePrefixTemplates = includePrefixTemplates;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -50,7 +60,13 @@ public final class RootfsBackupTask {
     }
 
     public static RootfsBackupTask queued(String taskId, Kind kind, String archivePath, long now) {
-        return new RootfsBackupTask(taskId, kind, RootfsBackupTaskState.QUEUED, "", archivePath, now, now);
+        return queued(taskId, kind, archivePath, true, now);
+    }
+
+    public static RootfsBackupTask queued(String taskId, Kind kind, String archivePath,
+                                          boolean includePrefixTemplates, long now) {
+        return new RootfsBackupTask(taskId, kind, RootfsBackupTaskState.QUEUED, "", archivePath,
+            includePrefixTemplates, now, now);
     }
 
     public RootfsBackupTask transition(RootfsBackupTaskState next, String error, long now) {
@@ -58,7 +74,8 @@ public final class RootfsBackupTask {
         if (next == null || next == RootfsBackupTaskState.QUEUED || now < updatedAt) {
             throw new IllegalArgumentException("invalid backup transition");
         }
-        return new RootfsBackupTask(taskId, kind, next, error, archivePath, createdAt, now);
+        return new RootfsBackupTask(taskId, kind, next, error, archivePath, includePrefixTemplates,
+            createdAt, now);
     }
 
     public String getTaskId() { return taskId; }
@@ -66,6 +83,7 @@ public final class RootfsBackupTask {
     public RootfsBackupTaskState getState() { return state; }
     public String getErrorCode() { return errorCode; }
     public String getArchivePath() { return archivePath; }
+    public boolean includesPrefixTemplates() { return includePrefixTemplates; }
     public long getCreatedAt() { return createdAt; }
     public long getUpdatedAt() { return updatedAt; }
 

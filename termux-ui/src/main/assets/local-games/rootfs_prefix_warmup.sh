@@ -604,3 +604,101 @@ warmup_rootfs_prefix() {
         fi
     fi
 }
+
+# build_prefix_templates <comma-separated wine packages> [only_missing]
+# Pre-boots one Wine prefix per package and archives it as that package's template in
+# $TEMPLATE_CACHE_DIR (wineboot -u + CJK FontLink). With only_missing=true a package whose template
+# archive already exists is skipped, which is what a restore that did not carry the templates uses.
+# Shared by setup_rootfs_runtime.sh (the base build) and backup_restore_rootfs.sh (after a restore).
+# Needs, besides the globals listed above: SHARED_ROOTFS, TEMPLATE_CACHE_DIR, TEMPLATE_COMPRESSOR,
+# TEMPLATE_PREFIX_EXT, TERMUX_FILES_ROOT, PREFIX, LOG_PATH and run_logged().
+build_prefix_templates() {
+    templates_packages=$1
+    templates_only_missing=${2:-false}
+    # Pre-boot one Wine prefix per wine *package* (wineboot -u + CJK FontLink), archived alongside
+    # the rootfs, so every subsequent container -- and every switch between packages -- extracts a
+    # ready-made prefix instead of paying the wineboot cost again (see rootfs_prefix_warmup.sh's
+    # resolve_template_prefix_archive() / TEMPLATE_PREFIX_ARCHIVE fast path). One per package, not
+    # per translator: a different Wine build of the same translator (Wine 10 vs Proton 11) ships PE
+    # stubs the other's prefix lacks, so sharing a template made the second package run a minutes-
+    # long wineboot -u inside the first container that used it. A Hangover prefix and a box64 prefix
+    # are also incompatible with each other (`wine: could not load kernel32.dll, status c000007b`).
+    # Doing the work here moves it to the explicit environment install, so saving a game's options
+    # and launching it only ever clone. The caller reads the package list from the runtime manifest
+    # rather than hardcoding it, so adding a wine package to the recipe is enough on its own to get
+    # a pre-booted template.
+    # One termux-x11 session for the whole loop below, started once and killed once, never
+    # restarted per package: restarting it between iterations (even on a fresh display number)
+    # left the second wineboot connected to a half-torn-down X session that never finished booting
+    # (`boot event wait timed out`, looping until the wineboot timeout killed it) -- confirmed by
+    # reproducing the SAME failure with a distinct display number per iteration (ruling out a
+    # stale-socket/display-number collision) and then reproducing a clean, progressing wineboot
+    # with a single long-lived termux-x11 session instead. A real container's own warmup (further
+    # below) never hits this, since it only ever starts termux-x11 once in its script process.
+    # Nothing to do (and no X session to start) when every package already has its template.
+    templates_pending=false
+    templates_old_ifs=$IFS
+    IFS=','
+    for template_wine_package in $templates_packages; do
+        [ -n "$template_wine_package" ] || continue
+        if [ "$templates_only_missing" = true ] &&
+            { [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.zst" ] ||
+              [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.gz" ]; }; then
+            continue
+        fi
+        templates_pending=true
+    done
+    IFS=$templates_old_ifs
+    [ "$templates_pending" = true ] || return 0
+    command -v termux-x11 >/dev/null 2>&1 || warmup_fail rootfs_prefix_warmup_display_missing
+    MAINTENANCE_DISPLAY=:9
+    termux-x11 "$MAINTENANCE_DISPLAY" >> "$LOG_PATH" 2>&1 &
+    WARMUP_DISPLAY_PID=$!
+    IFS=','
+    for template_wine_package in $templates_packages; do
+        IFS=$templates_old_ifs
+        [ -n "$template_wine_package" ] || continue
+        if [ "$templates_only_missing" = true ] &&
+            { [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.zst" ] ||
+              [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.gz" ]; }; then
+            IFS=','
+            continue
+        fi
+        WINE_PACKAGE=$template_wine_package
+        ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS") || warmup_fail rootfs_unreadable
+        resolve_rootfs_translator
+        progress "==> Pre-warming the Wine prefix template for $template_wine_package"
+        TEMPLATE_PREFIX_ARCHIVE_DESTINATION="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.$TEMPLATE_PREFIX_EXT"
+        TEMPLATE_PREFIX_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/prefix-build"
+        TEMPLATE_HOME_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/home-build"
+        rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
+        mkdir -p "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
+        PREFIX_PATH="$TEMPLATE_PREFIX_BUILD_DIRECTORY"
+        HOME_PATH="$TEMPLATE_HOME_BUILD_DIRECTORY"
+        RUNTIME_ROOT_PATH=template
+        # Empty, not $TEMPLATE_PREFIX_ARCHIVE_DESTINATION: this build step is what PRODUCES that
+        # archive, so warmup_rootfs_prefix must do the real wineboot run here, never the clone path.
+        TEMPLATE_PREFIX_ARCHIVE=
+        CANCEL_PATH=
+        TERMUX_FILES_DIR="$TERMUX_FILES_ROOT"
+        PROOT_BIN="$PREFIX/bin/proot"
+        warmup_rootfs_prefix
+        mkdir -p "$TEMPLATE_CACHE_DIR"
+        rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
+        if ! run_logged tar -C "$TEMPLATE_PREFIX_BUILD_DIRECTORY" --use-compress-program "$TEMPLATE_COMPRESSOR" \
+            -cf "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp" .; then
+            rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
+            warmup_fail rootfs_prefix_template_archive_failed
+        fi
+        if ! mv "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp" "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION"; then
+            rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
+            warmup_fail rootfs_prefix_template_archive_failed
+        fi
+        rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
+        IFS=','
+    done
+    IFS=$templates_old_ifs
+    kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
+    wait "$WARMUP_DISPLAY_PID" 2>/dev/null || true
+    WARMUP_DISPLAY_PID=
+}

@@ -20,6 +20,10 @@
     <string name="local_games_rootfs_rebuild_confirm_message">This deletes the current shared RootFS base and rebuilds it from scratch. Already-installed games keep working; this can take a few minutes.</string>
     <string name="local_games_rootfs_rebuild_action">Rebuild</string>
     <string name="local_games_backup_create_console_title">Creating backup</string>
+    <string name="local_games_backup_templates_title">Include Wine prefix templates?</string>
+    <string name="local_games_backup_templates_message">The templates are ready-made Wine prefixes that new games clone. They can be rebuilt, so leaving them out makes the backup smaller; a restore then rebuilds them, which takes a few extra minutes.</string>
+    <string name="local_games_backup_templates_include">Include</string>
+    <string name="local_games_backup_templates_exclude">Leave out</string>
     <string name="local_games_backup_requires_base">Build the base environment before backing it up.</string>
     <string name="local_games_backup_restore_action">Restore from backup</string>
     <string name="local_games_backup_restore_confirm_title">Restore from backup?</string>

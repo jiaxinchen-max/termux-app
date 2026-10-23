@@ -81,11 +81,13 @@ public final class RootfsBackupForegroundService extends Service {
         String taskId = intent.getStringExtra(RootfsBackupTasks.EXTRA_TASK_ID);
         String kindName = intent.getStringExtra(RootfsBackupTasks.EXTRA_KIND);
         String archive = intent.getStringExtra(RootfsBackupTasks.EXTRA_ARCHIVE);
+        boolean includePrefixTemplates = intent.getBooleanExtra(
+            RootfsBackupTasks.EXTRA_INCLUDE_PREFIX_TEMPLATES, true);
         pendingCommands.incrementAndGet();
         executor.execute(() -> {
             try {
                 if (RootfsBackupTasks.ACTION_ENQUEUE.equals(action)) {
-                    enqueue(requiredId(taskId), requiredKind(kindName), archive);
+                    enqueue(requiredId(taskId), requiredKind(kindName), archive, includePrefixTemplates);
                 } else if (RootfsBackupTasks.ACTION_RECONCILE.equals(action)) {
                     reconcile(requiredTask(requiredId(taskId)));
                 } else if (RootfsBackupTasks.ACTION_RECONCILE_ALL.equals(action)) {
@@ -109,13 +111,14 @@ public final class RootfsBackupForegroundService extends Service {
         super.onDestroy();
     }
 
-    private void enqueue(String taskId, RootfsBackupTask.Kind kind, @Nullable String archive)
-        throws Exception {
+    private void enqueue(String taskId, RootfsBackupTask.Kind kind, @Nullable String archive,
+                         boolean includePrefixTemplates) throws Exception {
         if (tasks.find(taskId).isPresent()) return;
         boolean outside = archive != null && !RuntimeBackupSharedStorage.isWithin(
             Environment.getExternalStorageDirectory(), new File(archive));
         RootfsBackupTask task = RootfsBackupTask.queued(taskId, kind,
-            archive == null || outside ? "" : archive, System.currentTimeMillis());
+            archive == null || outside ? "" : archive, includePrefixTemplates,
+            System.currentTimeMillis());
         if (outside) {
             // Persist the refusal so the watching UI sees a terminal task instead of waiting.
             tasks.save(task);

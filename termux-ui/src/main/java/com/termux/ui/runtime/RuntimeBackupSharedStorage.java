@@ -27,6 +27,8 @@ public final class RuntimeBackupSharedStorage {
     private static final String EXPORT_PAYLOAD_DIRECTORY = "usr/glibc";
     private static final int MAX_NAME_LENGTH = 120;
     private static final long TAR_BLOCK = 512L;
+    /** Name prefix of the per-package Wine prefix template archives in the template cache. */
+    private static final String PREFIX_TEMPLATE_PREFIX = "games-rootfs-base-prefix-";
     /** Trailing zero blocks plus filesystem slack that a byte-exact estimate cannot see. */
     private static final long EXPORT_MARGIN_BYTES = 64L * 1024L * 1024L;
     /** Slack for the PRoot backup, whose staging copy and archive are far larger than the Native one. */
@@ -177,11 +179,19 @@ public final class RuntimeBackupSharedStorage {
      * such as a leftover {@code backup-staging}, are not part of what is copied.
      */
     public static long estimateRootfsBackupBytes(File containerDirectory, File templateCacheDirectory) {
+        return estimateRootfsBackupBytes(containerDirectory, templateCacheDirectory, true);
+    }
+
+    /** As above; with {@code includePrefixTemplates=false} the Wine prefix template archives are not counted. */
+    public static long estimateRootfsBackupBytes(File containerDirectory, File templateCacheDirectory,
+                                                 boolean includePrefixTemplates) {
         long total = estimateTree(containerDirectory);
         File[] files = templateCacheDirectory.listFiles();
         if (files != null) {
             for (File file : files) {
-                if (file.isFile()) total += TAR_BLOCK + roundUp(file.length());
+                if (!file.isFile()) continue;
+                if (!includePrefixTemplates && file.getName().startsWith(PREFIX_TEMPLATE_PREFIX)) continue;
+                total += TAR_BLOCK + roundUp(file.length());
             }
         }
         return total;

@@ -2016,13 +2016,27 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 ensureBackupStoragePermission(() -> RuntimeBackupFlow.instance().pickSaveFile(
                     RuntimeBackupSharedStorage.ROOTFS_ARCHIVE_EXTENSION,
                     RuntimeBackupSharedStorage.rootfsExportFileName(new Date()),
-                    this::startBackupCreate));
+                    this::askIncludePrefixTemplates));
             });
         });
     }
 
+    /** The Wine prefix templates can be rebuilt (a restore does it), so the user may leave them out of
+     *  the backup to make it smaller. */
+    private void askIncludePrefixTemplates(File archive) {
+        new FrostedDialogBuilder(this)
+            .setTitle(R.string.local_games_backup_templates_title)
+            .setMessage(R.string.local_games_backup_templates_message)
+            .setNeutralButton(android.R.string.cancel, null)
+            .setNegativeButton(R.string.local_games_backup_templates_exclude,
+                (dialog, which) -> startBackupCreate(archive, false))
+            .setPositiveButton(R.string.local_games_backup_templates_include,
+                (dialog, which) -> startBackupCreate(archive, true))
+            .show();
+    }
+
     /** Free space is checked off the main thread (the tree walk is large) before the task starts. */
-    private void startBackupCreate(File archive) {
+    private void startBackupCreate(File archive, boolean includePrefixTemplates) {
         GameStoragePaths paths = new GameStoragePaths(getFilesDir());
         RuntimeBackupFlow flow = RuntimeBackupFlow.instance();
         libraryExecutor.execute(() -> {
@@ -2033,7 +2047,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 }
                 RuntimeBackupSharedStorage.requireRootfsBackupSpace(
                     RuntimeBackupSharedStorage.estimateRootfsBackupBytes(
-                        paths.getSharedRootfsContainerDirectory(), paths.getTemplateArchiveCacheDirectory()),
+                        paths.getSharedRootfsContainerDirectory(), paths.getTemplateArchiveCacheDirectory(),
+                        includePrefixTemplates),
                     new StatFs(getFilesDir().getAbsolutePath()).getAvailableBytes(),
                     new StatFs(folder.getAbsolutePath()).getAvailableBytes());
             } catch (IOException | RuntimeException error) {
@@ -2041,7 +2056,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 return;
             }
             mainHandler.post(() -> {
-                String taskId = RootfsBackupTasks.enqueueBackup(this, archive);
+                String taskId = RootfsBackupTasks.enqueueBackup(this, archive, includePrefixTemplates);
                 flow.watchRootfsTask(taskId, R.string.local_games_backup_create_console_title);
             });
         });

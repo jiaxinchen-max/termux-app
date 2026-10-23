@@ -28,24 +28,33 @@ public final class RootfsBackupTasks {
     public static final String EXTRA_TASK_ID = "com.termux.ui.extra.BACKUP_TASK_ID";
     public static final String EXTRA_KIND = "com.termux.ui.extra.BACKUP_KIND";
     public static final String EXTRA_ARCHIVE = "com.termux.ui.extra.BACKUP_ARCHIVE";
+    public static final String EXTRA_INCLUDE_PREFIX_TEMPLATES =
+        "com.termux.ui.extra.BACKUP_INCLUDE_PREFIX_TEMPLATES";
 
     private RootfsBackupTasks() {}
 
     /** Backs up to the archive the user chose (inside shared storage). */
     @NonNull
     public static String enqueueBackup(@NonNull Context context, @NonNull File archive) {
-        return enqueue(context, RootfsBackupTask.Kind.BACKUP, archive);
+        return enqueueBackup(context, archive, true);
+    }
+
+    /** As above; {@code includePrefixTemplates=false} leaves the (rebuildable) Wine prefix templates out. */
+    @NonNull
+    public static String enqueueBackup(@NonNull Context context, @NonNull File archive,
+                                       boolean includePrefixTemplates) {
+        return enqueue(context, RootfsBackupTask.Kind.BACKUP, archive, includePrefixTemplates);
     }
 
     /** Restores from the archive the user chose, read in place. */
     @NonNull
     public static String enqueueRestore(@NonNull Context context, @NonNull File archive) {
-        return enqueue(context, RootfsBackupTask.Kind.RESTORE, archive);
+        return enqueue(context, RootfsBackupTask.Kind.RESTORE, archive, true);
     }
 
     @NonNull
     private static String enqueue(@NonNull Context context, @NonNull RootfsBackupTask.Kind kind,
-                                  @NonNull File archive) {
+                                  @NonNull File archive, boolean includePrefixTemplates) {
         try {
             FileRootfsBackupTaskRepository repository = new FileRootfsBackupTaskRepository(
                 new GameStoragePaths(context.getFilesDir()).getBackupTasksDirectory());
@@ -66,7 +75,8 @@ public final class RootfsBackupTasks {
             .setAction(ACTION_ENQUEUE)
             .putExtra(EXTRA_TASK_ID, taskId)
             .putExtra(EXTRA_KIND, kind.name())
-            .putExtra(EXTRA_ARCHIVE, archive.getAbsolutePath());
+            .putExtra(EXTRA_ARCHIVE, archive.getAbsolutePath())
+            .putExtra(EXTRA_INCLUDE_PREFIX_TEMPLATES, includePrefixTemplates);
         start(context, intent);
         return taskId;
     }

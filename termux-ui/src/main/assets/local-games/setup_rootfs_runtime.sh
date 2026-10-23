@@ -394,60 +394,7 @@ if ! runtime_complete "$SHARED_ROOTFS" || \
     # enough on its own to get a pre-booted template.
     runtime_packages=$(sed -n 's/^runtimePackages=//p' "$BUILD_CONTEXT/games-runtime.properties")
     [ -n "$runtime_packages" ] || fail rootfs_runtime_packages_missing 70
-    # One termux-x11 session for the whole loop below, started once and killed once, never
-    # restarted per package: restarting it between iterations (even on a fresh display number)
-    # left the second wineboot connected to a half-torn-down X session that never finished booting
-    # (`boot event wait timed out`, looping until the wineboot timeout killed it) -- confirmed by
-    # reproducing the SAME failure with a distinct display number per iteration (ruling out a
-    # stale-socket/display-number collision) and then reproducing a clean, progressing wineboot
-    # with a single long-lived termux-x11 session instead. A real container's own warmup (further
-    # below) never hits this, since it only ever starts termux-x11 once in its script process.
-    command -v termux-x11 >/dev/null 2>&1 || fail rootfs_prefix_warmup_display_missing 70
-    MAINTENANCE_DISPLAY=:9
-    termux-x11 "$MAINTENANCE_DISPLAY" >> "$LOG_PATH" 2>&1 &
-    WARMUP_DISPLAY_PID=$!
-    OLD_IFS=$IFS
-    IFS=','
-    for template_wine_package in $runtime_packages; do
-        IFS=$OLD_IFS
-        [ -n "$template_wine_package" ] || continue
-        WINE_PACKAGE=$template_wine_package
-        ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS") || fail rootfs_unreadable 70
-        resolve_rootfs_translator
-        progress "==> Pre-warming the Wine prefix template for $template_wine_package"
-        TEMPLATE_PREFIX_ARCHIVE_DESTINATION="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.$TEMPLATE_PREFIX_EXT"
-        TEMPLATE_PREFIX_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/prefix-build"
-        TEMPLATE_HOME_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/home-build"
-        rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
-        mkdir -p "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
-        PREFIX_PATH="$TEMPLATE_PREFIX_BUILD_DIRECTORY"
-        HOME_PATH="$TEMPLATE_HOME_BUILD_DIRECTORY"
-        RUNTIME_ROOT_PATH=template
-        # Empty, not $TEMPLATE_PREFIX_ARCHIVE_DESTINATION: this build step is what PRODUCES that
-        # archive, so warmup_rootfs_prefix must do the real wineboot run here, never the clone path.
-        TEMPLATE_PREFIX_ARCHIVE=
-        CANCEL_PATH=
-        TERMUX_FILES_DIR="$TERMUX_FILES_ROOT"
-        PROOT_BIN="$PREFIX/bin/proot"
-        warmup_rootfs_prefix
-        mkdir -p "$TEMPLATE_CACHE_DIR"
-        rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
-        if ! run_logged tar -C "$TEMPLATE_PREFIX_BUILD_DIRECTORY" --use-compress-program "$TEMPLATE_COMPRESSOR" \
-            -cf "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp" .; then
-            rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
-            fail rootfs_prefix_template_archive_failed 70
-        fi
-        if ! mv "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp" "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION"; then
-            rm -f "$TEMPLATE_PREFIX_ARCHIVE_DESTINATION.tmp"
-            fail rootfs_prefix_template_archive_failed 70
-        fi
-        rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
-        IFS=','
-    done
-    IFS=$OLD_IFS
-    kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
-    wait "$WARMUP_DISPLAY_PID" 2>/dev/null || true
-    WARMUP_DISPLAY_PID=
+    build_prefix_templates "$runtime_packages"
 fi
 
 if [ "$BASE_ONLY" = true ]; then

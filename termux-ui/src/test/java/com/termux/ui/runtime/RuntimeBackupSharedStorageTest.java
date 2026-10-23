@@ -100,6 +100,21 @@ public final class RuntimeBackupSharedStorageTest {
     }
 
     @Test
+    public void rootfsEstimateCanLeaveThePrefixTemplatesOut() throws IOException {
+        File container = temp.newFolder("container-templates");
+        write(new File(container, "x"), 512);
+        File cache = temp.newFolder("cache-templates");
+        write(new File(cache, "games-rootfs-base-prefix-rootfs_hangover_11.16.tar.zst"), 100000);
+        write(new File(cache, "games-rootfs-base.recipe"), 1);
+        long with = RuntimeBackupSharedStorage.estimateRootfsBackupBytes(container, cache, true);
+        long without = RuntimeBackupSharedStorage.estimateRootfsBackupBytes(container, cache, false);
+        assertEquals(with, RuntimeBackupSharedStorage.estimateRootfsBackupBytes(container, cache));
+        // The template archive is a header block plus its data rounded up to blocks; the recipe stays.
+        assertEquals(512L + 100352L, with - without);
+        assertTrue(without > 0);
+    }
+
+    @Test
     public void spaceChecksReportRequiredAndAvailable() throws IOException {
         long mb = 1024L * 1024L;
         RuntimeBackupSharedStorage.requireExportSpace(10 * mb, 74 * mb);
