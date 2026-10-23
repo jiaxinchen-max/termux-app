@@ -8,26 +8,28 @@ package com.termux.ui.activity;
 final class LibraryGridColumns {
 
     /** Narrowest comfortable portrait card, including its margins (the portrait card is a compact
-     *  vertical card). */
-    static final int PORTRAIT_MIN_CELL_DP = 160;
-    /** Landscape cards are the wider cover-first cards (220 dp) plus spacing. */
-    static final int LANDSCAPE_MIN_CELL_DP = 236;
-    static final int PORTRAIT_MAX_COLUMNS = 6;
-    static final int LANDSCAPE_MAX_COLUMNS = 6;
+     *  vertical card, half the size it used to be). */
+    static final int PORTRAIT_MIN_CELL_DP = 80;
+    /** Landscape cards are the cover-first cards (110 dp) plus spacing. */
+    static final int LANDSCAPE_MIN_CELL_DP = 118;
+    static final int PORTRAIT_MAX_COLUMNS = 12;
+    static final int LANDSCAPE_MAX_COLUMNS = 12;
     /** A card is never narrower than this. */
-    static final int MIN_CARD_DP = 140;
+    static final int MIN_CARD_DP = 70;
+    /** Portrait keeps at least this many columns. */
+    static final int PORTRAIT_MIN_COLUMNS = 4;
 
     private LibraryGridColumns() {}
 
-    /** Portrait keeps at least two columns (the card design is a half-width card); landscape may
-     *  fall back to a single column in a very narrow window. */
+    /** Portrait keeps at least {@link #PORTRAIT_MIN_COLUMNS} columns (the card design is a
+     *  quarter-width card); landscape may fall back to a single column in a very narrow window. */
     static int columnsFor(int availableWidthDp, boolean landscape) {
         if (landscape) {
             int columns = availableWidthDp / LANDSCAPE_MIN_CELL_DP;
             return Math.max(1, Math.min(LANDSCAPE_MAX_COLUMNS, columns));
         }
         int columns = availableWidthDp / PORTRAIT_MIN_CELL_DP;
-        return Math.max(2, Math.min(PORTRAIT_MAX_COLUMNS, columns));
+        return Math.max(PORTRAIT_MIN_COLUMNS, Math.min(PORTRAIT_MAX_COLUMNS, columns));
     }
 
     /** Grid column of the item at {@code index} when the grid has {@code columns} columns. */

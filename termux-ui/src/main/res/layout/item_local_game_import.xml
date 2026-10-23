@@ -14,7 +14,7 @@
     android:foreground="?attr/selectableItemBackground"
     android:minHeight="@dimen/local_games_import_card_min_height"
     app:cardBackgroundColor="@color/local_games_surface"
-    app:cardCornerRadius="8dp"
+    app:cardCornerRadius="4dp"
     app:cardElevation="0dp"
     app:strokeColor="@color/local_games_outline"
     app:strokeWidth="1dp">
@@ -25,11 +25,11 @@
         android:gravity="center"
         android:minHeight="@dimen/local_games_import_card_min_height"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:padding="6dp">
 
         <ImageView
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:importantForAccessibility="no"
             android:src="@drawable/local_games_ic_add"
             app:tint="@color/local_games_on_surface" />
@@ -37,13 +37,13 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="5dp"
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
             android:importantForAccessibility="no"
             android:letterSpacing="0.02"
             android:text="@string/local_games_import_hero_action"
             android:textColor="@color/local_games_on_surface"
-            android:textSize="15sp" />
+            android:textSize="11sp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

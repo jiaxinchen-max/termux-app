@@ -5,15 +5,15 @@
     android:layout_height="wrap_content"
     android:layout_columnWeight="1"
     android:layout_gravity="fill_horizontal"
-    android:layout_marginStart="4dp"
-    android:layout_marginTop="4dp"
-    android:layout_marginEnd="4dp"
-    android:layout_marginBottom="12dp"
+    android:layout_marginStart="2dp"
+    android:layout_marginTop="2dp"
+    android:layout_marginEnd="2dp"
+    android:layout_marginBottom="6dp"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
     app:cardBackgroundColor="@color/local_games_surface"
-    app:cardCornerRadius="8dp"
+    app:cardCornerRadius="4dp"
     app:cardElevation="0dp"
     app:strokeWidth="0dp">
 
@@ -24,7 +24,7 @@
 
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="112dp">
+            android:layout_height="56dp">
 
             <ImageView
                 android:id="@+id/local_game_cover"
@@ -32,7 +32,7 @@
                 android:layout_height="match_parent"
                 android:background="@drawable/local_games_bg_cover"
                 android:contentDescription="@string/local_game_cover_content_description"
-                android:padding="42dp"
+                android:padding="21dp"
                 android:scaleType="centerCrop"
                 android:src="@drawable/local_games_cover_placeholder" />
         </FrameLayout>
@@ -47,12 +47,12 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="102dp"
+            android:minHeight="51dp"
             android:orientation="vertical"
-            android:paddingStart="12dp"
-            android:paddingTop="11dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="12dp">
+            android:paddingStart="6dp"
+            android:paddingTop="5dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="6dp">
 
             <TextView
                 android:id="@+id/local_game_name"
@@ -61,53 +61,60 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/local_games_on_surface"
-                android:textSize="15sp"
+                android:textSize="12sp"
                 android:fontFamily="sans-serif-medium" />
 
             <TextView
                 android:id="@+id/local_game_executable"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
+                android:layout_marginTop="1dp"
                 android:ellipsize="middle"
                 android:singleLine="true"
                 android:textColor="@color/local_games_on_surface_secondary"
-                android:textSize="11sp" />
+                android:textSize="9sp" />
 
             <TextView
                 android:id="@+id/local_game_access_status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="9dp"
+                android:layout_marginTop="4dp"
                 android:ellipsize="end"
                 android:singleLine="true"
                 android:textColor="@color/local_games_success_text"
-                android:textSize="11sp"
+                android:textSize="9sp"
                 android:fontFamily="sans-serif-medium" />
 
             <TextView
                 android:id="@+id/local_game_last_played"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
+                android:layout_marginTop="1dp"
                 android:ellipsize="end"
                 android:singleLine="true"
                 android:textColor="@color/local_games_on_surface_secondary"
-                android:textSize="10sp" />
+                android:textSize="8sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="5dp"
                 android:orientation="horizontal">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/local_game_details"
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="0dp"
-                    android:layout_height="@dimen/local_games_menu_row_min_height"
+                    android:layout_height="28dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
                     android:layout_weight="1"
                     android:letterSpacing="0.02"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:padding="0dp"
+                    android:textSize="10sp"
                     android:text="@string/local_game_card_details"
                     android:textAllCaps="false"
                     android:textColor="@color/local_games_on_surface" />
@@ -115,12 +122,17 @@
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/local_game_more"
                     style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:layout_width="@dimen/local_games_menu_row_min_height"
-                    android:layout_height="@dimen/local_games_menu_row_min_height"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
                     android:contentDescription="@string/local_game_card_more"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:padding="0dp"
                     android:text="⋯"
                     android:textColor="@color/local_games_on_surface"
-                    android:textSize="20sp" />
+                    android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

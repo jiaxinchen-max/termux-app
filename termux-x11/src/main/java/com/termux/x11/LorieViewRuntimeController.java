@@ -318,11 +318,6 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         mX11DisplayController.attach(this, displayView);
 
         frm = displayView.getDisplayFrame();
-        displayView.findViewById(R.id.preferences_button).setOnClickListener((l) -> {
-            if (null != termuxActivityListener) {
-                termuxActivityListener.onX11PreferenceSwitchChange(true);
-            }
-        });
         LorieView lorieView = displayView.getLorieView();
         lorieView.setLorieHost(this);
         View lorieParent = (View) lorieView.getParent();

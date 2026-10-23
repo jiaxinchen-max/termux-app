@@ -805,13 +805,13 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void applyGameCardLayout(View card, int index, boolean fillRow) {
         int gridWidth = renderedGridWidth > 0 ? renderedGridWidth : libraryGridWidth();
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
-        params.width = LibraryGridColumns.cardWidthPx(gridWidth, libraryColumns, dp(8),
+        params.width = LibraryGridColumns.cardWidthPx(gridWidth, libraryColumns, dp(4),
             getResources().getDisplayMetrics().density);
         params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
         params.columnSpec = GridLayout.spec(LibraryGridColumns.columnOf(index, libraryColumns));
         int row = LibraryGridColumns.rowOf(index, libraryColumns);
         params.rowSpec = fillRow ? GridLayout.spec(row, GridLayout.FILL) : GridLayout.spec(row);
-        params.setMargins(dp(4), dp(4), dp(4), dp(12));
+        params.setMargins(dp(2), dp(2), dp(2), dp(6));
         card.setLayoutParams(params);
     }
 

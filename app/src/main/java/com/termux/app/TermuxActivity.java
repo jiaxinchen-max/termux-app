@@ -64,7 +64,6 @@ import com.termux.app.localgames.TermuxAppExperienceRouter;
 import com.termux.app.terminal.FloatBallMenuClient;
 import com.termux.app.terminal.MainSurfaceController;
 import com.termux.app.terminal.MenuEntryClient;
-import com.termux.app.terminal.StartEntryClient;
 import com.termux.app.terminal.TermuxBoxContainerManagerClient;
 import com.termux.app.terminal.TermuxX11ActivityIntegration;
 import com.termux.app.terminal.TermuxX11HostClient;
@@ -693,7 +692,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         FileReceiverActivity.updateFileReceiverActivityComponentsState(this);
 
         if (mIntegratedX11Enabled) setRecoverView();
-        if (mIntegratedX11Enabled) setX11Server();
         if (mIntegratedX11Enabled) setBackupView();
         if (mIntegratedX11Enabled) setFloatBallMenuClient();
         else getDrawer().setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED,
@@ -1036,29 +1034,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     public void removeTermuxActivityRootViewGlobalLayoutListener() {
         if (getTermuxActivityRootView() != null)
             getTermuxActivityRootView().getViewTreeObserver().removeOnGlobalLayoutListener(getTermuxActivityRootView());
-    }
-
-    private void setX11Server() {
-        findViewById(com.termux.x11.R.id.exit_button).setOnClickListener((v) -> {
-            exitApp();
-        });
-        StartEntryClient startEntryClient = new StartEntryClient(this, mTermuxTerminalSessionActivityClient);
-        startEntryClient.init();
-    }
-
-    private void exitApp() {
-        if (mPendingTerminalExit) {
-            mPendingTerminalExit = false;
-            Intent exitIntent = new Intent(this, TermuxService.class)
-                .setAction(TermuxConstants.TERMUX_APP.TERMUX_SERVICE.ACTION_STOP_SERVICE);
-            startService(exitIntent);
-            finishActivityIfNotFinishing();
-        } else {
-            Toast.makeText(this, R.string.exit_toast_text, Toast.LENGTH_SHORT).show();
-            mPendingTerminalExit = true;
-            mPendingTerminalMoveToBack = false;
-            LoriePreferences.handler.postDelayed(() -> mPendingTerminalExit = false, 2000);
-        }
     }
 
     private void moveTaskToBackOrPrompt() {
