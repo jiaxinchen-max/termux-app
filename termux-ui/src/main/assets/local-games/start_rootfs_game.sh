@@ -546,6 +546,7 @@ apply_rootfs_game_options
 # through winhandler.exe, the Wine end of the controller bridge) and switch the DLLs on. A failure only costs the
 # controller; the game then starts directly, as before. dinput* in the input profile selects the DInput mapper.
 . "$(dirname "$SCRIPT_PATH")/controller_runtime.sh"
+[ "$RUNTIME_TRANSLATOR" != hangover ] || export GAMES_CONTROLLER_PREFIX_DLLS=0
 if install_games_controller_runtime "$PREFIX_PATH" "$(dirname "$SCRIPT_PATH")" >> "$LOG_PATH" 2>&1; then
     CONTROLLER_WRAPPER=$GAMES_CONTROLLER_WINHANDLER_WINDOWS_PATH
 else

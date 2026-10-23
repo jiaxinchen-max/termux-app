@@ -76,6 +76,7 @@ _games_controller_stage() {
 # its lib/wine/x86_64-windows and lib/wine/i386-windows, as shipped, so that Wine loads them as builtin DLLs. Without
 # one (rootfs launcher) marker-free copies go into the prefix: a prefix with a syswow64 directory is 64-bit, so
 # x86_64 DLLs go to system32 and i386 DLLs to syswow64; otherwise system32 is 32-bit and takes the i386 DLLs.
+# GAMES_CONTROLLER_PREFIX_DLLS=0 skips the prefix DLL copies (winhandler.exe is still installed).
 # Returns non-zero when the payload is missing or cannot be copied; the caller then starts the game the old way (a
 # missing controller must never keep a game from starting).
 install_games_controller_runtime() {
@@ -95,6 +96,9 @@ install_games_controller_runtime() {
             _installed=1
         done
         [ "$_installed" = 1 ] || return 1
+    elif [ "${GAMES_CONTROLLER_PREFIX_DLLS:-1}" = 0 ]; then
+        # An arm64 Wine (Hangover) cannot load the x86_64/i386 copies, and their presence in system32 breaks it.
+        :
     elif [ -d "$_syswow64" ]; then
         _games_controller_copy_dlls "$_runtime_dir/controller-stage/wine-native/x86_64-windows" "$_system32" || return 1
         _games_controller_copy_dlls "$_runtime_dir/controller-stage/wine-native/i386-windows" "$_syswow64" || return 1
