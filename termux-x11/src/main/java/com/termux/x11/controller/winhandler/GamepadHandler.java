@@ -30,12 +30,19 @@ public class GamepadHandler {
     public static final byte AXIS_MODE_X_Y_RX_RY_Z_RZ = 1;
     private static final byte GAMEPAD_MAX_COUNT = 4;
     private static final short PACKET_LENGTH = 256;
+    /**
+     * The patched xinput/dinput DLLs shipped with the app (wine.tar.gz) speak the single-controller protocol of
+     * {@link LegacyGamepadProtocol}; the multi-slot protocol below needs DLLs built for it. Their 256 byte replies
+     * do not fit the 64 byte receive buffer of the shipped DLLs and end their read thread.
+     */
+    static final boolean LEGACY_DLL_PROTOCOL = true;
     private final WinHandler winHandler;
     private final List<Integer> gamepadClients = new CopyOnWriteArrayList<>();
     private byte dinputMapperType = DINPUT_MAPPER_TYPE_XINPUT;
     private final GamepadSlot[] gamepadSlots = new GamepadSlot[GAMEPAD_MAX_COUNT];
     private final ArrayList<ExternalController> connectedControllers = new ArrayList<>(GAMEPAD_MAX_COUNT);
     private GamepadPlayerConfig[] gamepadPlayerConfigs;
+    private volatile ExternalController legacyController;
     private short[] gamepadModelIds;
 
     public static class GamepadModel {
@@ -129,7 +136,67 @@ public class GamepadHandler {
         return false;
     }
 
+    /** The virtual gamepad of the active controls profile, or null when it is not in use. */
+    private ControlsProfile legacyVirtualProfile() {
+        ControlsProfile profile = winHandler.host.getInputControlsView().getProfile();
+        return profile != null && profile.isVirtualGamepad() ? profile : null;
+    }
+
+    private void handleLegacyGetGamepadRequest(int port) {
+        boolean notify = LegacyGamepadProtocol.isNotifyRequest(winHandler.receiveData);
+        final ControlsProfile virtualProfile = legacyVirtualProfile();
+        if (virtualProfile == null && (legacyController == null || !legacyController.isConnected())) {
+            legacyController = ExternalController.getController(0);
+        }
+        final ExternalController controller = legacyController;
+        final boolean enabled = virtualProfile != null || controller != null;
+
+        if (enabled && notify) {
+            if (!gamepadClients.contains(port)) gamepadClients.add(port);
+        }
+        else gamepadClients.remove(Integer.valueOf(port));
+
+        final int deviceId = virtualProfile != null ? virtualProfile.id : controller != null ? controller.getDeviceId() : 0;
+        final String name = virtualProfile != null ? virtualProfile.getName() : controller != null ? controller.getName() : "";
+        winHandler.addAction(() -> {
+            ByteBuffer buffer = winHandler.sendData;
+            buffer.rewind();
+            LegacyGamepadProtocol.writeGamepadInfo(buffer, enabled, deviceId, dinputMapperType, name);
+            winHandler.sendPacket(port, LegacyGamepadProtocol.PACKET_LENGTH);
+        });
+    }
+
+    private void handleLegacyGetGamepadStateRequest(int port) {
+        final int gamepadId = winHandler.receiveData.getInt();
+        if (legacyController != null && legacyController.getDeviceId() != gamepadId) legacyController = null;
+        sendLegacyGamepadState(port);
+    }
+
+    /** Sends the current state of the virtual gamepad or the external controller to one client. */
+    private void sendLegacyGamepadState(final int port) {
+        final ControlsProfile virtualProfile = legacyVirtualProfile();
+        final ExternalController controller = legacyController;
+        final boolean enabled = virtualProfile != null || controller != null;
+        final int deviceId = virtualProfile != null ? virtualProfile.id : controller != null ? controller.getDeviceId() : 0;
+        final GamepadState state = virtualProfile != null ? virtualProfile.getGamepadState() : controller != null ? controller.state : null;
+        winHandler.addAction(() -> {
+            ByteBuffer buffer = winHandler.sendData;
+            buffer.rewind();
+            LegacyGamepadProtocol.writeGamepadState(buffer, enabled, deviceId, state);
+            winHandler.sendPacket(port, LegacyGamepadProtocol.PACKET_LENGTH);
+        });
+    }
+
+    private void pushLegacyGamepadState() {
+        if (!winHandler.isInitReceived()) return;
+        for (int port : gamepadClients) sendLegacyGamepadState(port);
+    }
+
     public void handleGetGamepadRequest(int port) {
+        if (LEGACY_DLL_PROTOCOL) {
+            handleLegacyGetGamepadRequest(port);
+            return;
+        }
         updateGamepadSlots();
 
         int clientIndex = gamepadClients.indexOf(port);
@@ -218,7 +285,11 @@ public class GamepadHandler {
     }
 
     public void sendGamepadState(final GamepadSlot gamepadSlot) {
-        if (!winHandler.initReceived || gamepadClients.isEmpty()) return;
+        if (LEGACY_DLL_PROTOCOL) {
+            pushLegacyGamepadState();
+            return;
+        }
+        if (!winHandler.isInitReceived() || gamepadClients.isEmpty()) return;
         final byte slot = (byte)indexOfSlot(gamepadSlot);
         if (slot == -1) return;
         final GamepadState state = gamepadSlot.getGamepadState();
@@ -243,6 +314,10 @@ public class GamepadHandler {
     }
 
     public void handleGetGamepadStateRequest(int port) {
+        if (LEGACY_DLL_PROTOCOL) {
+            handleLegacyGetGamepadStateRequest(port);
+            return;
+        }
         final byte slot = winHandler.receiveData.get();
         winHandler.addAction(() -> {
             final ByteBuffer buffer = winHandler.sendData;
@@ -263,11 +338,17 @@ public class GamepadHandler {
     }
 
     public void handleReleaseGamepadRequest(int port) {
+        if (LEGACY_DLL_PROTOCOL) {
+            legacyController = null;
+            gamepadClients.clear();
+            return;
+        }
         int index = gamepadClients.indexOf(port);
         if (index != -1) gamepadClients.remove(Integer.valueOf(port));
     }
 
     public void handleSetGamepadStateRequest(int port) {
+        if (LEGACY_DLL_PROTOCOL) return; // the shipped DLLs send no vibration requests
         final ByteBuffer buffer = winHandler.receiveData;
         byte slot = buffer.get();
         if (slot < 0 || slot >= GAMEPAD_MAX_COUNT) return;
@@ -283,6 +364,10 @@ public class GamepadHandler {
     }
 
     private ExternalController getConnectedControllerById(int deviceId) {
+        if (LEGACY_DLL_PROTOCOL) {
+            ExternalController controller = legacyController;
+            return controller != null && controller.getDeviceId() == deviceId ? controller : null;
+        }
         synchronized (connectedControllers) {
             for (ExternalController controller : connectedControllers) {
                 if (controller.getDeviceId() == deviceId) return controller;
@@ -320,13 +405,18 @@ public class GamepadHandler {
     }
 
     public void sendGamepadStateForAllControllers() {
-        if (!winHandler.initReceived || gamepadClients.isEmpty()) return;
+        if (LEGACY_DLL_PROTOCOL) {
+            pushLegacyGamepadState();
+            return;
+        }
+        if (!winHandler.isInitReceived() || gamepadClients.isEmpty()) return;
         for (GamepadSlot slot : gamepadSlots) {
             if (slot != null) sendGamepadState(slot);
         }
     }
 
     public ExternalController getCurrentController() {
+        if (LEGACY_DLL_PROTOCOL) return legacyController;
         for (GamepadSlot slot : gamepadSlots) {
             if (slot instanceof ExternalController) return (ExternalController) slot;
         }

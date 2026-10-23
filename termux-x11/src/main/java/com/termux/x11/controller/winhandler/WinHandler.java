@@ -22,6 +22,7 @@ import java.util.ArrayDeque;
 import java.util.concurrent.Executors;
 
 public class WinHandler {
+    private static final String TAG = "WinHandler";
     private static final short SERVER_PORT = 7947;
     private static final short CLIENT_PORT = 7946;
     private static final short DEFAULT_PACKET_LENGTH = 64;
@@ -32,8 +33,8 @@ public class WinHandler {
     private final DatagramPacket sendPacket = new DatagramPacket(sendData.array(), sendData.capacity());
     private final DatagramPacket receivePacket = new DatagramPacket(receiveData.array(), receiveData.capacity());
     private final ArrayDeque<Runnable> actions = new ArrayDeque<>();
-    protected boolean initReceived = false;
-    private boolean running = false;
+    private final WinHandlerHandshake handshake = new WinHandlerHandshake();
+    private volatile boolean running = false;
     private OnGetProcessInfoListener onGetProcessInfoListener;
     private InetAddress localhost;
     protected final LorieViewRuntimeApi.WinHandlerHost host;
@@ -135,7 +136,7 @@ public class WinHandler {
     }
 
     public void mouseEvent(int flags, int dx, int dy, int wheelDelta) {
-        if (!initReceived) return;
+        if (!handshake.isReady()) return;
         addAction(() -> {
             sendData.rewind();
             sendData.put(RequestCodes.MOUSE_EVENT);
@@ -150,7 +151,7 @@ public class WinHandler {
     }
 
     public void keyboardEvent(byte vkey, int flags) {
-        if (!initReceived) return;
+        if (!handshake.isReady()) return;
         addAction(() -> {
             sendData.rewind();
             sendData.put(RequestCodes.KEYBOARD_EVENT);
@@ -197,7 +198,7 @@ public class WinHandler {
         Executors.newSingleThreadExecutor().execute(() -> {
             while (running) {
                 synchronized (actions) {
-                    while (initReceived && !actions.isEmpty()) actions.poll().run();
+                    while (handshake.isReady() && !actions.isEmpty()) actions.poll().run();
                     try {
                         actions.wait();
                     }
@@ -220,14 +221,21 @@ public class WinHandler {
         }
     }
 
+    /** Whether the Wine end has announced itself, by INIT or by its first gamepad request. */
+    boolean isInitReceived() {
+        return handshake.isReady();
+    }
+
     private void handleRequest(byte requestCode, final int port) {
+        if (handshake.onRequest(requestCode)) {
+            Log.i(TAG, requestCode == RequestCodes.INIT ? "INIT received from port " + port
+                : "request " + requestCode + " from port " + port + " before INIT: treating the Wine end as ready");
+            synchronized (actions) {
+                actions.notify();
+            }
+        }
         switch (requestCode) {
             case RequestCodes.INIT: {
-                initReceived = true;
-
-                synchronized (actions) {
-                    actions.notify();
-                }
                 break;
             }
             case RequestCodes.GET_PROCESS: {
@@ -286,26 +294,40 @@ public class WinHandler {
         startSendThread();
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
-                socket = new DatagramSocket(null);
-                socket.setReuseAddress(true);
-                socket.bind(new InetSocketAddress((InetAddress)null, SERVER_PORT));
+                DatagramSocket server = new DatagramSocket(null);
+                socket = server;
+                server.setReuseAddress(true);
+                server.bind(new InetSocketAddress((InetAddress)null, SERVER_PORT));
+                Log.i(TAG, "listening on UDP port " + SERVER_PORT);
 
                 while (running) {
-                    socket.receive(receivePacket);
-                    synchronized (actions) {
-                        receiveData.rewind();
-                        byte requestCode = receiveData.get();
-                        handleRequest(requestCode, receivePacket.getPort());
+                    try {
+                        server.receive(receivePacket);
+                        synchronized (actions) {
+                            receiveData.rewind();
+                            byte requestCode = receiveData.get();
+                            handleRequest(requestCode, receivePacket.getPort());
+                        }
+                    }
+                    catch (IOException e) {
+                        // One bad datagram must not end the loop and with it the whole controller bridge.
+                        if (!running || server.isClosed()) break;
+                        Log.w(TAG, "receive failed: " + e);
+                    }
+                    catch (RuntimeException e) {
+                        Log.w(TAG, "bad request: " + e);
                     }
                 }
             }
-            catch (IOException e) {}
+            catch (IOException e) {
+                Log.e(TAG, "cannot listen on UDP port " + SERVER_PORT, e);
+            }
         });
     }
 
     public void sendGamepadState() {
         // Legacy method - delegate to GamepadHandler for proper multi-slot handling
-        Log.d("sendGamepadState","port:"+initReceived);
+        Log.d("sendGamepadState","port:"+handshake.isReady());
         gamepadHandler.sendGamepadStateForAllControllers();
     }
 

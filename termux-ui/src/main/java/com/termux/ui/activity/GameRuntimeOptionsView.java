@@ -579,6 +579,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         addDllChoice("DirectMusic", "GAMES_DLL_DMUSIC");
         addDllChoice("DirectShow", "GAMES_DLL_DSHOW");
         addDllChoice("DirectPlay", "GAMES_DLL_DPLAY");
+        addDllChoice("DirectInput", "GAMES_DLL_DINPUT");
+        addDllChoice("XInput", "GAMES_DLL_XINPUT");
     }
 
     private void renderFolders() {

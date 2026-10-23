@@ -252,6 +252,24 @@ apply_debug_mode() {
     esac
 }
 
+# The debug presets are defaults. They overwrite variables that are already in the environment, including the ones the
+# user set in the game's Environment variables (for example WINEDEBUG), so remember those values and put them back.
+snapshot_user_env() {
+    _user_env=
+    for _env_key in ${TERMUX_BOX_INHERITED_ENV_KEYS:-}; do
+        if _env_value=$(printenv "$_env_key"); then
+            _env_quoted=$(printf '%s' "$_env_value" | sed "s/'/'\\\\''/g")
+            _user_env="${_user_env}export $_env_key='$_env_quoted'
+"
+        fi
+    done
+}
+
+restore_user_env() {
+    apply_container_env_vars
+    [ -z "$_user_env" ] || eval "$_user_env"
+}
+
 ensure_launch_log() {
     _launch_log=${TERMUX_BOX_LAUNCH_LOG:-}
     [ -n "$_launch_log" ] || return 0
@@ -365,7 +383,9 @@ resolve_resolution() {
 
 load_configs
 normalize_cpu_affinity
+snapshot_user_env
 apply_debug_mode
+restore_user_env
 ensure_launch_log || exit 1
 acquire_single_instance_lock
 ensure_runtime_packages
@@ -489,9 +509,9 @@ ensure_games_wine_fonts || exit 1
 ensure_games_cjk_locale
 apply_game_options
 
-# Release the controller DLLs and winhandler.exe into this prefix. A failure only costs the controller: the game
-# then starts directly, as before.
-if install_games_controller_runtime "$WINEPREFIX" "$GAMES_RUNTIME_SCRIPT_DIR"; then
+# Release the controller DLLs into the Wine runtime (Wine loads them as builtin DLLs from there) and winhandler.exe
+# into this prefix. A failure only costs the controller: the game then starts directly, as before.
+if install_games_controller_runtime "$WINEPREFIX" "$GAMES_RUNTIME_SCRIPT_DIR" "$WINE_PATH"; then
     CONTROLLER_WRAPPER=$GAMES_CONTROLLER_WINHANDLER_WINDOWS_PATH
 else
     echo "WARNING: controller runtime could not be installed; the on-screen controller is unavailable."
@@ -524,7 +544,9 @@ WINE_DLL_OVERRIDES=$(games_controller_dll_overrides "${TERMUX_BOX_GAMEPAD_MAPPER
 [ -n "${GAMES_DLL_DMUSIC:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}dmusic=${GAMES_DLL_DMUSIC};"
 [ -n "${GAMES_DLL_DSHOW:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}quartz=${GAMES_DLL_DSHOW};"
 [ -n "${GAMES_DLL_DPLAY:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}dplayx=${GAMES_DLL_DPLAY};"
-[ -n "$WINE_DLL_OVERRIDES" ] && export WINEDLLOVERRIDES || unset WINEDLLOVERRIDES
+# The value has to be assigned: a bare `export WINEDLLOVERRIDES` exports nothing while the variable is unset, so
+# neither the controller DLLs nor the D3D/audio overrides would reach Wine.
+[ -n "$WINE_DLL_OVERRIDES" ] && export WINEDLLOVERRIDES="$WINE_DLL_OVERRIDES" || unset WINEDLLOVERRIDES
 
 # Mount the imported root below Z:, which is the mapping established by the
 # existing Termux-box prefix bootstrap, then use the same explorer desktop path.

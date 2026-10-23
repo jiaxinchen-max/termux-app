@@ -553,7 +553,10 @@ else
     CONTROLLER_WRAPPER=
 fi
 case "$INPUT_PROFILE_ID" in dinput*) CONTROLLER_MAPPER=0 ;; *) CONTROLLER_MAPPER=1 ;; esac
-export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}$(games_controller_dll_overrides "$CONTROLLER_MAPPER")"
+# Empty while the DirectInput / XInput library setting is empty (builtin); a chosen mode makes the marker-free prefix
+# copies of the patched DLLs load.
+CONTROLLER_DLL_OVERRIDES=$(games_controller_dll_overrides "$CONTROLLER_MAPPER")
+[ -z "$CONTROLLER_DLL_OVERRIDES" ] || export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}$CONTROLLER_DLL_OVERRIDES"
 
 [ ! -e "$CANCEL_PATH" ] || CANCELLED=1
 if [ "$CANCELLED" = 1 ]; then
@@ -573,10 +576,15 @@ if [ "$DESKTOP_ONLY" = 1 ]; then
     else
         set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION"
     fi
-elif [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-    set -- explorer "/desktop=shell,$RESOLUTION" ${CONTROLLER_WRAPPER:+"$CONTROLLER_WRAPPER"} "$GUEST_EXECUTABLE" "$@"
 else
-    set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION" ${CONTROLLER_WRAPPER:+"$CONTROLLER_WRAPPER"} "$GUEST_EXECUTABLE" "$@"
+    # The program is started by winhandler.exe when the controller bridge is installed, and that takes a Windows path.
+    GAME_TARGET=$GUEST_EXECUTABLE
+    [ -z "$CONTROLLER_WRAPPER" ] || GAME_TARGET=$(games_controller_windows_target "$GUEST_EXECUTABLE")
+    if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
+        set -- explorer "/desktop=shell,$RESOLUTION" ${CONTROLLER_WRAPPER:+"$CONTROLLER_WRAPPER"} "$GAME_TARGET" "$@"
+    else
+        set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION" ${CONTROLLER_WRAPPER:+"$CONTROLLER_WRAPPER"} "$GAME_TARGET" "$@"
+    fi
 fi
 GAMES_EFFECTIVE_CPU_CORES="${GAMES_CPU_CORES:-${GAMES_CPU_CORES_32:-}}"
 if [ -n "$GAMES_EFFECTIVE_CPU_CORES" ]; then
