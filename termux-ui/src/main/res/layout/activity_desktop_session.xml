@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/local_games_session_backdrop"
+    android:keepScreenOn="true">
+
+    <com.termux.x11.X11SessionView
+        android:id="@+id/desktop_session_x11"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:id="@+id/desktop_session_waiting"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/local_games_session_waiting"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/desktop_session_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            app:indicatorColor="@color/local_games_primary" />
+
+        <TextView
+            android:id="@+id/desktop_session_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/desktop_session_starting"
+            android:textColor="@color/local_games_on_surface"
+            android:textSize="16sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/desktop_session_close_waiting"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/desktop_session_close" />
+    </LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/desktop_session_menu"
+        android:layout_width="64dp"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="18dp"
+        android:contentDescription="@string/desktop_session_stop"
+        android:text="☰"
+        android:textColor="@color/local_games_on_surface"
+        android:textSize="20sp"
+        app:backgroundTint="@color/local_games_overlay"
+        app:cornerRadius="6dp" />
+</FrameLayout>

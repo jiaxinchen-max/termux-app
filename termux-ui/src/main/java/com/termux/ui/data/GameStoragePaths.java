@@ -58,6 +58,25 @@ public final class GameStoragePaths {
         return new File(getContainerDirectory(containerId), "prefix-" +
             backendType.getStorageValue());
     }
+    /** Root of the KWin desktop distributions managed by the Desktop feature. */
+    public File getDesktopDirectory() { return new File(libraryDirectory.getParentFile(), "desktop"); }
+    public File getDesktopDistrosDirectory() { return new File(getDesktopDirectory(), "distros"); }
+    public File getDesktopSpecsDirectory() { return new File(getDesktopDirectory(), "specs"); }
+    /** Per-distro runtime state written by the desktop scripts (pid, exit status). */
+    public File getDesktopStateDirectory() { return new File(getDesktopDirectory(), "state"); }
+    public File getDesktopLogsDirectory() { return new File(getDesktopDirectory(), "logs"); }
+    public File getDesktopSpecFile(String distroId) {
+        return new File(getDesktopSpecsDirectory(), requireId(distroId) + ".spec");
+    }
+    public File getDesktopPidFile(String distroId) {
+        return new File(getDesktopStateDirectory(), requireId(distroId) + ".pid");
+    }
+    public File getDesktopStatusFile(String distroId) {
+        return new File(getDesktopStateDirectory(), requireId(distroId) + ".status");
+    }
+    public File getDesktopLogFile(String distroId) {
+        return new File(getDesktopLogsDirectory(), requireId(distroId) + ".log");
+    }
     public File getCacheDirectory() { return new File(libraryDirectory.getParentFile(), "cache"); }
     public File getRuntimeDirectory() { return new File(libraryDirectory.getParentFile(), "runtime"); }
     public File getRuntimeSetupDirectory() {

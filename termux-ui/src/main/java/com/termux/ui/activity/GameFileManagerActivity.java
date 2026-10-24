@@ -54,7 +54,7 @@ public final class GameFileManagerActivity extends AppCompatActivity {
 
     private static final int REQUEST_SHARED_STORAGE_PERMISSION = 8402;
     private static final String STATE_BROWSED_DIRECTORY = "browsed_directory";
-    private static final int TILE_MARGIN_DP = 3;
+    private static final int TILE_MARGIN_DP = 1;
     private static final int TILE_HEIGHT_DP = 80;
     private static final int TILE_ICON_DP = 36;
     private static final int ROW_MIN_HEIGHT_DP = 40;

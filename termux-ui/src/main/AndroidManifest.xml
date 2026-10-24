@@ -24,6 +24,22 @@
             android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
 
         <activity
+            android:name=".activity.DesktopActivity"
+            android:exported="false"
+            android:label="@string/desktop_title"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".activity.DesktopSessionActivity"
+            android:exported="false"
+            android:label="@string/desktop_title"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|density|screenLayout|keyboard|keyboardHidden|navigation"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.Session" />
+
+        <activity
             android:name=".activity.GameDetailActivity"
             android:exported="false"
             android:label="@string/local_game_detail_title"

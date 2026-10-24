@@ -6,6 +6,7 @@ import android.content.Intent;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.termux.ui.activity.DesktopActivity;
 import com.termux.ui.activity.GameFileManagerActivity;
 import com.termux.ui.activity.GameDetailActivity;
 import com.termux.ui.activity.GameReauthorizeActivity;
@@ -72,6 +73,12 @@ public final class LocalGames {
     @NonNull
     public static Intent createFileManagerIntent(@NonNull Context context) {
         return new Intent(context, GameFileManagerActivity.class);
+    }
+
+    /** Opens the Desktop screen that manages KWin desktop distributions (native or proot). */
+    @NonNull
+    public static Intent createDesktopIntent(@NonNull Context context) {
+        return new Intent(context, DesktopActivity.class);
     }
 
     /** Re-grants a lost SAF permission for an already-imported game; see GameReauthorizeActivity. */

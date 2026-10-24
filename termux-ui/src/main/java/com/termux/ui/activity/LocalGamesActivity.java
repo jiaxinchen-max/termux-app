@@ -257,6 +257,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
             onNavigationDestination(R.id.local_games_navigation_library));
         binding.localGamesTopTabFileManager.setOnClickListener(view ->
             onNavigationDestination(R.id.local_games_navigation_file_manager));
+        binding.localGamesTopTabDesktop.setOnClickListener(view ->
+            onNavigationDestination(R.id.local_games_navigation_desktop));
         binding.localGamesTopTabSettings.setOnClickListener(view ->
             onNavigationDestination(R.id.local_games_navigation_settings));
         WindowInsetsPadding.apply(binding.localGamesRoot, true, true, true, true);
@@ -528,6 +530,11 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 showPage(TAB_LIBRARY);
             }
             startImportFlow();
+            return false;
+        }
+        if (itemId == R.id.local_games_navigation_desktop) {
+            // An entry like the file manager: the Desktop screen is separate and never highlighted.
+            startActivity(DesktopActivity.createIntent(this));
             return false;
         }
         boolean settings = itemId == R.id.local_games_navigation_settings;
