@@ -46,6 +46,9 @@ GAMES_RUNTIME_SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$GAMES_RUNTIME_SCRIPT_DIR/glibc_prefix_extras.sh"
 # install_games_controller_runtime / games_controller_dll_overrides: the patched xinput/dinput DLLs and winhandler.exe
 . "$GAMES_RUNTIME_SCRIPT_DIR/controller_runtime.sh"
+# x_server_start / x_server_kill_all: legacy termux-x11 or the Xlorie package
+X_SERVER_DIR="$GAMES_RUNTIME_SCRIPT_DIR"
+. "$X_SERVER_DIR/x_server_common.sh"
 
 # Run command with CPU affinity if taskset is available and functional,
 # otherwise fall back to direct execution.
@@ -286,14 +289,15 @@ ensure_launch_log() {
 start_x11_when_ready() {
     _x11_socket="$PREFIX/tmp/.X11-unix/X0"
     rm -f "$_x11_socket" "$PREFIX/tmp/.X0-lock" 2>/dev/null || true
-    termux-x11 :0 >> "${TERMUX_BOX_LAUNCH_LOG:-/dev/null}" 2>&1 &
+    X_SERVER_SCREEN="${RESOLUTION:-1280x720}x24"
+    x_server_start :0 "${TERMUX_BOX_LAUNCH_LOG:-/dev/null}"
     _attempt=0
-    while [ "$_attempt" -lt 40 ]; do
+    while [ "$_attempt" -lt "$X_SERVER_READY_ATTEMPTS" ]; do
         [ -S "$_x11_socket" ] && return 0
         sleep 0.1
         _attempt=$((_attempt + 1))
     done
-    echo "ERROR: Termux-X11 display :0 did not become ready."
+    echo "ERROR: X server display :0 did not become ready ($(x_server_backend))."
     return 1
 }
 
@@ -348,7 +352,7 @@ ensure_runtime_packages() {
 
 # ---- Stop all running services ----
 stop_all() {
-    ps -ef | grep 'termux.x11*' | grep -v grep | awk '{print $2}' | xargs -r kill -9 >/dev/null 2>&1 || true
+    x_server_kill_all
     rm -rf "$PREFIX/tmp/pulse-"* >/dev/null 2>&1 || true
     pulseaudio -k >/dev/null 2>&1 || true
     unset PULSE_SERVER

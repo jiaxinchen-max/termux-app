@@ -146,6 +146,21 @@ public class TermuxRuntimeComponentProbeTest {
         assertTrue(probe.isAvailable("termux-x11"));
     }
 
+    @Test
+    public void xloriePackageRequiresTheExecutableXlorie() throws Exception {
+        File files = temporary.newFolder("xlorie-files");
+        TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);
+        assertFalse(probe.isAvailable("xlorie"));
+
+        File xlorie = new File(files, "usr/bin/Xlorie");
+        write(xlorie, "elf");
+        assertFalse("a non-executable file is not an installed server", probe.isAvailable("xlorie"));
+        assertTrue(xlorie.setExecutable(true, false));
+        assertTrue(probe.isAvailable("xlorie"));
+        // The legacy launcher is independent of it.
+        assertFalse(probe.isAvailable("termux-x11"));
+    }
+
     private static void installMetadata(File files, String relativeRoot,
                                         String componentId, String version) throws IOException {
         File root = new File(files, "usr/glibc/" + relativeRoot);

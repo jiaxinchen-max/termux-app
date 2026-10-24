@@ -1829,6 +1829,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
             environmentStateLabel(glibcStatus), view -> openSettingsPage(SettingsPage.NATIVE));
         menu.row(getString(R.string.local_games_settings_proot_environment),
             environmentStateLabel(rootfsStatus), view -> openSettingsPage(SettingsPage.PROOT));
+        XServerSettings.render(this, menu, this::renderSettingsMenu);
         OrientationPreference[] choices = OrientationPreference.values();
         String[] labels = new String[choices.length];
         for (int index = 0; index < choices.length; index++) labels[index] = orientationLabel(choices[index]);

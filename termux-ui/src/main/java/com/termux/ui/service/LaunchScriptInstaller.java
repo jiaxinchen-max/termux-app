@@ -46,6 +46,10 @@ public final class LaunchScriptInstaller {
         "local-games/install_custom_rootfs_component.sh";
     private static final String CUSTOM_GLIBC_WINE_INSTALL_ASSET =
         "local-games/install_custom_glibc_wine_component.sh";
+    private static final String[] X_SERVER_ASSETS = {
+        "x_server_common.sh", "x_server_legacy.sh", "x_server_xlorie.sh"};
+    private static final String XLORIE_INSTALL_ASSET = "local-games/xlorie_install.sh";
+    private static final String X_SERVER_MANIFEST_ASSET = "local-games/x-server-packages.txt";
     private static final String DESKTOP_COMMON_ASSET = "local-games/desktop_common.sh";
     private static final String DESKTOP_INSTALL_ASSET = "local-games/desktop_install.sh";
     private static final String DESKTOP_START_ASSET = "local-games/desktop_start.sh";
@@ -89,7 +93,25 @@ public final class LaunchScriptInstaller {
             installRootfsPrefixWarmup();
         }
         installControllerRuntime();
+        installXServerScripts();
         return launcher;
+    }
+
+    /** Deploys both X server implementations next to the launchers: they source
+     *  x_server_common.sh through their own location, and the selection is only a marker value,
+     *  so switching never needs a re-deploy. */
+    public void installXServerScripts() throws IOException {
+        for (String name : X_SERVER_ASSETS) {
+            installAsset("local-games/" + name, new File(runtimeDirectory, name));
+        }
+    }
+
+    /** Deploys the Xlorie package installer and its manifest; returns the installer script. */
+    public File installXlorieInstaller() throws IOException {
+        installAsset(X_SERVER_MANIFEST_ASSET, new File(runtimeDirectory, "x-server-packages.txt"));
+        File script = new File(runtimeDirectory, "xlorie_install.sh");
+        installAsset(XLORIE_INSTALL_ASSET, script);
+        return script;
     }
 
     /** Deploys controller_runtime.sh and its payload next to the launcher; both launchers source the script and

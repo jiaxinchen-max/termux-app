@@ -57,8 +57,14 @@ public final class GlibcTermuxBoxBackend implements GameRuntimeBackend {
 
     @Override
     public Set<String> requiredHostCapabilityIds(RuntimeProfile profile) {
+        return requiredHostCapabilityIds(profile, null);
+    }
+
+    @Override
+    public Set<String> requiredHostCapabilityIds(RuntimeProfile profile, GameStoragePaths paths) {
         requireProfile(profile);
-        return new LinkedHashSet<>(Arrays.asList("termux-x11", TERMUX_GLIBC_ID));
+        return new LinkedHashSet<>(Arrays.asList(
+            XServerBackendSelection.hostCapabilityId(paths), TERMUX_GLIBC_ID));
     }
 
     @Override

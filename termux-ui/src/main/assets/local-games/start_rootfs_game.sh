@@ -265,6 +265,9 @@ case "$GRAPHICS_DRIVER:$DX_WRAPPER" in
 esac
 warmup_fail() { terminal_failure "$1" null true; }
 . "$(dirname "$SCRIPT_PATH")/rootfs_prefix_warmup.sh"
+# x_server_require / x_server_start / x_server_kill_all: legacy termux-x11 or the Xlorie package
+X_SERVER_DIR="$(dirname "$SCRIPT_PATH")"
+. "$X_SERVER_DIR/x_server_common.sh"
 resolve_rootfs_translator
 
 ROOT_CANONICAL=$(realpath "$GAME_ROOT" 2>/dev/null) || terminal_failure game_root_unreadable null true
@@ -456,9 +459,10 @@ case "$GRAPHICS_DRIVER" in
         ;;
     *) terminal_failure renderer_unsupported null true ;;
 esac
-command -v termux-x11 >/dev/null 2>&1 || terminal_failure termux_x11_missing null true
-termux-x11 :0 >> "$LOG_PATH" 2>&1 &
-DISPLAY_PID=$!
+x_server_require || terminal_failure "$X_SERVER_MISSING_ID" null true
+X_SERVER_SCREEN="${RESOLUTION}x24"
+x_server_start :0 "$LOG_PATH"
+DISPLAY_PID=$X_SERVER_PID
 
 emit RUNNING STARTING_AUDIO 60 null '' false starting_audio
 GUEST_PULSE_SERVER=0

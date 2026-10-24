@@ -49,7 +49,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
     public Set<String> requiredHostCapabilityIds(RuntimeProfile profile, GameStoragePaths paths) {
         requireProfile(profile, paths);
         Set<String> result = new LinkedHashSet<>();
-        result.add("termux-x11");
+        result.add(XServerBackendSelection.hostCapabilityId(paths));
         result.add("proot");
         result.add("proot-distro");
         if ("rootfs-virgl-mesa".equals(profile.getGraphicsDriver())) {

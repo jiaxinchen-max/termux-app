@@ -41,6 +41,11 @@ final class TermuxRuntimeComponentProbe {
                 nonEmpty(new File(termuxFilesDirectory,
                     "usr/libexec/termux-x11/loader.apk"));
         }
+        if ("xlorie".equals(componentId)) {
+            // The independent Xlorie X server package; the kwin/termux-render pieces it talks to
+            // are separate packages, the executable itself is what a launch needs.
+            return executable(new File(termuxFilesDirectory, "usr/bin/Xlorie"));
+        }
         if ("virgl-server".equals(componentId)) {
             return executable(new File(glibcDirectory,
                 "opt/virgl/libvirgl_test_server.so"));

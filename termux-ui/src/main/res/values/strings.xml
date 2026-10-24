@@ -587,4 +587,9 @@
     <string name="desktop_mode_native_badge">Native</string>
     <string name="desktop_mode_proot_badge">Proot</string>
     <string name="desktop_mode_proot_title">Proot</string>
+    <string name="local_games_settings_x_server">X server</string>
+    <string name="local_games_x_server_legacy">Termux-X11 (built in)</string>
+    <string name="local_games_x_server_xlorie">Xlorie (experimental)</string>
+    <string name="local_games_x_server_install_message">Xlorie is an independent X server package. It is not installed yet. Install it now? Vortek Vulkan (glibc games) is not supported by Xlorie yet.</string>
+    <string name="local_games_x_server_abi_unsupported">No Xlorie package is published for this device\'s architecture yet.</string>
 </resources>

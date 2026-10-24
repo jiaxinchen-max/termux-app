@@ -79,6 +79,9 @@ public final class GameStoragePaths {
     }
     public File getCacheDirectory() { return new File(libraryDirectory.getParentFile(), "cache"); }
     public File getRuntimeDirectory() { return new File(libraryDirectory.getParentFile(), "runtime"); }
+    /** One-line file naming the selected X server ({@code legacy} or {@code xlorie}); read by the
+     *  launch scripts and by the preflight, see XServerBackendSelection. */
+    public File getXServerBackendMarker() { return new File(getRuntimeDirectory(), "x-server-backend"); }
     public File getRuntimeSetupDirectory() {
         return new File(libraryDirectory.getParentFile(), "runtime/setup");
     }
