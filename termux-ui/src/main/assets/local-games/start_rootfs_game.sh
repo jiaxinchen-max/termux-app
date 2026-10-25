@@ -463,6 +463,7 @@ x_server_require || terminal_failure "$X_SERVER_MISSING_ID" null true
 X_SERVER_SCREEN="${RESOLUTION}x24"
 x_server_start :0 "$LOG_PATH"
 DISPLAY_PID=$X_SERVER_PID
+x_server_wait_ready :0 || terminal_failure x_server_not_ready null true
 
 emit RUNNING STARTING_AUDIO 60 null '' false starting_audio
 GUEST_PULSE_SERVER=0

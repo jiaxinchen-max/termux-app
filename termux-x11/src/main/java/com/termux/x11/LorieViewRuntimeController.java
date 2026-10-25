@@ -397,6 +397,11 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
 
         mX11SoftKeyboardController.attach();
         updateDisconnectedRadar(LorieView.connected());
+        // The render connection can complete before this view is bound (a termux-render client such
+        // as Xlorie connects as soon as the bridge listens); that notification found no runtime and
+        // was dropped. Connection state is level, not edge: apply the current value now, otherwise
+        // the "not connected" stub stays on top of a live display.
+        refreshConnectionState(false);
 
         // Taken from Stackoverflow answer https://stackoverflow.com/questions/7417123/android-how-to-adjust-layout-in-full-screen-mode-when-softkeyboard-is-visible/7509285#
 //        FullscreenWorkaround.assistActivity(this);

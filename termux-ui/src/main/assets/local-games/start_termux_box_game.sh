@@ -291,12 +291,7 @@ start_x11_when_ready() {
     rm -f "$_x11_socket" "$PREFIX/tmp/.X0-lock" 2>/dev/null || true
     X_SERVER_SCREEN="${RESOLUTION:-1280x720}x24"
     x_server_start :0 "${TERMUX_BOX_LAUNCH_LOG:-/dev/null}"
-    _attempt=0
-    while [ "$_attempt" -lt "$X_SERVER_READY_ATTEMPTS" ]; do
-        [ -S "$_x11_socket" ] && return 0
-        sleep 0.1
-        _attempt=$((_attempt + 1))
-    done
+    x_server_wait_ready :0 && return 0
     echo "ERROR: X server display :0 did not become ready ($(x_server_backend))."
     return 1
 }

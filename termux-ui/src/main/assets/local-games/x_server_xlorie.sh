@@ -7,6 +7,8 @@
 #   X_SERVER_SCREEN     WIDTHxHEIGHTx24, default 1280x720x24; callers pass their resolution
 #   X_SERVER_FRAMERATE  default 60
 #   XLORIE_WAIT_RENDER  seconds to wait for the render socket, default 30
+#   XLORIE_RETRY_SECONDS  keep restarting Xlorie for this long while it dies right after start
+#                         (render bridge not yet accepting), default 45
 #   XLORIE_GL_MODE      default system; TERMUX_RENDER_AHB_RECEIVE defaults to native for it
 
 # The launch scripts do not all export PREFIX (and run with set -u).
@@ -29,7 +31,7 @@ x_server_xlorie_xkb_dir() {
 }
 
 x_server_xlorie_start() { # display log
-    X_SERVER_READY_ATTEMPTS=200
+    X_SERVER_READY_ATTEMPTS=600
     _x_display="$1"
     _x_log="$2"
     _x_number="${_x_display#:}"
@@ -53,7 +55,29 @@ x_server_xlorie_start() { # display log
         export XKB_CONFIG_ROOT="$_x_xkb"
         set -- "$@" -xkbdir "$_x_xkb"
     }
-    Xlorie "$@" >> "$_x_log" 2>&1 &
+    # Supervisor: a stale or not-yet-listening render socket makes Xlorie exit at once, so restart
+    # it until it stays up or the deadline passes. X_SERVER_PID is the supervisor; TERM stops both.
+    (
+        _x_child=
+        trap '[ -n "$_x_child" ] && kill "$_x_child" 2>/dev/null; exit 143' TERM INT HUP
+        _x_deadline=$(( $(date +%s) + ${XLORIE_RETRY_SECONDS:-45} ))
+        while :; do
+            _x_began=$(date +%s)
+            Xlorie "$@" >> "$_x_log" 2>&1 &
+            _x_child=$!
+            wait "$_x_child"
+            _x_status=$?
+            _x_now=$(date +%s)
+            # It served for a while (or no time is left): that is a real exit, not a failed connect.
+            # Killed by a signal (kill_all, stop): stay down.
+            [ "$_x_status" -gt 128 ] && exit "$_x_status"
+            [ $((_x_now - _x_began)) -ge 10 ] && exit "$_x_status"
+            [ "$_x_now" -ge "$_x_deadline" ] && exit "$_x_status"
+            printf '%s\n' "Xlorie exited ($_x_status) right after start, retrying" >> "$_x_log"
+            rm -f "$X_SERVER_PREFIX/tmp/.X11-unix/X$_x_number" "$X_SERVER_PREFIX/tmp/.X$_x_number-lock" 2>/dev/null || true
+            sleep 1
+        done
+    ) &
     X_SERVER_PID=$!
 }
 

@@ -175,9 +175,10 @@ public final class GameLaunchActivity extends AppCompatActivity {
         binding.gameLaunchProgress.setProgressCompat(task.getProgress(), true);
         binding.gameLaunchProgressValue.setText(task.getProgress() + "%");
         boolean terminal = task.getState().isTerminal();
-        boolean sessionReady = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && !terminal &&
-            (task.getStage() == com.termux.ui.domain.LaunchStage.WAITING_FIRST_FRAME ||
-                task.getStage() == com.termux.ui.domain.LaunchStage.RUNNING);
+        boolean sessionReady = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+            com.termux.ui.runtime.SessionOpenPolicy.shouldOpen(
+                com.termux.ui.runtime.XServerBackendSelection.read(new GameStoragePaths(getFilesDir())),
+                task.getStage(), task.getState());
         if (sessionReady && !sessionOpened) openSession();
     }
 

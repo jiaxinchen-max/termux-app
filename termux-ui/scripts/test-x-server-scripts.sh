@@ -80,7 +80,7 @@ CASE='x_server_start :0 "$TEST_LOG"; echo "pid=$X_SERVER_PID attempts=$X_SERVER_
 out=$(run_case TEST_LOG="$TEST_ROOT/legacy.log")
 wait_for_file "$TEST_ROOT/termux-x11.capture"
 assert_eq "$(sed -n 's/^ARGS=//p' "$TEST_ROOT/termux-x11.capture")" ":0" "legacy argv is just the display"
-case "$out" in *"attempts=40"*) ;; *) fail "legacy keeps the 4 second ready window: $out" ;; esac
+case "$out" in *"attempts=200"*) ;; *) fail "legacy gets the long ready window for cold starts: $out" ;; esac
 
 # --- 3. xlorie: arguments, environment, wait window ------------------------------------------
 rm -f "$DIR/x-server-backend"
@@ -101,7 +101,7 @@ assert_eq "$(sed -n 's/^GLMODE=//p' "$TEST_ROOT/Xlorie.capture")" system "GL mod
 assert_eq "$(sed -n 's/^XKB=//p' "$TEST_ROOT/Xlorie.capture")" "$PFX/share/X11/xkb" "XKB_CONFIG_ROOT"
 [ ! -e "$PFX/tmp/.X11-unix/X0" ] || fail "stale X socket was not removed"
 [ ! -e "$PFX/tmp/.X0-lock" ] || fail "stale X lock was not removed"
-case "$out" in *"attempts=200"*) ;; *) fail "xlorie gets the long ready window: $out" ;; esac
+case "$out" in *"attempts=600"*) ;; *) fail "xlorie gets the long ready window: $out" ;; esac
 grep -q "termux-render socket not found" "$TEST_ROOT/xlorie.log" || fail "missing render socket is logged"
 
 # Defaults when the caller passes nothing.
@@ -124,6 +124,42 @@ assert_eq "$(sed -n 's/^GLMODE=//p' "$TEST_ROOT/Xlorie.capture")" llvmpipe "expl
 fake Xlorie
 CASE='x_server_start :0 "$TEST_LOG"; sleep 0.5; x_server_kill_all; sleep 0.5; kill -0 $X_SERVER_PID 2>/dev/null && echo alive || echo dead'
 assert_eq "$(run_case X_SERVER_BACKEND=xlorie TEST_LOG="$TEST_ROOT/k.log")" dead "xlorie kill_all"
+
+# --- 4b. supervisor: restart while the render bridge refuses, stay down once killed ----------
+cat > "$FAKE_BIN/Xlorie" <<FAKE
+#!/bin/sh
+n=\$(cat "$TEST_ROOT/tries" 2>/dev/null || echo 0)
+echo \$((n + 1)) > "$TEST_ROOT/tries"
+[ "\$n" -ge 2 ] || exit 1
+exec python3 -c 'import socket,sys,time; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); time.sleep(30)' "$PFX/tmp/.X11-unix/X0"
+FAKE
+chmod +x "$FAKE_BIN/Xlorie"
+rm -f "$TEST_ROOT/tries" "$PFX/tmp/.X11-unix/X0"
+CASE='x_server_start :0 "$TEST_LOG"; x_server_wait_ready :0 && echo ready || echo notready; kill $X_SERVER_PID'
+assert_eq "$(run_case X_SERVER_BACKEND=xlorie TEST_LOG="$TEST_ROOT/retry.log")" ready "xlorie retried until it connected"
+assert_eq "$(cat "$TEST_ROOT/tries")" 3 "xlorie was started three times"
+grep -q "retrying" "$TEST_ROOT/retry.log" || fail "retry is logged"
+CASE='x_server_start :0 "$TEST_LOG"; sleep 1; x_server_kill_all; sleep 1.5; cat "$TEST_ROOT/tries"'
+rm -f "$TEST_ROOT/tries"
+assert_eq "$(run_case X_SERVER_BACKEND=xlorie TEST_ROOT="$TEST_ROOT" TEST_LOG="$TEST_ROOT/retry2.log")" 3 "kill_all is not undone by the supervisor"
+CASE='x_server_wait_ready :9 && echo ready || echo notready'
+assert_eq "$(run_case X_SERVER_BACKEND=xlorie X_SERVER_READY_ATTEMPTS=2)" notready "wait_ready times out"
+# wait_ready is shared: a fresh socket counts, a stale one only once the launcher is gone.
+mksock() { python3 -c 'import socket,sys; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1])' "$1"; }
+sock0="$PFX/tmp/.X11-unix/X0"
+rm -f "$sock0"
+CASE='x_server_wait_ready :0 && echo ready || echo notready'
+assert_eq "$(run_case X_SERVER_BACKEND=legacy X_SERVER_READY_ATTEMPTS=2)" notready "legacy: no socket times out"
+CASE='x_server_start :0 "$TEST_LOG"; (sleep 0.5; python3 -c "import socket,sys; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1])" "$PREFIX/tmp/.X11-unix/X0") & x_server_wait_ready :0 && echo ready || echo notready; kill $X_SERVER_PID'
+fake termux-x11
+assert_eq "$(run_case X_SERVER_BACKEND=legacy TEST_LOG="$TEST_ROOT/w.log")" ready "legacy: socket created after start is ready"
+rm -f "$sock0"; mksock "$sock0"; touch -d '2 minutes ago' "$sock0"
+CASE='x_server_start :0 "$TEST_LOG"; X_SERVER_READY_ATTEMPTS=3; x_server_wait_ready :0 && echo ready || echo notready; kill $X_SERVER_PID'
+assert_eq "$(run_case X_SERVER_BACKEND=legacy TEST_LOG="$TEST_ROOT/w.log")" notready "stale socket + live launcher is not ready"
+CASE='X_SERVER_STARTED_AT=$(date +%s); X_SERVER_PID=999999; x_server_wait_ready :0 && echo ready || echo notready'
+assert_eq "$(run_case X_SERVER_BACKEND=legacy)" ready "stale socket + launcher gone (server already running) is ready"
+rm -f "$sock0"
+
 
 # --- 5. the launch scripts use the helper and never call termux-x11 :0 directly ----------------
 for launcher in start_rootfs_game.sh start_termux_box_game.sh; do

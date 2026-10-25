@@ -9,7 +9,7 @@ x_server_legacy_require() {
 }
 
 x_server_legacy_start() { # display log
-    X_SERVER_READY_ATTEMPTS=40
+    X_SERVER_READY_ATTEMPTS=200 # the launcher boots a JVM-less app_process; cold starts are slow
     termux-x11 "$1" >> "$2" 2>&1 &
     X_SERVER_PID=$!
 }
