@@ -1,31 +1,23 @@
 package com.termux.ui.activity;
 
-import android.content.Intent;
-import android.content.res.Configuration;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.InputType;
+import android.content.res.Configuration;
 import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.EditText;
+import android.widget.CheckBox;
 import android.widget.GridLayout;
-import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.ScrollView;
-import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.StringRes;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.PopupMenu;
 import androidx.core.content.ContextCompat;
 
-import com.google.android.material.card.MaterialCardView;
 import com.termux.ui.R;
 import com.termux.ui.api.DesktopTasks;
 import com.termux.ui.api.LaunchHostException;
@@ -36,19 +28,19 @@ import com.termux.ui.domain.DesktopDistro;
 import com.termux.ui.domain.DesktopGlMode;
 import com.termux.ui.domain.DesktopRunMode;
 import com.termux.ui.domain.DesktopSessionState;
+import com.termux.ui.runtime.DesktopCreationCatalog;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Lists the managed KWin desktop distributions (native or proot) as cards, like the Library's
- * game grid, and drives their install, open, stop, log and delete actions. The desktop itself is
- * shown by {@link DesktopSessionActivity}.
+ * Inventory of the managed desktops, isolated per run mode: the Native tab lists the host
+ * compositors (one instance per environment), the Container tab the proot instances (repeatable).
+ * Creation happens in {@link DesktopCreateActivity}; this screen drives install, open, stop,
+ * settings, logs and delete.
  */
 public final class DesktopActivity extends AppCompatActivity {
 
@@ -56,6 +48,7 @@ public final class DesktopActivity extends AppCompatActivity {
     private static final int LOG_TAIL_BYTES = 24 * 1024;
     private static final int MENU_INSTALL = 1;
     private static final int MENU_STOP = 2;
+    private static final int MENU_SETTINGS = 5;
     private static final int MENU_LOGS = 3;
     private static final int MENU_DELETE = 4;
 
@@ -67,8 +60,9 @@ public final class DesktopActivity extends AppCompatActivity {
     private ActivityDesktopBinding binding;
     private DesktopTasks tasks;
     private boolean destroyed;
-    private List<DesktopDistro> shownDistros = Collections.emptyList();
-    private List<DesktopSessionState> shownStates = Collections.emptyList();
+    private DesktopRunMode tab = DesktopRunMode.NATIVE;
+    private List<DesktopDistro> shownDistros = new ArrayList<>();
+    private List<DesktopSessionState> shownStates = new ArrayList<>();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -77,9 +71,13 @@ public final class DesktopActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
         tasks = new DesktopTasks(this);
         binding.desktopToolbar.setNavigationOnClickListener(view -> finish());
-        GamesHelpDialog.attach(binding.desktopToolbar, R.string.desktop_title,
-            R.string.desktop_help);
+        GamesHelpDialog.attach(binding.desktopToolbar,
+            R.string.desktop_title, R.string.desktop_help);
         WindowInsetsPadding.apply(binding.getRoot(), true, false, true, true);
+        binding.desktopTabNative.setOnClickListener(view -> switchTab(DesktopRunMode.NATIVE));
+        binding.desktopTabContainer.setOnClickListener(view -> switchTab(DesktopRunMode.PROOT));
+        binding.desktopEmptyCreate.setOnClickListener(view -> openCreate());
+        paintTabs();
     }
 
     @Override
@@ -112,6 +110,29 @@ public final class DesktopActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
+    public static android.content.Intent createIntent(android.content.Context context) {
+        return new android.content.Intent(context, DesktopActivity.class);
+    }
+
+    private void switchTab(DesktopRunMode mode) {
+        if (tab == mode) return;
+        tab = mode;
+        paintTabs();
+        render(shownDistros, shownStates);
+    }
+
+    private void paintTabs() {
+        boolean isNative = tab == DesktopRunMode.NATIVE;
+        binding.desktopTabNative.setBackground(getDrawable(isNative
+            ? R.drawable.desktop_bg_tab_on : R.drawable.desktop_bg_tab_off));
+        binding.desktopTabNative.setTextColor(getColor(isNative
+            ? android.R.color.white : R.color.local_games_on_surface_secondary));
+        binding.desktopTabContainer.setBackground(getDrawable(isNative
+            ? R.drawable.desktop_bg_tab_off : R.drawable.desktop_bg_tab_on));
+        binding.desktopTabContainer.setTextColor(getColor(isNative
+            ? R.color.local_games_on_surface_secondary : android.R.color.white));
+    }
+
     /** Reloads the inventory and every state off the main thread, then re-renders. */
     private void refresh() {
         handler.removeCallbacks(refreshTick);
@@ -142,24 +163,45 @@ public final class DesktopActivity extends AppCompatActivity {
     private void render(List<DesktopDistro> distros, List<DesktopSessionState> states) {
         shownDistros = distros;
         shownStates = states;
+        List<DesktopDistro> modeDistros = new ArrayList<>();
+        List<DesktopSessionState> modeStates = new ArrayList<>();
+        for (int index = 0; index < distros.size(); index++) {
+            if (distros.get(index).getRunMode() != tab) continue;
+            modeDistros.add(distros.get(index));
+            modeStates.add(states.get(index));
+        }
         GridLayout grid = binding.desktopItems;
         grid.removeAllViews();
-        binding.desktopEmpty.setVisibility(distros.isEmpty() ? View.VISIBLE : View.GONE);
+        boolean empty = modeDistros.isEmpty();
+        binding.desktopEmptyBlock.setVisibility(empty ? View.VISIBLE : View.GONE);
+        grid.setVisibility(empty ? View.GONE : View.VISIBLE);
+        if (empty) {
+            boolean isNative = tab == DesktopRunMode.NATIVE;
+            binding.desktopEmptyTitle.setText(isNative
+                ? R.string.desktop_empty_native_title : R.string.desktop_empty_container_title);
+            binding.desktopEmptyText.setText(isNative
+                ? R.string.desktop_empty_native_text : R.string.desktop_empty_container_text);
+            return;
+        }
         int gridWidth = gridWidthPx();
         int columns = LibraryGridColumns.columnsFor(
             Math.round(gridWidth / getResources().getDisplayMetrics().density), isLandscape());
         grid.setColumnCount(columns);
-        for (int index = 0; index < distros.size(); index++) {
+        for (int index = 0; index < modeDistros.size(); index++) {
             ItemDesktopBinding card = ItemDesktopBinding.inflate(getLayoutInflater(), grid, false);
-            bindCard(card, distros.get(index), states.get(index));
+            bindCard(card, modeDistros.get(index), modeStates.get(index), distros);
             place(card.getRoot(), index, columns, gridWidth, false);
             grid.addView(card.getRoot());
         }
         ItemDesktopAddBinding add = ItemDesktopAddBinding.inflate(getLayoutInflater(), grid, false);
-        add.getRoot().setOnClickListener(view -> showCreateDialog());
-        place(add.getRoot(), LibraryGridColumns.importCardIndex(distros.size()), columns,
+        add.getRoot().setOnClickListener(view -> openCreate());
+        place(add.getRoot(), LibraryGridColumns.importCardIndex(modeDistros.size()), columns,
             gridWidth, true);
         grid.addView(add.getRoot());
+    }
+
+    private void openCreate() {
+        startActivity(DesktopCreateActivity.createIntent(this, tab));
     }
 
     /** Places a card in its grid cell with the Library's width, gutter and margins. */
@@ -168,8 +210,8 @@ public final class DesktopActivity extends AppCompatActivity {
         params.width = LibraryGridColumns.cardWidthPx(gridWidth, columns, dp(4),
             getResources().getDisplayMetrics().density);
         params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
-        params.columnSpec = GridLayout.spec(LibraryGridColumns.columnOf(index, columns));
-        int row = LibraryGridColumns.rowOf(index, columns);
+        params.columnSpec = GridLayout.spec(index % columns);
+        int row = index / columns;
         params.rowSpec = fillRow ? GridLayout.spec(row, GridLayout.FILL) : GridLayout.spec(row);
         params.setMargins(dp(2), dp(2), dp(2), dp(6));
         card.setLayoutParams(params);
@@ -187,10 +229,16 @@ public final class DesktopActivity extends AppCompatActivity {
         return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
     }
 
-    private void bindCard(ItemDesktopBinding card, DesktopDistro distro, DesktopSessionState state) {
-        card.desktopName.setText(distro.getName());
+    private void bindCard(ItemDesktopBinding card, DesktopDistro distro,
+                          DesktopSessionState state, List<DesktopDistro> all) {
+        String label = DesktopCreateActivity.labelOf(this, distro.getDe());
+        if (distro.getRunMode() == DesktopRunMode.PROOT) {
+            label += " " + DesktopCreationCatalog.instanceLabel(distro, all);
+        }
+        card.desktopName.setText(label);
         card.desktopModeBadge.setText(distro.getRunMode() == DesktopRunMode.NATIVE
-            ? R.string.desktop_mode_native_badge : R.string.desktop_mode_proot_badge);
+            ? getString(R.string.desktop_mode_native_badge)
+            : getString(R.string.desktop_mode_container_badge, distro.getProotDistro()));
         card.desktopDetail.setText(getString(R.string.desktop_card_detail,
             glLabel(distro.getGlMode()), distro.getResolution(), distro.getRefreshRate()));
         card.desktopStatus.setText(stateLabel(state));
@@ -217,12 +265,16 @@ public final class DesktopActivity extends AppCompatActivity {
             items.add(Menu.NONE, MENU_INSTALL, Menu.NONE, R.string.desktop_action_install);
         }
         if (active) items.add(Menu.NONE, MENU_STOP, Menu.NONE, R.string.desktop_action_stop);
+        items.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.desktop_action_settings);
         items.add(Menu.NONE, MENU_LOGS, Menu.NONE, R.string.desktop_action_logs);
         if (!active) items.add(Menu.NONE, MENU_DELETE, Menu.NONE, R.string.desktop_action_delete);
         menu.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
                 case MENU_INSTALL: confirmInstall(distro); return true;
                 case MENU_STOP: stop(distro); return true;
+                case MENU_SETTINGS:
+                    DesktopSettingsDialog.show(this, tasks, distro, this::refresh);
+                    return true;
                 case MENU_LOGS: showLogs(distro); return true;
                 case MENU_DELETE: confirmDelete(distro); return true;
                 default: return false;
@@ -233,9 +285,10 @@ public final class DesktopActivity extends AppCompatActivity {
 
     private String glLabel(DesktopGlMode mode) {
         switch (mode) {
+            case SYSTEM: return getString(R.string.desktop_gl_system);
             case ZINK: return getString(R.string.desktop_gl_zink);
             case LLVMPIPE: return getString(R.string.desktop_gl_llvmpipe);
-            default: return getString(R.string.desktop_gl_system);
+            default: return getString(R.string.desktop_gl_auto);
         }
     }
 
@@ -283,11 +336,33 @@ public final class DesktopActivity extends AppCompatActivity {
     }
 
     private void confirmDelete(DesktopDistro distro) {
-        new FrostedDialogBuilder(this)
-            .setTitle(R.string.desktop_delete_title)
-            .setMessage(R.string.desktop_delete_message)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.desktop_action_delete, (dialog, which) ->
+        FrostedDialogBuilder builder = new FrostedDialogBuilder(this);
+        builder.setTitle(getString(R.string.desktop_delete_title, distro.getName()));
+        builder.setMessage(R.string.desktop_delete_message);
+        builder.setNegativeButton(android.R.string.cancel, null);
+        if (distro.getRunMode() == DesktopRunMode.PROOT) {
+            CheckBox check = new CheckBox(this);
+            check.setText(getString(R.string.desktop_delete_container_check,
+                distro.getProotDistro()));
+            check.setTextSize(12);
+            check.setPadding(dp(20), dp(4), dp(20), dp(4));
+            builder.setView(check);
+            builder.setPositiveButton(R.string.desktop_action_delete, (dialog, which) ->
+                ioExecutor.execute(() -> {
+                    try {
+                        tasks.delete(distro);
+                        if (check.isChecked()) tasks.removeContainer(distro);
+                    } catch (IOException error) {
+                        toastOnUi("desktop_running".equals(error.getMessage())
+                            ? getString(R.string.desktop_delete_running)
+                            : getString(R.string.desktop_error, "desktop_delete_failed"));
+                    } catch (LaunchHostException error) {
+                        toastOnUi(getString(R.string.desktop_error, error.getErrorCode()));
+                    }
+                    runOnUiThread(this::refresh);
+                }));
+        } else {
+            builder.setPositiveButton(R.string.desktop_action_delete, (dialog, which) ->
                 ioExecutor.execute(() -> {
                     try {
                         tasks.delete(distro);
@@ -297,8 +372,9 @@ public final class DesktopActivity extends AppCompatActivity {
                             : getString(R.string.desktop_error, "desktop_delete_failed"));
                     }
                     runOnUiThread(this::refresh);
-                }))
-            .show();
+                }));
+        }
+        builder.show();
     }
 
     private void showLogs(DesktopDistro distro) {
@@ -324,144 +400,6 @@ public final class DesktopActivity extends AppCompatActivity {
         });
     }
 
-    private void showCreateDialog() {
-        LinearLayout form = new LinearLayout(this);
-        form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(dp(20), dp(8), dp(20), 0);
-
-        EditText name = field(R.string.desktop_create_name_hint, InputType.TYPE_CLASS_TEXT);
-        form.addView(name);
-
-        form.addView(label(R.string.desktop_create_mode_label));
-        EditText distro = field(R.string.desktop_create_distro_hint, InputType.TYPE_CLASS_TEXT);
-        distro.setText(DesktopDistro.DEFAULT_PROOT_DISTRO);
-        distro.setVisibility(View.GONE);
-        // Native / proot are chosen with cards, like the Library's game cards.
-        final DesktopRunMode[] selectedMode = {DesktopRunMode.NATIVE};
-        LinearLayout modeRow = new LinearLayout(this);
-        modeRow.setOrientation(LinearLayout.HORIZONTAL);
-        List<MaterialCardView> modeCards = new ArrayList<>();
-        modeCards.add(modeCard(R.string.desktop_mode_native, R.string.desktop_mode_native_hint));
-        modeCards.add(modeCard(R.string.desktop_mode_proot_title,
-            R.string.desktop_mode_proot_hint));
-        DesktopRunMode[] modes = {DesktopRunMode.NATIVE, DesktopRunMode.PROOT};
-        for (int index = 0; index < modeCards.size(); index++) {
-            MaterialCardView card = modeCards.get(index);
-            DesktopRunMode mode = modes[index];
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0,
-                ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-            params.setMargins(index == 0 ? 0 : dp(4), dp(6), index == 0 ? dp(4) : 0, 0);
-            modeRow.addView(card, params);
-            card.setOnClickListener(view -> {
-                selectedMode[0] = mode;
-                styleModeCards(modeCards, mode == DesktopRunMode.NATIVE ? 0 : 1);
-                distro.setVisibility(mode == DesktopRunMode.PROOT ? View.VISIBLE : View.GONE);
-            });
-        }
-        styleModeCards(modeCards, 0);
-        form.addView(modeRow);
-        form.addView(distro);
-
-        Spinner gl = new Spinner(this);
-        gl.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-            new String[] {getString(R.string.desktop_gl_system),
-                getString(R.string.desktop_gl_zink), getString(R.string.desktop_gl_llvmpipe)}));
-        form.addView(label(R.string.desktop_create_gl_label));
-        form.addView(gl);
-
-        EditText resolution = field(R.string.desktop_create_resolution_hint,
-            InputType.TYPE_CLASS_TEXT);
-        resolution.setText(DesktopDistro.DEFAULT_RESOLUTION);
-        form.addView(resolution);
-        EditText refresh = field(R.string.desktop_create_refresh_hint,
-            InputType.TYPE_CLASS_NUMBER);
-        refresh.setText(String.valueOf(DesktopDistro.DEFAULT_REFRESH_RATE));
-        form.addView(refresh);
-
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(form);
-        new FrostedDialogBuilder(this)
-            .setTitle(R.string.desktop_create_title)
-            .setView(scroll)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.desktop_create_action, (dialog, which) -> {
-                try {
-                    boolean proot = selectedMode[0] == DesktopRunMode.PROOT;
-                    DesktopDistro created = new DesktopDistro(
-                        "desktop-" + UUID.randomUUID().toString().substring(0, 8),
-                        name.getText().toString().trim(), selectedMode[0],
-                        proot ? distro.getText().toString().trim() : "",
-                        DesktopGlMode.values()[gl.getSelectedItemPosition()],
-                        resolution.getText().toString().trim(),
-                        Integer.parseInt(refresh.getText().toString().trim()));
-                    ioExecutor.execute(() -> {
-                        try {
-                            tasks.save(created);
-                        } catch (IOException error) {
-                            toastOnUi(getString(R.string.desktop_error, "desktop_save_failed"));
-                        }
-                        runOnUiThread(this::refresh);
-                    });
-                } catch (IllegalArgumentException invalid) {
-                    Toast.makeText(this, R.string.desktop_create_invalid, Toast.LENGTH_LONG).show();
-                }
-            })
-            .show();
-    }
-
-    private MaterialCardView modeCard(@StringRes int title, @StringRes int hint) {
-        MaterialCardView card = new MaterialCardView(this);
-        card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.local_games_surface));
-        card.setCardElevation(0f);
-        card.setRadius(dp(4));
-        card.setClickable(true);
-        card.setFocusable(true);
-        LinearLayout body = new LinearLayout(this);
-        body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(dp(10), dp(10), dp(10), dp(10));
-        TextView titleView = new TextView(this);
-        titleView.setText(title);
-        titleView.setTextSize(14);
-        titleView.setTypeface(titleView.getTypeface(), Typeface.BOLD);
-        titleView.setTextColor(ContextCompat.getColor(this, R.color.local_games_on_surface));
-        body.addView(titleView);
-        TextView hintView = new TextView(this);
-        hintView.setText(hint);
-        hintView.setTextSize(11);
-        hintView.setPadding(0, dp(2), 0, 0);
-        hintView.setTextColor(ContextCompat.getColor(this, R.color.local_games_on_surface_secondary));
-        body.addView(hintView);
-        card.addView(body);
-        return card;
-    }
-
-    /** The selected mode card gets the primary outline, the other the neutral hairline. */
-    private void styleModeCards(List<MaterialCardView> cards, int selected) {
-        for (int index = 0; index < cards.size(); index++) {
-            boolean on = index == selected;
-            cards.get(index).setStrokeColor(ContextCompat.getColor(this,
-                on ? R.color.local_games_primary : R.color.local_games_outline));
-            cards.get(index).setStrokeWidth(dp(on ? 2 : 1));
-        }
-    }
-
-    private EditText field(@StringRes int hint, int inputType) {
-        EditText view = new EditText(this);
-        view.setHint(hint);
-        view.setInputType(inputType);
-        view.setSingleLine(true);
-        return view;
-    }
-
-    private TextView label(@StringRes int text) {
-        TextView view = new TextView(this);
-        view.setText(text);
-        view.setTextSize(12);
-        view.setPadding(0, dp(10), 0, 0);
-        view.setTextColor(ContextCompat.getColor(this, R.color.local_games_on_surface_secondary));
-        return view;
-    }
-
     private interface HostAction {
         void run() throws LaunchHostException;
     }
@@ -473,22 +411,17 @@ public final class DesktopActivity extends AppCompatActivity {
             } catch (LaunchHostException error) {
                 toastOnUi(getString(R.string.desktop_error, error.getErrorCode()));
             }
-            runOnUiThread(this::refresh);
         });
     }
 
     private void toastOnUi(String message) {
         runOnUiThread(() -> {
-            if (!destroyed) Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            if (!destroyed) android.widget.Toast.makeText(this, message,
+                android.widget.Toast.LENGTH_SHORT).show();
         });
     }
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
-    }
-
-    /** Intent for opening this screen. */
-    static Intent createIntent(android.content.Context context) {
-        return new Intent(context, DesktopActivity.class);
     }
 }

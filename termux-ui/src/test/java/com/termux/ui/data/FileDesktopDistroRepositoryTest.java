@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.termux.ui.domain.DesktopDe;
 import com.termux.ui.domain.DesktopDistro;
 import com.termux.ui.domain.DesktopGlMode;
 import com.termux.ui.domain.DesktopRunMode;
@@ -95,5 +96,26 @@ public class FileDesktopDistroRepositoryTest {
     @Test
     public void rejectsUnsafeIds() {
         assertThrows(IllegalArgumentException.class, () -> repository().find("../x"));
+    }
+
+    @Test
+    public void schema1FilesMigrateToPlasma() throws Exception {
+        FileDesktopDistroRepository repository = repository();
+        File directory = new File(temporaryFolder.getRoot(), "distros");
+        assertTrue(directory.isDirectory() || directory.mkdirs());
+        File file = new File(directory, "old.properties");
+        FileOutputStream out = new FileOutputStream(file);
+        out.write(("schemaVersion=1\nid=old\nname=Plasma\nrunMode=native\nprootDistro=\n"
+            + "glMode=system\nresolution=1280x720\nrefreshRate=30\n").getBytes("UTF-8"));
+        out.close();
+
+        DesktopDistro migrated = repository.find("old").get();
+
+        assertEquals(DesktopDe.KWIN_PLASMA, migrated.getDe());
+        assertEquals(2, DesktopDistro.SCHEMA_VERSION);
+        // Saving rewrites the file at the current schema.
+        repository.save(migrated);
+        DesktopDistro reread = repository.find("old").get();
+        assertEquals(DesktopDe.KWIN_PLASMA, reread.getDe());
     }
 }

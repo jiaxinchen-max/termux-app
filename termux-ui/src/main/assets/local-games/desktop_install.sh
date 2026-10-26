@@ -15,6 +15,19 @@ if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r19" ]; then
     log "Unsupported desktop release $DESKTOP_RELEASE_TAG"
     exit 65
 fi
+DESKTOP_DE="${DESKTOP_DE:-kwin_plasma}"
+
+# Xlorie (independent X server) packages, pinned to the xserver release that carries the
+# termux-render fixes; needed by every XFCE4 desktop and shared with the KWin ones.
+XLORIE_RELEASE_TAG="termux-xlorie-21.1.16-r5"
+XLORIE_BASE_URL="https://github.com/jiaxinchen-max/xserver/releases/download/$XLORIE_RELEASE_TAG"
+XLORIE_DEBS="
+xorg-server_21.1.16-5_aarch64.deb 16289f357eda2b064ec4c08509b1003a92d30cc97dd28a47da8b06d9c655b5e3
+libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
+libxshmfence_1.3.3-2_aarch64.deb be95caf500b002fed8b5c0142ad360efbdec4ff1334be5565e9b9628f8663dc2
+termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
+"
+
 DEBS="
 kwin_6.6.0-19_aarch64.deb f92505e71cdf4c8b849fb9350532eae4fdf18200f0cfb66edb58d352afc1cd42
 termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
@@ -48,39 +61,79 @@ log "Installing KWin desktop packages ($DESKTOP_RELEASE_TAG, $DESKTOP_MODE mode)
 run pkg install -y x11-repo || fail "x11-repo"
 run pkg update -y || fail "pkg update"
 
-DEB_DIR="${TMPDIR:-$PREFIX/tmp}/desktop-debs-$DESKTOP_RELEASE_TAG"
-mkdir -p "$DEB_DIR" || fail "cannot create $DEB_DIR"
-DEB_PATHS=""
-printf '%s\n' "$DEBS" | while read -r name digest; do
-    [ -n "$name" ] || continue
-    printf '%s %s\n' "$name" "$digest"
-done > "$DEB_DIR/manifest"
-while read -r name digest; do
-    target="$DEB_DIR/$name"
-    if [ -f "$target" ] && [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ]; then
-        log "Cached $name"
+fetch_debs() { # tag base_url deb_list -> prints paths
+    tag="$1"; base_url="$2"; list="$3"
+    deb_dir="${TMPDIR:-$PREFIX/tmp}/desktop-debs-$tag"
+    mkdir -p "$deb_dir" || fail "cannot create $deb_dir"
+    : > "$deb_dir/manifest"
+    printf '%s\n' "$list" | while read -r name digest; do
+        [ -n "$name" ] || continue
+        printf '%s %s\n' "$name" "$digest"
+    done > "$deb_dir/manifest"
+    paths=""
+    while read -r name digest; do
+        target="$deb_dir/$name"
+        if [ -f "$target" ] && [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ]; then
+            # stdout of this function is the deb path list; logs go to the file only.
+            printf '%s\n' "Cached $name" >> "$DESKTOP_LOG_FILE"
+        else
+            { curl -fL --retry 3 -o "$target" "$base_url/$name" || fail "download $name"; } \
+                >> "$DESKTOP_LOG_FILE" 2>&1
+            [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ] || {
+                rm -f "$target"
+                fail "checksum mismatch for $name"
+            }
+        fi
+        paths="$paths $target"
+    done < "$deb_dir/manifest"
+    printf '%s' "$paths"
+}
+
+# Creates the container instance for this desktop. proot-distro caches image layers locally and
+# reuses them on later installs, so only the very first creation downloads; -n gives every
+# instance its own alias so instances coexist without touching each other.
+ensure_container_instance() { # alias source
+    alias_name="$1"; source="$2"
+    for root in containers installed-rootfs; do
+        [ -d "$PREFIX/var/lib/proot-distro/$root/$alias_name" ] && return 0
+    done
+    if proot-distro install 2>&1 | grep -q -- '-n, --name'; then
+        run proot-distro install -n "$alias_name" "$source" ||
+            fail "proot-distro install $source as $alias_name"
     else
-        run curl -fL --retry 3 -o "$target" "$BASE_URL/$name" || fail "download $name"
-        [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ] || {
-            rm -f "$target"
-            fail "checksum mismatch for $name"
-        }
+        fail "proot-distro too old: multiple container instances need proot-distro 5.10+ (-n)"
     fi
-    DEB_PATHS="$DEB_PATHS $target"
-done < "$DEB_DIR/manifest"
+}
+
+DEB_PATHS=""
+if [ "$DESKTOP_DE" = "xfce4" ]; then
+    DEB_PATHS=$(fetch_debs "$XLORIE_RELEASE_TAG" "$XLORIE_BASE_URL" "$XLORIE_DEBS")
+else
+    DEB_PATHS=$(fetch_debs "$DESKTOP_RELEASE_TAG" "$BASE_URL" "$DEBS")
+fi
 
 if [ "$DESKTOP_MODE" = "native" ]; then
-    # shellcheck disable=SC2086
-    run apt install -y $DEB_PATHS plasma-desktop plasma-workspace kactivitymanagerd \
-        || fail "apt install"
+    if [ "$DESKTOP_DE" = "xfce4" ]; then
+        # shellcheck disable=SC2086
+        run apt install -y $DEB_PATHS xfce4 xfce4-terminal dbus-x11 || fail "apt install xfce4"
+    else
+        # shellcheck disable=SC2086
+        run apt install -y $DEB_PATHS plasma-desktop plasma-workspace kactivitymanagerd \
+            || fail "apt install"
+    fi
 else
-    # Plasma itself lives in the container; the host only needs KWin and the render bridge.
+    # The session itself lives in the container; the host needs the display server and proot.
     # shellcheck disable=SC2086
     run apt install -y $DEB_PATHS proot proot-distro || fail "apt install"
-    # proot-distro 4+ keeps containers in containers/, older releases in installed-rootfs/.
-    if [ ! -d "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO" ] \
-        && [ ! -d "$PREFIX/var/lib/proot-distro/installed-rootfs/$DESKTOP_PROOT_DISTRO" ]; then
-        run proot-distro install "$DESKTOP_PROOT_DISTRO" || fail "proot-distro install"
+    ensure_container_instance "$DESKTOP_PROOT_DISTRO" "${DESKTOP_CONTAINER_BASE:-debian}"
+    if [ "$DESKTOP_DE" = "xfce4" ]; then
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh -c \
+            "export DEBIAN_FRONTEND=noninteractive; apt update && apt install -y xfce4 xfce4-terminal dbus-x11" \
+            || fail "container apt install xfce4"
+    else
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh -c \
+            "export DEBIAN_FRONTEND=noninteractive; apt update && apt install -y plasma-desktop plasma-workspace kactivitymanagerd" \
+            || fail "container apt install plasma"
     fi
 fi
 

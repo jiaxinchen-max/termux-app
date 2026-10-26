@@ -11,7 +11,7 @@ import com.termux.ui.domain.DesktopDistro;
  */
 public final class DesktopLaunchSpec {
 
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
     /** The lorie render server socket that KWin's libtermux-render connects to. */
     public static final String RENDER_SOCKET_PATH = "/data/data/com.termux/files/home/tmp/termux-render";
     /** Logged by {@code start-plasma} once KWin's Android EGL backend is up. */
@@ -27,6 +27,7 @@ public final class DesktopLaunchSpec {
         put(spec, "DESKTOP_SPEC_VERSION", Integer.toString(SCHEMA_VERSION));
         put(spec, "DESKTOP_ID", distro.getId());
         put(spec, "DESKTOP_MODE", distro.getRunMode().getStorageValue());
+        put(spec, "DESKTOP_DE", distro.getDe().getStorageValue());
         put(spec, "DESKTOP_GL_MODE", distro.getGlMode().getStorageValue());
         put(spec, "DESKTOP_PROOT_DISTRO", distro.getProotDistro());
         put(spec, "DESKTOP_RESOLUTION", distro.getResolution());
@@ -42,7 +43,7 @@ public final class DesktopLaunchSpec {
     }
 
     private static void put(StringBuilder spec, String key, String value) {
-        if (!value.matches("[A-Za-z0-9._/:=@x-]*")) {
+        if (!value.matches("[A-Za-z0-9._/:=@x_-]*")) {
             throw new IllegalArgumentException("unsafe_desktop_spec_value:" + key);
         }
         spec.append(key).append('=').append(value).append('\n');

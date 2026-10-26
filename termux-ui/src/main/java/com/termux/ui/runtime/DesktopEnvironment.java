@@ -1,6 +1,7 @@
 package com.termux.ui.runtime;
 
 import com.termux.ui.domain.DesktopDistro;
+import com.termux.ui.domain.DesktopDe;
 import com.termux.ui.domain.DesktopRunMode;
 
 import java.io.File;
@@ -23,12 +24,32 @@ public final class DesktopEnvironment {
         this.home = new File(filesDirectory, "home");
     }
 
-    /** Whether everything the distribution's run mode needs from the host is present. */
+    /** Whether everything the distribution's run mode and environment need is present. */
     public boolean isInstalled(DesktopDistro distro) {
-        // Both modes run KWin (start-plasma) natively; proot only adds the container.
-        if (!new File(prefix, "bin/start-plasma").isFile()) return false;
+        boolean host;
+        switch (distro.getDe()) {
+            case KWIN_PLASMA:
+                // Both modes run the KWin compositor natively; proot only adds the container.
+                host = new File(prefix, "bin/start-plasma").isFile();
+                break;
+            case XFCE4:
+                // Xlorie serves the view; the session itself runs natively or in the container.
+                host = new File(prefix, "bin/Xlorie").isFile()
+                    && (distro.getRunMode() == DesktopRunMode.PROOT
+                        || new File(prefix, "bin/xfce4-session").isFile());
+                break;
+            default:
+                return false;
+        }
+        if (!host) return false;
         if (distro.getRunMode() == DesktopRunMode.NATIVE) return true;
-        return new File(prefix, "bin/proot-distro").isFile() && prootContainerExists(distro.getProotDistro());
+        return new File(prefix, "bin/proot-distro").isFile()
+            && prootContainerExists(distro.getProotDistro());
+    }
+
+    /** The X socket the Xlorie-based sessions listen on; its presence means the display is up. */
+    public File x11Socket() {
+        return new File(prefix, "tmp/.X11-unix/X0");
     }
 
     /** proot-distro 4+ keeps containers under {@code containers/}, older releases under

@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Create screen: option rows for container + desktop environment, dropdown parameter rows,
+     a name field for container desktops and the create action. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/local_games_background"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/desktop_create_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/local_games_toolbar_height"
+        app:navigationIcon="@drawable/local_games_ic_back"
+        tools:title="Create native desktop"
+        xmlns:tools="http://schemas.android.com/tools" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:paddingBottom="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/local_games_page_horizontal_padding"
+            android:paddingEnd="@dimen/local_games_page_horizontal_padding">
+
+            <LinearLayout
+                android:id="@+id/desktop_create_containers_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="6dp"
+                    android:text="@string/desktop_create_section_container"
+                    android:textColor="#8A5A2B"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/desktop_create_containers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/desktop_create_de_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:paddingBottom="6dp"
+                android:text="@string/desktop_create_section_de"
+                android:textColor="#8A5A2B"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/desktop_create_des"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/desktop_create_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/desktop_bg_option"
+                android:lineSpacingExtra="4dp"
+                android:padding="12dp"
+                android:textColor="#7A5A2E"
+                android:textSize="11sp"
+                tools:text="note"
+                xmlns:tools="http://schemas.android.com/tools" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="6dp"
+                android:text="@string/desktop_create_section_display"
+                android:textColor="#8A5A2B"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <include
+                android:id="@+id/desktop_create_resolution"
+                layout="@layout/item_desktop_select" />
+
+            <include
+                android:id="@+id/desktop_create_refresh"
+                layout="@layout/item_desktop_select" />
+
+            <TextView
+                android:id="@+id/desktop_create_renderer_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="4dp"
+                android:paddingBottom="6dp"
+                android:text="@string/desktop_create_section_renderer"
+                android:textColor="#8A5A2B"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <include
+                android:id="@+id/desktop_create_renderer"
+                layout="@layout/item_desktop_select" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/desktop_create_name_layout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:hint="@string/desktop_create_name">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/desktop_create_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/desktop_create_alias"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textColor="@color/local_games_on_surface_secondary"
+                android:textSize="11sp"
+                tools:text="Container instance (automatic): debian-xfce4-2"
+                xmlns:tools="http://schemas.android.com/tools" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/desktop_create_action"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="16dp"
+                android:text="@string/desktop_create_action"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

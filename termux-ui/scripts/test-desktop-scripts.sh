@@ -25,9 +25,10 @@ export HOME="$TEST_ROOT/home"
 mkdir -p "$PREFIX/bin" "$HOME" "$TEST_ROOT/state" "$TEST_ROOT/logs"
 cp "$ASSETS"/desktop_*.sh "$TEST_ROOT/"
 
-write_spec() { # mode
+write_spec() { # mode [distro] [de]
     cat > "$TEST_ROOT/spec" <<SPEC
 DESKTOP_ID=test
+DESKTOP_DE=${3:-kwin_plasma}
 DESKTOP_MODE=$1
 DESKTOP_GL_MODE=zink
 DESKTOP_PROOT_DISTRO=$2
@@ -205,5 +206,103 @@ code=$?
 set -e
 assert_eq "$code" 66 "no socket exit code"
 assert_eq "$(status)" exit:66 "no socket status"
+
+
+# --- 7. install smoke: the script runs to completion and provisions the instance alias --------
+INST_ROOT="$TEST_ROOT/inst"
+mkdir -p "$INST_ROOT/bin" "$INST_ROOT/usr/var/lib/proot-distro/containers" "$TEST_ROOT/tmp"
+cat > "$INST_ROOT/bin/uname" <<'FAKE'
+#!/bin/sh
+[ "$1" = "-m" ] && { echo aarch64; exit 0; }
+exec /usr/bin/uname "$@"
+FAKE
+cat > "$INST_ROOT/bin/pkg" <<'FAKE'
+#!/bin/sh
+echo "pkg $*" >> "$INST_LOG"
+exit 0
+FAKE
+cat > "$INST_ROOT/bin/apt" <<'FAKE'
+#!/bin/sh
+echo "apt $*" >> "$INST_LOG"
+exit 0
+FAKE
+cat > "$INST_ROOT/bin/dpkg" <<'FAKE'
+#!/bin/sh
+exit 0
+FAKE
+cat > "$INST_ROOT/bin/curl" <<'FAKE'
+#!/bin/sh
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -o) shift; printf 'fake-deb-content' > "$1";;
+    esac
+    shift
+done
+exit 0
+FAKE
+cat > "$INST_ROOT/bin/sha256sum" <<'FAKE'
+#!/bin/sh
+# Test double: answers with the digest the install manifest pins for this file name.
+target="$1"
+name=$(basename "$target")
+manifest=$(dirname "$target")/manifest
+if [ -f "$manifest" ]; then
+    digest=$(awk -v n="$name" '$1 == n { print $2 }' "$manifest")
+    [ -n "$digest" ] && { echo "$digest  $target"; exit 0; }
+fi
+exec /usr/bin/sha256sum "$@"
+FAKE
+cat > "$INST_ROOT/bin/proot-distro" <<'FAKE'
+#!/bin/sh
+if [ "$#" -eq 0 ] || { [ "$1" = "install" ] && [ "$#" -eq 1 ]; }; then
+    echo "  -n, --name [NAME]  Set a custom name for the container."
+    exit 1
+fi
+echo "proot-distro $*" >> "$INST_LOG"
+case "$1" in
+    install)
+        shift
+        name=""
+        while [ "$#" -gt 0 ]; do
+            case "$1" in
+                -n|--name) shift; name="$1";;
+            esac
+            shift
+        done
+        [ -n "$name" ] || name=debian
+        mkdir -p "$INST_CONTAINERS/$name"
+        ;;
+esac
+exit 0
+FAKE
+chmod +x "$INST_ROOT/bin/"*
+cat > "$TEST_ROOT/inst-spec" <<SPEC
+DESKTOP_SPEC_VERSION=2
+DESKTOP_ID=inst
+DESKTOP_MODE=proot
+DESKTOP_DE=xfce4
+DESKTOP_GL_MODE=auto
+DESKTOP_PROOT_DISTRO=debian-xfce4-1
+DESKTOP_RESOLUTION=1280x720
+DESKTOP_WIDTH=1280
+DESKTOP_HEIGHT=720
+DESKTOP_REFRESH_RATE=30
+DESKTOP_PID_FILE=$TEST_ROOT/state/inst.pid
+DESKTOP_STATUS_FILE=$TEST_ROOT/state/inst.status
+DESKTOP_LOG_FILE=$TEST_ROOT/logs/inst.log
+DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r19
+SPEC
+INST_LOG="$TEST_ROOT/inst-calls"
+INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-distro/containers"
+export INST_LOG INST_CONTAINERS
+PATH="$INST_ROOT/bin:$PATH" PREFIX="$INST_ROOT/usr" TMPDIR="$TEST_ROOT/tmp" \
+    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/inst-spec" > "$TEST_ROOT/inst-stdout" 2>&1 \
+    || { tail -n 8 "$TEST_ROOT/inst-stdout"; tail -n 8 "$TEST_ROOT/logs/inst.log" 2>/dev/null; fail "desktop_install.sh did not complete"; }
+grep -q "Desktop install finished" "$TEST_ROOT/logs/inst.log" || fail "install log lacks completion"
+grep -q -- "-n debian-xfce4-1" "$TEST_ROOT/inst-calls" || fail "instance alias not passed: $(cat "$TEST_ROOT/inst-calls")"
+grep -q "apt install -y .*xfce4" "$TEST_ROOT/inst-calls" || fail "host xfce4 packages missing"
+grep -q "login debian-xfce4-1" "$TEST_ROOT/inst-calls" || fail "container session install missing"
+[ -d "$INST_CONTAINERS/debian-xfce4-1" ] || fail "container instance directory missing"
 
 printf 'desktop scripts contract test passed\n'

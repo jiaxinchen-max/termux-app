@@ -45,6 +45,83 @@ CONTAINER_PID_FILE="$DESKTOP_PID_FILE.container"
 rm -f "$CONTAINER_PID_FILE"
 code=0
 
+DESKTOP_DE="${DESKTOP_DE:-kwin_plasma}"
+
+if [ "$DESKTOP_DE" = "xfce4" ]; then
+    # Xlorie serves the X display; the XFCE session runs natively or inside the container.
+    command -v Xlorie >/dev/null 2>&1 || {
+        log "Xlorie is not installed; run the desktop install first."
+        printf 'exit:127\n' > "$DESKTOP_STATUS_FILE"
+        exit 127
+    }
+    case "$DESKTOP_GL_MODE" in
+        auto) gl_mode="system" ;;
+        *) gl_mode="$DESKTOP_GL_MODE" ;;
+    esac
+    export XLORIE_GL_MODE="$gl_mode"
+    export TERMUX_RENDER_AHB_RECEIVE="${TERMUX_RENDER_AHB_RECEIVE:-native}"
+    if [ "$DESKTOP_MODE" = "proot" ]; then
+        # glibc compositors must not touch Xlorie's minimal GLX (xserver VERIFICATION.md #2).
+        export XLORIE_GLX=0
+    fi
+    mkdir -p "$PREFIX/tmp/.X11-unix"
+    rm -f "$PREFIX/tmp/.X11-unix/X0" "$PREFIX/tmp/.X0-lock"
+    Xlorie :0 -noreset -screen 0 "${DESKTOP_WIDTH}x${DESKTOP_HEIGHT}x24" \
+        -framerate "$DESKTOP_REFRESH_RATE" -render-socket "$DESKTOP_RENDER_SOCKET" \
+        -xkbdir "$PREFIX/share/X11/xkb" >> "$DESKTOP_LOG_FILE" 2>&1 &
+    child=$!
+    printf '%s\n' "$child" > "$DESKTOP_PID_FILE"
+    trap 'kill -TERM "$child" 2>/dev/null; [ -z "${session:-}" ] || kill -TERM "$session" 2>/dev/null' TERM INT
+    waited=0
+    while [ ! -S "$PREFIX/tmp/.X11-unix/X0" ] && kill -0 "$child" 2>/dev/null; do
+        waited=$((waited + 1))
+        if [ "$waited" -gt 60 ]; then
+            log "Xlorie did not become ready"
+            kill -TERM "$child" 2>/dev/null
+            break
+        fi
+        sleep 1
+    done
+    export DISPLAY=:0
+    log "Starting the $DESKTOP_MODE XFCE4 session (DISPLAY=:0, XLORIE_GL_MODE=$gl_mode)"
+    if [ "$DESKTOP_MODE" = "proot" ]; then
+        proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- env DISPLAY=:0 \
+            sh -c 'export XDG_RUNTIME_DIR=/tmp/xdg; mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"; exec dbus-run-session -- xfce4-session' \
+            >> "$DESKTOP_LOG_FILE.out" 2>&1 &
+    else
+        DISPLAY=:0 dbus-run-session -- xfce4-session >> "$DESKTOP_LOG_FILE.out" 2>&1 &
+    fi
+    session=$!
+    printf '%s\n' "$session" > "$CONTAINER_PID_FILE"
+    code=0
+    session_ended=0
+    while kill -0 "$child" 2>/dev/null; do
+        if [ -n "${session:-}" ] && ! kill -0 "$session" 2>/dev/null; then
+            wait "$session"
+            code=$?
+            session_ended=1
+            log "The XFCE session exited with status $code"
+            kill -TERM "$child" 2>/dev/null
+            sleep 1
+            kill -KILL "$child" 2>/dev/null
+            break
+        fi
+        sleep 1
+    done
+    if [ "$session_ended" -eq 0 ]; then
+        wait "$child"
+        code=$?
+    fi
+    [ -z "${session:-}" ] || kill -TERM "$session" 2>/dev/null
+    rm -f "$DESKTOP_PID_FILE" "$CONTAINER_PID_FILE"
+    if [ "$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)" = "stopping" ]; then
+        printf 'stopped\n' > "$DESKTOP_STATUS_FILE"
+    else
+        printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE"
+    fi
+    exit 0
+fi
+
 if [ "$DESKTOP_MODE" = "proot" ]; then
     # The r19 kwin package ships neither start-plasma-container nor the container session script,
     # so do what start-plasma-container does: native compositor first, then the Plasma session

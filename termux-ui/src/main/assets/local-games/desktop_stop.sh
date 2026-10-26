@@ -30,11 +30,11 @@ if pid=$(read_pid) && pid_alive "$pid"; then
     pid_alive "$pid" && kill -KILL "$pid" 2>/dev/null
 fi
 
-for name in plasmashell kded6 kglobalacceld kactivitymanagerd kwin_wayland Xwayland; do
+for name in plasmashell kded6 kglobalacceld kactivitymanagerd kwin_wayland Xwayland Xlorie xfce4-session xfwm4 xfdesktop xfce4-panel; do
     signal_by_name TERM "$name"
 done
 sleep 1
-for name in plasmashell kded6 kglobalacceld kactivitymanagerd kwin_wayland Xwayland; do
+for name in plasmashell kded6 kglobalacceld kactivitymanagerd kwin_wayland Xwayland Xlorie xfce4-session xfwm4 xfdesktop xfce4-panel; do
     signal_by_name KILL "$name"
 done
 

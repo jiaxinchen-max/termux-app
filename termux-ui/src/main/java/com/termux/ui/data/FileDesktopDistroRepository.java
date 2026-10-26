@@ -1,5 +1,6 @@
 package com.termux.ui.data;
 
+import com.termux.ui.domain.DesktopDe;
 import com.termux.ui.domain.DesktopDistro;
 import com.termux.ui.domain.DesktopGlMode;
 import com.termux.ui.domain.DesktopRunMode;
@@ -23,7 +24,7 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
 
     private static final String SUFFIX = ".properties";
     private static final Set<String> KEYS = new HashSet<>(Arrays.asList("schemaVersion", "id",
-        "name", "runMode", "prootDistro", "glMode", "resolution", "refreshRate"));
+        "name", "runMode", "prootDistro", "de", "glMode", "resolution", "refreshRate"));
 
     private final File directory;
 
@@ -74,7 +75,13 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
     private DesktopDistro read(File file) throws IOException {
         Properties properties = new Properties();
         try (FileInputStream input = new FileInputStream(file)) { properties.load(input); }
-        if (!String.valueOf(DesktopDistro.SCHEMA_VERSION).equals(properties.getProperty("schemaVersion"))) {
+        String schema = properties.getProperty("schemaVersion");
+        // Schema 1 predates the desktop-environment field: those desktops only ran Plasma.
+        if ("1".equals(schema)) {
+            properties.setProperty("de", DesktopDe.legacyDefault().getStorageValue());
+            schema = String.valueOf(DesktopDistro.SCHEMA_VERSION);
+        }
+        if (!String.valueOf(DesktopDistro.SCHEMA_VERSION).equals(schema)) {
             throw new IOException("unsupported_desktop_schema");
         }
         for (Object key : properties.keySet()) {
@@ -85,6 +92,7 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
                 required(properties, "name"),
                 DesktopRunMode.fromStorageValue(required(properties, "runMode")),
                 properties.getProperty("prootDistro", ""),
+                DesktopDe.fromStorageValue(required(properties, "de")),
                 DesktopGlMode.fromStorageValue(required(properties, "glMode")),
                 required(properties, "resolution"),
                 Integer.parseInt(required(properties, "refreshRate")));
@@ -104,6 +112,7 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
         result.setProperty("name", distro.getName());
         result.setProperty("runMode", distro.getRunMode().getStorageValue());
         result.setProperty("prootDistro", distro.getProotDistro());
+        result.setProperty("de", distro.getDe().getStorageValue());
         result.setProperty("glMode", distro.getGlMode().getStorageValue());
         result.setProperty("resolution", distro.getResolution());
         result.setProperty("refreshRate", Integer.toString(distro.getRefreshRate()));

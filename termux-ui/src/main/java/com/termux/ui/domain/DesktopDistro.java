@@ -7,7 +7,7 @@ package com.termux.ui.domain;
  */
 public final class DesktopDistro {
 
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
     public static final String DEFAULT_PROOT_DISTRO = "debian";
     public static final String DEFAULT_RESOLUTION = "1280x720";
     public static final int DEFAULT_REFRESH_RATE = 30;
@@ -16,13 +16,23 @@ public final class DesktopDistro {
     private final String id;
     private final String name;
     private final DesktopRunMode runMode;
+    private final DesktopDe de;
     private final String prootDistro;
     private final DesktopGlMode glMode;
     private final String resolution;
     private final int refreshRate;
 
+    /** Schema-1 desktops: Plasma was the only environment. */
     public DesktopDistro(String id, String name, DesktopRunMode runMode, String prootDistro,
                          DesktopGlMode glMode, String resolution, int refreshRate) {
+        this(id, name, runMode, prootDistro, DesktopDe.legacyDefault(), glMode, resolution,
+            refreshRate);
+    }
+
+    public DesktopDistro(String id, String name, DesktopRunMode runMode, String prootDistro,
+                         DesktopDe de, DesktopGlMode glMode, String resolution, int refreshRate) {
+        if (de == null) throw new IllegalArgumentException("desktopDeRequired");
+        this.de = de;
         this.id = requireId(id);
         this.name = DomainValidation.requireText(name, "desktopName");
         if (runMode == null) throw new IllegalArgumentException("desktopRunModeRequired");
@@ -48,8 +58,9 @@ public final class DesktopDistro {
     public String getId() { return id; }
     public String getName() { return name; }
     public DesktopRunMode getRunMode() { return runMode; }
-    /** The proot-distro alias for {@link DesktopRunMode#PROOT}; empty for native. */
+    /** The proot-distro alias of this desktop's own container instance; empty for native. */
     public String getProotDistro() { return prootDistro; }
+    public DesktopDe getDe() { return de; }
     public DesktopGlMode getGlMode() { return glMode; }
     /** {@code WIDTHxHEIGHT}, also the X11 display resolution of the session view. */
     public String getResolution() { return resolution; }
@@ -59,15 +70,17 @@ public final class DesktopDistro {
     public int getHeight() { return Integer.parseInt(resolution.substring(resolution.indexOf('x') + 1)); }
 
     public DesktopDistro withName(String newName) {
-        return new DesktopDistro(id, newName, runMode, prootDistro, glMode, resolution, refreshRate);
+        return new DesktopDistro(id, newName, runMode, prootDistro, de, glMode, resolution,
+            refreshRate);
     }
 
     public DesktopDistro withGlMode(DesktopGlMode newGlMode) {
-        return new DesktopDistro(id, name, runMode, prootDistro, newGlMode, resolution, refreshRate);
+        return new DesktopDistro(id, name, runMode, prootDistro, de, newGlMode, resolution,
+            refreshRate);
     }
 
     public DesktopDistro withOutput(String newResolution, int newRefreshRate) {
-        return new DesktopDistro(id, name, runMode, prootDistro, glMode, newResolution,
+        return new DesktopDistro(id, name, runMode, prootDistro, de, glMode, newResolution,
             newRefreshRate);
     }
 

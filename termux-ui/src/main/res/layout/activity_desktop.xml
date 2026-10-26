@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/local_games_background"
@@ -13,6 +14,41 @@
         android:title="@string/desktop_title"
         app:navigationIcon="@drawable/local_games_ic_back" />
 
+
+    <LinearLayout
+        android:id="@+id/desktop_tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/local_games_page_horizontal_padding"
+        android:paddingEnd="@dimen/local_games_page_horizontal_padding"
+        android:paddingBottom="10dp">
+
+        <TextView
+            android:id="@+id/desktop_tab_native"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:background="@drawable/desktop_bg_tab_on"
+            android:gravity="center"
+            android:text="@string/desktop_tab_native"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/desktop_tab_container"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/desktop_bg_tab_off"
+            android:gravity="center"
+            android:text="@string/desktop_tab_container"
+            android:textColor="@color/local_games_on_surface_secondary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -28,15 +64,44 @@
             android:paddingStart="@dimen/local_games_page_horizontal_padding"
             android:paddingEnd="@dimen/local_games_page_horizontal_padding">
 
-            <TextView
-                android:id="@+id/desktop_empty"
+            <LinearLayout
+                android:id="@+id/desktop_empty_block"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingTop="8dp"
-                android:paddingBottom="4dp"
-                android:text="@string/desktop_empty"
-                android:textColor="@color/local_games_on_surface_secondary"
-                android:visibility="gone" />
+                android:layout_marginTop="48dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/desktop_empty_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:textColor="@color/local_games_on_surface"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    tools:text="No native desktop yet" />
+
+                <TextView
+                    android:id="@+id/desktop_empty_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/local_games_on_surface_secondary"
+                    android:textSize="13sp"
+                    tools:text="A native desktop runs its compositor directly in Termux." />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/desktop_empty_create"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="20dp"
+                    android:text="@string/desktop_empty_create"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <GridLayout
                 android:id="@+id/desktop_items"

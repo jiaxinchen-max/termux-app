@@ -54,6 +54,7 @@ public final class LaunchScriptInstaller {
     private static final String DESKTOP_INSTALL_ASSET = "local-games/desktop_install.sh";
     private static final String DESKTOP_START_ASSET = "local-games/desktop_start.sh";
     private static final String DESKTOP_STOP_ASSET = "local-games/desktop_stop.sh";
+    private static final String DESKTOP_REMOVE_ASSET = "local-games/desktop_remove.sh";
     /** Byte-identical copy of packaging/container/plasma-container-session.sh at kwin commit
      *  cf00fcd75ae91854a26e8fe7a777b3f1b0890fb7 (release termux-hwaccel-6.6-r19). The release's
      *  kwin package does not ship it, nor start-plasma-container, so proot mode runs it itself. */
@@ -185,12 +186,14 @@ public final class LaunchScriptInstaller {
         File install = new File(runtimeDirectory, "desktop_install.sh");
         File start = new File(runtimeDirectory, "desktop_start.sh");
         File stop = new File(runtimeDirectory, "desktop_stop.sh");
+        File remove = new File(runtimeDirectory, "desktop_remove.sh");
         installAsset(DESKTOP_INSTALL_ASSET, install);
         installAsset(DESKTOP_START_ASSET, start);
         installAsset(DESKTOP_STOP_ASSET, stop);
+        installAsset(DESKTOP_REMOVE_ASSET, remove);
         installAsset(DESKTOP_CONTAINER_SESSION_ASSET,
             new File(runtimeDirectory, "desktop_container_session.sh"));
-        return new DesktopScripts(install, start, stop);
+        return new DesktopScripts(install, start, stop, remove);
     }
 
     /** The deployed desktop scripts. */
@@ -198,11 +201,13 @@ public final class LaunchScriptInstaller {
         public final File install;
         public final File start;
         public final File stop;
+        public final File remove;
 
-        DesktopScripts(File install, File start, File stop) {
+        DesktopScripts(File install, File start, File stop, File remove) {
             this.install = install;
             this.start = start;
             this.stop = stop;
+            this.remove = remove;
         }
     }
 

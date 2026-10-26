@@ -10,6 +10,7 @@ import com.termux.terminal.TerminalSession;
 import com.termux.ui.data.DesktopDistroRepository;
 import com.termux.ui.data.FileDesktopDistroRepository;
 import com.termux.ui.data.GameStoragePaths;
+import com.termux.ui.domain.DesktopDe;
 import com.termux.ui.domain.DesktopDistro;
 import com.termux.ui.domain.DesktopSessionState;
 import com.termux.ui.domain.LaunchExecutionMode;
@@ -52,6 +53,23 @@ public final class DesktopTasks {
 
     public void save(@NonNull DesktopDistro distro) throws IOException { repository.save(distro); }
 
+    /**
+     * Uninstalls a container desktop's proot instance in a background shell. Only meaningful for
+     * {@link DesktopRunMode#PROOT}; the record must already be deleted or being deleted.
+     */
+    public void removeContainer(@NonNull DesktopDistro distro) throws LaunchHostException {
+        LaunchScriptInstaller.DesktopScripts scripts;
+        try {
+            scripts = new LaunchScriptInstaller(context, paths).installDesktopScripts();
+        } catch (IOException | RuntimeException error) {
+            throw new LaunchHostException("desktop_prepare_failed", true, error);
+        }
+        LocalGames.requireHost(context).startLaunch(new LaunchRequest("desktop-remove-"
+            + distro.getId() + "-" + System.currentTimeMillis(), scripts.remove.getPath(),
+            paths.getDesktopSpecFile(distro.getId()).getPath(),
+            paths.getRuntimeDirectory().getPath(), LaunchExecutionMode.APP_SHELL));
+    }
+
     /** Removes the record and its state; a running or starting desktop must be stopped first. */
     public void delete(@NonNull DesktopDistro distro) throws IOException {
         DesktopSessionState state = state(distro);
@@ -79,9 +97,17 @@ public final class DesktopTasks {
         if (!installed) return DesktopSessionState.NOT_INSTALLED;
         File pidFile = paths.getDesktopPidFile(distro.getId());
         boolean alive = isAlive(readPid(pidFile));
-        boolean socket = alive && environment.waylandSocket(Process.myUid()).exists();
-        boolean ready = socket && DesktopEnvironment.logShowsReady(
-            paths.getDesktopLogFile(distro.getId()));
+        boolean socket;
+        boolean ready;
+        if (distro.getDe() == DesktopDe.KWIN_PLASMA) {
+            socket = alive && environment.waylandSocket(Process.myUid()).exists();
+            ready = socket && DesktopEnvironment.logShowsReady(
+                paths.getDesktopLogFile(distro.getId()));
+        } else {
+            // Xlorie sessions: the X socket coming up is the ready marker.
+            socket = alive && environment.x11Socket().exists();
+            ready = socket;
+        }
         return DesktopSessionStateResolver.resolve(true, alive, socket, ready,
             readStatus(paths.getDesktopStatusFile(distro.getId())));
     }
