@@ -318,8 +318,12 @@ public final class DesktopActivity extends AppCompatActivity {
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.desktop_action_install, (dialog, which) ->
                 runHostAction(() -> {
-                    tasks.install(distro);
-                    toastOnUi(getString(R.string.desktop_install_started));
+                    String taskId = tasks.install(distro);
+                    // The install runs in a host terminal session; surface it in the same
+                    // console dialog the prefix setups use instead of running headless.
+                    runOnUiThread(() -> {
+                        if (!destroyed) PrefixSetupConsoleDialog.show(this, taskId);
+                    });
                 }))
             .show();
     }

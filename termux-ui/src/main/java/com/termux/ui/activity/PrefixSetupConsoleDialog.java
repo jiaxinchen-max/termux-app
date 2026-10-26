@@ -42,6 +42,7 @@ final class PrefixSetupConsoleDialog extends Dialog {
     private TextView status;
     private boolean dismissed;
     private boolean setupFailed;
+    private long sessionPollStartedAtMs;
 
     private PrefixSetupConsoleDialog(@NonNull Context context, @NonNull String taskId) {
         super(context);
@@ -148,6 +149,7 @@ final class PrefixSetupConsoleDialog extends Dialog {
         TerminalSession session = LocalGames.requireHost(getContext())
             .getRuntimeSetupTerminal(taskId);
         if (session == null) {
+            if (sessionPollStartedAtMs == 0) sessionPollStartedAtMs = System.currentTimeMillis();
             // No live session yet. If the task already reached a terminal state, one will never
             // appear -- a fast, effectively no-op setup (e.g. switching to a Native backend whose
             // GLIBC prefix is already provisioned) finishes before its session is ever observable.
@@ -155,6 +157,13 @@ final class PrefixSetupConsoleDialog extends Dialog {
             // The Library screen surfaces success/failure on its own, so just close.
             PrefixSetupTask task = readTask();
             if (task != null && task.getState().isTerminal()) {
+                dismiss();
+                return;
+            }
+            // Task ids outside the prefix repository (desktop installs) have no record to
+            // consult; give the host a bounded window to publish the session, then close.
+            if (task == null
+                && System.currentTimeMillis() - sessionPollStartedAtMs > 10_000) {
                 dismiss();
                 return;
             }

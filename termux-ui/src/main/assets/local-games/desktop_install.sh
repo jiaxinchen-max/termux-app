@@ -126,14 +126,19 @@ else
     # shellcheck disable=SC2086
     run apt install -y $DEB_PATHS proot proot-distro || fail "apt install"
     ensure_container_instance "$DESKTOP_PROOT_DISTRO" "${DESKTOP_CONTAINER_BASE:-debian}"
-    if [ "$DESKTOP_DE" = "xfce4" ]; then
+    de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE"
+    if [ -f "$de_marker" ]; then
+        log "Container packages for $DESKTOP_DE already present; skipping"
+    elif [ "$DESKTOP_DE" = "xfce4" ]; then
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh -c \
             "export DEBIAN_FRONTEND=noninteractive; apt update && apt install -y xfce4 xfce4-terminal dbus-x11" \
             || fail "container apt install xfce4"
+        : > "$de_marker"
     else
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh -c \
             "export DEBIAN_FRONTEND=noninteractive; apt update && apt install -y plasma-desktop plasma-workspace kactivitymanagerd" \
             || fail "container apt install plasma"
+        : > "$de_marker"
     fi
 fi
 

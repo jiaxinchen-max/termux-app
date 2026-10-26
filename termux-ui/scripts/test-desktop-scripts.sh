@@ -304,5 +304,14 @@ grep -q -- "-n debian-xfce4-1" "$TEST_ROOT/inst-calls" || fail "instance alias n
 grep -q "apt install -y .*xfce4" "$TEST_ROOT/inst-calls" || fail "host xfce4 packages missing"
 grep -q "login debian-xfce4-1" "$TEST_ROOT/inst-calls" || fail "container session install missing"
 [ -d "$INST_CONTAINERS/debian-xfce4-1" ] || fail "container instance directory missing"
+[ -f "$INST_CONTAINERS/debian-xfce4-1/.desktop-de-xfce4" ] || fail "container DE marker missing"
+# A second run must skip the container apt work (marker present) and still finish.
+: > "$TEST_ROOT/inst-calls"
+INST_LOG="$TEST_ROOT/inst-calls" INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-distro/containers" \
+    PATH="$INST_ROOT/bin:$PATH" PREFIX="$INST_ROOT/usr" TMPDIR="$TEST_ROOT/tmp" \
+    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/inst-spec" > "$TEST_ROOT/inst-stdout2" 2>&1 \
+    || { tail -n 8 "$TEST_ROOT/inst-stdout2"; fail "second install run did not complete"; }
+grep -q "already present; skipping" "$TEST_ROOT/logs/inst.log" || fail "second run redo container apt"
+grep -q "login debian-xfce4-1" "$TEST_ROOT/inst-calls" && fail "second run re-ran container apt"
 
 printf 'desktop scripts contract test passed\n'

@@ -49,6 +49,9 @@ public class DesktopEnvironmentTest {
         assertFalse(environment.isInstalled(PROOT));
         assertTrue(new File(temporaryFolder.getRoot(),
             "usr/var/lib/proot-distro/containers/debian").mkdirs());
+        // A container without the desktop packages is half-provisioned: still not installed.
+        assertFalse(environment.isInstalled(PROOT));
+        touch("usr/var/lib/proot-distro/containers/debian/.desktop-de-kwin_plasma");
         assertTrue(environment.isInstalled(PROOT));
     }
 
@@ -59,6 +62,7 @@ public class DesktopEnvironmentTest {
         touch("usr/bin/proot-distro");
         assertTrue(new File(temporaryFolder.getRoot(),
             "usr/var/lib/proot-distro/installed-rootfs/debian").mkdirs());
+        touch("usr/var/lib/proot-distro/installed-rootfs/debian/.desktop-de-kwin_plasma");
         assertTrue(environment.isInstalled(PROOT));
     }
 

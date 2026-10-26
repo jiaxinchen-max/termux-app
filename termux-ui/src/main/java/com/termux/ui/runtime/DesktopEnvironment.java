@@ -1,5 +1,7 @@
 package com.termux.ui.runtime;
 
+import androidx.annotation.Nullable;
+
 import com.termux.ui.domain.DesktopDistro;
 import com.termux.ui.domain.DesktopDe;
 import com.termux.ui.domain.DesktopRunMode;
@@ -43,8 +45,12 @@ public final class DesktopEnvironment {
         }
         if (!host) return false;
         if (distro.getRunMode() == DesktopRunMode.NATIVE) return true;
-        return new File(prefix, "bin/proot-distro").isFile()
-            && prootContainerExists(distro.getProotDistro());
+        if (!new File(prefix, "bin/proot-distro").isFile()) return false;
+        File container = containerDir(distro.getProotDistro());
+        // The marker is written by the install script once the desktop packages are in the
+        // container; a half-provisioned instance (interrupted apt) stays "not installed".
+        return container != null
+            && new File(container, ".desktop-de-" + distro.getDe().getStorageValue()).isFile();
     }
 
     /** The X socket the Xlorie-based sessions listen on; its presence means the display is up. */
@@ -54,10 +60,13 @@ public final class DesktopEnvironment {
 
     /** proot-distro 4+ keeps containers under {@code containers/}, older releases under
      *  {@code installed-rootfs/}. */
-    private boolean prootContainerExists(String name) {
+    @Nullable
+    private File containerDir(String name) {
         File base = new File(prefix, "var/lib/proot-distro");
-        return new File(base, "containers/" + name).isDirectory()
-            || new File(base, "installed-rootfs/" + name).isDirectory();
+        File containers = new File(base, "containers/" + name);
+        if (containers.isDirectory()) return containers;
+        File legacy = new File(base, "installed-rootfs/" + name);
+        return legacy.isDirectory() ? legacy : null;
     }
 
     /** KWin's Wayland socket for the given Android uid, whether or not it exists. */
