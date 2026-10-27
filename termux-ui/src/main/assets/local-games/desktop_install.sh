@@ -33,7 +33,7 @@ kwin_6.6.0-20_aarch64.deb c1019dd23af5338b8356bf6c747e9f2b5fa96db9c71421b383a862
 termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 xwayland_24.1.11-1_aarch64.deb 3cc2999ae0ba90495abad71445f794723efc06a97c001b383467665e3038e8a4
-gl4es_1.1.7.20260924_aarch64.deb d502baa75516a23fae83e507745c23ea1801d116f44f02b8775698aa6cf17ef4
+gl4es_1.1.7.20260927_aarch64.deb eb0ba70d084c87b84b144ef2ce6ad415ca3810dcb356d77e4e8cefe962157913
 "
 
 run() {
@@ -115,16 +115,16 @@ fi
 if [ "$DESKTOP_MODE" = "native" ]; then
     if [ "$DESKTOP_DE" = "xfce4" ]; then
         # shellcheck disable=SC2086
-        run apt install -y $DEB_PATHS xfce4 xfce4-terminal dbus || fail "apt install xfce4"
+        run apt install -y --allow-downgrades $DEB_PATHS xfce4 xfce4-terminal dbus || fail "apt install xfce4"
     else
         # shellcheck disable=SC2086
-        run apt install -y $DEB_PATHS plasma-desktop plasma-workspace kactivitymanagerd \
+        run apt install -y --allow-downgrades $DEB_PATHS plasma-desktop plasma-workspace kactivitymanagerd \
             || fail "apt install"
     fi
 else
     # The session itself lives in the container; the host needs the display server and proot.
     # shellcheck disable=SC2086
-    run apt install -y $DEB_PATHS proot proot-distro || fail "apt install"
+    run apt install -y --allow-downgrades $DEB_PATHS proot proot-distro || fail "apt install"
     ensure_container_instance "$DESKTOP_PROOT_DISTRO" "${DESKTOP_CONTAINER_BASE:-debian}"
     de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE"
     if [ -f "$de_marker" ]; then
@@ -144,5 +144,10 @@ fi
 
 audit=$(dpkg --audit 2>&1)
 [ -z "$audit" ] || fail "dpkg --audit reported problems: $audit"
+if [ "$DESKTOP_DE" = "xfce4" ]; then
+    # The Xlorie xorg-server (release build) is older than Termux's stock one; keep a later
+    # `pkg upgrade` from replacing it with a server that has no Xlorie.
+    run apt-mark hold xorg-server
+fi
 log "Desktop install finished."
 exit 0

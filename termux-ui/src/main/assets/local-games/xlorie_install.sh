@@ -58,7 +58,8 @@ log "Installing the Xlorie X server ($count packages)"
 run pkg install -y x11-repo || fail "x11-repo"
 run pkg update -y || fail "pkg update"
 # shellcheck disable=SC2086
-run apt install -y $DEB_PATHS || fail "apt install"
+run apt install -y --allow-downgrades $DEB_PATHS || fail "apt install"
+run apt-mark hold xorg-server
 [ -x "$PREFIX/bin/Xlorie" ] || fail "Xlorie is not installed after apt finished"
 
 audit=$(dpkg --audit 2>&1)
