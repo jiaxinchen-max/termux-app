@@ -40,7 +40,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/test.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/test.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/test.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r21
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r22
 SPEC
 }
 
@@ -291,7 +291,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/inst.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/inst.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/inst.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r21
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r22
 SPEC
 INST_LOG="$TEST_ROOT/inst-calls"
 INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-distro/containers"
