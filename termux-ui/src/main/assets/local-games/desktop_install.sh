@@ -115,7 +115,7 @@ fi
 if [ "$DESKTOP_MODE" = "native" ]; then
     if [ "$DESKTOP_DE" = "xfce4" ]; then
         # shellcheck disable=SC2086
-        run apt install -y $DEB_PATHS xfce4 xfce4-terminal dbus-x11 || fail "apt install xfce4"
+        run apt install -y $DEB_PATHS xfce4 xfce4-terminal dbus || fail "apt install xfce4"
     else
         # shellcheck disable=SC2086
         run apt install -y $DEB_PATHS plasma-desktop plasma-workspace kactivitymanagerd \

@@ -314,4 +314,8 @@ INST_LOG="$TEST_ROOT/inst-calls" INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-d
 grep -q "already present; skipping" "$TEST_ROOT/logs/inst.log" || fail "second run redo container apt"
 grep -q "login debian-xfce4-1" "$TEST_ROOT/inst-calls" && fail "second run re-ran container apt"
 
+# Termux has no dbus-x11 package (that is Debian's); a native apt install naming it fails outright.
+grep -n 'run apt install -y \$DEB_PATHS xfce4' "$ASSETS/desktop_install.sh" \
+    | grep -q 'dbus-x11' && fail "native xfce4 install must not request dbus-x11"
+
 printf 'desktop scripts contract test passed\n'
