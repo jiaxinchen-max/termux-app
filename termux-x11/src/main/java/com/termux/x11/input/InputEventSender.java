@@ -29,6 +29,13 @@ public final class InputEventSender {
 
     private final InputStub mInjector;
 
+    /**
+     * Last absolute pointer position sent. Button events carry coordinates too; receivers that
+     * apply them as an absolute move (the Wayland/libinput bridge in KWin) would otherwise warp
+     * the pointer to (0,0) on every click.
+     */
+    private float mLastX = 0, mLastY = 0;
+
     public boolean tapToMove = false;
     public boolean preferScancodes = false;
     public boolean pointerCapture = false;
@@ -60,6 +67,10 @@ public final class InputEventSender {
     public void sendMouseEvent(PointF pos, int button, boolean down, boolean relative) {
         if (!buttons.contains(button))
             return;
+        if (pos != null && !relative) {
+            mLastX = (int) pos.x;
+            mLastY = (int) pos.y;
+        }
         mInjector.sendMouseEvent(pos != null ? (int) pos.x : 0, pos != null ? (int) pos.y : 0, button, down, relative);
     }
 
@@ -71,23 +82,30 @@ public final class InputEventSender {
     public void sendMouseDown(int button, boolean relative) {
         if (!buttons.contains(button))
             return;
-        mInjector.sendMouseEvent(0, 0, button, true, relative);
+        mInjector.sendMouseEvent(buttonX(relative), buttonY(relative), button, true, relative);
     }
+
+    private float buttonX(boolean relative) { return relative ? 0 : mLastX; }
+    private float buttonY(boolean relative) { return relative ? 0 : mLastY; }
 
     public void sendMouseUp(int button, boolean relative) {
         if (!buttons.contains(button))
             return;
-        mInjector.sendMouseEvent(0, 0, button, false, relative);
+        mInjector.sendMouseEvent(buttonX(relative), buttonY(relative), button, false, relative);
     }
 
     public void sendMouseClick(int button, boolean relative) {
         if (!buttons.contains(button))
             return;
-        mInjector.sendMouseEvent(0, 0, button, true, relative);
-        mInjector.sendMouseEvent(0, 0, button, false, relative);
+        mInjector.sendMouseEvent(buttonX(relative), buttonY(relative), button, true, relative);
+        mInjector.sendMouseEvent(buttonX(relative), buttonY(relative), button, false, relative);
     }
 
     public void sendCursorMove(float x, float y, boolean relative) {
+        if (!relative) {
+            mLastX = x;
+            mLastY = y;
+        }
         mInjector.sendMouseEvent(x, y, BUTTON_UNDEFINED, false, relative);
     }
 
