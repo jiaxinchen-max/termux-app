@@ -19,10 +19,10 @@ DESKTOP_DE="${DESKTOP_DE:-kwin_plasma}"
 
 # Xlorie (independent X server) packages, pinned to the xserver release that carries the
 # termux-render fixes; needed by every XFCE4 desktop and shared with the KWin ones.
-XLORIE_RELEASE_TAG="termux-xlorie-21.1.16-r5"
+XLORIE_RELEASE_TAG="termux-xlorie-21.1.16-r6"
 XLORIE_BASE_URL="https://github.com/jiaxinchen-max/xserver/releases/download/$XLORIE_RELEASE_TAG"
 XLORIE_DEBS="
-xorg-server_21.1.16-5_aarch64.deb 16289f357eda2b064ec4c08509b1003a92d30cc97dd28a47da8b06d9c655b5e3
+xorg-server_21.1.16-6_aarch64.deb 9533f812ea464987cf66bf2aa89deb7e2862e289ae5a14a9ca3d6a48b7255016
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 libxshmfence_1.3.3-2_aarch64.deb be95caf500b002fed8b5c0142ad360efbdec4ff1334be5565e9b9628f8663dc2
 termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
