@@ -200,6 +200,12 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (binding != null) binding.desktopSessionX11.onHostWindowFocusChanged(hasFocus);
+    }
+
+    @Override
     protected void onDestroy() {
         destroyed = true;
         handler.removeCallbacks(pollTick);
