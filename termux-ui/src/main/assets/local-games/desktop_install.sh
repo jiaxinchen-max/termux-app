@@ -175,8 +175,13 @@ else
             || fail "container apt install xfce4"
         : > "$de_marker"
     else
-        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh -c \
-            "export DEBIAN_FRONTEND=noninteractive; apt update && apt install -y plasma-desktop plasma-workspace kactivitymanagerd dbus-x11" \
+        # forky's systemd-family maintainer scripts cannot run under proot; the helper installs the
+        # packages and finishes configuring them anyway (see desktop_container_plasma_apt.sh).
+        plasma_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
+        [ -r "$plasma_apt" ] || fail "missing $plasma_apt"
+        cp "$plasma_apt" "$PREFIX/tmp/desktop_container_plasma_apt.sh" || fail "cannot stage the container apt helper"
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+            plasma-desktop plasma-workspace kactivitymanagerd dbus-x11 libvulkan-dev \
             || fail "container apt install plasma"
         : > "$de_marker"
     fi

@@ -60,6 +60,8 @@ public final class LaunchScriptInstaller {
      *  kwin package does not ship it, nor start-plasma-container, so proot mode runs it itself. */
     private static final String DESKTOP_CONTAINER_SESSION_ASSET =
         "local-games/desktop_container_session.sh";
+    private static final String DESKTOP_CONTAINER_PLASMA_APT_ASSET =
+        "local-games/desktop_container_plasma_apt.sh";
 
     private final Context context;
     private final File runtimeDirectory;
@@ -193,6 +195,8 @@ public final class LaunchScriptInstaller {
         installAsset(DESKTOP_REMOVE_ASSET, remove);
         installAsset(DESKTOP_CONTAINER_SESSION_ASSET,
             new File(runtimeDirectory, "desktop_container_session.sh"));
+        installAsset(DESKTOP_CONTAINER_PLASMA_APT_ASSET,
+            new File(runtimeDirectory, "desktop_container_plasma_apt.sh"));
         return new DesktopScripts(install, start, stop, remove);
     }
 

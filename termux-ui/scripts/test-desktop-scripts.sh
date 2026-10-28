@@ -363,6 +363,62 @@ grep -q 'default_base="debian:forky"' "$ASSETS/desktop_install.sh" || fail "Plas
 grep -q 'KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 start-plasma --compositor-only' "$ASSETS/desktop_start.sh" \
     || fail "container Plasma must start the compositor with the permission checks off"
 
+# --- 9. Plasma container apt helper: neutralise only half-configured maintainer scripts ----------
+APT_ROOT="$TEST_ROOT/plasma-apt"
+mkdir -p "$APT_ROOT/bin" "$APT_ROOT/usr/sbin" "$APT_ROOT/info"
+printf '#!/bin/sh\necho real postinst\n' > "$APT_ROOT/info/systemd.postinst"
+printf '#!/bin/sh\necho real postinst\n' > "$APT_ROOT/info/udev.postinst"
+printf '#!/bin/sh\necho real postinst\n' > "$APT_ROOT/info/dbus.postinst"
+cat > "$APT_ROOT/bin/apt-get" <<'FAKE_APT'
+#!/bin/sh
+echo "apt-get $*" >> "$APT_LOG"
+case "$*" in
+    update*) exit 0 ;;
+    *" -f "*) exit 0 ;;   # repairs broken packages only; never installs the requested ones
+    *install*) [ -f "$APT_STATE/first-failed" ] || { : > "$APT_STATE/first-failed"; exit 100; }
+               # a retry only succeeds once systemd's postinst no longer fails
+               grep -q 'exit 0' "$APT_INFO/systemd.postinst" || exit 100
+               : > "$APT_STATE/installed"; exit 0 ;;
+esac
+FAKE_APT
+for tool in getent groupadd useradd; do
+    printf '#!/bin/sh\necho "%s $*" >> "$APT_LOG"\n[ "%s" = getent ] && exit 2\nexit 0\n' "$tool" "$tool" > "$APT_ROOT/bin/$tool"
+    chmod +x "$APT_ROOT/bin/$tool"
+done
+cat > "$APT_ROOT/bin/dpkg" <<'FAKE_DPKG'
+#!/bin/sh
+case "$1" in
+    --audit)
+        # Only systemd is half configured; udev and dbus are merely waiting on it.
+        [ -f "$APT_INFO/systemd.postinst" ] && grep -q 'exit 0' "$APT_INFO/systemd.postinst" && exit 0
+        printf 'The following packages have been unpacked but not yet configured.\nThey must be configured using dpkg --configure or the configure\nmenu option in dselect for them to work:\n udev                 /dev/ and hotplug management daemon\n dbus                 simple interprocess messaging system\n\nThe following packages are only half configured, probably due to problems\nconfiguring them the first time. The configuration should be retried using\ndpkg --configure <package> or the configure menu option in dselect:\n systemd              system and service manager\n\n'
+        ;;
+    --configure) echo "dpkg $*" >> "$APT_LOG" ;;
+    -s) [ -f "$APT_STATE/installed" ] && { echo "Status: install ok installed"; exit 0; }; exit 1 ;;
+esac
+exit 0
+FAKE_DPKG
+chmod +x "$APT_ROOT/bin/apt-get" "$APT_ROOT/bin/dpkg"
+# Run the helper with its in-container paths redirected into the fixture.
+sed -e "s#/usr/sbin/policy-rc.d#$APT_ROOT/usr/sbin/policy-rc.d#g" \
+    -e "s#^export PATH=#export PATH=$APT_ROOT/bin:#" \
+    -e "s#/var/lib/dpkg/info#$APT_ROOT/info#g" \
+    "$ASSETS/desktop_container_plasma_apt.sh" > "$APT_ROOT/helper.sh"
+APT_LOG="$APT_ROOT/log" APT_STATE="$APT_ROOT" APT_INFO="$APT_ROOT/info" PATH="$APT_ROOT/bin:$PATH" \
+    sh "$APT_ROOT/helper.sh" plasma-desktop dbus-x11 > "$APT_ROOT/out" 2>&1 \
+    || { cat "$APT_ROOT/out"; fail "plasma apt helper did not complete after the first install failed"; }
+grep -q 'exit 0' "$APT_ROOT/info/systemd.postinst" || fail "half-configured systemd was not neutralised"
+grep -q 'real postinst' "$APT_ROOT/info/udev.postinst" || fail "udev (only waiting on systemd) lost its real postinst"
+grep -q 'real postinst' "$APT_ROOT/info/dbus.postinst" || fail "dbus (only waiting on systemd) lost its real postinst"
+[ -x "$APT_ROOT/usr/sbin/policy-rc.d" ] || fail "policy-rc.d was not installed"
+grep -q 'dpkg --configure -a' "$APT_ROOT/log" || fail "dpkg --configure -a was not retried"
+[ -f "$APT_ROOT/installed" ] || fail "the requested packages were never installed after the first attempt failed"
+[ "$(grep -c 'apt-get install -y -o' "$APT_ROOT/log")" -ge 2 ] || fail "the requested install was not resumed after configuring"
+grep -q 'plasma-desktop' "$APT_ROOT/log" || fail "the requested packages were not passed to apt-get"
+grep -q 'groupadd --system messagebus' "$APT_ROOT/log" || fail "the messagebus group is not created before dbus is configured"
+grep -q 'useradd --system .*messagebus' "$APT_ROOT/log" || fail "the messagebus user is not created before dbus is configured"
+grep -q 'sh /tmp/desktop_container_plasma_apt.sh' "$ASSETS/desktop_install.sh" || fail "install script does not run the apt helper"
+
 # Termux has no dbus-x11 package (that is Debian's); a native apt install naming it fails outright.
 grep -n 'run apt install -y \$DEB_PATHS xfce4' "$ASSETS/desktop_install.sh" \
     | grep -q 'dbus-x11' && fail "native xfce4 install must not request dbus-x11"
