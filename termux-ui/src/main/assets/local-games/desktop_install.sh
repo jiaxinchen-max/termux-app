@@ -107,10 +107,10 @@ ensure_container_instance() { # alias source
 
 # The Turnip Vulkan ICD (Adreno driver for the container's Qt Vulkan RHI) is not an apt package:
 # Debian's Turnip has no KGSL backend. The container session aborts without it, so unpack the
-# matching turnip_* tarball (lfdevs/mesa-for-android-container) into the container rootfs. This runs
+# matching mesa-for-android-container tarball (lfdevs/mesa-for-android-container) into the container rootfs. This runs
 # on the host, where curl honours ~/.curlrc and https_proxy.
 TURNIP_REPO="lfdevs/mesa-for-android-container"
-TURNIP_FALLBACK_TAG="turnip-27.0.0-devel-20261025"
+TURNIP_FALLBACK_TAG="mesa-27.0.0-devel-20261025"
 ensure_turnip_icd() { # alias
     rootfs="$PREFIX/var/lib/proot-distro/containers/$1/rootfs"
     icd="usr/share/vulkan/icd.d/freedreno_icd.aarch64.json"
@@ -121,12 +121,14 @@ ensure_turnip_icd() { # alias
     id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
     codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
     [ -n "$id" ] && [ -n "$codename" ] || fail "cannot tell which distro $1 is (no os-release)"
-    # Turnip tarballs are published per stable release; forky/sid use the newest Debian one.
+    # Mesa tarballs are published per stable release; forky/sid use the newest Debian one. The full
+    # Mesa build is needed, not just turnip_*: with the turnip-only tarball the Wayland WSI crashes
+    # (SIGBUS in wsi_create_buffer_blit_context) because it mismatches the container's libgbm/EGL.
     case "$id:$codename" in debian:forky|debian:sid|debian:testing) codename=trixie ;; esac
     tag=$(curl -fsL -m 30 "https://api.github.com/repos/$TURNIP_REPO/releases?per_page=20" 2>/dev/null \
-          | sed -n 's/.*"tag_name": *"\(turnip-[^"]*\)".*/\1/p' | head -n1)
+          | sed -n 's/.*"tag_name": *"\(mesa-[^"]*\)".*/\1/p' | head -n1)
     tag="${tag:-$TURNIP_FALLBACK_TAG}"
-    url="https://github.com/$TURNIP_REPO/releases/download/$tag/turnip_${tag#turnip-}_${id}_${codename}_arm64.tar.gz"
+    url="https://github.com/$TURNIP_REPO/releases/download/$tag/mesa-for-android-container_${tag#mesa-}_${id}_${codename}_arm64.tar.gz"
     log "Installing the Turnip Vulkan ICD into $1: $url"
     tarball="${TMPDIR:-$PREFIX/tmp}/turnip.$$.tar.gz"
     run curl -fL -m 300 -o "$tarball" "$url" || { rm -f "$tarball"; fail "download of the Turnip tarball failed"; }
@@ -135,7 +137,7 @@ ensure_turnip_icd() { # alias
     [ -r "$rootfs/$icd" ] || fail "the Turnip tarball did not provide /$icd"
     # Debian's mesa-vulkan-drivers ships a Turnip without the KGSL backend under the same file names;
     # keep a later apt upgrade from overwriting the one just unpacked.
-    proot-distro login "$1" --shared-tmp -- apt-mark hold mesa-vulkan-drivers >/dev/null 2>&1 || true
+    proot-distro login "$1" --shared-tmp -- apt-mark hold mesa-vulkan-drivers libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 >/dev/null 2>&1 || true
 }
 
 DEB_PATHS=""

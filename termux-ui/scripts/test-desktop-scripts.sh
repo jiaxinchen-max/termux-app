@@ -332,7 +332,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 case "$url" in
-    *api.github.com*) echo '"tag_name": "turnip-9.9.9-devel-20300101"';;
+    *api.github.com*) echo '"tag_name": "mesa-9.9.9-devel-20300101"';;
     *) echo "$url" >> "$FAKE_CURL_URLS"; cp "$FAKE_CURL_PAYLOAD" "$out";;
 esac
 FAKE_CURL
@@ -347,7 +347,7 @@ FAKE_CURL_URLS="$TURNIP_ROOT/urls" FAKE_CURL_PAYLOAD="$TURNIP_ROOT/turnip.tar.gz
     PATH="$TURNIP_ROOT/bin:$PATH" sh "$TURNIP_ROOT/run.sh" || fail "ensure_turnip_icd did not complete"
 [ -r "$ROOTFS/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json" ] || fail "Turnip ICD json was not unpacked"
 [ -e "$ROOTFS/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so" ] || fail "libvulkan_freedreno.so was not unpacked"
-grep -q 'turnip-9.9.9-devel-20300101/turnip_9.9.9-devel-20300101_debian_trixie_arm64.tar.gz' "$TURNIP_ROOT/urls" \
+grep -q 'mesa-9.9.9-devel-20300101/mesa-for-android-container_9.9.9-devel-20300101_debian_trixie_arm64.tar.gz' "$TURNIP_ROOT/urls" \
     || fail "Turnip asset URL was not built from the latest tag and the container distro"
 [ "$(wc -l < "$TURNIP_ROOT/urls")" = 1 ] || fail "second run downloaded the Turnip tarball again"
 grep -q 'ensure_turnip_icd "\$DESKTOP_PROOT_DISTRO"' "$ASSETS/desktop_install.sh" \
