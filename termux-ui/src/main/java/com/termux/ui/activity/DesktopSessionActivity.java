@@ -17,8 +17,9 @@ import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -29,7 +30,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.radiobutton.MaterialRadioButton;
 
 import com.termux.ui.R;
 import com.termux.ui.api.DesktopTasks;
@@ -106,9 +106,9 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     private final PerformanceMetricsSampler metricsSampler = new PerformanceMetricsSampler();
     private PerformanceMetricsRecorder metricsRecorder;
     @Nullable private GameLogPanel logPanel;
-    private RadioGroup touchModeGroup;
-    private RadioGroup orientationGroup;
-    /** True while the radio lists are refreshed from storage, so that is not taken as a choice. */
+    private Spinner touchModeSpinner;
+    private Spinner orientationSpinner;
+    /** True while the dropdowns are refreshed from storage, so that is not taken as a choice. */
     private boolean refreshingChoices;
     /** Polls left that wake the desktop: the renderer reports a first frame even for a black one. */
     private int nudgesLeft = NUDGE_POLLS;
@@ -319,13 +319,15 @@ public final class DesktopSessionActivity extends AppCompatActivity {
      */
     private void buildOperationPanel() {
         LinearLayout panel = binding.desktopSessionPanelOperation;
-        touchModeGroup = addChoiceSection(panel, R.string.desktop_session_touch_mode_title,
-            TOUCH_MODES.length, i -> touchModeLabel(TOUCH_MODES[i]), which -> {
+        touchModeSpinner = addChoiceSection(panel, R.string.desktop_session_touch_mode_title,
+            TOUCH_MODES.length, i -> touchModeLabel(TOUCH_MODES[i]),
+            () -> indexOf(TOUCH_MODES, overrides.getTouchMode(distro.getId())), which -> {
                 overrides.setTouchMode(distro.getId(), TOUCH_MODES[which]);
                 applyTouchMode();
             });
-        orientationGroup = addChoiceSection(panel, R.string.desktop_session_orientation_title,
-            ORIENTATIONS.length, i -> orientationLabel(ORIENTATIONS[i]), which -> {
+        orientationSpinner = addChoiceSection(panel, R.string.desktop_session_orientation_title,
+            ORIENTATIONS.length, i -> orientationLabel(ORIENTATIONS[i]),
+            () -> indexOf(ORIENTATIONS, overrides.getOrientation(distro.getId())), which -> {
                 overrides.setOrientation(distro.getId(), ORIENTATIONS[which]);
                 applyOrientation(overrides.effectiveOrientation(this, distro.getId()));
             });
@@ -334,9 +336,15 @@ public final class DesktopSessionActivity extends AppCompatActivity {
 
     private interface LabelOf { CharSequence at(int index); }
     private interface OnChoice { void picked(int index); }
+    private interface StoredIndex { int get(); }
 
-    private RadioGroup addChoiceSection(LinearLayout parent, int titleRes, int count, LabelOf label,
-                                        OnChoice onChoice) {
+    /**
+     * One labelled dropdown. Its first entry means "follow the global setting"; any other entry is
+     * stored for this desktop only. A Spinner reports its initial selection once it is laid out, so
+     * a selection equal to what is stored is not treated as a change.
+     */
+    private Spinner addChoiceSection(LinearLayout parent, int titleRes, int count, LabelOf label,
+                                     StoredIndex stored, OnChoice onChoice) {
         TextView title = new TextView(this);
         title.setText(titleRes);
         title.setTextColor(ContextCompat.getColor(this, R.color.local_games_on_surface));
@@ -345,28 +353,38 @@ public final class DesktopSessionActivity extends AppCompatActivity {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         titleParams.topMargin = dp(16);
         parent.addView(title, titleParams);
-        RadioGroup group = new RadioGroup(this);
-        group.setOrientation(RadioGroup.VERTICAL);
-        for (int i = 0; i < count; i++) {
-            MaterialRadioButton button = new MaterialRadioButton(this);
-            button.setId(View.generateViewId());
-            button.setText(label.at(i));
-            button.setTextColor(ContextCompat.getColor(this, R.color.local_games_on_surface));
-            group.addView(button, new RadioGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
-        }
-        group.setOnCheckedChangeListener((radios, checkedId) -> {
-            if (refreshingChoices) return;
-            int index = radios.indexOfChild(radios.findViewById(checkedId));
-            if (index >= 0) onChoice.picked(index);
-        });
-        parent.addView(group, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        return group;
-    }
 
-    private static void checkSelection(RadioGroup group, int index) {
-        group.check(group.getChildAt(Math.max(0, index)).getId());
+        CharSequence[] labels = new CharSequence[count];
+        for (int i = 0; i < count; i++) labels[i] = label.at(i);
+        int textColor = ContextCompat.getColor(this, R.color.local_games_on_surface);
+        ArrayAdapter<CharSequence> adapter = new ArrayAdapter<CharSequence>(this,
+            android.R.layout.simple_spinner_item, labels) {
+            @Override public View getView(int position, View convertView, ViewGroup container) {
+                TextView view = (TextView) super.getView(position, convertView, container);
+                view.setTextColor(textColor);
+                return view;
+            }
+            @Override public View getDropDownView(int position, View convertView, ViewGroup container) {
+                TextView view = (TextView) super.getDropDownView(position, convertView, container);
+                view.setTextColor(textColor);
+                view.setMinHeight(dp(48));
+                view.setGravity(Gravity.CENTER_VERTICAL);
+                return view;
+            }
+        };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        Spinner spinner = new Spinner(this);
+        spinner.setAdapter(adapter);
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> view, View item, int position, long id) {
+                if (refreshingChoices || position == stored.get()) return;
+                onChoice.picked(position);
+            }
+            @Override public void onNothingSelected(AdapterView<?> view) { }
+        });
+        parent.addView(spinner, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+        return spinner;
     }
 
     private static <T> int indexOf(T[] values, T value) {
@@ -475,11 +493,13 @@ public final class DesktopSessionActivity extends AppCompatActivity {
 
     /** Shows the stored per-desktop choices (they can change from elsewhere, e.g. another session). */
     private void refreshOperationChoices() {
-        if (touchModeGroup == null || orientationGroup == null) return;
+        if (touchModeSpinner == null || orientationSpinner == null) return;
         refreshingChoices = true;
         try {
-            checkSelection(touchModeGroup, indexOf(TOUCH_MODES, overrides.getTouchMode(distro.getId())));
-            checkSelection(orientationGroup, indexOf(ORIENTATIONS, overrides.getOrientation(distro.getId())));
+            touchModeSpinner.setSelection(
+                indexOf(TOUCH_MODES, overrides.getTouchMode(distro.getId())), false);
+            orientationSpinner.setSelection(
+                indexOf(ORIENTATIONS, overrides.getOrientation(distro.getId())), false);
         } finally {
             refreshingChoices = false;
         }
