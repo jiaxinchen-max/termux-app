@@ -326,7 +326,17 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (binding != null) binding.desktopSessionX11.onHostWindowFocusChanged(hasFocus);
+        if (binding != null) {
+            binding.desktopSessionX11.onHostWindowFocusChanged(hasFocus);
+            if (hasFocus) {
+                // Closing the menu hands the window back; its surface has no new frame until
+                // the desktop is poked, like after binding or rotating.
+                nudgesLeft = NUDGE_POLLS;
+                handler.postDelayed(() -> {
+                    if (!destroyed && binding != null) binding.desktopSessionX11.nudgeDisplay();
+                }, 250);
+            }
+        }
     }
 
     /** The manifest handles rotation in place, so the X11 view has to be told or it stays black. */
