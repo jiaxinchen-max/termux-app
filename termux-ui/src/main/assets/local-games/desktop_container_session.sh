@@ -123,6 +123,17 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
         QT_QPA_PLATFORM QSG_RHI_BACKEND VK_ICD_FILENAMES >/dev/null 2>&1 || true
 fi
 
+# Discover aborts at startup on the Vulkan-only setup: it creates its window on the OpenGL RHI backend
+# even with QSG_RHI_BACKEND=vulkan, and the container has no EGL ("Failed to initialize graphics
+# backend for OpenGL" -> qFatal). Its scene graph is plain widgets and lists, so the software
+# renderer is fine. Override the launcher at user level; the packaged .desktop file stays untouched.
+for desktop in /usr/share/applications/org.kde.discover.desktop; do
+    [ -r "$desktop" ] || continue
+    mkdir -p "$HOME/.local/share/applications"
+    sed -E 's#^Exec=#Exec=env QT_QUICK_BACKEND=software #' "$desktop" \
+        > "$HOME/.local/share/applications/org.kde.discover.desktop"
+done
+
 # --- KDE services, then the shell -----------------------------------------
 LIBEXEC="${KDE_LIBEXEC:-/usr/lib/aarch64-linux-gnu/libexec}"
 start_bg() {
