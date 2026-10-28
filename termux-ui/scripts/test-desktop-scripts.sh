@@ -22,7 +22,7 @@ assert_eq() { [ "$1" = "$2" ] || fail "$3: expected '$2' got '$1'"; }
 
 export PREFIX="$TEST_ROOT/usr"
 export HOME="$TEST_ROOT/home"
-mkdir -p "$PREFIX/bin" "$HOME" "$TEST_ROOT/state" "$TEST_ROOT/logs"
+mkdir -p "$PREFIX/bin" "$PREFIX/tmp" "$HOME" "$TEST_ROOT/state" "$TEST_ROOT/logs"
 cp "$ASSETS"/desktop_*.sh "$TEST_ROOT/"
 
 write_spec() { # mode [distro] [de]
@@ -296,12 +296,15 @@ SPEC
 INST_LOG="$TEST_ROOT/inst-calls"
 INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-distro/containers"
 export INST_LOG INST_CONTAINERS
+# The container install stages the apt helper into $PREFIX/tmp, from beside the install script.
+mkdir -p "$INST_ROOT/usr/tmp"
+cp "$ASSETS/desktop_container_plasma_apt.sh" "$TEST_ROOT/desktop_container_plasma_apt.sh"
 PATH="$INST_ROOT/bin:$PATH" PREFIX="$INST_ROOT/usr" TMPDIR="$TEST_ROOT/tmp" \
     sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/inst-spec" > "$TEST_ROOT/inst-stdout" 2>&1 \
     || { tail -n 8 "$TEST_ROOT/inst-stdout"; tail -n 8 "$TEST_ROOT/logs/inst.log" 2>/dev/null; fail "desktop_install.sh did not complete"; }
 grep -q "Desktop install finished" "$TEST_ROOT/logs/inst.log" || fail "install log lacks completion"
 grep -q -- "-n debian-xfce4-1" "$TEST_ROOT/inst-calls" || fail "instance alias not passed: $(cat "$TEST_ROOT/inst-calls")"
-grep -q "apt install -y .*xfce4" "$TEST_ROOT/inst-calls" || fail "host xfce4 packages missing"
+grep -q "desktop_container_plasma_apt.sh xfce4 xfce4-terminal dbus-x11" "$TEST_ROOT/inst-calls" || fail "container xfce4 packages missing: $(cat "$TEST_ROOT/inst-calls")"
 grep -q "login debian-xfce4-1" "$TEST_ROOT/inst-calls" || fail "container session install missing"
 [ -d "$INST_CONTAINERS/debian-xfce4-1" ] || fail "container instance directory missing"
 [ -f "$INST_CONTAINERS/debian-xfce4-1/.desktop-de-xfce4" ] || fail "container DE marker missing"
@@ -424,3 +427,16 @@ grep -n 'run apt install -y \$DEB_PATHS xfce4' "$ASSETS/desktop_install.sh" \
     | grep -q 'dbus-x11' && fail "native xfce4 install must not request dbus-x11"
 
 printf 'desktop scripts contract test passed\n'
+
+# --- 10. Re-installing over a held xorg-server -------------------------------------------------
+# The Xlorie xorg-server is held (apt-mark hold) so `pkg upgrade` cannot replace it; a second desktop
+# install must still be able to change it to the pinned build, or apt refuses with "Held packages
+# were changed and -y was used without --allow-change-held-packages".
+for script in desktop_install.sh xlorie_install.sh; do
+    grep -n 'apt install -y --allow-downgrades' "$ASSETS/$script" | grep -v -- '--allow-change-held-packages' \
+        && fail "$script has an apt install of the pinned debs that a held xorg-server would block"
+done
+
+# --- 11. XFCE4 in a forky container goes through the same apt helper as Plasma -------------------
+grep -q 'xfce4) container_packages="xfce4 xfce4-terminal dbus-x11"' "$ASSETS/desktop_install.sh" \
+    || fail "XFCE4 container install does not use the systemd-tolerant apt helper"

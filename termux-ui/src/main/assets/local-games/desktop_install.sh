@@ -150,16 +150,16 @@ fi
 if [ "$DESKTOP_MODE" = "native" ]; then
     if [ "$DESKTOP_DE" = "xfce4" ]; then
         # shellcheck disable=SC2086
-        run apt install -y --allow-downgrades $DEB_PATHS xfce4 xfce4-terminal dbus || fail "apt install xfce4"
+        run apt install -y --allow-downgrades --allow-change-held-packages $DEB_PATHS xfce4 xfce4-terminal dbus || fail "apt install xfce4"
     else
         # shellcheck disable=SC2086
-        run apt install -y --allow-downgrades $DEB_PATHS plasma-desktop plasma-workspace kactivitymanagerd \
+        run apt install -y --allow-downgrades --allow-change-held-packages $DEB_PATHS plasma-desktop plasma-workspace kactivitymanagerd \
             || fail "apt install"
     fi
 else
     # The session itself lives in the container; the host needs the display server and proot.
     # shellcheck disable=SC2086
-    run apt install -y --allow-downgrades $DEB_PATHS proot proot-distro || fail "apt install"
+    run apt install -y --allow-downgrades --allow-change-held-packages $DEB_PATHS proot proot-distro || fail "apt install"
     # The container's Plasma must be about as new as the native KWin (6.6): Debian trixie's Plasma
     # 6.3 hits protocol mismatches (kde_output_device_mode_v2 events) and shows a black screen, while
     # forky's 6.7 renders. XFCE has no such coupling and stays on the stable image.
@@ -171,20 +171,20 @@ else
     de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE"
     if [ -f "$de_marker" ]; then
         log "Container packages for $DESKTOP_DE already present; skipping"
-    elif [ "$DESKTOP_DE" = "xfce4" ]; then
-        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh -c \
-            "export DEBIAN_FRONTEND=noninteractive; apt update && apt install -y xfce4 xfce4-terminal dbus-x11" \
-            || fail "container apt install xfce4"
-        : > "$de_marker"
     else
         # forky's systemd-family maintainer scripts cannot run under proot; the helper installs the
-        # packages and finishes configuring them anyway (see desktop_container_plasma_apt.sh).
-        plasma_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
-        [ -r "$plasma_apt" ] || fail "missing $plasma_apt"
-        cp "$plasma_apt" "$PREFIX/tmp/desktop_container_plasma_apt.sh" || fail "cannot stage the container apt helper"
+        # packages and finishes configuring them anyway (see desktop_container_plasma_apt.sh). It
+        # serves every desktop environment, which only differ in the package list.
+        case "$DESKTOP_DE" in
+            xfce4) container_packages="xfce4 xfce4-terminal dbus-x11" ;;
+            *) container_packages="plasma-desktop plasma-workspace kactivitymanagerd dbus-x11 libvulkan-dev" ;;
+        esac
+        container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
+        [ -r "$container_apt" ] || fail "missing $container_apt"
+        cp "$container_apt" "$PREFIX/tmp/desktop_container_plasma_apt.sh" || fail "cannot stage the container apt helper"
+        # shellcheck disable=SC2086
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
-            plasma-desktop plasma-workspace kactivitymanagerd dbus-x11 libvulkan-dev \
-            || fail "container apt install plasma"
+            $container_packages || fail "container apt install $DESKTOP_DE"
         : > "$de_marker"
     fi
     # Idempotent and independent of the marker: a container created before this step still gets it.
