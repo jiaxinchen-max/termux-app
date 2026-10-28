@@ -293,6 +293,18 @@ public final class X11SessionView extends FrameLayout {
         return requireRuntime().applyTouchMode(touchMode);
     }
 
+    /** The global X11 touch mode value: "1" trackpad, "2" simulated touch screen, "3" direct touch. */
+    @NonNull
+    public String getTouchModeValue() {
+        return getSessionPreferences().getString("touchMode", "1");
+    }
+
+    /** Stores a touch mode value (see {@link #getTouchModeValue()}) and applies it to the live session. */
+    public void setTouchModeValue(@NonNull String value) {
+        getSessionPreferences().edit().putString("touchMode", value).commit();
+        if (runtime != null) runtime.applyX11PreferenceChange("touchMode");
+    }
+
     /** Whether the active profile's touchscreen controls are shown (true while not bound). */
     public boolean isShowTouchscreenControls() {
         return runtime == null || runtime.isShowTouchscreenControls();
