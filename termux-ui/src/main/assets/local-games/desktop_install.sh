@@ -121,6 +121,8 @@ ensure_turnip_icd() { # alias
     id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
     codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
     [ -n "$id" ] && [ -n "$codename" ] || fail "cannot tell which distro $1 is (no os-release)"
+    # Turnip tarballs are published per stable release; forky/sid use the newest Debian one.
+    case "$id:$codename" in debian:forky|debian:sid|debian:testing) codename=trixie ;; esac
     tag=$(curl -fsL -m 30 "https://api.github.com/repos/$TURNIP_REPO/releases?per_page=20" 2>/dev/null \
           | sed -n 's/.*"tag_name": *"\(turnip-[^"]*\)".*/\1/p' | head -n1)
     tag="${tag:-$TURNIP_FALLBACK_TAG}"
@@ -131,6 +133,9 @@ ensure_turnip_icd() { # alias
     run tar -xzf "$tarball" -C "$rootfs" || { rm -f "$tarball"; fail "unpacking the Turnip tarball failed"; }
     rm -f "$tarball"
     [ -r "$rootfs/$icd" ] || fail "the Turnip tarball did not provide /$icd"
+    # Debian's mesa-vulkan-drivers ships a Turnip without the KGSL backend under the same file names;
+    # keep a later apt upgrade from overwriting the one just unpacked.
+    proot-distro login "$1" --shared-tmp -- apt-mark hold mesa-vulkan-drivers >/dev/null 2>&1 || true
 }
 
 DEB_PATHS=""
@@ -153,7 +158,14 @@ else
     # The session itself lives in the container; the host needs the display server and proot.
     # shellcheck disable=SC2086
     run apt install -y --allow-downgrades $DEB_PATHS proot proot-distro || fail "apt install"
-    ensure_container_instance "$DESKTOP_PROOT_DISTRO" "${DESKTOP_CONTAINER_BASE:-debian}"
+    # The container's Plasma must be about as new as the native KWin (6.6): Debian trixie's Plasma
+    # 6.3 hits protocol mismatches (kde_output_device_mode_v2 events) and shows a black screen, while
+    # forky's 6.7 renders. XFCE has no such coupling and stays on the stable image.
+    case "$DESKTOP_DE" in
+        kwin_plasma) default_base="debian:forky" ;;
+        *) default_base="debian" ;;
+    esac
+    ensure_container_instance "$DESKTOP_PROOT_DISTRO" "${DESKTOP_CONTAINER_BASE:-$default_base}"
     de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE"
     if [ -f "$de_marker" ]; then
         log "Container packages for $DESKTOP_DE already present; skipping"

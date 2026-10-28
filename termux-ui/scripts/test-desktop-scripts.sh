@@ -353,6 +353,16 @@ grep -q 'turnip-9.9.9-devel-20300101/turnip_9.9.9-devel-20300101_debian_trixie_a
 grep -q 'ensure_turnip_icd "\$DESKTOP_PROOT_DISTRO"' "$ASSETS/desktop_install.sh" \
     || fail "proot Plasma install does not provision the ICD"
 
+# forky/sid containers use the trixie Turnip asset, and the Plasma container is created from forky.
+printf 'ID=debian\nVERSION_CODENAME=forky\n' > "$ROOTFS/etc/os-release"
+rm -f "$ROOTFS/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json" "$ROOTFS/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so"
+FAKE_CURL_URLS="$TURNIP_ROOT/urls" FAKE_CURL_PAYLOAD="$TURNIP_ROOT/turnip.tar.gz" \
+    PATH="$TURNIP_ROOT/bin:$PATH" sh "$TURNIP_ROOT/run.sh" || fail "ensure_turnip_icd failed for a forky container"
+tail -n 1 "$TURNIP_ROOT/urls" | grep -q 'debian_trixie_arm64.tar.gz' || fail "forky container did not map to the trixie Turnip asset"
+grep -q 'default_base="debian:forky"' "$ASSETS/desktop_install.sh" || fail "Plasma container is not created from forky"
+grep -q 'KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 start-plasma --compositor-only' "$ASSETS/desktop_start.sh" \
+    || fail "container Plasma must start the compositor with the permission checks off"
+
 # Termux has no dbus-x11 package (that is Debian's); a native apt install naming it fails outright.
 grep -n 'run apt install -y \$DEB_PATHS xfce4' "$ASSETS/desktop_install.sh" \
     | grep -q 'dbus-x11' && fail "native xfce4 install must not request dbus-x11"

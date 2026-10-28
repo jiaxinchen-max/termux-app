@@ -141,7 +141,9 @@ if [ "$DESKTOP_MODE" = "proot" ]; then
         exit 66
     }
 
-    start-plasma --compositor-only >> "$DESKTOP_LOG_FILE.out" 2>&1 &
+    # Container clients show up to KWin as proot's loader, so its executable-path based authorisation
+    # of plasma-window-management / kde-output-device would deny them; the whole container is trusted.
+    KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 start-plasma --compositor-only >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     child=$!
     printf '%s\n' "$child" > "$DESKTOP_PID_FILE"
     trap 'kill -TERM "$child" 2>/dev/null; [ -z "${container:-}" ] || kill -TERM "$container" 2>/dev/null' TERM INT
