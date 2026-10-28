@@ -620,12 +620,18 @@
     <string name="local_games_x_server_xlorie">Xlorie（实验性）</string>
     <string name="local_games_x_server_install_message">Xlorie 是独立的 X server 软件包，目前尚未安装。现在安装吗？Xlorie 暂不支持 Vortek Vulkan（glibc 游戏）。</string>
     <string name="local_games_x_server_abi_unsupported">此设备的架构暂未发布 Xlorie 软件包。</string>
-    <string name="desktop_session_touch_mode">触控模式：%1$s</string>
     <string name="desktop_session_touch_mode_title">触控模式</string>
-    <string name="desktop_session_orientation">屏幕方向：%1$s</string>
     <string name="desktop_session_orientation_title">屏幕方向</string>
     <string name="desktop_session_follow_global">跟随全局设置</string>
     <string name="desktop_touch_trackpad">触控板</string>
     <string name="desktop_touch_simulated">模拟触屏</string>
     <string name="desktop_touch_direct">直接触控</string>
+    <string name="desktop_session_menu">控制中心</string>
+    <string name="desktop_session_exit">退出</string>
+    <string name="desktop_session_back">返回</string>
+    <string name="desktop_session_operation_title">操作</string>
+    <string name="desktop_session_operation_summary">设置此桌面的触控方式和屏幕方向。选择“跟随全局设置”则使用应用全局的值。</string>
+    <string name="desktop_session_volume">音量</string>
+    <string name="desktop_session_keyboard_summary">不离开桌面,直接打开系统软键盘。</string>
+    <string name="desktop_session_exit_title">离开桌面</string>
 </resources>

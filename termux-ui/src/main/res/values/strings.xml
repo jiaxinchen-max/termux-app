@@ -638,12 +638,18 @@
     <string name="local_games_x_server_xlorie">Xlorie (experimental)</string>
     <string name="local_games_x_server_install_message">Xlorie is an independent X server package. It is not installed yet. Install it now? Vortek Vulkan (glibc games) is not supported by Xlorie yet.</string>
     <string name="local_games_x_server_abi_unsupported">No Xlorie package is published for this device\'s architecture yet.</string>
-    <string name="desktop_session_touch_mode">Touch mode: %1$s</string>
     <string name="desktop_session_touch_mode_title">Touch mode</string>
-    <string name="desktop_session_orientation">Orientation: %1$s</string>
     <string name="desktop_session_orientation_title">Orientation</string>
     <string name="desktop_session_follow_global">Follow global setting</string>
     <string name="desktop_touch_trackpad">Trackpad</string>
     <string name="desktop_touch_simulated">Simulated touch screen</string>
     <string name="desktop_touch_direct">Direct touch</string>
+    <string name="desktop_session_menu">Control center</string>
+    <string name="desktop_session_exit">Exit</string>
+    <string name="desktop_session_back">Back</string>
+    <string name="desktop_session_operation_title">Operation</string>
+    <string name="desktop_session_operation_summary">Choose how touches and the screen behave for this desktop. \"Follow global setting\" uses the app-wide value.</string>
+    <string name="desktop_session_volume">Volume</string>
+    <string name="desktop_session_keyboard_summary">Open the system soft keyboard without leaving the desktop.</string>
+    <string name="desktop_session_exit_title">Leave the desktop</string>
 </resources>
