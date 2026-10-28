@@ -2,6 +2,7 @@ package com.termux.ui.activity;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -10,6 +11,7 @@ import android.view.View;
 import android.view.WindowManager;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -315,6 +317,13 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (binding != null) binding.desktopSessionX11.onHostWindowFocusChanged(hasFocus);
+    }
+
+    /** The manifest handles rotation in place, so the X11 view has to be told or it stays black. */
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (binding != null) binding.desktopSessionX11.onHostConfigurationChanged(newConfig);
     }
 
     @Override
