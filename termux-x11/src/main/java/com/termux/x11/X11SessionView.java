@@ -293,6 +293,11 @@ public final class X11SessionView extends FrameLayout {
         return requireRuntime().applyTouchMode(touchMode);
     }
 
+    /** Makes the desktop repaint (see {@link LorieViewRuntimeController#nudgePointer()}). */
+    public void nudgeDisplay() {
+        if (runtime != null) runtime.nudgePointer();
+    }
+
     /** The global X11 touch mode value: "1" trackpad, "2" simulated touch screen, "3" direct touch. */
     @NonNull
     public String getTouchModeValue() {

@@ -1362,6 +1362,17 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
 
     /** Pointer mode of the controller overlay; the overlay's default (touch screen) before it exists. */
     @NonNull
+    /**
+     * Wiggles the pointer by one pixel and back. KWin only submits a frame when something changed,
+     * so a view bound to a desktop that is already running stays black until an input event makes
+     * it repaint; this is that input event, without moving the pointer for good.
+     */
+    public void nudgePointer() {
+        if (xServer == null || !LorieView.connected()) return;
+        xServer.sendMouseEvent(1, 0, 0, false, true);
+        xServer.sendMouseEvent(-1, 0, 0, false, true);
+    }
+
     public TouchpadView.TouchMode getTouchMode() {
         return touchpadView == null ? TouchpadView.TouchMode.TOUCH_SCREEN : touchpadView.getTouchMode();
     }

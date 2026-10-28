@@ -41,6 +41,8 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     private static final long POLL_INTERVAL_MS = 1000;
     /** The start script needs a moment to reset a stale status file; ignore it meanwhile. */
     private static final long START_GRACE_MS = 8000;
+    /** How many one-second polls poke a running desktop after the view is bound or rotated. */
+    private static final int NUDGE_POLLS = 6;
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "DesktopSessionIo"));
@@ -58,6 +60,8 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     private long startRequestedAtMs;
     private boolean everRunning;
     private boolean firstFrame;
+    /** Polls left that wake the desktop: the renderer reports a first frame even for a black one. */
+    private int nudgesLeft = NUDGE_POLLS;
 
     static Intent createIntent(Context context, String distroId) {
         return new Intent(context, DesktopSessionActivity.class).putExtra(EXTRA_DISTRO_ID, distroId);
@@ -149,6 +153,12 @@ public final class DesktopSessionActivity extends AppCompatActivity {
                 return;
             case RUNNING:
                 everRunning = true;
+                // A desktop that was already running only repaints on input, so a freshly bound
+                // view stays black until something pokes it.
+                if (nudgesLeft > 0) {
+                    nudgesLeft--;
+                    binding.desktopSessionX11.nudgeDisplay();
+                }
                 break;
             case FAILED:
                 showFailure(getString(R.string.desktop_session_failed));
@@ -323,7 +333,11 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        if (binding != null) binding.desktopSessionX11.onHostConfigurationChanged(newConfig);
+        if (binding != null) {
+            binding.desktopSessionX11.onHostConfigurationChanged(newConfig);
+            // The new surface has no frame yet; the next polls nudge the desktop to send one.
+            nudgesLeft = NUDGE_POLLS;
+        }
     }
 
     @Override
