@@ -40,7 +40,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/test.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/test.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/test.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r22
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r23
 SPEC
 }
 
@@ -291,7 +291,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/inst.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/inst.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/inst.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r22
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r23
 SPEC
 INST_LOG="$TEST_ROOT/inst-calls"
 INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-distro/containers"
@@ -313,6 +313,45 @@ INST_LOG="$TEST_ROOT/inst-calls" INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-d
     || { tail -n 8 "$TEST_ROOT/inst-stdout2"; fail "second install run did not complete"; }
 grep -q "already present; skipping" "$TEST_ROOT/logs/inst.log" || fail "second run redo container apt"
 grep -q "login debian-xfce4-1" "$TEST_ROOT/inst-calls" && fail "second run re-ran container apt"
+
+# --- 8. Turnip ICD provisioning for the kwin_plasma container -----------------------------------
+TURNIP_ROOT="$TEST_ROOT/turnip"
+ROOTFS="$TURNIP_ROOT/prefix/var/lib/proot-distro/containers/debian-kwin-plasma-1/rootfs"
+mkdir -p "$TURNIP_ROOT/bin" "$ROOTFS/etc" "$TURNIP_ROOT/payload/usr/share/vulkan/icd.d" \
+    "$TURNIP_ROOT/payload/usr/lib/aarch64-linux-gnu" "$TURNIP_ROOT/tmp"
+printf 'ID=debian\nVERSION_CODENAME=trixie\n' > "$ROOTFS/etc/os-release"
+printf '{}' > "$TURNIP_ROOT/payload/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json"
+: > "$TURNIP_ROOT/payload/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so"
+tar -czf "$TURNIP_ROOT/turnip.tar.gz" -C "$TURNIP_ROOT/payload" .
+# Fake curl: the releases API answers with one turnip tag; downloads copy the payload and log the URL.
+cat > "$TURNIP_ROOT/bin/curl" <<'FAKE_CURL'
+#!/bin/sh
+out=""; url=""
+while [ $# -gt 0 ]; do
+    case "$1" in -o) out="$2"; shift;; -m) shift;; -*) ;; *) url="$1";; esac
+    shift
+done
+case "$url" in
+    *api.github.com*) echo '"tag_name": "turnip-9.9.9-devel-20300101"';;
+    *) echo "$url" >> "$FAKE_CURL_URLS"; cp "$FAKE_CURL_PAYLOAD" "$out";;
+esac
+FAKE_CURL
+chmod +x "$TURNIP_ROOT/bin/curl"
+{
+    printf 'PREFIX=%s\nTMPDIR=%s\nlog() { :; }\nfail() { echo "FAIL: $*" >&2; exit 1; }\nrun() { "$@"; }\n' \
+        "$TURNIP_ROOT/prefix" "$TURNIP_ROOT/tmp"
+    sed -n '/^TURNIP_REPO=/,/^}/p' "$ASSETS/desktop_install.sh"
+    printf 'ensure_turnip_icd debian-kwin-plasma-1\nensure_turnip_icd debian-kwin-plasma-1\n'
+} > "$TURNIP_ROOT/run.sh"
+FAKE_CURL_URLS="$TURNIP_ROOT/urls" FAKE_CURL_PAYLOAD="$TURNIP_ROOT/turnip.tar.gz" \
+    PATH="$TURNIP_ROOT/bin:$PATH" sh "$TURNIP_ROOT/run.sh" || fail "ensure_turnip_icd did not complete"
+[ -r "$ROOTFS/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json" ] || fail "Turnip ICD json was not unpacked"
+[ -e "$ROOTFS/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so" ] || fail "libvulkan_freedreno.so was not unpacked"
+grep -q 'turnip-9.9.9-devel-20300101/turnip_9.9.9-devel-20300101_debian_trixie_arm64.tar.gz' "$TURNIP_ROOT/urls" \
+    || fail "Turnip asset URL was not built from the latest tag and the container distro"
+[ "$(wc -l < "$TURNIP_ROOT/urls")" = 1 ] || fail "second run downloaded the Turnip tarball again"
+grep -q 'ensure_turnip_icd "\$DESKTOP_PROOT_DISTRO"' "$ASSETS/desktop_install.sh" \
+    || fail "proot Plasma install does not provision the ICD"
 
 # Termux has no dbus-x11 package (that is Debian's); a native apt install naming it fails outright.
 grep -n 'run apt install -y \$DEB_PATHS xfce4' "$ASSETS/desktop_install.sh" \

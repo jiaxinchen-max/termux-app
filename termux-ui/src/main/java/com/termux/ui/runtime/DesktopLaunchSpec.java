@@ -17,7 +17,7 @@ public final class DesktopLaunchSpec {
     /** Logged by {@code start-plasma} once KWin's Android EGL backend is up. */
     public static final String READY_LOG_MARKER = "Android EGL backend initialized";
     /** Pinned release of the KWin Termux hardware-acceleration packages. */
-    public static final String RELEASE_TAG = "termux-hwaccel-6.6-r22";
+    public static final String RELEASE_TAG = "termux-hwaccel-6.6-r23";
 
     private DesktopLaunchSpec() {}
 

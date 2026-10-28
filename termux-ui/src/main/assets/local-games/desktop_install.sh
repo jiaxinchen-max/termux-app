@@ -10,8 +10,8 @@ SPEC_PATH="${1:?Usage: $0 <desktop_spec>}"
 . "$(dirname "$0")/desktop_common.sh"
 
 BASE_URL="https://github.com/jiaxinchen-max/kwin/releases/download/$DESKTOP_RELEASE_TAG"
-# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.6-r22).
-if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r22" ]; then
+# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.6-r23).
+if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r23" ]; then
     log "Unsupported desktop release $DESKTOP_RELEASE_TAG"
     exit 65
 fi
@@ -29,7 +29,7 @@ termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00
 "
 
 DEBS="
-kwin_6.6.0-22_aarch64.deb 6cb14a59c5301b73fae340b80b3050ba68e7d6f99eeb7c5fa70a6bdff279b635
+kwin_6.6.0-23_aarch64.deb cfa885652937a50be665c36d67a9b7d43163746675046c03bea5273b66ade4e4
 termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 xwayland_24.1.11-1_aarch64.deb 3cc2999ae0ba90495abad71445f794723efc06a97c001b383467665e3038e8a4
@@ -105,6 +105,34 @@ ensure_container_instance() { # alias source
     fi
 }
 
+# The Turnip Vulkan ICD (Adreno driver for the container's Qt Vulkan RHI) is not an apt package:
+# Debian's Turnip has no KGSL backend. The container session aborts without it, so unpack the
+# matching turnip_* tarball (lfdevs/mesa-for-android-container) into the container rootfs. This runs
+# on the host, where curl honours ~/.curlrc and https_proxy.
+TURNIP_REPO="lfdevs/mesa-for-android-container"
+TURNIP_FALLBACK_TAG="turnip-27.0.0-devel-20261025"
+ensure_turnip_icd() { # alias
+    rootfs="$PREFIX/var/lib/proot-distro/containers/$1/rootfs"
+    icd="usr/share/vulkan/icd.d/freedreno_icd.aarch64.json"
+    if [ -r "$rootfs/$icd" ] && [ -e "$rootfs/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so" ]; then
+        log "Turnip Vulkan ICD already present in $1; skipping"
+        return 0
+    fi
+    id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
+    codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
+    [ -n "$id" ] && [ -n "$codename" ] || fail "cannot tell which distro $1 is (no os-release)"
+    tag=$(curl -fsL -m 30 "https://api.github.com/repos/$TURNIP_REPO/releases?per_page=20" 2>/dev/null \
+          | sed -n 's/.*"tag_name": *"\(turnip-[^"]*\)".*/\1/p' | head -n1)
+    tag="${tag:-$TURNIP_FALLBACK_TAG}"
+    url="https://github.com/$TURNIP_REPO/releases/download/$tag/turnip_${tag#turnip-}_${id}_${codename}_arm64.tar.gz"
+    log "Installing the Turnip Vulkan ICD into $1: $url"
+    tarball="${TMPDIR:-$PREFIX/tmp}/turnip.$$.tar.gz"
+    run curl -fL -m 300 -o "$tarball" "$url" || { rm -f "$tarball"; fail "download of the Turnip tarball failed"; }
+    run tar -xzf "$tarball" -C "$rootfs" || { rm -f "$tarball"; fail "unpacking the Turnip tarball failed"; }
+    rm -f "$tarball"
+    [ -r "$rootfs/$icd" ] || fail "the Turnip tarball did not provide /$icd"
+}
+
 DEB_PATHS=""
 if [ "$DESKTOP_DE" = "xfce4" ]; then
     DEB_PATHS=$(fetch_debs "$XLORIE_RELEASE_TAG" "$XLORIE_BASE_URL" "$XLORIE_DEBS")
@@ -140,6 +168,8 @@ else
             || fail "container apt install plasma"
         : > "$de_marker"
     fi
+    # Idempotent and independent of the marker: a container created before this step still gets it.
+    [ "$DESKTOP_DE" = "kwin_plasma" ] && ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
 fi
 
 audit=$(dpkg --audit 2>&1)
