@@ -164,7 +164,7 @@ else
         : > "$de_marker"
     else
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh -c \
-            "export DEBIAN_FRONTEND=noninteractive; apt update && apt install -y plasma-desktop plasma-workspace kactivitymanagerd" \
+            "export DEBIAN_FRONTEND=noninteractive; apt update && apt install -y plasma-desktop plasma-workspace kactivitymanagerd dbus-x11" \
             || fail "container apt install plasma"
         : > "$de_marker"
     fi

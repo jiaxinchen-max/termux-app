@@ -70,7 +70,9 @@ echo "=== Plasma container session (Vulkan RHI) $(date) ==="
 ensure_container_deps() {
     needed=""
     command -v plasmashell  >/dev/null 2>&1 || needed="$needed plasma-workspace"
-    command -v dbus-launch  >/dev/null 2>&1 || needed="$needed dbus-x11"
+    # Check the container's own binary: proot-distro appends the host's Termux bin to PATH, where a
+    # bionic dbus-launch would satisfy `command -v` and start a host-side bus the container cannot use.
+    [ -x /usr/bin/dbus-launch ] || needed="$needed dbus-x11"
     # Unversioned Vulkan loader symlink that Qt's QLibrary("vulkan") dlopens.
     if ! ls /usr/lib/*/libvulkan.so >/dev/null 2>&1 && [ ! -e /usr/lib/libvulkan.so ]; then
         needed="$needed libvulkan-dev"
@@ -111,7 +113,7 @@ ensure_container_deps
 # Wayland (plasma-window-management); only org.kde.KWin D-Bus scripting is
 # unavailable across the native/container split.
 if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
-    eval "$(dbus-launch --sh-syntax)"
+    eval "$(/usr/bin/dbus-launch --sh-syntax)"
     echo "Started container D-Bus: ${DBUS_SESSION_BUS_ADDRESS:-none}"
 fi
 
