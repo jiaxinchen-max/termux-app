@@ -510,3 +510,46 @@ wait_for "pid file" pid_running
 [ ! -e "$PREFIX/tmp/.X11-unix/X0" ] || fail "stale Xlorie X0 socket still present when start-plasma ran"
 sh "$TEST_ROOT/desktop_stop.sh" "$TEST_ROOT/spec"
 wait "$SUPERVISOR" || true
+
+# --- 15. a failed package download is a failed install --------------------------------------------
+# fetch_debs runs inside $(...), so the `exit` of its fail() used to end only that subshell: the install
+# went on with an empty package list, apt found everything "already installed" and the script printed
+# "Desktop install finished" although the pinned KWin packages had never been downloaded.
+FAIL_ROOT="$TEST_ROOT/dlfail"
+mkdir -p "$FAIL_ROOT"
+cp -a "$INST_ROOT/bin" "$FAIL_ROOT/bin"
+cp -a "$INST_ROOT/usr" "$FAIL_ROOT/usr"
+cat > "$FAIL_ROOT/bin/curl" <<'FAKE'
+#!/bin/sh
+exit 35
+FAKE
+chmod +x "$FAIL_ROOT/bin/curl"
+cat > "$TEST_ROOT/dlfail-spec" <<SPEC
+DESKTOP_SPEC_VERSION=2
+DESKTOP_ID=dlfail
+DESKTOP_MODE=native
+DESKTOP_DE=kwin_plasma
+DESKTOP_GL_MODE=auto
+DESKTOP_PROOT_DISTRO=
+DESKTOP_RESOLUTION=1280x720
+DESKTOP_WIDTH=1280
+DESKTOP_HEIGHT=720
+DESKTOP_REFRESH_RATE=30
+DESKTOP_PID_FILE=$TEST_ROOT/state/dlfail.pid
+DESKTOP_STATUS_FILE=$TEST_ROOT/state/dlfail.status
+DESKTOP_LOG_FILE=$TEST_ROOT/logs/dlfail.log
+DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r26
+SPEC
+rm -rf "$FAIL_ROOT/usr/tmp"/desktop-debs-* "$TEST_ROOT/tmp"/desktop-debs-* 2>/dev/null || true
+: > "$FAIL_ROOT/calls"
+set +e
+INST_LOG="$FAIL_ROOT/calls" INST_CONTAINERS="$FAIL_ROOT/usr/var/lib/proot-distro/containers" \
+    PATH="$FAIL_ROOT/bin:$PATH" PREFIX="$FAIL_ROOT/usr" TMPDIR="$FAIL_ROOT/tmp" \
+    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/dlfail-spec" > "$FAIL_ROOT/stdout" 2>&1
+code=$?
+set -e
+[ "$code" -ne 0 ] || fail "install reported success although every package download failed"
+grep -q "Desktop install finished" "$TEST_ROOT/logs/dlfail.log" && fail "log says finished after a failed download"
+grep -q "plasma-desktop" "$FAIL_ROOT/calls" && fail "apt installed the desktop packages after the download failed: $(cat "$FAIL_ROOT/calls")"
+grep -q "Desktop install failed" "$TEST_ROOT/logs/dlfail.log" || fail "the failed download was not reported in the log"

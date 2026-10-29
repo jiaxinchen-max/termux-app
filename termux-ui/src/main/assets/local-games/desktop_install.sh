@@ -82,7 +82,7 @@ fetch_debs() { # tag base_url deb_list -> prints paths
             # stdout of this function is the deb path list; logs go to the file only.
             printf '%s\n' "Cached $name" >> "$DESKTOP_LOG_FILE"
         else
-            { curl -fL --retry 3 -o "$target" "$base_url/$name" || fail "download $name"; } \
+            { curl -fL --retry 3 --connect-timeout 30 -o "$target" "$base_url/$name" || fail "download $name"; } \
                 >> "$DESKTOP_LOG_FILE" 2>&1
             [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ] || {
                 rm -f "$target"
@@ -145,12 +145,17 @@ ensure_turnip_icd() { # alias
     proot-distro login "$1" --shared-tmp -- apt-mark hold mesa-vulkan-drivers libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 >/dev/null 2>&1 || true
 }
 
+# fetch_debs runs in a command substitution, so the exit of its fail() only ends that subshell: check
+# its status here, or a failed download goes on with an empty package list and "installs" nothing.
 DEB_PATHS=""
 if [ "$DESKTOP_DE" = "xfce4" ]; then
-    DEB_PATHS=$(fetch_debs "$XLORIE_RELEASE_TAG" "$XLORIE_BASE_URL" "$XLORIE_DEBS")
+    DEB_PATHS=$(fetch_debs "$XLORIE_RELEASE_TAG" "$XLORIE_BASE_URL" "$XLORIE_DEBS") \
+        || fail "downloading the $DESKTOP_LABEL packages"
 else
-    DEB_PATHS=$(fetch_debs "$DESKTOP_RELEASE_TAG" "$BASE_URL" "$DEBS")
+    DEB_PATHS=$(fetch_debs "$DESKTOP_RELEASE_TAG" "$BASE_URL" "$DEBS") \
+        || fail "downloading the $DESKTOP_LABEL packages"
 fi
+[ -n "$DEB_PATHS" ] || fail "no $DESKTOP_LABEL packages were downloaded"
 
 if [ "$DESKTOP_MODE" = "native" ]; then
     if [ "$DESKTOP_DE" = "xfce4" ]; then
