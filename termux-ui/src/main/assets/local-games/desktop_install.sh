@@ -10,8 +10,8 @@ SPEC_PATH="${1:?Usage: $0 <desktop_spec>}"
 . "$(dirname "$0")/desktop_common.sh"
 
 BASE_URL="https://github.com/jiaxinchen-max/kwin/releases/download/$DESKTOP_RELEASE_TAG"
-# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.6-r23).
-if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r23" ]; then
+# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.6-r26).
+if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r26" ]; then
     log "Unsupported desktop release $DESKTOP_RELEASE_TAG"
     exit 65
 fi
@@ -34,7 +34,7 @@ termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00
 "
 
 DEBS="
-kwin_6.6.0-23_aarch64.deb cfa885652937a50be665c36d67a9b7d43163746675046c03bea5273b66ade4e4
+kwin_6.6.0-26_aarch64.deb 8973972bc8538902f6cd4940a2b388b11e10aa2b968d015c9a03ad559129a5e3
 termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 xwayland_24.1.11-1_aarch64.deb 3cc2999ae0ba90495abad71445f794723efc06a97c001b383467665e3038e8a4
