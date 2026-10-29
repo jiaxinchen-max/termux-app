@@ -114,6 +114,23 @@ pid_running && fail "desktop still running after stop"
 [ ! -f "$TEST_ROOT/state/test.pid" ] || fail "pid file left behind"
 assert_eq "$(status)" stopped "status after stop"
 
+# --- 1b. a session left behind by another desktop is stopped before this one starts ----------
+sleep 300 &
+LEFTOVER=$!
+printf '%s\n' "$LEFTOVER" > "$TEST_ROOT/state/other.pid"
+printf '%s\n' "999999" > "$TEST_ROOT/state/dead.pid"
+write_spec native ""
+fake_command start-plasma "exec sleep 300"
+sh "$TEST_ROOT/desktop_start.sh" "$TEST_ROOT/spec" &
+SUPERVISOR=$!
+wait_for "pid file" pid_running
+kill -0 "$LEFTOVER" 2>/dev/null && fail "another desktop's leftover process was not stopped"
+[ ! -f "$TEST_ROOT/state/other.pid" ] || fail "leftover pid file not removed or process survived"
+[ ! -f "$TEST_ROOT/state/dead.pid" ] || fail "stale pid file of a dead desktop not removed"
+grep -q "left over from another desktop" "$TEST_ROOT/logs/test.log" || fail "leftover stop not logged"
+sh "$TEST_ROOT/desktop_stop.sh" "$TEST_ROOT/spec"
+wait "$SUPERVISOR" || true
+
 # --- 2. proot: compositor-only + container session ------------------------------------------
 cp "$ASSETS/desktop_container_session.sh" "$TEST_ROOT/"
 RUNTIME_DIR="$HOME/.termux/kwin-runtime/runtime-$(id -u)"

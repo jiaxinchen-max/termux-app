@@ -14,8 +14,39 @@ existing=$(read_pid) && pid_alive "$existing" && {
     exit 0
 }
 
+# Every desktop shares one display bridge (the render socket) and X display, so another desktop's
+# session still winding down - or left behind when the app was killed - can stall this one: Xlorie
+# hangs while it initialises ("Xlorie did not become ready"). Stop those first and wait for them.
+stop_other_desktops() {
+    state_dir=$(dirname "$DESKTOP_PID_FILE")
+    others=""
+    stopped_files=""
+    for pid_file in "$state_dir"/*.pid "$state_dir"/*.pid.container; do
+        [ -f "$pid_file" ] || continue
+        case "$pid_file" in "$DESKTOP_PID_FILE"|"$DESKTOP_PID_FILE.container") continue ;; esac
+        other=$(cat "$pid_file" 2>/dev/null)
+        case "$other" in ''|*[!0-9]*) continue ;; esac
+        pid_alive "$other" || { rm -f "$pid_file"; continue; }
+        log "Stopping $(basename "$pid_file") (pid $other) left over from another desktop"
+        kill -TERM "$other" 2>/dev/null
+        others="$others $other"
+        stopped_files="$stopped_files $pid_file"
+    done
+    waited=0
+    for other in $others; do
+        while pid_alive "$other" && [ "$waited" -lt 100 ]; do
+            waited=$((waited + 1))
+            sleep 0.1
+        done
+        pid_alive "$other" && kill -KILL "$other" 2>/dev/null
+    done
+    # shellcheck disable=SC2086
+    [ -z "$stopped_files" ] || rm -f $stopped_files
+}
+
 printf 'starting\n' > "$DESKTOP_STATUS_FILE"
 : > "$DESKTOP_LOG_FILE"
+stop_other_desktops
 
 wait_for_socket() {
     waited=0
