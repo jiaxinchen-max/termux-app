@@ -553,3 +553,9 @@ set -e
 grep -q "Desktop install finished" "$TEST_ROOT/logs/dlfail.log" && fail "log says finished after a failed download"
 grep -q "plasma-desktop" "$FAIL_ROOT/calls" && fail "apt installed the desktop packages after the download failed: $(cat "$FAIL_ROOT/calls")"
 grep -q "Desktop install failed" "$TEST_ROOT/logs/dlfail.log" || fail "the failed download was not reported in the log"
+
+# --- 16. downloads retry transfers that break half way ----------------------------------------------
+# `curl --retry` alone only retries timeouts and some HTTP codes; a connection cut mid-transfer
+# ("(56) SSL_read: unexpected eof", common behind a proxy) failed the whole install on the first try.
+grep -q 'curl -fL --retry [0-9]* --retry-all-errors' "$ASSETS/desktop_install.sh" \
+    || fail "package downloads do not retry connection errors (--retry-all-errors)"

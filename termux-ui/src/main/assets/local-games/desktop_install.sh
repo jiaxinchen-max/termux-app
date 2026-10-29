@@ -82,7 +82,7 @@ fetch_debs() { # tag base_url deb_list -> prints paths
             # stdout of this function is the deb path list; logs go to the file only.
             printf '%s\n' "Cached $name" >> "$DESKTOP_LOG_FILE"
         else
-            { curl -fL --retry 3 --connect-timeout 30 -o "$target" "$base_url/$name" || fail "download $name"; } \
+            { curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 -o "$target" "$base_url/$name" || fail "download $name"; } \
                 >> "$DESKTOP_LOG_FILE" 2>&1
             [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ] || {
                 rm -f "$target"
