@@ -440,3 +440,8 @@ done
 # --- 11. XFCE4 in a forky container goes through the same apt helper as Plasma -------------------
 grep -q 'xfce4) container_packages="xfce4 xfce4-terminal dbus-x11"' "$ASSETS/desktop_install.sh" \
     || fail "XFCE4 container install does not use the systemd-tolerant apt helper"
+
+# --- 12. The install log names the desktop being installed ---------------------------------------
+grep -q 'Installing XFCE4 desktop packages' "$TEST_ROOT/logs/inst.log" \
+    || fail "XFCE4 install log does not say it installs XFCE4: $(grep Installing "$TEST_ROOT/logs/inst.log")"
+grep -q 'Installing KWin' "$TEST_ROOT/logs/inst.log" && fail "XFCE4 install log mentions KWin"

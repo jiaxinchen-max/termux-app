@@ -16,6 +16,11 @@ if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r23" ]; then
     exit 65
 fi
 DESKTOP_DE="${DESKTOP_DE:-kwin_plasma}"
+case "$DESKTOP_DE" in
+    xfce4) DESKTOP_LABEL="XFCE4" ;;
+    kwin_plasma) DESKTOP_LABEL="KWin Plasma" ;;
+    *) DESKTOP_LABEL="$DESKTOP_DE" ;;
+esac
 
 # Xlorie (independent X server) packages, pinned to the xserver release that carries the
 # termux-render fixes; needed by every XFCE4 desktop and shared with the KWin ones.
@@ -54,10 +59,10 @@ fail() {
 }
 
 if [ "$(uname -m)" != "aarch64" ]; then
-    fail "KWin packages are only built for aarch64"
+    fail "$DESKTOP_LABEL desktop packages are only built for aarch64"
 fi
 
-log "Installing KWin desktop packages ($DESKTOP_RELEASE_TAG, $DESKTOP_MODE mode)"
+log "Installing $DESKTOP_LABEL desktop packages ($DESKTOP_MODE mode)"
 run pkg install -y x11-repo || fail "x11-repo"
 run pkg update -y || fail "pkg update"
 
