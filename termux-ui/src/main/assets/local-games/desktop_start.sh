@@ -95,7 +95,14 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
         # glibc compositors must not touch Xlorie's minimal GLX (xserver VERIFICATION.md #2).
         export XLORIE_GLX=0
     fi
+    # start-plasma turns $PREFIX/tmp/.X11-unix into a symlink to KWin's runtime directory and never
+    # puts it back. The X server will not create its file socket (X0) through a symlink - it then
+    # only listens on the abstract socket and the wait below times out - so give it a real directory.
+    if [ -L "$PREFIX/tmp/.X11-unix" ]; then
+        rm -f "$PREFIX/tmp/.X11-unix"
+    fi
     mkdir -p "$PREFIX/tmp/.X11-unix"
+    chmod 1777 "$PREFIX/tmp/.X11-unix" 2>/dev/null || true
     rm -f "$PREFIX/tmp/.X11-unix/X0" "$PREFIX/tmp/.X0-lock"
     Xlorie :0 -noreset -screen 0 "${DESKTOP_WIDTH}x${DESKTOP_HEIGHT}x24" \
         -framerate "$DESKTOP_REFRESH_RATE" -render-socket "$DESKTOP_RENDER_SOCKET" \

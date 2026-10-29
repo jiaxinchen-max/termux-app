@@ -462,3 +462,34 @@ grep -q 'xfce4) container_packages="xfce4 xfce4-terminal dbus-x11"' "$ASSETS/des
 grep -q 'Installing XFCE4 desktop packages' "$TEST_ROOT/logs/inst.log" \
     || fail "XFCE4 install log does not say it installs XFCE4: $(grep Installing "$TEST_ROOT/logs/inst.log")"
 grep -q 'Installing KWin' "$TEST_ROOT/logs/inst.log" && fail "XFCE4 install log mentions KWin"
+
+# --- 13. native XFCE4 starts even when start-plasma left $PREFIX/tmp/.X11-unix a symlink ----------
+# An X server will not create its file socket (X0) through a symlink; it keeps running on the abstract
+# socket only, and desktop_start.sh would wait for X0 until it gave up ("Xlorie did not become ready").
+write_spec native "" xfce4
+mkdir -p "$TEST_ROOT/kwin-tmp/.X11-unix"
+rm -rf "$PREFIX/tmp/.X11-unix"
+ln -s "$TEST_ROOT/kwin-tmp/.X11-unix" "$PREFIX/tmp/.X11-unix"
+cat > "$PREFIX/bin/Xlorie" <<'FAKE'
+#!/bin/sh
+exec python3 -I - <<'PY'
+import os, socket, time
+d = os.path.join(os.environ["PREFIX"], "tmp", ".X11-unix")
+if not os.path.islink(d):
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.bind(os.path.join(d, "X0"))
+    s.listen(1)
+time.sleep(300)
+PY
+FAKE
+printf '#!/bin/sh\nexec sleep 300\n' > "$PREFIX/bin/dbus-run-session"
+chmod +x "$PREFIX/bin/Xlorie" "$PREFIX/bin/dbus-run-session"
+start_socket
+sh "$TEST_ROOT/desktop_start.sh" "$TEST_ROOT/spec" &
+SUPERVISOR=$!
+wait_for "the XFCE session to start" grep -q "Starting the native XFCE4 session" "$TEST_ROOT/logs/test.log"
+[ -S "$PREFIX/tmp/.X11-unix/X0" ] || fail "Xlorie got no X0 file socket: .X11-unix was left a symlink"
+[ ! -L "$PREFIX/tmp/.X11-unix" ] || fail ".X11-unix is still a symlink"
+grep -q "did not become ready" "$TEST_ROOT/logs/test.log" && fail "Xlorie was reported not ready"
+sh "$TEST_ROOT/desktop_stop.sh" "$TEST_ROOT/spec"
+wait "$SUPERVISOR" || true
