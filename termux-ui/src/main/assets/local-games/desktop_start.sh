@@ -78,6 +78,14 @@ code=0
 
 DESKTOP_DE="${DESKTOP_DE:-kwin_plasma}"
 
+if [ "$DESKTOP_DE" != "xfce4" ] && [ ! -L "$PREFIX/tmp/.X11-unix" ] && [ -d "$PREFIX/tmp/.X11-unix" ]; then
+    # An XFCE session leaves Xlorie's X0 socket in a real .X11-unix. start-plasma can only turn that
+    # directory into the symlink to KWin's Xwayland sockets while it is empty (otherwise it just warns
+    # and X11 clients reach the dead X0), so clear what Xlorie left behind.
+    rm -f "$PREFIX/tmp/.X11-unix/X0" "$PREFIX/tmp/.X0-lock"
+    rmdir "$PREFIX/tmp/.X11-unix" 2>/dev/null || true
+fi
+
 if [ "$DESKTOP_DE" = "xfce4" ]; then
     # Xlorie serves the X display; the XFCE session runs natively or inside the container.
     command -v Xlorie >/dev/null 2>&1 || {

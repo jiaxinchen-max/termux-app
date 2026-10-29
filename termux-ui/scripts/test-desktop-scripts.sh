@@ -493,3 +493,20 @@ wait_for "the XFCE session to start" grep -q "Starting the native XFCE4 session"
 grep -q "did not become ready" "$TEST_ROOT/logs/test.log" && fail "Xlorie was reported not ready"
 sh "$TEST_ROOT/desktop_stop.sh" "$TEST_ROOT/spec"
 wait "$SUPERVISOR" || true
+
+# --- 14. Plasma starts from a clean .X11-unix, so start-plasma can link it to KWin's sockets --------
+# After an XFCE session the directory is a real one holding Xlorie's X0; start-plasma only relinks an
+# empty directory, so desktop_start.sh has to clear that socket first.
+rm -rf "$PREFIX/tmp/.X11-unix"
+mkdir -p "$PREFIX/tmp/.X11-unix"
+python3 -I -c 'import socket,sys; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1])' "$PREFIX/tmp/.X11-unix/X0"
+[ -S "$PREFIX/tmp/.X11-unix/X0" ] || fail "could not stage a stale Xlorie X0 socket"
+write_spec native ""
+fake_command start-plasma "[ -d \"$PREFIX/tmp/.X11-unix\" ] && ls -A \"$PREFIX/tmp/.X11-unix\" > \"$TEST_ROOT/x11-at-plasma-start\"; exec sleep 300"
+start_socket
+sh "$TEST_ROOT/desktop_start.sh" "$TEST_ROOT/spec" &
+SUPERVISOR=$!
+wait_for "pid file" pid_running
+[ ! -e "$PREFIX/tmp/.X11-unix/X0" ] || fail "stale Xlorie X0 socket still present when start-plasma ran"
+sh "$TEST_ROOT/desktop_stop.sh" "$TEST_ROOT/spec"
+wait "$SUPERVISOR" || true
