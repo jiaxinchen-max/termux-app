@@ -75,6 +75,7 @@ public class DesktopLaunchSpecTest {
         assertEquals("system",nativeSpec.get("DESKTOP_GNOME_RENDERER"));
         assertEquals("60",nativeSpec.get("DESKTOP_REFRESH_RATE"));
         assertFalse(nativeSpec.containsKey("DESKTOP_GNOME_DISPLAY_GL_MODE"));
+        assertFalse(nativeSpec.containsKey("DESKTOP_GNOME_DISPLAY_BUFFER_MODE"));
         DesktopDistro prootGnome=new DesktopDistro("gp","GNOME",DesktopRunMode.PROOT,"debian-gnome-1",
             DesktopDe.GNOME,DesktopGlMode.LLVMPIPE,"1920x1080",90);
         Map<String,String> prootSpec=parse(DesktopLaunchSpec.encode(prootGnome,"/p","/s","/l"));
@@ -83,14 +84,28 @@ public class DesktopLaunchSpecTest {
         assertEquals("llvmpipe",prootSpec.get("DESKTOP_GNOME_RENDERER"));
         assertEquals("llvmpipe",prootSpec.get("DESKTOP_GL_MODE"));
         assertEquals("system",prootSpec.get("DESKTOP_GNOME_DISPLAY_GL_MODE"));
+        assertEquals("native",prootSpec.get("DESKTOP_GNOME_DISPLAY_BUFFER_MODE"));
         assertEquals("trixie",prootSpec.get("DESKTOP_CONTAINER_CODENAME"));
         assertEquals("90",prootSpec.get("DESKTOP_REFRESH_RATE"));
         assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(nativeGnome.withOutput("1280x720",30),"/p","/s","/l"));
         assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(nativeGnome.withGlMode(DesktopGlMode.ZINK),"/p","/s","/l"));
         assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(prootGnome.withGlMode(DesktopGlMode.SYSTEM),"/p","/s","/l"));
-        assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(prootGnome.withGlMode(DesktopGlMode.ZINK),"/p","/s","/l"));
         assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(nativeGnome.withGlMode(DesktopGlMode.LLVMPIPE),"/p","/s","/l"));
         assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(prootGnome.withGlMode(DesktopGlMode.AUTO),"/p","/s","/l"));
+    }
+    @Test public void prootGnomeZinkRequiresHostZinkAndDmabufBuffers() {
+        DesktopDistro desktop=new DesktopDistro("gz","GNOME",DesktopRunMode.PROOT,"debian-gnome-zink",
+            DesktopDe.GNOME,DesktopGlMode.ZINK,"1920x1080",90);
+        Map<String,String> spec=parse(DesktopLaunchSpec.encode(desktop,"/p","/s","/l"));
+        assertEquals("proot",spec.get("DESKTOP_MODE"));
+        assertEquals("x11",spec.get("DESKTOP_GNOME_BACKEND"));
+        assertEquals("direct",spec.get("DESKTOP_GNOME_SESSION_STARTUP"));
+        assertEquals("zink",spec.get("DESKTOP_GL_MODE"));
+        assertEquals("zink",spec.get("DESKTOP_GNOME_RENDERER"));
+        assertEquals("zink",spec.get("DESKTOP_GNOME_DISPLAY_GL_MODE"));
+        assertEquals("dmabuf",spec.get("DESKTOP_GNOME_DISPLAY_BUFFER_MODE"));
+        assertEquals("trixie",spec.get("DESKTOP_CONTAINER_CODENAME"));
+        assertEquals("90",spec.get("DESKTOP_REFRESH_RATE"));
     }
     @Test public void independentGnomeDisplayModeNeverLeaksIntoOtherDesktops() {
         for(DesktopDe de:new DesktopDe[]{DesktopDe.XFCE4,DesktopDe.KWIN_PLASMA}) {
@@ -100,6 +115,7 @@ public class DesktopLaunchSpecTest {
                 Map<String,String> spec=parse(DesktopLaunchSpec.encode(desktop,"/p","/s","/l"));
                 assertEquals("llvmpipe",spec.get("DESKTOP_GL_MODE"));
                 assertFalse(spec.containsKey("DESKTOP_GNOME_DISPLAY_GL_MODE"));
+                assertFalse(spec.containsKey("DESKTOP_GNOME_DISPLAY_BUFFER_MODE"));
                 assertFalse(spec.containsKey("DESKTOP_GNOME_RENDERER"));
                 assertFalse(spec.containsKey("DESKTOP_GNOME_SESSION_STARTUP"));
             }

@@ -50,8 +50,19 @@ public final class DesktopLaunchSpec {
             put(spec, "DESKTOP_GNOME_RENDERER", distro.getGlMode().getStorageValue());
             if (distro.getRunMode() == DesktopRunMode.PROOT) {
                 put(spec, "DESKTOP_CONTAINER_CODENAME", "trixie");
-                // Host display EGL is separate from the container's llvmpipe compositor.
-                put(spec, "DESKTOP_GNOME_DISPLAY_GL_MODE", "system");
+                // Each guest renderer requires its exact host display/buffer topology.
+                switch (distro.getGlMode()) {
+                    case ZINK:
+                        put(spec, "DESKTOP_GNOME_DISPLAY_GL_MODE", "zink");
+                        put(spec, "DESKTOP_GNOME_DISPLAY_BUFFER_MODE", "dmabuf");
+                        break;
+                    case LLVMPIPE:
+                        put(spec, "DESKTOP_GNOME_DISPLAY_GL_MODE", "system");
+                        put(spec, "DESKTOP_GNOME_DISPLAY_BUFFER_MODE", "native");
+                        break;
+                    default:
+                        throw new IllegalArgumentException("desktop_renderer_explicit_required");
+                }
             }
         }
         return spec.toString();

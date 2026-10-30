@@ -90,24 +90,25 @@ if [ "${DESKTOP_DE:-}" = gnome ]; then
     }
     case "$DESKTOP_MODE:${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}:$DESKTOP_GL_MODE" in
         native:android:system:system)
-            [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}" ] || {
-                log 'Native GNOME does not accept an X11 display GL mode.'
+            [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}" ] && [ -z "${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" ] || {
+                log 'Native GNOME does not accept X11 display modes.'
                 printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
             }
             [ "$DESKTOP_REFRESH_RATE" = 60 ] || {
                 log 'Native GNOME Mutter 48.1-24 supports exactly 60 Hz.'
                 printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
             } ;;
-        proot:x11:llvmpipe:llvmpipe)
-            [ "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}" = system ] || {
-                log 'PRoot GNOME requires explicit host X11 display GL mode system.'
+        proot:x11:llvmpipe:llvmpipe|proot:x11:zink:zink)
+            case "$DESKTOP_GNOME_RENDERER:${DESKTOP_GNOME_DISPLAY_GL_MODE:-}:${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" in
+                llvmpipe:system:native|zink:zink:dmabuf) ;; *)
+                log 'PRoot GNOME llvmpipe requires explicit host system/native; Zink requires zink/dmabuf.'
                 printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
-            }
+            ;; esac
             [ "${DESKTOP_CONTAINER_CODENAME:-}" = trixie ] || {
                 log 'PRoot GNOME requires explicit Debian trixie.'
                 printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
             } ;;
-        *) log 'GNOME requires Native android/system or PRoot x11/llvmpipe explicitly.'
+        *) log 'GNOME requires Native android/system or PRoot x11/llvmpipe|zink explicitly.'
            printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
     esac
     case "${DESKTOP_USB_STORAGE:-}" in off|read-only) ;; *)
@@ -198,6 +199,7 @@ if [ "$DESKTOP_DE" = gnome ]; then
     if [ "$DESKTOP_MODE" = proot ]; then
         rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
         set -- "$@" --x11-display-gl-mode "$DESKTOP_GNOME_DISPLAY_GL_MODE" \
+            --x11-display-buffer-mode "$DESKTOP_GNOME_DISPLAY_BUFFER_MODE" \
             --rootfs "$rootfs" --work "$rootfs/root/.local/share/termux-gnome"
     else
         set -- "$@" --work "$HOME/.termux/gnome-$DESKTOP_ID"

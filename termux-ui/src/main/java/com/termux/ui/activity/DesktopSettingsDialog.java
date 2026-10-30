@@ -50,6 +50,8 @@ final class DesktopSettingsDialog {
             DesktopCreateActivity.labelOf(activity, distro.getDe())
                 + (container ? " · " + distro.getProotDistro() : " · "
                     + activity.getString(R.string.desktop_tab_native))));
+        if (container && distro.getDe() == DesktopDe.GNOME)
+            sheet.desktopSettingsHint.append("\n" + activity.getString(R.string.desktop_gnome_proot_renderer_hint));
         sheet.desktopSettingsNameLayout.setVisibility(container ? View.VISIBLE : View.GONE);
         sheet.desktopSettingsNameNote.setVisibility(container ? View.GONE : View.VISIBLE);
         if (container) sheet.desktopSettingsName.setText(distro.getName());

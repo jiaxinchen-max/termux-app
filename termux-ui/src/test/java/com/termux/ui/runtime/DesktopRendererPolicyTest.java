@@ -3,19 +3,22 @@ package com.termux.ui.runtime;
 import com.termux.ui.domain.*;
 import org.junit.Test;
 import java.util.Collections;
+import java.util.Arrays;
 import static org.junit.Assert.*;
 
 public class DesktopRendererPolicyTest {
-    @Test public void gnomeHasOnlyOneExactRendererForEachBackend() {
+    @Test public void gnomeHasExplicitRenderersForEachBackend() {
         assertEquals(Collections.singletonList(DesktopGlMode.SYSTEM),
             DesktopRendererPolicy.allowedModes(DesktopRunMode.NATIVE,DesktopDe.GNOME));
-        assertEquals(Collections.singletonList(DesktopGlMode.LLVMPIPE),
+        assertEquals(Arrays.asList(DesktopGlMode.ZINK,DesktopGlMode.LLVMPIPE),
             DesktopRendererPolicy.allowedModes(DesktopRunMode.PROOT,DesktopDe.GNOME));
         for(DesktopGlMode renderer:DesktopGlMode.values()) {
             assertEquals(renderer==DesktopGlMode.SYSTEM,DesktopRendererPolicy.supports(DesktopRunMode.NATIVE,DesktopDe.GNOME,renderer));
-            assertEquals(renderer==DesktopGlMode.LLVMPIPE,DesktopRendererPolicy.supports(DesktopRunMode.PROOT,DesktopDe.GNOME,renderer));
+            assertEquals(renderer==DesktopGlMode.ZINK || renderer==DesktopGlMode.LLVMPIPE,
+                DesktopRendererPolicy.supports(DesktopRunMode.PROOT,DesktopDe.GNOME,renderer));
         }
         assertFalse(DesktopRendererPolicy.supports(DesktopRunMode.NATIVE,DesktopDe.GNOME,null));
+        assertFalse(DesktopRendererPolicy.supports(DesktopRunMode.PROOT,DesktopDe.GNOME,null));
     }
     @Test public void unsupportedAndAutoModesNeverEnterTheChoiceList() {
         assertTrue(DesktopRendererPolicy.allowedModes(DesktopRunMode.NATIVE,DesktopDe.UBUNTU_GNOME).isEmpty());

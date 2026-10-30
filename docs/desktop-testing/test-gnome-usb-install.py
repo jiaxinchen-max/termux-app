@@ -66,6 +66,7 @@ elif command=='apt-mark':
 elif command=='python3':
     # proot-distro module probe is covered separately by test-desktop-restore-prerequisites.sh.
     if len(args)>2 and args[:3]==['-I','-B','-c']: sys.exit(0)
+    if len(args)>2 and pathlib.Path(args[2]).name=='desktop_install_mesa.py': sys.exit(state.get('mesa_helper_error',0))
     sys.exit(93)
 elif command=='proot-distro':
     if args==['install']: print('-n, --name');sys.exit(64)
@@ -92,11 +93,12 @@ class InstallContract(unittest.TestCase):
         (self.base/'state').mkdir()
         (self.base/'home').mkdir()
         source = (ASSETS/'desktop_install.sh').read_text()
-        digests = dict(re.findall(r'([A-Za-z0-9._+~-]+\.deb) ([a-f0-9]{64})', source))
+        digests = dict(re.findall(r'([A-Za-z0-9._+~-]+(?:\.deb|\.tar\.gz)) ([a-f0-9]{64})', source))
         host_block = re.search(r"^HOST_FILES='(.*?)'", source, re.M | re.S)
         host_files = [line.split() for line in host_block[1].splitlines() if line.strip()]
         versions = {'proot':'5.1.107', 'proot-distro':'5.10.3'}
         for name in digests:
+            if not name.endswith('.deb'): continue
             package, version, abi = name.split('_')
             versions[package] = version
         self.state = dict(digests=digests, versions=versions, host_files=host_files)
@@ -123,7 +125,9 @@ class InstallContract(unittest.TestCase):
             DESKTOP_PROOT_DISTRO='debian-'+de.replace('_','-')+'-1',
             DESKTOP_LOG_FILE=str(self.base/'install.log'), DESKTOP_PID_FILE=str(self.base/'state/pid'),
             DESKTOP_STATUS_FILE=str(self.base/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.6-r27')
-        if de=='gnome' and mode=='proot': values['DESKTOP_GNOME_DISPLAY_GL_MODE']='system'
+        if de=='gnome' and mode=='proot':
+            values['DESKTOP_GNOME_DISPLAY_GL_MODE']='zink' if renderer=='zink' else 'system'
+            values['DESKTOP_GNOME_DISPLAY_BUFFER_MODE']='dmabuf' if renderer=='zink' else 'native'
         for key,value in (overrides or {}).items():
             if value is None: values.pop(key,None)
             else: values[key]=value
@@ -165,6 +169,20 @@ class InstallContract(unittest.TestCase):
             with self.subTest(display=display):
                 self.rejected_before_package_work(mode='proot',renderer='llvmpipe',
                     overrides={'DESKTOP_GNOME_DISPLAY_GL_MODE':display})
+
+    def test_proot_gnome_display_buffer_mode_must_match_the_renderer(self):
+        for renderer,good in [('llvmpipe','native'),('zink','dmabuf')]:
+            for bad in (None,'','auto','unknown','native' if good=='dmabuf' else 'dmabuf'):
+                with self.subTest(renderer=renderer,buffer=bad):
+                    self.rejected_before_package_work(mode='proot',renderer=renderer,
+                        overrides={'DESKTOP_GNOME_DISPLAY_BUFFER_MODE':bad})
+        self.rejected_before_package_work(overrides={'DESKTOP_GNOME_DISPLAY_BUFFER_MODE':'native'})
+
+    def test_proot_gnome_zink_requires_its_explicit_host_zink_display(self):
+        for bad in (None,'','auto','system','llvmpipe'):
+            with self.subTest(display=bad):
+                self.rejected_before_package_work(mode='proot',renderer='zink',
+                    overrides={'DESKTOP_GNOME_DISPLAY_GL_MODE':bad})
 
     def test_native_gnome_rejects_x11_display_mode_parameters(self):
         for display in ('system','llvmpipe','zink','auto'):
@@ -213,6 +231,48 @@ class InstallContract(unittest.TestCase):
                 self.assertIn('gnome-shell' if de=='gnome' else 'xfce4' if de=='xfce4' else 'plasma-desktop',logins[0])
                 if de=='gnome': self.assertIn('--no-install-recommends',logins[0])
                 else: self.assertNotIn('--no-install-recommends',logins[0])
+
+    def test_proot_gnome_does_not_download_or_verify_native_gnome_packages(self):
+        result,calls=self.run_install(mode='proot',renderer='llvmpipe')
+        self.assertEqual(0,result.returncode,result.stdout)
+        host_apt=next(call for call in calls if call[0]=='apt')
+        self.assertFalse(any('mutter_' in arg or 'gnome-shell_' in arg for arg in host_apt),host_apt)
+        self.assertFalse(any('gnome-usb-20261030-r1' in arg for call in calls for arg in call),calls)
+        self.assertFalse(any(call[0] in ('dpkg','dpkg-query') and call[-1] in ('mutter','gnome-shell','gjs','gnome-session') for call in calls))
+        self.assertIn('python',host_apt)
+
+    def test_proot_gnome_zink_installs_verified_kgsl_mesa_and_dependencies(self):
+        result,calls=self.run_install(mode='proot',renderer='zink')
+        self.assertEqual(0,result.returncode,result.stdout)
+        host_apt=next(call for call in calls if call[0]=='apt')
+        self.assertIn('mesa-vulkan-icd-freedreno',host_apt)
+        guest_apt=next(call for call in calls if call[:2]==['proot-distro','login'])
+        for package in ('libllvm19','libvulkan1','vulkan-tools','mesa-vulkan-drivers'):
+            self.assertIn(package,guest_apt)
+        mesa_calls=[call for call in calls if call[0]=='python3' and len(call)>3 and Path(call[3]).name=='desktop_install_mesa.py']
+        self.assertEqual(1,len(mesa_calls),calls)
+        self.assertEqual(['--codename','trixie','--gl-mode','zink'],mesa_calls[0][-4:])
+        self.assertTrue(any(call[0]=='curl' and 'mesa-for-android-container' in call[-1] for call in calls))
+        self.assertTrue((self.base/'usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-gnome').is_file())
+
+    def test_bad_turnip_digest_stops_before_mesa_install_and_ready_marker(self):
+        result,calls=self.run_install(mode='proot',renderer='zink',
+            bad_digest='mesa-for-android-container_27.0.0-devel-20261025_debian_trixie_arm64.tar.gz')
+        self.assertNotEqual(0,result.returncode,result.stdout)
+        self.assertIn('checksum mismatch',(self.base/'install.log').read_text())
+        self.assertFalse(any(call[0]=='python3' and any(Path(arg).name=='desktop_install_mesa.py' for arg in call) for call in calls))
+        self.assertFalse((self.base/'usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-gnome').exists())
+
+    def test_turnip_installer_failure_is_preserved_and_reinstall_clears_old_marker(self):
+        result,_=self.run_install(mode='proot',renderer='llvmpipe')
+        self.assertEqual(0,result.returncode,result.stdout)
+        marker=self.base/'usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-gnome'
+        self.assertTrue(marker.exists())
+        result,calls=self.run_install(mode='proot',renderer='zink',mesa_helper_error=77)
+        self.assertEqual(77,result.returncode,result.stdout)
+        self.assertFalse(marker.exists())
+        self.assertFalse(any(call[:4]==['proot-distro','login','debian-gnome-1','--shared-tmp'] and 'apt-mark' in call for call in calls))
+        self.assertNotIn('Desktop install finished.',result.stdout)
 
     def test_existing_wrong_release_is_not_silently_used(self):
         result,calls = self.run_install(mode='proot',renderer='llvmpipe',actual_codename='forky')
@@ -319,7 +379,13 @@ base=pathlib.Path(os.environ['HELPER_FIXTURE']);command=pathlib.Path(sys.argv[0]
 with (base/'calls.jsonl').open('a') as out:out.write(json.dumps([command,*args])+'\n')
 state=json.loads((base/'fixture.json').read_text())
 if command=='apt-get' and args[0]=='install':sys.exit(state.get('apt_error',0))
-if command=='dpkg':print('Status: install ok installed')
+if command=='dpkg':
+    print('Status: '+state.get('package_statuses',{}).get(args[-1],state.get('package_status','install ok installed')))
+    sys.exit(state.get('dpkg_error',0))
+if command=='apt-mark' and args[0]=='hold':
+    statuses=state.setdefault('package_statuses',{})
+    for package in args[1:]:statuses[package]='hold ok installed'
+    (base/'fixture.json').write_text(json.dumps(state))
 '''
 
 
@@ -328,7 +394,7 @@ class ContainerAptContract(unittest.TestCase):
         self.temporary=tempfile.TemporaryDirectory(prefix='container-apt-contract-',dir='/tmp')
         self.addCleanup(self.temporary.cleanup)
         self.base=Path(self.temporary.name);(self.base/'bin').mkdir()
-        for command in ('apt-get','dpkg','getent','groupadd','useradd','systemd-sysusers'):
+        for command in ('apt-get','apt-mark','dpkg','getent','groupadd','useradd','systemd-sysusers'):
             target=self.base/'bin'/command;target.write_text('#!'+sys.executable+'\n'+HELPER_MOCK);target.chmod(0o700)
         (self.base/'desktop_container_statx_setup.sh').write_text(
             'configure_proot_statx() { return 0; }\n'
@@ -341,9 +407,10 @@ class ContainerAptContract(unittest.TestCase):
         source=source.replace('/usr/bin/systemd-sysusers',str(self.base/'bin/systemd-sysusers'))
         (self.base/'helper.sh').write_text(source)
 
-    def run_helper(self,*args,apt_error=0):
+    def run_helper(self,*args,apt_error=0,package_status='install ok installed',dpkg_error=0,preserve_state=False):
         (self.base/'calls.jsonl').write_text('')
-        (self.base/'fixture.json').write_text(json.dumps({'apt_error':apt_error}))
+        if not preserve_state:
+            (self.base/'fixture.json').write_text(json.dumps({'apt_error':apt_error,'package_status':package_status,'dpkg_error':dpkg_error}))
         env=dict(os.environ,HELPER_FIXTURE=str(self.base))
         result=subprocess.run(['sh',str(self.base/'helper.sh'),*args],env=env,text=True,
             stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=15)
@@ -359,6 +426,58 @@ class ContainerAptContract(unittest.TestCase):
         self.assertEqual(packages,installs[0][-len(packages):])
         self.assertEqual([['dpkg','-s',package] for package in packages],[call for call in calls if call[0]=='dpkg'])
         self.assertTrue((self.base/'restored').exists())
+
+    def test_zink_first_install_hold_and_reinstall_accept_held_mesa_packages(self):
+        packages=['gnome-shell','gnome-settings-daemon','nautilus','gvfs-backends',
+            'gnome-backgrounds','adwaita-icon-theme','dbus-x11','libgl1-mesa-dri','mesa-utils',
+            'mesa-vulkan-drivers','libvulkan1','vulkan-tools','libllvm19','libdrm2']
+        args=['--statx-backend=proc-fdinfo','--no-install-recommends',*packages]
+        first,first_calls=self.run_helper(*args)
+        self.assertEqual(0,first.returncode,first.stdout)
+        self.assertEqual([['dpkg','-s',package] for package in packages],
+            [call for call in first_calls if call[0]=='dpkg'])
+        # Apply the actual hold set used after installing the pinned upstream Mesa overlay.
+        held=['mesa-vulkan-drivers','libgbm1','libegl-mesa0','libgl1-mesa-dri','libglx-mesa0','libgles2']
+        subprocess.run([str(self.base/'bin/apt-mark'),'hold',*held],
+            env=dict(os.environ,HELPER_FIXTURE=str(self.base)),check=True)
+        state=json.loads((self.base/'fixture.json').read_text())
+        self.assertTrue(all(state['package_statuses'][package]=='hold ok installed' for package in held))
+        repeat,calls=self.run_helper(*args,preserve_state=True)
+        self.assertEqual(0,repeat.returncode,repeat.stdout)
+        self.assertEqual([['dpkg','-s',package] for package in packages],
+            [call for call in calls if call[0]=='dpkg'])
+        self.assertEqual(1,len([call for call in calls if call[:2]==['apt-get','install']]))
+
+    def test_only_exact_install_or_hold_ok_installed_statuses_are_accepted(self):
+        for status in ('install ok installed','hold ok installed'):
+            with self.subTest(status=status):
+                result,_=self.run_helper('--statx-backend=proc-fdinfo','mesa-vulkan-drivers',package_status=status)
+                self.assertEqual(0,result.returncode,result.stdout)
+        for status in ('deinstall ok installed','deinstall ok config-files','install ok unpacked',
+                       'hold ok unpacked','install ok half-configured','hold ok half-configured',
+                       'install ok half-installed','hold reinstreq installed',
+                       'install ok triggers-pending','hold ok triggers-awaited',
+                       'unknown ok not-installed','install ok installed garbage'):
+            with self.subTest(status=status):
+                (self.base/'restored').unlink(missing_ok=True)
+                result,calls=self.run_helper('--statx-backend=proc-fdinfo','mesa-vulkan-drivers',package_status=status)
+                self.assertEqual(1,result.returncode,result.stdout)
+                self.assertIn('not fully installed: mesa-vulkan-drivers',result.stdout)
+                self.assertFalse((self.base/'restored').exists())
+                self.assertEqual([['dpkg','-s','mesa-vulkan-drivers']],
+                    [call for call in calls if call[0]=='dpkg'])
+
+    def test_failed_package_query_cannot_be_hidden_by_valid_installed_status_output(self):
+        for status in ('install ok installed','hold ok installed'):
+            with self.subTest(status=status):
+                result,calls=self.run_helper('--statx-backend=proc-fdinfo','mesa-vulkan-drivers',
+                    package_status=status,dpkg_error=47)
+                self.assertEqual(47,result.returncode,result.stdout)
+                self.assertIn('package status query failed (exit 47): mesa-vulkan-drivers',result.stdout)
+                self.assertEqual([['dpkg','-s','mesa-vulkan-drivers']],
+                    [call for call in calls if call[0]=='dpkg'])
+                self.assertFalse((self.base/'restored').exists())
+                self.assertEqual(1,len([call for call in calls if call[:2]==['apt-get','install']]))
 
     def test_unflagged_xfce_and_plasma_keep_the_existing_recommends_policy(self):
         for packages in (['xfce4','xfce4-terminal','dbus-x11'],['plasma-desktop','packagekit','polkitd']):

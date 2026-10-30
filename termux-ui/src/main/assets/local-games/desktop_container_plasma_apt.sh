@@ -43,7 +43,13 @@ if [ "$code" -ne 0 ]; then
     exit "$code"
 fi
 for pkg in "$@"; do
-    dpkg -s "$pkg" 2>/dev/null | grep -q '^Status: install ok installed' || {
+    package_info=$(dpkg -s "$pkg" 2>/dev/null)
+    code=$?
+    if [ "$code" -ne 0 ]; then
+        echo "ERROR: package status query failed (exit $code): $pkg" >&2
+        exit "$code"
+    fi
+    printf '%s\n' "$package_info" | grep -Eq '^Status: (install|hold) ok installed$' || {
         echo "ERROR: requested package is not fully installed: $pkg" >&2
         exit 1
     }

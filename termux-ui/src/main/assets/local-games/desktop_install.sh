@@ -75,10 +75,13 @@ if [ "$DESKTOP_DE" = gnome ]; then
     case "$DESKTOP_MODE:$DESKTOP_GL_MODE:${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}" in
         native:system:android:system)
             [ "$DESKTOP_REFRESH_RATE" = 60 ] || { log 'Native GNOME requires 60Hz'; exit 64; }
-            [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}" ] || { log 'Native GNOME does not use an X11 display mode'; exit 64; } ;;
+            [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" ] || { log 'Native GNOME does not use X11 display parameters'; exit 64; } ;;
         proot:llvmpipe:x11:llvmpipe)
             [ "${DESKTOP_CONTAINER_CODENAME:-}" = trixie ] || exit 64
-            [ "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}" = system ] || { log 'Container GNOME requires explicit System EGL display mode'; exit 64; } ;;
+            [ "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}:${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" = system:native ] || { log 'Container GNOME llvmpipe requires explicit host system/native'; exit 64; } ;;
+        proot:zink:x11:zink)
+            [ "${DESKTOP_CONTAINER_CODENAME:-}" = trixie ] || exit 64
+            [ "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}:${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" = zink:dmabuf ] || { log 'Container GNOME Zink requires explicit host zink/dmabuf'; exit 64; } ;;
         *) log 'Unsupported explicit GNOME backend/renderer combination'; exit 64 ;;
     esac
 fi
@@ -98,11 +101,11 @@ esac
 
 # Xlorie (independent X server) packages, pinned to the xserver release that carries the
 # termux-render fixes; needed by every XFCE4 desktop and shared with the KWin ones.
-XLORIE_RELEASE_TAG="termux-xlorie-21.1.16-r7"
+XLORIE_RELEASE_TAG="termux-xlorie-21.1.16-r8"
 XLORIE_BASE_URL="https://github.com/jiaxinchen-max/xserver/releases/download/$XLORIE_RELEASE_TAG"
 XLORIE_DEBS="
 libandroid-stub_30-3_aarch64.deb 88c7f4ba78a5eb57eafc2f1102ceea562a156fe7346528ca35c771eb0927fefc
-xorg-server_21.1.16-7_aarch64.deb 3b50befbb214617a8a210696905553b8676510a8b6fe4f8cd923807d365c8425
+xorg-server_21.1.16-8_aarch64.deb 0a243786b8ac14e6557590b5c6c4b14f7d51358084c5075383a06aa57e2128a2
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 libxshmfence_1.3.3-2_aarch64.deb be95caf500b002fed8b5c0142ad360efbdec4ff1334be5565e9b9628f8663dc2
 termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
@@ -228,6 +231,25 @@ ensure_container_instance() { # alias source
 # on the host, where curl honours ~/.curlrc and https_proxy.
 TURNIP_REPO="lfdevs/mesa-for-android-container"
 TURNIP_RELEASE_TAG="mesa-27.0.0-devel-20261025"
+GNOME_TURNIP_ARTIFACT="mesa-for-android-container_27.0.0-devel-20261025_debian_trixie_arm64.tar.gz b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687"
+ensure_gnome_turnip_icd() { # explicit trixie GNOME only; never infer a driver from file presence
+    rootfs="$PREFIX/var/lib/proot-distro/containers/$1/rootfs"
+    archive=$(fetch_debs "$TURNIP_RELEASE_TAG" "https://github.com/$TURNIP_REPO/releases/download/$TURNIP_RELEASE_TAG" "$GNOME_TURNIP_ARTIFACT") || fail 'downloading verified GNOME Zink Mesa/Turnip'
+    set -- $archive
+    [ "$#" -eq 1 ] || fail 'expected one verified Mesa artifact'
+    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_install_mesa.py" \
+        --archive "$1" --rootfs "$rootfs" --codename trixie --gl-mode zink || fail 'installing verified GNOME Zink Mesa/Turnip'
+    run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh -eu -c '
+        for library in /usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so /usr/lib/aarch64-linux-gnu/libgallium-27.0.0-devel.so /usr/lib/aarch64-linux-gnu/libGLX_mesa.so.0; do
+            dependencies=$(ldd "$library")
+            printf "%s\n" "$dependencies"
+            case "$dependencies" in *"not found"*) exit 1 ;; esac
+        done' || fail 'resolving container Mesa/Turnip libraries'
+    run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- apt-mark hold \
+        mesa-vulkan-drivers libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 \
+        || fail 'holding the explicit container Mesa/Turnip build'
+}
+
 ensure_turnip_icd() { # alias
     rootfs="$PREFIX/var/lib/proot-distro/containers/$1/rootfs"
     icd="usr/share/vulkan/icd.d/freedreno_icd.aarch64.json"
@@ -324,7 +346,7 @@ libandroid-stub lib/libtermux-platform-ns.so 6c39c6a3318accd5e34f4f2c9e5c9e14eed
 libepoxy lib/libepoxy.so aa2b42ea59a8e9fd7769f29d5480cee0808aa14d543c5110116149affcf331b2
 termux-render lib/libtermux-render.so e233a5479d8f353eb83181d98e0eb82fbcd9bb5ec7ec873167c96d998cc53ddc
 xwayland bin/Xwayland 7475e64912162047442e6de9f96213a21bfc38ca2ce902b06a609869a28a4476
-xorg-server bin/Xlorie 741e9b87cbf01ea48e2db89648bd2fd1441b6df2ddadf70ebdf05793f4544ef6
+xorg-server bin/Xlorie a709d798dd347c72166a0572ece320f5d2c47d2a29dedb2f5f871297208be0a8
 libxshmfence lib/libxshmfence.so 1ccd07bab7c2d89a8ae37bc97254a2022e8a49fe131aede93c80ecf6c6173c3d
 '
 package_version() {
@@ -461,8 +483,10 @@ run pkg update -y || fail "pkg update"
 DEB_PATHS=""
 if [ "$DESKTOP_DE" = gnome ]; then
     DEB_PATHS=$(fetch_debs "$XLORIE_RELEASE_TAG" "$XLORIE_BASE_URL" "$XLORIE_DEBS") || fail "downloading GNOME display packages"
-    GNOME_PATHS=$(fetch_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$GNOME_DEBS") || fail "downloading GNOME packages"
-    DEB_PATHS="$DEB_PATHS $GNOME_PATHS"
+    if [ "$DESKTOP_MODE" = native ]; then
+        GNOME_PATHS=$(fetch_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$GNOME_DEBS") || fail "downloading GNOME packages"
+        DEB_PATHS="$DEB_PATHS $GNOME_PATHS"
+    fi
 elif [ "$DESKTOP_DE" = "xfce4" ]; then
     DEB_PATHS=$(fetch_debs "$XLORIE_RELEASE_TAG" "$XLORIE_BASE_URL" "$XLORIE_DEBS") \
         || fail "downloading the $DESKTOP_LABEL packages"
@@ -499,7 +523,12 @@ if [ "$DESKTOP_MODE" = "native" ]; then
 else
     # The session itself lives in the container; the host needs the display server and proot.
     # shellcheck disable=SC2086
-    run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS proot proot-distro || fail "apt install"
+    host_packages="proot proot-distro"
+    if [ "$DESKTOP_DE" = gnome ]; then
+        host_packages="$host_packages python dbus xorg-xdpyinfo"
+        [ "$DESKTOP_GL_MODE" != zink ] || host_packages="$host_packages mesa mesa-vulkan-icd-freedreno vulkan-loader"
+    fi
+    run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS $host_packages || fail "apt install"
     # The container's Plasma must be about as new as the native KWin (6.6): Debian trixie's Plasma
     # 6.3 hits protocol mismatches (kde_output_device_mode_v2 events) and shows a black screen, while
     # forky's 6.7 renders. XFCE has no such coupling and stays on the stable image.
@@ -514,14 +543,17 @@ else
     distro_id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" | tr -d '\"')
     [ "$distro_id:$codename" = "debian:$expected_codename" ] || fail "container requires Debian $expected_codename, got $distro_id:$codename"
     de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE"
-    if [ -f "$de_marker" ]; then
+    if [ -f "$de_marker" ] && [ "$DESKTOP_DE:$DESKTOP_GL_MODE" != gnome:zink ]; then
         log "Container packages for $DESKTOP_DE already present; skipping"
     else
         # The container helper configures service-start policy before apt. Installation failure
         # is returned unchanged; package maintainer scripts are never replaced.
+        rm -f "$de_marker" || fail 'resetting the container install marker'
         case "$DESKTOP_DE" in
             xfce4) container_packages="xfce4 xfce4-terminal dbus-x11" ;;
-            gnome) container_packages="gnome-shell gnome-session gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils" ;;
+            gnome) container_packages="gnome-shell gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils"
+                [ "$DESKTOP_GL_MODE" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm19 libdrm2"
+                ;;
             *) container_packages="plasma-desktop plasma-workspace kactivitymanagerd dbus-x11 packagekit polkitd"
                [ "$DESKTOP_GL_MODE" != "zink" ] || container_packages="$container_packages libvulkan-dev" ;;
         esac
@@ -535,10 +567,10 @@ else
         # shellcheck disable=SC2086
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
             --statx-backend=proc-fdinfo $recommend_option $container_packages || fail "container apt install $DESKTOP_DE"
-        : > "$de_marker"
     fi
     # Idempotent and independent of the marker: a container created before this step still gets it.
     [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$DESKTOP_GL_MODE" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
+    [ "$DESKTOP_DE:$DESKTOP_GL_MODE" != gnome:zink ] || ensure_gnome_turnip_icd "$DESKTOP_PROOT_DISTRO"
     if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
         # The guest must load glibc GIO code. Never bind a host Bionic module into it.
         for helper in desktop_container_plasma_apt.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
@@ -565,8 +597,12 @@ if [ "$DESKTOP_DE" = "xfce4" ] || [ "$DESKTOP_DE" = gnome ]; then
     run apt-mark hold xorg-server || fail "holding xorg-server"
 fi
 verification_manifest="$DEBS"
-case "$DESKTOP_DE" in xfce4) verification_manifest="$XLORIE_DEBS" ;; gnome) verification_manifest="$XLORIE_DEBS
-$GNOME_DEBS" ;; esac
+case "$DESKTOP_DE" in
+    xfce4) verification_manifest="$XLORIE_DEBS" ;;
+    gnome) verification_manifest="$XLORIE_DEBS"
+        [ "$DESKTOP_MODE" != native ] || verification_manifest="$verification_manifest
+$GNOME_DEBS" ;;
+esac
 [ "$DESKTOP_USB_STORAGE" != read-only ] || verification_manifest="$verification_manifest
 $USB_DEBS"
 printf '%s\n' "$verification_manifest" > "$DESKTOP_LOG_FILE.verify-manifest.$$" || fail 'writing final verification manifest'
@@ -577,6 +613,9 @@ while read -r name digest; do
     pinned_package_valid "$package" "$version" || fail "installed package verification failed: $package $version"
 done < "$DESKTOP_LOG_FILE.verify-manifest.$$"
 rm -f "$DESKTOP_LOG_FILE.verify-manifest.$$"
+if [ "$DESKTOP_MODE" = proot ]; then
+    : > "$de_marker" || fail 'writing the verified container install marker'
+fi
 log "Desktop install finished."
 INSTALL_DONE=1
 exit 0

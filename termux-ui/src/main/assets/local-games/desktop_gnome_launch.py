@@ -26,8 +26,9 @@ def main():
     ap.add_argument('--run-mode', choices=('native', 'proot'), required=True)
     ap.add_argument('--backend', choices=('x11', 'android'), required=True)
     ap.add_argument('--session-startup', choices=('direct',), required=True)
-    ap.add_argument('--gl-mode', choices=('system', 'llvmpipe'), required=True)
-    ap.add_argument('--x11-display-gl-mode', choices=('system',))
+    ap.add_argument('--gl-mode', choices=('system', 'llvmpipe', 'zink'), required=True)
+    ap.add_argument('--x11-display-gl-mode', choices=('system', 'zink'))
+    ap.add_argument('--x11-display-buffer-mode', choices=('native', 'dmabuf'))
     ap.add_argument('--size', required=True)
     ap.add_argument('--refresh-rate', type=int, required=True)
     ap.add_argument('--render-socket', type=Path, required=True)
@@ -39,18 +40,19 @@ def main():
     ap.add_argument('--service-policy', choices=('core',), required=True)
     args = ap.parse_args()
     if args.backend == 'x11':
-        if args.x11_display_gl_mode != 'system':
-            ap.error('X11 backend requires explicit --x11-display-gl-mode=system')
-    elif args.x11_display_gl_mode is not None:
-        ap.error('Android backend does not accept an X11 display GL mode')
+        expected_display = {'llvmpipe': ('system', 'native'), 'zink': ('zink', 'dmabuf')}
+        if (args.x11_display_gl_mode, args.x11_display_buffer_mode) != expected_display.get(args.gl_mode):
+            ap.error('X11 llvmpipe requires explicit system/native; Zink requires explicit zink/dmabuf')
+    elif args.x11_display_gl_mode is not None or args.x11_display_buffer_mode is not None:
+        ap.error('Android backend does not accept X11 display modes')
     if args.run_mode == 'native':
         if args.rootfs or args.backend != 'android' or args.gl_mode != 'system':
             ap.error('native GNOME requires android/system and no rootfs')
         # The pinned Mutter 48.1-24 backend hardcodes 60 Hz. Do not misreport others.
         if args.refresh_rate != 60:
             ap.error('native GNOME Mutter 48.1-24 supports exactly 60 Hz')
-    elif not args.rootfs or args.backend != 'x11' or args.gl_mode != 'llvmpipe':
-        ap.error('PRoot GNOME requires an explicit Debian trixie rootfs and x11/llvmpipe')
+    elif not args.rootfs or args.backend != 'x11' or args.gl_mode not in ('llvmpipe', 'zink'):
+        ap.error('PRoot GNOME requires an explicit Debian trixie rootfs and x11/llvmpipe|zink')
     if not 1 <= args.refresh_rate <= 120:
         ap.error('--refresh-rate must be between 1 and 120')
     if args.display != ':0':
@@ -68,6 +70,16 @@ def main():
         ap.error('--wayland-display must be a socket basename')
     android = args.backend == 'android'
     prefix = Path(os.environ['PREFIX'])
+    if args.x11_display_gl_mode == 'zink':
+        host_icd = prefix / 'share/vulkan/icd.d/freedreno_icd.aarch64.json'
+        try:
+            host_library = json.loads(host_icd.read_text())['ICD']['library_path']
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            ap.error('Xlorie Zink requires a valid fixed host Turnip ICD: ' + str(error))
+        if host_library != str(prefix / 'lib/libvulkan_freedreno.so'):
+            ap.error('Host Turnip ICD must explicitly select ' + str(prefix / 'lib/libvulkan_freedreno.so'))
+        if not Path(host_library).is_file():
+            ap.error('The fixed host Turnip ICD library is missing: ' + host_library)
     desktop_key = hashlib.sha256(args.desktop_id.encode()).hexdigest()[:16]
     runtime = prefix / ('tmp/gnome-' + desktop_key) / 'runtime'
     usb_parent = prefix / ('tmp/tusb-' + desktop_key)
@@ -89,6 +101,16 @@ def main():
                 release[key] = value.strip(chr(34) + chr(39))
         if release.get('ID') != 'debian' or release.get('VERSION_CODENAME') != 'trixie':
             ap.error('PRoot GNOME supports Debian trixie only')
+        if args.gl_mode == 'zink':
+            icd = args.rootfs / 'usr/share/vulkan/icd.d/freedreno_icd.aarch64.json'
+            try:
+                library = json.loads(icd.read_text())['ICD']['library_path']
+            except (OSError, ValueError, KeyError, TypeError) as error:
+                ap.error('PRoot GNOME Zink requires a valid fixed Turnip ICD: ' + str(error))
+            if library != '/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so':
+                ap.error('Turnip ICD must explicitly select /usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so')
+            if not (args.rootfs / library.lstrip('/')).is_file():
+                ap.error('The fixed Turnip ICD library is missing: ' + library)
     if not args.render_socket.is_socket():
         ap.error('the requested App render socket is not available')
     w = args.work.resolve()
@@ -131,6 +153,14 @@ def main():
     # parameters, and Xlorie rejects a conflicting KWIN_ANDROID_GL_MODE alias.
     host = {key: value for key, value in os.environ.items()
             if not key.startswith('KWIN_') and key != 'PLASMA_LOG'}
+    # An inherited Mesa/Vulkan selection must never alter the requested mode,
+    # including the independent System EGL display server.
+    for key in list(host):
+        if key.startswith(('MESA_', 'GALLIUM_', 'LIBGL_', 'VK_', 'ZINK_', 'MUTTER_ANDROID_')) or key in (
+                'COGL_DRIVER', 'CLUTTER_DRIVER', 'DRI_PRIME', '__GLX_VENDOR_LIBRARY_NAME',
+                'EGL_PLATFORM', 'TERMUX_ANDROID_ZINK', 'MUTTER_BACKEND',
+                'XLORIE_GL_MODE', 'XLORIE_GLX', 'TERMUX_RENDER_AHB_RECEIVE'):
+            host.pop(key)
     host.update(HOME=termux_home, DISPLAY=args.display, XDG_RUNTIME_DIR=str(runtime),
                 XCURSOR_PATH=str(prefix / 'share/icons'), XCURSOR_THEME='Adwaita',
                 XDG_CONFIG_HOME=str(config_home), XDG_CACHE_HOME=str(cache_home),
@@ -165,12 +195,16 @@ def main():
                   XDG_SESSION_TYPE='x11', XDG_SESSION_DESKTOP='gnome',
                   DBUS_SYSTEM_BUS_ADDRESS='unix:path=' + gr + '/system-bus',
                   GDK_BACKEND='x11', GSK_RENDERER='cairo', GTK_A11Y='none', NO_AT_BRIDGE='1',
-                  LIBGL_ALWAYS_SOFTWARE='1', GALLIUM_DRIVER='llvmpipe',
                   GST_PLUGIN_FEATURE_RANK=os.environ.get('GST_PLUGIN_FEATURE_RANK',
                       'ximagesink:3000,cacasink:0,glimagesink:0,xvimagesink:0'),
                   PIPEWIRE_RUNTIME_DIR=gr, PIPEWIRE_REMOTE='pipewire-0',
                   TERMUX_USB_DESKTOP_DIR=str(usb_runtime),
                   LANG='C.UTF-8', TZ=os.environ.get('TZ', 'Asia/Shanghai'))
+    if args.gl_mode == 'llvmpipe':
+        values.update(LIBGL_ALWAYS_SOFTWARE='1', GALLIUM_DRIVER='llvmpipe')
+    elif args.gl_mode == 'zink':
+        values.update(GALLIUM_DRIVER='zink', MESA_LOADER_DRIVER_OVERRIDE='zink',
+                      VK_DRIVER_FILES='/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json')
     if android:
         for env in (host, guest, values):
             for key in ('DISPLAY', 'LIBGL_ALWAYS_SOFTWARE', 'GALLIUM_DRIVER',
@@ -180,6 +214,10 @@ def main():
         values.update(XDG_SESSION_TYPE='wayland', GDK_BACKEND='wayland',
                       WAYLAND_DISPLAY=args.wayland_display)
     if args.rootfs:
+        # Both guest renderers are verified through GLX. Mutter's X11 GL3
+        # winsys is GLX; restrict Clutter's list too so it cannot try GLES/EGL
+        # or retry with its default "any" driver after GLX initialization fails.
+        values.update(COGL_DRIVER='gl3', CLUTTER_DRIVER='gl3')
         values.update(PATH='/usr/sbin:/usr/bin:/sbin:/bin',
                       XDG_DATA_DIRS='/usr/local/share:/usr/share', XDG_CONFIG_DIRS='/etc/xdg')
         if args.usb_storage == 'read-only':
@@ -270,12 +308,13 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
         (runtime / 'session-bus').unlink(missing_ok=True)
         if not android:
             # Host display EGL and the glibc Shell renderer are independent contracts.
-            # The Xlorie display receives native AHB with System EGL; the container
-            # keeps its explicitly selected llvmpipe compositor environment.
-            for key in ('LIBGL_ALWAYS_SOFTWARE', 'GALLIUM_DRIVER', 'MESA_LOADER_DRIVER_OVERRIDE'):
-                host.pop(key, None)
+            # llvmpipe presents native AHB via System EGL; Zink imports guest
+            # DRI3 dma-buf through the explicitly selected host Zink renderer.
             host.update(XLORIE_GL_MODE=args.x11_display_gl_mode, XLORIE_GLX='1',
-                        TERMUX_RENDER_AHB_RECEIVE='native')
+                        TERMUX_RENDER_AHB_RECEIVE=args.x11_display_buffer_mode)
+            if args.x11_display_gl_mode == 'zink':
+                host.update(GALLIUM_DRIVER='zink', MESA_LOADER_DRIVER_OVERRIDE='zink',
+                            VK_DRIVER_FILES=str(host_icd))
             x11dir = prefix / 'tmp/.X11-unix'
             if x11dir.is_symlink():
                 x11dir.unlink()
@@ -313,11 +352,20 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
                 if isinstance(probe_output, bytes):
                     probe_output = probe_output.decode(errors='replace')
                 renderer_log.write_text(probe_output + '\nGLX renderer check timed out after 30 seconds\n')
-                raise RuntimeError('PRoot GNOME llvmpipe GLX verification timed out:\n' + probe_output[-6000:]) from error
+                raise RuntimeError('PRoot GNOME ' + args.gl_mode + ' GLX verification timed out:\n' + probe_output[-6000:]) from error
             renderer_log.write_text(probe_output)
             renderer = re.search(r'^OpenGL renderer string:\s*(.*)$', probe_output, re.MULTILINE)
-            if probe.returncode != 0 or not renderer or not re.search(r'\bllvmpipe\b', renderer[1], re.IGNORECASE):
-                raise RuntimeError('PRoot GNOME llvmpipe GLX verification failed (exit ' +
+            accelerated = re.search(r'^\s*Accelerated:\s*(yes|no)\s*$', probe_output,
+                                    re.MULTILINE | re.IGNORECASE)
+            actual = renderer[1].lower() if renderer else ''
+            matches = (bool(re.search(r'\bllvmpipe\b', actual)) and
+                       not re.search(r'zink|lavapipe', actual)) if args.gl_mode == 'llvmpipe' else (
+                bool(re.search(r'\bzink\b', actual)) and
+                bool(re.search(r'\b(?:adreno|turnip)\b', actual)) and
+                accelerated is not None and accelerated[1].lower() == 'yes' and
+                not re.search(r'llvmpipe|lavapipe|softpipe|software|swrast|swiftshader|cpu', actual))
+            if probe.returncode != 0 or not matches:
+                raise RuntimeError('PRoot GNOME ' + args.gl_mode + ' GLX verification failed (exit ' +
                                    str(probe.returncode) + '):\n' + probe_output[-6000:])
         session = start('session', base + session_bus_args + ['--', '/bin/sh' if args.rootfs else str(prefix / 'bin/sh'), gw + '/session.sh'], guest)
         deadline = time.monotonic() + 30

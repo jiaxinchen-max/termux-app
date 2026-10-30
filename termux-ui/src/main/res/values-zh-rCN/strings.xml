@@ -564,8 +564,8 @@
     <string name="desktop_mode_native">原生</string>
     <string name="desktop_mode_proot">Proot（%1$s）</string>
     <string name="desktop_gl_system">系统 EGL</string>
-    <string name="desktop_gl_zink">Zink（Adreno）</string>
-    <string name="desktop_gl_llvmpipe">软件渲染</string>
+    <string name="desktop_gl_zink">Zink / Turnip（Adreno GPU）</string>
+    <string name="desktop_gl_llvmpipe">LLVMpipe（CPU）</string>
     <string name="desktop_detail">%1$s · %2$s · %3$s · %4$d Hz</string>
     <string name="desktop_state_not_installed">未安装</string>
     <string name="desktop_state_installed">就绪</string>

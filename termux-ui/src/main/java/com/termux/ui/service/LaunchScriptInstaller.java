@@ -64,7 +64,7 @@ public final class LaunchScriptInstaller {
     private static final String[] DESKTOP_CONTAINER_STATX_ASSETS = {
         "desktop_container_statx_setup.sh", "desktop_container_run_config.sh", "desktop_container_statx_aarch64.bin"};
     private static final String[] DESKTOP_SESSION_ASSETS = {
-        "desktop_gnome_launch.py", "desktop_xfce_session.py", "desktop_usb_storage.py", "desktop_install_gio.py"};
+        "desktop_gnome_launch.py", "desktop_xfce_session.py", "desktop_usb_storage.py", "desktop_install_gio.py", "desktop_install_mesa.py"};
 
     private final Context context;
     private final File runtimeDirectory;
