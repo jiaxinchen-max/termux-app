@@ -29,9 +29,8 @@
     <string name="local_games_backup_restore_confirm_title">Restore from backup?</string>
     <string name="local_games_backup_restore_confirm_message">This replaces the current shared RootFS base and Wine prefix templates with your saved backup. Already-installed games keep working; this can take a few minutes.</string>
     <string name="local_games_backup_restore_console_title">Restoring backup</string>
-    <string name="local_games_runtime_backup_exported_to">Backup saved to:\n%1$s</string>
-    <string name="local_games_runtime_backup_insufficient_space">Not enough free space. About %1$s is needed but only %2$s is available.</string>
-    <string name="local_games_runtime_backup_destination_not_shared">Choose a location inside shared storage.</string>
+    <string name="local_games_backup_insufficient_space">Not enough free space. About %1$s is needed but only %2$s is available.</string>
+    <string name="local_games_backup_destination_not_shared">Choose a location inside shared storage.</string>
     <string name="local_games_backup_create_done">Backup saved to:\n%1$s</string>
     <string name="local_games_backup_restore_done">Restored from:\n%1$s</string>
     <string name="local_games_backup_failed">Backup or restore failed: %1$s</string>
@@ -174,15 +173,6 @@
     <string name="local_games_tab_components">Components</string>
     <string name="local_games_components_description">PC engine components grouped by their runtime role. Downloads continue outside this screen.</string>
     <string name="local_games_start">Start</string>
-    <string name="local_games_runtime_backup_title">Native environment backup</string>
-    <string name="local_games_runtime_backup_glibc">GLIBC / TermuxBox</string>
-    <string name="local_games_runtime_backup_restore">Restore from file</string>
-    <string name="local_games_runtime_backup_restore_title">Restore runtime from backup?</string>
-    <string name="local_games_runtime_backup_restore_message">The installed GLIBC runtime will be replaced after archive verification. Exit games before continuing.</string>
-    <string name="local_games_runtime_backup_working">Working. Keep the app open until this finishes.</string>
-    <string name="local_games_runtime_backup_restored">%1$s runtime restored.</string>
-    <string name="local_games_runtime_backup_failed">Runtime backup failed: %1$s</string>
-    <string name="local_games_runtime_backup_console_title">Runtime archive process</string>
     <string name="local_games_components_image_fs">RootFS</string>
     <string name="local_games_components_container">Wine</string>
     <string name="local_games_components_gpu">Graphics</string>
@@ -416,7 +406,6 @@
     <string name="local_games_environment_build_from_network">Build from network</string>
     <string name="local_games_environment_restore_from_file">Restore from file</string>
     <string name="local_games_environment_backup_to_file">Backup to file</string>
-    <string name="local_games_environment_backup_requires_install">Install the environment before backing it up.</string>
     <string name="local_games_native_rebuild_confirm_title">Rebuild Native environment?</string>
     <string name="local_games_native_rebuild_confirm_message">This removes the Native (GLIBC) runtime and its downloaded components with the package manager, then downloads and installs them again. It can take several minutes.</string>
     <string name="local_games_native_rebuild_action">Rebuild</string>
@@ -427,8 +416,8 @@
     <string name="local_games_environment_state_checking">Checking…</string>
     <string name="local_games_environment_build_summary_install">Download and install it</string>
     <string name="local_games_environment_build_summary_rebuild">Remove it, then download and install it again</string>
-    <string name="local_games_environment_native_restore_summary">Choose a backup file to restore from</string>
-    <string name="local_games_environment_native_backup_summary">Save it to a file you choose</string>
+    <string name="local_games_environment_restore_summary">Choose a backup file to restore from</string>
+    <string name="local_games_environment_backup_summary">Save it to a file you choose</string>
     <string name="local_game_runtime_title_default">Runtime parameters</string>
     <string name="local_game_runtime_load_failed">Unable to load runtime parameters</string>
     <string name="local_game_runtime_save">Save</string>

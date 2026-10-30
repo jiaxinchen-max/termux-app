@@ -21,24 +21,16 @@ import java.util.Locale;
  * directory. The in-app chooser may never leave that root, which {@link #isWithin} enforces.</p>
  */
 public final class RuntimeBackupSharedStorage {
-    public static final String ARCHIVE_EXTENSION = ".tar";
     /** The shared RootFS (PRoot) backup is a zstd-compressed tar. */
     public static final String ROOTFS_ARCHIVE_EXTENSION = ".tar.zst";
-    private static final String EXPORT_PAYLOAD_DIRECTORY = "usr/glibc";
     private static final int MAX_NAME_LENGTH = 120;
     private static final long TAR_BLOCK = 512L;
     /** Name prefix of the per-package Wine prefix template archives in the template cache. */
     private static final String PREFIX_TEMPLATE_PREFIX = "games-rootfs-base-prefix-";
-    /** Trailing zero blocks plus filesystem slack that a byte-exact estimate cannot see. */
-    private static final long EXPORT_MARGIN_BYTES = 64L * 1024L * 1024L;
-    /** Slack for the PRoot backup, whose staging copy and archive are far larger than the Native one. */
+    /** Slack for the staging copy and compressed PRoot archive. */
     private static final long ROOTFS_BACKUP_MARGIN_BYTES = 256L * 1024L * 1024L;
 
     private RuntimeBackupSharedStorage() { }
-
-    public static String exportFileName(RuntimeBackupType type, Date now) {
-        return "termux-games-" + type.getStorageValue() + "-" + timestamp(now) + ARCHIVE_EXTENSION;
-    }
 
     public static String rootfsExportFileName(Date now) {
         return "games-base-backup-" + timestamp(now) + ROOTFS_ARCHIVE_EXTENSION;
@@ -74,10 +66,6 @@ public final class RuntimeBackupSharedStorage {
         }
     }
 
-    @Nullable public static String normalizeArchiveName(@Nullable String input) {
-        return normalizeArchiveName(input, ARCHIVE_EXTENSION);
-    }
-
     /**
      * Turns what the user typed into an archive file name: trimmed, one path segment made of
      * English characters only, ending in {@code extension}. Returns null when nothing usable is left.
@@ -104,10 +92,6 @@ public final class RuntimeBackupSharedStorage {
             if (!ok) return false;
         }
         return true;
-    }
-
-    public static List<File> listChoices(File root, File directory, boolean foldersOnly) {
-        return listChoices(root, directory, foldersOnly, ARCHIVE_EXTENSION);
     }
 
     /**
@@ -137,15 +121,6 @@ public final class RuntimeBackupSharedStorage {
         List<File> all = new ArrayList<>(folders);
         all.addAll(archives);
         return all;
-    }
-
-    /**
-     * Bytes a tar of the export occupies: the manifest and end-marker members (a header and one
-     * data block each) plus {@code usr/glibc} as 512-byte headers and 512-aligned file data.
-     */
-    public static long estimateExportBytes(File filesDirectory) {
-        long total = 2L * (TAR_BLOCK + TAR_BLOCK); // runtime-backup.properties and runtime-backup.end
-        return total + estimateTree(new File(filesDirectory, EXPORT_PAYLOAD_DIRECTORY));
     }
 
     private static long estimateTree(File file) {
@@ -216,12 +191,6 @@ public final class RuntimeBackupSharedStorage {
         if (destinationAvailableBytes < destinationNeeded) {
             throw new InsufficientSpaceException(destinationNeeded, destinationAvailableBytes);
         }
-    }
-
-    /** @throws InsufficientSpaceException when {@code availableBytes} cannot hold the export. */
-    public static void requireExportSpace(long estimatedBytes, long availableBytes) throws IOException {
-        long required = estimatedBytes + EXPORT_MARGIN_BYTES;
-        if (availableBytes < required) throw new InsufficientSpaceException(required, availableBytes);
     }
 
     public static final class InsufficientSpaceException extends IOException {

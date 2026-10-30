@@ -1794,16 +1794,16 @@ public final class LocalGamesActivity extends AppCompatActivity {
         }
         switch (settingsPage) {
             case NATIVE:
-                renderEnvironmentPage(menu, glibcStatus,
-                    getString(R.string.local_games_environment_native_restore_summary),
-                    getString(R.string.local_games_environment_native_backup_summary),
-                    this::buildNativeFromNetwork, this::restoreNativeFromFile, this::backupNativeToFile);
+                renderEnvironmentPage(menu, glibcStatus, this::buildNativeFromNetwork);
                 break;
             case PROOT:
-                renderEnvironmentPage(menu, rootfsStatus,
-                    getString(R.string.local_games_environment_native_restore_summary),
-                    getString(R.string.local_games_environment_native_backup_summary),
-                    this::buildProotFromNetwork, this::restoreProotFromFile, this::backupProotToFile);
+                renderEnvironmentPage(menu, rootfsStatus, this::buildProotFromNetwork);
+                menu.row(getString(R.string.local_games_environment_restore_from_file),
+                    getString(R.string.local_games_environment_restore_summary),
+                    view -> restoreProotFromFile());
+                menu.row(getString(R.string.local_games_environment_backup_to_file),
+                    getString(R.string.local_games_environment_backup_summary),
+                    view -> backupProotToFile());
                 break;
             default:
                 renderSettingsRoot(menu);
@@ -1843,21 +1843,15 @@ public final class LocalGamesActivity extends AppCompatActivity {
             });
     }
 
-    /** The second-level page every environment shares: its status and the three actions. */
+    /** Common status and network installation/rebuild actions. */
     private void renderEnvironmentPage(SettingsMenuBuilder menu, @Nullable RuntimeReadinessState state,
-                                       String restoreSummary, String backupSummary,
-                                       Runnable buildFromNetwork, Runnable restoreFromFile,
-                                       Runnable backupToFile) {
+                                       Runnable buildFromNetwork) {
         menu.row(getString(R.string.local_games_settings_status), environmentStateLabel(state), null);
         menu.row(getString(R.string.local_games_environment_build_from_network),
             getString(state == RuntimeReadinessState.NOT_READY
                 ? R.string.local_games_environment_build_summary_install
                 : R.string.local_games_environment_build_summary_rebuild),
             view -> buildFromNetwork.run());
-        menu.row(getString(R.string.local_games_environment_restore_from_file), restoreSummary,
-            view -> restoreFromFile.run());
-        menu.row(getString(R.string.local_games_environment_backup_to_file), backupSummary,
-            view -> backupToFile.run());
     }
 
     private void buildNativeFromNetwork() {
@@ -1888,22 +1882,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 mainHandler.postDelayed(this::renderRuntimeStatus, 400);
             })
             .show();
-    }
-
-    private void restoreNativeFromFile() {
-        if (showActiveInstallationConsole()) return;
-        ensureBackupStoragePermission(() -> RuntimeBackupFlow.instance().startRestore());
-    }
-
-    private void backupNativeToFile() {
-        withReadiness((glibc, rootfs) -> {
-            if (glibc != RuntimeReadinessState.READY) {
-                Toast.makeText(this, R.string.local_games_environment_backup_requires_install,
-                    Toast.LENGTH_LONG).show();
-                return;
-            }
-            ensureBackupStoragePermission(() -> RuntimeBackupFlow.instance().startExport());
-        });
     }
 
     private void buildProotFromNetwork() {

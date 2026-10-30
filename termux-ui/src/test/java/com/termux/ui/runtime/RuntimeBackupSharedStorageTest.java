@@ -21,15 +21,18 @@ public final class RuntimeBackupSharedStorageTest {
 
     @Test
     public void normalizesNamesToEnglishArchiveNames() {
-        assertEquals("a.tar", RuntimeBackupSharedStorage.normalizeArchiveName(" a "));
-        assertEquals("a.tar", RuntimeBackupSharedStorage.normalizeArchiveName("a.tar"));
-        assertEquals("a (1)+b=c,d.tar", RuntimeBackupSharedStorage.normalizeArchiveName("a (1)+b=c,d"));
-        assertEquals("b.tar.zst", RuntimeBackupSharedStorage.normalizeArchiveName("b", ".tar.zst"));
-        assertNull(RuntimeBackupSharedStorage.normalizeArchiveName(""));
-        assertNull(RuntimeBackupSharedStorage.normalizeArchiveName(".."));
-        assertNull(RuntimeBackupSharedStorage.normalizeArchiveName("a/b"));
-        assertNull(RuntimeBackupSharedStorage.normalizeArchiveName("备份"));
-        assertNull(RuntimeBackupSharedStorage.normalizeArchiveName(".tar"));
+        String extension = RuntimeBackupSharedStorage.ROOTFS_ARCHIVE_EXTENSION;
+        assertEquals("a.tar.zst", RuntimeBackupSharedStorage.normalizeArchiveName(" a ", extension));
+        assertEquals("a.tar.zst", RuntimeBackupSharedStorage.normalizeArchiveName("a.tar.zst", extension));
+        assertEquals("a (1)+b=c,d.tar.zst",
+            RuntimeBackupSharedStorage.normalizeArchiveName("a (1)+b=c,d", extension));
+        assertEquals("b.desktop.tar.gz",
+            RuntimeBackupSharedStorage.normalizeArchiveName("b", ".desktop.tar.gz"));
+        assertNull(RuntimeBackupSharedStorage.normalizeArchiveName("", extension));
+        assertNull(RuntimeBackupSharedStorage.normalizeArchiveName("..", extension));
+        assertNull(RuntimeBackupSharedStorage.normalizeArchiveName("a/b", extension));
+        assertNull(RuntimeBackupSharedStorage.normalizeArchiveName("备份", extension));
+        assertNull(RuntimeBackupSharedStorage.normalizeArchiveName(".tar.zst", extension));
     }
 
     @Test
@@ -52,38 +55,26 @@ public final class RuntimeBackupSharedStorageTest {
         assertTrue(new File(root, "Zeta").mkdir());
         assertTrue(new File(root, "alpha").mkdir());
         assertTrue(new File(root, ".hidden").mkdir());
-        assertTrue(new File(root, "b.tar").createNewFile());
-        assertTrue(new File(root, "a.TAR").createNewFile());
+        assertTrue(new File(root, "b.tar.zst").createNewFile());
+        assertTrue(new File(root, "a.TAR.ZST").createNewFile());
         assertTrue(new File(root, "c.txt").createNewFile());
-        assertTrue(new File(root, "d.tar.zst").createNewFile());
-        assertEquals("[alpha, Zeta, a.TAR, b.tar]", names(
-            RuntimeBackupSharedStorage.listChoices(root, root, false)));
-        assertEquals("[alpha, Zeta]", names(RuntimeBackupSharedStorage.listChoices(root, root, true)));
-        assertEquals("[alpha, Zeta, d.tar.zst]", names(RuntimeBackupSharedStorage.listChoices(
-            root, root, false, RuntimeBackupSharedStorage.ROOTFS_ARCHIVE_EXTENSION)));
-        assertTrue(RuntimeBackupSharedStorage.listChoices(root, temp.newFolder("other"), false).isEmpty());
+        assertTrue(new File(root, "d.desktop.tar.gz").createNewFile());
+        assertEquals("[alpha, Zeta, a.TAR.ZST, b.tar.zst]", names(
+            RuntimeBackupSharedStorage.listChoices(root, root, false,
+                RuntimeBackupSharedStorage.ROOTFS_ARCHIVE_EXTENSION)));
+        assertEquals("[alpha, Zeta]", names(RuntimeBackupSharedStorage.listChoices(
+            root, root, true, RuntimeBackupSharedStorage.ROOTFS_ARCHIVE_EXTENSION)));
+        assertEquals("[alpha, Zeta, d.desktop.tar.gz]", names(RuntimeBackupSharedStorage.listChoices(
+            root, root, false, ".desktop.tar.gz")));
+        assertTrue(RuntimeBackupSharedStorage.listChoices(root, temp.newFolder("other"), false,
+            RuntimeBackupSharedStorage.ROOTFS_ARCHIVE_EXTENSION).isEmpty());
     }
 
     @Test
     public void exportNamesAreEnglishAndTimestamped() {
         Date now = new Date(0L);
-        assertTrue(RuntimeBackupSharedStorage.exportFileName(RuntimeBackupType.GLIBC, now)
-            .matches("termux-games-glibc-\\d{8}-\\d{6}\\.tar"));
         assertTrue(RuntimeBackupSharedStorage.rootfsExportFileName(now)
             .matches("games-base-backup-\\d{8}-\\d{6}\\.tar\\.zst"));
-    }
-
-    @Test
-    public void exportEstimateCoversOnlyUsrGlibc() throws IOException {
-        File files = temp.newFolder("files");
-        File glibc = new File(files, "usr/glibc");
-        assertTrue(glibc.mkdirs());
-        write(new File(glibc, "f"), 700);
-        File other = new File(files, "usr/other");
-        assertTrue(other.mkdirs());
-        write(new File(other, "big"), 100000);
-        // 2 x (header + block) for the manifest and end marker, glibc dir, file header + 2 blocks.
-        assertEquals(2048L + 512L + 512L + 1024L, RuntimeBackupSharedStorage.estimateExportBytes(files));
     }
 
     @Test
@@ -117,14 +108,6 @@ public final class RuntimeBackupSharedStorageTest {
     @Test
     public void spaceChecksReportRequiredAndAvailable() throws IOException {
         long mb = 1024L * 1024L;
-        RuntimeBackupSharedStorage.requireExportSpace(10 * mb, 74 * mb);
-        try {
-            RuntimeBackupSharedStorage.requireExportSpace(10 * mb, 73 * mb);
-            fail();
-        } catch (RuntimeBackupSharedStorage.InsufficientSpaceException error) {
-            assertEquals(74 * mb, error.getRequiredBytes());
-            assertEquals(73 * mb, error.getAvailableBytes());
-        }
         long tree = 1000 * mb;
         // private: tree + tree/2 + 256 MB; destination: tree/2 + 256 MB
         RuntimeBackupSharedStorage.requireRootfsBackupSpace(tree, 1756 * mb, 756 * mb);
