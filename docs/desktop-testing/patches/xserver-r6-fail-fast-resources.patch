@@ -1,0 +1,76 @@
+--- a/hw/lorie/InitOutput.c
++++ b/hw/lorie/InitOutput.c
+@@ -301,8 +301,7 @@
+ {
+     ErrorF("-screen 0 WxHx24       set Xlorie screen size\n");
+     ErrorF("-framerate n          set requested renderer framerate\n");
+-    ErrorF("-render-socket path   accepted for compatibility; "
+-           "libtermux-render uses its default socket\n");
++    ErrorF("-render-socket path   must match the libtermux-render socket\n");
+     ErrorF("-pixdepths list       support additional pixmap depths\n");
+     ErrorF("+/-render             turn on/off RENDER extension support"
+            " (default on)\n");
+@@ -1451,12 +1450,13 @@
+     pScreen->mmHeight = mmHeight;
+ 
+     if (!lorieCreateRootDamage(pScreen))
+-        lorieLog("Failed to recreate root damage tracking\n");
++        FatalError("Xlorie: failed to recreate root damage tracking after resize\n");
+ 
+     if (pScreen->root)
+         pScreen->ResizeWindow(pScreen->root, 0, 0, width, height, NULL);
+ 
+-    (void) lorieRenderUseBuffer(newBuffer);
++    if (!lorieRenderUseBuffer(newBuffer))
++        FatalError("Xlorie: failed to select the resized root buffer\n");
+ 
+ #ifdef LORIE_HAVE_GLAMOR
+     if (glamorActive) {
+@@ -1467,7 +1467,8 @@
+         lorieRootTexture = 0;
+         if (!lorieGlamorBackScreenPixmap(pScreen, newBuffer, &lorieRootImage,
+                                          &lorieRootTexture))
+-            lorieLog("Xlorie: failed to GPU-back root buffer after resize\n");
++            FatalError("Xlorie: selected GL mode %d failed to GPU-back root buffer after resize\n",
++                       lorieGlMode);
+         else if (pixmap)
+             glamor_clear_pixmap(pixmap);   /* zero-fill on the GPU */
+     }
+@@ -1586,14 +1587,19 @@
+     if (!ret)
+         return FALSE;
+ 
+-    if (!lorieCreateRootDamage(pScreen))
+-        lorieLog("Failed to initialize root damage tracking\n");
++    if (!lorieCreateRootDamage(pScreen)) {
++        ErrorF("Xlorie: failed to initialize root damage tracking; startup aborted\n");
++        return FALSE;
++    }
+ 
+ #ifdef LORIE_HAVE_GLAMOR
+     if (glamorActive &&
+         !lorieGlamorBackScreenPixmap(pScreen, lorieScreen.rootBuffer,
+-                                     &lorieRootImage, &lorieRootTexture))
+-        lorieLog("Xlorie: failed to GPU-back the root buffer\n");
++                                     &lorieRootImage, &lorieRootTexture)) {
++        ErrorF("Xlorie: selected GL mode %d failed to GPU-back root buffer; startup aborted\n",
++               lorieGlMode);
++        return FALSE;
++    }
+ #endif
+ 
+     return TRUE;
+--- a/hw/lorie/render-adapter.c
++++ b/hw/lorie/render-adapter.c
+@@ -119,8 +119,9 @@
+ 
+     if (requestedSocketPath && strcmp(requestedSocketPath,
+                                       TERMUX_RENDER_SOCKET_PATH) != 0) {
+-        lorieLog("libtermux-render uses %s; ignoring requested socket %s\n",
+-                 TERMUX_RENDER_SOCKET_PATH, requestedSocketPath);
++        lorieLog("Xlorie: requested render socket %s differs from the supported socket %s; startup aborted\n",
++                 requestedSocketPath, TERMUX_RENDER_SOCKET_PATH);
++        return false;
+     }
+ 
+     setScreenConfig(width, height, framerate, renderBufferFormat,

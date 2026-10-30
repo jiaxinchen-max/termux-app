@@ -1,0 +1,15 @@
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QSaveFile>
+#include <QTemporaryDir>
+#include <QThreadPool>
+#include <QEventLoop>
+#include <QTimer>
+#include <QDebug>
+#include "AppStreamConcurrentPool.h"
+static void require(bool ok,const char *why){if(!ok)qFatal("FAIL: %s",why);}
+static bool load(AppStream::ConcurrentPool &pool){QEventLoop loop;bool result=false; auto c=QObject::connect(&pool,&AppStream::ConcurrentPool::loadFinished,&loop,[&](bool ok){result=ok;loop.quit();});QTimer::singleShot(10000,&loop,&QEventLoop::quit);pool.loadAsync();loop.exec();QObject::disconnect(c);return result;}
+int main(int argc,char **argv){QCoreApplication app(argc,argv);require(argc==2&&QByteArray(argv[1])=="--isolated-empty-to-catalog","explicit isolated fixture required");QTemporaryDir tmp;require(tmp.isValid(),"private directory");QString source=tmp.path()+"/source",cache=tmp.path()+"/cache";QDir().mkpath(source);QDir().mkpath(cache);QThreadPool threads;auto makeRaw=[&](){auto raw=new AppStream::Pool;raw->setLoadStdDataLocations(false);raw->addExtraDataLocation(source,AppStream::Metadata::FormatStyleCatalog);raw->overrideCacheLocations(cache,cache);return raw;};AppStream::ConcurrentPool old;old.reset(makeRaw(),&threads);require(load(old),"empty pool load success");require(old.components().result().size()==0,"empty input has zero components");require(old.search("kcalc").result().size()==0,"initial empty search");
+QSaveFile xml(source+"/debian-fixture.xml");require(xml.open(QIODevice::WriteOnly),"write explicit synthetic Debian catalog fixture");xml.write("<?xml version=\"1.0\"?><components version=\"1.0\" origin=\"debian-fixture\"><component type=\"desktop-application\"><id>org.kde.kcalc.desktop</id><name>KCalc</name><summary>Scientific Calculator</summary><metadata_license>CC0-1.0</metadata_license><pkgname>kcalc</pkgname><launchable type=\"desktop-id\">org.kde.kcalc.desktop</launchable><categories><category>Utility</category></categories></component></components>");require(xml.commit(),"atomic catalog publish");AppStream::ConcurrentPool producer;auto producerRaw=makeRaw();producerRaw->addFlags(AppStream::Pool::FlagIgnoreCacheAge);producer.reset(producerRaw,&threads);require(load(producer),"fixture refresh rebuild succeeds");require(producer.components().result().size()==1,"fixture refresh publishes real compiled cache");qInfo()<<"FIXTURE: metadata publication and explicit cache rebuild completed; no network or PackageKit daemon used";
+require(old.search("kcalc").result().size()==0,"same initialized pool remains stale after metadata publication");AppStream::ConcurrentPool fresh;fresh.reset(makeRaw(),&threads);require(load(fresh),"fresh pool load success");require(fresh.components().result().size()==1,"fresh pool sees actual fixture component");require(fresh.search("kcalc").result().size()==1,"fresh pool sees KCalc");qInfo()<<"REPRODUCED actual ConcurrentPool: before=0 after-publication=0 fresh-pool=1; flags"<<fresh.get()->flags();return 0;}

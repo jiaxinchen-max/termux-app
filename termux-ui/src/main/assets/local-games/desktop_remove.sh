@@ -1,22 +1,19 @@
 #!/bin/sh
-# Removes a container desktop's proot instance. Sourced spec provides DESKTOP_PROOT_DISTRO.
-# Runs after the record is gone; best effort, never fails the UI.
+# One explicit container-uninstall method. Preserve its diagnostics and exit status.
 set -u
 SPEC="${1:-}"
-[ -n "$SPEC" ] && [ -f "$SPEC" ] && . "$SPEC"
-
-PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+[ -n "$SPEC" ] && [ -f "$SPEC" ] || { echo 'ERROR: desktop removal spec is missing' >&2; exit 64; }
+. "$SPEC"
+[ "${DESKTOP_MODE:-}" = proot ] && [ "${DESKTOP_REMOVE_METHOD:-}" = proot-distro ] || {
+    echo 'ERROR: explicitly select proot mode and DESKTOP_REMOVE_METHOD=proot-distro' >&2
+    exit 64
+}
 ALIAS="${DESKTOP_PROOT_DISTRO:-}"
-
-case "${DESKTOP_MODE:-}" in
-    proot) ;;
-    *) exit 0 ;;
+case "$ALIAS" in
+    ''|-*|.|..|*[!A-Za-z0-9._-]*) echo 'ERROR: invalid container alias for removal' >&2; exit 64 ;;
 esac
-[ -n "$ALIAS" ] || exit 0
-command -v proot-distro >/dev/null 2>&1 || exit 0
-
-for base in "$PREFIX/var/lib/proot-distro/containers" "$PREFIX/var/lib/proot-distro/installed-rootfs"; do
-    [ -d "$base/$ALIAS" ] || continue
-    proot-distro uninstall "$ALIAS" -y >/dev/null 2>&1 || rm -rf "$base/$ALIAS"
-done
-exit 0
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+export PATH="$PREFIX/bin:$PREFIX/bin/applets:${PATH:-}"
+command -v proot-distro >/dev/null 2>&1 || { echo 'ERROR: proot-distro is unavailable for removal' >&2; exit 127; }
+echo "Removing container $ALIAS with explicitly selected proot-distro"
+exec proot-distro remove "$ALIAS"

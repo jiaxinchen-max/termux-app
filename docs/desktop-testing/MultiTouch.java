@@ -2,34 +2,22 @@ import android.os.SystemClock;
 import android.view.InputDevice;
 import android.view.InputEvent;
 import android.view.MotionEvent;
-
 import java.lang.reflect.Method;
+import java.util.Arrays;
 
-/**
- * Two-finger gestures for a phone without root: injects multi-pointer MotionEvents through the
- * InputManager, the way the platform `input` command and scrcpy do. Run as the shell user:
- *   CLASSPATH=/data/local/tmp/mt.jar app_process / MultiTouch tap2 x1 y1 x2 y2 [holdMs]
- *   CLASSPATH=/data/local/tmp/mt.jar app_process / MultiTouch tap3 x1 y1 x2 y2 x3 y3 [holdMs]
- *   CLASSPATH=/data/local/tmp/mt.jar app_process / MultiTouch swipe2 x1 y1 x2 y2 dx dy [durationMs]
- */
+/** Multi-pointer UI injection, run as Android shell. The InputManager API is explicit. */
 public final class MultiTouch {
     private static Object inputManager;
     private static Method inject;
 
-    private static void init() throws Exception {
-        Throwable first = null;
-        for (String name : new String[] {"android.hardware.input.InputManagerGlobal",
-                                         "android.hardware.input.InputManager"}) {
-            try {
-                Class<?> type = Class.forName(name);
-                inputManager = type.getMethod("getInstance").invoke(null);
-                inject = type.getMethod("injectInputEvent", InputEvent.class, int.class);
-                return;
-            } catch (Throwable error) {
-                if (first == null) first = error;
-            }
-        }
-        throw new Exception("no InputManager found", first);
+    private static void init(String api) throws Exception {
+        String name;
+        if (api.equals("global")) name = "android.hardware.input.InputManagerGlobal";
+        else if (api.equals("legacy")) name = "android.hardware.input.InputManager";
+        else throw new IllegalArgumentException("input-manager must be global or legacy");
+        Class<?> type = Class.forName(name);
+        inputManager = type.getMethod("getInstance").invoke(null);
+        inject = type.getMethod("injectInputEvent", InputEvent.class, int.class);
     }
 
     private static MotionEvent event(long down, int action, float[][] points, int count) {
@@ -40,77 +28,76 @@ public final class MultiTouch {
             props[i].id = i;
             props[i].toolType = MotionEvent.TOOL_TYPE_FINGER;
             coords[i] = new MotionEvent.PointerCoords();
-            coords[i].x = points[i][0];
-            coords[i].y = points[i][1];
-            coords[i].pressure = 1f;
-            coords[i].size = 1f;
+            coords[i].x = points[i][0]; coords[i].y = points[i][1];
+            coords[i].pressure = 1f; coords[i].size = 1f;
         }
         return MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, count, props, coords,
             0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0);
     }
 
     private static void send(MotionEvent e) throws Exception {
-        boolean ok = (Boolean) inject.invoke(inputManager, e, 0);
-        e.recycle();
-        if (!ok) System.err.println("injectInputEvent refused an event");
-    }
-
-    private static final int DOWN = MotionEvent.ACTION_DOWN;
-    private static final int UP = MotionEvent.ACTION_UP;
-    private static final int MOVE = MotionEvent.ACTION_MOVE;
-    private static final int POINTER_DOWN = MotionEvent.ACTION_POINTER_DOWN
-        | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
-    private static final int POINTER_UP = MotionEvent.ACTION_POINTER_UP
-        | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
-
-    private static void tap3(String[] args) throws Exception {
-        float[][] p = new float[3][];
-        for (int i = 0; i < 3; i++) p[i] = new float[] {f(args[1 + 2 * i]), f(args[2 + 2 * i])};
-        long down = SystemClock.uptimeMillis();
-        send(event(down, DOWN, p, 1));
-        send(event(down, MotionEvent.ACTION_POINTER_DOWN | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT), p, 2));
-        send(event(down, MotionEvent.ACTION_POINTER_DOWN | (2 << MotionEvent.ACTION_POINTER_INDEX_SHIFT), p, 3));
-        Thread.sleep(args.length > 7 ? Long.parseLong(args[7]) : 60);
-        send(event(down, MotionEvent.ACTION_POINTER_UP | (2 << MotionEvent.ACTION_POINTER_INDEX_SHIFT), p, 3));
-        send(event(down, POINTER_UP, p, 2));
-        send(event(down, UP, p, 1));
+        try {
+            // WAIT_FOR_FINISH: a refused injection is a failed step, never a reported success.
+            if (!(Boolean) inject.invoke(inputManager, e, 2))
+                throw new IllegalStateException("injectInputEvent refused an event");
+        } finally { e.recycle(); }
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length >= 7 && args[0].equals("tap3")) {
-            init();
-            tap3(args);
-            return;
+        if (args.length < 2 || !args[0].startsWith("--input-manager="))
+            throw new IllegalArgumentException("usage: --input-manager=global|legacy tap2|tap3|swipe2 coordinates [ms]");
+        String api = args[0].substring("--input-manager=".length());
+        args = Arrays.copyOfRange(args, 1, args.length);
+        String command = args[0];
+        int count;
+        int required;
+        if (command.equals("tap2")) { count = 2; required = 5; }
+        else if (command.equals("tap3")) { count = 3; required = 7; }
+        else if (command.equals("swipe2")) { count = 2; required = 7; }
+        else throw new IllegalArgumentException("unknown command: " + command);
+        if (args.length != required && args.length != required + 1)
+            throw new IllegalArgumentException("invalid coordinate/duration argument count");
+        float[][] points = new float[count][2];
+        for (int i = 0; i < count; i++) {
+            points[i][0] = finite(args[1 + 2 * i]); points[i][1] = finite(args[2 + 2 * i]);
         }
-        if (args.length < 5) {
-            System.err.println("usage: tap2 x1 y1 x2 y2 [holdMs] | swipe2 x1 y1 x2 y2 dx dy [durationMs]");
-            System.exit(2);
-        }
-        init();
-        float[][] p = {{f(args[1]), f(args[2])}, {f(args[3]), f(args[4])}};
+        float dx = command.equals("swipe2") ? finite(args[5]) : 0;
+        float dy = command.equals("swipe2") ? finite(args[6]) : 0;
+        long duration = args.length > required ? Long.parseLong(args[required]) : (command.equals("swipe2") ? 400 : 60);
+        if (duration < 1 || duration > 60000) throw new IllegalArgumentException("duration must be 1..60000 ms");
+        init(api); // No event is sent before every argument and the selected API are validated.
         long down = SystemClock.uptimeMillis();
-        send(event(down, DOWN, p, 1));
-        send(event(down, POINTER_DOWN, p, 2));
-        if (args[0].equals("tap2")) {
-            Thread.sleep(args.length > 5 ? Long.parseLong(args[5]) : 60);
-        } else if (args[0].equals("swipe2")) {
-            float dx = f(args[5]), dy = f(args[6]);
-            long duration = args.length > 7 ? Long.parseLong(args[7]) : 400;
-            int steps = Math.max(8, (int) (duration / 16));
-            for (int s = 1; s <= steps; s++) {
-                float t = s / (float) steps;
-                float[][] q = {{p[0][0] + dx * t, p[0][1] + dy * t}, {p[1][0] + dx * t, p[1][1] + dy * t}};
-                send(event(down, MOVE, q, 2));
-                Thread.sleep(Math.max(1, duration / steps));
+        int activeCount = 0;
+        try {
+            send(event(down, MotionEvent.ACTION_DOWN, points, 1)); activeCount = 1;
+            for (int n = 2; n <= count; n++) {
+                send(event(down, MotionEvent.ACTION_POINTER_DOWN | ((n - 1) << MotionEvent.ACTION_POINTER_INDEX_SHIFT), points, n));
+                activeCount = n;
             }
-            p[0][0] += dx; p[0][1] += dy; p[1][0] += dx; p[1][1] += dy;
-        } else {
-            System.err.println("unknown command " + args[0]);
-            System.exit(2);
+            if (command.equals("swipe2")) {
+                int steps = Math.max(8, (int) (duration / 16));
+                for (int step = 1; step <= steps; step++) {
+                    float t = step / (float) steps;
+                    float[][] moved = {{points[0][0] + dx * t, points[0][1] + dy * t},
+                                       {points[1][0] + dx * t, points[1][1] + dy * t}};
+                    send(event(down, MotionEvent.ACTION_MOVE, moved, count));
+                    Thread.sleep(Math.max(1, duration / steps));
+                }
+                for (float[] point : points) { point[0] += dx; point[1] += dy; }
+            } else Thread.sleep(duration);
+            for (int n = count; n >= 2; n--) {
+                send(event(down, MotionEvent.ACTION_POINTER_UP | ((n - 1) << MotionEvent.ACTION_POINTER_INDEX_SHIFT), points, n));
+                activeCount = n - 1;
+            }
+            send(event(down, MotionEvent.ACTION_UP, points, 1)); activeCount = 0;
+        } finally {
+            // Release this tool's unfinished sequence on failure; do not try another injection API.
+            if (activeCount > 0) send(event(down, MotionEvent.ACTION_CANCEL, points, activeCount));
         }
-        send(event(down, POINTER_UP, p, 2));
-        send(event(down, UP, p, 1));
     }
-
-    private static float f(String s) { return Float.parseFloat(s); }
+    private static float finite(String text) {
+        float value = Float.parseFloat(text);
+        if (Float.isNaN(value) || Float.isInfinite(value)) throw new IllegalArgumentException("non-finite coordinate");
+        return value;
+    }
 }

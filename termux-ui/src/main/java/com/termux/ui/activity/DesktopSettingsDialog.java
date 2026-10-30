@@ -3,6 +3,7 @@ package com.termux.ui.activity;
 import android.view.LayoutInflater;
 import android.view.View;
 
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.termux.ui.R;
 import com.termux.ui.api.DesktopTasks;
@@ -34,6 +35,8 @@ final class DesktopSettingsDialog {
             LayoutInflater.from(activity));
         BottomSheetDialog dialog = new BottomSheetDialog(activity);
         dialog.setContentView(sheet.getRoot());
+        dialog.getBehavior().setSkipCollapsed(true);
+        dialog.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
 
         boolean container = distro.getRunMode() == DesktopRunMode.PROOT;
         sheet.desktopSettingsHint.setText(activity.getString(R.string.desktop_settings_hint,
@@ -54,11 +57,17 @@ final class DesktopSettingsDialog {
             refreshLabels(), () -> refresh[0] + " Hz",
             value -> refresh[0] = Integer.parseInt(value.substring(0, value.length() - 3)));
         bind(activity, sheet.desktopSettingsRenderer, R.string.desktop_select_renderer,
-            rendererLabels(activity, container), () -> glLabel(activity, gl[0]),
+            rendererLabels(activity, container, distro.getDe() == DesktopDe.XFCE4), () -> glLabel(activity, gl[0]),
             value -> gl[0] = glOf(activity, value));
 
         sheet.desktopSettingsCancel.setOnClickListener(view -> dialog.dismiss());
         sheet.desktopSettingsSave.setOnClickListener(view -> {
+            if (gl[0] == DesktopGlMode.AUTO
+                || (container && distro.getDe() == DesktopDe.KWIN_PLASMA && gl[0] == DesktopGlMode.SYSTEM)) {
+                android.widget.Toast.makeText(activity, R.string.desktop_renderer_explicit_required,
+                    android.widget.Toast.LENGTH_LONG).show();
+                return;
+            }
             String name = container ? String.valueOf(sheet.desktopSettingsName.getText())
                 : distro.getName();
             if (name == null || name.trim().isEmpty()) name = distro.getName();
@@ -68,8 +77,15 @@ final class DesktopSettingsDialog {
             new Thread(() -> {
                 try {
                     tasks.save(updated);
-                } catch (IOException ignored) { }
-                activity.runOnUiThread(onSaved);
+                    activity.runOnUiThread(onSaved);
+                } catch (IOException error) {
+                    android.util.Log.e("DesktopSettings", "Unable to save desktop settings", error);
+                    activity.runOnUiThread(() -> android.widget.Toast.makeText(activity,
+                        "desktop_settings_stop_required".equals(error.getMessage())
+                            ? activity.getString(R.string.desktop_settings_stop_required)
+                            : activity.getString(R.string.desktop_error, "desktop_settings_save_failed"),
+                        android.widget.Toast.LENGTH_LONG).show());
+                }
             }, "DesktopSettingsSave").start();
         });
         dialog.show();
@@ -97,7 +113,7 @@ final class DesktopSettingsDialog {
 
     private static int indexOf(String[] values, String current) {
         for (int i = 0; i < values.length; i++) if (values[i].equals(current)) return i;
-        return 0;
+        return -1;
     }
 
     private static String[] refreshLabels() {
@@ -106,10 +122,9 @@ final class DesktopSettingsDialog {
         return labels;
     }
 
-    private static String[] rendererLabels(DesktopActivity activity, boolean container) {
+    private static String[] rendererLabels(DesktopActivity activity, boolean container, boolean xfce) {
         List<String> labels = new ArrayList<>();
-        labels.add(glLabel(activity, DesktopGlMode.AUTO));
-        if (!container) labels.add(glLabel(activity, DesktopGlMode.SYSTEM));
+        if (!container || xfce) labels.add(glLabel(activity, DesktopGlMode.SYSTEM));
         labels.add(glLabel(activity, DesktopGlMode.ZINK));
         labels.add(glLabel(activity, DesktopGlMode.LLVMPIPE));
         return labels.toArray(new String[0]);
@@ -120,7 +135,7 @@ final class DesktopSettingsDialog {
         if (label.equals(glLabel(activity, DesktopGlMode.ZINK))) return DesktopGlMode.ZINK;
         if (label.equals(glLabel(activity, DesktopGlMode.LLVMPIPE)))
             return DesktopGlMode.LLVMPIPE;
-        return DesktopGlMode.AUTO;
+        throw new IllegalArgumentException("unknown_desktop_renderer:" + label);
     }
 
     private static String glLabel(DesktopActivity activity, DesktopGlMode mode) {

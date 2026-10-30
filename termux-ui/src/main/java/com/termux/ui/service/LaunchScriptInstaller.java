@@ -55,13 +55,13 @@ public final class LaunchScriptInstaller {
     private static final String DESKTOP_START_ASSET = "local-games/desktop_start.sh";
     private static final String DESKTOP_STOP_ASSET = "local-games/desktop_stop.sh";
     private static final String DESKTOP_REMOVE_ASSET = "local-games/desktop_remove.sh";
-    /** Byte-identical copy of packaging/container/plasma-container-session.sh at kwin commit
-     *  cf00fcd75ae91854a26e8fe7a777b3f1b0890fb7 (release termux-hwaccel-6.6-r19). The release's
-     *  kwin package does not ship it, nor start-plasma-container, so proot mode runs it itself. */
+    /** App-managed container session with explicit renderer and private D-Bus services. */
     private static final String DESKTOP_CONTAINER_SESSION_ASSET =
         "local-games/desktop_container_session.sh";
     private static final String DESKTOP_CONTAINER_PLASMA_APT_ASSET =
         "local-games/desktop_container_plasma_apt.sh";
+    private static final String[] DESKTOP_CONTAINER_STATX_ASSETS = {
+        "desktop_container_statx_setup.sh", "desktop_container_run_config.sh", "desktop_container_statx_aarch64.bin"};
 
     private final Context context;
     private final File runtimeDirectory;
@@ -197,6 +197,15 @@ public final class LaunchScriptInstaller {
             new File(runtimeDirectory, "desktop_container_session.sh"));
         installAsset(DESKTOP_CONTAINER_PLASMA_APT_ASSET,
             new File(runtimeDirectory, "desktop_container_plasma_apt.sh"));
+        for (String name : DESKTOP_CONTAINER_STATX_ASSETS) {
+            installAsset("local-games/" + name, new File(runtimeDirectory, name));
+        }
+        for (String obsolete : new String[] {"desktop_container_sysusers_setup.sh", "desktop_container_sysusers.sh"}) {
+            File oldAsset = new File(runtimeDirectory, obsolete);
+            if (oldAsset.exists() && !oldAsset.delete()) {
+                throw new IOException("Cannot remove retired desktop asset: " + oldAsset);
+            }
+        }
         return new DesktopScripts(install, start, stop, remove);
     }
 

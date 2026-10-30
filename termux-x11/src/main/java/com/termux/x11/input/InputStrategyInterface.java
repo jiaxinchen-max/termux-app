@@ -160,7 +160,7 @@ public interface InputStrategyInterface {
 
         @Override
         public void onScroll(float distanceX, float distanceY) {
-            mInjector.sendMouseWheelEvent(distanceX, distanceY);
+            mInjector.sendMouseScrollPixels(distanceX, distanceY);
         }
 
         @Override
@@ -221,7 +221,7 @@ public interface InputStrategyInterface {
 
         @Override
         public void onScroll(float distanceX, float distanceY) {
-            mInjector.sendMouseWheelEvent(distanceX, distanceY);
+            mInjector.sendMouseScrollPixels(distanceX, distanceY);
         }
 
         @Override

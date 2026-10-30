@@ -1,0 +1,238 @@
+--- a/glamor/glamor.c
++++ b/glamor/glamor.c
+@@ -211,6 +211,12 @@
+     if (w > 32767 || h > 32767)
+         return NullPixmap;
+ 
++    if (w > 0 && h > 0 && glamor_priv->formats[depth].gpu_unsupported) {
++        ErrorF("Xlorie: rejecting depth-%d pixmap %dx%d: selected GL backend "
++               "has no exact pixel transfer; BadAlloc\n", depth, w, h);
++        return NullPixmap;
++    }
++
+     if ((usage == GLAMOR_CREATE_PIXMAP_CPU
+          || (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE &&
+              w <= glamor_priv->glyph_max_dim &&
+@@ -249,6 +255,11 @@
+ 
+     if (fbo == NULL) {
+         fbDestroyPixmap(pixmap);
++        if (getenv("XLORIE_GLAMOR")) {
++            ErrorF("Xlorie: GPU FBO allocation failed for depth %d pixmap %dx%d; BadAlloc\n",
++                   depth, w, h);
++            return NullPixmap;
++        }
+         return fbCreatePixmap(screen, w, h, depth, usage);
+     }
+ 
+@@ -468,6 +479,8 @@
+     struct glamor_format *f = &glamor_priv->formats[depth];
+ 
+     f->rgba_readback = FALSE;
++    f->rgba_upload = FALSE;
++    f->gpu_unsupported = FALSE;
+ 
+     /* If we're trying to run on GLES, make sure that we get the read
+      * formats that we're expecting, since glamor_transfer relies on
+@@ -497,8 +510,13 @@
+                                GL_TEXTURE_2D, tex, 0);
+         status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+         if (status != GL_FRAMEBUFFER_COMPLETE) {
+-            ErrorF("glamor: Test fbo for depth %d incomplete.  "
+-                   "Falling back to software.\n", depth);
++            if (getenv("XLORIE_GLAMOR")) {
++                f->gpu_unsupported = TRUE;
++                ErrorF("Xlorie: depth %d GPU FBO is incomplete; pixmap requests will fail\n", depth);
++            } else {
++                ErrorF("glamor: Test fbo for depth %d incomplete.  "
++                       "Falling back to software.\n", depth);
++            }
+             glDeleteTextures(1, &tex);
+             glDeleteFramebuffers(1, &fbo);
+             return;
+@@ -511,13 +529,23 @@
+         glDeleteFramebuffers(1, &fbo);
+ 
+         if (format != read_format || type != read_type) {
+-            /* GLES guarantees RGBA/UNSIGNED_BYTE readback, not BGRA. Keep
+-             * BGRA uploads, but convert downloaded pixels in glamor_transfer.
+-             */
+-            if (getenv("XLORIE_GLAMOR") && (depth == 24 || depth == 32) &&
+-                format == GL_BGRA && type == GL_UNSIGNED_BYTE) {
++            /* RGBA/UNSIGNED_BYTE is guaranteed for GLES normalized color
++             * buffers. Convert to the X pixel layout without losing bits. */
++            if (getenv("XLORIE_GLAMOR") &&
++                ((depth == 8 && format == GL_RED && type == GL_UNSIGNED_BYTE) ||
++                 (depth == 15 && format == GL_RGBA && type == GL_UNSIGNED_BYTE) ||
++                 (depth == 16 && format == GL_RGB && type == GL_UNSIGNED_SHORT_5_6_5) ||
++                 ((depth == 24 || depth == 32) && format == GL_BGRA && type == GL_UNSIGNED_BYTE))) {
+                 f->rgba_readback = TRUE;
+-                ErrorF("glamor: using RGBA readback conversion for depth %d.\n", depth);
++                ErrorF("glamor: using lossless RGBA readback conversion for depth %d.\n", depth);
++            } else if (getenv("XLORIE_GLAMOR")) {
++                /* In particular RGBA8 cannot preserve RGB10_A2 precision. */
++                f->gpu_unsupported = TRUE;
++                ErrorF("Xlorie: depth %d exact readback unsupported "
++                       "(implementation 0x%x/0x%x, required 0x%x/0x%x); "
++                       "pixmap requests will fail with BadAlloc\n",
++                       depth, read_format, read_type, format, type);
++                return;
+             } else {
+                 ErrorF("glamor: Implementation returned 0x%x/0x%x read format/type "
+                        "for depth %d, expected 0x%x/0x%x.  "
+@@ -526,6 +554,13 @@
+                 return;
+             }
+         }
++    }
++
++    if (glamor_priv->is_gles && getenv("XLORIE_GLAMOR") && depth == 15) {
++        /* GL 5551's layout is not X1555. Store the real RGB channels and
++         * explicitly convert the protocol's packed pixels in both directions. */
++        f->rgba_upload = TRUE;
++        f->rgba_readback = TRUE;
+     }
+ 
+     f->depth = depth;
+@@ -581,7 +616,7 @@
+      * a zero internalformat yields an invalid texture that samples as opaque
+      * (solid glyph boxes).  Keep A8 textures usable for sampling with the
+      * classic GL_ALPHA layout; they stay CPU-rendered (not renderable in ES). */
+-    if (glamor_priv->is_gles) {
++    if (glamor_priv->is_gles && !getenv("XLORIE_GLAMOR")) {
+         if (glamor_priv->formats[8].depth != 8)
+             glamor_add_format(screen, 8, PICT_a8,
+                               GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE, FALSE);
+@@ -601,7 +636,9 @@
+          * disable render accel for now.
+          */
+         glamor_add_format(screen, 15, PICT_x1r5g5b5,
+-                          GL_RGB5_A1, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, TRUE);
++                          GL_RGB5_A1, GL_RGBA,
++                          getenv("XLORIE_GLAMOR") ? GL_UNSIGNED_BYTE : GL_UNSIGNED_SHORT_5_5_5_1,
++                          TRUE);
+     } else {
+         glamor_add_format(screen, 15, PICT_x1r5g5b5,
+                           GL_RGBA, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, TRUE);
+--- a/glamor/glamor_priv.h
++++ b/glamor/glamor_priv.h
+@@ -175,8 +175,12 @@
+      * just before upload)
+      */
+     Bool rendering_supported;
+-    /** Read GLES RGBA and convert to the X11 BGRA byte order on download. */
++    /** Convert GLES RGBA readback to the X11 pixel representation. */
+     Bool rgba_readback;
++    /** X1555 pixels need explicit RGBA upload conversion on GLES. */
++    Bool rgba_upload;
++    /** The selected GL implementation cannot represent this depth exactly. */
++    Bool gpu_unsupported;
+ };
+ 
+ struct glamor_saved_procs {
+--- a/glamor/glamor_transfer.c
++++ b/glamor/glamor_transfer.c
+@@ -23,6 +23,42 @@
+ #include "glamor_priv.h"
+ #include "glamor_transfer.h"
+ 
++/* GLES has no X1555 upload type: GL_UNSIGNED_SHORT_5_5_5_1 puts every
++ * channel at a different bit position. Convert pixel storage, never rendering. */
++static void
++glamor_upload_pixels(const struct glamor_format *f, int x, int y,
++                     int width, int height, const uint8_t *bits, uint32_t stride)
++{
++    uint8_t *rgba;
++    GLint row_length;
++    int row, col;
++
++    if (!f->rgba_upload) {
++        glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height,
++                       f->format, f->type, bits);
++        return;
++    }
++    rgba = malloc((size_t) width * 4);
++    if (!rgba)
++        FatalError("Xlorie: cannot allocate X1555 transfer row\n");
++    glGetIntegerv(GL_UNPACK_ROW_LENGTH, &row_length);
++    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
++    for (row = 0; row < height; row++) {
++        const uint8_t *src = bits + (size_t) row * stride;
++        for (col = 0; col < width; col++) {
++            unsigned pixel = src[col * 2] | ((unsigned) src[col * 2 + 1] << 8);
++            rgba[col * 4] = (((pixel >> 10) & 31) * 255 + 15) / 31;
++            rgba[col * 4 + 1] = (((pixel >> 5) & 31) * 255 + 15) / 31;
++            rgba[col * 4 + 2] = ((pixel & 31) * 255 + 15) / 31;
++            rgba[col * 4 + 3] = 255;
++        }
++        glTexSubImage2D(GL_TEXTURE_2D, 0, x, y + row, width, 1,
++                       GL_RGBA, GL_UNSIGNED_BYTE, rgba);
++    }
++    glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
++    free(rgba);
++}
++
+ /*
+  * Write a region of bits into a pixmap
+  */
+@@ -72,18 +108,12 @@
+ 
+             if (glamor_priv->has_unpack_subimage ||
+                 x2 - x1 == byte_stride / bytes_per_pixel) {
+-                glTexSubImage2D(GL_TEXTURE_2D, 0,
+-                                x1 - box->x1, y1 - box->y1,
+-                                x2 - x1, y2 - y1,
+-                                f->format, f->type,
+-                                bits + ofs);
++                glamor_upload_pixels(f, x1 - box->x1, y1 - box->y1,
++                                     x2 - x1, y2 - y1, bits + ofs, byte_stride);
+             } else {
+                 for (; y1 < y2; y1++, ofs += byte_stride)
+-                    glTexSubImage2D(GL_TEXTURE_2D, 0,
+-                                    x1 - box->x1, y1 - box->y1,
+-                                    x2 - x1, 1,
+-                                    f->format, f->type,
+-                                    bits + ofs);
++                    glamor_upload_pixels(f, x1 - box->x1, y1 - box->y1,
++                                         x2 - x1, 1, bits + ofs, byte_stride);
+             }
+         }
+     }
+@@ -131,6 +161,37 @@
+ glamor_read_pixels(const struct glamor_format *f, int x, int y, int width,
+                    int height, uint8_t *bits, uint32_t stride)
+ {
++    if (f->rgba_readback && (f->depth == 8 || f->depth == 15 || f->depth == 16)) {
++        uint8_t *rgba = malloc((size_t) width * 4);
++        GLint row_length;
++        int row, col;
++
++        if (!rgba)
++            FatalError("Xlorie: cannot allocate exact RGBA transfer row\n");
++        glGetIntegerv(GL_PACK_ROW_LENGTH, &row_length);
++        glPixelStorei(GL_PACK_ROW_LENGTH, 0);
++        for (row = 0; row < height; row++) {
++            uint8_t *dst = bits + (size_t) row * stride;
++            glReadPixels(x, y + row, width, 1, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
++            for (col = 0; col < width; col++) {
++                const uint8_t *pixel = rgba + col * 4;
++                if (f->depth == 8) {
++                    dst[col] = pixel[0];
++                } else {
++                    unsigned red = (pixel[0] * 31 + 127) / 255;
++                    unsigned blue = (pixel[2] * 31 + 127) / 255;
++                    unsigned green = (pixel[1] * (f->depth == 16 ? 63 : 31) + 127) / 255;
++                    unsigned value = f->depth == 16 ? (red << 11) | (green << 5) | blue
++                                                    : (red << 10) | (green << 5) | blue;
++                    dst[col * 2] = value & 255;
++                    dst[col * 2 + 1] = value >> 8;
++                }
++            }
++        }
++        glPixelStorei(GL_PACK_ROW_LENGTH, row_length);
++        free(rgba);
++        return;
++    }
+     glReadPixels(x, y, width, height,
+                  f->rgba_readback ? GL_RGBA : f->format, f->type, bits);
+     if (f->rgba_readback) {

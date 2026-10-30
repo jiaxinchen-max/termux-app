@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+base=/home/builder/desktop-fixes-20261030/discover
+testroot=/tmp/fwupd-state-test-20261030
+export LD_LIBRARY_PATH="$base/tools/root/usr/lib/x86_64-linux-gnu"
+export PROOT_TMP_DIR="$testroot/proot-tmp"
+export PROOT_NO_SECCOMP=1
+mkdir -p "$PROOT_TMP_DIR" "$testroot/home" "$testroot/runtime"
+exec "$base/tools/root/usr/bin/proot" -r "$base/rootfs" \
+    -q "$base/tools/root/usr/bin/qemu-aarch64" \
+    -b /dev -b /proc -b /sys -b "$testroot:$testroot" \
+    -w "$testroot" /usr/bin/env -i HOME="$testroot/home" \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    LANG=C.UTF-8 QT_QPA_PLATFORM=offscreen XDG_RUNTIME_DIR="$testroot/runtime" \
+    DBUS_SYSTEM_BUS_ADDRESS="${DBUS_SYSTEM_BUS_ADDRESS:-}" \
+    DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
+    LD_LIBRARY_PATH=/root/build/discover-fix2-verify/usr/lib/aarch64-linux-gnu/plasma-discover \
+    "$@"

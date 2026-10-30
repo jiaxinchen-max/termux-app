@@ -1,0 +1,73 @@
+--- a/hw/lorie/InitOutput.c
++++ b/hw/lorie/InitOutput.c
+@@ -32,6 +32,7 @@
+ #include "drm_fourcc.h"
+ #endif
+ #include "fb.h"
++#include "extinit.h"
+ #include "gcstruct.h"
+ #include "glx_extinit.h"
+ #include "input.h"
+@@ -1786,6 +1787,17 @@
+ {
+     int i;
+     int numFormats = 0;
++    const char *glxEnv = getenv("XLORIE_GLX");
++
++    if (glxEnv) {
++        if (!strcmp(glxEnv, "0"))
++            noGlxExtension = TRUE;
++        else if (!strcmp(glxEnv, "1"))
++            noGlxExtension = FALSE;
++        else
++            FatalError("Xlorie: XLORIE_GLX must be explicitly 0 or 1; got \"%s\"\n",
++                       glxEnv);
++    }
+ 
+     loriePixmapDepths[lorieScreen.depth] = TRUE;
+ 
+@@ -1798,10 +1810,15 @@
+         loriePixmapDepths[32] = TRUE;
+     }
+ 
+-#ifdef LORIE_HAVE_GLAMOR
+-    GlxPushProvider(&lorieGlxProvider);
+-#endif
+-    xorgGlxCreateVendor();
++    if (!noGlxExtension) {
++#ifdef LORIE_HAVE_GLAMOR
++        GlxPushProvider(&lorieGlxProvider);
++#endif
++        xorgGlxCreateVendor();
++        lorieLog("Xlorie: GLX extension enabled\n");
++    } else {
++        lorieLog("Xlorie: GLX extension disabled; no vendor registered\n");
++    }
+     lorieInitClipboard();
+ 
+     for (i = 1; i <= 32; i++) {
+--- a/hw/lorie/lorie-glx.c
++++ b/hw/lorie/lorie-glx.c
+@@ -275,20 +275,8 @@
+     screen->createContext = lorieGlxCreateContext;
+     screen->createDrawable = lorieGlxCreateDrawable;
+     screen->swapInterval = lorieGlxSwapInterval;
+-    /* XLORIE_GLX=0 advertises an empty GLX (no fbconfigs). glibc Mesa clients (a container
+-     * compositor such as xfwm4) otherwise initialise GLX/DRI3 against this minimal protocol
+-     * provider and can leave the session with a black root window; with no configs they fall
+-     * back to XRender, which the server's glamor composites on the GPU. The provider stays on
+-     * the stack so the in-process swrast provider is never probed. */
+-    {
+-        const char *glxEnv = getenv("XLORIE_GLX");
+-        if (glxEnv && strcmp(glxEnv, "0") == 0) {
+-            free(configs->next);
+-            free(configs);
+-            configs = NULL;
+-            lorieLog("Xlorie: GLX disabled by XLORIE_GLX=0\n");
+-        }
+-    }
++    /* XLORIE_GLX=0 is handled before extension registration in InitOutput.
++     * This provider is only created when GLX is enabled and has real configs. */
+     screen->fbconfigs = configs;
+ 
+     __glXInitExtensionEnableBits(screen->glx_enable_bits);

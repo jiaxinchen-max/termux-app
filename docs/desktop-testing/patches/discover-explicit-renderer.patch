@@ -1,0 +1,98 @@
+--- a/discover/main.cpp
++++ b/discover/main.cpp
+@@ -17,6 +17,7 @@
+ #include <QApplication>
+ #include <QCommandLineParser>
+ #include <QDir>
++#include <QDebug>
+ #include <QStandardPaths>
+ #include <QTextStream>
+ #include <QWindow>
+@@ -102,13 +103,36 @@
+ {
+     // needs to be set before we create the QGuiApplication
+     QCoreApplication::setAttribute(Qt::AA_DisableSessionManager, true);
++    // A session must request one renderer explicitly. WebView must never
++    // override that request or trigger a switch after renderer initialization.
++    const QByteArray rhiBackend = qgetenv("QSG_RHI_BACKEND");
++    const QByteArray quickBackend = qgetenv("QT_QUICK_BACKEND");
++    const bool openGLRequested = quickBackend.isEmpty() && rhiBackend == "opengl";
++    const bool vulkanRequested = quickBackend.isEmpty() && rhiBackend == "vulkan";
++    const bool softwareRequested = quickBackend == "software" && rhiBackend.isEmpty();
++    if (!openGLRequested && !vulkanRequested && !softwareRequested) {
++        qCritical().noquote() << "Discover requires exactly one explicit renderer:"
++                             << "QSG_RHI_BACKEND=opengl, QSG_RHI_BACKEND=vulkan, or QT_QUICK_BACKEND=software;"
++                             << "got QSG_RHI_BACKEND=" + rhiBackend + ", QT_QUICK_BACKEND=" + quickBackend;
++        return 64;
++    }
++
++    if (softwareRequested) {
++        QQuickWindow::setSceneGraphBackend(QStringLiteral("software"));
++    } else {
++        QQuickWindow::setGraphicsApi(openGLRequested ? QSGRendererInterface::OpenGLRhi : QSGRendererInterface::VulkanRhi);
++    }
++    bool webViewAvailable = false;
+ #if WITH_QTWEBVIEW
+-    { // as required by a QtWebEngine warning
++    if (openGLRequested) {
++        // The embedded web authentication path requires shared OpenGL contexts.
+         QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts, true);
+-        QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGLRhi);
+-    }
+-    QtWebView::initialize();
++        QtWebView::initialize();
++        webViewAvailable = true;
++    }
+ #endif
++    qInfo().noquote() << "Discover explicit renderer:" << (softwareRequested ? QByteArray("software") : rhiBackend)
++                      << "; embedded web authentication:" << (webViewAvailable ? "available" : "unavailable");
+ 
+     QApplication app(argc, argv);
+     KirigamiAppDefaults::apply(&app);
+@@ -180,6 +204,7 @@
+             if (feedback || headlessUpdate) {
+                 initialProperties.insert(QStringLiteral("visible"), false);
+             }
++            initialProperties.insert(QStringLiteral("webViewAvailable"), webViewAvailable);
+             discoverObject = new DiscoverObject(initialProperties);
+         }
+         if (feedback) {
+--- a/discover/qml/DiscoverWindow.qml
++++ b/discover/qml/DiscoverWindow.qml
+@@ -14,6 +14,7 @@
+     id: window
+ 
+     property string currentTopLevel
++    property bool webViewAvailable: false
+ 
+     readonly property string topBrowsingComp: "BrowsingPage.qml"
+     readonly property string topInstalledComp: "InstalledPage.qml"
+@@ -511,13 +512,23 @@
+             }
+ 
+             function onWebflowStarted(url) {
++                if (!window.webViewAvailable) {
++                    messagesSheet.addMessage(i18n("Embedded web authentication is unavailable with the selected renderer. It requires an explicitly selected OpenGL renderer."));
++                    transaction.cancel();
++                    return;
++                }
+                 const component = Qt.createComponent("WebflowDialog.qml");
+-                if (component.status === Component.Error) {
+-                    Qt.openUrlExternally(url);
+-                    console.error("Webflow Error", component.errorString())
+-                } else if (component.status === Component.Ready) {
++                if (component.status !== Component.Ready) {
++                    messagesSheet.addMessage(i18n("Cannot initialize embedded web authentication: %1", component.errorString()));
++                    transaction.cancel();
++                } else {
+                     const sheet = component.createObject(window, { transaction, url });
+-                    sheet.open()
++                    if (sheet) {
++                        sheet.open();
++                    } else {
++                        messagesSheet.addMessage(i18n("Cannot create embedded web authentication."));
++                        transaction.cancel();
++                    }
+                 }
+                 component.destroy();
+             }

@@ -1,0 +1,10 @@
+{
+  "description": "Example only: Discover is open and App Directtouch was explicitly selected; Installed/Home points match a 2400x1080 reference screenshot.",
+  "reference": {"width": 2400, "height": 1080, "rotation": 0},
+  "steps": [
+    {"action": "tap", "point": [592, 195], "settle_ms": 5000},
+    {"action": "tap", "point": [592, 140], "settle_ms": 1000},
+    {"action": "tap", "point": [592, 195], "settle_ms": 1000},
+    {"action": "swipe", "start": [1250, 800], "end": [1250, 300], "duration_ms": 500, "settle_ms": 1000}
+  ]
+}

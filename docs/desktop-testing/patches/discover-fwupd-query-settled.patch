@@ -1,0 +1,43 @@
+--- a/libdiscover/backends/FwupdBackend/FwupdBackend.cpp
++++ b/libdiscover/backends/FwupdBackend/FwupdBackend.cpp
+@@ -278,10 +278,12 @@
+     FwupdBackend *helper = (FwupdBackend *)user_data;
+     g_autoptr(GError) error = nullptr;
+     auto array = fwupd_client_get_devices_finish(helper->client, res, &error);
+-    if (!error)
++    if (!error) {
+         helper->setDevices(array);
+-    else
++    } else {
+         helper->handleError(error);
++        helper->deviceQueryFinished();
++    }
+ }
+ 
+ void FwupdBackend::setDevices(GPtrArray *devices)
+@@ -321,7 +323,15 @@
+ 
+     addUpdates();
+ 
++    deviceQueryFinished();
++}
++
++void FwupdBackend::deviceQueryFinished()
++{
++    // A settled query is not necessarily successful. Keep errors from the
++    // callback, but release pending searches and update progress on either result.
+     m_fetching = false;
++    Q_EMIT fetchingUpdatesProgressChanged();
+     Q_EMIT contentsChanged();
+     Q_EMIT initialized();
+ }
+--- a/libdiscover/backends/FwupdBackend/FwupdBackend.h
++++ b/libdiscover/backends/FwupdBackend/FwupdBackend.h
+@@ -69,6 +69,7 @@
+ 
+     static QString cacheFile(const QString &kind, const QString &baseName);
+     void setDevices(GPtrArray *);
++    void deviceQueryFinished();
+     void setRemotes(GPtrArray *);
+ 
+     int fetchingUpdatesProgress() const override

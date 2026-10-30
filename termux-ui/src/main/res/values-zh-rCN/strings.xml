@@ -560,6 +560,7 @@
     <string name="desktop_settings_title">桌面设置</string>
     <string name="desktop_settings_hint">%1$s · 下次启动会话时生效</string>
     <string name="desktop_settings_native_name_note">原生桌面名称固定;容器桌面可改名。</string>
+    <string name="desktop_settings_stop_required">请先停止桌面，再修改渲染器、分辨率或刷新率。</string>
     <string name="desktop_settings_save">保存</string>
     <string name="desktop_settings_cancel">取消</string>
     <string name="desktop_delete_title">删除“%1$s”?</string>
@@ -634,4 +635,5 @@
     <string name="desktop_session_volume">音量</string>
     <string name="desktop_session_keyboard_summary">不离开桌面,直接打开系统软键盘。</string>
     <string name="desktop_session_exit_title">离开桌面</string>
+    <string name="desktop_renderer_explicit_required">请明确选择此桌面支持的渲染模式。</string>
 </resources>

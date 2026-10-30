@@ -318,6 +318,9 @@ public class TouchInputHandler {
         if (event.getAction() == MotionEvent.ACTION_UP)
             setCapturingEnabled(true);
 
+        if (event.getActionMasked() == MotionEvent.ACTION_CANCEL)
+            mInjector.cancelActiveTouchEvents();
+
         if (event.getToolType(event.getActionIndex()) == MotionEvent.TOOL_TYPE_STYLUS
             || event.getToolType(event.getActionIndex()) == MotionEvent.TOOL_TYPE_ERASER)
             return mStylusListener.onTouch(event);
@@ -362,8 +365,8 @@ public class TouchInputHandler {
                     break;
 
                 case MotionEvent.ACTION_SCROLL:
-                    float scrollY = -100 * event.getAxisValue(MotionEvent.AXIS_VSCROLL);
-                    float scrollX = -100 * event.getAxisValue(MotionEvent.AXIS_HSCROLL);
+                    float scrollY = -120 * event.getAxisValue(MotionEvent.AXIS_VSCROLL);
+                    float scrollX = -120 * event.getAxisValue(MotionEvent.AXIS_HSCROLL);
 
                     mInjector.sendMouseWheelEvent(scrollX, scrollY);
                     return true;
@@ -421,6 +424,9 @@ public class TouchInputHandler {
     }
 
     public void setInputMode(@InputMode int inputMode) {
+        if (mInputStrategy instanceof InputStrategyInterface.NullInputStrategy
+            && (inputMode != InputMode.TOUCH || mTouchpadHandler == null))
+            mInjector.cancelActiveTouchEvents();
         if (mTouchpadHandler == null)
             mInputStrategy = new InputStrategyInterface.TrackpadInputStrategy(mInjector);
         else if (inputMode == InputMode.TOUCH)
@@ -675,7 +681,11 @@ public class TouchInputHandler {
                     // otherwise the target window may not receive the scroll event correctly.
                     moveCursorToScreenPoint(e1.getX(), e1.getY());
                 }
-                mInputStrategy.onScroll(distanceX, distanceY);
+                // GestureDetector reports view pixels. Map distances through the displayed
+                // viewport before translating desktop pixels to the bridge's v120 protocol.
+                mInputStrategy.onScroll(
+                    mRenderData.mapScreenX(distanceX) - mRenderData.mapScreenX(0),
+                    mRenderData.mapScreenY(distanceY) - mRenderData.mapScreenY(0));
 
                 // Prevent the cursor being moved or flung by the gesture.
                 mSuppressCursorMovement = true;
@@ -896,8 +906,8 @@ public class TouchInputHandler {
         @SuppressLint("ClickableViewAccessibility")
         boolean onTouch(View v, MotionEvent e) {
             if (e.getAction() == MotionEvent.ACTION_SCROLL) {
-                float scrollY = -100 * e.getAxisValue(MotionEvent.AXIS_VSCROLL);
-                float scrollX = -100 * e.getAxisValue(MotionEvent.AXIS_HSCROLL);
+                float scrollY = -120 * e.getAxisValue(MotionEvent.AXIS_VSCROLL);
+                float scrollX = -120 * e.getAxisValue(MotionEvent.AXIS_HSCROLL);
 
                 mInjector.sendMouseWheelEvent(scrollX, scrollY);
                 return true;
@@ -1147,7 +1157,9 @@ public class TouchInputHandler {
 
         @Override
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-            mInjector.sendMouseWheelEvent(distanceX, distanceY);
+            mInjector.sendMouseScrollPixels(
+                mRenderData.mapScreenX(distanceX) - mRenderData.mapScreenX(0),
+                mRenderData.mapScreenY(distanceY) - mRenderData.mapScreenY(0));
             return true;
         }
 

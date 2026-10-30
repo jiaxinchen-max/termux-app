@@ -10,8 +10,8 @@ SPEC_PATH="${1:?Usage: $0 <desktop_spec>}"
 . "$(dirname "$0")/desktop_common.sh"
 
 existing=$(read_pid) && pid_alive "$existing" && {
-    log "Desktop $DESKTOP_ID is already running (pid $existing)"
-    exit 0
+    log "ERROR: Desktop $DESKTOP_ID is already running (pid $existing); stop it before applying the requested renderer ${DESKTOP_GL_MODE:-unset}."
+    exit 73
 }
 
 # Every desktop shares one display bridge (the render socket) and X display, so another desktop's
@@ -46,6 +46,19 @@ stop_other_desktops() {
 
 printf 'starting\n' > "$DESKTOP_STATUS_FILE"
 : > "$DESKTOP_LOG_FILE"
+# Resolve no modes implicitly: old Auto entries must be edited in the app first.
+case "${DESKTOP_GL_MODE:-}" in
+    system|zink|llvmpipe) ;;
+    *) log "Invalid renderer '${DESKTOP_GL_MODE:-}'; select System EGL, Zink or Software in desktop settings."
+       printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"
+       exit 64 ;;
+esac
+if [ "$DESKTOP_MODE" = "proot" ] && [ "${DESKTOP_DE:-kwin_plasma}" = "kwin_plasma" ] && [ "$DESKTOP_GL_MODE" = "system" ]; then
+    log "Container Plasma does not support System EGL; select Zink or Software explicitly."
+    printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"
+    exit 64
+fi
+log "Requested renderer: $DESKTOP_GL_MODE ($DESKTOP_MODE/${DESKTOP_DE:-kwin_plasma}); renderer fallback is disabled."
 stop_other_desktops
 
 wait_for_socket() {
@@ -76,6 +89,16 @@ CONTAINER_PID_FILE="$DESKTOP_PID_FILE.container"
 rm -f "$CONTAINER_PID_FILE"
 code=0
 
+finish_desktop() {
+    rm -f "$DESKTOP_PID_FILE" "$CONTAINER_PID_FILE"
+    # desktop_stop.sh owns a requested shutdown, even if it finished writing 'stopped' before us.
+    case "$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)" in
+        stopping|stopped) printf 'stopped\n' > "$DESKTOP_STATUS_FILE"; code=0 ;;
+        *) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
+    esac
+    exit "$code"
+}
+
 DESKTOP_DE="${DESKTOP_DE:-kwin_plasma}"
 
 if [ "$DESKTOP_DE" != "xfce4" ] && [ ! -L "$PREFIX/tmp/.X11-unix" ] && [ -d "$PREFIX/tmp/.X11-unix" ]; then
@@ -86,6 +109,33 @@ if [ "$DESKTOP_DE" != "xfce4" ] && [ ! -L "$PREFIX/tmp/.X11-unix" ] && [ -d "$PR
     rmdir "$PREFIX/tmp/.X11-unix" 2>/dev/null || true
 fi
 
+# A socket from this run and a live server are both required before starting clients.
+wait_for_backend() { # socket label
+    backend_socket="$1"
+    backend_label="$2"
+    waited=0
+    while [ ! -S "$backend_socket" ] || ! kill -0 "$child" 2>/dev/null; do
+        if ! kill -0 "$child" 2>/dev/null; then
+            wait "$child"
+            backend_code=$?
+            # Exiting successfully without publishing a display is still a startup failure.
+            [ "$backend_code" -ne 0 ] || backend_code=70
+            log "$backend_label exited before its display became ready (status $backend_code); session was not started."
+            return "$backend_code"
+        fi
+        if [ "$waited" -ge "${DESKTOP_BACKEND_WAIT_SECONDS:-60}" ]; then
+            log "$backend_label did not become ready at $backend_socket; session was not started (status 124)."
+            kill -TERM "$child" 2>/dev/null
+            sleep 1
+            kill -KILL "$child" 2>/dev/null
+            wait "$child" 2>/dev/null
+            return 124
+        fi
+        waited=$((waited + 1))
+        sleep 1
+    done
+}
+
 if [ "$DESKTOP_DE" = "xfce4" ]; then
     # Xlorie serves the X display; the XFCE session runs natively or inside the container.
     command -v Xlorie >/dev/null 2>&1 || {
@@ -93,15 +143,18 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
         printf 'exit:127\n' > "$DESKTOP_STATUS_FILE"
         exit 127
     }
-    case "$DESKTOP_GL_MODE" in
-        auto) gl_mode="system" ;;
-        *) gl_mode="$DESKTOP_GL_MODE" ;;
-    esac
+    gl_mode="$DESKTOP_GL_MODE"
     export XLORIE_GL_MODE="$gl_mode"
-    export TERMUX_RENDER_AHB_RECEIVE="${TERMUX_RENDER_AHB_RECEIVE:-native}"
+    case "$gl_mode" in
+        system) export TERMUX_RENDER_AHB_RECEIVE=native ;;
+        zink|llvmpipe) export TERMUX_RENDER_AHB_RECEIVE=dmabuf ;;
+    esac
+    log "Xlorie renderer=$gl_mode, AHB receive=$TERMUX_RENDER_AHB_RECEIVE"
     if [ "$DESKTOP_MODE" = "proot" ]; then
         # glibc compositors must not touch Xlorie's minimal GLX (xserver VERIFICATION.md #2).
         export XLORIE_GLX=0
+    else
+        export XLORIE_GLX=1
     fi
     # start-plasma turns $PREFIX/tmp/.X11-unix into a symlink to KWin's runtime directory and never
     # puts it back. The X server will not create its file socket (X0) through a symlink - it then
@@ -118,16 +171,12 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
     child=$!
     printf '%s\n' "$child" > "$DESKTOP_PID_FILE"
     trap 'kill -TERM "$child" 2>/dev/null; [ -z "${session:-}" ] || kill -TERM "$session" 2>/dev/null' TERM INT
-    waited=0
-    while [ ! -S "$PREFIX/tmp/.X11-unix/X0" ] && kill -0 "$child" 2>/dev/null; do
-        waited=$((waited + 1))
-        if [ "$waited" -gt 60 ]; then
-            log "Xlorie did not become ready"
-            kill -TERM "$child" 2>/dev/null
-            break
-        fi
-        sleep 1
-    done
+    if wait_for_backend "$PREFIX/tmp/.X11-unix/X0" Xlorie; then
+        :
+    else
+        code=$?
+        finish_desktop
+    fi
     export DISPLAY=:0
     log "Starting the $DESKTOP_MODE XFCE4 session (DISPLAY=:0, XLORIE_GL_MODE=$gl_mode)"
     if [ "$DESKTOP_MODE" = "proot" ]; then
@@ -159,13 +208,7 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
         code=$?
     fi
     [ -z "${session:-}" ] || kill -TERM "$session" 2>/dev/null
-    rm -f "$DESKTOP_PID_FILE" "$CONTAINER_PID_FILE"
-    if [ "$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)" = "stopping" ]; then
-        printf 'stopped\n' > "$DESKTOP_STATUS_FILE"
-    else
-        printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE"
-    fi
-    exit 0
+    finish_desktop
 fi
 
 if [ "$DESKTOP_MODE" = "proot" ]; then
@@ -181,36 +224,44 @@ if [ "$DESKTOP_MODE" = "proot" ]; then
     done
     XDG_RUNTIME_DIR_HOST="$KWIN_ANDROID_RUNTIME_ROOT/runtime-$(id -u)"
     SESSION_SCRIPT="$(dirname "$0")/desktop_container_session.sh"
-    [ -r "$SESSION_SCRIPT" ] || {
-        log "Container session script is missing: $SESSION_SCRIPT"
-        printf 'exit:66\n' > "$DESKTOP_STATUS_FILE"
-        exit 66
-    }
+    for helper in "$SESSION_SCRIPT" "$(dirname "$0")/desktop_container_statx_setup.sh" "$(dirname "$0")/desktop_container_run_config.sh" "$(dirname "$0")/desktop_container_statx_aarch64.bin"; do
+        [ -r "$helper" ] || {
+            log "Container session asset is missing: $helper"
+            printf 'exit:66\n' > "$DESKTOP_STATUS_FILE"
+            exit 66
+        }
+    done
 
     # Container clients show up to KWin as proot's loader, so its executable-path based authorisation
     # of plasma-window-management / kde-output-device would deny them; the whole container is trusted.
+    rm -f "$XDG_RUNTIME_DIR_HOST/wayland-0"
     KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 start-plasma --compositor-only >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     child=$!
     printf '%s\n' "$child" > "$DESKTOP_PID_FILE"
     trap 'kill -TERM "$child" 2>/dev/null; [ -z "${container:-}" ] || kill -TERM "$container" 2>/dev/null' TERM INT
 
-    waited=0
-    while [ ! -S "$XDG_RUNTIME_DIR_HOST/wayland-0" ] && kill -0 "$child" 2>/dev/null; do
-        waited=$((waited + 1))
-        if [ "$waited" -gt 60 ]; then
-            log "The compositor's Wayland socket never appeared in $XDG_RUNTIME_DIR_HOST"
-            kill -TERM "$child" 2>/dev/null
-            break
+    if wait_for_backend "$XDG_RUNTIME_DIR_HOST/wayland-0" Compositor; then
+        :
+    else
+        code=$?
+        if [ -f "$DESKTOP_LOG_FILE.out" ]; then
+            log "--- compositor output (tail) ---"
+            tail -n 20 "$DESKTOP_LOG_FILE.out" | tee -a "$DESKTOP_LOG_FILE"
         fi
-        sleep 1
-    done
+        finish_desktop
+    fi
 
-    if [ -S "$XDG_RUNTIME_DIR_HOST/wayland-0" ]; then
+    if [ -S "$XDG_RUNTIME_DIR_HOST/wayland-0" ] && kill -0 "$child" 2>/dev/null; then
         log "Compositor ready; starting the $DESKTOP_PROOT_DISTRO container session"
         proot-distro login "$DESKTOP_PROOT_DISTRO" \
             --bind "$XDG_RUNTIME_DIR_HOST:/run/wl" \
             --bind "$SESSION_SCRIPT:/tmp/plasma-container-session.sh" \
-            -- sh /tmp/plasma-container-session.sh >> "$DESKTOP_LOG_FILE.out" 2>&1 &
+            --bind "$(dirname "$0")/desktop_container_statx_setup.sh:/tmp/desktop_container_statx_setup.sh" \
+            --bind "$(dirname "$0")/desktop_container_run_config.sh:/tmp/desktop_container_run_config.sh" \
+            --bind "$(dirname "$0")/desktop_container_statx_aarch64.bin:/tmp/desktop_container_statx_aarch64.bin" \
+            -- env DESKTOP_GL_MODE="$DESKTOP_GL_MODE" DESKTOP_STATX_BACKEND=proc-fdinfo \
+                DESKTOP_KDE_SERVICE_POLICY=kwin-wayland QT_QPA_PLATFORM=wayland XDG_SESSION_TYPE=wayland \
+                sh /tmp/plasma-container-session.sh >> "$DESKTOP_LOG_FILE.out" 2>&1 &
         container=$!
         printf '%s\n' "$container" > "$CONTAINER_PID_FILE"
     fi
@@ -226,7 +277,7 @@ if [ "$DESKTOP_MODE" = "proot" ]; then
             log "The container session exited with status $code"
             if [ -f "$XDG_RUNTIME_DIR_HOST/plasma-container.log" ]; then
                 log "--- plasma-container.log (tail) ---"
-                tail -n 20 "$XDG_RUNTIME_DIR_HOST/plasma-container.log" | tee -a "$DESKTOP_LOG_FILE"
+                tail -n 80 "$XDG_RUNTIME_DIR_HOST/plasma-container.log" | tee -a "$DESKTOP_LOG_FILE"
             fi
             kill -TERM "$child" 2>/dev/null
             sleep 1
@@ -252,16 +303,11 @@ else
     child=$!
     printf '%s\n' "$child" > "$DESKTOP_PID_FILE"
     trap 'kill -TERM "$child" 2>/dev/null' TERM INT
-    while kill -0 "$child" 2>/dev/null; do
+    while :; do
         wait "$child"
         code=$?
+        kill -0 "$child" 2>/dev/null || break
     done
 fi
 
-rm -f "$DESKTOP_PID_FILE"
-if [ "$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)" = "stopping" ]; then
-    printf 'stopped\n' > "$DESKTOP_STATUS_FILE"
-else
-    printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE"
-fi
-exit "$code"
+finish_desktop

@@ -1,11 +1,11 @@
 # Packages that provide the independent Xlorie X server (xserver branch termuxdc), one per line:
 #   <termux-arch> <deb file> <sha256>
 # Packages are installed together, in file order, from XSERVER_BASE_URL (see xlorie_install.sh).
-# Release: https://github.com/jiaxinchen-max/xserver/releases/tag/termux-xlorie-21.1.16-r6
+# Release: https://github.com/jiaxinchen-max/xserver/releases/tag/termux-xlorie-21.1.16-r7
 # Only aarch64 is published so far. To add arm / x86_64 / i686, append their lines here; nothing
 # else needs to change, the Settings option appears for an ABI as soon as it has lines.
 aarch64 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 aarch64 libxshmfence_1.3.3-2_aarch64.deb be95caf500b002fed8b5c0142ad360efbdec4ff1334be5565e9b9628f8663dc2
 aarch64 termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
 aarch64 gl4es_1.1.7.20260927_aarch64.deb eb0ba70d084c87b84b144ef2ce6ad415ca3810dcb356d77e4e8cefe962157913
-aarch64 xorg-server_21.1.16-6_aarch64.deb 9533f812ea464987cf66bf2aa89deb7e2862e289ae5a14a9ca3d6a48b7255016
+aarch64 xorg-server_21.1.16-7_aarch64.deb 3b50befbb214617a8a210696905553b8676510a8b6fe4f8cd923807d365c8425

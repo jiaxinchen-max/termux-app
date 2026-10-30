@@ -1,0 +1,92 @@
+diff --git a/glamor/glamor.c b/glamor/glamor.c
+index 548645e..297f9d5 100644
+--- a/glamor/glamor.c
++++ b/glamor/glamor.c
+@@ -467,6 +467,8 @@ glamor_add_format(ScreenPtr screen, int depth, CARD32 render_format,
+     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
+     struct glamor_format *f = &glamor_priv->formats[depth];
+ 
++    f->rgba_readback = FALSE;
++
+     /* If we're trying to run on GLES, make sure that we get the read
+      * formats that we're expecting, since glamor_transfer relies on
+      * them matching to get data back out.  To avoid this limitation, we
+@@ -509,12 +511,13 @@ glamor_add_format(ScreenPtr screen, int depth, CARD32 render_format,
+         glDeleteFramebuffers(1, &fbo);
+ 
+         if (format != read_format || type != read_type) {
+-            /* Turnip/Android GLES report a non-matching read format/type for
+-             * depth 24/32 BGRA; tolerate it under Xlorie instead of dropping to
+-             * software rendering. */
+-            if (getenv("XLORIE_GLAMOR") && (depth == 24 || depth == 32)) {
+-                ErrorF("glamor: tolerating read format/type 0x%x/0x%x for "
+-                       "depth %d under Xlorie.\n", read_format, read_type, depth);
++            /* GLES guarantees RGBA/UNSIGNED_BYTE readback, not BGRA. Keep
++             * BGRA uploads, but convert downloaded pixels in glamor_transfer.
++             */
++            if (getenv("XLORIE_GLAMOR") && (depth == 24 || depth == 32) &&
++                format == GL_BGRA && type == GL_UNSIGNED_BYTE) {
++                f->rgba_readback = TRUE;
++                ErrorF("glamor: using RGBA readback conversion for depth %d.\n", depth);
+             } else {
+                 ErrorF("glamor: Implementation returned 0x%x/0x%x read format/type "
+                        "for depth %d, expected 0x%x/0x%x.  "
+diff --git a/glamor/glamor_priv.h b/glamor/glamor_priv.h
+index 028a6d3..c885685 100644
+--- a/glamor/glamor_priv.h
++++ b/glamor/glamor_priv.h
+@@ -175,6 +175,8 @@ struct glamor_format {
+      * just before upload)
+      */
+     Bool rendering_supported;
++    /** Read GLES RGBA and convert to the X11 BGRA byte order on download. */
++    Bool rgba_readback;
+ };
+ 
+ struct glamor_saved_procs {
+diff --git a/glamor/glamor_transfer.c b/glamor/glamor_transfer.c
+index e706e0f..04bc445 100644
+--- a/glamor/glamor_transfer.c
++++ b/glamor/glamor_transfer.c
+@@ -123,6 +123,28 @@ glamor_upload_pixmap(PixmapPtr pixmap)
+                         pixmap->devPrivate.ptr, pixmap->devKind);
+ }
+ 
++/* GLES implementations may support BGRA uploads but only RGBA readback.
++ * Convert only the requested rectangle: neighbouring pixels and row padding
++ * can belong to other download boxes and must remain untouched.
++ */
++static void
++glamor_read_pixels(const struct glamor_format *f, int x, int y, int width,
++                   int height, uint8_t *bits, uint32_t stride)
++{
++    glReadPixels(x, y, width, height,
++                 f->rgba_readback ? GL_RGBA : f->format, f->type, bits);
++    if (f->rgba_readback) {
++        for (int row = 0; row < height; row++) {
++            uint8_t *pixel = bits + (size_t) row * stride;
++            for (int col = 0; col < width; col++, pixel += 4) {
++                uint8_t red = pixel[0];
++                pixel[0] = pixel[2];
++                pixel[2] = red;
++            }
++        }
++    }
++}
++
+ /*
+  * Read stuff from the pixmap FBOs and write to memory
+  */
+@@ -172,10 +194,10 @@ glamor_download_boxes(PixmapPtr pixmap, BoxPtr in_boxes, int in_nbox,
+ 
+             if (glamor_priv->has_pack_subimage ||
+                 x2 - x1 == byte_stride / bytes_per_pixel) {
+-                glReadPixels(x1 - box->x1, y1 - box->y1, x2 - x1, y2 - y1, f->format, f->type, bits + ofs);
++                glamor_read_pixels(f, x1 - box->x1, y1 - box->y1, x2 - x1, y2 - y1, bits + ofs, byte_stride);
+             } else {
+                 for (; y1 < y2; y1++, ofs += byte_stride)
+-                    glReadPixels(x1 - box->x1, y1 - box->y1, x2 - x1, 1, f->format, f->type, bits + ofs);
++                    glamor_read_pixels(f, x1 - box->x1, y1 - box->y1, x2 - x1, 1, bits + ofs, byte_stride);
+             }
+         }
+     }

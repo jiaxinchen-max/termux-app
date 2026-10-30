@@ -1,0 +1,404 @@
+Description: Reload the AppStream snapshot after successful PackageKit cache refresh
+ Serialize loads and queries, queue refreshes and reconcile active resources.
+Author: Local Termux Validation
+Forwarded: no
+
+--- a/libdiscover/backends/PackageKitBackend/PackageKitBackend.cpp
++++ b/libdiscover/backends/PackageKitBackend/PackageKitBackend.cpp
+@@ -25,6 +25,7 @@
+ #include <resources/StandardBackendUpdater.h>
+ 
+ #include <QDebug>
++#include <QCryptographicHash>
+ #include <QDir>
+ #include <QFileInfo>
+ #include <QDesktopServices>
+@@ -324,9 +325,23 @@
+ 
+ void PackageKitBackend::reloadPackageList()
+ {
++    // RefreshCache can finish while the initial load is still in progress. Keep one
++    // pending refresh, and never publish the intermediate generation to new streams.
++    if (m_appstreamLoadInProgress) {
++        m_appstreamReloadPending = true;
++        return;
++    }
++    m_appstreamLoadInProgress = true;
++    ++m_appstreamGeneration;
++    m_appstreamInitialized = false;
++    m_appdataLoaded = false;
++    m_allPackagesLoaded = false;
+     acquireFetching(true);
+ 
+-    m_appdata->reset(new AppStream::Pool, &m_threadPool);
++    const bool initialLoad = !m_appdata->get();
++    if (initialLoad) {
++        m_appdata->reset(new AppStream::Pool, &m_threadPool);
++    }
+     qInfo() << "PackageKit AppStream load start" << "locale" << m_appdata->get()->locale()
+             << "flags" << m_appdata->get()->flags()
+             << "HOME" << qEnvironmentVariable("HOME") << "LANG" << qEnvironmentVariable("LANG")
+@@ -352,9 +367,10 @@
+         qInfo() << "PackageKit AppStream load finished" << "success" << correct
+                 << "error" << m_appdata->lastError() << "locale" << m_appdata->get()->locale()
+                 << "flags" << m_appdata->get()->flags();
+-        if (!correct && m_packages.packages.isEmpty()) {
+-            QTimer::singleShot(0, this, [this]() {
+-                Q_EMIT passiveMessage(i18n("Please make sure that Appstream is properly set up on your system"));
++        if (!correct) {
++            const auto error = m_appdata->lastError();
++            QTimer::singleShot(0, this, [this, error]() {
++                Q_EMIT passiveMessage(i18n("Could not load the AppStream metadata: %1", error));
+             });
+         }
+ 
+@@ -365,10 +381,17 @@
+         //         checkForUpdates();
+         //     }
+         // }
+-        if (!m_appstreamInitialized) {
+-            m_appstreamInitialized = true;
+-            Q_EMIT loadedAppStream();
+-        }
++        m_appstreamLoadInProgress = false;
++        if (m_appstreamReloadPending) {
++            m_appstreamReloadPending = false;
++            reloadPackageList();
++            acquireFetching(false);
++            return;
++        }
++        reconcileAppStreamResources();
++        m_appdataLoaded = true;
++        m_appstreamInitialized = true;
++        Q_EMIT loadedAppStream();
+         acquireFetching(false);
+ 
+         const auto distroComponents = m_appdata->componentsById(AppStream::SystemInfo::currentDistroComponentId());
+@@ -398,21 +421,71 @@
+         }
+     };
+ 
+-    connect(m_appdata.get(), &AppStream::ConcurrentPool::loadFinished, this, [this, loadDone](bool success) {
+-        m_appdataLoaded = true;
+-        if (!success) {
+-            qWarning() << "PackageKitBackend: Could not open the AppStream metadata pool" << m_appdata->lastError();
+-        }
+-        // We do not want to block the GUI for very long, so we load appstream pools via queued
+-        // invocation for the post-load state changes.
+-        QMetaObject::invokeMethod(
+-            this,
+-            [loadDone, success] {
+-                loadDone(success);
+-            },
+-            Qt::QueuedConnection);
+-    });
++    if (initialLoad) {
++        connect(m_appdata.get(), &AppStream::ConcurrentPool::loadFinished, this, [this, loadDone](bool success) {
++            if (!success) {
++                qWarning() << "PackageKitBackend: Could not open the AppStream metadata pool" << m_appdata->lastError();
++            }
++            // We do not want to block the GUI for very long, so we load appstream pools via queued
++            // invocation for the post-load state changes.
++            QMetaObject::invokeMethod(
++                this,
++                [loadDone, success] {
++                    loadDone(success);
++                },
++                Qt::QueuedConnection);
++        });
++    }
+     m_appdata->loadAsync();
++}
++
++void PackageKitBackend::reconcileAppStreamResources()
++{
++    QHash<QString, QByteArray> signatures;
++    QHash<QString, QStringList> packageToApp;
++    const auto components = m_appdata->components().result();
++    for (const auto &component : components) {
++        if (component.packageNames().isEmpty()) {
++            continue;
++        }
++        AppStream::Metadata metadata;
++        metadata.setFormatStyle(AppStream::Metadata::FormatStyleCatalog);
++        metadata.addComponent(component);
++        signatures.insert(component.id(), QCryptographicHash::hash(
++            metadata.componentsToCatalog(AppStream::Metadata::FormatKindXml).toUtf8(), QCryptographicHash::Sha256));
++        for (const auto &package : component.packageNames()) {
++            auto &ids = packageToApp[package];
++            if (!ids.contains(component.id())) {
++                ids += component.id();
++            }
++        }
++    }
++
++    // A detail page or an old result stream may still hold these objects. Remove
++    // changed/removed metadata from the active index, but keep the QObject alive
++    // under this backend until shutdown. Unchanged metadata keeps object identity.
++    for (auto it = m_packages.packages.begin(); it != m_packages.packages.end();) {
++        auto resource = qobject_cast<AppPackageKitResource *>(it.value());
++        if (resource && (!signatures.contains(resource->appstreamId())
++                         || signatures.value(resource->appstreamId()) != m_componentSignatures.value(resource->appstreamId()))) {
++            it = m_packages.packages.erase(it);
++            Q_EMIT resourceRemoved(resource);
++        } else {
++            ++it;
++        }
++    }
++    for (auto it = m_packagesToAdd.begin(); it != m_packagesToAdd.end();) {
++        auto resource = qobject_cast<AppPackageKitResource *>(it.value());
++        if (resource && (!signatures.contains(resource->appstreamId())
++                         || signatures.value(resource->appstreamId()) != m_componentSignatures.value(resource->appstreamId()))) {
++            it = m_packagesToAdd.erase(it);
++        } else {
++            ++it;
++        }
++    }
++    m_componentSignatures = std::move(signatures);
++    m_packages.packageToApp = std::move(packageToApp);
++    m_allPackagesLoaded = false;
+ }
+ 
+ AppPackageKitResource *PackageKitBackend::addComponent(const AppStream::Component &component) const
+@@ -430,7 +503,10 @@
+     }
+ 
+     for (const auto &pkg : pkgNames) {
+-        m_packages.packageToApp[pkg] += component.id();
++        auto &ids = m_packages.packageToApp[pkg];
++        if (!ids.contains(component.id())) {
++            ids += component.id();
++        }
+     }
+     return resource;
+ }
+@@ -616,7 +692,7 @@
+                 if (resource) {
+                     ret += resource;
+                 } else {
+-                    ret += resourcesByComponents<T>(m_appdata->componentsByBundleId(AppStream::Bundle::KindPackage, pkg_name, false).result());
++                    ret += resourcesByComponents<T>(m_appdata->componentsById(app_id).result());
+                 }
+             }
+         }
+@@ -640,7 +716,12 @@
+         setRefresher(refresh);
+ 
+         connect(refresh, &PackageKit::Transaction::errorCode, this, &PackageKitBackend::transactionError);
+-        connect(refresh, &PackageKit::Transaction::finished, this, [this]() {
++        connect(refresh, &PackageKit::Transaction::finished, this, [this](PackageKit::Transaction::Exit exit) {
++            // The existing pool is a snapshot. A successful cache refresh must
++            // publish a new generation before application result streams resume.
++            if (exit == PackageKit::Transaction::ExitSuccess) {
++                reloadPackageList();
++            }
+             fetchUpdates();
+             acquireFetching(false);
+         });
+@@ -670,14 +751,18 @@
+     PKResultsStream(PackageKitBackend *backend, const QString &name)
+         : ResultsStream(name)
+         , backend(backend)
++        , generation(backend->m_appstreamGeneration)
+     {
+         Q_ASSERT(QThread::currentThread() == backend->thread());
++        setParent(backend);
+     }
+ 
+     PKResultsStream(PackageKitBackend *backend, const QString &name, const QVector<StreamResult> &resources)
+         : ResultsStream(name)
+         , backend(backend)
++        , generation(backend->m_appstreamGeneration)
+     {
++        setParent(backend);
+         QTimer::singleShot(0, this, [resources, this]() {
+             sendResources(resources);
+         });
+@@ -690,8 +775,22 @@
+         return new PKResultsStream(std::forward<Args>(args)...);
+     }
+ 
++    bool isCurrent() const
++    {
++        return generation == backend->m_appstreamGeneration && backend->m_appstreamInitialized;
++    }
++
++    void adoptCurrentGeneration()
++    {
++        generation = backend->m_appstreamGeneration;
++    }
++
+     void sendResources(const QVector<StreamResult> &resources, bool waitForResolved = false)
+     {
++        if (!isCurrent()) {
++            finish();
++            return;
++        }
+         qInfo() << "PackageKit stream results" << objectName() << "count" << resources.size() << "waitForResolved" << waitForResolved;
+         if (resources.isEmpty()) {
+             finish();
+@@ -708,6 +807,10 @@
+             if (waitForResolved) {
+                 Q_ASSERT(transaction);
+                 connect(transaction, &QObject::destroyed, this, [this, resources] {
++                    if (!isCurrent()) {
++                        finish();
++                        return;
++                    }
+                     Q_EMIT resourcesFound(resources);
+                     finish();
+                 });
+@@ -721,6 +824,7 @@
+ 
+ private:
+     PackageKitBackend *const backend;
++    quint64 generation;
+ };
+ 
+ PKResultsStream *PackageKitBackend::deferredResultStream(const QString &streamName, std::function<void(PKResultsStream *)> callback)
+@@ -734,12 +838,14 @@
+     [](PackageKitBackend *self, QPointer<PKResultsStream> stream, std::function<void(PKResultsStream *)> callback) -> QCoro::Task<> {
+         if (self->m_appstreamInitialized) {
+             co_await QCoro::sleepFor(0ms);
+-        } else {
++        }
++        while (!self->m_appstreamInitialized) {
+             co_await qCoro(self, &PackageKitBackend::loadedAppStream);
+         }
+         if (stream.isNull()) {
+             co_return;
+         }
++        stream->adoptCurrentGeneration();
+         qInfo() << "PackageKit deferred stream ready" << stream->objectName();
+         callback(stream);
+     }(this, stream, std::move(callback));
+@@ -756,7 +862,11 @@
+         return findResourceByPackageName(filter.resourceUrl);
+     } else if (!filter.extends.isEmpty()) {
+         return deferredResultStream(u"PackageKitStream-extends"_s, [this, filter = filter](PKResultsStream *stream) {
+-            m_appdata->componentsByExtends(filter.extends).then(this, [this, stream, filter](const QFuture<AppStream::ComponentBox> &extendingComponents) {
++            m_appdata->componentsByExtends(filter.extends).then(stream, [this, stream, filter](const QFuture<AppStream::ComponentBox> &extendingComponents) {
++                if (!stream->isCurrent()) {
++                    stream->finish();
++                    return;
++                }
+                 auto resources = resultsByComponents(extendingComponents.result());
+                 stream->sendResources(resources, filter.state != AbstractResource::Broken);
+             });
+@@ -780,7 +890,11 @@
+                 resolvePackages(kTransform<QStringList>(toResolve, [](AbstractResource *resource) {
+                     return resource->packageName();
+                 }));
+-                connect(m_resolveTransaction, &PKResolveTransaction::allFinished, this, [stream, toResolve, installedAndNameFilter] {
++                connect(m_resolveTransaction, &PKResolveTransaction::allFinished, stream, [stream, toResolve, installedAndNameFilter] {
++                    if (!stream->isCurrent()) {
++                        stream->finish();
++                        return;
++                    }
+                     const auto resolved = kFilter<QVector<AbstractResource *>>(toResolve, installedAndNameFilter);
+                     if (!resolved.isEmpty()) {
+                         Q_EMIT stream->resourcesFound(kTransform<QVector<StreamResult>>(resolved, [](auto resource) {
+@@ -795,6 +909,10 @@
+             const auto resolved = kFilter<QVector<AbstractResource *>>(m_packages.packages, installedAndNameFilter);
+             if (!resolved.isEmpty()) {
+                 QTimer::singleShot(0, stream, [resolved, toResolve, stream]() {
++                    if (!stream->isCurrent()) {
++                        stream->finish();
++                        return;
++                    }
+                     if (!resolved.isEmpty()) {
+                         Q_EMIT stream->resourcesFound(kTransform<QVector<StreamResult>>(resolved, [](auto resource) {
+                             return StreamResult(resource, 0);
+@@ -844,6 +962,10 @@
+             watcher->setFuture(futureComponents);
+             connect(watcher, &QFutureWatcher<AppStream::ComponentBox>::finished, watcher, &QObject::deleteLater);
+             connect(watcher, &QFutureWatcher<AppStream::ComponentBox>::finished, stream, [this, stream, filter, futureComponents]() {
++                if (!stream->isCurrent()) {
++                    stream->finish();
++                    return;
++                }
+                 QSet<QString> ids;
+                 AppStream::ComponentBox components = futureComponents.result();
+                 kFilterInPlace<AppStream::ComponentBox>(components, [&ids](const AppStream::Component &component) {
+@@ -866,7 +988,7 @@
+     }
+ }
+ 
+-PKResultsStream *PackageKitBackend::findResourceByPackageName(const QUrl &url)
++ResultsStream *PackageKitBackend::findResourceByPackageName(const QUrl &url)
+ {
+     if (url.isLocalFile()) {
+         QMimeDatabase db;
+@@ -876,7 +998,11 @@
+             || mime.inherits(QStringLiteral("application/x-tar")) //
+             || mime.inherits(QStringLiteral("application/x-zstd-compressed-tar")) //
+             || mime.inherits(QStringLiteral("application/x-xz-compressed-tar"))) {
+-            return PKResultsStream::create(this, QStringLiteral("PackageKitStream-localpkg"), QVector<StreamResult>{new LocalFilePKResource(url, this)}).data();
++            // Local package files do not depend on the catalog snapshot. They
++            // remain available while metadata initializes or refreshes.
++            auto stream = new ResultsStream(QStringLiteral("PackageKitStream-localpkg"), QVector<StreamResult>{new LocalFilePKResource(url, this)});
++            stream->setParent(this);
++            return stream;
+         }
+     } else if (url.scheme() == QLatin1String("appstream")) {
+         const auto appstreamIds = AppStreamUtils::appstreamIds(url);
+@@ -1056,7 +1182,7 @@
+         if (m_appdataLoaded) {
+             loadDone();
+         } else {
+-            connect(m_appdata.get(), &AppStream::ConcurrentPool::loadFinished, this, loadDone);
++            connect(m_appdata.get(), &AppStream::ConcurrentPool::loadFinished, this, loadDone, Qt::SingleShotConnection);
+         }
+     }
+ }
+--- a/libdiscover/backends/PackageKitBackend/PackageKitBackend.h
++++ b/libdiscover/backends/PackageKitBackend/PackageKitBackend.h
+@@ -77,7 +77,7 @@
+     QSet<AbstractResource *> resourcesByPackageName(const QString &name) const;
+ 
+     ResultsStream *search(const AbstractResourcesBackend::Filters &search) override;
+-    PKResultsStream *findResourceByPackageName(const QUrl &search);
++    ResultsStream *findResourceByPackageName(const QUrl &search);
+     int updatesCount() const override;
+     bool hasSecurityUpdates() const override;
+ 
+@@ -143,6 +143,8 @@
+ 
+ public Q_SLOTS:
+     void reloadPackageList();
++    void reconcileAppStreamResources();
++    friend class PKResultsStream;
+     void transactionError(PackageKit::Transaction::Error, const QString &message);
+ 
+ private Q_SLOTS:
+@@ -181,6 +183,10 @@
+ 
+     QScopedPointer<AppStream::ConcurrentPool> m_appdata;
+     bool m_appdataLoaded = false;
++    bool m_appstreamLoadInProgress = false;
++    bool m_appstreamReloadPending = false;
++    quint64 m_appstreamGeneration = 0;
++    QHash<QString, QByteArray> m_componentSignatures;
+     PackageKitUpdater *m_updater;
+     QPointer<PackageKit::Transaction> m_refresher;
+     int m_isFetching;
+--- a/libdiscover/appstream/AppStreamConcurrentPool.cpp
++++ b/libdiscover/appstream/AppStreamConcurrentPool.cpp
+@@ -22,8 +22,15 @@
+ 
+ void ConcurrentPool::loadAsync()
+ {
+-    QMutexLocker lock(&m_mutex);
+-    return m_pool->loadAsync();
++    // Serialize the complete load with component queries. Pool::loadAsync only
++    // holds our mutex while scheduling its own worker, leaving queries able to
++    // observe the clear/rebuild interval on a subsequent load.
++    QtConcurrent::run(m_threadPool.get(), [this] {
++        QMutexLocker lock(&m_mutex);
++        return m_pool->load();
++    }).then(this, [this](bool success) {
++        Q_EMIT loadFinished(success);
++    });
+ }
+ 
+ QString ConcurrentPool::lastError()

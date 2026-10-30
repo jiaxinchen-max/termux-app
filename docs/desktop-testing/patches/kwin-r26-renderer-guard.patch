@@ -1,0 +1,11 @@
+--- a/src/backends/android/android_egl_backend.cpp
++++ b/src/backends/android/android_egl_backend.cpp
+@@ -768,7 +768,7 @@
+         matches = lower.contains("zink") && !software;
+         break;
+     case AndroidEglBackend::RenderingMode::LlvmpipeSoftware:
+-        matches = lower.contains("llvmpipe");
++        matches = lower.contains("llvmpipe") && !lower.contains("zink");
+         break;
+     case AndroidEglBackend::RenderingMode::Invalid:
+         break;

@@ -1,0 +1,6 @@
+PASS existing-no-socket
+PASS existing-with-socket
+PASS process-appears-at-socket-check
+PASS stale-socket
+PASS new-session
+PASS: 5 production entry conflict contracts

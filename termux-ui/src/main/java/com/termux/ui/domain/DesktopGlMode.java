@@ -2,9 +2,9 @@ package com.termux.ui.domain;
 
 /** KWin rendering path, passed to the distribution as {@code KWIN_ANDROID_GL_MODE}. */
 public enum DesktopGlMode {
-    /** Android system EGL/GLES with native AHardwareBuffer import. */
-    /** Resolve per run mode: system GLES natively, Zink inside containers. */
+    /** Legacy value retained for loading old desktops; launching requires an explicit mode. */
     AUTO("auto"),
+    /** Android system EGL/GLES with native AHardwareBuffer import. */
     SYSTEM("system"),
     /** Mesa Zink over the Turnip Vulkan driver (Adreno only). */
     ZINK("zink"),

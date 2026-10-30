@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.16)
+project(readonly_appstream_pool_probe LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Concurrent)
+find_package(AppStreamQt REQUIRED)
+add_executable(pool-probe pool-probe.cpp)
+target_link_libraries(pool-probe PRIVATE Qt6::Core AppStreamQt)
+
+add_executable(async-pool-probe async-pool-probe.cpp)
+target_include_directories(async-pool-probe PRIVATE /root/build/fix2-source/discover-6.7.4/libdiscover/appstream /root/build/plasma-discover-6.7.4/obj-aarch64-linux-gnu/libdiscover)
+target_link_libraries(async-pool-probe PRIVATE Qt6::Core Qt6::Gui Qt6::Concurrent AppStreamQt /root/build/discover-fix2-verify/usr/lib/aarch64-linux-gnu/plasma-discover/libDiscoverCommon.so)

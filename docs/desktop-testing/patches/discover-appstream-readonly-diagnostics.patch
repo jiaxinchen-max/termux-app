@@ -1,0 +1,128 @@
+--- a/libdiscover/appstream/AppStreamConcurrentPool.cpp
++++ b/libdiscover/appstream/AppStreamConcurrentPool.cpp
+@@ -36,7 +36,10 @@
+ {
+     return QtConcurrent::run(m_threadPool.get(), [this, term] {
+         QMutexLocker lock(&m_mutex);
+-        return m_pool->search(term);
++        const auto result = m_pool->search(term);
++        qInfo() << "AppStream pool search" << "term" << term << "count" << result.size()
++                << "locale" << m_pool->locale() << "flags" << m_pool->flags();
++        return result;
+     });
+ }
+ 
+@@ -44,7 +47,10 @@
+ {
+     return QtConcurrent::run(m_threadPool.get(), [this] {
+         QMutexLocker lock(&m_mutex);
+-        return m_pool->components();
++        const auto result = m_pool->components();
++        qInfo() << "AppStream pool components"  << "count" << result.size()
++                << "locale" << m_pool->locale() << "flags" << m_pool->flags();
++        return result;
+     });
+ }
+ 
+@@ -52,7 +58,10 @@
+ {
+     return QtConcurrent::run(m_threadPool.get(), [this, cid] {
+         QMutexLocker lock(&m_mutex);
+-        return m_pool->componentsById(cid);
++        const auto result = m_pool->componentsById(cid);
++        qInfo() << "AppStream pool componentsById" << "id" << cid << "count" << result.size()
++                << "locale" << m_pool->locale() << "flags" << m_pool->flags();
++        return result;
+     });
+ }
+ 
+--- a/libdiscover/backends/PackageKitBackend/PackageKitBackend.cpp
++++ b/libdiscover/backends/PackageKitBackend/PackageKitBackend.cpp
+@@ -25,6 +25,8 @@
+ #include <resources/StandardBackendUpdater.h>
+ 
+ #include <QDebug>
++#include <QDir>
++#include <QFileInfo>
+ #include <QDesktopServices>
+ #include <QFileSystemWatcher>
+ #include <QFutureWatcher>
+@@ -316,6 +318,7 @@
+         Q_EMIT available();
+         Q_EMIT updatesCountChanged();
+     }
++    qInfo() << "PackageKit fetching delta" << (f ? 1 : -1) << "count" << m_isFetching;
+     Q_ASSERT(m_isFetching >= 0);
+ }
+ 
+@@ -324,8 +327,31 @@
+     acquireFetching(true);
+ 
+     m_appdata->reset(new AppStream::Pool, &m_threadPool);
++    qInfo() << "PackageKit AppStream load start" << "locale" << m_appdata->get()->locale()
++            << "flags" << m_appdata->get()->flags()
++            << "HOME" << qEnvironmentVariable("HOME") << "LANG" << qEnvironmentVariable("LANG")
++            << "LC_ALL" << qEnvironmentVariable("LC_ALL") << "LC_MESSAGES" << qEnvironmentVariable("LC_MESSAGES")
++            << "XDG_DATA_DIRS" << qEnvironmentVariable("XDG_DATA_DIRS")
++            << "XDG_DATA_HOME" << qEnvironmentVariable("XDG_DATA_HOME")
++            << "XDG_CACHE_HOME" << qEnvironmentVariable("XDG_CACHE_HOME");
++    const QStringList diagnosticPaths = {QStringLiteral("/var/lib/swcatalog/yaml"),
++                                        QStringLiteral("/usr/share/swcatalog/xml"),
++                                        QStringLiteral("/var/cache/swcatalog/cache"),
++                                        QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + QStringLiteral("/swcatalog/cache")};
++    for (const QString &path : diagnosticPaths) {
++        const QDir directory(path);
++        const auto entries = directory.entryInfoList(QDir::Files | QDir::NoDotAndDotDot, QDir::Name);
++        qInfo() << "PackageKit AppStream source path" << path << "exists" << directory.exists() << "files" << entries.size();
++        for (const QFileInfo &entry : entries) {
++            qInfo() << "PackageKit AppStream source file" << entry.absoluteFilePath() << "size" << entry.size()
++                    << "modified" << entry.lastModified() << "symlink" << entry.symLinkTarget();
++        }
++    }
+ 
+     const auto loadDone = [this](bool correct) {
++        qInfo() << "PackageKit AppStream load finished" << "success" << correct
++                << "error" << m_appdata->lastError() << "locale" << m_appdata->get()->locale()
++                << "flags" << m_appdata->get()->flags();
+         if (!correct && m_packages.packages.isEmpty()) {
+             QTimer::singleShot(0, this, [this]() {
+                 Q_EMIT passiveMessage(i18n("Please make sure that Appstream is properly set up on your system"));
+@@ -437,10 +463,13 @@
+         return;
+     }
+ 
++    qInfo() << "PackageKit refresher set" << refresh;
+     m_refresher = refresh;
+     m_updater->setProgressing(true);
+     connect(refresh, &PackageKit::Transaction::percentageChanged, this, &PackageKitBackend::fetchingUpdatesProgressChanged);
+-    connect(refresh, &PackageKit::Transaction::finished, this, [this] {
++    connect(refresh, &PackageKit::Transaction::finished, this, [this, refresh](PackageKit::Transaction::Exit exit, uint runtime) {
++        qInfo() << "PackageKit refresher finished" << refresh << "exit" << int(exit) << "runtime_ms" << runtime
++                << "active" << (m_refresher == refresh);
+         m_refresher = nullptr;
+         m_updater->setProgressing(false);
+         Q_EMIT fetchingUpdatesProgressChanged();
+@@ -663,6 +692,7 @@
+ 
+     void sendResources(const QVector<StreamResult> &resources, bool waitForResolved = false)
+     {
++        qInfo() << "PackageKit stream results" << objectName() << "count" << resources.size() << "waitForResolved" << waitForResolved;
+         if (resources.isEmpty()) {
+             finish();
+             return;
+@@ -697,6 +727,7 @@
+ {
+     // NOTE: stream is a child of `this` so we don't have guard this backend object separately.
+     auto stream = PKResultsStream::create(this, streamName);
++    qInfo() << "PackageKit deferred stream" << streamName << "appstreamInitialized" << m_appstreamInitialized;
+ 
+     // Don't capture variables into a coroutine lambda, pass them in as arguments instead
+     // See https://devblogs.microsoft.com/oldnewthing/20211103-00/?p=105870
+@@ -709,6 +740,7 @@
+         if (stream.isNull()) {
+             co_return;
+         }
++        qInfo() << "PackageKit deferred stream ready" << stream->objectName();
+         callback(stream);
+     }(this, stream, std::move(callback));
+ 

@@ -1,0 +1,168 @@
+FAIL existing-no-socket (0, 73) Plasma is already running (kwin_wayland pid 424242).
+ + set -e
++ INSTALL_DEPS=0
++ VERBOSE_LOG=0
++ DEBUG_RENDERING=0
++ COMPOSITOR_ONLY=0
++ export PREFIX=/tmp/kwin-entry-8bvkh_2e/prefix
++ PREFIX=/tmp/kwin-entry-8bvkh_2e/prefix
++ export HOME=/tmp/kwin-entry-8bvkh_2e/home
++ HOME=/tmp/kwin-entry-8bvkh_2e/home
++ export KWIN_ANDROID_RUNTIME_ROOT=/tmp/kwin-entry-8bvkh_2e/session
++ KWIN_ANDROID_RUNTIME_ROOT=/tmp/kwin-entry-8bvkh_2e/session
++ export TMPDIR=/tmp/kwin-entry-8bvkh_2e/tmp
++ TMPDIR=/tmp/kwin-entry-8bvkh_2e/tmp
++ export XDG_RUNTIME_DIR=/tmp/kwin-entry-8bvkh_2e/runtime
++ XDG_RUNTIME_DIR=/tmp/kwin-entry-8bvkh_2e/runtime
++ export KWIN_WAYLAND_SOCKET=wayland-test
++ KWIN_WAYLAND_SOCKET=wayland-test
++ mkdir -p /tmp/kwin-entry-8bvkh_2e/session /tmp/kwin-entry-8bvkh_2e/runtime /tmp/kwin-entry-8bvkh_2e/tmp/.X11-unix
++ chmod 0700 /tmp/kwin-entry-8bvkh_2e/runtime
++ chmod 1777 /tmp/kwin-entry-8bvkh_2e/tmp/.X11-unix
++ X11_SOCKET_DIR=/tmp/kwin-entry-8bvkh_2e/tmp/.X11-unix
++ X11_COMPAT_SOCKET_DIR=/tmp/kwin-entry-8bvkh_2e/prefix/tmp/.X11-unix
++ '[' /tmp/kwin-entry-8bvkh_2e/tmp/.X11-unix '!=' /tmp/kwin-entry-8bvkh_2e/prefix/tmp/.X11-unix ']'
++ mkdir -p /tmp/kwin-entry-8bvkh_2e/prefix/tmp
++ '[' -L /tmp/kwin-entry-8bvkh_2e/prefix/tmp/.X11-unix ']'
++ '[' -d /tmp/kwin-entry-8bvkh_2e/prefix/tmp/.X11-unix ']'
++ '[' -e /tmp/kwin-entry-8bvkh_2e/prefix/tmp/.X11-unix ']'
++ ln -s /tmp/kwin-entry-8bvkh_2e/tmp/.X11-unix /tmp/kwin-entry-8bvkh_2e/prefix/tmp/.X11-unix
++ SESSION_LOCK_DIR=/tmp/kwin-entry-8bvkh_2e/runtime/start-plasma.lock
++ SESSION_LOCK_PID_FILE=/tmp/kwin-entry-8bvkh_2e/runtime/start-plasma.lock/pid
++ acquire_session_lock
++ local owner_pid
++ mkdir /tmp/kwin-entry-8bvkh_2e/runtime/start-plasma.lock
++ printf '%s\n' 319435
++ return 0
++ :
++ trap release_session_lock EXIT
++ trap 'exit 130' INT
++ trap 'exit 143' TERM
++ command -v pgrep
+++ pgrep -x kwin_wayland
+++ head -n 1
++ EXISTING_KWIN_PID=424242
++ '[' -n 424242 ']'
++ echo 'Plasma is already running (kwin_wayland pid 424242).'
++ exit 0
++ release_session_lock
++ '[' -f /tmp/kwin-entry-8bvkh_2e/runtime/start-plasma.lock/pid ']'
+++ cat /tmp/kwin-entry-8bvkh_2e/runtime/start-plasma.lock/pid
++ '[' 319435 = 319435 ']'
++ rm -f /tmp/kwin-entry-8bvkh_2e/runtime/start-plasma.lock/pid
++ rmdir /tmp/kwin-entry-8bvkh_2e/runtime/start-plasma.lock
+
+FAIL existing-with-socket (0, 73) Plasma is already running (kwin_wayland pid 424242).
+ + set -e
++ INSTALL_DEPS=0
++ VERBOSE_LOG=0
++ DEBUG_RENDERING=0
++ COMPOSITOR_ONLY=0
++ export PREFIX=/tmp/kwin-entry-dh_gkxzc/prefix
++ PREFIX=/tmp/kwin-entry-dh_gkxzc/prefix
++ export HOME=/tmp/kwin-entry-dh_gkxzc/home
++ HOME=/tmp/kwin-entry-dh_gkxzc/home
++ export KWIN_ANDROID_RUNTIME_ROOT=/tmp/kwin-entry-dh_gkxzc/session
++ KWIN_ANDROID_RUNTIME_ROOT=/tmp/kwin-entry-dh_gkxzc/session
++ export TMPDIR=/tmp/kwin-entry-dh_gkxzc/tmp
++ TMPDIR=/tmp/kwin-entry-dh_gkxzc/tmp
++ export XDG_RUNTIME_DIR=/tmp/kwin-entry-dh_gkxzc/runtime
++ XDG_RUNTIME_DIR=/tmp/kwin-entry-dh_gkxzc/runtime
++ export KWIN_WAYLAND_SOCKET=wayland-test
++ KWIN_WAYLAND_SOCKET=wayland-test
++ mkdir -p /tmp/kwin-entry-dh_gkxzc/session /tmp/kwin-entry-dh_gkxzc/runtime /tmp/kwin-entry-dh_gkxzc/tmp/.X11-unix
++ chmod 0700 /tmp/kwin-entry-dh_gkxzc/runtime
++ chmod 1777 /tmp/kwin-entry-dh_gkxzc/tmp/.X11-unix
++ X11_SOCKET_DIR=/tmp/kwin-entry-dh_gkxzc/tmp/.X11-unix
++ X11_COMPAT_SOCKET_DIR=/tmp/kwin-entry-dh_gkxzc/prefix/tmp/.X11-unix
++ '[' /tmp/kwin-entry-dh_gkxzc/tmp/.X11-unix '!=' /tmp/kwin-entry-dh_gkxzc/prefix/tmp/.X11-unix ']'
++ mkdir -p /tmp/kwin-entry-dh_gkxzc/prefix/tmp
++ '[' -L /tmp/kwin-entry-dh_gkxzc/prefix/tmp/.X11-unix ']'
++ '[' -d /tmp/kwin-entry-dh_gkxzc/prefix/tmp/.X11-unix ']'
++ '[' -e /tmp/kwin-entry-dh_gkxzc/prefix/tmp/.X11-unix ']'
++ ln -s /tmp/kwin-entry-dh_gkxzc/tmp/.X11-unix /tmp/kwin-entry-dh_gkxzc/prefix/tmp/.X11-unix
++ SESSION_LOCK_DIR=/tmp/kwin-entry-dh_gkxzc/runtime/start-plasma.lock
++ SESSION_LOCK_PID_FILE=/tmp/kwin-entry-dh_gkxzc/runtime/start-plasma.lock/pid
++ acquire_session_lock
++ local owner_pid
++ mkdir /tmp/kwin-entry-dh_gkxzc/runtime/start-plasma.lock
++ printf '%s\n' 319449
++ return 0
++ :
++ trap release_session_lock EXIT
++ trap 'exit 130' INT
++ trap 'exit 143' TERM
++ command -v pgrep
+++ pgrep -x kwin_wayland
+++ head -n 1
++ EXISTING_KWIN_PID=424242
++ '[' -n 424242 ']'
++ echo 'Plasma is already running (kwin_wayland pid 424242).'
++ exit 0
++ release_session_lock
++ '[' -f /tmp/kwin-entry-dh_gkxzc/runtime/start-plasma.lock/pid ']'
+++ cat /tmp/kwin-entry-dh_gkxzc/runtime/start-plasma.lock/pid
++ '[' 319449 = 319449 ']'
++ rm -f /tmp/kwin-entry-dh_gkxzc/runtime/start-plasma.lock/pid
++ rmdir /tmp/kwin-entry-dh_gkxzc/runtime/start-plasma.lock
+
+FAIL process-appears-at-socket-check (0, 73) Plasma is already running on wayland-test.
+ + set -e
++ INSTALL_DEPS=0
++ VERBOSE_LOG=0
++ DEBUG_RENDERING=0
++ COMPOSITOR_ONLY=0
++ export PREFIX=/tmp/kwin-entry-8cv_pjuk/prefix
++ PREFIX=/tmp/kwin-entry-8cv_pjuk/prefix
++ export HOME=/tmp/kwin-entry-8cv_pjuk/home
++ HOME=/tmp/kwin-entry-8cv_pjuk/home
++ export KWIN_ANDROID_RUNTIME_ROOT=/tmp/kwin-entry-8cv_pjuk/session
++ KWIN_ANDROID_RUNTIME_ROOT=/tmp/kwin-entry-8cv_pjuk/session
++ export TMPDIR=/tmp/kwin-entry-8cv_pjuk/tmp
++ TMPDIR=/tmp/kwin-entry-8cv_pjuk/tmp
++ export XDG_RUNTIME_DIR=/tmp/kwin-entry-8cv_pjuk/runtime
++ XDG_RUNTIME_DIR=/tmp/kwin-entry-8cv_pjuk/runtime
++ export KWIN_WAYLAND_SOCKET=wayland-test
++ KWIN_WAYLAND_SOCKET=wayland-test
++ mkdir -p /tmp/kwin-entry-8cv_pjuk/session /tmp/kwin-entry-8cv_pjuk/runtime /tmp/kwin-entry-8cv_pjuk/tmp/.X11-unix
++ chmod 0700 /tmp/kwin-entry-8cv_pjuk/runtime
++ chmod 1777 /tmp/kwin-entry-8cv_pjuk/tmp/.X11-unix
++ X11_SOCKET_DIR=/tmp/kwin-entry-8cv_pjuk/tmp/.X11-unix
++ X11_COMPAT_SOCKET_DIR=/tmp/kwin-entry-8cv_pjuk/prefix/tmp/.X11-unix
++ '[' /tmp/kwin-entry-8cv_pjuk/tmp/.X11-unix '!=' /tmp/kwin-entry-8cv_pjuk/prefix/tmp/.X11-unix ']'
++ mkdir -p /tmp/kwin-entry-8cv_pjuk/prefix/tmp
++ '[' -L /tmp/kwin-entry-8cv_pjuk/prefix/tmp/.X11-unix ']'
++ '[' -d /tmp/kwin-entry-8cv_pjuk/prefix/tmp/.X11-unix ']'
++ '[' -e /tmp/kwin-entry-8cv_pjuk/prefix/tmp/.X11-unix ']'
++ ln -s /tmp/kwin-entry-8cv_pjuk/tmp/.X11-unix /tmp/kwin-entry-8cv_pjuk/prefix/tmp/.X11-unix
++ SESSION_LOCK_DIR=/tmp/kwin-entry-8cv_pjuk/runtime/start-plasma.lock
++ SESSION_LOCK_PID_FILE=/tmp/kwin-entry-8cv_pjuk/runtime/start-plasma.lock/pid
++ acquire_session_lock
++ local owner_pid
++ mkdir /tmp/kwin-entry-8cv_pjuk/runtime/start-plasma.lock
++ printf '%s\n' 319463
++ return 0
++ :
++ trap release_session_lock EXIT
++ trap 'exit 130' INT
++ trap 'exit 143' TERM
++ command -v pgrep
+++ pgrep -x kwin_wayland
+++ head -n 1
++ EXISTING_KWIN_PID=
++ '[' -n '' ']'
++ KWIN_SOCKET_PATH=/tmp/kwin-entry-8cv_pjuk/runtime/wayland-test
++ '[' -S /tmp/kwin-entry-8cv_pjuk/runtime/wayland-test ']'
++ command -v pgrep
++ pgrep -x kwin_wayland
++ echo 'Plasma is already running on wayland-test.'
++ exit 0
++ release_session_lock
++ '[' -f /tmp/kwin-entry-8cv_pjuk/runtime/start-plasma.lock/pid ']'
+++ cat /tmp/kwin-entry-8cv_pjuk/runtime/start-plasma.lock/pid
++ '[' 319463 = 319463 ']'
++ rm -f /tmp/kwin-entry-8cv_pjuk/runtime/start-plasma.lock/pid
++ rmdir /tmp/kwin-entry-8cv_pjuk/runtime/start-plasma.lock
+
+PASS stale-socket
+PASS new-session

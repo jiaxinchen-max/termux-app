@@ -1,0 +1,11 @@
+--- a/src/wayland/outputdevice_v2.cpp
++++ b/src/wayland/outputdevice_v2.cpp
+@@ -1204,7 +1204,7 @@
+     if (m_flags & OutputMode::Flag::Preferred) {
+         send_preferred(resource->handle);
+     }
+-    if (resource->version() >= KDE_OUTPUT_DEVICE_MODE_V2_FLAGS_CUSTOM) {
++    if (resource->version() >= KDE_OUTPUT_DEVICE_MODE_V2_FLAGS_SINCE_VERSION) {
+         uint32_t flags = 0;
+         if (m_flags & OutputMode::Flag::Custom) {
+             flags |= KDE_OUTPUT_DEVICE_MODE_V2_FLAGS_CUSTOM;

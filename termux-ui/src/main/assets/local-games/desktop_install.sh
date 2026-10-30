@@ -10,8 +10,8 @@ SPEC_PATH="${1:?Usage: $0 <desktop_spec>}"
 . "$(dirname "$0")/desktop_common.sh"
 
 BASE_URL="https://github.com/jiaxinchen-max/kwin/releases/download/$DESKTOP_RELEASE_TAG"
-# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.6-r26).
-if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r26" ]; then
+# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.6-r27).
+if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r27" ]; then
     log "Unsupported desktop release $DESKTOP_RELEASE_TAG"
     exit 65
 fi
@@ -24,32 +24,43 @@ esac
 
 # Xlorie (independent X server) packages, pinned to the xserver release that carries the
 # termux-render fixes; needed by every XFCE4 desktop and shared with the KWin ones.
-XLORIE_RELEASE_TAG="termux-xlorie-21.1.16-r6"
+XLORIE_RELEASE_TAG="termux-xlorie-21.1.16-r7"
 XLORIE_BASE_URL="https://github.com/jiaxinchen-max/xserver/releases/download/$XLORIE_RELEASE_TAG"
 XLORIE_DEBS="
-xorg-server_21.1.16-6_aarch64.deb 9533f812ea464987cf66bf2aa89deb7e2862e289ae5a14a9ca3d6a48b7255016
+xorg-server_21.1.16-7_aarch64.deb 3b50befbb214617a8a210696905553b8676510a8b6fe4f8cd923807d365c8425
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 libxshmfence_1.3.3-2_aarch64.deb be95caf500b002fed8b5c0142ad360efbdec4ff1334be5565e9b9628f8663dc2
 termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
 "
 
 DEBS="
-kwin_6.6.0-26_aarch64.deb 8973972bc8538902f6cd4940a2b388b11e10aa2b968d015c9a03ad559129a5e3
-termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
-libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
-xwayland_24.1.11-1_aarch64.deb 3cc2999ae0ba90495abad71445f794723efc06a97c001b383467665e3038e8a4
 gl4es_1.1.7.20260927_aarch64.deb eb0ba70d084c87b84b144ef2ce6ad415ca3810dcb356d77e4e8cefe962157913
+kwin_6.6.0-27_aarch64.deb b5c4ccd7983849eea8008cb5d61740c90ab834d3fa23730385e0a01dafe8ecf3
+libandroid-stub_30-1_aarch64.deb 5b392496146309b8454780821591dccb7e6a7050f8789f3bc97b4bb6c2b6bc67
+libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
+qt6-qtbase-cross-tools_6.12.0-1+termuxkwin1_all.deb 07b9a9ae857225a814e85c74fdc613cc0720c328d3b2f4f5270a47b67169bf5f
+qt6-qtbase-gtk-platformtheme_6.12.0-1+termuxkwin1_aarch64.deb c682bf46ff7251449f41c420fe7818b2ff4f91a21477266fc458bf7d86795bb5
+qt6-qtbase_6.12.0-1+termuxkwin1_aarch64.deb 5b1507ff7c945c284e9230138752ccf2b63119cf03c4d782714aa8b3a6e91262
+termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
+xwayland_24.1.11-1_aarch64.deb 3cc2999ae0ba90495abad71445f794723efc06a97c001b383467665e3038e8a4
 "
 
 run() {
     status_file="$DESKTOP_LOG_FILE.status.$$"
-    rm -f "$status_file"
+    command_log="$DESKTOP_LOG_FILE.command.$$"
+    rm -f "$status_file" "$command_log"
     (
         "$@"
         printf '%s\n' "$?" > "$status_file"
-    ) 2>&1 | tee -a "$DESKTOP_LOG_FILE"
+    ) 2>&1 | tee "$command_log" | tee -a "$DESKTOP_LOG_FILE"
     status=$(cat "$status_file" 2>/dev/null || printf '1')
-    rm -f "$status_file"
+    if [ "$status" -ne 0 ]; then
+        log "Command failed (exit $status): $*"
+        # Repeat actionable apt/dpkg diagnostics next to the final error shown in the terminal.
+        details=$(sed -n '/^E:/p; /^dpkg: error/p; /[Uu]nmet dependencies/p; /[Dd]epends: /p; /[Bb]roken packages/p' "$command_log" | tail -n 12)
+        [ -z "$details" ] || log "$details"
+    fi
+    rm -f "$status_file" "$command_log"
     return "$status"
 }
 
@@ -115,34 +126,33 @@ ensure_container_instance() { # alias source
 # matching mesa-for-android-container tarball (lfdevs/mesa-for-android-container) into the container rootfs. This runs
 # on the host, where curl honours ~/.curlrc and https_proxy.
 TURNIP_REPO="lfdevs/mesa-for-android-container"
-TURNIP_FALLBACK_TAG="mesa-27.0.0-devel-20261025"
+TURNIP_RELEASE_TAG="mesa-27.0.0-devel-20261025"
 ensure_turnip_icd() { # alias
     rootfs="$PREFIX/var/lib/proot-distro/containers/$1/rootfs"
     icd="usr/share/vulkan/icd.d/freedreno_icd.aarch64.json"
     if [ -r "$rootfs/$icd" ] && [ -e "$rootfs/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so" ]; then
         log "Turnip Vulkan ICD already present in $1; skipping"
-        return 0
+    else
+        id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
+        codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
+        [ -n "$id" ] && [ -n "$codename" ] || fail "cannot tell which distro $1 is (no os-release)"
+        # Mesa tarballs are published per stable release; forky/sid use the newest Debian one. The full
+        # Mesa build is needed, not just turnip_*: with the turnip-only tarball the Wayland WSI crashes
+        # (SIGBUS in wsi_create_buffer_blit_context) because it mismatches the container's libgbm/EGL.
+        case "$id:$codename" in debian:forky|debian:sid|debian:testing) codename=trixie ;; esac
+        tag="$TURNIP_RELEASE_TAG"
+        url="https://github.com/$TURNIP_REPO/releases/download/$tag/mesa-for-android-container_${tag#mesa-}_${id}_${codename}_arm64.tar.gz"
+        log "Installing the Turnip Vulkan ICD into $1: $url"
+        tarball="${TMPDIR:-$PREFIX/tmp}/turnip.$$.tar.gz"
+        run curl -fL -m 300 -o "$tarball" "$url" || { rm -f "$tarball"; fail "download of the Turnip tarball failed"; }
+        run tar -xzf "$tarball" -C "$rootfs" || { rm -f "$tarball"; fail "unpacking the Turnip tarball failed"; }
+        rm -f "$tarball"
+        [ -r "$rootfs/$icd" ] || fail "the Turnip tarball did not provide /$icd"
     fi
-    id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
-    codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
-    [ -n "$id" ] && [ -n "$codename" ] || fail "cannot tell which distro $1 is (no os-release)"
-    # Mesa tarballs are published per stable release; forky/sid use the newest Debian one. The full
-    # Mesa build is needed, not just turnip_*: with the turnip-only tarball the Wayland WSI crashes
-    # (SIGBUS in wsi_create_buffer_blit_context) because it mismatches the container's libgbm/EGL.
-    case "$id:$codename" in debian:forky|debian:sid|debian:testing) codename=trixie ;; esac
-    tag=$(curl -fsL -m 30 "https://api.github.com/repos/$TURNIP_REPO/releases?per_page=20" 2>/dev/null \
-          | sed -n 's/.*"tag_name": *"\(mesa-[^"]*\)".*/\1/p' | head -n1)
-    tag="${tag:-$TURNIP_FALLBACK_TAG}"
-    url="https://github.com/$TURNIP_REPO/releases/download/$tag/mesa-for-android-container_${tag#mesa-}_${id}_${codename}_arm64.tar.gz"
-    log "Installing the Turnip Vulkan ICD into $1: $url"
-    tarball="${TMPDIR:-$PREFIX/tmp}/turnip.$$.tar.gz"
-    run curl -fL -m 300 -o "$tarball" "$url" || { rm -f "$tarball"; fail "download of the Turnip tarball failed"; }
-    run tar -xzf "$tarball" -C "$rootfs" || { rm -f "$tarball"; fail "unpacking the Turnip tarball failed"; }
-    rm -f "$tarball"
-    [ -r "$rootfs/$icd" ] || fail "the Turnip tarball did not provide /$icd"
     # Debian's mesa-vulkan-drivers ships a Turnip without the KGSL backend under the same file names;
     # keep a later apt upgrade from overwriting the one just unpacked.
-    proot-distro login "$1" --shared-tmp -- apt-mark hold mesa-vulkan-drivers libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 >/dev/null 2>&1 || true
+    run proot-distro login "$1" --shared-tmp -- apt-mark hold mesa-vulkan-drivers libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 \
+        || fail "holding the container Turnip packages"
 }
 
 # fetch_debs runs in a command substitution, so the exit of its fail() only ends that subshell: check
@@ -182,23 +192,25 @@ else
     if [ -f "$de_marker" ]; then
         log "Container packages for $DESKTOP_DE already present; skipping"
     else
-        # forky's systemd-family maintainer scripts cannot run under proot; the helper installs the
-        # packages and finishes configuring them anyway (see desktop_container_plasma_apt.sh). It
-        # serves every desktop environment, which only differ in the package list.
+        # The container helper configures service-start policy before apt. Installation failure
+        # is returned unchanged; package maintainer scripts are never replaced.
         case "$DESKTOP_DE" in
             xfce4) container_packages="xfce4 xfce4-terminal dbus-x11" ;;
-            *) container_packages="plasma-desktop plasma-workspace kactivitymanagerd dbus-x11 libvulkan-dev" ;;
+            *) container_packages="plasma-desktop plasma-workspace kactivitymanagerd dbus-x11 packagekit polkitd"
+               [ "$DESKTOP_GL_MODE" != "zink" ] || container_packages="$container_packages libvulkan-dev" ;;
         esac
         container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
         [ -r "$container_apt" ] || fail "missing $container_apt"
-        cp "$container_apt" "$PREFIX/tmp/desktop_container_plasma_apt.sh" || fail "cannot stage the container apt helper"
+        for helper in desktop_container_plasma_apt.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
+            cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "cannot stage container helper $helper"
+        done
         # shellcheck disable=SC2086
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
-            $container_packages || fail "container apt install $DESKTOP_DE"
+            --statx-backend=proc-fdinfo $container_packages || fail "container apt install $DESKTOP_DE"
         : > "$de_marker"
     fi
     # Idempotent and independent of the marker: a container created before this step still gets it.
-    [ "$DESKTOP_DE" = "kwin_plasma" ] && ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
+    [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$DESKTOP_GL_MODE" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
 fi
 
 audit=$(dpkg --audit 2>&1)
@@ -206,7 +218,7 @@ audit=$(dpkg --audit 2>&1)
 if [ "$DESKTOP_DE" = "xfce4" ]; then
     # The Xlorie xorg-server (release build) is older than Termux's stock one; keep a later
     # `pkg upgrade` from replacing it with a server that has no Xlorie.
-    run apt-mark hold xorg-server
+    run apt-mark hold xorg-server || fail "holding xorg-server"
 fi
 log "Desktop install finished."
 exit 0

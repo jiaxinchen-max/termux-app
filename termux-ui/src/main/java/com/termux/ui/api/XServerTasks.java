@@ -28,7 +28,7 @@ public final class XServerTasks {
 
     private static final String MANIFEST_ASSET = "local-games/x-server-packages.txt";
     private static final String BASE_URL =
-        "https://github.com/jiaxinchen-max/xserver/releases/download/termux-xlorie-21.1.16-r6";
+        "https://github.com/jiaxinchen-max/xserver/releases/download/termux-xlorie-21.1.16-r7";
 
     private final Context context;
     private final GameStoragePaths paths;

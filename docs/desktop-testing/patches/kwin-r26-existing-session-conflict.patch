@@ -1,0 +1,23 @@
+--- a/src/backends/android/start-plasma.sh
++++ b/src/backends/android/start-plasma.sh
+@@ -123,16 +123,16 @@
+ if command -v pgrep >/dev/null 2>&1; then
+     EXISTING_KWIN_PID="$(pgrep -x kwin_wayland | head -n 1 || true)"
+     if [ -n "$EXISTING_KWIN_PID" ]; then
+-        echo "Plasma is already running (kwin_wayland pid $EXISTING_KWIN_PID)."
+-        exit 0
++        echo "Error: requested KWin session conflicts with existing kwin_wayland pid $EXISTING_KWIN_PID; refusing to reuse or stop it." >&2
++        exit 73
+     fi
+ fi
+ 
+ KWIN_SOCKET_PATH="$XDG_RUNTIME_DIR/$KWIN_WAYLAND_SOCKET"
+ if [ -S "$KWIN_SOCKET_PATH" ]; then
+     if command -v pgrep >/dev/null 2>&1 && pgrep -x kwin_wayland >/dev/null 2>&1; then
+-        echo "Plasma is already running on $KWIN_WAYLAND_SOCKET."
+-        exit 0
++        echo "Error: requested KWin session conflicts with an existing kwin_wayland on $KWIN_WAYLAND_SOCKET; refusing to reuse or stop it." >&2
++        exit 73
+     fi
+     echo "Removing stale Wayland socket: $KWIN_SOCKET_PATH"
+     rm -f "$KWIN_SOCKET_PATH" "$KWIN_SOCKET_PATH.lock"

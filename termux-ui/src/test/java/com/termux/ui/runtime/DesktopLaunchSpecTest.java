@@ -31,6 +31,7 @@ public class DesktopLaunchSpecTest {
         Map<String, String> spec = parse(DesktopLaunchSpec.encode(distro,
             "/files/state/p-1.pid", "/files/state/p-1.status", "/files/logs/p-1.log"));
         assertEquals("proot", spec.get("DESKTOP_MODE"));
+        assertEquals("proot-distro", spec.get("DESKTOP_REMOVE_METHOD"));
         assertEquals("zink", spec.get("DESKTOP_GL_MODE"));
         assertEquals("debian", spec.get("DESKTOP_PROOT_DISTRO"));
         assertEquals("1920", spec.get("DESKTOP_WIDTH"));

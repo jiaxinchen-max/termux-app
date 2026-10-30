@@ -1,0 +1,21 @@
+--- a/src/syscall/exit.c
++++ b/src/syscall/exit.c
+@@ -361,6 +361,18 @@
+ 			break;
+ 		}
+ 
++		/* readlinkat(fd, "", ...) names the symlink through an O_PATH
++		 * descriptor. The entry path was intentionally left empty, but an
++		 * absolute target still needs the actual host referrer to preserve
++		 * rootfs/binding detranslation. Never compare an empty pathname. */
++		if (syscall_number == PR_readlinkat && referer[0] == '\0' &&
++		    referee[0] == '/') {
++			status = readlink_proc_pid_fd(tracee->pid,
++				peek_reg(tracee, ORIGINAL, SYSARG_1), referer);
++			if (status < 0)
++				break;
++		}
++
+ 		status = detranslate_path(tracee, referee, referer);
+ 		if (status < 0)
+ 			break;

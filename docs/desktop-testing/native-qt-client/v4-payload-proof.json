@@ -1,0 +1,27 @@
+{
+  "old_archive_sha256": "e7024386c8a1db199f00acc9fa55c76ffbd2beb568e0b5c100a443d7c4251a87",
+  "new_archive_sha256": "c358738df64b81e8abe8d4aa57b74978f2959e23f9061389f6d63f1371b2daf8",
+  "changed_payload": [
+    "payload/bin/start-plasma"
+  ],
+  "unchanged_payload": {
+    "payload/bin/kwin-android-rendering-env": "c00cef0311e4829e8229059837cb8ee177751345856c159294b15494572c42da",
+    "payload/bin/kwin-qt-client-renderer-probe": "2f56beabb6caeea4e0d44f9300227bf02d14c9137326868f7c7daabc16d3c3bb",
+    "payload/bin/kwin_wayland": "8ccb4e3bd40ca9dfd9426e49056fcd8167dca54900ac01c54fa33775844bbd36",
+    "payload/lib/libkwin.so.6.6.7": "eee1bfc582e045ec44d8a9216ff787e435a8409a3ce4afbb0cd2114f131c4c87",
+    "payload/lib/qt6/plugins/wayland-graphics-integration-client/libqt-plugin-termux-ahardware-buffer.so": "ad6533bb6a2ddbb7bc1333d60cfb262261454b6650ee105c04a0f31eddccdf69",
+    "payload/lib/qt6/plugins/wayland-shell-integration/libxdg-shell.so": "76d7ddc767cf70fc340f57b84f2fdacd88ca7be15c46ec0286a882d0a0bf397b",
+    "payload/lib/qt6/termux-system-egl/libEGL.so": "d5e14819eff485aef4cb3373a713ff6c2eb6da8de9fe976ae7874990295b77d1",
+    "payload/lib/qt6/termux-system-egl/libEGL.so.1": "d5e14819eff485aef4cb3373a713ff6c2eb6da8de9fe976ae7874990295b77d1"
+  },
+  "changed_entries": [
+    "README.md",
+    "SHA256SUMS",
+    "native-qt-client.md",
+    "payload/bin/start-plasma"
+  ],
+  "added_entries": [
+    "kwin-r26-existing-session-conflict.patch",
+    "test-start-conflicts.py"
+  ]
+}

@@ -17,7 +17,7 @@ public final class DesktopLaunchSpec {
     /** Logged by {@code start-plasma} once KWin's Android EGL backend is up. */
     public static final String READY_LOG_MARKER = "Android EGL backend initialized";
     /** Pinned release of the KWin Termux hardware-acceleration packages. */
-    public static final String RELEASE_TAG = "termux-hwaccel-6.6-r26";
+    public static final String RELEASE_TAG = "termux-hwaccel-6.6-r27";
 
     private DesktopLaunchSpec() {}
 
@@ -27,6 +27,7 @@ public final class DesktopLaunchSpec {
         put(spec, "DESKTOP_SPEC_VERSION", Integer.toString(SCHEMA_VERSION));
         put(spec, "DESKTOP_ID", distro.getId());
         put(spec, "DESKTOP_MODE", distro.getRunMode().getStorageValue());
+        put(spec, "DESKTOP_REMOVE_METHOD", "proot-distro");
         put(spec, "DESKTOP_DE", distro.getDe().getStorageValue());
         put(spec, "DESKTOP_GL_MODE", distro.getGlMode().getStorageValue());
         put(spec, "DESKTOP_PROOT_DISTRO", distro.getProotDistro());

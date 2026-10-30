@@ -1,0 +1,7 @@
+Native Qt client mode: zink; integration=wayland-egl; RHI=opengl; Quick=rhi
+dbus-daemon[264908]: [session uid=1000 pid=264908 pidfd=5] Activating service name='org.termux.RendererEnvironmentTest' requested by ':1.1' (uid=1000 pid=264912 comm="/usr/bin/dbus-send --session --dest=org.termux.Ren" label="unconfined")
+Traceback (most recent call last):
+  File "/tmp/kwin-dbus-env-cmx293zg/check.py", line 8, in <module>
+    for key,value in expected[mode].items(): assert data[key]==value,(mode,key,data[key],value)
+                                                    ^^^^^^^^^^^^^^^^
+AssertionError: ('zink', 'LIBGL_ALWAYS_SOFTWARE', '1', '0')

@@ -580,6 +580,7 @@
     <string name="desktop_settings_title">Desktop settings</string>
     <string name="desktop_settings_hint">%1$s · changes apply on next session start</string>
     <string name="desktop_settings_native_name_note">Native desktops keep a fixed name; renaming is available for container desktops.</string>
+    <string name="desktop_settings_stop_required">Stop the desktop before changing renderer, resolution or refresh rate.</string>
     <string name="desktop_settings_save">Save</string>
     <string name="desktop_settings_cancel">Cancel</string>
     <string name="desktop_delete_title">Delete “%1$s”?</string>
@@ -652,4 +653,5 @@
     <string name="desktop_session_volume">Volume</string>
     <string name="desktop_session_keyboard_summary">Open the system soft keyboard without leaving the desktop.</string>
     <string name="desktop_session_exit_title">Leave the desktop</string>
+    <string name="desktop_renderer_explicit_required">Select a renderer supported by this desktop explicitly.</string>
 </resources>

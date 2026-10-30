@@ -1,0 +1,663 @@
+--- a/src/backends/android/android-rendering-env.sh
++++ b/src/backends/android/android-rendering-env.sh
+@@ -59,24 +59,6 @@
+     unset VK_DRIVER_FILES VK_ICD_FILENAMES WRAPPER_VULKAN_PATH MESA_VK_WSI_DEBUG
+ }
+ 
+-kwin_android_find_turnip_icd()
+-{
+-    local arch candidate
+-
+-    arch="${1:-$(uname -m)}"
+-    for candidate in \
+-        "${KWIN_ANDROID_TURNIP_ICD:-}" \
+-        "$PREFIX/share/vulkan/icd.d/freedreno_icd.${arch}.json" \
+-        "$PREFIX/share/vulkan/icd.d/freedreno_icd.aarch64.json" \
+-        "$PREFIX/share/vulkan/icd.d/freedreno_icd.arm64.json"; do
+-        if [ -n "$candidate" ] && [ -r "$candidate" ]; then
+-            printf '%s\n' "$candidate"
+-            return 0
+-        fi
+-    done
+-    return 1
+-}
+-
+ kwin_android_probe_zink_icd()
+ {
+     local icd="$1"
+@@ -84,10 +66,6 @@
+     local expected_renderer="${3:-}"
+     local output
+     local -a probe_command
+-
+-    if [ "${KWIN_ANDROID_DISABLE_RENDERER_PROBE:-0}" = "1" ]; then
+-        return 0
+-    fi
+ 
+     if command -v eglinfo >/dev/null 2>&1; then
+         probe_command=(eglinfo -p surfaceless -B)
+@@ -130,9 +108,11 @@
+         if [ -n "$expected_renderer" ]; then
+             printf '%s\n' "$output" | grep -Eqi "$expected_renderer" || return 1
+         fi
++        return 0
+     fi
+ 
+-    return 0
++    echo "Cannot validate requested Zink mode: eglinfo or vulkaninfo is required" >&2
++    return 1
+ }
+ 
+ kwin_android_configure_icd_zink()
+@@ -165,126 +145,69 @@
+ 
+ kwin_android_select_rendering()
+ {
+-    local arch mode wrapper_icd wrapper_lib android_vulkan android_egl android_gles
+-    local loader_path requested_icd turnip_icd kgsl_device
++    local arch mode wrapper_icd wrapper_lib android_vulkan requested_icd
+ 
+     arch="$(uname -m)"
+-    mode="${KWIN_ANDROID_GL_MODE:-auto}"
++    mode="${KWIN_ANDROID_GL_MODE:-}"
+     mode="$(printf '%s' "$mode" | tr '[:upper:]' '[:lower:]')"
+     wrapper_icd="${KWIN_ANDROID_WRAPPER_ICD:-$PREFIX/share/vulkan/icd.d/wrapper_icd.${arch}.json}"
+     wrapper_lib="${KWIN_ANDROID_WRAPPER_LIBRARY:-$PREFIX/lib/libvulkan_wrapper.so}"
+-    kgsl_device="${KWIN_ANDROID_KGSL_DEVICE:-/dev/kgsl-3d0}"
+     if [ "$arch" = "aarch64" ] || [ "$arch" = "arm64" ]; then
+         android_vulkan="${KWIN_ANDROID_SYSTEM_VULKAN_LIBRARY:-/system/lib64/libvulkan.so}"
+-        android_egl="${KWIN_ANDROID_SYSTEM_EGL_LIBRARY:-/system/lib64/libEGL.so}"
+-        android_gles="${KWIN_ANDROID_SYSTEM_GLES_LIBRARY:-/system/lib64/libGLESv2.so}"
+     else
+         android_vulkan="${KWIN_ANDROID_SYSTEM_VULKAN_LIBRARY:-/system/lib/libvulkan.so}"
+-        android_egl="${KWIN_ANDROID_SYSTEM_EGL_LIBRARY:-/system/lib/libEGL.so}"
+-        android_gles="${KWIN_ANDROID_SYSTEM_GLES_LIBRARY:-/system/lib/libGLESv2.so}"
+     fi
+ 
+     requested_icd="${VK_DRIVER_FILES:-${VK_ICD_FILENAMES:-}}"
+-    case "$requested_icd" in
+-        *vortek*|*/glibc/*)
+-            echo "Ignoring non-Bionic Vulkan ICD: $requested_icd"
+-            unset VK_DRIVER_FILES VK_ICD_FILENAMES TERMUX_VULKAN_BROKER_SOCKET
+-            requested_icd=
++    case "$mode" in
++        system)
++            kwin_android_use_system_gles
++            ACCELERATION_MODE="Android system EGL/GLES (explicit)"
++            export ACCELERATION_MODE
++            return 0
++            ;;
++        llvmpipe)
++            kwin_android_use_llvmpipe
++            ACCELERATION_MODE="Mesa Software (llvmpipe, explicit)"
++            export ACCELERATION_MODE
++            return 0
++            ;;
++        zink|turnip|kgsl)
++            if [ -z "$requested_icd" ]; then
++                requested_icd="${KWIN_ANDROID_TURNIP_ICD:-$PREFIX/share/vulkan/icd.d/freedreno_icd.aarch64.json}"
++            fi
++            case "$requested_icd" in
++                *vortek*|*/glibc/*)
++                    echo "Unsupported non-Bionic Vulkan ICD: $requested_icd" >&2
++                    return 1
++                    ;;
++            esac
++            if [ ! -r "$requested_icd" ]; then
++                echo "Requested Zink Vulkan ICD is unavailable: $requested_icd" >&2
++                return 1
++            fi
++            if ! kwin_android_probe_zink_icd "$requested_icd" "" ''; then
++                echo "Requested Zink Vulkan ICD failed its hardware probe: $requested_icd" >&2
++                return 1
++            fi
++            kwin_android_configure_icd_zink "$requested_icd" "Explicit Vulkan ICD (Zink): $requested_icd"
++            return 0
++            ;;
++        wrapper)
++            if [ ! -r "$wrapper_icd" ] || [ ! -r "$wrapper_lib" ] || [ ! -r "$android_vulkan" ]; then
++                echo "Requested Android Vulkan wrapper is unavailable" >&2
++                return 1
++            fi
++            if ! kwin_android_probe_zink_icd "$wrapper_icd" "$android_vulkan" ''; then
++                echo "Requested Android Vulkan wrapper failed its Zink hardware probe" >&2
++                return 1
++            fi
++            kwin_android_configure_wrapper_zink "$wrapper_icd" "$android_vulkan"
++            return 0
++            ;;
++        *)
++            echo "KWIN_ANDROID_GL_MODE must explicitly specify system, zink, turnip, kgsl, wrapper or llvmpipe; got: $mode" >&2
++            return 2
+             ;;
+     esac
+-
+-    case "$mode" in
+-        system|system-gles|gles)
+-            kwin_android_use_system_gles
+-            ACCELERATION_MODE="Android system EGL/GLES (forced)"
+-            export ACCELERATION_MODE
+-            return 0
+-            ;;
+-        llvmpipe|software)
+-            kwin_android_use_llvmpipe
+-            ACCELERATION_MODE="Mesa Software (llvmpipe, forced)"
+-            export ACCELERATION_MODE
+-            return 0
+-            ;;
+-        auto|zink|hardware|turnip|kgsl|wrapper)
+-            ;;
+-        *)
+-            echo "Unsupported KWIN_ANDROID_GL_MODE: $mode" >&2
+-            return 2
+-            ;;
+-    esac
+-
+-    # An explicit native Bionic ICD is the most specific Vulkan override.
+-    if [ -n "$requested_icd" ]; then
+-        kwin_android_configure_icd_zink "$requested_icd" "Explicit native Vulkan ICD (Zink)"
+-        return 0
+-    fi
+-
+-    turnip_icd="$(kwin_android_find_turnip_icd "$arch" || true)"
+-    if [ -n "$turnip_icd" ] \
+-        && [ -r "$PREFIX/lib/libvulkan_freedreno.so" ] \
+-        && [ -r "$kgsl_device" ] \
+-        && [ -w "$kgsl_device" ]; then
+-        if kwin_android_probe_zink_icd "$turnip_icd" "" 'Turnip|Adreno'; then
+-            kwin_android_configure_icd_zink "$turnip_icd" "Mesa Turnip KGSL (Zink)"
+-            return 0
+-        fi
+-        echo "Turnip/KGSL files found, but the Zink probe failed" >&2
+-    fi
+-
+-    if [ "$mode" = "turnip" ] || [ "$mode" = "kgsl" ]; then
+-        echo "Requested Turnip/KGSL rendering is unavailable" >&2
+-        return 1
+-    fi
+-
+-    if [ -r "$wrapper_icd" ] && [ -r "$wrapper_lib" ] && [ -r "$android_vulkan" ]; then
+-        if [ "$mode" = "wrapper" ] \
+-            || [ "$mode" = "zink" ] \
+-            || [ "$mode" = "hardware" ] \
+-            || [ "${KWIN_ANDROID_AUTO_PREFER_WRAPPER:-0}" = "1" ]; then
+-            if kwin_android_probe_zink_icd "$wrapper_icd" "$android_vulkan" ''; then
+-                kwin_android_configure_wrapper_zink "$wrapper_icd" "$android_vulkan"
+-                return 0
+-            fi
+-            echo "Android Vulkan wrapper files found, but the Zink probe failed" >&2
+-        fi
+-    elif [ "$mode" = "wrapper" ]; then
+-        echo "Requested Android Vulkan wrapper is unavailable" >&2
+-        return 1
+-    fi
+-
+-    # Direct Android EGL/GLES is the reliable hardware path for emulators and
+-    # non-KGSL devices. It also avoids an unnecessary GL-to-Vulkan translation.
+-    if [ "$mode" = "auto" ] && [ -r "$android_egl" ] && [ -r "$android_gles" ]; then
+-        kwin_android_use_system_gles
+-        ACCELERATION_MODE="Android system EGL/GLES (auto)"
+-        export ACCELERATION_MODE
+-        return 0
+-    fi
+-
+-    # vulkan-loader-android exposes the Android loader through this symlink.
+-    loader_path="$(readlink -f "$PREFIX/lib/libvulkan.so" 2>/dev/null || true)"
+-    case "$loader_path" in
+-        /system/*/libvulkan.so)
+-            if [ "$mode" = "zink" ] || [ "$mode" = "hardware" ]; then
+-                kwin_android_use_zink
+-                unset VK_DRIVER_FILES VK_ICD_FILENAMES WRAPPER_VULKAN_PATH TERMUX_VULKAN_BROKER_SOCKET
+-                ACCELERATION_MODE="Android system Vulkan (Zink)"
+-                export ACCELERATION_MODE
+-                return 0
+-            fi
+-            ;;
+-    esac
+-
+-    if [ "$mode" = "zink" ] || [ "$mode" = "hardware" ] || [ "$mode" = "wrapper" ]; then
+-        echo "Requested hardware-backed Zink rendering is unavailable" >&2
+-        return 1
+-    fi
+-
+-    # No hardware path and no readable Android system EGL/GLES. Do not silently
+-    # drop to software: that hides a broken environment behind a slow desktop.
+-    # The user must opt in to software rendering explicitly.
+-    echo "auto: no hardware renderer and no usable Android system EGL/GLES was found." >&2
+-    echo "auto: set KWIN_ANDROID_GL_MODE=llvmpipe to force Mesa software rendering." >&2
+-    return 1
+-}
++}
+--- a/src/backends/android/start-plasma.sh
++++ b/src/backends/android/start-plasma.sh
+@@ -149,7 +149,7 @@
+     exec > "$PLASMA_LOG" 2>&1
+ fi
+ 
+-echo "=== Plasma Desktop with Hardware Accelerated KWin ==="
++echo "=== Plasma Desktop with Explicit KWin Renderer ==="
+ echo "Logging to: $PLASMA_LOG"
+ 
+ # 检查Termux环境
+@@ -284,6 +284,20 @@
+ # shellcheck source=android-rendering-env.sh
+ source "$RENDERING_ENV"
+ kwin_android_select_rendering
++case "$KWIN_ANDROID_GL_MODE" in
++    system)
++        unset QT_QUICK_BACKEND
++        export QSG_RHI_BACKEND=opengl
++        ;;
++    zink)
++        unset QT_QUICK_BACKEND
++        export QSG_RHI_BACKEND=vulkan
++        ;;
++    llvmpipe)
++        unset QSG_RHI_BACKEND
++        export QT_QUICK_BACKEND=software
++        ;;
++esac
+ 
+ cleanup_session()
+ {
+@@ -385,7 +399,7 @@
+ fi
+ 
+ # 启动KWin Wayland
+-echo "Starting KWin with hardware acceleration..."
++echo "Starting KWin with requested renderer: $KWIN_ANDROID_GL_MODE"
+ kwin_wayland \
+     --socket "$KWIN_WAYLAND_SOCKET" \
+     --xwayland \
+@@ -512,9 +526,9 @@
+ fi
+ 
+ echo ""
+-echo "✓ Plasma Desktop started with hardware accelerated KWin"
++echo "✓ Plasma Desktop started with requested KWin renderer"
+ echo "✓ Acceleration mode: $ACCELERATION_MODE"
+-echo "✓ AHardwareBuffer zero-copy rendering supported"
++echo "✓ Output buffer import: $KWIN_ANDROID_AHB_IMPORT"
+ echo ""
+ echo "Launch applications:"
+ echo "  konsole    # Terminal"
+--- a/src/backends/android/android_egl_backend.cpp
++++ b/src/backends/android/android_egl_backend.cpp
+@@ -250,8 +250,7 @@
+         return true;
+     }
+     
+-    // Fallback: Copy EGL framebuffer to shared buffer for display
+-    // This is used when direct rendering is not available
++    // Explicit readback output: copy the EGL framebuffer to the shared buffer.
+     {
+         if (m_buffer && m_framebuffer) {
+             // Get server state for locking
+@@ -434,7 +433,7 @@
+     case AndroidEglBackend::RenderingMode::LlvmpipeSoftware:
+         pinned = OutputImport::Readback;
+         break;
+-    case AndroidEglBackend::RenderingMode::Fallback:
++    case AndroidEglBackend::RenderingMode::Invalid:
+         return OutputImport::Invalid;
+     }
+ 
+@@ -718,90 +717,67 @@
+         return "zink (Mesa on Vulkan)";
+     case AndroidEglBackend::RenderingMode::LlvmpipeSoftware:
+         return "llvmpipe (Mesa software)";
+-    case AndroidEglBackend::RenderingMode::Fallback:
++    case AndroidEglBackend::RenderingMode::Invalid:
+         return "none";
+     }
+     Q_UNREACHABLE_RETURN("none");
+ }
+ 
+-// kwin-android-rendering-env owns these variables. Only report combinations
+-// that make libepoxy or Mesa contradict the mode it selected, so a manual
+-// launch with a half-configured environment is diagnosable from the log.
+-static void warnAboutRenderingEnvironment(AndroidEglBackend::RenderingMode mode)
++// Reject a contradictory environment before libepoxy initializes a GL loader.
++static bool validateRenderingEnvironment(AndroidEglBackend::RenderingMode mode)
+ {
+     const QByteArray termuxZink = qgetenv("TERMUX_ANDROID_ZINK");
+-    // Mirrors the check in the patched libepoxy dispatch_common.c.
+     const bool epoxyLoadsMesa = !termuxZink.isEmpty() && termuxZink != "0";
+     const QByteArray mesaDriver = qgetenv("MESA_LOADER_DRIVER_OVERRIDE").toLower();
+     const QByteArray compose = qgetenv("KWIN_COMPOSE");
+-
++    bool valid = false;
+     switch (mode) {
+     case AndroidEglBackend::RenderingMode::SystemGlesHardware:
+-        if (epoxyLoadsMesa) {
+-            qWarning() << "KWIN_ANDROID_GL_MODE=system but TERMUX_ANDROID_ZINK is set;"
+-                       << "libepoxy will load Termux Mesa instead of the Android system EGL/GLES";
+-        }
+-        if (compose != "O2ES") {
+-            qWarning() << "KWIN_ANDROID_GL_MODE=system expects KWIN_COMPOSE=O2ES, got" << compose;
+-        }
++        valid = !epoxyLoadsMesa && mesaDriver.isEmpty() && compose == "O2ES";
+         break;
+     case AndroidEglBackend::RenderingMode::ZinkHardware:
+-        if (!epoxyLoadsMesa) {
+-            qWarning() << "KWIN_ANDROID_GL_MODE=zink but TERMUX_ANDROID_ZINK is not set;"
+-                       << "libepoxy will load the Android system EGL/GLES";
+-        }
+-        if (mesaDriver != "zink") {
+-            qWarning() << "KWIN_ANDROID_GL_MODE=zink expects MESA_LOADER_DRIVER_OVERRIDE=zink, got" << mesaDriver;
+-        }
++        valid = epoxyLoadsMesa && mesaDriver == "zink" && compose == "O2";
+         break;
+     case AndroidEglBackend::RenderingMode::LlvmpipeSoftware:
+-        if (mesaDriver != "llvmpipe") {
+-            qWarning() << "KWIN_ANDROID_GL_MODE=llvmpipe expects MESA_LOADER_DRIVER_OVERRIDE=llvmpipe, got" << mesaDriver;
+-        }
+-        break;
+-    case AndroidEglBackend::RenderingMode::Fallback:
+-        break;
+-    }
+-}
+-
+-// The shell probe runs eglinfo before KWin starts; this checks what the
+-// compositor context actually got, so a wrong libepoxy build or a stale
+-// TERMUX_ANDROID_ZINK shows up in the log instead of as a silent fallback.
+-static void verifyRendererMatchesMode(AndroidEglBackend::RenderingMode mode)
+-{
+-    const auto glString = [](GLenum name) {
+-        const char *value = reinterpret_cast<const char *>(glGetString(name));
+-        return QByteArray(value ? value : "");
+-    };
+-    const QByteArray vendor = glString(GL_VENDOR);
+-    const QByteArray renderer = glString(GL_RENDERER);
+-    const QByteArray lowerRenderer = renderer.toLower();
+-    const bool mesaRenderer = vendor.startsWith("Mesa")
+-        || lowerRenderer.contains("llvmpipe")
+-        || lowerRenderer.contains("zink");
+-
++        valid = epoxyLoadsMesa && mesaDriver == "llvmpipe" && compose == "O2";
++        break;
++    case AndroidEglBackend::RenderingMode::Invalid:
++        break;
++    }
++    if (!valid) {
++        qCritical() << "Requested renderer conflicts with environment:" << renderingModeName(mode)
++                    << "TERMUX_ANDROID_ZINK=" << termuxZink
++                    << "MESA_LOADER_DRIVER_OVERRIDE=" << mesaDriver << "KWIN_COMPOSE=" << compose;
++    }
++    return valid;
++}
++
++static bool verifyRendererMatchesMode(AndroidEglBackend::RenderingMode mode)
++{
++    const char *value = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
++    const QByteArray renderer(value ? value : "");
++    const QByteArray lower = renderer.toLower();
++    const bool software = lower.contains("llvmpipe") || lower.contains("lavapipe")
++        || lower.contains("softpipe") || lower.contains("software rasterizer");
++    bool matches = false;
+     switch (mode) {
+     case AndroidEglBackend::RenderingMode::SystemGlesHardware:
+-        if (mesaRenderer) {
+-            qWarning() << "KWIN_ANDROID_GL_MODE=system but the compositor got a Mesa renderer:" << renderer
+-                       << "- check the installed libepoxy and TERMUX_ANDROID_ZINK";
+-        }
++        matches = !renderer.isEmpty() && !lower.contains("zink") && !software;
+         break;
+     case AndroidEglBackend::RenderingMode::ZinkHardware:
+-        if (!lowerRenderer.contains("zink")) {
+-            qWarning() << "KWIN_ANDROID_GL_MODE=zink but the compositor got" << renderer;
+-        } else if (lowerRenderer.contains("llvmpipe") || lowerRenderer.contains("lavapipe")) {
+-            qWarning() << "Zink is running on a software Vulkan device:" << renderer;
+-        }
++        matches = lower.contains("zink") && !software;
+         break;
+     case AndroidEglBackend::RenderingMode::LlvmpipeSoftware:
+-        if (!lowerRenderer.contains("llvmpipe")) {
+-            qWarning() << "KWIN_ANDROID_GL_MODE=llvmpipe but the compositor got" << renderer;
+-        }
+-        break;
+-    case AndroidEglBackend::RenderingMode::Fallback:
+-        break;
+-    }
++        matches = lower.contains("llvmpipe");
++        break;
++    case AndroidEglBackend::RenderingMode::Invalid:
++        break;
++    }
++    if (!matches) {
++        qCritical() << "Requested renderer" << renderingModeName(mode)
++                    << "does not match actual GL_RENDERER:" << renderer << "; refusing to continue";
++    }
++    return matches;
+ }
+ 
+ AndroidEglBackend::RenderingMode AndroidEglBackend::renderingModeFromEnvironment()
+@@ -811,16 +787,6 @@
+     // environment and leaves KWIN_ANDROID_GL_MODE resolved to exactly one of
+     // system, zink or llvmpipe. KWin consumes that value and never re-probes.
+     QByteArray mode = qgetenv("KWIN_ANDROID_GL_MODE").trimmed().toLower();
+-    if (mode.isEmpty()) {
+-        // Direct launch without the helper script: apply the documented default
+-        // and export it so EglContext::createContext() sees the same mode.
+-        mode = QByteArrayLiteral("system");
+-        setenv("KWIN_ANDROID_GL_MODE", "system", 0);
+-        setenv("KWIN_COMPOSE", "O2ES", 0);
+-        qInfo() << "KWIN_ANDROID_GL_MODE is not set; defaulting to Android system EGL/GLES."
+-                << "Source kwin-android-rendering-env and run kwin_android_select_rendering to choose a renderer.";
+-    }
+-
+     if (mode == "system") {
+         return RenderingMode::SystemGlesHardware;
+     }
+@@ -833,8 +799,8 @@
+ 
+     qCritical() << "KWIN_ANDROID_GL_MODE" << mode << "is a renderer request, not a resolved renderer."
+                 << "Run kwin_android_select_rendering from kwin-android-rendering-env before kwin_wayland;"
+-                << "it resolves auto, turnip, kgsl, wrapper, hardware, gles and software to system, zink or llvmpipe.";
+-    return RenderingMode::Fallback;
++                << "it accepts explicit system, zink, turnip, kgsl, wrapper or llvmpipe only.";
++    return RenderingMode::Invalid;
+ }
+ 
+ AndroidEglBackend::AndroidEglBackend(AndroidBackend *backend)
+@@ -844,10 +810,10 @@
+ 
+     // Renderer selection is owned by kwin-android-rendering-env; consume it.
+     m_renderingMode = renderingModeFromEnvironment();
+-    m_eglAvailable = (m_renderingMode != RenderingMode::Fallback);
++    m_eglAvailable = (m_renderingMode != RenderingMode::Invalid);
+     if (m_eglAvailable) {
+         qInfo() << "Android renderer selected by KWIN_ANDROID_GL_MODE:" << renderingModeName(m_renderingMode);
+-        warnAboutRenderingEnvironment(m_renderingMode);
++        m_eglAvailable = validateRenderingEnvironment(m_renderingMode);
+     } else {
+         qWarning() << "No EGL renderer is available";
+     }
+@@ -864,7 +830,7 @@
+     m_layers.clear();
+ }
+ 
+-void AndroidEglBackend::exportDmaBufFeedback()
++bool AndroidEglBackend::exportDmaBufFeedback()
+ {
+     // Whether KWin advertises the standard linux-dmabuf feedback to Wayland
+     // clients - so external GL/Vulkan clients (e.g. Mesa Turnip apps in a proot
+@@ -875,23 +841,20 @@
+     // active buffer-sharing path easy to reason about and debug.
+     const QByteArray requested = qgetenv("KWIN_ANDROID_LINUX_DMABUF").toLower();
+     const bool enabled = requested == "on" || requested == "1" || requested == "true";
+-    if (!enabled) {
+-        if (!requested.isEmpty() && requested != "off" && requested != "0" && requested != "false") {
+-            qCWarning(KWIN_ANDROID_EGL) << "Unsupported KWIN_ANDROID_LINUX_DMABUF value:" << requested
+-                                        << "- expected on or off; treating as off";
+-        }
+-        qCInfo(KWIN_ANDROID_EGL) << "linux-dmabuf client advertising is off;"
+-                                 << "set KWIN_ANDROID_LINUX_DMABUF=on to let external Wayland clients share dma-buf";
+-        return;
+-    }
+-
+-    if (!WaylandServer::self()) {
+-        return;
++    const bool disabled = requested == "off" || requested == "0" || requested == "false";
++    if (!enabled && !disabled) {
++        qCCritical(KWIN_ANDROID_EGL) << "KWIN_ANDROID_LINUX_DMABUF must explicitly specify on or off; got:" << requested;
++        return false;
++    }
++    if (disabled) {
++        qCInfo(KWIN_ANDROID_EGL) << "linux-dmabuf client advertising explicitly disabled";
++        return true;
++    }
++    if (!WaylandServer::self() || !eglDisplayObject()) {
++        qCCritical(KWIN_ANDROID_EGL) << "Cannot enable requested linux-dmabuf without Wayland/EGL display";
++        return false;
+     }
+     EglDisplay *display = eglDisplayObject();
+-    if (!display) {
+-        return;
+-    }
+ 
+     // The generic EglBackend::initWayland() path is not used here: the Android
+     // backend has no DrmDevice (KGSL exposes no DRM render node). Build the
+@@ -907,10 +870,10 @@
+     // compositor cannot honour, consistent with the pinned-combination model.
+     const auto formats = display->nonExternalOnlySupportedDrmFormats();
+     if (formats.isEmpty()) {
+-        qCWarning(KWIN_ANDROID_EGL) << "KWIN_ANDROID_LINUX_DMABUF=on but the EGL display exposes no"
++        qCCritical(KWIN_ANDROID_EGL) << "KWIN_ANDROID_LINUX_DMABUF=on but the EGL display exposes no"
+                                     << "dma-buf import formats; the current renderer cannot import client"
+-                                    << "dma-buf (use KWIN_ANDROID_GL_MODE=zink). Not advertising linux-dmabuf.";
+-        return;
++                                    << "dma-buf; refusing to continue with a different configuration.";
++        return false;
+     }
+ 
+     dev_t mainDevice = 0;
+@@ -946,6 +909,7 @@
+ 
+     qCInfo(KWIN_ANDROID_EGL) << "Advertised linux-dmabuf to clients:" << formats.count()
+                              << "formats, main_device" << mainDevice;
++    return true;
+ }
+ 
+ void AndroidEglBackend::init()
+@@ -958,7 +922,10 @@
+     }
+ 
+     // Let external Wayland clients import dma-buf buffers (zink/Turnip path only).
+-    exportDmaBufFeedback();
++    if (!exportDmaBufFeedback()) {
++        setFailed("Requested linux-dmabuf configuration is unavailable");
++        return;
++    }
+     
+     // Connect to backend signals
+     connect(m_backend, &AndroidBackend::outputAdded, this, &AndroidEglBackend::addOutput);
+@@ -983,22 +950,20 @@
+     const char *clientExtensions = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
+     const QByteArray clientExtensionsString = clientExtensions ? QByteArray(clientExtensions) : QByteArray();
+ 
++    const bool systemGles = m_renderingMode == RenderingMode::SystemGlesHardware;
+     EGLDisplay display = EGL_NO_DISPLAY;
+-    using GetPlatformDisplayExtProc = EGLDisplay(EGLAPIENTRYP)(EGLenum platform, void *nativeDisplay, const EGLint *attribList);
+-    auto getPlatformDisplay = reinterpret_cast<GetPlatformDisplayExtProc>(eglGetProcAddress("eglGetPlatformDisplayEXT"));
+-    if (getPlatformDisplay && clientExtensionsString.split(' ').contains(QByteArrayLiteral("EGL_KHR_platform_android"))) {
+-        display = getPlatformDisplay(EGL_PLATFORM_ANDROID_KHR, EGL_DEFAULT_DISPLAY, nullptr);
+-        qCDebug(KWIN_ANDROID_EGL) << "Using Android EGL platform";
+-    }
+-    if (display == EGL_NO_DISPLAY && getPlatformDisplay
+-        && clientExtensionsString.split(' ').contains(QByteArrayLiteral("EGL_MESA_platform_surfaceless"))) {
++    if (systemGles) {
++        // Android exposes its standard EGL_DEFAULT_DISPLAY through eglGetDisplay;
++        // the optional KHR platform-Android extension is not required for this API.
++        display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
++    } else {
++        using GetPlatformDisplayExtProc = EGLDisplay(EGLAPIENTRYP)(EGLenum platform, void *nativeDisplay, const EGLint *attribList);
++        const auto getPlatformDisplay = reinterpret_cast<GetPlatformDisplayExtProc>(eglGetProcAddress("eglGetPlatformDisplayEXT"));
++        if (!getPlatformDisplay || !clientExtensionsString.split(' ').contains(QByteArrayLiteral("EGL_MESA_platform_surfaceless"))) {
++            qCritical() << "Requested Mesa renderer requires EGL_MESA_platform_surfaceless";
++            return false;
++        }
+         display = getPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY, nullptr);
+-        qCDebug(KWIN_ANDROID_EGL) << "Using surfaceless EGL platform";
+-    }
+-
+-    if (display == EGL_NO_DISPLAY) {
+-        qCDebug(KWIN_ANDROID_EGL) << "Using default EGL display";
+-        display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+     }
+     if (display == EGL_NO_DISPLAY) {
+         qCritical() << "Failed to get EGL display";
+@@ -1006,7 +971,6 @@
+     }
+ 
+     // Create EGL display wrapper
+-    const bool systemGles = m_renderingMode == RenderingMode::SystemGlesHardware;
+     auto eglDisplay = EglDisplay::create(display, true, !systemGles);
+     if (!eglDisplay) {
+         qCritical() << "Failed to create EglDisplay";
+@@ -1043,9 +1007,7 @@
+     qInfo() << "OpenGL Vendor:" << (const char*)glGetString(GL_VENDOR);
+     qInfo() << "OpenGL Renderer:" << (const char*)glGetString(GL_RENDERER);
+     qInfo() << "OpenGL Version:" << (const char*)glGetString(GL_VERSION);
+-    verifyRendererMatchesMode(m_renderingMode);
+-    
+-    return true;
++    return verifyRendererMatchesMode(m_renderingMode);
+ }
+ 
+ void AndroidEglBackend::present(BackendOutput *output, const std::shared_ptr<OutputFrame> &frame)
+--- a/src/backends/android/android_backend.cpp
++++ b/src/backends/android/android_backend.cpp
+@@ -375,8 +375,8 @@
+ 
+ std::unique_ptr<QPainterBackend> AndroidBackend::createQPainterBackend()
+ {
+-    qInfo() << "Creating Android QPainter backend";
+-    return std::make_unique<AndroidQPainterBackend>(this);
++    qCritical() << "Android QPainter mode is not supported; specify system, zink or llvmpipe EGL rendering";
++    return nullptr;
+ }
+ 
+ EglDisplay *AndroidBackend::sceneEglDisplayObject() const
+@@ -388,7 +388,6 @@
+ {
+     QList<CompositingType> compositors;
+     compositors.append(OpenGLCompositing);
+-    compositors.append(QPainterCompositing);
+     return compositors;
+ }
+ 
+--- a/src/backends/android/android_egl_backend.h
++++ b/src/backends/android/android_egl_backend.h
+@@ -115,12 +115,12 @@
+     
+     // Renderer as resolved by kwin-android-rendering-env. The script leaves
+     // KWIN_ANDROID_GL_MODE set to system, zink or llvmpipe; anything else is
+-    // an unresolved request and yields Fallback.
++    // an unresolved request and yields Invalid.
+     enum class RenderingMode {
+         SystemGlesHardware, // Android system EGL/GLES
+         ZinkHardware,      // Mesa Zink on a Vulkan ICD
+         LlvmpipeSoftware,  // Mesa llvmpipe software rendering
+-        Fallback           // No usable EGL renderer
++        Invalid           // No usable EGL renderer
+     };
+ 
+     static RenderingMode renderingModeFromEnvironment();
+@@ -131,14 +131,14 @@
+ 
+ private:
+     bool initializeEgl();
+-    void exportDmaBufFeedback();
++    bool exportDmaBufFeedback();
+     void addOutput(BackendOutput *output);
+ 
+     AndroidBackend *const m_backend;
+     QList<AndroidEglLayer *> m_layers;
+     
+     bool m_eglAvailable = false;
+-    RenderingMode m_renderingMode = RenderingMode::Fallback;
++    RenderingMode m_renderingMode = RenderingMode::Invalid;
+ };
+ 
+ } // namespace Android

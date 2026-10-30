@@ -5,6 +5,7 @@ plugins {
 android {
     namespace 'com.termux.wayland'
     compileSdk 34
+    ndkVersion project.properties.ndkVersion
 
     defaultConfig {
         minSdk 26

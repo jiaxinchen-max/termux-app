@@ -1,0 +1,15 @@
+--- a/src/plugins/platforms/wayland/plugins/shellintegration/xdg-shell/qwaylandxdgshell.cpp
++++ b/src/plugins/platforms/wayland/plugins/shellintegration/xdg-shell/qwaylandxdgshell.cpp
+@@ -4,6 +4,12 @@
+ // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+ // Qt-Security score:significant reason:default
+ 
++// Android plugins are loaded locally and may carry distinct copies of RTTI.
++// std::any's handler here must compare type names across the plugin boundary.
++#if defined(__ANDROID__)
++#  define _LIBCPP_TYPEINFO_COMPARISON_IMPLEMENTATION 2
++#endif
++
+ #include "qwaylandxdgshell_p.h"
+ 
+ #include "qwaylandxdgexporterv2_p.h"

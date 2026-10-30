@@ -16,6 +16,7 @@ import android.view.MotionEvent;
 import android.view.View;
 
 import java.util.List;
+import java.util.Arrays;
 import java.util.TreeSet;
 
 /**
@@ -109,11 +110,43 @@ public final class InputEventSender {
         mInjector.sendMouseEvent(x, y, BUTTON_UNDEFINED, false, relative);
     }
 
+    /** Gesture distances are desktop pixels; the bridge uses 120 units per 15 pixels. */
+    public void sendMouseScrollPixels(float distanceX, float distanceY) {
+        sendMouseWheelEvent(distanceX * 120f / 15f, distanceY * 120f / 15f);
+    }
+
+    /** Hardware wheel distances are already expressed in v120 units. */
     public void sendMouseWheelEvent(float distanceX, float distanceY) {
         mInjector.sendMouseWheelEvent(distanceX, distanceY);
     }
 
-    final boolean[] pointers = new boolean[10];
+    // Android pointer IDs range from 0 to 31 independently of the number of fingers.
+    private final boolean[] pointers = new boolean[32];
+    private final boolean[] presentPointers = new boolean[32];
+    private final int[] pointerX = new int[32];
+    private final int[] pointerY = new int[32];
+
+    /** Ends every contact when Android cancels a gesture or the direct-touch strategy changes. */
+    public void cancelActiveTouchEvents() {
+        for (int id = 0; id < pointers.length; id++) {
+            if (pointers[id]) sendTouchContactEvent(XI_TouchEnd, id, pointerX[id], pointerY[id]);
+        }
+    }
+
+    // Coordinates here already belong to the desktop. Only live contacts may update or end.
+    void sendTouchContactEvent(int action, int id, int x, int y) {
+        if (id < 0 || id >= pointers.length) return;
+        if (action == XI_TouchBegin) {
+            if (pointers[id]) sendTouchContactEvent(XI_TouchEnd, id, pointerX[id], pointerY[id]);
+            pointers[id] = true;
+        } else if (!pointers[id]) {
+            return;
+        }
+        pointerX[id] = x;
+        pointerY[id] = y;
+        mInjector.sendTouchEvent(action, id, x, y);
+        if (action == XI_TouchEnd) pointers[id] = false;
+    }
     /**
      * Extracts the touch point data from a MotionEvent, converts each point into a marshallable
      * object and passes the set of points to the JNI layer to be transmitted to the remote host.
@@ -124,40 +157,40 @@ public final class InputEventSender {
      */
     public void sendTouchEvent(MotionEvent event, RenderData renderData) {
         int action = event.getActionMasked();
+        if (action == ACTION_CANCEL || action == ACTION_HOVER_EXIT) {
+            cancelActiveTouchEvents();
+            return;
+        }
+        if (action == MotionEvent.ACTION_DOWN) cancelActiveTouchEvents();
 
-        if (action == ACTION_MOVE || action == ACTION_HOVER_MOVE || action == ACTION_HOVER_ENTER || action == ACTION_HOVER_EXIT) {
-            // In order to process all of the events associated with an ACTION_MOVE event, we need
-            // to walk the list of historical events in order and add each event to our list, then
-            // retrieve the current move event data.
-            int pointerCount = event.getPointerCount();
-
-            for (int p = 0; p < pointerCount; p++)
-                pointers[event.getPointerId(p)] = false;
-
-            for (int p = 0; p < pointerCount; p++) {
+        if (action == ACTION_MOVE || action == ACTION_HOVER_MOVE || action == ACTION_HOVER_ENTER) {
+            Arrays.fill(presentPointers, false);
+            for (int p = 0; p < event.getPointerCount(); p++) {
+                int id = event.getPointerId(p);
+                if (id < 0 || id >= pointers.length) continue;
+                presentPointers[id] = true;
                 int x = clamp((int) renderData.mapScreenX(event.getX(p)), 0, renderData.screenWidth);
                 int y = clamp((int) renderData.mapScreenY(event.getY(p)), 0, renderData.screenHeight);
-                pointers[event.getPointerId(p)] = true;
-                mInjector.sendTouchEvent(XI_TouchUpdate, event.getPointerId(p), x, y);
+                sendTouchContactEvent(XI_TouchUpdate, id, x, y);
             }
-
-            // Sometimes Android does not send ACTION_POINTER_UP/ACTION_UP so some pointers are "stuck" in pressed state.
-            for (int p = 0; p < 10; p++) {
-                if (!pointers[p])
-                    mInjector.sendTouchEvent(XI_TouchEnd, p, 0, 0);
+            // Recover omitted pointer-up events without inventing ends for inactive IDs.
+            for (int id = 0; id < pointers.length; id++) {
+                if (pointers[id] && !presentPointers[id])
+                    sendTouchContactEvent(XI_TouchEnd, id, pointerX[id], pointerY[id]);
             }
-        } else {
-            // For all other events, we only want to grab the current/active pointer.  The event
-            // contains a list of every active pointer but passing all of of these to the host can
-            // cause confusion on the remote OS side and result in broken touch gestures.
-            int activePointerIndex = event.getActionIndex();
-            int id = event.getPointerId(activePointerIndex);
-            int x =  clamp((int) renderData.mapScreenX(event.getX(activePointerIndex)), 0, renderData.screenWidth);
-            int y =  clamp((int) renderData.mapScreenY(event.getY(activePointerIndex)), 0, renderData.screenHeight);
-            int a = (action == MotionEvent.ACTION_DOWN || action == ACTION_POINTER_DOWN) ? XI_TouchBegin : XI_TouchEnd;
-            if (a == XI_TouchEnd)
-                mInjector.sendTouchEvent(XI_TouchUpdate, id, x, y);
-            mInjector.sendTouchEvent(a, id, x, y);
+        } else if (action == MotionEvent.ACTION_DOWN || action == ACTION_POINTER_DOWN
+            || action == MotionEvent.ACTION_UP || action == ACTION_POINTER_UP) {
+            int index = event.getActionIndex();
+            int id = event.getPointerId(index);
+            int x = clamp((int) renderData.mapScreenX(event.getX(index)), 0, renderData.screenWidth);
+            int y = clamp((int) renderData.mapScreenY(event.getY(index)), 0, renderData.screenHeight);
+            if (action == MotionEvent.ACTION_DOWN || action == ACTION_POINTER_DOWN) {
+                sendTouchContactEvent(XI_TouchBegin, id, x, y);
+            } else {
+                sendTouchContactEvent(XI_TouchUpdate, id, x, y);
+                sendTouchContactEvent(XI_TouchEnd, id, x, y);
+                if (action == MotionEvent.ACTION_UP) cancelActiveTouchEvents();
+            }
         }
     }
 

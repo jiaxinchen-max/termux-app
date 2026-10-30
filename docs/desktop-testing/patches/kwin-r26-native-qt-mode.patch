@@ -1,0 +1,127 @@
+--- a/src/backends/android/android-rendering-env.sh
++++ b/src/backends/android/android-rendering-env.sh
+@@ -211,3 +211,66 @@
+             ;;
+     esac
+ }
++
++# Configure native Qt clients only after the compositor has started. Qt's
++# default wayland-egl integration otherwise selects Mesa even in system mode.
++kwin_android_configure_qt_clients()
++{
++    case "$KWIN_ANDROID_GL_MODE" in
++        system)
++            local egl_dir="$PREFIX/lib/qt6/termux-system-egl"
++            local plugin="$PREFIX/lib/qt6/plugins/wayland-graphics-integration-client/libqt-plugin-termux-ahardware-buffer.so"
++            if [ ! -r "$egl_dir/libEGL.so.1" ] || [ ! -r "$plugin" ]; then
++                echo "Requested native Qt system EGL/AHardwareBuffer client integration is unavailable" >&2
++                return 1
++            fi
++            export LD_LIBRARY_PATH="$egl_dir"
++            export QT_WAYLAND_CLIENT_BUFFER_INTEGRATION=termux-ahardware-buffer
++            export QT_OPENGL=es2
++            export QSG_RHI_BACKEND=opengl
++            export QT_QUICK_BACKEND=
++            export MESA_LOADER_DRIVER_OVERRIDE= GALLIUM_DRIVER= LIBGL_ALWAYS_SOFTWARE=0
++            export TERMUX_ANDROID_ZINK=0 __EGL_VENDOR_LIBRARY_FILENAMES= EGL_PLATFORM=
++            unset VK_DRIVER_FILES VK_ICD_FILENAMES WRAPPER_VULKAN_PATH MESA_VK_WSI_DEBUG TERMUX_VULKAN_BROKER_SOCKET
++            unset MESA_GL_VERSION_OVERRIDE MESA_GLES_VERSION_OVERRIDE MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE LP_NUM_THREADS
++            ;;
++        zink|llvmpipe)
++            local mesa_vendor="$PREFIX/share/glvnd/egl_vendor.d/50_mesa.json"
++            if [ ! -r "$mesa_vendor" ]; then
++                echo "Requested native Qt Mesa EGL vendor is unavailable: $mesa_vendor" >&2
++                return 1
++            fi
++            export LD_LIBRARY_PATH="$PREFIX/lib"
++            export __EGL_VENDOR_LIBRARY_FILENAMES="$mesa_vendor"
++            export QT_WAYLAND_CLIENT_BUFFER_INTEGRATION=wayland-egl
++            export QT_OPENGL=desktop
++            export EGL_PLATFORM=wayland
++            export TERMUX_ANDROID_ZINK=1
++            export MESA_LOADER_DRIVER_OVERRIDE="$KWIN_ANDROID_GL_MODE" GALLIUM_DRIVER="$KWIN_ANDROID_GL_MODE"
++            export QSG_RHI_BACKEND=opengl
++            if [ "$KWIN_ANDROID_GL_MODE" = llvmpipe ]; then
++                export QT_QUICK_BACKEND=software LIBGL_ALWAYS_SOFTWARE=1
++            else
++                export QT_QUICK_BACKEND= LIBGL_ALWAYS_SOFTWARE=0
++            fi
++            ;;
++        *)
++            echo "Native Qt client mode is not explicit: $KWIN_ANDROID_GL_MODE" >&2
++            return 2
++            ;;
++    esac
++    export QT_QPA_PLATFORM=wayland QSG_RENDER_LOOP=basic __EGL_VENDOR_LIBRARY_DIRS=
++    # D-Bus activation cannot remove a variable by importing an unset name.
++    # Publish every owned key, using an explicit empty value to clear old modes.
++    KWIN_ANDROID_QT_CLIENT_ENV_VARS=(KWIN_ANDROID_GL_MODE LD_LIBRARY_PATH QT_QPA_PLATFORM QT_OPENGL
++        QT_WAYLAND_CLIENT_BUFFER_INTEGRATION QSG_RHI_BACKEND QT_QUICK_BACKEND QSG_RENDER_LOOP
++        EGL_PLATFORM __EGL_VENDOR_LIBRARY_FILENAMES __EGL_VENDOR_LIBRARY_DIRS
++        MESA_LOADER_DRIVER_OVERRIDE GALLIUM_DRIVER LIBGL_ALWAYS_SOFTWARE TERMUX_ANDROID_ZINK
++        VK_DRIVER_FILES VK_ICD_FILENAMES WRAPPER_VULKAN_PATH MESA_VK_WSI_DEBUG TERMUX_VULKAN_BROKER_SOCKET
++        MESA_GL_VERSION_OVERRIDE MESA_GLES_VERSION_OVERRIDE MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE LP_NUM_THREADS)
++    local variable
++    for variable in "${KWIN_ANDROID_QT_CLIENT_ENV_VARS[@]}"; do
++        export "$variable=${!variable-}"
++    done
++    echo "Native Qt client mode: $KWIN_ANDROID_GL_MODE; integration=$QT_WAYLAND_CLIENT_BUFFER_INTEGRATION; RHI=$QSG_RHI_BACKEND; Quick=${QT_QUICK_BACKEND:-rhi}"
++}
+--- a/src/backends/android/start-plasma.sh
++++ b/src/backends/android/start-plasma.sh
+@@ -284,20 +284,6 @@
+ # shellcheck source=android-rendering-env.sh
+ source "$RENDERING_ENV"
+ kwin_android_select_rendering
+-case "$KWIN_ANDROID_GL_MODE" in
+-    system)
+-        unset QT_QUICK_BACKEND
+-        export QSG_RHI_BACKEND=opengl
+-        ;;
+-    zink)
+-        unset QT_QUICK_BACKEND
+-        export QSG_RHI_BACKEND=vulkan
+-        ;;
+-    llvmpipe)
+-        unset QSG_RHI_BACKEND
+-        export QT_QUICK_BACKEND=software
+-        ;;
+-esac
+ 
+ cleanup_session()
+ {
+@@ -426,6 +412,18 @@
+     exit 1
+ fi
+ export WAYLAND_DISPLAY="$KWIN_WAYLAND_SOCKET"
++if [ "$COMPOSITOR_ONLY" != "1" ]; then
++    kwin_android_configure_qt_clients
++    QT_CLIENT_PROBE="$PREFIX/bin/kwin-qt-client-renderer-probe"
++    if [ ! -x "$QT_CLIENT_PROBE" ]; then
++        echo "Error: required native Qt client renderer probe is unavailable: $QT_CLIENT_PROBE" >&2
++        exit 1
++    fi
++    if ! "$QT_CLIENT_PROBE"; then
++        echo "Error: native Qt client renderer does not match requested $KWIN_ANDROID_GL_MODE mode" >&2
++        exit 1
++    fi
++fi
+ 
+ # KWin creates the lazy XWayland listening socket before spawning Xwayland.
+ # Export its display so Plasma children and compatibility clients use the same
+@@ -455,7 +453,14 @@
+ chmod 0600 "$KWIN_ANDROID_SESSION_ENV" 2>/dev/null || true
+ 
+ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+-    dbus-update-activation-environment DISPLAY TMPDIR WAYLAND_DISPLAY XDG_RUNTIME_DIR || true
++    CLIENT_DBUS_ENV=(DISPLAY TMPDIR WAYLAND_DISPLAY XDG_RUNTIME_DIR)
++    if [ "$COMPOSITOR_ONLY" != "1" ]; then
++        CLIENT_DBUS_ENV+=("${KWIN_ANDROID_QT_CLIENT_ENV_VARS[@]}")
++    fi
++    if ! dbus-update-activation-environment "${CLIENT_DBUS_ENV[@]}"; then
++        echo "Error: failed to publish the explicit desktop renderer environment to D-Bus" >&2
++        exit 1
++    fi
+ fi
+ 
+ # 启动Plasma组件

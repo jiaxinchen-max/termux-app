@@ -1,0 +1,73 @@
+--- a/glamor/glamor_gradient.c
++++ b/glamor/glamor_gradient.c
+@@ -32,6 +32,16 @@
+ 
+ #include "glamor_priv.h"
+ 
++/* Xlorie requires GLES 3, where fragment highp is guaranteed. Radial
++ * gradients subtract nearby squared distances; mediump can underflow that
++ * calculation and produce transparent holes in an opaque gradient. Keep
++ * vertex varyings, gradient arithmetic and the shared color lookup at the
++ * same precision. This changes no rendering mode or failure path. */
++#define GLAMOR_GRADIENT_PRECISION \
++    "#ifdef GL_ES\n"              \
++    "precision highp float;\n"    \
++    "#endif\n"
++
+ #define LINEAR_SMALL_STOPS (6 + 2)
+ #define LINEAR_LARGE_STOPS (16 + 2)
+ 
+@@ -45,7 +55,7 @@
+     char *gradient_fs = NULL;
+ 
+ #define gradient_fs_getcolor\
+-	    GLAMOR_DEFAULT_PRECISION\
++	    GLAMOR_GRADIENT_PRECISION\
+ 	    "uniform int n_stop;\n"\
+ 	    "uniform float stops[%d];\n"\
+ 	    "uniform vec4 stop_colors[%d];\n"\
+@@ -84,7 +94,7 @@
+     /* Because the array access for shader is very slow, the performance is very low
+        if use array. So use global uniform to replace for it if the number of n_stops is small. */
+     const char *gradient_fs_getcolor_no_array =
+-        GLAMOR_DEFAULT_PRECISION
++        GLAMOR_GRADIENT_PRECISION
+         "uniform int n_stop;\n"
+         "uniform float stop0;\n"
+         "uniform float stop1;\n"
+@@ -189,7 +199,7 @@
+     GLint fs_prog, vs_prog;
+ 
+     const char *gradient_vs =
+-        GLAMOR_DEFAULT_PRECISION
++        GLAMOR_GRADIENT_PRECISION
+         "attribute vec4 v_position;\n"
+         "attribute vec4 v_texcoord;\n"
+         "varying vec2 source_texture;\n"
+@@ -224,7 +234,7 @@
+      */
+ 
+ #define gradient_radial_fs_template\
+-	    GLAMOR_DEFAULT_PRECISION\
++	    GLAMOR_GRADIENT_PRECISION\
+ 	    "uniform mat3 transform_mat;\n"\
+ 	    "uniform int repeat_type;\n"\
+ 	    "uniform float A_value;\n"\
+@@ -381,7 +391,7 @@
+     GLint fs_prog, vs_prog;
+ 
+     const char *gradient_vs =
+-        GLAMOR_DEFAULT_PRECISION
++        GLAMOR_GRADIENT_PRECISION
+         "attribute vec4 v_position;\n"
+         "attribute vec4 v_texcoord;\n"
+         "varying vec2 source_texture;\n"
+@@ -441,7 +451,7 @@
+      */
+ 
+ #define gradient_fs_template	\
+-	    GLAMOR_DEFAULT_PRECISION\
++	    GLAMOR_GRADIENT_PRECISION\
+ 	    "uniform mat3 transform_mat;\n"\
+ 	    "uniform int repeat_type;\n"\
+ 	    "uniform int hor_ver;\n"\

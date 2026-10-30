@@ -1,0 +1,41 @@
+--- a/discover/qml/DiscoverWindow.qml
++++ b/discover/qml/DiscoverWindow.qml
+@@ -51,8 +51,36 @@
+             messagesSheet.addMessage(i18n("Running as <em>root</em> is discouraged and unnecessary."));
+         }
+ 
+-        if (NetworkInformation.reachability !== NetworkInformation.Reachability.Online) {
+-            connectionDialog.open();
++        updateConnectivityWarning();
++    }
++
++    function updateConnectivityWarning() {
++        if (NetworkInformation.reachability === NetworkInformation.Reachability.Online) {
++            offlineWarningTimer.stop();
++            connectionDialog.close();
++        } else {
++            // GLib initially reports Disconnected while it enumerates routes asynchronously.
++            // Debounce that initial value and transient disconnects; never replace the real state.
++            if (!offlineWarningTimer.running) {
++                offlineWarningTimer.start();
++            }
++        }
++    }
++
++    Connections {
++        target: NetworkInformation
++        function onReachabilityChanged() {
++            window.updateConnectivityWarning();
++        }
++    }
++
++    Timer {
++        id: offlineWarningTimer
++        interval: 1000
++        onTriggered: {
++            if (NetworkInformation.reachability !== NetworkInformation.Reachability.Online) {
++                connectionDialog.open();
++            }
+         }
+     }
+ 

@@ -48,7 +48,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
     private DesktopDe de;
     private String resolution = DesktopDistro.DEFAULT_RESOLUTION;
     private int refreshRate = DesktopDistro.DEFAULT_REFRESH_RATE;
-    private DesktopGlMode glMode = DesktopGlMode.AUTO;
+    private DesktopGlMode glMode;
 
     public static Intent createIntent(Context context, DesktopRunMode mode) {
         return new Intent(context, DesktopCreateActivity.class).putExtra(EXTRA_MODE, mode.name());
@@ -59,6 +59,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         mode = DesktopRunMode.valueOf(getIntent().getStringExtra(EXTRA_MODE)
             == null ? DesktopRunMode.NATIVE.name() : getIntent().getStringExtra(EXTRA_MODE));
+        glMode = mode == DesktopRunMode.NATIVE ? DesktopGlMode.SYSTEM : DesktopGlMode.ZINK;
         binding = ActivityDesktopCreateBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         setTitle(mode == DesktopRunMode.NATIVE
@@ -92,7 +93,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
             refreshLabels(), () -> String.valueOf(refreshRate),
             value -> refreshRate = Integer.parseInt(value.substring(0, value.length() - 3)));
         bindSelect(binding.desktopCreateRenderer, R.string.desktop_select_renderer,
-            rendererLabels(), () -> glMode.getStorageValue(), value -> glMode = glOf(value));
+            this::rendererLabels, () -> glLabel(glMode), value -> glMode = glOf(value));
 
         binding.desktopCreateAction.setOnClickListener(view -> create());
         load();
@@ -177,6 +178,12 @@ public final class DesktopCreateActivity extends AppCompatActivity {
 
     private void create() {
         if (de == null) return;
+        if (glMode == null || glMode == DesktopGlMode.AUTO
+            || (mode == DesktopRunMode.PROOT && de == DesktopDe.KWIN_PLASMA && glMode == DesktopGlMode.SYSTEM)) {
+            android.widget.Toast.makeText(this, R.string.desktop_renderer_explicit_required,
+                android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
         String alias = mode == DesktopRunMode.PROOT
             ? DesktopCreationCatalog.nextInstanceAlias(existing, container, de) : "";
         String name = mode == DesktopRunMode.PROOT
@@ -197,11 +204,19 @@ public final class DesktopCreateActivity extends AppCompatActivity {
 
     private interface Setter { void set(String value); }
 
+    private interface Choices { String[] get(); }
+
     private void bindSelect(ItemDesktopSelectBinding row, int labelRes, String[] values,
+                            Getter current, Setter apply) {
+        bindSelect(row, labelRes, () -> values, current, apply);
+    }
+
+    private void bindSelect(ItemDesktopSelectBinding row, int labelRes, Choices choices,
                             Getter current, Setter apply) {
         row.desktopSelectLabel.setText(labelRes);
         row.desktopSelectValue.setText(current.get());
-        row.desktopSelectRoot.setOnClickListener(view ->
+        row.desktopSelectRoot.setOnClickListener(view -> {
+            String[] values = choices.get();
             new MaterialAlertDialogBuilder(this)
                 .setTitle(labelRes)
                 .setSingleChoiceItems(values, indexOf(values, current.get()),
@@ -211,12 +226,13 @@ public final class DesktopCreateActivity extends AppCompatActivity {
                         syncDynamicFields();
                         dialog.dismiss();
                     })
-                .show());
+                .show();
+        });
     }
 
     private static int indexOf(String[] values, String current) {
         for (int i = 0; i < values.length; i++) if (values[i].equals(current)) return i;
-        return 0;
+        return -1;
     }
 
     private String[] refreshLabels() {
@@ -227,8 +243,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
 
     private String[] rendererLabels() {
         List<String> labels = new ArrayList<>();
-        labels.add(glLabel(DesktopGlMode.AUTO));
-        if (mode == DesktopRunMode.NATIVE) labels.add(glLabel(DesktopGlMode.SYSTEM));
+        if (mode == DesktopRunMode.NATIVE || de == DesktopDe.XFCE4) labels.add(glLabel(DesktopGlMode.SYSTEM));
         labels.add(glLabel(DesktopGlMode.ZINK));
         labels.add(glLabel(DesktopGlMode.LLVMPIPE));
         return labels.toArray(new String[0]);
@@ -238,7 +253,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
         if (label.equals(glLabel(DesktopGlMode.SYSTEM))) return DesktopGlMode.SYSTEM;
         if (label.equals(glLabel(DesktopGlMode.ZINK))) return DesktopGlMode.ZINK;
         if (label.equals(glLabel(DesktopGlMode.LLVMPIPE))) return DesktopGlMode.LLVMPIPE;
-        return DesktopGlMode.AUTO;
+        throw new IllegalArgumentException("unknown_desktop_renderer:" + label);
     }
 
     private String glLabel(DesktopGlMode mode) {

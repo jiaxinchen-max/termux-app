@@ -1,0 +1,9 @@
+Native Qt client mode: zink; integration=wayland-egl; RHI=opengl; Quick=rhi
+dbus-daemon[265183]: [session uid=1000 pid=265183 pidfd=5] Activating service name='org.termux.RendererEnvironmentTest.zink' requested by ':1.1' (uid=1000 pid=265187 comm="/usr/bin/dbus-send --session --dest=org.termux.Ren" label="unconfined")
+zink actual D-Bus activation environment PASS {"KWIN_ANDROID_GL_MODE": "zink", "MESA_LOADER_DRIVER_OVERRIDE": "zink", "GALLIUM_DRIVER": "zink", "LIBGL_ALWAYS_SOFTWARE": "0", "QT_QUICK_BACKEND": "", "VK_DRIVER_FILES": "/tmp/kwin-dbus-env-i7z3lbsl/prefix/share/vulkan/icd.d/fake.json", "WRAPPER_VULKAN_PATH": "", "MESA_GL_VERSION_OVERRIDE": "4.6"}
+Native Qt client mode: system; integration=termux-ahardware-buffer; RHI=opengl; Quick=rhi
+dbus-daemon[265183]: [session uid=1000 pid=265183 pidfd=5] Activating service name='org.termux.RendererEnvironmentTest.system' requested by ':1.3' (uid=1000 pid=265255 comm="/usr/bin/dbus-send --session --dest=org.termux.Ren" label="unconfined")
+system actual D-Bus activation environment PASS {"KWIN_ANDROID_GL_MODE": "system", "MESA_LOADER_DRIVER_OVERRIDE": "", "GALLIUM_DRIVER": "", "LIBGL_ALWAYS_SOFTWARE": "0", "QT_QUICK_BACKEND": "", "VK_DRIVER_FILES": "", "WRAPPER_VULKAN_PATH": "", "MESA_GL_VERSION_OVERRIDE": ""}
+Native Qt client mode: llvmpipe; integration=wayland-egl; RHI=opengl; Quick=software
+dbus-daemon[265183]: [session uid=1000 pid=265183 pidfd=5] Activating service name='org.termux.RendererEnvironmentTest.llvmpipe' requested by ':1.5' (uid=1000 pid=265296 comm="/usr/bin/dbus-send --session --dest=org.termux.Ren" label="unconfined")
+llvmpipe actual D-Bus activation environment PASS {"KWIN_ANDROID_GL_MODE": "llvmpipe", "MESA_LOADER_DRIVER_OVERRIDE": "llvmpipe", "GALLIUM_DRIVER": "llvmpipe", "LIBGL_ALWAYS_SOFTWARE": "1", "QT_QUICK_BACKEND": "software", "VK_DRIVER_FILES": "", "WRAPPER_VULKAN_PATH": "", "MESA_GL_VERSION_OVERRIDE": ""}

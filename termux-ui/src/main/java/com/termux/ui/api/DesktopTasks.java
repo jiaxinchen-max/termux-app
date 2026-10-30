@@ -51,19 +51,33 @@ public final class DesktopTasks {
         return repository.find(id);
     }
 
-    public void save(@NonNull DesktopDistro distro) throws IOException { repository.save(distro); }
+    public void save(@NonNull DesktopDistro distro) throws IOException {
+        Optional<DesktopDistro> previous = repository.find(distro.getId());
+        if (previous.isPresent()) {
+            DesktopDistro old = previous.get();
+            requireEditableSettings(old, distro, state(old));
+        }
+        repository.save(distro);
+    }
+
+    static void requireEditableSettings(DesktopDistro old, DesktopDistro updated,
+                                        DesktopSessionState state) throws IOException {
+        boolean changesRuntime = old.getGlMode() != updated.getGlMode()
+            || !old.getResolution().equals(updated.getResolution())
+            || old.getRefreshRate() != updated.getRefreshRate();
+        if (changesRuntime && (state == DesktopSessionState.RUNNING
+            || state == DesktopSessionState.STARTING)) {
+            throw new IOException("desktop_settings_stop_required");
+        }
+    }
 
     /**
      * Uninstalls a container desktop's proot instance in a background shell. Only meaningful for
      * {@link DesktopRunMode#PROOT}; the record must already be deleted or being deleted.
      */
     public void removeContainer(@NonNull DesktopDistro distro) throws LaunchHostException {
-        LaunchScriptInstaller.DesktopScripts scripts;
-        try {
-            scripts = new LaunchScriptInstaller(context, paths).installDesktopScripts();
-        } catch (IOException | RuntimeException error) {
-            throw new LaunchHostException("desktop_prepare_failed", true, error);
-        }
+        // delete() removes the old spec before this call; deploy a fresh explicit removal spec.
+        LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
         LocalGames.requireHost(context).startLaunch(new LaunchRequest("desktop-remove-"
             + distro.getId() + "-" + System.currentTimeMillis(), scripts.remove.getPath(),
             paths.getDesktopSpecFile(distro.getId()).getPath(),

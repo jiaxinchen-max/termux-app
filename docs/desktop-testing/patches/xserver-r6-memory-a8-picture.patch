@@ -1,0 +1,64 @@
+--- a/glamor/glamor_picture.c
++++ b/glamor/glamor_picture.c
+@@ -280,6 +280,7 @@
+     GLenum format, type;
+     GLenum swizzle[4];
+     GLenum iformat;
++    GLenum gl_error;
+     Bool ret = TRUE;
+     Bool needs_swizzle;
+     pixman_image_t *converted_image = NULL;
+@@ -289,6 +290,15 @@
+     assert(!pixmap_priv->fbo);
+ 
+     glamor_make_current(glamor_priv);
++
++    gl_error = glGetError();
++    if (gl_error != GL_NO_ERROR) {
++        if (getenv("XLORIE_GLAMOR"))
++            FatalError("Xlorie: pending GL error 0x%x before temporary picture upload; runtime aborted\n",
++                       gl_error);
++        ret = FALSE;
++        goto fail;
++    }
+ 
+     /* No handling of large pixmap pictures here (would need to make
+      * an FBO array and split the uploads across it).
+@@ -333,12 +343,22 @@
+         stride = pixman_image_get_stride(converted_image);
+     }
+ 
+-    if (!glamor_priv->is_gles)
++    /* Use sized R8 storage for the GL_RED data used by GLES temporary A8
++     * trapezoid masks. Adreno rejects unsized GL_RED with
++     * GL_INVALID_OPERATION; leaving that error unchecked samples an
++     * uninitialized texture instead of the uploaded mask. */
++    if (glamor_priv->is_gles && format == GL_RED)
++        iformat = GL_R8;
++    else if (!glamor_priv->is_gles)
+         iformat = f->internalformat;
+     else
+         iformat = format;
+ 
+     if (!glamor_pixmap_ensure_fbo(pixmap, GLAMOR_CREATE_FBO_NO_FBO)) {
++        if (getenv("XLORIE_GLAMOR"))
++            FatalError("Xlorie: temporary picture GPU allocation failed for depth %d %dx%d; runtime aborted\n",
++                       pixmap->drawable.depth, pixmap->drawable.width,
++                       pixmap->drawable.height);
+         ret = FALSE;
+         goto fail;
+     }
+@@ -363,7 +383,12 @@
+     }
+ 
+     glamor_priv->suppress_gl_out_of_memory_logging = false;
+-    if (glGetError() == GL_OUT_OF_MEMORY) {
++    gl_error = glGetError();
++    if (gl_error != GL_NO_ERROR) {
++        if (getenv("XLORIE_GLAMOR"))
++            FatalError("Xlorie: temporary picture upload failed with GL error 0x%x (depth %d, internal 0x%x, format 0x%x, type 0x%x, %dx%d); runtime aborted\n",
++                       gl_error, pixmap->drawable.depth, iformat, format, type,
++                       pixmap->drawable.width, pixmap->drawable.height);
+         ret = FALSE;
+     }
+ 
