@@ -26,9 +26,11 @@ import com.termux.ui.databinding.ActivityDesktopBinding;
 import com.termux.ui.databinding.ItemDesktopAddBinding;
 import com.termux.ui.databinding.ItemDesktopBinding;
 import com.termux.ui.domain.DesktopDistro;
+import com.termux.ui.domain.DesktopDe;
 import com.termux.ui.domain.DesktopGlMode;
 import com.termux.ui.domain.DesktopRunMode;
 import com.termux.ui.domain.DesktopSessionState;
+import com.termux.ui.domain.DesktopUsbStorageMode;
 import com.termux.ui.runtime.DesktopCreationCatalog;
 
 import java.io.IOException;
@@ -53,6 +55,7 @@ public final class DesktopActivity extends AppCompatActivity {
     private static final int MENU_LOGS = 3;
     private static final int MENU_DELETE = 4;
     private static final int MENU_EXPORT = 6;
+    private static final int MENU_USB_STORAGE = 7;
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "DesktopIo"));
@@ -65,6 +68,7 @@ public final class DesktopActivity extends AppCompatActivity {
     private DesktopRunMode tab = DesktopRunMode.NATIVE;
     private List<DesktopDistro> shownDistros = new ArrayList<>();
     private List<DesktopSessionState> shownStates = new ArrayList<>();
+    private boolean archivePreparingOrRunning;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -149,12 +153,23 @@ public final class DesktopActivity extends AppCompatActivity {
             && snapshot.status == DesktopArchiveTasks.Status.RUNNING);
         boolean visible = preparing || (snapshot != null
             && snapshot.status != DesktopArchiveTasks.Status.IDLE);
-        binding.desktopImportContainer.setEnabled(!running && !DesktopArchiveTasks.isBusy());
+        archivePreparingOrRunning = running;
+        updateImportAvailability();
         binding.desktopArchiveTask.setVisibility(visible ? View.VISIBLE : View.GONE);
         binding.desktopArchiveProgress.setVisibility(running ? View.VISIBLE : View.GONE);
         binding.desktopArchiveStatus.setText(preparing
             ? getString(R.string.desktop_archive_preparing)
             : DesktopArchiveFlow.statusText(this, snapshot));
+    }
+
+    private boolean anyDesktopActive() {
+        for (DesktopSessionState state : shownStates) if (state.isActive()) return true;
+        return false;
+    }
+
+    private void updateImportAvailability() {
+        binding.desktopImportContainer.setEnabled(!archivePreparingOrRunning
+            && !DesktopArchiveTasks.isBusy() && !anyDesktopActive());
     }
 
     /** Reloads the inventory and every state off the main thread, then re-renders. */
@@ -187,6 +202,7 @@ public final class DesktopActivity extends AppCompatActivity {
     private void render(List<DesktopDistro> distros, List<DesktopSessionState> states) {
         shownDistros = distros;
         shownStates = states;
+        updateImportAvailability();
         List<DesktopDistro> modeDistros = new ArrayList<>();
         List<DesktopSessionState> modeStates = new ArrayList<>();
         for (int index = 0; index < distros.size(); index++) {
@@ -268,8 +284,8 @@ public final class DesktopActivity extends AppCompatActivity {
         card.desktopStatus.setText(stateLabel(state));
         card.desktopStatus.setTextColor(ContextCompat.getColor(this, stateColor(state)));
 
-        boolean active = state == DesktopSessionState.STARTING
-            || state == DesktopSessionState.RUNNING;
+        boolean active = state.isActive();
+        boolean stopping = state == DesktopSessionState.STOPPING;
         boolean install = state == DesktopSessionState.NOT_INSTALLED;
         card.desktopPrimary.setText(install ? R.string.desktop_action_install
             : R.string.desktop_action_open);
@@ -277,7 +293,8 @@ public final class DesktopActivity extends AppCompatActivity {
             if (install) confirmInstall(distro); else open(distro);
         };
         card.desktopPrimary.setOnClickListener(primary);
-        card.getRoot().setOnClickListener(primary);
+        card.desktopPrimary.setEnabled(!stopping);
+        card.getRoot().setOnClickListener(stopping ? null : primary);
         card.desktopMore.setOnClickListener(view -> showMore(view, distro, state, active));
     }
 
@@ -288,12 +305,20 @@ public final class DesktopActivity extends AppCompatActivity {
         if (state != DesktopSessionState.NOT_INSTALLED && !active) {
             items.add(Menu.NONE, MENU_INSTALL, Menu.NONE, R.string.desktop_action_install);
         }
-        if (active) items.add(Menu.NONE, MENU_STOP, Menu.NONE, R.string.desktop_action_stop);
-        items.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.desktop_action_settings);
+        if (active && state != DesktopSessionState.STOPPING)
+            items.add(Menu.NONE, MENU_STOP, Menu.NONE, R.string.desktop_action_stop);
+        items.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.desktop_action_settings)
+            .setEnabled(state != DesktopSessionState.STOPPING);
         items.add(Menu.NONE, MENU_LOGS, Menu.NONE, R.string.desktop_action_logs);
+        items.add(Menu.NONE, MENU_USB_STORAGE, Menu.NONE, R.string.desktop_usb_title)
+            .setEnabled(state != DesktopSessionState.STOPPING);
         if (distro.getRunMode() == DesktopRunMode.PROOT) {
-            items.add(Menu.NONE, MENU_EXPORT, Menu.NONE, R.string.desktop_archive_export)
-                .setEnabled(!active && !DesktopArchiveFlow.instance().isBusy());
+            if (distro.getDe() == DesktopDe.GNOME) {
+                items.add(Menu.NONE, MENU_EXPORT, Menu.NONE, R.string.desktop_usb_gnome_archive_unsupported).setEnabled(false);
+            } else {
+                items.add(Menu.NONE, MENU_EXPORT, Menu.NONE, R.string.desktop_archive_export)
+                    .setEnabled(!anyDesktopActive() && !DesktopArchiveFlow.instance().isBusy());
+            }
         }
         if (!active) items.add(Menu.NONE, MENU_DELETE, Menu.NONE, R.string.desktop_action_delete);
         menu.setOnMenuItemClickListener(item -> {
@@ -305,7 +330,16 @@ public final class DesktopActivity extends AppCompatActivity {
                     return true;
                 case MENU_LOGS: showLogs(distro); return true;
                 case MENU_DELETE: confirmDelete(distro); return true;
+                case MENU_USB_STORAGE:
+                    DesktopUsbStorageDialog.show(this, tasks, distro, this::refresh);
+                    return true;
                 case MENU_EXPORT:
+                    if (distro.getUsbStorage() != DesktopUsbStorageMode.OFF) {
+                        new FrostedDialogBuilder(this).setTitle(R.string.desktop_archive_export)
+                            .setMessage(R.string.desktop_usb_archive_disable)
+                            .setPositiveButton(android.R.string.ok, null).show();
+                        return true;
+                    }
                     DesktopArchiveFlow.instance().startExport(distro, active);
                     return true;
                 default: return false;
@@ -327,6 +361,7 @@ public final class DesktopActivity extends AppCompatActivity {
         switch (state) {
             case INSTALLED: return getString(R.string.desktop_state_installed);
             case STARTING: return getString(R.string.desktop_state_starting);
+            case STOPPING: return getString(R.string.desktop_state_stopping);
             case RUNNING: return getString(R.string.desktop_state_running);
             case FAILED: return getString(R.string.desktop_state_failed);
             default: return getString(R.string.desktop_state_not_installed);

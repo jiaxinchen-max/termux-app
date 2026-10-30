@@ -1,0 +1,156 @@
+--- a/src/wayland/meta-wayland-buffer.h
++++ b/src/wayland/meta-wayland-buffer.h
+@@ -41,6 +41,9 @@
+ #endif
+   META_WAYLAND_BUFFER_TYPE_DMA_BUF,
+   META_WAYLAND_BUFFER_TYPE_SINGLE_PIXEL,
++#ifdef HAVE_ANDROID_BACKEND
++  META_WAYLAND_BUFFER_TYPE_ANDROID,
++#endif
+ } MetaWaylandBufferType;
+ 
+ struct _MetaWaylandBuffer
+@@ -78,6 +81,14 @@
+     MetaMultiTexture *texture;
+   } single_pixel;
+ 
++#ifdef HAVE_ANDROID_BACKEND
++  struct {
++    void *hardware_buffer;
++    uint32_t flags;
++    MetaMultiTexture *texture;
++  } android;
++#endif
++
+   GHashTable *tainted_scanout_onscreens;
+ 
+   GPtrArray *release_points;
+--- a/src/wayland/meta-wayland-buffer.c
++++ b/src/wayland/meta-wayland-buffer.c
+@@ -47,6 +47,9 @@
+ #include "config.h"
+ 
+ #include "wayland/meta-wayland-buffer.h"
++#ifdef HAVE_ANDROID_BACKEND
++#include "backends/android/meta-wayland-android-buffer.h"
++#endif
+ 
+ #include <drm_fourcc.h>
+ #include <glib/gstdio.h>
+@@ -656,6 +659,10 @@
+ 
+   switch (buffer->type)
+     {
++#ifdef HAVE_ANDROID_BACKEND
++    case META_WAYLAND_BUFFER_TYPE_ANDROID:
++      return meta_wayland_android_buffer_attach (buffer, texture, error);
++#endif
+     case META_WAYLAND_BUFFER_TYPE_SHM:
+       return shm_buffer_attach (buffer, texture, error);
+     case META_WAYLAND_BUFFER_TYPE_EGL_IMAGE:
+@@ -693,6 +700,10 @@
+ CoglSnippet *
+ meta_wayland_buffer_create_snippet (MetaWaylandBuffer *buffer)
+ {
++#ifdef HAVE_ANDROID_BACKEND
++  if (buffer->type == META_WAYLAND_BUFFER_TYPE_ANDROID)
++    return meta_wayland_android_buffer_create_snippet (buffer);
++#endif
+ #ifdef HAVE_WAYLAND_EGLSTREAM
+   if (!buffer->egl_stream.stream)
+     return NULL;
+@@ -757,6 +768,10 @@
+ 
+   if (buffer->use_count == 0)
+     {
++#ifdef HAVE_ANDROID_BACKEND
++      if (buffer->type == META_WAYLAND_BUFFER_TYPE_ANDROID)
++        meta_wayland_android_buffer_finish (buffer);
++#endif
+       if (buffer->resource)
+         wl_buffer_send_release (buffer->resource);
+ 
+@@ -873,6 +888,9 @@
+     case META_WAYLAND_BUFFER_TYPE_EGL_IMAGE:
+ #ifdef HAVE_WAYLAND_EGLSTREAM
+     case META_WAYLAND_BUFFER_TYPE_EGL_STREAM:
++#endif
++#ifdef HAVE_ANDROID_BACKEND
++    case META_WAYLAND_BUFFER_TYPE_ANDROID:
+ #endif
+     case META_WAYLAND_BUFFER_TYPE_DMA_BUF:
+     case META_WAYLAND_BUFFER_TYPE_SINGLE_PIXEL:
+@@ -978,6 +996,9 @@
+ 
+   switch (buffer->type)
+     {
++#ifdef HAVE_ANDROID_BACKEND
++    case META_WAYLAND_BUFFER_TYPE_ANDROID:
++#endif
+     case META_WAYLAND_BUFFER_TYPE_SHM:
+     case META_WAYLAND_BUFFER_TYPE_SINGLE_PIXEL:
+ #ifdef HAVE_WAYLAND_EGLSTREAM
+@@ -1035,6 +1056,9 @@
+   g_clear_pointer (&buffer->tainted_scanout_onscreens, g_hash_table_unref);
+   g_clear_pointer (&buffer->release_points, g_ptr_array_unref);
+ 
++#ifdef HAVE_ANDROID_BACKEND
++  meta_wayland_android_buffer_clear (buffer);
++#endif
+   g_clear_object (&buffer->egl_image.texture);
+ #ifdef HAVE_WAYLAND_EGLSTREAM
+   g_clear_object (&buffer->egl_stream.texture);
+--- a/src/wayland/meta-wayland.c
++++ b/src/wayland/meta-wayland.c
+@@ -18,6 +18,9 @@
+  */
+ 
+ #include "config.h"
++#ifdef HAVE_ANDROID_BACKEND
++#include "backends/android/meta-wayland-android-buffer.h"
++#endif
+ 
+ #include "wayland/meta-wayland.h"
+ 
+@@ -979,6 +982,9 @@
+   meta_wayland_xdg_foreign_init (compositor);
+   meta_wayland_legacy_xdg_foreign_init (compositor);
+   init_dma_buf_support (compositor);
++#ifdef HAVE_ANDROID_BACKEND
++  meta_wayland_android_buffer_init (compositor);
++#endif
+   meta_wayland_init_single_pixel_buffer_manager (compositor);
+   meta_wayland_keyboard_shortcuts_inhibit_init (compositor);
+   meta_wayland_surface_inhibit_shortcuts_dialog_init ();
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -1161,6 +1161,11 @@
+     ]
+   endif
+ 
++  if have_android_backend
++    wayland_protocols += [['termux-ahardware-buffer-v1', 'private']]
++    mutter_sources += ['backends/android/meta-wayland-android-buffer.c']
++  endif
++
+   wayland_scanner = find_program('wayland-scanner')
+   protocols_dir = wayland_protocols_dep.get_variable('pkgdatadir')
+   assert(protocols_dir != '', 'Could not get pkgdatadir from wayland-protocols.pc')
+@@ -1236,6 +1241,17 @@
+     wayland_protocol_client_headers += client_header
+     wayland_protocol_sources += protocol_code
+   endforeach
++endif
++
++if have_android_backend
++  executable('mutter-android-ahb-client',
++    'backends/android/ahb-client.c',
++    wayland_protocol_files['termux-ahardware-buffer-v1']['client-header'],
++    wayland_protocol_files['termux-ahardware-buffer-v1']['protocol-code'],
++    wayland_protocol_files['xdg-shell']['client-header'],
++    wayland_protocol_files['xdg-shell']['protocol-code'],
++    dependencies: [wayland_client_dep, cc.find_library('EGL'), cc.find_library('android')],
++    install: true, install_dir: libexecdir)
+ endif
+ 
+ mutter_built_sources += wayland_protocol_server_headers

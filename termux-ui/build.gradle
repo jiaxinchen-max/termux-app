@@ -51,6 +51,7 @@ android {
 
 dependencies {
     implementation project(':termux-shared')
+    implementation project(':termux-usb')
     implementation project(':termux-x11')
     implementation project(':terminal-view')
 

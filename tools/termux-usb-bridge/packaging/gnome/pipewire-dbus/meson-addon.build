@@ -1,0 +1,15 @@
+# Only the two upstream optional modules; no replacement daemon or ABI shims.
+project('pipewire-dbus-addon', 'c', version: '1.4.9', license: 'MIT',
+        default_options: ['c_std=gnu11'])
+pw = dependency('libpipewire-0.3', version: '>=1.4.9')
+dbus = dependency('dbus-1')
+add_project_arguments('-D_GNU_SOURCE', language: 'c')
+# module-portal includes config.h but uses no generated feature macros.
+configure_file(output: 'config.h', configuration: configuration_data())
+shared_module('spa-dbus', 'spa/plugins/support/dbus.c',
+    dependencies: [pw, dbus], install: true,
+    install_dir: get_option('libdir') / 'spa-0.2/support')
+shared_module('pipewire-module-portal', 'src/modules/module-portal.c',
+    include_directories: include_directories('.', 'spa/include-private'),
+    dependencies: [pw, dbus], install: true,
+    install_dir: get_option('libdir') / 'pipewire-0.3')

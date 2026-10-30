@@ -1,6 +1,8 @@
 package com.termux.ui.runtime;
 
 import com.termux.ui.domain.DesktopDistro;
+import com.termux.ui.domain.DesktopDe;
+import com.termux.ui.domain.DesktopRunMode;
 
 /**
  * The {@code KEY=value} spec handed to the desktop shell scripts.
@@ -23,6 +25,7 @@ public final class DesktopLaunchSpec {
 
     public static String encode(DesktopDistro distro, String pidFile, String statusFile,
                                 String logFile) {
+        DesktopRendererPolicy.requireSupported(distro);
         StringBuilder spec = new StringBuilder();
         put(spec, "DESKTOP_SPEC_VERSION", Integer.toString(SCHEMA_VERSION));
         put(spec, "DESKTOP_ID", distro.getId());
@@ -30,6 +33,7 @@ public final class DesktopLaunchSpec {
         put(spec, "DESKTOP_REMOVE_METHOD", "proot-distro");
         put(spec, "DESKTOP_DE", distro.getDe().getStorageValue());
         put(spec, "DESKTOP_GL_MODE", distro.getGlMode().getStorageValue());
+        put(spec, "DESKTOP_USB_STORAGE", distro.getUsbStorage().getStorageValue());
         put(spec, "DESKTOP_PROOT_DISTRO", distro.getProotDistro());
         put(spec, "DESKTOP_RESOLUTION", distro.getResolution());
         put(spec, "DESKTOP_WIDTH", Integer.toString(distro.getWidth()));
@@ -40,6 +44,16 @@ public final class DesktopLaunchSpec {
         put(spec, "DESKTOP_LOG_FILE", requirePath(logFile));
         put(spec, "DESKTOP_RENDER_SOCKET", RENDER_SOCKET_PATH);
         put(spec, "DESKTOP_RELEASE_TAG", RELEASE_TAG);
+        if (distro.getDe() == DesktopDe.GNOME) {
+            put(spec, "DESKTOP_GNOME_SESSION_STARTUP", "direct");
+            put(spec, "DESKTOP_GNOME_BACKEND", distro.getRunMode() == DesktopRunMode.NATIVE ? "android" : "x11");
+            put(spec, "DESKTOP_GNOME_RENDERER", distro.getGlMode().getStorageValue());
+            if (distro.getRunMode() == DesktopRunMode.PROOT) {
+                put(spec, "DESKTOP_CONTAINER_CODENAME", "trixie");
+                // Host display EGL is separate from the container's llvmpipe compositor.
+                put(spec, "DESKTOP_GNOME_DISPLAY_GL_MODE", "system");
+            }
+        }
         return spec.toString();
     }
 

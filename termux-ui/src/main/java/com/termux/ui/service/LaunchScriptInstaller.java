@@ -63,6 +63,8 @@ public final class LaunchScriptInstaller {
         "local-games/desktop_container_plasma_apt.sh";
     private static final String[] DESKTOP_CONTAINER_STATX_ASSETS = {
         "desktop_container_statx_setup.sh", "desktop_container_run_config.sh", "desktop_container_statx_aarch64.bin"};
+    private static final String[] DESKTOP_SESSION_ASSETS = {
+        "desktop_gnome_launch.py", "desktop_xfce_session.py", "desktop_usb_storage.py", "desktop_install_gio.py"};
 
     private final Context context;
     private final File runtimeDirectory;
@@ -199,6 +201,9 @@ public final class LaunchScriptInstaller {
         installAsset(DESKTOP_CONTAINER_PLASMA_APT_ASSET,
             new File(runtimeDirectory, "desktop_container_plasma_apt.sh"));
         for (String name : DESKTOP_CONTAINER_STATX_ASSETS) {
+            installAsset("local-games/" + name, new File(runtimeDirectory, name));
+        }
+        for (String name : DESKTOP_SESSION_ASSETS) {
             installAsset("local-games/" + name, new File(runtimeDirectory, name));
         }
         for (String obsolete : new String[] {"desktop_container_sysusers_setup.sh", "desktop_container_sysusers.sh"}) {

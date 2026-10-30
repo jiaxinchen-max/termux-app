@@ -21,6 +21,7 @@ public final class DesktopDistro {
     private final DesktopGlMode glMode;
     private final String resolution;
     private final int refreshRate;
+    private final DesktopUsbStorageMode usbStorage;
 
     /** Schema-1 desktops: Plasma was the only environment. */
     public DesktopDistro(String id, String name, DesktopRunMode runMode, String prootDistro,
@@ -31,6 +32,14 @@ public final class DesktopDistro {
 
     public DesktopDistro(String id, String name, DesktopRunMode runMode, String prootDistro,
                          DesktopDe de, DesktopGlMode glMode, String resolution, int refreshRate) {
+        this(id, name, runMode, prootDistro, de, glMode, resolution, refreshRate, DesktopUsbStorageMode.OFF);
+    }
+
+    public DesktopDistro(String id, String name, DesktopRunMode runMode, String prootDistro,
+                         DesktopDe de, DesktopGlMode glMode, String resolution, int refreshRate,
+                         DesktopUsbStorageMode usbStorage) {
+        if (usbStorage == null) throw new IllegalArgumentException("desktopUsbStorageRequired");
+        this.usbStorage = usbStorage;
         if (de == null) throw new IllegalArgumentException("desktopDeRequired");
         this.de = de;
         this.id = requireId(id);
@@ -65,23 +74,29 @@ public final class DesktopDistro {
     /** {@code WIDTHxHEIGHT}, also the X11 display resolution of the session view. */
     public String getResolution() { return resolution; }
     public int getRefreshRate() { return refreshRate; }
+    public DesktopUsbStorageMode getUsbStorage() { return usbStorage; }
 
     public int getWidth() { return Integer.parseInt(resolution.substring(0, resolution.indexOf('x'))); }
     public int getHeight() { return Integer.parseInt(resolution.substring(resolution.indexOf('x') + 1)); }
 
     public DesktopDistro withName(String newName) {
         return new DesktopDistro(id, newName, runMode, prootDistro, de, glMode, resolution,
-            refreshRate);
+            refreshRate, usbStorage);
     }
 
     public DesktopDistro withGlMode(DesktopGlMode newGlMode) {
         return new DesktopDistro(id, name, runMode, prootDistro, de, newGlMode, resolution,
-            refreshRate);
+            refreshRate, usbStorage);
     }
 
     public DesktopDistro withOutput(String newResolution, int newRefreshRate) {
         return new DesktopDistro(id, name, runMode, prootDistro, de, glMode, newResolution,
-            newRefreshRate);
+            newRefreshRate, usbStorage);
+    }
+
+    public DesktopDistro withUsbStorage(DesktopUsbStorageMode mode) {
+        return new DesktopDistro(id, name, runMode, prootDistro, de, glMode, resolution,
+            refreshRate, mode);
     }
 
     public static boolean isValidId(String value) {

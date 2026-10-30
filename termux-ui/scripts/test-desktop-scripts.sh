@@ -32,6 +32,7 @@ DESKTOP_ID=test
 DESKTOP_DE=${3:-kwin_plasma}
 DESKTOP_MODE=$1
 DESKTOP_GL_MODE=zink
+DESKTOP_USB_STORAGE=off
 DESKTOP_PROOT_DISTRO=$2
 DESKTOP_RESOLUTION=1280x720
 DESKTOP_WIDTH=1280
@@ -260,6 +261,12 @@ cat > "$INST_ROOT/bin/dpkg" <<'FAKE'
 #!/bin/sh
 exit 0
 FAKE
+cat > "$INST_ROOT/bin/dpkg-query" <<'FAKE'
+#!/bin/sh
+case "$*" in *'${Status}'*) printf 'install ok installed'; exit 0 ;; esac
+for package do :; done
+awk -v package="$package" '{ split($1,a,"_"); if (a[1]==package && $1 ~ /\.deb$/) { print a[2]; exit } }' "$INST_INSTALL_SCRIPT"
+FAKE
 cat > "$INST_ROOT/bin/curl" <<'FAKE'
 #!/bin/sh
 while [ "$#" -gt 0 ]; do
@@ -280,7 +287,10 @@ if [ -f "$manifest" ]; then
     digest=$(awk -v n="$name" '$1 == n { print $2 }' "$manifest")
     [ -n "$digest" ] && { echo "$digest  $target"; exit 0; }
 fi
-exec /usr/bin/sha256sum "$@"
+relative="${target#"$PREFIX"/}"
+digest=$(awk -v relative="$relative" '$2==relative && NF==3 && length($3)==64 { print $3; exit }' "$INST_INSTALL_SCRIPT")
+[ -n "$digest" ] || exit 1
+printf '%s  %s\n' "$digest" "$target"
 FAKE
 cat > "$INST_ROOT/bin/proot-distro" <<'FAKE'
 #!/bin/sh
@@ -300,7 +310,8 @@ case "$1" in
             shift
         done
         [ -n "$name" ] || name=debian
-        mkdir -p "$INST_CONTAINERS/$name"
+        mkdir -p "$INST_CONTAINERS/$name/rootfs/etc"
+        printf 'ID=debian\nVERSION_CODENAME=trixie\n' > "$INST_CONTAINERS/$name/rootfs/etc/os-release"
         ;;
 esac
 exit 0
@@ -312,6 +323,7 @@ DESKTOP_ID=inst
 DESKTOP_MODE=proot
 DESKTOP_DE=xfce4
 DESKTOP_GL_MODE=system
+DESKTOP_USB_STORAGE=off
 DESKTOP_PROOT_DISTRO=debian-xfce4-1
 DESKTOP_RESOLUTION=1280x720
 DESKTOP_WIDTH=1280
@@ -325,7 +337,19 @@ DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r27
 SPEC
 INST_LOG="$TEST_ROOT/inst-calls"
 INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-distro/containers"
-export INST_LOG INST_CONTAINERS
+INST_INSTALL_SCRIPT="$ASSETS/desktop_install.sh"
+export INST_LOG INST_CONTAINERS INST_INSTALL_SCRIPT
+# Provide the fixed Xlorie payload files checked after the mocked apt install.
+python3 - "$INST_INSTALL_SCRIPT" "$INST_ROOT/usr" <<'PYFILES'
+import pathlib,re,sys
+source=pathlib.Path(sys.argv[1]).read_text();prefix=pathlib.Path(sys.argv[2])
+block=re.search(r"^HOST_FILES='(.*?)'",source,re.M|re.S)[1]
+for line in block.splitlines():
+    if not line.strip():continue
+    package,relative,digest=line.split()
+    if package not in ('libandroid-stub','xorg-server','libepoxy','libxshmfence','termux-render'):continue
+    target=prefix/relative;target.parent.mkdir(parents=True,exist_ok=True);target.touch()
+PYFILES
 # The container install stages the apt helper into $PREFIX/tmp, from beside the install script.
 mkdir -p "$INST_ROOT/usr/tmp"
 cp "$ASSETS/desktop_container_plasma_apt.sh" "$TEST_ROOT/desktop_container_plasma_apt.sh"
@@ -474,7 +498,7 @@ grep -q 'useradd --system .*messagebus' "$APT_ROOT/log" || fail "the messagebus 
 grep -q 'sh /tmp/desktop_container_plasma_apt.sh' "$ASSETS/desktop_install.sh" || fail "install script does not run the apt helper"
 
 # Termux has no dbus-x11 package (that is Debian's); a native apt install naming it fails outright.
-grep -n 'run apt install -y \$DEB_PATHS xfce4' "$ASSETS/desktop_install.sh" \
+grep -n 'run apt install .*\$DEB_PATHS xfce4' "$ASSETS/desktop_install.sh" \
     | grep -q 'dbus-x11' && fail "native xfce4 install must not request dbus-x11"
 
 
@@ -483,7 +507,7 @@ grep -n 'run apt install -y \$DEB_PATHS xfce4' "$ASSETS/desktop_install.sh" \
 # install must still be able to change it to the pinned build, or apt refuses with "Held packages
 # were changed and -y was used without --allow-change-held-packages".
 for script in desktop_install.sh xlorie_install.sh; do
-    grep -n 'apt install -y --allow-downgrades' "$ASSETS/$script" | grep -v -- '--allow-change-held-packages' \
+    grep -n 'apt install -y .*--allow-downgrades' "$ASSETS/$script" | grep -v -- '--allow-change-held-packages' \
         && fail "$script has an apt install of the pinned debs that a held xorg-server would block"
 done
 
@@ -564,6 +588,7 @@ DESKTOP_ID=dlfail
 DESKTOP_MODE=native
 DESKTOP_DE=kwin_plasma
 DESKTOP_GL_MODE=system
+DESKTOP_USB_STORAGE=off
 DESKTOP_PROOT_DISTRO=
 DESKTOP_RESOLUTION=1280x720
 DESKTOP_WIDTH=1280

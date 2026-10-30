@@ -1,0 +1,28 @@
+--- a/src/nautilus-file.c
++++ b/src/nautilus-file.c
+@@ -5852,9 +5852,14 @@
+ 
+     list = NULL;
+ 
++#if defined(__ANDROID__) && __ANDROID_API__ < 26
++    /* Bionic before API 26 has lookup but no passwd iterator. */
++    user = getpwuid (getuid ());
++    if (user != NULL)
++#else
+     setpwent ();
+-
+     while ((user = getpwent ()) != NULL)
++#endif
+     {
+         real_name = get_real_name (user->pw_name, user->pw_gecos);
+         if (real_name != NULL && !g_str_equal (real_name, ""))
+@@ -5869,7 +5874,9 @@
+         list = g_list_prepend (list, name);
+     }
+ 
++#if !defined(__ANDROID__) || __ANDROID_API__ >= 26
+     endpwent ();
++#endif
+ 
+     return g_list_sort (list, (GCompareFunc) g_utf8_collate);
+ }

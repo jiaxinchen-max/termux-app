@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_de_gnome">GNOME</string>
+    <string name="desktop_de_gnome_desc">Native: System EGL · 60 Hz. Container: System EGL display; X11/llvmpipe GNOME. End the session using App Stop; session logout and save are unavailable.</string>
+    <string name="desktop_renderer_choose">Select renderer</string>
+</resources>

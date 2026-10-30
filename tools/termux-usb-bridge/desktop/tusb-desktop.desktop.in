@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Termux USB devices
+Comment=Discover USB storage, cameras and gamepads for this desktop session
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/tusb-desktop serve --request-permission
+TryExec=@CMAKE_INSTALL_FULL_BINDIR@/tusb-desktop
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

@@ -1,0 +1,150 @@
+Make systemd integration optional and retain upstream's null backend.
+Android does not provide logind, journald, systemd boot or power operations.
+
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -4,3 +4,5 @@
+ option('docbook', type: 'boolean', value: true, description: 'build documentation')
+ option('man', type: 'boolean', value: true, description: 'build documentation (requires xmlto)')
+ option('x11', type: 'boolean', value: true, description: 'enable x11 session support')
++
++option('systemd', type: 'boolean', value: true, description: 'Build systemd integration (disable for rootless Android)')
+--- a/meson.build
++++ b/meson.build
+@@ -113,16 +113,20 @@
+ 
+ session_bin_deps += dependency('gio-unix-2.0', version: glib_req_version)
+ 
+-# Check for systemd
++# Optional systemd; non-systemd builds use upstream's existing null backend.
++have_systemd = get_option('systemd')
++config_h.set('HAVE_SYSTEMD', have_systemd)
+ systemd_userunitdir = get_option('systemduserunitdir')
+-if systemd_userunitdir == ''
+-  systemd_dep = dependency('systemd', version: '>= 242', required: true)
+-  systemd_userunitdir = systemd_dep.get_variable(pkgconfig: 'systemduserunitdir',
++if have_systemd
++  if systemd_userunitdir == ''
++    systemd_dep = dependency('systemd', version: '>= 242')
++    systemd_userunitdir = systemd_dep.get_variable(pkgconfig: 'systemduserunitdir',
+                                                  pkgconfig_define: ['prefix', session_prefix])
++  endif
++  session_bin_deps += dependency('libsystemd', version: '>= 209')
++else
++  systemd_userunitdir = session_prefix / 'lib/systemd/user'
+ endif
+-
+-libsystemd_dep = dependency('libsystemd', version: '>= 209', required: true)
+-session_bin_deps += libsystemd_dep
+ 
+ configure_file(
+   output: 'config.h',
+--- a/gnome-session/meson.build
++++ b/gnome-session/meson.build
+@@ -35,9 +35,12 @@
+   'gsm-shell.c',
+   'gsm-store.c',
+   'gsm-system.c',
+-  'gsm-systemd.c',
+   'main.c'
+ )
++
++if have_systemd
++  sources += files('gsm-systemd.c')
++endif
+ 
+ if have_x11
+   sources += [
+--- a/gnome-session/gsm-system.c
++++ b/gnome-session/gsm-system.c
+@@ -23,7 +23,9 @@
+ 
+ #include "gsm-system.h"
+ 
++#ifdef HAVE_SYSTEMD
+ #include "gsm-systemd.h"
++#endif
+ 
+ 
+ enum {
+@@ -260,12 +262,14 @@
+ {
+         static GsmSystem *system = NULL;
+ 
++#ifdef HAVE_SYSTEMD
+         if (system == NULL) {
+                 system = GSM_SYSTEM (gsm_systemd_new ());
+                 if (system != NULL) {
+                         g_debug ("Using systemd for session tracking");
+                 }
+         }
++#endif
+ 
+         if (system == NULL) {
+                 system = g_object_new (gsm_system_null_get_type (), NULL);
+--- a/gnome-session/main.c
++++ b/gnome-session/main.c
+@@ -43,7 +43,11 @@
+ #include "gsm-system.h"
+ #include "gsm-fail-whale.h"
+ 
++#ifdef HAVE_SYSTEMD
+ #include <systemd/sd-journal.h>
++#else
++#include "android-systemd-optional.h"
++#endif
+ 
+ #define GSM_DBUS_NAME "org.gnome.SessionManager"
+ 
+--- a/gnome-session/gsm-autostart-app.c
++++ b/gnome-session/gsm-autostart-app.c
+@@ -31,8 +31,14 @@
+ #define GNOME_DESKTOP_USE_UNSTABLE_API
+ #include <libgnome-desktop/gnome-systemd.h>
+ 
++#ifdef HAVE_SYSTEMD
+ #include <systemd/sd-journal.h>
++#else
++#include "android-systemd-optional.h"
++#endif
++#ifdef HAVE_SYSTEMD
+ #include <systemd/sd-daemon.h>
++#endif
+ 
+ #include "gsm-autostart-app.h"
+ #include "gsm-util.h"
+--- a/gnome-session/gsm-manager.c
++++ b/gnome-session/gsm-manager.c
+@@ -40,9 +40,15 @@
+ #include "gsm-manager.h"
+ #include "org.gnome.SessionManager.h"
+ 
++#ifdef HAVE_SYSTEMD
+ #include <systemd/sd-journal.h>
+-
++#else
++#include "android-systemd-optional.h"
++#endif
++
++#ifdef HAVE_SYSTEMD
+ #include <systemd/sd-daemon.h>
++#endif
+ 
+ #include "gsm-store.h"
+ #include "gsm-inhibitor.h"
+--- a/tools/meson.build
++++ b/tools/meson.build
+@@ -2,9 +2,12 @@
+ 
+ programs = [
+   # name, deps, cflags, install_dir
+-  ['gnome-session-ctl', session_bin_deps, cflags, session_libexecdir],
+   ['gnome-session-inhibit', session_deps, cflags, session_bindir],
+ ]
++
++if have_systemd
++  programs += [['gnome-session-ctl', session_bin_deps, cflags, session_libexecdir]]
++endif
+ 
+ if have_x11
+   deps = session_deps + [

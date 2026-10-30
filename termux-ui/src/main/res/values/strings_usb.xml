@@ -1,0 +1,33 @@
+<resources>
+    <string name="desktop_usb_title">External storage</string>
+    <string name="desktop_usb_scope">Expose authorized USB storage as read-only GIO/GVfs volumes in GNOME Files or XFCE Thunar. This does not create a kernel mount or /dev/sdX device. Keep the App visible when requesting Android USB permission.</string>
+    <string name="desktop_usb_enable_read_only">Enable USB storage (read-only)</string>
+    <string name="desktop_usb_plasma_unsupported">Plasma Dolphin uses Solid/UDisks2. Its device sidebar is not supported by this GIO bridge; USB storage cannot be enabled for this desktop.</string>
+    <string name="desktop_usb_loading">Reading USB status…</string>
+    <string name="desktop_usb_install">Install / check support components</string>
+    <string name="desktop_usb_refresh">Refresh devices</string>
+    <string name="desktop_usb_stop_to_change">Stop the desktop before changing USB mode or installing components.</string>
+    <string name="desktop_usb_api_missing">The embedded USB module is unavailable. Check that the Termux environment is installed, then restart the App.</string>
+    <string name="desktop_usb_dependencies_missing">Support files are missing: %1$s</string>
+    <string name="desktop_usb_dependencies_ready">The embedded USB module and support files are ready. USB access still requires Android authorization.</string>
+    <string name="desktop_usb_off">USB storage is off. Enable it, install support components, then start the desktop.</string>
+    <string name="desktop_usb_start_required">Start the desktop to use its USB volume service.</string>
+    <string name="desktop_usb_bridge_error">USB service unavailable: %1$s</string>
+    <string name="desktop_usb_enumeration_error">USB enumeration failed; existing devices are retained: %1$s</string>
+    <string name="desktop_usb_connected">USB volume service connected. Access is read-only.</string>
+    <string name="desktop_usb_no_storage">No authorized or pending USB storage devices were found.</string>
+    <string name="desktop_usb_authorize">Request Android USB permission</string>
+    <string name="desktop_usb_mount">Connect GIO volume</string>
+    <string name="desktop_usb_unmount">Disconnect GIO volume</string>
+    <string name="desktop_usb_eject">Eject from this session</string>
+    <string name="desktop_usb_permission_required">Android authorization required; device type is not yet known</string>
+    <string name="desktop_usb_mounted">Connected as a read-only GIO volume</string>
+    <string name="desktop_usb_mounting">Connecting GIO volume…</string>
+    <string name="desktop_usb_ejected">Ejected from this session; reinsert the device to connect again</string>
+    <string name="desktop_usb_available">Available USB storage</string>
+    <string name="desktop_usb_device_error">USB device error</string>
+    <string name="desktop_usb_working">Waiting for the USB operation / Android authorization…</string>
+    <string name="desktop_usb_error">USB operation failed</string>
+    <string name="desktop_usb_archive_disable">Turn off USB storage before exporting. This archive format does not include USB integration settings.</string>
+    <string name="desktop_usb_gnome_archive_unsupported">GNOME container import and export are not supported by the current archive format.</string>
+</resources>

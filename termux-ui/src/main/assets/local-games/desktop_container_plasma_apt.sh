@@ -8,6 +8,12 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 case "${1:-}" in --statx-backend=proc-fdinfo) shift ;;
     *) echo "ERROR: explicitly select --statx-backend=proc-fdinfo" >&2; exit 64 ;;
 esac
+NO_INSTALL_RECOMMENDS=0
+case "${1:-}" in --no-install-recommends) NO_INSTALL_RECOMMENDS=1; shift ;; esac
+[ "$#" -gt 0 ] || { echo "ERROR: requested container packages are required" >&2; exit 64; }
+for requested in "$@"; do
+    case "$requested" in -*) echo "ERROR: unsupported container apt option: $requested" >&2; exit 64 ;; esac
+done
 STATX_SETUP="$(dirname "$0")/desktop_container_statx_setup.sh"
 [ -r "$STATX_SETUP" ] || { echo "ERROR: proot statx setup asset is missing"; exit 66; }
 . "$STATX_SETUP"
@@ -26,7 +32,11 @@ getent passwd messagebus >/dev/null 2>&1 || \
 run_proot_config proc-fdinfo apt-get update
 code=$?
 [ "$code" -eq 0 ] || exit "$code"
-run_proot_config proc-fdinfo apt-get install -y --no-remove -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef "$@"
+if [ "$NO_INSTALL_RECOMMENDS" -eq 1 ]; then
+    run_proot_config proc-fdinfo apt-get install -y --no-remove --no-install-recommends -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef "$@"
+else
+    run_proot_config proc-fdinfo apt-get install -y --no-remove -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef "$@"
+fi
 code=$?
 if [ "$code" -ne 0 ]; then
     echo "ERROR: container apt install failed (exit $code): $*" >&2

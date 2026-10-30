@@ -61,4 +61,12 @@ public class DesktopDistroTest {
         assertEquals("desk-1", changed.getId());
         assertEquals(DesktopRunMode.NATIVE, changed.getRunMode());
     }
+    @Test public void usbModeDefaultsOffAndSurvivesEverySettingsCopy() {
+        assertEquals(DesktopUsbStorageMode.OFF,nativeDistro().getUsbStorage());
+        DesktopDistro changed=nativeDistro().withUsbStorage(DesktopUsbStorageMode.READ_ONLY)
+            .withName("USB").withOutput("1920x1080",60).withGlMode(DesktopGlMode.LLVMPIPE);
+        assertEquals(DesktopUsbStorageMode.READ_ONLY,changed.getUsbStorage());
+        assertThrows(IllegalArgumentException.class,()->changed.withUsbStorage(null));
+        assertThrows(IllegalArgumentException.class,()->DesktopUsbStorageMode.fromStorageValue("read-write"));
+    }
 }

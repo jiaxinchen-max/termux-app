@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.termux.ui.domain.DesktopDistro;
+import com.termux.ui.domain.DesktopDe;
 import com.termux.ui.domain.DesktopGlMode;
 import com.termux.ui.domain.DesktopRunMode;
 
@@ -111,5 +112,36 @@ public class DesktopEnvironmentTest {
         File log = temporaryFolder.newFile("starting.log");
         try (FileWriter writer = new FileWriter(log)) { writer.write("starting kwin\n"); }
         assertFalse(DesktopEnvironment.logShowsReady(log));
+    }
+    @Test public void gnomeNativeRequiresPythonAndRealSessionPrograms() throws Exception {
+        DesktopEnvironment env=new DesktopEnvironment(temporaryFolder.getRoot());
+        DesktopDistro d=new DesktopDistro("gn","GNOME",DesktopRunMode.NATIVE,"",DesktopDe.GNOME,
+            DesktopGlMode.SYSTEM,"1280x720",60);
+        touch("usr/bin/python3");touch("usr/bin/gnome-shell");assertFalse(env.isInstalled(d));
+        touch("usr/bin/gnome-session");assertFalse(env.isInstalled(d));
+        touch("usr/libexec/termux-gnome/launch.py");assertTrue(env.isInstalled(d));
+        assertTrue(env.gnomeWaylandSocket(d).getPath().endsWith("home/.termux/gnome-gn/runtime/wayland-gnome"));
+    }
+    @Test public void gnomeProotRequiresPythonXlorieAndMatchingInstalledMarker() throws Exception {
+        DesktopEnvironment env=new DesktopEnvironment(temporaryFolder.getRoot());
+        DesktopDistro d=new DesktopDistro("gp","GNOME",DesktopRunMode.PROOT,"debian-gnome-1",DesktopDe.GNOME,
+            DesktopGlMode.LLVMPIPE,"1280x720",60);
+        touch("usr/bin/python3");touch("usr/bin/Xlorie");touch("usr/bin/proot-distro");
+        touch("usr/libexec/termux-gnome/launch.py");
+        touch("usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-xfce4");
+        assertFalse(env.isInstalled(d));
+        touch("usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-gnome");
+        assertTrue(env.isInstalled(d));
+    }
+    @Test public void gnomeReadyMarkerMustIdentifyTheCurrentLauncher() throws Exception {
+        File pidFile=new File(temporaryFolder.getRoot(),"gnome.pid");
+        assertFalse(DesktopEnvironment.gnomeReadyMarkerMatches(pidFile,123));
+        File marker=new File(pidFile.getPath()+".gnome-ready");
+        try(FileWriter out=new FileWriter(marker)){out.write("123\n");}
+        assertTrue(DesktopEnvironment.gnomeReadyMarkerMatches(pidFile,123));
+        assertFalse(DesktopEnvironment.gnomeReadyMarkerMatches(pidFile,124));
+        assertFalse(DesktopEnvironment.gnomeReadyMarkerMatches(pidFile,-1));
+        try(FileWriter out=new FileWriter(marker)){out.write("ready\n");}
+        assertFalse(DesktopEnvironment.gnomeReadyMarkerMatches(pidFile,123));
     }
 }

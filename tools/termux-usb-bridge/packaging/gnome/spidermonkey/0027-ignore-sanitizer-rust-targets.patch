@@ -1,0 +1,33 @@
+--- a/build/moz.configure/rust.configure
++++ b/build/moz.configure/rust.configure
+@@ -253,6 +253,11 @@
+     out = check_cmd_output(rustc, "--print", "target-list").splitlines()
+     data = {}
+     for t in out:
++        # New Rust releases list sanitizer-specific GNU targets.  The old
++        # triplet parser normalizes these to the ordinary GNU ABI, making
++        # host detection ambiguous.  They are not default compiler targets.
++        if t.endswith(("-gnuasan", "-gnumsan", "-gnutsan")):
++            continue
+         try:
+             info = split_triplet(t, allow_wasi=True)
+         except ValueError:
+@@ -408,6 +413,18 @@
+         if len(narrowed) == 1:
+             return narrowed[0].rust_target
+ 
++        # Rust now also lists the OpenEmbedded (oe) vendor.  Mozilla's
++        # native Linux configure host uses pc, while rustc uses unknown.
++        if host_or_target.kernel == "Linux" and host_or_target.vendor == "pc":
++            narrowed = [
++                c for c in candidates
++                if c.target.vendor == "unknown"
++                and c.target.raw_os == host_or_target.raw_os
++                and c.target.raw_cpu == host_or_target.raw_cpu
++            ]
++            if len(narrowed) == 1:
++                return narrowed[0].rust_target
++
+         return None
+ 
+     rustc_target = find_candidate(candidates)

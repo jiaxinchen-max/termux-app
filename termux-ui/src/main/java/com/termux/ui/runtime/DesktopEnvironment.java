@@ -34,6 +34,14 @@ public final class DesktopEnvironment {
                 // Both modes run the KWin compositor natively; proot only adds the container.
                 host = new File(prefix, "bin/start-plasma").isFile();
                 break;
+            case GNOME:
+                host = new File(prefix, "bin/python3").isFile()
+                    && new File(prefix, "libexec/termux-gnome/launch.py").isFile()
+                    && (distro.getRunMode() == DesktopRunMode.NATIVE
+                        ? new File(prefix, "bin/gnome-shell").isFile()
+                            && new File(prefix, "bin/gnome-session").isFile()
+                        : new File(prefix, "bin/Xlorie").isFile());
+                break;
             case XFCE4:
                 // Xlorie serves the view; the session itself runs natively or in the container.
                 host = new File(prefix, "bin/Xlorie").isFile()
@@ -72,6 +80,21 @@ public final class DesktopEnvironment {
     /** KWin's Wayland socket for the given Android uid, whether or not it exists. */
     public File waylandSocket(int uid) {
         return new File(home, ".termux/kwin-runtime/runtime-" + uid + "/wayland-0");
+    }
+
+    /** Native GNOME uses its own work/runtime and never reuses KWin's socket. */
+    public File gnomeWaylandSocket(DesktopDistro distro) {
+        if (distro.getDe()!=DesktopDe.GNOME || distro.getRunMode()!=DesktopRunMode.NATIVE)
+            throw new IllegalArgumentException("desktop_gnome_native_required");
+        return new File(home,".termux/gnome-"+distro.getId()+"/runtime/wayland-gnome");
+    }
+
+    /** A stale marker from an earlier launcher must not mark a new process ready. */
+    public static boolean gnomeReadyMarkerMatches(File pidFile,long currentPid) {
+        if (currentPid<=0) return false;
+        File marker=new File(pidFile.getPath()+".gnome-ready");
+        if (!marker.isFile() || marker.length()>32) return false;
+        return Long.toString(currentPid).equals(head(marker,32).trim());
     }
 
     /**

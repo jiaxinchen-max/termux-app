@@ -18,6 +18,7 @@ import com.termux.ui.databinding.ActivityDesktopCreateBinding;
 import com.termux.ui.databinding.ItemDesktopOptionBinding;
 import com.termux.ui.databinding.ItemDesktopSelectBinding;
 import com.termux.ui.domain.DesktopDe;
+import com.termux.ui.runtime.DesktopRendererPolicy;
 import com.termux.ui.domain.DesktopDistro;
 import com.termux.ui.domain.DesktopGlMode;
 import com.termux.ui.domain.DesktopRunMode;
@@ -90,7 +91,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
         bindSelect(binding.desktopCreateResolution, R.string.desktop_select_resolution,
             RESOLUTIONS, () -> resolution, value -> resolution = value);
         bindSelect(binding.desktopCreateRefresh, R.string.desktop_select_refresh,
-            refreshLabels(), () -> String.valueOf(refreshRate),
+            this::refreshLabels, () -> refreshRate + " Hz",
             value -> refreshRate = Integer.parseInt(value.substring(0, value.length() - 3)));
         bindSelect(binding.desktopCreateRenderer, R.string.desktop_select_renderer,
             this::rendererLabels, () -> glLabel(glMode), value -> glMode = glOf(value));
@@ -131,7 +132,11 @@ public final class DesktopCreateActivity extends AppCompatActivity {
         List<DesktopDe> options = mode == DesktopRunMode.NATIVE
             ? DesktopCreationCatalog.nativeOptions(existing)
             : DesktopCreationCatalog.containerOptions();
-        if (de == null || !options.contains(de)) de = options.isEmpty() ? null : options.get(0);
+        if (de == null || !options.contains(de)) {
+            de = options.isEmpty() ? null : options.get(0);
+        }
+        if (!DesktopRendererPolicy.supports(mode, de, glMode)) glMode = null;
+        if (mode == DesktopRunMode.NATIVE && de == DesktopDe.GNOME) refreshRate = 60;
         for (DesktopDe candidate : DesktopCreationCatalog.environments()) {
             boolean creatable = options.contains(candidate);
             // Created native environments are hidden entirely, not greyed out.
@@ -178,8 +183,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
 
     private void create() {
         if (de == null) return;
-        if (glMode == null || glMode == DesktopGlMode.AUTO
-            || (mode == DesktopRunMode.PROOT && de == DesktopDe.KWIN_PLASMA && glMode == DesktopGlMode.SYSTEM)) {
+        if (!DesktopRendererPolicy.supports(mode, de, glMode)) {
             android.widget.Toast.makeText(this, R.string.desktop_renderer_explicit_required,
                 android.widget.Toast.LENGTH_LONG).show();
             return;
@@ -236,6 +240,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
     }
 
     private String[] refreshLabels() {
+        if (mode == DesktopRunMode.NATIVE && de == DesktopDe.GNOME) return new String[]{"60 Hz"};
         String[] labels = new String[REFRESH_RATES.length];
         for (int i = 0; i < REFRESH_RATES.length; i++) labels[i] = REFRESH_RATES[i] + " Hz";
         return labels;
@@ -243,9 +248,8 @@ public final class DesktopCreateActivity extends AppCompatActivity {
 
     private String[] rendererLabels() {
         List<String> labels = new ArrayList<>();
-        if (mode == DesktopRunMode.NATIVE || de == DesktopDe.XFCE4) labels.add(glLabel(DesktopGlMode.SYSTEM));
-        labels.add(glLabel(DesktopGlMode.ZINK));
-        labels.add(glLabel(DesktopGlMode.LLVMPIPE));
+        for (DesktopGlMode renderer : DesktopRendererPolicy.allowedModes(mode, de))
+            labels.add(glLabel(renderer));
         return labels.toArray(new String[0]);
     }
 
@@ -257,6 +261,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
     }
 
     private String glLabel(DesktopGlMode mode) {
+        if (mode == null) return getString(R.string.desktop_renderer_choose);
         switch (mode) {
             case SYSTEM: return getString(R.string.desktop_gl_system);
             case ZINK: return getString(R.string.desktop_gl_zink);
@@ -285,6 +290,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
         switch (de) {
             case XFCE4: return "🐭";
             case KWIN_PLASMA: return "🪽";
+            case GNOME: return "👣";
             case UBUNTU_GNOME: return "🟠";
             default: return "";
         }
@@ -294,6 +300,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
         switch (de) {
             case XFCE4: return getString(R.string.desktop_de_xfce4);
             case KWIN_PLASMA: return getString(R.string.desktop_de_kwin_plasma);
+            case GNOME: return getString(R.string.desktop_de_gnome);
             case HYPRLAND: return getString(R.string.desktop_de_hyprland);
             default: return getString(R.string.desktop_de_ubuntu_gnome);
         }
@@ -303,6 +310,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
         switch (de) {
             case XFCE4: return getString(R.string.desktop_de_xfce4_desc);
             case KWIN_PLASMA: return getString(R.string.desktop_de_kwin_plasma_desc);
+            case GNOME: return getString(R.string.desktop_de_gnome_desc);
             case HYPRLAND: return getString(R.string.desktop_de_hyprland_desc);
             default: return getString(R.string.desktop_de_ubuntu_gnome_desc);
         }
@@ -314,6 +322,7 @@ public final class DesktopCreateActivity extends AppCompatActivity {
         switch (de) {
             case XFCE4: return context.getString(R.string.desktop_de_xfce4);
             case KWIN_PLASMA: return context.getString(R.string.desktop_de_kwin_plasma);
+            case GNOME: return context.getString(R.string.desktop_de_gnome);
             case HYPRLAND: return context.getString(R.string.desktop_de_hyprland);
             default: return context.getString(R.string.desktop_de_ubuntu_gnome);
         }

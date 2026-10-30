@@ -55,8 +55,33 @@ trap 'exit 129' HUP
 [ "$OPERATION" != install ] || printf 'installing\n' > "$DESKTOP_STATUS_FILE" || exit 74
 case "${DESKTOP_MODE:-}" in native|proot) ;; *) log 'Explicit desktop run mode required'; exit 64 ;; esac
 [ "$OPERATION" != host-prerequisites ] || [ "$DESKTOP_MODE" = proot ] || { log 'Host prerequisites require PROOT mode'; exit 64; }
-case "${DESKTOP_DE:-}" in xfce4|kwin_plasma) ;; *) log 'Unsupported desktop environment'; exit 64 ;; esac
+case "${DESKTOP_DE:-}" in xfce4|kwin_plasma|gnome) ;; *) log 'Unsupported desktop environment'; exit 64 ;; esac
 case "${DESKTOP_GL_MODE:-}" in system|zink|llvmpipe) ;; *) log 'Explicit system, zink or llvmpipe renderer required'; exit 64 ;; esac
+if [ "$DESKTOP_DE:$DESKTOP_MODE:$DESKTOP_GL_MODE" = kwin_plasma:proot:system ]; then
+    log 'Container Plasma requires explicit Zink or llvmpipe'; exit 64
+fi
+if [ "$OPERATION" = host-prerequisites ] && [ "${DESKTOP_USB_STORAGE:-off}" != off ]; then
+    log 'Container archive prerequisites require USB storage off'; exit 64
+fi
+if [ "$OPERATION" = host-prerequisites ] && [ "$DESKTOP_DE" = gnome ]; then
+    log 'GNOME container archives are not supported'; exit 64
+fi
+case "${DESKTOP_USB_STORAGE:-}" in off|read-only) ;; *) log 'Explicit USB storage mode off|read-only required'; exit 64 ;; esac
+if [ "$DESKTOP_USB_STORAGE" = read-only ] && [ "$DESKTOP_DE" = kwin_plasma ]; then
+    log 'USB GIO volumes are supported by GNOME/Files and XFCE/Thunar; Dolphin/Solid is not supported.'
+    exit 64
+fi
+if [ "$DESKTOP_DE" = gnome ]; then
+    case "$DESKTOP_MODE:$DESKTOP_GL_MODE:${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}" in
+        native:system:android:system)
+            [ "$DESKTOP_REFRESH_RATE" = 60 ] || { log 'Native GNOME requires 60Hz'; exit 64; }
+            [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}" ] || { log 'Native GNOME does not use an X11 display mode'; exit 64; } ;;
+        proot:llvmpipe:x11:llvmpipe)
+            [ "${DESKTOP_CONTAINER_CODENAME:-}" = trixie ] || exit 64
+            [ "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}" = system ] || { log 'Container GNOME requires explicit System EGL display mode'; exit 64; } ;;
+        *) log 'Unsupported explicit GNOME backend/renderer combination'; exit 64 ;;
+    esac
+fi
 
 BASE_URL="https://github.com/jiaxinchen-max/kwin/releases/download/$DESKTOP_RELEASE_TAG"
 # sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.6-r27).
@@ -67,6 +92,7 @@ fi
 case "$DESKTOP_DE" in
     xfce4) DESKTOP_LABEL="XFCE4" ;;
     kwin_plasma) DESKTOP_LABEL="KWin Plasma" ;;
+    gnome) DESKTOP_LABEL="GNOME" ;;
     *) DESKTOP_LABEL="$DESKTOP_DE" ;;
 esac
 
@@ -75,6 +101,7 @@ esac
 XLORIE_RELEASE_TAG="termux-xlorie-21.1.16-r7"
 XLORIE_BASE_URL="https://github.com/jiaxinchen-max/xserver/releases/download/$XLORIE_RELEASE_TAG"
 XLORIE_DEBS="
+libandroid-stub_30-3_aarch64.deb 88c7f4ba78a5eb57eafc2f1102ceea562a156fe7346528ca35c771eb0927fefc
 xorg-server_21.1.16-7_aarch64.deb 3b50befbb214617a8a210696905553b8676510a8b6fe4f8cd923807d365c8425
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 libxshmfence_1.3.3-2_aarch64.deb be95caf500b002fed8b5c0142ad360efbdec4ff1334be5565e9b9628f8663dc2
@@ -82,9 +109,9 @@ termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00
 "
 
 DEBS="
+libandroid-stub_30-3_aarch64.deb 88c7f4ba78a5eb57eafc2f1102ceea562a156fe7346528ca35c771eb0927fefc
 gl4es_1.1.7.20260927_aarch64.deb eb0ba70d084c87b84b144ef2ce6ad415ca3810dcb356d77e4e8cefe962157913
 kwin_6.6.0-27_aarch64.deb b5c4ccd7983849eea8008cb5d61740c90ab834d3fa23730385e0a01dafe8ecf3
-libandroid-stub_30-1_aarch64.deb 5b392496146309b8454780821591dccb7e6a7050f8789f3bc97b4bb6c2b6bc67
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 qt6-qtbase-cross-tools_6.12.0-1+termuxkwin1_all.deb 07b9a9ae857225a814e85c74fdc613cc0720c328d3b2f4f5270a47b67169bf5f
 qt6-qtbase-gtk-platformtheme_6.12.0-1+termuxkwin1_aarch64.deb c682bf46ff7251449f41c420fe7818b2ff4f91a21477266fc458bf7d86795bb5
@@ -92,6 +119,30 @@ qt6-qtbase_6.12.0-1+termuxkwin1_aarch64.deb 5b1507ff7c945c284e9230138752ccf2b631
 termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
 xwayland_24.1.11-1_aarch64.deb 3cc2999ae0ba90495abad71445f794723efc06a97c001b383467665e3038e8a4
 "
+
+# Reviewed GNOME/USB runtime assets; all downloaded payloads require an exact SHA256.
+GNOME_USB_RELEASE_TAG="gnome-usb-20261030-r1"
+GNOME_USB_BASE_URL="https://github.com/jiaxinchen-max/termux-app/releases/download/$GNOME_USB_RELEASE_TAG"
+GNOME_DEBS="
+accountsservice_23.13.9_aarch64.deb 4d1dfa7ae196beba68378d04913a0ab2eb09b105b4e305da27bd97a355fe1f4e
+gexiv2_0.14.7_aarch64.deb 2eea495d80f59b7285f8225df2526cd8a7c06ce03f9abd1ca2d65b9427772221
+gjs_1.82.3_aarch64.deb 6eedb4cb279672a535f473012a0864d12bd1bf1895ad290ae3028b924fa93a66
+gnome-autoar_0.4.5_aarch64.deb 3d98ef33d6e48a21af97bc1d03440303106172969ae5fd67bd77ded9348b03f6
+gnome-session_48.0_aarch64.deb 8fd68bd0c9a720e734d7058730e9563c6411147ce17f76d5d61dee34e031bda7
+gnome-settings-daemon-schemas_48.1_all.deb 03ed7b7a1f8d184353906f511e66bbf767f32622fb26c280ea896cb3789f9215
+gnome-shell_48.7-1_aarch64.deb 285cdb99e61c761405d154f608520cc3bfdc8b7c9ea91b3619d467c9d7f4d900
+libgdm_48.0-1_aarch64.deb fb9d03f4665fd540af125d91784d0d284122b5ee81b53f279705eafdacb63231
+localsearch-schemas_3.9.0_all.deb 13a0f641887be3fb7c92034ae485a67bf9a8726a73bed04d8f6f77d3e6f1f2b6
+mutter_48.1-24_aarch64.deb c222405b73404c57799e53f32344b9db28adc8de2ba9ef98704d81950ab27349
+nautilus_48.3-3_aarch64.deb ee53e9a2961294df5516ba0d7e4a3e138e57634ec4b132f37f1ea41c97d26506
+pipewire-dbus_1.4.9_aarch64.deb f42dd82ff03801d5c1e14203f78c3092cfdbf0a57add3133c37331afd4b8ac8b
+polkit_126_aarch64.deb 1eddba206bc72c6b423557ff749416971efdec25be03fca45ad5498b33e98b67
+spidermonkey_128.10.0-3_aarch64.deb a4b58fbe3c64c744ca9be75dcad2aeed733811810dac109c9d405a82b0545c09
+"
+USB_DEBS="
+termux-usb-bridge_0.4.1_aarch64.deb d00381ecca8285e502bcd00f3491032d25f14d499454bccbb1cb1dab3964770c
+"
+USB_GLIBC_ARTIFACT="termux-usb-gio-trixie-aarch64-0.4.1.tar.gz 0238798338273d9e4d983407c6399f85a0abd0a94f7b4daa09b747833ddeaaec"
 
 run() {
     status_file="$DESKTOP_LOG_FILE.status.$$"
@@ -135,11 +186,15 @@ fetch_debs() { # tag base_url deb_list -> prints paths
     paths=""
     while read -r name digest; do
         target="$deb_dir/$name"
+        asset_url="$base_url/$name"
+        case "$name" in
+            libandroid-stub_30-3_aarch64.deb) asset_url="https://packages-cf.termux.org/apt/termux-main/pool/main/liba/libandroid-stub/$name" ;;
+        esac
         if [ -f "$target" ] && [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ]; then
             # stdout of this function is the deb path list; logs go to the file only.
             printf '%s\n' "Cached $name" >> "$DESKTOP_LOG_FILE"
         else
-            { curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 -o "$target" "$base_url/$name" || fail "download $name"; } \
+            { curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 -o "$target" "$asset_url" || fail "download $name"; } \
                 >> "$DESKTOP_LOG_FILE" 2>&1
             [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ] || {
                 rm -f "$target"
@@ -204,6 +259,55 @@ ensure_turnip_icd() { # alias
 # Fixed host-package identity plus dpkg file verification. Critical runtime files are also
 # checked against the published payload, so same-version alternate local builds are rejected.
 HOST_FILES='
+mutter lib/libmutter-16.so.0.0.0 dd001f7aeb271f7b915fadf80dd5cf74c3966322bfa89e3061a3cba128562094
+gjs bin/gjs-console 942cdbf442a9d45c395703ca358664195300179e6a220234d9cda099b8e43316
+gnome-session bin/gnome-session 3171e8d06aac98e0de4b0450e2d6224254c82b4f24ebee881c319c6fea360f90
+gnome-session bin/gnome-session-inhibit 1450c4049801adb16c94f7b03d996caba1fa6e53057349e899378c57344244fe
+gnome-session bin/gnome-session-quit 2b3f6ef86b0ab270886f6de62f4f89be9b78fab3539040806ecff1e5c2fa4580
+gnome-shell bin/gnome-extensions b9b1e1acf86eccc621a5726aadef1d8f0ea91241bdafa7df882c170000b4b7aa
+gnome-shell bin/gnome-shell 9885aa7e0760687b2c6b25945d44e7c86046de764eb5ff6157283e878302dd81
+gnome-shell bin/gnome-shell-extension-tool beb1a2cba645dd835d8c61d75c93e2b16b168e16bc64b1fdcba71d6490a05228
+gnome-shell bin/gnome-shell-test-tool 7d55200a6d91d4aa4d2511de2b8a2aed06ce4eb11a2fef9b20f76e49f5e93b80
+libandroid-stub lib/libandroid.so 0a9ca6b42e5f786e931b5f97f83c57f671ac59946919cfdb47e94f2ec2d4eee8
+mutter bin/gdctl eef4c975f759f59a6958b1050248b2bf39aa903663520cf58b3b6223ae1ac406
+mutter bin/mutter bb1869e3c5be0cdfdbc34cc36e28517a288cc6cf526bc80286f5232992d8c644
+mutter lib/mutter-16/Clutter-16.gir 830a221057aa5a3cd8a486bda4e3cf42f80c7d983b84bd7831716be4b4c2c238
+mutter lib/mutter-16/Clutter-16.typelib e9d64c29e2b898378d184f8ffd91bb8cea2ac7e69929dc9c24e781943037c014
+mutter lib/mutter-16/Cogl-16.gir 850fec59ece1de9bfe866a696aa482eff3c6265cc0a47ff7a072f321daa918f3
+mutter lib/mutter-16/Cogl-16.typelib 292934aa13a783b0a4538625efb115f6cbdf8f5e2dd1ac978305310bfeca3674
+mutter lib/mutter-16/Meta-16.gir ebbe4c7a31acbb8a75a41a0986e5ad3e1ea4750fe4c8a51d5c2294cabb8ef6d6
+mutter lib/mutter-16/Meta-16.typelib 1c725beb318397280b409f98f63ffd0b834ea713d5aeeb4e6d81936eba940406
+mutter lib/mutter-16/Mtk-16.gir eaf0be07e578647c06cd0a95c80691639dd192f600f126f16a9f30ed4472b9b7
+mutter lib/mutter-16/Mtk-16.typelib c75f184c754b45c3c0cf77502658a17022c3e4ebebe17c4f4c3b30b51ac6c5c4
+mutter lib/mutter-16/libmutter-android-system-egl.so dab9592e1f62d6bc44815b7434c3fdf060b671b9b6d2a682c75bcd3a4382c4be
+mutter lib/mutter-16/libmutter-clutter-16.so.0.0.0 f43ba0340e71af6f034d1ad9f56f4962702e733ec5b7cfccd3086477c8c5cc7d
+mutter lib/mutter-16/libmutter-cogl-16.so.0.0.0 028ea30c9407ab9fe936e262454957a311c3ffd70c9bdd106a9dce0dce2510cd
+mutter lib/mutter-16/libmutter-mtk-16.so.0.0.0 b7d0ea2fffccd9d1da1847cc5384b6e2b4187f449dd531a343d660f918150a46
+mutter lib/mutter-16/libvndksupport.so fd7ffba8dd4bf9e7976b5e6cfb4cb92f75620afc7b48d21a90f874569d551ca1
+mutter lib/mutter-16/plugins/libdefault.so eefd8b16c45cc1b0f2db43b538f2a0c2af802efdea6d1e12e96bd9643ebe8c31
+nautilus bin/nautilus 8ddf9a4fbc6b19df2fdb70476674a13198470c05bee70e4652edee9119c9bee5
+nautilus bin/nautilus-autorun-software e338f23ab98b50d401bf75b43a667286bc526cbfb8e404d836622c4d6520bd0e
+spidermonkey bin/js128 18d186f82ea1209134b932c8f2161e2fd8acff3ac24052534c0afa48bc2d3803
+spidermonkey bin/js128-config be73a7e0beeca4137ac3b204249c9a343332c4b218fb1dd172ceab02cd189436
+termux-usb-bridge bin/termux-usb-bridge 4ad142204aee87a8fc5d9c802aeb222598b2ab61adf1946e6cbbadeb38e090af
+termux-usb-bridge bin/termux-usb-run 6a7550c3e0a0d97aa1ac3029b3f783d57395e943becee0665de561e31f5b6a97
+termux-usb-bridge bin/tusb-camera 42c0a754de42b34564906f78c61cb8f9a03a0f4df12ea5f87fbb48901854776c
+termux-usb-bridge bin/tusb-camera-run f2e9ab4e44d085e099268e11f3691294dbb4f5e685342b495e183ef1bce0c9c6
+termux-usb-bridge bin/tusb-camera2 2f047af7d952e435efe6890e249478c85b2d80ed8b7c4b822b86bd2270358756
+termux-usb-bridge bin/tusb-desktop 52f79b798642e8fb626228e783b2f57f488d386afafbd2a56a1463d190f3ca4d
+termux-usb-bridge bin/tusb-files 78f97eee0ddea66f8b02442f5c085351e27b3b47535cfb7829fb8ceca11915fb
+termux-usb-bridge bin/tusb-gamepadd f0f057661f0ff1042a16761621cc59b0c188168f081d3c98abbcc085d52481e9
+termux-usb-bridge bin/tusb-gio-mount 37c543ce7b6f8c320da8bfa1072b44536d2a5952a0bbff39e8f994d178499abd
+termux-usb-bridge bin/tusb-inspect 0d825caa532832ae213b77c1bb66d6e6e30e853e82842867aab72ac1ccc6cc27
+termux-usb-bridge bin/tusb-probe d7f9b370f6bda6e3b3c40640d2595e97a593e107df1f0452fa2f1e4b2dda4e74
+termux-usb-bridge bin/tusb-sdl-run f1b2cf02842f1fa589b221e911bc77d154def5f774f1ac43594f16c782412403
+termux-usb-bridge lib/gio/modules/libtusb-volume-monitor.so 743c300a01bde0b291e591fa8b062eaa26625d3f82deedd00436471fcecbdf88
+termux-usb-bridge libexec/termux-usb-bridge/tusb-camera2-capture 562daa4998c90002545c0ffe0636d69b870f00f2367b162067b9f158664c195f
+termux-usb-bridge libexec/termux-usb-bridge/tusb-camera2-source 099eaf0ca7a4493e1c26aca15b898fb112160c1b0b5dbd1862d3e14ddfa7a611
+termux-usb-bridge share/termux-usb-bridge/broker.py efcfd2e16860af6b545255e45a6306b998d140c185600762d6d55bb8d6d9190d
+termux-usb-bridge share/termux-usb-bridge/camera2.py d9f41ba9efad0d6f08e5d4c8ad054a0f356365b66dd56b63807e0d297c24bb6e
+termux-usb-bridge share/termux-usb-bridge/desktop.py 1e739c2b1c196dcb7b69e176472a3fb1835fa31ca2bdd4f1ad3db3144c2f8542
+termux-usb-bridge share/termux-usb-bridge/filesystem.py 9271333b47c1801e5dee6e6a53293a6540acf46e30afcc32bcf5890c708379a0
 kwin bin/kwin_wayland 8ccb4e3bd40ca9dfd9426e49056fcd8167dca54900ac01c54fa33775844bbd36
 kwin bin/start-plasma 366c1300a6b3c255e401b13d358778b2536300a4a92fe96117887ed9431e6de0
 kwin bin/kwin-android-rendering-env c00cef0311e4829e8229059837cb8ee177751345856c159294b15494572c42da
@@ -225,7 +329,7 @@ libxshmfence lib/libxshmfence.so 1ccd07bab7c2d89a8ae37bc97254a2022e8a49fe131aede
 '
 package_version() {
     package_status=$(dpkg-query -W -f='${Status}' "$1" 2>/dev/null) || return 1
-    [ "$package_status" = 'install ok installed' ] || return 1
+    case "$package_status" in 'install ok installed'|'hold ok installed') ;; *) return 1 ;; esac
     dpkg-query -W -f='${Version}' "$1" 2>/dev/null
 }
 package_files_valid() {
@@ -355,7 +459,11 @@ run pkg update -y || fail "pkg update"
 # fetch_debs runs in a command substitution, so the exit of its fail() only ends that subshell: check
 # its status here, or a failed download goes on with an empty package list and "installs" nothing.
 DEB_PATHS=""
-if [ "$DESKTOP_DE" = "xfce4" ]; then
+if [ "$DESKTOP_DE" = gnome ]; then
+    DEB_PATHS=$(fetch_debs "$XLORIE_RELEASE_TAG" "$XLORIE_BASE_URL" "$XLORIE_DEBS") || fail "downloading GNOME display packages"
+    GNOME_PATHS=$(fetch_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$GNOME_DEBS") || fail "downloading GNOME packages"
+    DEB_PATHS="$DEB_PATHS $GNOME_PATHS"
+elif [ "$DESKTOP_DE" = "xfce4" ]; then
     DEB_PATHS=$(fetch_debs "$XLORIE_RELEASE_TAG" "$XLORIE_BASE_URL" "$XLORIE_DEBS") \
         || fail "downloading the $DESKTOP_LABEL packages"
 else
@@ -363,28 +471,48 @@ else
         || fail "downloading the $DESKTOP_LABEL packages"
 fi
 [ -n "$DEB_PATHS" ] || fail "no $DESKTOP_LABEL packages were downloaded"
+if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
+    USB_PATHS=$(fetch_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$USB_DEBS") || fail 'downloading USB storage bridge'
+    DEB_PATHS="$DEB_PATHS $USB_PATHS"
+fi
+if [ "$DESKTOP_DE" = gnome ]; then
+    destination="$PREFIX/libexec/termux-gnome"
+    mkdir -p "$destination" || fail 'creating GNOME launcher directory'
+    for item in desktop_gnome_launch.py desktop_usb_storage.py; do
+        case "$item" in desktop_gnome_launch.py) target=launch.py ;; *) target="$item" ;; esac
+        cp "$(dirname "$0")/$item" "$destination/$target.tmp.$$" && mv "$destination/$target.tmp.$$" "$destination/$target" || fail "installing $item"
+    done
+fi
 
 if [ "$DESKTOP_MODE" = "native" ]; then
-    if [ "$DESKTOP_DE" = "xfce4" ]; then
+    if [ "$DESKTOP_DE" = gnome ]; then
         # shellcheck disable=SC2086
-        run apt install -y --allow-downgrades --allow-change-held-packages $DEB_PATHS xfce4 xfce4-terminal dbus || fail "apt install xfce4"
+        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS python dbus dconf adwaita-icon-theme gnome-backgrounds xorg-xdpyinfo || fail 'apt install GNOME'
+    elif [ "$DESKTOP_DE" = "xfce4" ]; then
+        # shellcheck disable=SC2086
+        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS xfce4 xfce4-terminal dbus || fail "apt install xfce4"
     else
         # shellcheck disable=SC2086
-        run apt install -y --allow-downgrades --allow-change-held-packages $DEB_PATHS plasma-desktop plasma-workspace kactivitymanagerd \
+        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS plasma-desktop plasma-workspace kactivitymanagerd \
             || fail "apt install"
     fi
 else
     # The session itself lives in the container; the host needs the display server and proot.
     # shellcheck disable=SC2086
-    run apt install -y --allow-downgrades --allow-change-held-packages $DEB_PATHS proot proot-distro || fail "apt install"
+    run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS proot proot-distro || fail "apt install"
     # The container's Plasma must be about as new as the native KWin (6.6): Debian trixie's Plasma
     # 6.3 hits protocol mismatches (kde_output_device_mode_v2 events) and shows a black screen, while
     # forky's 6.7 renders. XFCE has no such coupling and stays on the stable image.
     case "$DESKTOP_DE" in
         kwin_plasma) default_base="debian:forky" ;;
-        *) default_base="debian" ;;
+        *) default_base="debian:trixie" ;;
     esac
     ensure_container_instance "$DESKTOP_PROOT_DISTRO" "${DESKTOP_CONTAINER_BASE:-$default_base}"
+    rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
+    case "$DESKTOP_DE" in kwin_plasma) expected_codename=forky ;; *) expected_codename=trixie ;; esac
+    codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" | tr -d '\"')
+    distro_id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" | tr -d '\"')
+    [ "$distro_id:$codename" = "debian:$expected_codename" ] || fail "container requires Debian $expected_codename, got $distro_id:$codename"
     de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE"
     if [ -f "$de_marker" ]; then
         log "Container packages for $DESKTOP_DE already present; skipping"
@@ -393,6 +521,7 @@ else
         # is returned unchanged; package maintainer scripts are never replaced.
         case "$DESKTOP_DE" in
             xfce4) container_packages="xfce4 xfce4-terminal dbus-x11" ;;
+            gnome) container_packages="gnome-shell gnome-session gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils" ;;
             *) container_packages="plasma-desktop plasma-workspace kactivitymanagerd dbus-x11 packagekit polkitd"
                [ "$DESKTOP_GL_MODE" != "zink" ] || container_packages="$container_packages libvulkan-dev" ;;
         esac
@@ -401,22 +530,53 @@ else
         for helper in desktop_container_plasma_apt.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
             cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "cannot stage container helper $helper"
         done
+        recommend_option=''
+        [ "$DESKTOP_DE" != gnome ] || recommend_option=--no-install-recommends
         # shellcheck disable=SC2086
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
-            --statx-backend=proc-fdinfo $container_packages || fail "container apt install $DESKTOP_DE"
+            --statx-backend=proc-fdinfo $recommend_option $container_packages || fail "container apt install $DESKTOP_DE"
         : > "$de_marker"
     fi
     # Idempotent and independent of the marker: a container created before this step still gets it.
     [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$DESKTOP_GL_MODE" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
+    if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
+        # The guest must load glibc GIO code. Never bind a host Bionic module into it.
+        for helper in desktop_container_plasma_apt.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
+            cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "staging USB container helper $helper"
+        done
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+            --statx-backend=proc-fdinfo --no-install-recommends gvfs-backends libglib2.0-bin || fail 'container GIO prerequisites'
+        gio_archive=$(fetch_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$USB_GLIBC_ARTIFACT") || fail 'downloading glibc GIO artifact'
+        gio_archive="${gio_archive# }"
+        gio_archive=$(readlink -f "$gio_archive") || fail 'resolving GIO archive path'
+        canonical_rootfs=$(readlink -f "$rootfs") || fail 'resolving GIO rootfs path'
+        run python3 -I -B "$(dirname "$0")/desktop_install_gio.py" --archive "$gio_archive" \
+            --rootfs "$canonical_rootfs" --codename trixie --bridge-version 0.4.1 || fail 'installing glibc GIO payloads'
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- gio-querymodules \
+            /usr/local/lib/termux-usb-bridge/gio/modules || fail 'registering container GIO module'
+    fi
 fi
 
-audit=$(dpkg --audit 2>&1)
+audit=$(dpkg --audit 2>&1) || fail 'dpkg --audit failed'
 [ -z "$audit" ] || fail "dpkg --audit reported problems: $audit"
-if [ "$DESKTOP_DE" = "xfce4" ]; then
+if [ "$DESKTOP_DE" = "xfce4" ] || [ "$DESKTOP_DE" = gnome ]; then
     # The Xlorie xorg-server (release build) is older than Termux's stock one; keep a later
     # `pkg upgrade` from replacing it with a server that has no Xlorie.
     run apt-mark hold xorg-server || fail "holding xorg-server"
 fi
+verification_manifest="$DEBS"
+case "$DESKTOP_DE" in xfce4) verification_manifest="$XLORIE_DEBS" ;; gnome) verification_manifest="$XLORIE_DEBS
+$GNOME_DEBS" ;; esac
+[ "$DESKTOP_USB_STORAGE" != read-only ] || verification_manifest="$verification_manifest
+$USB_DEBS"
+printf '%s\n' "$verification_manifest" > "$DESKTOP_LOG_FILE.verify-manifest.$$" || fail 'writing final verification manifest'
+while read -r name digest; do
+    [ -n "$name" ] || continue
+    package="${name%%_*}"
+    version="${name#*_}"; version="${version%_*}"
+    pinned_package_valid "$package" "$version" || fail "installed package verification failed: $package $version"
+done < "$DESKTOP_LOG_FILE.verify-manifest.$$"
+rm -f "$DESKTOP_LOG_FILE.verify-manifest.$$"
 log "Desktop install finished."
 INSTALL_DONE=1
 exit 0

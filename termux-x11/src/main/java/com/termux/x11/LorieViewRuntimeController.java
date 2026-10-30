@@ -106,6 +106,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     private final X11WinHandlerController mX11WinHandlerController = new X11WinHandlerController(this);
     private boolean mKeepWinHandlerAlive = false;
     private boolean mTerminalToolbarEnabled = true;
+    private final X11RefreshRatePolicy refreshRatePolicy = new X11RefreshRatePolicy();
     @Nullable
     private LorieViewRuntimeApi.FirstFrameListener mFirstFrameListener;
     private boolean mFirstFramePresented;
@@ -274,6 +275,11 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         mX11DisplayController.setConnectionStateListener(listener);
     }
 
+    /** null keeps terminal/game sessions following the host Display as before. */
+    public void setExplicitRefreshRate(@Nullable Integer refreshRate) {
+        refreshRatePolicy.setExplicit(refreshRate);
+    }
+
     public void setX11FirstFrameListener(@Nullable LorieViewRuntimeApi.FirstFrameListener listener) {
         mFirstFrameListener = listener;
         if (listener != null && mFirstFramePresented) listener.onFirstFramePresented();
@@ -380,7 +386,8 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
 
         lorieView.setCallback((surfaceWidth, surfaceHeight, screenWidth, screenHeight) -> {
             String name;
-            int framerate = (int) ((lorieView.getDisplay() != null) ? lorieView.getDisplay().getRefreshRate() : 30);
+            int framerate = refreshRatePolicy.resolve(
+                lorieView.getDisplay() != null ? lorieView.getDisplay().getRefreshRate() : 30);
 
             mX11InputController.handleHostSizeChanged(surfaceWidth, surfaceHeight);
             mX11InputController.handleClientSizeChanged(screenWidth, screenHeight);

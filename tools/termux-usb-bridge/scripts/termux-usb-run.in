@@ -1,0 +1,15 @@
+#!@TUSB_SHELL@
+# Opt into the private patched libusb; never replace the system library.
+if [ "$#" -eq 0 ]; then
+    echo 'Usage: termux-usb-run COMMAND [ARG...]' >&2
+    exit 2
+fi
+bridge_lib='@CMAKE_INSTALL_PREFIX@/opt/termux-usb-bridge/lib'
+if [ ! -f "$bridge_lib/libusb-1.0.so" ]; then
+    echo 'Private patched libusb is missing; see termux-usb-bridge README.' >&2
+    exit 1
+fi
+TERMUX_USB_BRIDGE_SOCKET=${TERMUX_USB_BRIDGE_SOCKET:-${TMPDIR:-/tmp}/termux-usb-bridge/broker.sock}
+LD_LIBRARY_PATH="$bridge_lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export TERMUX_USB_BRIDGE_SOCKET LD_LIBRARY_PATH
+exec "$@"

@@ -113,11 +113,28 @@ public final class X11SessionView extends FrameLayout {
     public void bind(@NonNull AppCompatActivity activity,
                      @NonNull String displayResolution,
                      @Nullable Listener listener) {
+        bindInternal(activity, displayResolution, null, listener);
+    }
+
+    /** Pins every window-change callback to this session's explicitly selected output rate. */
+    public void bind(@NonNull AppCompatActivity activity,
+                     @NonNull String displayResolution,
+                     int refreshRate,
+                     @Nullable Listener listener) {
+        bindInternal(activity, displayResolution, refreshRate, listener);
+    }
+
+    private void bindInternal(@NonNull AppCompatActivity activity,
+                              @NonNull String displayResolution,
+                              @Nullable Integer refreshRate,
+                              @Nullable Listener listener) {
+        X11RefreshRatePolicy.validateExplicit(refreshRate);
         applyDisplayResolution(displayResolution);
         if (runtime != null) {
             if (this.activity != activity)
                 throw new IllegalStateException("X11SessionView is already bound to another Activity");
             this.listener = listener == null ? new Listener() { } : listener;
+            runtime.setExplicitRefreshRate(refreshRate);
             runtime.applyX11PreferenceChange("displayResolutionCustom");
             return;
         }
@@ -129,6 +146,7 @@ public final class X11SessionView extends FrameLayout {
         runtime.setManageHostOrientation(false);
         runtime.setImmersive(immersive);
         runtime.setTerminalToolbarEnabled(false);
+        runtime.setExplicitRefreshRate(refreshRate);
         runtime.attachTermuxScreenView(displayView);
         runtime.setX11ConnectionStateListener(this.listener::onConnectionChanged);
         runtime.setX11FirstFrameListener(this.listener::onFirstFramePresented);

@@ -258,7 +258,7 @@
     <string name="local_games_runtime_setup_console_close">Close</string>
     <string name="local_games_prefix_setup_channel">Game prefix initialization</string>
     <string name="local_games_prefix_setup_title">Initializing game container</string>
-    <string name="local_games_prefix_setup_console_title">GLIBC prefix setup log</string>
+    <string name="local_games_prefix_setup_console_title">Setup log</string>
     <string name="local_games_runtime_rollback_action">Roll back runtime</string>
     <string name="local_games_runtime_rollback_complete">Runtime rolled back to version %1$d</string>
     <string name="local_game_runtime_profile_title">Runtime configuration</string>
@@ -588,6 +588,7 @@
     <string name="desktop_state_not_installed">Not installed</string>
     <string name="desktop_state_installed">Ready</string>
     <string name="desktop_state_starting">Starting…</string>
+    <string name="desktop_state_stopping">Stopping…</string>
     <string name="desktop_state_running">Running</string>
     <string name="desktop_state_failed">Failed</string>
     <string name="desktop_action_install">Install</string>

@@ -1,0 +1,17 @@
+--- a/cogl/cogl/gl-prototypes/cogl-all-functions.h
++++ b/cogl/cogl/gl-prototypes/cogl-all-functions.h
+@@ -101,6 +101,14 @@
+ COGL_EXT_FUNCTION (void *, glMapBuffer,
+                    (GLenum		 target,
+                     GLenum		 access))
++COGL_EXT_END ()
++
++/* GLES 3 has UnmapBuffer in core, but has no core MapBuffer. Resolve it
++ * independently so a driver without OES_mapbuffer can unmap MapBufferRange. */
++COGL_EXT_BEGIN (unmap_vbos, 1, 5,
++                COGL_EXT_IN_GLES3,
++                "ARB\0OES\0",
++                "vertex_buffer_object\0mapbuffer\0")
+ COGL_EXT_FUNCTION (GLboolean, glUnmapBuffer,
+                    (GLenum		 target))
+ COGL_EXT_END ()

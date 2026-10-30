@@ -9,6 +9,7 @@ import com.termux.ui.domain.DesktopDe;
 import com.termux.ui.domain.DesktopDistro;
 import com.termux.ui.domain.DesktopGlMode;
 import com.termux.ui.domain.DesktopRunMode;
+import com.termux.ui.domain.DesktopUsbStorageMode;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -117,5 +118,22 @@ public class FileDesktopDistroRepositoryTest {
         repository.save(migrated);
         DesktopDistro reread = repository.find("old").get();
         assertEquals(DesktopDe.KWIN_PLASMA, reread.getDe());
+    }
+    @Test public void gnomeUsbSettingsRoundTripAndOldRecordsDefaultOff() throws Exception {
+        FileDesktopDistroRepository repository=repository();
+        DesktopDistro gnome=new DesktopDistro("gnome","GNOME",DesktopRunMode.PROOT,"debian-gnome-1",
+            DesktopDe.GNOME,DesktopGlMode.LLVMPIPE,"1280x720",60).withUsbStorage(DesktopUsbStorageMode.READ_ONLY);
+        repository.save(gnome);
+        assertEquals(DesktopDe.GNOME,repository.find("gnome").get().getDe());
+        assertEquals(DesktopUsbStorageMode.READ_ONLY,repository.find("gnome").get().getUsbStorage());
+        File file=new File(temporaryFolder.getRoot(),"distros/gnome.properties");
+        Properties props=new Properties();
+        try(java.io.FileInputStream in=new java.io.FileInputStream(file)){props.load(in);}
+        props.remove("usbStorage");
+        try(FileOutputStream out=new FileOutputStream(file)){props.store(out,null);}
+        assertEquals(DesktopUsbStorageMode.OFF,repository.find("gnome").get().getUsbStorage());
+        props.setProperty("usbStorage","read-write");
+        try(FileOutputStream out=new FileOutputStream(file)){props.store(out,null);}
+        assertThrows(IOException.class,()->repository.find("gnome"));
     }
 }

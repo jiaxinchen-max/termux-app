@@ -1,0 +1,46 @@
+Avoid defining cleanup helpers already provided by newer Pango headers.
+Probe the header instead of assuming a particular Pango version.
+
+--- a/meson.build
++++ b/meson.build
+@@ -149,6 +149,14 @@
+   pango_dep = dependency('pango', version: pango_req)
+   pangocairo_dep = dependency('pangocairo', version: pangocairo_req)
+   harfbuzz_dep = dependency('harfbuzz', version: harfbuzz_req)
++  have_pango_renderer_autoptr = cc.compiles('''
++    #include <pango/pango.h>
++    int main(void) {
++      g_autoptr(PangoRenderer) renderer = NULL;
++      return renderer != NULL;
++    }
++  ''', dependencies: pango_dep,
++       name: 'PangoRenderer automatic cleanup helpers')
+ endif
+ 
+ if have_fonts or have_x11
+@@ -568,2 +576,5 @@
+ cdata = configuration_data()
++if have_fonts
++  cdata.set('HAVE_PANGO_RENDERER_AUTOPTR', have_pango_renderer_autoptr)
++endif
+ cdata.set_quoted('GETTEXT_PACKAGE', gettext_package)
+--- a/clutter/clutter/pango/clutter-pango-private.h
++++ b/clutter/clutter/pango/clutter-pango-private.h
+@@ -79,7 +79,9 @@
+                           ClutterColorState *color_state,
+                           ClutterColorState *target_color_state);
+ 
++#ifndef HAVE_PANGO_RENDERER_AUTOPTR
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC (PangoRenderer, g_object_unref)
++#endif
+ 
+ static inline PangoDirection
+ clutter_text_direction_to_pango_direction (ClutterTextDirection dir)
+--- a/config.h.meson
++++ b/config.h.meson
+@@ -1,2 +1,5 @@
++/* Pango headers provide PangoRenderer automatic cleanup helpers. */
++#mesondefine HAVE_PANGO_RENDERER_AUTOPTR
++
+ /* The prefix for our gettext translation domains. */
+ #mesondefine GETTEXT_PACKAGE

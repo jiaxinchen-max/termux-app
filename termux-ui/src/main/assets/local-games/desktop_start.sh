@@ -27,6 +27,22 @@ stop_other_desktops() {
         other=$(cat "$pid_file" 2>/dev/null)
         case "$other" in ''|*[!0-9]*) continue ;; esac
         pid_alive "$other" || { rm -f "$pid_file"; continue; }
+        other_id="${pid_file##*/}"
+        other_id="${other_id%.container}"
+        other_id="${other_id%.pid}"
+        other_spec="$(dirname "$state_dir")/specs/$other_id.spec"
+        if [ -f "$other_spec" ]; then
+            log "Stopping desktop $other_id through its session cleanup policy"
+            sh "$(dirname "$0")/desktop_stop.sh" "$other_spec" || {
+                log "Desktop $other_id cleanup failed; refusing to replace its display session."
+                return 74
+            }
+            continue
+        fi
+        if [ -f "$state_dir/$other_id.pid.owned-session" ]; then
+            log "Cannot stop managed desktop $other_id without its spec; refusing to replace it."
+            return 74
+        fi
         log "Stopping $(basename "$pid_file") (pid $other) left over from another desktop"
         kill -TERM "$other" 2>/dev/null
         others="$others $other"
@@ -59,7 +75,47 @@ if [ "$DESKTOP_MODE" = "proot" ] && [ "${DESKTOP_DE:-kwin_plasma}" = "kwin_plasm
     exit 64
 fi
 log "Requested renderer: $DESKTOP_GL_MODE ($DESKTOP_MODE/${DESKTOP_DE:-kwin_plasma}); renderer fallback is disabled."
-stop_other_desktops
+case "${DESKTOP_USB_STORAGE:-off}" in off|read-only) ;; *)
+    log 'Unsupported USB storage policy; select off or read-only explicitly.'
+    printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
+esac
+if [ "${DESKTOP_DE:-kwin_plasma}:${DESKTOP_USB_STORAGE:-off}" = kwin_plasma:read-only ]; then
+    log 'Plasma Dolphin does not support the GIO USB storage integration.'
+    printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
+fi
+if [ "${DESKTOP_DE:-}" = gnome ]; then
+    [ "${DESKTOP_GNOME_SESSION_STARTUP:-}" = direct ] || {
+        log 'GNOME requires explicit session startup direct; session-manager fallback is disabled.'
+        printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
+    }
+    case "$DESKTOP_MODE:${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}:$DESKTOP_GL_MODE" in
+        native:android:system:system)
+            [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}" ] || {
+                log 'Native GNOME does not accept an X11 display GL mode.'
+                printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
+            }
+            [ "$DESKTOP_REFRESH_RATE" = 60 ] || {
+                log 'Native GNOME Mutter 48.1-24 supports exactly 60 Hz.'
+                printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
+            } ;;
+        proot:x11:llvmpipe:llvmpipe)
+            [ "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}" = system ] || {
+                log 'PRoot GNOME requires explicit host X11 display GL mode system.'
+                printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
+            }
+            [ "${DESKTOP_CONTAINER_CODENAME:-}" = trixie ] || {
+                log 'PRoot GNOME requires explicit Debian trixie.'
+                printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
+            } ;;
+        *) log 'GNOME requires Native android/system or PRoot x11/llvmpipe explicitly.'
+           printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
+    esac
+    case "${DESKTOP_USB_STORAGE:-}" in off|read-only) ;; *)
+        log 'Explicit DESKTOP_USB_STORAGE=off|read-only is required.'
+        printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
+    esac
+fi
+stop_other_desktops || { printf 'exit:74\n' > "$DESKTOP_STATUS_FILE"; exit 74; }
 
 wait_for_socket() {
     waited=0
@@ -76,7 +132,94 @@ if ! wait_for_socket; then
     exit 66
 fi
 
-# DESKTOP_RENDER_SOCKET is fixed by the display bridge; everything below is KWin's contract.
+CONTAINER_PID_FILE="$DESKTOP_PID_FILE.container"
+rm -f "$CONTAINER_PID_FILE"
+code=0
+
+finish_desktop() {
+    rm -f "$DESKTOP_PID_FILE" "$CONTAINER_PID_FILE" "$DESKTOP_PID_FILE.owned-session"
+    # desktop_stop.sh owns a requested shutdown, even if it finished writing 'stopped' before us.
+    case "$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)" in
+        stopping|stopped)
+            case "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}:$code" in
+                gnome:*:0|gnome:*:130|gnome:*:143|xfce4:read-only:0|xfce4:read-only:130|xfce4:read-only:143)
+                    printf 'stopped\n' > "$DESKTOP_STATUS_FILE"; code=0 ;;
+                gnome:*|xfce4:read-only:*) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
+                *) printf 'stopped\n' > "$DESKTOP_STATUS_FILE"; code=0 ;;
+            esac ;;
+        *) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
+    esac
+    exit "$code"
+}
+
+DESKTOP_DE="${DESKTOP_DE:-kwin_plasma}"
+
+if [ "$DESKTOP_DE" != gnome ]; then
+    if [ "$DESKTOP_MODE" = proot ]; then
+        usb_user_config="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs/root/.config"
+    else
+        usb_user_config="${XDG_CONFIG_HOME:-$HOME/.config}"
+    fi
+    disable_global_usb_autostart "$usb_user_config" || {
+        log 'Cannot disable the global USB bridge autostart for this desktop.'
+        code=74; finish_desktop
+    }
+fi
+
+if [ "$DESKTOP_DE" = gnome ]; then
+    unset KWIN_ANDROID_RUNTIME_ROOT KWIN_ANDROID_GL_MODE KWIN_ANDROID_REFRESH_RATE
+    unset KWIN_ANDROID_WIDTH KWIN_ANDROID_HEIGHT PLASMA_LOG
+    GNOME_LAUNCHER="$PREFIX/libexec/termux-gnome/launch.py"
+    [ -x "$PREFIX/bin/python3" ] && [ -r "$(dirname "$0")/desktop_gnome_launch.py" ] || {
+        log 'GNOME Python launcher is missing; install the selected desktop components first.'
+        code=127; finish_desktop
+    }
+    mkdir -p "$(dirname "$GNOME_LAUNCHER")" || { code=74; finish_desktop; }
+    for asset in desktop_gnome_launch.py desktop_usb_storage.py; do
+        target="$(dirname "$GNOME_LAUNCHER")/$asset"
+        [ "$asset" != desktop_gnome_launch.py ] || target="$GNOME_LAUNCHER"
+        temporary="$target.tmp.$$"
+        if cp "$(dirname "$0")/$asset" "$temporary" && chmod 600 "$temporary" && mv "$temporary" "$target"; then :
+        else
+            rm -f "$temporary"
+            log "Cannot stage current GNOME launcher asset: $asset"
+            code=74; finish_desktop
+        fi
+    done
+    rm -f "$DESKTOP_PID_FILE.gnome-ready"
+    printf 'gnome\n' > "$DESKTOP_PID_FILE.owned-session" || { code=74; finish_desktop; }
+    set -- --desktop-id "$DESKTOP_ID" --ready-file "$DESKTOP_PID_FILE.gnome-ready" \
+        --run-mode "$DESKTOP_MODE" --backend "$DESKTOP_GNOME_BACKEND" \
+        --session-startup "$DESKTOP_GNOME_SESSION_STARTUP" \
+        --gl-mode "$DESKTOP_GNOME_RENDERER" --size "${DESKTOP_WIDTH}x${DESKTOP_HEIGHT}" \
+        --refresh-rate "$DESKTOP_REFRESH_RATE" --render-socket "$DESKTOP_RENDER_SOCKET" \
+        --display :0 --wayland-display wayland-gnome --service-policy core \
+        --usb-storage "$DESKTOP_USB_STORAGE"
+    if [ "$DESKTOP_MODE" = proot ]; then
+        rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
+        set -- "$@" --x11-display-gl-mode "$DESKTOP_GNOME_DISPLAY_GL_MODE" \
+            --rootfs "$rootfs" --work "$rootfs/root/.local/share/termux-gnome"
+    else
+        set -- "$@" --work "$HOME/.termux/gnome-$DESKTOP_ID"
+    fi
+    "$PREFIX/bin/python3" -I -B "$GNOME_LAUNCHER" "$@" >> "$DESKTOP_LOG_FILE.out" 2>&1 &
+    child=$!
+    printf '%s\n' "$child" > "$DESKTOP_PID_FILE"
+    trap 'kill -TERM "$child" 2>/dev/null' TERM INT
+    while :; do
+        wait "$child"
+        code=$?
+        kill -0 "$child" 2>/dev/null || break
+    done
+    if [ "$code" -ne 0 ] && [ -f "$DESKTOP_LOG_FILE.out" ]; then
+        log '--- GNOME launcher output (tail) ---'
+        tail -n 40 "$DESKTOP_LOG_FILE.out" | tee -a "$DESKTOP_LOG_FILE"
+    fi
+    finish_desktop
+fi
+
+# The existing XFCE/Plasma paths use the KWin contract; GNOME has independent
+# compositor and host display modes and must never export these aliases.
 KWIN_ANDROID_RUNTIME_ROOT="$HOME/.termux/kwin-runtime"
 export KWIN_ANDROID_RUNTIME_ROOT
 export KWIN_ANDROID_GL_MODE="$DESKTOP_GL_MODE"
@@ -84,22 +227,6 @@ export KWIN_ANDROID_REFRESH_RATE="$DESKTOP_REFRESH_RATE"
 export KWIN_ANDROID_WIDTH="$DESKTOP_WIDTH"
 export KWIN_ANDROID_HEIGHT="$DESKTOP_HEIGHT"
 export PLASMA_LOG="$DESKTOP_LOG_FILE"
-
-CONTAINER_PID_FILE="$DESKTOP_PID_FILE.container"
-rm -f "$CONTAINER_PID_FILE"
-code=0
-
-finish_desktop() {
-    rm -f "$DESKTOP_PID_FILE" "$CONTAINER_PID_FILE"
-    # desktop_stop.sh owns a requested shutdown, even if it finished writing 'stopped' before us.
-    case "$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)" in
-        stopping|stopped) printf 'stopped\n' > "$DESKTOP_STATUS_FILE"; code=0 ;;
-        *) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
-    esac
-    exit "$code"
-}
-
-DESKTOP_DE="${DESKTOP_DE:-kwin_plasma}"
 
 if [ "$DESKTOP_DE" != "xfce4" ] && [ ! -L "$PREFIX/tmp/.X11-unix" ] && [ -d "$PREFIX/tmp/.X11-unix" ]; then
     # An XFCE session leaves Xlorie's X0 socket in a real .X11-unix. start-plasma can only turn that
@@ -179,7 +306,19 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
     fi
     export DISPLAY=:0
     log "Starting the $DESKTOP_MODE XFCE4 session (DISPLAY=:0, XLORIE_GL_MODE=$gl_mode)"
-    if [ "$DESKTOP_MODE" = "proot" ]; then
+    if [ "${DESKTOP_USB_STORAGE:-off}" = read-only ]; then
+        printf 'xfce4-usb\n' > "$DESKTOP_PID_FILE.owned-session" || { code=74; finish_desktop; }
+        XFCE_LAUNCHER="$(dirname "$0")/desktop_xfce_session.py"
+        [ -x "$PREFIX/bin/python3" ] && [ -r "$XFCE_LAUNCHER" ] || {
+            log 'XFCE USB session launcher is missing; install the selected desktop components first.'
+            kill -TERM "$child" 2>/dev/null
+            code=127; finish_desktop
+        }
+        set -- --desktop-id "$DESKTOP_ID" --run-mode "$DESKTOP_MODE" \
+            --display :0 --usb-storage read-only
+        [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
+        "$PREFIX/bin/python3" -I -B "$XFCE_LAUNCHER" "$@" >> "$DESKTOP_LOG_FILE.out" 2>&1 &
+    elif [ "$DESKTOP_MODE" = "proot" ]; then
         proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- env DISPLAY=:0 \
             sh -c 'export XDG_RUNTIME_DIR=/tmp/xdg; mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"; exec dbus-run-session -- xfce4-session' \
             >> "$DESKTOP_LOG_FILE.out" 2>&1 &

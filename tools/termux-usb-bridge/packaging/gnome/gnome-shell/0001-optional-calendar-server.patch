@@ -1,0 +1,39 @@
+Allow a native shell without the optional Evolution event backend.
+The calendar widget remains available; no CalendarServer is installed.
+
+--- a/meson.options
++++ b/meson.options
+@@ -51,3 +51,5 @@
+   value: true,
+   description: 'Enable systemd integration'
+ )
++
++option('calendar_server', type: 'boolean', value: true, description: 'Build Evolution calendar backend')
+--- a/meson.build
++++ b/meson.build
+@@ -69,8 +69,10 @@
+ endif
+ 
+ atk_bridge_dep = dependency('atk-bridge-2.0')
+-ecal_dep = dependency('libecal-2.0', version: ecal_req)
+-eds_dep = dependency('libedataserver-1.2', version: eds_req)
++if get_option('calendar_server')
++  ecal_dep = dependency('libecal-2.0', version: ecal_req)
++  eds_dep = dependency('libedataserver-1.2', version: eds_req)
++endif
+ gcr_dep = dependency('gcr-4', version: gcr_req)
+ gdk_pixbuf_dep = dependency('gdk-pixbuf-2.0')
+ gi_dep = dependency('gobject-introspection-1.0', version: gi_req)
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -10,7 +10,9 @@
+   'fatal_warnings': get_option('werror'),
+ }
+ 
+-subdir('calendar-server')
++if get_option('calendar_server')
++  subdir('calendar-server')
++endif
+ subdir('hotplug-sniffer')
+ subdir('st')
+ if have_x11_client

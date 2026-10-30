@@ -1,0 +1,33 @@
+<resources>
+    <string name="desktop_usb_title">外接存储</string>
+    <string name="desktop_usb_scope">将已授权 USB 存储以只读 GIO/GVfs 卷提供给 GNOME 文件或 XFCE Thunar。不会创建内核挂载或 /dev/sdX。请求 Android USB 授权时须保持 App 在前台。</string>
+    <string name="desktop_usb_enable_read_only">启用 USB 存储（只读）</string>
+    <string name="desktop_usb_plasma_unsupported">Plasma Dolphin 使用 Solid/UDisks2；本 GIO 桥接不支持其设备侧栏，此桌面不能启用 USB 存储。</string>
+    <string name="desktop_usb_loading">正在读取 USB 状态…</string>
+    <string name="desktop_usb_install">安装 / 检查支撑组件</string>
+    <string name="desktop_usb_refresh">刷新设备</string>
+    <string name="desktop_usb_stop_to_change">更改 USB 模式或安装组件前必须停止桌面。</string>
+    <string name="desktop_usb_api_missing">内置 USB 模块不可用。请确认 Termux 环境已安装，然后重启 App。</string>
+    <string name="desktop_usb_dependencies_missing">缺少支撑文件：%1$s</string>
+    <string name="desktop_usb_dependencies_ready">内置 USB 模块和支撑文件已就绪；访问 USB 仍需 Android 授权。</string>
+    <string name="desktop_usb_off">USB 存储已关闭。启用并安装支撑组件后，启动桌面。</string>
+    <string name="desktop_usb_start_required">启动桌面后才能使用其 USB 卷服务。</string>
+    <string name="desktop_usb_bridge_error">USB 服务不可用：%1$s</string>
+    <string name="desktop_usb_enumeration_error">USB 枚举失败，保留已有设备状态：%1$s</string>
+    <string name="desktop_usb_connected">已连接 USB 卷服务，访问模式为只读。</string>
+    <string name="desktop_usb_no_storage">未发现已授权或待授权的 USB 存储设备。</string>
+    <string name="desktop_usb_authorize">请求 Android USB 授权</string>
+    <string name="desktop_usb_mount">连接 GIO 卷</string>
+    <string name="desktop_usb_unmount">断开 GIO 卷</string>
+    <string name="desktop_usb_eject">从本会话弹出</string>
+    <string name="desktop_usb_permission_required">需要 Android 授权，尚未识别设备类型</string>
+    <string name="desktop_usb_mounted">已连接为只读 GIO 卷</string>
+    <string name="desktop_usb_mounting">正在连接 GIO 卷…</string>
+    <string name="desktop_usb_ejected">已从本会话弹出，需重新插入设备才能连接</string>
+    <string name="desktop_usb_available">可用 USB 存储</string>
+    <string name="desktop_usb_device_error">USB 设备错误</string>
+    <string name="desktop_usb_working">正在等待 USB 操作 / Android 授权…</string>
+    <string name="desktop_usb_error">USB 操作失败</string>
+    <string name="desktop_usb_archive_disable">导出前请关闭 USB 存储。当前归档格式不包含 USB 集成设置。</string>
+    <string name="desktop_usb_gnome_archive_unsupported">当前归档格式暂不支持 GNOME 容器导入导出。</string>
+</resources>

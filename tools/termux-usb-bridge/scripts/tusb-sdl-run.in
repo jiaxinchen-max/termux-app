@@ -1,0 +1,11 @@
+#!@TUSB_SHELL@
+version=2
+if [ "${1:-}" = '--sdl3' ]; then version=3; shift; fi
+if [ "$#" -eq 0 ]; then
+    echo 'Usage: tusb-sdl-run [--sdl3] COMMAND [ARG...]' >&2
+    exit 2
+fi
+TERMUX_USB_GAMEPAD_SOCKET=${TERMUX_USB_GAMEPAD_SOCKET:-${TMPDIR:-/tmp}/termux-usb-bridge/gamepad.sock}
+LD_PRELOAD="@CMAKE_INSTALL_FULL_LIBDIR@/libtermux-usb-sdl${version}.so${LD_PRELOAD:+:$LD_PRELOAD}"
+export TERMUX_USB_GAMEPAD_SOCKET LD_PRELOAD
+exec "$@"

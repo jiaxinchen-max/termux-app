@@ -313,7 +313,7 @@ public final class DesktopArchiveTasks {
         DesktopTasks desktops = new DesktopTasks(context);
         for (DesktopDistro distro : desktops.list()) {
             DesktopSessionState state = desktops.state(distro);
-            if (state == DesktopSessionState.RUNNING || state == DesktopSessionState.STARTING) {
+            if (state.isActive()) {
                 throw new IOException("desktop_archive_stop_required");
             }
         }

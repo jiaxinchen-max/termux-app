@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.termux.mutter.gputest">
+  <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34"/>
+  <instrumentation android:name="org.termux.mutter.gputest.SurfaceTest" android:targetPackage="com.termux" android:functionalTest="true"/>
+  <application android:label="Mutter GPU surface test" android:hasCode="true"/>
+</manifest>

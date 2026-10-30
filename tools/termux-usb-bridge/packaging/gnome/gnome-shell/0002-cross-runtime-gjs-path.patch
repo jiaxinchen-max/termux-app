@@ -1,0 +1,22 @@
+--- a/meson.build
++++ b/meson.build
+@@ -143,7 +143,7 @@
+ 
+ mutter_typelibdir = mutter_dep.get_variable('typelibdir')
+ python = find_program('python3')
+-gjs = find_program('gjs')
++gjs_path = gjs_dep.get_variable(pkgconfig: 'gjs_console')
+ generate_app_list = find_program('meson/generate-app-list.py')
+ 
+ cc = meson.get_compiler('c')
+--- a/js/dbusServices/meson.build
++++ b/js/dbusServices/meson.build
+@@ -22,7 +22,7 @@
+ 
+   serviceconf = configuration_data()
+   serviceconf.set('service', service)
+-  serviceconf.set('gjs', gjs.full_path())
++  serviceconf.set('gjs', gjs_path)
+   serviceconf.set('pkgdatadir', pkgdatadir)
+ 
+   configure_file(

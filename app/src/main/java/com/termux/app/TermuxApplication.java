@@ -6,6 +6,7 @@ import android.content.Context;
 import com.termux.BuildConfig;
 import com.termux.app.localgames.TermuxLocalGamesHostFactory;
 import com.termux.ui.api.LocalGames;
+import com.termux.usb.EmbeddedUsbApi;
 import com.termux.shared.errors.Error;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxBootstrap;
@@ -30,6 +31,7 @@ public class TermuxApplication extends Application {
 
         // Register the app-owned Termux runtime bridge for the independently packaged local-games feature.
         LocalGames.install(new TermuxLocalGamesHostFactory());
+        EmbeddedUsbApi.initialize(this);
 
         // Set crash handler for the app
         TermuxCrashUtils.setDefaultCrashHandler(this);

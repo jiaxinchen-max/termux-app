@@ -9,6 +9,7 @@ package com.termux.ui.domain;
 public enum DesktopDe {
     XFCE4("xfce4", true),
     KWIN_PLASMA("kwin_plasma", true),
+    GNOME("gnome", true),
     HYPRLAND("hyprland", false),
     UBUNTU_GNOME("ubuntu_gnome", false);
 

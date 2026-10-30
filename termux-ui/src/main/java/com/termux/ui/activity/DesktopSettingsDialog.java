@@ -10,9 +10,11 @@ import com.termux.ui.api.DesktopTasks;
 import com.termux.ui.databinding.ItemDesktopSelectBinding;
 import com.termux.ui.databinding.SheetDesktopSettingsBinding;
 import com.termux.ui.domain.DesktopDe;
+import com.termux.ui.runtime.DesktopRendererPolicy;
 import com.termux.ui.domain.DesktopDistro;
 import com.termux.ui.domain.DesktopGlMode;
 import com.termux.ui.domain.DesktopRunMode;
+import com.termux.ui.domain.DesktopSessionState;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,6 +33,11 @@ final class DesktopSettingsDialog {
 
     static void show(DesktopActivity activity, DesktopTasks tasks, DesktopDistro distro,
                      Runnable onSaved) {
+        if (tasks.state(distro) == DesktopSessionState.STOPPING) {
+            android.widget.Toast.makeText(activity, R.string.desktop_state_stopping,
+                android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
         SheetDesktopSettingsBinding sheet = SheetDesktopSettingsBinding.inflate(
             LayoutInflater.from(activity));
         BottomSheetDialog dialog = new BottomSheetDialog(activity);
@@ -54,16 +61,16 @@ final class DesktopSettingsDialog {
         bind(activity, sheet.desktopSettingsResolution, R.string.desktop_select_resolution,
             RESOLUTIONS, () -> resolution[0], value -> resolution[0] = value);
         bind(activity, sheet.desktopSettingsRefresh, R.string.desktop_select_refresh,
-            refreshLabels(), () -> refresh[0] + " Hz",
+            distro.getDe() == DesktopDe.GNOME && !container ? new String[]{"60 Hz"} : refreshLabels(),
+            () -> refresh[0] + " Hz",
             value -> refresh[0] = Integer.parseInt(value.substring(0, value.length() - 3)));
         bind(activity, sheet.desktopSettingsRenderer, R.string.desktop_select_renderer,
-            rendererLabels(activity, container, distro.getDe() == DesktopDe.XFCE4), () -> glLabel(activity, gl[0]),
+            rendererLabels(activity, distro), () -> glLabel(activity, gl[0]),
             value -> gl[0] = glOf(activity, value));
 
         sheet.desktopSettingsCancel.setOnClickListener(view -> dialog.dismiss());
         sheet.desktopSettingsSave.setOnClickListener(view -> {
-            if (gl[0] == DesktopGlMode.AUTO
-                || (container && distro.getDe() == DesktopDe.KWIN_PLASMA && gl[0] == DesktopGlMode.SYSTEM)) {
+            if (!DesktopRendererPolicy.supports(distro.getRunMode(), distro.getDe(), gl[0])) {
                 android.widget.Toast.makeText(activity, R.string.desktop_renderer_explicit_required,
                     android.widget.Toast.LENGTH_LONG).show();
                 return;
@@ -122,11 +129,10 @@ final class DesktopSettingsDialog {
         return labels;
     }
 
-    private static String[] rendererLabels(DesktopActivity activity, boolean container, boolean xfce) {
+    private static String[] rendererLabels(DesktopActivity activity, DesktopDistro distro) {
         List<String> labels = new ArrayList<>();
-        if (!container || xfce) labels.add(glLabel(activity, DesktopGlMode.SYSTEM));
-        labels.add(glLabel(activity, DesktopGlMode.ZINK));
-        labels.add(glLabel(activity, DesktopGlMode.LLVMPIPE));
+        for (DesktopGlMode renderer : DesktopRendererPolicy.allowedModes(distro.getRunMode(), distro.getDe()))
+            labels.add(glLabel(activity, renderer));
         return labels.toArray(new String[0]);
     }
 

@@ -1,0 +1,8 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=@CMAKE_INSTALL_FULL_LIBDIR@
+includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
+Name: termux-usb-bridge
+Description: Android-authorized USB file descriptor broker client
+Version: @PROJECT_VERSION@
+Libs: -L${libdir} -ltermux-usb-bridge
+Cflags: -I${includedir}

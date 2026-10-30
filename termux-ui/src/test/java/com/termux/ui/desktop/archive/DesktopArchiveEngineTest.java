@@ -62,6 +62,25 @@ public class DesktopArchiveEngineTest {
     private static IOException rejected(Checked body)throws Exception {
         try{body.run();fail("archive should be rejected");return null;}catch(IOException expected){return expected;}
     }
+    @Test public void archiveRejectsUsbSettingsRatherThanSilentlyDroppingThem() {
+        try {
+            DesktopArchiveMetadata.create("com.termux","aarch64","trixie",
+                metadata.getDesktop().withUsbStorage(DesktopUsbStorageMode.READ_ONLY),null,null);
+            fail("USB settings must not be silently omitted from v1 archives");
+        } catch (IllegalArgumentException expected) {
+            assertEquals("archive_requires_usb_storage_off", expected.getMessage());
+        }
+    }
+    @Test public void archiveRejectsUnimplementedGnomeFormat() {
+        try {
+            DesktopArchiveMetadata.create("com.termux","aarch64","trixie",
+                new DesktopDistro("gnome","GNOME",DesktopRunMode.PROOT,"debian-gnome-1",DesktopDe.GNOME,
+                    DesktopGlMode.LLVMPIPE,"1280x720",30),null,null);
+            fail("GNOME needs an explicit archive format implementation");
+        } catch (IllegalArgumentException expected) {
+            assertEquals("unsupported_archive_desktop_distribution", expected.getMessage());
+        }
+    }
     @Test public void roundTripPreservesContainerSettingsPermissionsAndLinksWithoutOwnership()throws Exception {
         File file=archive();assertFalse(new File(file+".partial").exists());
         DesktopArchiveMetadata checked=inspect(file);

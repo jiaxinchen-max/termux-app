@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_de_gnome">GNOME</string>
+    <string name="desktop_de_gnome_desc">原生：System EGL · 60 Hz；trixie 容器：System EGL 显示，X11/llvmpipe 合成。会话通过 App“停止”结束，不提供会话注销及保存。</string>
+    <string name="desktop_renderer_choose">请选择渲染模式</string>
+    <string name="local_games_prefix_setup_console_title">安装日志</string>
+</resources>

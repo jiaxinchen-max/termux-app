@@ -1,0 +1,17 @@
+project('gnome-settings-daemon-schemas', 'c', version: '48.1')
+gnome = import('gnome')
+schema_dir = get_option('datadir') / 'glib-2.0' / 'schemas'
+conf = configuration_data()
+conf.set('GETTEXT_PACKAGE', 'gnome-settings-daemon')
+foreach name : ['peripherals', 'peripherals.wacom', 'plugins', 'plugins.color', 'plugins.housekeeping', 'plugins.media-keys', 'plugins.power', 'plugins.sharing', 'plugins.xsettings', 'global-shortcuts']
+  configure_file(input: 'data/org.gnome.settings-daemon.' + name + '.gschema.xml.in',
+    output: 'org.gnome.settings-daemon.' + name + '.gschema.xml', configuration: conf,
+    install_dir: schema_dir)
+endforeach
+gnome.mkenums('org.gnome.settings-daemon.enums.xml',
+  sources: 'data/gnome-settings-daemon/gsd-enums.h',
+  comments: '<!-- @comment@ -->', fhead: '<schemalist>',
+  vhead: '  <@type@ id="org.gnome.settings-daemon.@EnumName@">',
+  vprod: '    <value nick="@valuenick@" value="@valuenum@"/>',
+  vtail: '  </@type@>', ftail: '</schemalist>',
+  install_header: true, install_dir: schema_dir)

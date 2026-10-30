@@ -31,3 +31,18 @@ signal_by_name() {
         kill "-$1" "${proc_dir#/proc/}" 2>/dev/null
     done
 }
+
+# The installed bridge's global autostart ignores this desktop's explicit USB policy.
+# Disable only that entry; supported desktop launchers own the storage service lifecycle.
+disable_global_usb_autostart() { # XDG_CONFIG_HOME of this desktop's user
+    autostart_dir="$1/autostart"
+    mkdir -p "$autostart_dir" || return 1
+    autostart_file="$autostart_dir/tusb-desktop.desktop"
+    autostart_temporary="$autostart_file.tmp.$$"
+    if (umask 077; printf '[Desktop Entry]\nType=Application\nName=Termux USB storage\nHidden=true\n' > "$autostart_temporary") &&
+        mv "$autostart_temporary" "$autostart_file"; then
+        return 0
+    fi
+    rm -f "$autostart_temporary"
+    return 1
+}

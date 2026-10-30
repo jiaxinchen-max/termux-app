@@ -1,0 +1,8 @@
+#!@TUSB_SHELL@
+if [ "$#" -eq 0 ]; then
+    echo 'Usage: tusb-camera-run PROGRAM [ARGUMENTS...]' >&2
+    exit 2
+fi
+GST_PLUGIN_PATH='@CMAKE_INSTALL_FULL_LIBDIR@/termux-usb-bridge/gstreamer-1.0'${GST_PLUGIN_PATH:+:$GST_PLUGIN_PATH}
+export GST_PLUGIN_PATH
+exec "$@"

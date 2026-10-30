@@ -13,9 +13,11 @@ import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.domain.DesktopDe;
 import com.termux.ui.domain.DesktopDistro;
 import com.termux.ui.domain.DesktopSessionState;
+import com.termux.ui.domain.DesktopRunMode;
 import com.termux.ui.domain.LaunchExecutionMode;
 import com.termux.ui.runtime.DesktopEnvironment;
 import com.termux.ui.runtime.DesktopLaunchSpec;
+import com.termux.ui.runtime.DesktopRendererPolicy;
 import com.termux.ui.runtime.DesktopSessionStateResolver;
 import com.termux.ui.service.LaunchScriptInstaller;
 
@@ -54,6 +56,8 @@ public final class DesktopTasks {
     public void save(@NonNull DesktopDistro distro) throws IOException {
         synchronized (DesktopOperationGate.LOCK) {
             DesktopOperationGate.requireAvailable();
+            try { DesktopRendererPolicy.requireSupported(distro); }
+            catch (IllegalArgumentException invalid) { throw new IOException(invalid.getMessage(), invalid); }
             Optional<DesktopDistro> previous = repository.find(distro.getId());
             if (previous.isPresent()) {
                 DesktopDistro old = previous.get();
@@ -67,11 +71,22 @@ public final class DesktopTasks {
     static void requireEditableSettings(DesktopDistro old, DesktopDistro updated,
                                         DesktopSessionState state) throws IOException {
         boolean changesRuntime = old.getGlMode() != updated.getGlMode()
+            || old.getUsbStorage() != updated.getUsbStorage()
             || !old.getResolution().equals(updated.getResolution())
             || old.getRefreshRate() != updated.getRefreshRate();
-        if (changesRuntime && (state == DesktopSessionState.RUNNING
-            || state == DesktopSessionState.STARTING)) {
+        if (state == DesktopSessionState.STOPPING || (changesRuntime && state.isActive())) {
             throw new IOException("desktop_settings_stop_required");
+        }
+    }
+
+    static void requireNotStopping(DesktopSessionState state) throws IOException {
+        if (state == DesktopSessionState.STOPPING) throw new IOException("desktop_stopping");
+    }
+
+    private void requireNotStoppingForLaunch(DesktopDistro distro) throws LaunchHostException {
+        try { requireNotStopping(state(distro)); }
+        catch (IOException stopping) {
+            throw new LaunchHostException("desktop_stopping", true, stopping);
         }
     }
 
@@ -84,6 +99,7 @@ public final class DesktopTasks {
             try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
                 throw new LaunchHostException("desktop_archive_busy", true, busy);
             }
+            requireNotStoppingForLaunch(distro);
             // delete() removes the old spec before this call; deploy a fresh explicit removal spec.
             LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
             commandStatus(distro, "removing");
@@ -106,7 +122,7 @@ public final class DesktopTasks {
         synchronized (DesktopOperationGate.LOCK) {
             DesktopOperationGate.requireAvailable();
             DesktopSessionState state = state(distro);
-            if (state == DesktopSessionState.RUNNING || state == DesktopSessionState.STARTING) {
+            if (state.isActive()) {
                 throw new IOException("desktop_running");
             }
             // Submit removal before deleting inventory. Failed submission preserves the record.
@@ -120,7 +136,7 @@ public final class DesktopTasks {
         synchronized (DesktopOperationGate.LOCK) {
             DesktopOperationGate.requireAvailable();
             DesktopSessionState state = state(distro);
-            if (state == DesktopSessionState.RUNNING || state == DesktopSessionState.STARTING) {
+            if (state.isActive()) {
                 throw new IOException("desktop_running");
             }
             new com.termux.ui.platform.DesktopSessionOverrides(context).restore(distro.getId(), null, null);
@@ -133,6 +149,7 @@ public final class DesktopTasks {
             // Companions the start script writes next to the log and the pid file.
             new File(log.getPath() + ".out").delete();
             new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".container").delete();
+            new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".gnome-ready").delete();
 
         }
     }
@@ -146,13 +163,18 @@ public final class DesktopTasks {
         boolean installed = environment.isInstalled(distro);
         if (!installed) return DesktopSessionState.NOT_INSTALLED;
         File pidFile = paths.getDesktopPidFile(distro.getId());
-        boolean alive = isAlive(readPid(pidFile));
+        long pid = readPid(pidFile);
+        boolean alive = isAlive(pid);
         boolean socket;
         boolean ready;
         if (distro.getDe() == DesktopDe.KWIN_PLASMA) {
             socket = alive && environment.waylandSocket(Process.myUid()).exists();
             ready = socket && DesktopEnvironment.logShowsReady(
                 paths.getDesktopLogFile(distro.getId()));
+        } else if (distro.getDe() == DesktopDe.GNOME) {
+            socket = alive && (distro.getRunMode() == DesktopRunMode.NATIVE
+                ? environment.gnomeWaylandSocket(distro).exists() : environment.x11Socket().exists());
+            ready = socket && DesktopEnvironment.gnomeReadyMarkerMatches(pidFile, pid);
         } else {
             // Xlorie sessions: the X socket coming up is the ready marker.
             socket = alive && environment.x11Socket().exists();
@@ -160,6 +182,10 @@ public final class DesktopTasks {
         }
         return DesktopSessionStateResolver.resolve(true, alive, socket, ready,
             readStatus(paths.getDesktopStatusFile(distro.getId())));
+    }
+
+    public boolean hasTerminalFailureStatus(@NonNull DesktopDistro distro) {
+        return DesktopSessionStateResolver.isFailureStatus(readStatus(paths.getDesktopStatusFile(distro.getId())));
     }
 
     /** Last part of the distribution's log, for the in-app log viewer. */
@@ -175,6 +201,7 @@ public final class DesktopTasks {
             try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
                 throw new LaunchHostException("desktop_archive_busy", true, busy);
             }
+            requireNotStoppingForLaunch(distro);
             String taskId = "desktop-install-" + distro.getId() + "-" + System.currentTimeMillis();
             LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
             commandStatus(distro, "installing");
@@ -205,6 +232,7 @@ public final class DesktopTasks {
             try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
                 throw new LaunchHostException("desktop_archive_busy", true, busy);
             }
+            requireNotStoppingForLaunch(distro);
             LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
             LocalGamesHost host = LocalGames.requireHost(context);
             host.prepareLaunchRuntime();
@@ -228,6 +256,7 @@ public final class DesktopTasks {
             try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
                 throw new LaunchHostException("desktop_archive_busy", true, busy);
             }
+            if (state(distro) == DesktopSessionState.STOPPING) return;
             LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
             commandStatus(distro, "stopping");
             try {

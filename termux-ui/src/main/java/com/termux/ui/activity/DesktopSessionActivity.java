@@ -91,6 +91,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     private boolean startRequested;
     private long startRequestedAtMs;
     private boolean everRunning;
+    private boolean stoppingObserved;
     private boolean firstFrame;
     private int selectedCategory = CATEGORY_OPERATION;
     private AudioManager audioManager;
@@ -151,7 +152,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
         binding.desktopSessionX11.setDialogPaletteProvider(() -> GameDialogPalettes.frosted(this));
         binding.desktopSessionX11.setImmersive(true);
-        binding.desktopSessionX11.bind(this, distro.getResolution(), new X11SessionView.Listener() {
+        binding.desktopSessionX11.bind(this, distro.getResolution(), distro.getRefreshRate(), new X11SessionView.Listener() {
             @Override public void onConnectionChanged(boolean connected) {
                 displayConnected = connected;
                 updateMetricsSampling();
@@ -186,20 +187,26 @@ public final class DesktopSessionActivity extends AppCompatActivity {
         ioExecutor.execute(() -> {
             DesktopSessionState observed = tasks.state(distro);
             if (!startRequested && observed != DesktopSessionState.NOT_INSTALLED
-                && observed != DesktopSessionState.STARTING
-                && observed != DesktopSessionState.RUNNING) {
+                && !observed.isActive()) {
                 startRequested = true;
                 startRequestedAtMs = System.currentTimeMillis();
                 try {
                     tasks.start(distro);
                 } catch (LaunchHostException error) {
-                    runOnUiThread(() -> showFailure(getString(R.string.desktop_error,
-                        error.getErrorCode())));
+                    runOnUiThread(() -> {
+                        if ("desktop_stopping".equals(error.getErrorCode())) {
+                            onState(DesktopSessionState.STOPPING);
+                        } else {
+                            showFailure(getString(R.string.desktop_error, error.getErrorCode()));
+                        }
+                    });
                     return;
                 }
             }
             boolean inGrace = startRequested && observed != DesktopSessionState.RUNNING
                 && observed != DesktopSessionState.NOT_INSTALLED
+                && observed != DesktopSessionState.STOPPING
+                && !tasks.hasTerminalFailureStatus(distro)
                 && System.currentTimeMillis() - startRequestedAtMs < START_GRACE_MS;
             DesktopSessionState state = inGrace ? DesktopSessionState.STARTING : observed;
             runOnUiThread(() -> onState(state));
@@ -224,9 +231,18 @@ public final class DesktopSessionActivity extends AppCompatActivity {
             case FAILED:
                 showFailure(getString(R.string.desktop_session_failed));
                 return;
+            case STOPPING:
+                startRequested = true;
+                stoppingObserved = true;
+                binding.desktopSessionWaiting.setVisibility(View.VISIBLE);
+                binding.desktopSessionProgress.setVisibility(View.VISIBLE);
+                binding.desktopSessionStatus.setText(R.string.desktop_state_stopping);
+                binding.desktopSessionDrawerLayer.setVisibility(View.GONE);
+                binding.desktopSessionMenu.setEnabled(false);
+                break;
             case INSTALLED:
                 // Our start was submitted and the desktop later went away: stopped from outside.
-                if (everRunning) {
+                if (everRunning || stoppingObserved) {
                     finish();
                     return;
                 }
@@ -238,7 +254,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     }
 
     private void showDesktop() {
-        if (binding != null) binding.desktopSessionWaiting.setVisibility(View.GONE);
+        if (binding != null && !stoppingObserved) binding.desktopSessionWaiting.setVisibility(View.GONE);
     }
 
     private void showFailure(String message) {

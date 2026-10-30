@@ -1,0 +1,125 @@
+--- a/meson.options
++++ b/meson.options
+@@ -230,3 +230,5 @@
+   value: true,
+   description: 'Integrate bash completion for gdctl'
+ )
++
++option('android_backend', type: 'boolean', value: false, description: 'termux-render Android GPU backend')
+--- a/meson.build
++++ b/meson.build
+@@ -269,6 +269,7 @@
+   endif
+ endif
+ 
++have_android_backend = get_option('android_backend')
+ have_native_backend = get_option('native_backend')
+ if have_native_backend
+   libgbm_dep = dependency('gbm', version: gbm_req)
+@@ -568,6 +569,7 @@
+ cdata.set('HAVE_EGL_PLATFORM_XLIB', have_egl_xlib)
+ cdata.set('HAVE_GL', have_gl)
+ cdata.set('HAVE_GLES2', have_gles2)
++cdata.set('HAVE_ANDROID_BACKEND', have_android_backend)
+ cdata.set('HAVE_WAYLAND', have_wayland)
+ cdata.set('HAVE_XWAYLAND', have_xwayland)
+ cdata.set('HAVE_X11', have_x11)
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -180,6 +180,20 @@
+   mutter_c_args += [
+     '-DWITH_VERBOSE_MODE'
+   ]
++endif
++
++if have_android_backend
++  mutter_deps += [dependency('termux-render'), cc.find_library('android')]
++  shared_library('mutter-android-system-egl', 'backends/android/system-egl.c',
++    dependencies: [glib_dep, cc.find_library('termux-platform-ns')],
++    install: true, install_dir: libdir / 'mutter-16')
++  shared_library('vndksupport', 'backends/android/vndksupport.c',
++    dependencies: [cc.find_library('dl')],
++    install: true, install_dir: libdir / 'mutter-16')
++
++  executable('mutter-android-egl-probe', 'backends/android/egl-probe.c',
++    dependencies: [cc.find_library('termux-platform-ns'), cc.find_library('dl')],
++    install: true, install_dir: libexecdir)
+ endif
+ 
+ mutter_sources = [
+@@ -760,6 +764,10 @@
+   endif
+ endif
+ 
++if have_android_backend
++  mutter_sources += ['backends/android/meta-backend-android.c', 'backends/android/meta-backend-android.h']
++endif
++
+ if have_native_backend
+   mutter_sources += [
+     'backends/native/meta-backend-native.c',
+--- a/src/core/meta-context-main.c
++++ b/src/core/meta-context-main.c
+@@ -21,6 +21,9 @@
+ #include "config.h"
+ 
+ #include "core/meta-context-main.h"
++#ifdef HAVE_ANDROID_BACKEND
++#include "backends/android/meta-backend-android.h"
++#endif
+ 
+ #include <glib.h>
+ #include <gio/gio.h>
+@@ -495,6 +498,19 @@
+ meta_context_main_create_backend (MetaContext  *context,
+                                   GError      **error)
+ {
++#ifdef HAVE_ANDROID_BACKEND
++  if (g_strcmp0 (g_getenv ("MUTTER_BACKEND"), "android") == 0)
++    {
++      if (meta_context_get_compositor_type (context) != META_COMPOSITOR_TYPE_WAYLAND)
++        {
++          g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT,
++                       "Android backend requires --wayland");
++          return NULL;
++        }
++      return g_initable_new (META_TYPE_BACKEND_ANDROID, NULL, error,
++                             "context", context, NULL);
++    }
++#endif
+ #ifdef HAVE_WAYLAND
+   MetaContextMain *context_main = META_CONTEXT_MAIN (context);
+ #endif
+--- a/config.h.meson
++++ b/config.h.meson
+@@ -56,6 +56,7 @@
+ 
+ /* Define if you want to enable the native (KMS) backend based on systemd */
+ #mesondefine HAVE_NATIVE_BACKEND
++#mesondefine HAVE_ANDROID_BACKEND
+ 
+ /* Define if you want to enable Wayland support */
+ #mesondefine HAVE_WAYLAND
+--- a/src/core/display.c
++++ b/src/core/display.c
+@@ -93,6 +93,9 @@
+ #ifdef HAVE_NATIVE_BACKEND
+ #include "backends/native/meta-backend-native.h"
+ #endif
++#ifdef HAVE_ANDROID_BACKEND
++#include "backends/android/meta-backend-android.h"
++#endif
+ 
+ /*
+  * Sometimes we want to see whether a window is responding,
+@@ -659,6 +662,10 @@
+   MetaBackend *backend = backend_from_display (display);
+ 
+ #ifdef HAVE_WAYLAND
++#ifdef HAVE_ANDROID_BACKEND
++  if (META_IS_BACKEND_ANDROID (backend))
++    return META_COMPOSITOR (meta_compositor_server_new (display, backend));
++#endif
+ #ifdef HAVE_NATIVE_BACKEND
+   if (META_IS_BACKEND_NATIVE (backend))
+     return META_COMPOSITOR (meta_compositor_native_new (display, backend));

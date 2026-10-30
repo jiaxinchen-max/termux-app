@@ -1,10 +1,13 @@
 package com.termux.ui.runtime;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.termux.ui.domain.DesktopDistro;
+import com.termux.ui.domain.DesktopDe;
+import com.termux.ui.domain.DesktopUsbStorageMode;
 import com.termux.ui.domain.DesktopGlMode;
 import com.termux.ui.domain.DesktopRunMode;
 
@@ -61,5 +64,56 @@ public class DesktopLaunchSpecTest {
             DesktopLaunchSpec.encode(distro, "/a.pid;x", "/a.status", "/a.log"));
         assertThrows(IllegalArgumentException.class, () ->
             DesktopLaunchSpec.encode(distro, "a.pid", "/a.status", "/a.log"));
+    }
+    @Test public void gnomeSpecSelectsExactBackendRendererAndContainerRelease() {
+        DesktopDistro nativeGnome=new DesktopDistro("g","GNOME",DesktopRunMode.NATIVE,"",
+            DesktopDe.GNOME,DesktopGlMode.SYSTEM,"1280x720",60);
+        Map<String,String> nativeSpec=parse(DesktopLaunchSpec.encode(nativeGnome,"/p","/s","/l"));
+        assertEquals("gnome",nativeSpec.get("DESKTOP_DE"));
+        assertEquals("android",nativeSpec.get("DESKTOP_GNOME_BACKEND"));
+        assertEquals("direct",nativeSpec.get("DESKTOP_GNOME_SESSION_STARTUP"));
+        assertEquals("system",nativeSpec.get("DESKTOP_GNOME_RENDERER"));
+        assertEquals("60",nativeSpec.get("DESKTOP_REFRESH_RATE"));
+        assertFalse(nativeSpec.containsKey("DESKTOP_GNOME_DISPLAY_GL_MODE"));
+        DesktopDistro prootGnome=new DesktopDistro("gp","GNOME",DesktopRunMode.PROOT,"debian-gnome-1",
+            DesktopDe.GNOME,DesktopGlMode.LLVMPIPE,"1920x1080",90);
+        Map<String,String> prootSpec=parse(DesktopLaunchSpec.encode(prootGnome,"/p","/s","/l"));
+        assertEquals("x11",prootSpec.get("DESKTOP_GNOME_BACKEND"));
+        assertEquals("direct",prootSpec.get("DESKTOP_GNOME_SESSION_STARTUP"));
+        assertEquals("llvmpipe",prootSpec.get("DESKTOP_GNOME_RENDERER"));
+        assertEquals("llvmpipe",prootSpec.get("DESKTOP_GL_MODE"));
+        assertEquals("system",prootSpec.get("DESKTOP_GNOME_DISPLAY_GL_MODE"));
+        assertEquals("trixie",prootSpec.get("DESKTOP_CONTAINER_CODENAME"));
+        assertEquals("90",prootSpec.get("DESKTOP_REFRESH_RATE"));
+        assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(nativeGnome.withOutput("1280x720",30),"/p","/s","/l"));
+        assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(nativeGnome.withGlMode(DesktopGlMode.ZINK),"/p","/s","/l"));
+        assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(prootGnome.withGlMode(DesktopGlMode.SYSTEM),"/p","/s","/l"));
+        assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(prootGnome.withGlMode(DesktopGlMode.ZINK),"/p","/s","/l"));
+        assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(nativeGnome.withGlMode(DesktopGlMode.LLVMPIPE),"/p","/s","/l"));
+        assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(prootGnome.withGlMode(DesktopGlMode.AUTO),"/p","/s","/l"));
+    }
+    @Test public void independentGnomeDisplayModeNeverLeaksIntoOtherDesktops() {
+        for(DesktopDe de:new DesktopDe[]{DesktopDe.XFCE4,DesktopDe.KWIN_PLASMA}) {
+            for(DesktopRunMode runMode:DesktopRunMode.values()) {
+                DesktopDistro desktop=new DesktopDistro("other","Desktop",runMode,
+                    runMode==DesktopRunMode.PROOT?"debian-test-1":"",de,DesktopGlMode.LLVMPIPE,"1280x720",60);
+                Map<String,String> spec=parse(DesktopLaunchSpec.encode(desktop,"/p","/s","/l"));
+                assertEquals("llvmpipe",spec.get("DESKTOP_GL_MODE"));
+                assertFalse(spec.containsKey("DESKTOP_GNOME_DISPLAY_GL_MODE"));
+                assertFalse(spec.containsKey("DESKTOP_GNOME_RENDERER"));
+                assertFalse(spec.containsKey("DESKTOP_GNOME_SESSION_STARTUP"));
+            }
+        }
+    }
+    @Test public void usbStoragePolicyIsAlwaysExplicit() {
+        DesktopDistro d=new DesktopDistro("n","n",DesktopRunMode.NATIVE,"",DesktopDe.XFCE4,DesktopGlMode.SYSTEM,"1280x720",60);
+        assertEquals("off",parse(DesktopLaunchSpec.encode(d,"/p","/s","/l")).get("DESKTOP_USB_STORAGE"));
+        assertEquals("read-only",parse(DesktopLaunchSpec.encode(d.withUsbStorage(DesktopUsbStorageMode.READ_ONLY),"/p","/s","/l")).get("DESKTOP_USB_STORAGE"));
+    }
+    @Test public void unsupportedUsbDesktopNeverProducesLaunchSpec() {
+        DesktopDistro plasma=new DesktopDistro("p","Plasma",DesktopRunMode.NATIVE,"",DesktopGlMode.SYSTEM,"1280x720",60)
+            .withUsbStorage(DesktopUsbStorageMode.READ_ONLY);
+        assertEquals("desktop_usb_storage_requires_gio_sidebar",assertThrows(IllegalArgumentException.class,
+            ()->DesktopLaunchSpec.encode(plasma,"/p","/s","/l")).getMessage());
     }
 }

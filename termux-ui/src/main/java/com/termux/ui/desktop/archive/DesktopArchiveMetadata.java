@@ -25,6 +25,8 @@ public final class DesktopArchiveMetadata {
         if (!"aarch64".equals(architecture)) throw new IllegalArgumentException("unsupported_archive_architecture");
         if (desktop == null || desktop.getRunMode() != DesktopRunMode.PROOT)
             throw new IllegalArgumentException("archive_requires_container");
+        if (desktop.getUsbStorage() != com.termux.ui.domain.DesktopUsbStorageMode.OFF)
+            throw new IllegalArgumentException("archive_requires_usb_storage_off");
         if (desktop.getGlMode() == DesktopGlMode.AUTO)
             throw new IllegalArgumentException("archive_requires_explicit_renderer");
         if (!(desktop.getDe() == DesktopDe.XFCE4 && "trixie".equals(codename))

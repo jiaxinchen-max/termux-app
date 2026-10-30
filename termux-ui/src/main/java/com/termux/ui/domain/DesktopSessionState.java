@@ -6,5 +6,11 @@ public enum DesktopSessionState {
     INSTALLED,
     STARTING,
     RUNNING,
-    FAILED
+    STOPPING,
+    FAILED;
+
+    /** An active desktop still owns its files/runtime, including while cleanup is pending. */
+    public boolean isActive() {
+        return this == STARTING || this == RUNNING || this == STOPPING;
+    }
 }

@@ -4,6 +4,7 @@ import com.termux.ui.domain.DesktopDe;
 import com.termux.ui.domain.DesktopDistro;
 import com.termux.ui.domain.DesktopGlMode;
 import com.termux.ui.domain.DesktopRunMode;
+import com.termux.ui.domain.DesktopUsbStorageMode;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,7 +29,7 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
 
     private static final String SUFFIX = ".properties";
     private static final Set<String> KEYS = new HashSet<>(Arrays.asList("schemaVersion", "id",
-        "name", "runMode", "prootDistro", "de", "glMode", "resolution", "refreshRate"));
+        "name", "runMode", "prootDistro", "de", "glMode", "resolution", "refreshRate", "usbStorage"));
 
     private final File directory;
 
@@ -128,7 +129,8 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
                 DesktopDe.fromStorageValue(required(properties, "de")),
                 DesktopGlMode.fromStorageValue(required(properties, "glMode")),
                 required(properties, "resolution"),
-                Integer.parseInt(required(properties, "refreshRate")));
+                Integer.parseInt(required(properties, "refreshRate")),
+                DesktopUsbStorageMode.fromStorageValue(properties.getProperty("usbStorage", "off")));
             if (!file.getName().equals(distro.getId() + SUFFIX)) {
                 throw new IOException("desktop_id_file_mismatch");
             }
@@ -149,6 +151,7 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
         result.setProperty("glMode", distro.getGlMode().getStorageValue());
         result.setProperty("resolution", distro.getResolution());
         result.setProperty("refreshRate", Integer.toString(distro.getRefreshRate()));
+        result.setProperty("usbStorage", distro.getUsbStorage().getStorageValue());
         return result;
     }
 

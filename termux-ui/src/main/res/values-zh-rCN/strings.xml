@@ -570,6 +570,7 @@
     <string name="desktop_state_not_installed">未安装</string>
     <string name="desktop_state_installed">就绪</string>
     <string name="desktop_state_starting">启动中…</string>
+    <string name="desktop_state_stopping">停止中…</string>
     <string name="desktop_state_running">运行中</string>
     <string name="desktop_state_failed">失败</string>
     <string name="desktop_action_install">安装</string>

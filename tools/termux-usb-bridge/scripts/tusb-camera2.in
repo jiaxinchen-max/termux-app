@@ -1,0 +1,2 @@
+#!@TUSB_SHELL@
+exec python3 '@CMAKE_INSTALL_FULL_DATADIR@/termux-usb-bridge/camera2.py' --libexec '@CMAKE_INSTALL_FULL_LIBEXECDIR@/termux-usb-bridge' "$@"

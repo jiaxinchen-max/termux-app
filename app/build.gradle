@@ -47,6 +47,7 @@ android {
         implementation project(":terminal-view")
         implementation project(":termux-shared")
         implementation project(":termux-ui")
+        implementation project(":termux-usb")
 //        implementation project(":termux-x11")
         implementation (project(':termux-x11')){
             exclude group: 'androidx.preference'

@@ -1,0 +1,19 @@
+project('localsearch-schemas', 'c', version: '3.9.0')
+gnome = import('gnome')
+schema_dir = get_option('datadir') / 'glib-2.0' / 'schemas'
+conf = configuration_data()
+# No indexing daemon is installed. Keep both directory lists empty.
+conf.set('INDEX_RECURSIVE_DIRS', '')
+conf.set('INDEX_SINGLE_DIRS', '')
+foreach name : ['Extract', 'FTS', 'Miner.Files']
+  configure_file(input: 'data/org.freedesktop.Tracker.' + name + '.gschema.xml',
+    output: 'org.freedesktop.Tracker3.' + name + '.gschema.xml',
+    configuration: conf, install_dir: schema_dir)
+endforeach
+gnome.mkenums('org.freedesktop.TrackerMiners3.enums.xml',
+  sources: 'src/common/tracker-enums.h',
+  comments: '<!-- @comment@ -->', fhead: '<schemalist>',
+  vhead: '  <@type@ id="org.freedesktop.TrackerMiners3.@EnumName@">',
+  vprod: '    <value nick="@valuenick@" value="@valuenum@"/>',
+  vtail: '  </@type@>', ftail: '</schemalist>',
+  install_header: true, install_dir: schema_dir)

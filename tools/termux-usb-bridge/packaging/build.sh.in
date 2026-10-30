@@ -1,0 +1,79 @@
+TERMUX_PKG_HOMEPAGE=https://github.com/termux/termux-api
+TERMUX_PKG_DESCRIPTION="Android Camera2/USB UVC/PipeWire, SDL gamepad and FAT/exFAT bridge for Termux and PRoot"
+TERMUX_PKG_LICENSE="MIT, BSD 3-Clause, custom, LGPL-2.1"
+TERMUX_PKG_LICENSE_FILE="LICENSE, third_party/libuvc/LICENSE.txt, third_party/fatfs/LICENSE, COPYING.libusb, third_party/pipewire-gst/COPYING"
+TERMUX_PKG_MAINTAINER="@termux"
+TERMUX_PKG_VERSION=0.4.1
+TERMUX_PKG_SRCURL="file://${TERMUX_PKG_BUILDER_DIR}/termux-usb-bridge-${TERMUX_PKG_VERSION}.tar.gz"
+TERMUX_PKG_SHA256=@SOURCE_SHA256@
+TERMUX_PKG_DEPENDS="python, termux-api, libusb, libjpeg-turbo, pipewire, sdl2, sdl3, glib, gvfs, dbus, gstreamer, gst-plugins-base"
+TERMUX_PKG_BUILD_DEPENDS=""
+TERMUX_PKG_EXTRA_CONFIGURE_ARGS="-DBUILD_TESTING=OFF -DTUSB_WITH_LIBUSB=ON -DTUSB_ADAPTERS=ON -DTUSB_DESKTOP=ON -DTUSB_CAMERA2=ON -DTUSB_GSTREAMER=ON"
+
+termux_step_pre_configure() {
+    local archive="$TERMUX_PKG_CACHEDIR/libusb-1.0.30.tar.bz2"
+    termux_download https://github.com/libusb/libusb/releases/download/v1.0.30/libusb-1.0.30.tar.bz2 \
+        "$archive" fea36f34f9156400209595e300840767ab1a385ede1dc7ee893015aea9c6dbaf
+    mkdir -p "$TERMUX_PKG_TMPDIR/bridge-libusb-src" "$TERMUX_PKG_TMPDIR/bridge-libusb-build"
+    tar xf "$archive" -C "$TERMUX_PKG_TMPDIR/bridge-libusb-src" --strip-components=1
+    python3 "$TERMUX_PKG_SRCDIR/scripts/apply-libusb.py" "$TERMUX_PKG_TMPDIR/bridge-libusb-src"
+    cp "$TERMUX_PKG_TMPDIR/bridge-libusb-src/COPYING" "$TERMUX_PKG_SRCDIR/COPYING.libusb"
+    (
+        cd "$TERMUX_PKG_TMPDIR/bridge-libusb-build"
+        "$TERMUX_PKG_TMPDIR/bridge-libusb-src/configure" --host="$TERMUX_HOST_PLATFORM" \
+            --prefix="$TERMUX_PREFIX/opt/termux-usb-bridge" --disable-udev --disable-static
+        make -j "${TERMUX_PKG_MAKE_PROCESSES:-8}"
+    )
+}
+
+termux_step_make_install() {
+    if [ "$TERMUX_ON_DEVICE_BUILD" = true ]; then
+        DESTDIR="$TERMUX_PKG_MASSAGEDIR" cmake --install "$TERMUX_PKG_BUILDDIR"
+    else
+        cmake --install "$TERMUX_PKG_BUILDDIR"
+    fi
+}
+
+termux_step_post_make_install() {
+    local tusb_install_prefix="$TERMUX_PREFIX"
+    local tusb_stage=""
+    if [ "$TERMUX_ON_DEVICE_BUILD" = true ]; then
+        tusb_stage="$TERMUX_PKG_MASSAGEDIR"
+        tusb_install_prefix="$tusb_stage$TERMUX_PREFIX"
+    fi
+    make -C "$TERMUX_PKG_TMPDIR/bridge-libusb-build" DESTDIR="$tusb_stage" install
+    install -Dm644 "$TERMUX_PKG_SRCDIR/LICENSE" "$tusb_install_prefix/share/doc/termux-usb-bridge/LICENSE"
+    install -Dm644 "$TERMUX_PKG_SRCDIR/README.md" "$tusb_install_prefix/share/doc/termux-usb-bridge/README.md"
+    install -Dm644 "$TERMUX_PKG_SRCDIR/VALIDATION.md" "$tusb_install_prefix/share/doc/termux-usb-bridge/VALIDATION.md"
+    mkdir -p "$tusb_install_prefix/share/termux-usb-bridge/sdk"
+    cp -R "$TERMUX_PKG_SRCDIR/include" "$TERMUX_PKG_SRCDIR/src" \
+        "$TERMUX_PKG_SRCDIR/desktop" "$TERMUX_PKG_SRCDIR/libusb" "$TERMUX_PKG_SRCDIR/scripts" "$TERMUX_PKG_SRCDIR/third_party" "$TERMUX_PKG_SRCDIR/tests" \
+        "$tusb_install_prefix/share/termux-usb-bridge/sdk/"
+    cp "$TERMUX_PKG_SRCDIR/CMakeLists.txt" "$TERMUX_PKG_SRCDIR/termux-usb-bridge.pc.in" \
+        "$TERMUX_PKG_SRCDIR/broker.py" "$TERMUX_PKG_SRCDIR/filesystem.py" "$TERMUX_PKG_SRCDIR/desktop.py" "$TERMUX_PKG_SRCDIR/camera2.py" \
+        "$TERMUX_PKG_SRCDIR/README.md" "$TERMUX_PKG_SRCDIR/LICENSE" "$TERMUX_PKG_SRCDIR/VALIDATION.md" \
+        "$tusb_install_prefix/share/termux-usb-bridge/sdk/"
+    if [ "$TERMUX_ON_DEVICE_BUILD" = true ]; then
+        # Upstream's license installer runs after this hook and writes into the
+        # live prefix. Stage the declared licenses as well for an isolated deb.
+        cp "$TERMUX_PKG_SRCDIR/COPYING.libusb" "$tusb_install_prefix/share/doc/termux-usb-bridge/COPYING.libusb"
+    fi
+}
+
+termux_step_copy_into_massagedir() {
+    # On-device installs already used DESTDIR. Do not scan unrelated live
+    # containers or package-manager state under the user's prefix.
+    if [ "$TERMUX_ON_DEVICE_BUILD" = true ]; then return; fi
+    local tusb_dest="$TERMUX_PKG_MASSAGEDIR/$TERMUX_PREFIX_CLASSICAL"
+    mkdir -p "$tusb_dest"
+    tar -C "$TERMUX_PREFIX_CLASSICAL" -N "$TERMUX_BUILD_TS_FILE" --exclude=tmp --exclude=__pycache__ -cf - . | tar -C "$tusb_dest" -xf -
+}
+
+termux_step_create_debscripts() {
+    cat > postinst <<EOF
+#!$TERMUX_PREFIX/bin/sh
+gio-querymodules "$TERMUX_PREFIX/lib/gio/modules"
+EOF
+    cp postinst postrm
+    chmod 755 postinst postrm
+}

@@ -118,7 +118,8 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
             file.touch()
         for asset in ('desktop_install.sh','desktop_common.sh'):
             shutil.copy(assets/asset, case/asset)
-        spec = dict(DESKTOP_MODE='proot', DESKTOP_DE=de, DESKTOP_GL_MODE='system',
+        spec = dict(DESKTOP_MODE='proot', DESKTOP_DE=de,
+                    DESKTOP_GL_MODE='llvmpipe' if de=='kwin_plasma' else 'system', DESKTOP_USB_STORAGE='off',
                     DESKTOP_LOG_FILE=str(case/'install.log'), DESKTOP_PID_FILE=str(case/'state/pid'),
                     DESKTOP_STATUS_FILE=str(case/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.6-r27')
         spec.update(data.get('spec', {}))

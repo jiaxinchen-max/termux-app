@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: MIT
+# Upstream AccountsService D-Bus client; no system account daemon is installed.
+project('accountsservice', 'c', version: '23.13.9', license: 'GPL-3.0-or-later')
+gnome = import('gnome')
+pkg = import('pkgconfig')
+cc = meson.get_compiler('c')
+glib_dep = dependency('glib-2.0')
+gio_dep = dependency('gio-2.0')
+gio_unix_dep = dependency('gio-unix-2.0')
+crypt_dep = cc.find_library('crypt')
+logind_dep = declare_dependency()
+top_inc = include_directories('.', 'src')
+act_id = 'Act'
+act_name = 'accountsservice'
+act_api_name = 'accountsservice-1.0'
+act_api_version = '1.0'
+act_namespace = 'org.freedesktop.Accounts'
+act_pkgincludedir = get_option('prefix') / get_option('includedir') / act_api_name
+libversion = '0.0.0'
+cdata = configuration_data()
+cdata.set_quoted('GETTEXT_PACKAGE', 'accounts-service')
+cdata.set_quoted('VERSION', meson.project_version())
+cdata.set('HAVE_PATHS_H', cc.has_header('paths.h'))
+configure_file(output: 'config.h', configuration: cdata)
+sources = []
+gdbus_headers = []
+foreach iface : [['accounts-generated', 'org.freedesktop.', 'Accounts'],
+                 ['accounts-user-generated', act_namespace + '.', 'User']]
+  gen = gnome.gdbus_codegen(iface[0],
+      'data' / (iface[1] + iface[2] + '.xml'),
+      interface_prefix: iface[1], namespace: 'Accounts',
+      extra_args: ['--glib-min-required', '2.64'])
+  sources += gen
+  gdbus_headers += gen[1]
+endforeach
+libaccounts_generated = static_library('accounts-generated', sources,
+    include_directories: top_inc, dependencies: [gio_dep, gio_unix_dep])
+libaccounts_generated_dep = declare_dependency(sources: gdbus_headers,
+    include_directories: include_directories('.'), dependencies: gio_dep,
+    link_with: libaccounts_generated)
+subdir('src/libaccountsservice')

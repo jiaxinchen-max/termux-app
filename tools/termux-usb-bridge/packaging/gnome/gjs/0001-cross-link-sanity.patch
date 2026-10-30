@@ -1,0 +1,34 @@
+--- a/meson.build
++++ b/meson.build
+@@ -255,20 +255,26 @@
+ # Check if a minimal SpiderMonkey program compiles, links, and runs. If not,
+ # it's most likely the case that SpiderMonkey was configured incorrectly, for
+ # example by building mozglue as a shared library.
+-minimal_program = cxx.run('''
++minimal_program_source = '''
+ #include <js/Initialization.h>
+ int main(void) {
+     if (!JS_Init()) return 1;
+     JS_ShutDown();
+     return 0;
+ }
+-''',
+-    args: debug_arg, dependencies: spidermonkey,
+-    name: 'SpiderMonkey sanity check')
++'''
++if meson.is_cross_build()
++    minimal_compiled = cxx.links(minimal_program_source, args: debug_arg,
++        dependencies: spidermonkey, name: 'SpiderMonkey cross link sanity check')
++else
++    minimal_program = cxx.run(minimal_program_source, args: debug_arg,
++        dependencies: spidermonkey, name: 'SpiderMonkey sanity check')
++    minimal_compiled = minimal_program.compiled()
++endif
+ 
+ recommended_configuration = ''' Check the recommended configuration:
+ https://github.com/spidermonkey-embedders/spidermonkey-embedding-examples/blob/esr91/docs/Building%20SpiderMonkey.md'''
+-if not minimal_program.compiled()
++if not minimal_compiled
+     error('''A minimal SpiderMonkey program
+ could not be compiled or linked. Most likely you should build it with a
+ different configuration.''' + recommended_configuration)

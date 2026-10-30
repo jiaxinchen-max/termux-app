@@ -27,9 +27,9 @@ public class DesktopCreationCatalogTest {
         List<DesktopDistro> existing = Collections.singletonList(
             desktop("n1", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA));
 
-        assertEquals(Collections.singletonList(DesktopDe.XFCE4),
+        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.GNOME),
             DesktopCreationCatalog.nativeOptions(existing));
-        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA),
+        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.GNOME),
             DesktopCreationCatalog.nativeOptions(Collections.emptyList()));
     }
 
@@ -39,7 +39,7 @@ public class DesktopCreationCatalogTest {
             desktop("c1", DesktopRunMode.PROOT, "debian-xfce4-1", DesktopDe.XFCE4),
             desktop("c2", DesktopRunMode.PROOT, "debian-xfce4-2", DesktopDe.XFCE4));
 
-        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA),
+        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.GNOME),
             DesktopCreationCatalog.containerOptions());
         assertEquals(2, DesktopCreationCatalog.count(existing, "debian", DesktopDe.XFCE4));
     }
@@ -51,6 +51,7 @@ public class DesktopCreationCatalogTest {
 
         assertEquals("debian-xfce4-2", DesktopCreationCatalog.nextInstanceAlias(existing,
             "debian", DesktopDe.XFCE4));
+        assertEquals("debian-gnome-1",DesktopCreationCatalog.nextInstanceAlias(existing,"debian",DesktopDe.GNOME));
         assertEquals("debian-kwin-plasma-1", DesktopCreationCatalog.nextInstanceAlias(existing,
             "debian", DesktopDe.KWIN_PLASMA));
     }
@@ -61,6 +62,9 @@ public class DesktopCreationCatalogTest {
         assertFalse(DesktopDe.UBUNTU_GNOME.isCreatable());
         assertTrue(DesktopDe.XFCE4.isCreatable());
         assertTrue(DesktopDe.KWIN_PLASMA.isCreatable());
+        assertTrue(DesktopDe.GNOME.isCreatable());
+        assertEquals("gnome",DesktopDe.GNOME.getStorageValue());
+        assertEquals(DesktopDe.GNOME,DesktopDe.fromStorageValue("gnome"));
     }
 
     @Test

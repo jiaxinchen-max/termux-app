@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: MIT
+# Build upstream GDM's real D-Bus client only; Android provides no GDM/logind.
+project('gdm', 'c', version: '48.0', license: 'GPL-2.0-or-later')
+gnome = import('gnome')
+pkgconfig = import('pkgconfig')
+glib_dep = dependency('glib-2.0')
+gobject_dep = dependency('gobject-2.0')
+gio_dep = dependency('gio-2.0')
+gio_unix_dep = dependency('gio-unix-2.0')
+logind_dep = declare_dependency()
+libgdmcommon_dep = declare_dependency()
+config_h_dir = include_directories('.')
+cdata = configuration_data()
+cdata.set_quoted('GETTEXT_PACKAGE', 'gdm')
+cdata.set_quoted('DATADIR', get_option('prefix') / get_option('datadir'))
+cdata.set_quoted('DMCONFDIR', get_option('prefix') / get_option('sysconfdir') / 'gdm')
+cdata.set('ENABLE_X11_SUPPORT', true)
+cdata.set('ENABLE_WAYLAND_SUPPORT', true)
+configure_file(output: 'config.h', configuration: cdata)
+subdir('libgdm')
+install_data('data/org.gnome.login-screen.gschema.xml',
+  install_dir: get_option('datadir') / 'glib-2.0' / 'schemas')

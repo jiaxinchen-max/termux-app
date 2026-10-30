@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="termux_ahardware_buffer_v1">
+  <copyright>
+    Copyright 2026 Termux Community
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included
+    in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+  </copyright>
+
+  <interface name="termux_ahardware_buffer_manager_v1" version="2">
+    <description summary="create wl_buffers backed by Android hardware buffers">
+      This private protocol is available only in native Android/Bionic builds.
+      Before issuing create_buffer, the client sends one AHardwareBuffer over
+      the supplied AF_UNIX stream socket with
+      AHardwareBuffer_sendHandleToUnixSocket.
+
+      Version 1 uses implicit synchronization. The producer must finish all GPU
+      writes before attaching the returned wl_buffer. wl_buffer.release tells
+      the producer when the compositor no longer reads the buffer.
+    </description>
+
+    <enum name="error">
+      <entry name="invalid_handle" value="0" summary="the socket did not contain an AHardwareBuffer"/>
+      <entry name="invalid_buffer" value="1" summary="the AHardwareBuffer cannot be sampled by the compositor"/>
+    </enum>
+
+    <enum name="buffer_flags" bitfield="true">
+      <entry name="opaque" value="1" summary="ignore the buffer alpha channel"/>
+      <entry name="swap_red_blue" value="2" summary="swap red and blue when sampling"/>
+    </enum>
+
+    <enum name="channel_order">
+      <entry name="unknown" value="0" summary="the probe could not be completed"/>
+      <entry name="identity" value="1" summary="red and blue are sampled without conversion"/>
+      <entry name="swap_red_blue" value="2" summary="red and blue are reversed when sampled"/>
+    </enum>
+
+    <request name="destroy" type="destructor"/>
+
+    <request name="create_buffer">
+      <description summary="import an AHardwareBuffer as a wl_buffer">
+        The socket fd is consumed by the compositor. The imported buffer size,
+        format, stride and usage are obtained from AHardwareBuffer_describe.
+      </description>
+      <arg name="id" type="new_id" interface="wl_buffer"/>
+      <arg name="socket" type="fd"/>
+      <arg name="flags" type="uint"/>
+    </request>
+
+    <request name="probe_buffer" since="2">
+      <description summary="probe compositor sampling of a known-color buffer">
+        The client must render opaque red into the supplied AHardwareBuffer and
+        finish the GPU write before sending it. The compositor imports and
+        samples the buffer through its real rendering context, then replies
+        with probe_result carrying the same token.
+      </description>
+      <arg name="socket" type="fd"/>
+      <arg name="token" type="uint"/>
+    </request>
+
+    <event name="probe_result" since="2">
+      <arg name="token" type="uint"/>
+      <arg name="channel_order" type="uint" enum="channel_order"/>
+    </event>
+  </interface>
+</protocol>
