@@ -53,6 +53,7 @@ final class SharedStorageChooserDialog {
     private final Activity activity;
     private final File root;
     private final boolean saveMode;
+    private final boolean allowOverwrite;
     private final String extension;
     private final OnChosen callback;
     private final ExecutorService executor = Executors.newSingleThreadExecutor(runnable ->
@@ -69,10 +70,11 @@ final class SharedStorageChooserDialog {
     private int generation;
 
     private SharedStorageChooserDialog(Activity activity, File root, boolean saveMode,
-                                       String extension, OnChosen callback) {
+                                       boolean allowOverwrite, String extension, OnChosen callback) {
         this.activity = activity;
         this.root = root;
         this.saveMode = saveMode;
+        this.allowOverwrite = allowOverwrite;
         this.extension = extension;
         this.callback = callback;
         this.current = root;
@@ -97,7 +99,16 @@ final class SharedStorageChooserDialog {
     static SharedStorageChooserDialog chooseSaveFile(Activity activity, File root, String defaultName,
                                                      String extension, OnChosen callback) {
         SharedStorageChooserDialog chooser =
-            new SharedStorageChooserDialog(activity, root, true, extension, callback);
+            new SharedStorageChooserDialog(activity, root, true, true, extension, callback);
+        chooser.show(defaultName);
+        return chooser;
+    }
+
+    /** Pick a new file; an existing destination keeps the chooser open and requires a new name. */
+    static SharedStorageChooserDialog chooseNewSaveFile(Activity activity, File root, String defaultName,
+                                                       String extension, OnChosen callback) {
+        SharedStorageChooserDialog chooser =
+            new SharedStorageChooserDialog(activity, root, true, false, extension, callback);
         chooser.show(defaultName);
         return chooser;
     }
@@ -106,7 +117,7 @@ final class SharedStorageChooserDialog {
     static SharedStorageChooserDialog chooseArchive(Activity activity, File root, String extension,
                                                     OnChosen callback) {
         SharedStorageChooserDialog chooser =
-            new SharedStorageChooserDialog(activity, root, false, extension, callback);
+            new SharedStorageChooserDialog(activity, root, false, false, extension, callback);
         chooser.show(null);
         return chooser;
     }
@@ -252,6 +263,11 @@ final class SharedStorageChooserDialog {
         if (!target.exists()) {
             dialog.dismiss();
             callback.onChosen(target);
+            return;
+        }
+        if (!allowOverwrite) {
+            nameInput.setError(activity.getString(R.string.desktop_archive_destination_exists));
+            nameInput.requestFocus();
             return;
         }
         overwriteDialog = new FrostedDialogBuilder(activity)

@@ -311,7 +311,7 @@ DESKTOP_SPEC_VERSION=2
 DESKTOP_ID=inst
 DESKTOP_MODE=proot
 DESKTOP_DE=xfce4
-DESKTOP_GL_MODE=auto
+DESKTOP_GL_MODE=system
 DESKTOP_PROOT_DISTRO=debian-xfce4-1
 DESKTOP_RESOLUTION=1280x720
 DESKTOP_WIDTH=1280
@@ -330,9 +330,10 @@ export INST_LOG INST_CONTAINERS
 mkdir -p "$INST_ROOT/usr/tmp"
 cp "$ASSETS/desktop_container_plasma_apt.sh" "$TEST_ROOT/desktop_container_plasma_apt.sh"
 PATH="$INST_ROOT/bin:$PATH" PREFIX="$INST_ROOT/usr" TMPDIR="$TEST_ROOT/tmp" \
-    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/inst-spec" > "$TEST_ROOT/inst-stdout" 2>&1 \
+    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/inst-spec" --operation=install > "$TEST_ROOT/inst-stdout" 2>&1 \
     || { tail -n 8 "$TEST_ROOT/inst-stdout"; tail -n 8 "$TEST_ROOT/logs/inst.log" 2>/dev/null; fail "desktop_install.sh did not complete"; }
 grep -q "Desktop install finished" "$TEST_ROOT/logs/inst.log" || fail "install log lacks completion"
+assert_eq "$(cat "$TEST_ROOT/state/inst.status")" exit:0 "completed install status"
 grep -q -- "-n debian-xfce4-1" "$TEST_ROOT/inst-calls" || fail "instance alias not passed: $(cat "$TEST_ROOT/inst-calls")"
 grep -q "desktop_container_plasma_apt.sh --statx-backend=proc-fdinfo xfce4 xfce4-terminal dbus-x11" "$TEST_ROOT/inst-calls" || fail "container xfce4 packages missing: $(cat "$TEST_ROOT/inst-calls")"
 grep -q "login debian-xfce4-1" "$TEST_ROOT/inst-calls" || fail "container session install missing"
@@ -342,7 +343,7 @@ grep -q "login debian-xfce4-1" "$TEST_ROOT/inst-calls" || fail "container sessio
 : > "$TEST_ROOT/inst-calls"
 INST_LOG="$TEST_ROOT/inst-calls" INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-distro/containers" \
     PATH="$INST_ROOT/bin:$PATH" PREFIX="$INST_ROOT/usr" TMPDIR="$TEST_ROOT/tmp" \
-    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/inst-spec" > "$TEST_ROOT/inst-stdout2" 2>&1 \
+    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/inst-spec" --operation=install > "$TEST_ROOT/inst-stdout2" 2>&1 \
     || { tail -n 8 "$TEST_ROOT/inst-stdout2"; fail "second install run did not complete"; }
 grep -q "already present; skipping" "$TEST_ROOT/logs/inst.log" || fail "second run redo container apt"
 grep -q "login debian-xfce4-1" "$TEST_ROOT/inst-calls" && fail "second run re-ran container apt"
@@ -562,7 +563,7 @@ DESKTOP_SPEC_VERSION=2
 DESKTOP_ID=dlfail
 DESKTOP_MODE=native
 DESKTOP_DE=kwin_plasma
-DESKTOP_GL_MODE=auto
+DESKTOP_GL_MODE=system
 DESKTOP_PROOT_DISTRO=
 DESKTOP_RESOLUTION=1280x720
 DESKTOP_WIDTH=1280
@@ -579,7 +580,7 @@ rm -rf "$FAIL_ROOT/usr/tmp"/desktop-debs-* "$TEST_ROOT/tmp"/desktop-debs-* 2>/de
 set +e
 INST_LOG="$FAIL_ROOT/calls" INST_CONTAINERS="$FAIL_ROOT/usr/var/lib/proot-distro/containers" \
     PATH="$FAIL_ROOT/bin:$PATH" PREFIX="$FAIL_ROOT/usr" TMPDIR="$FAIL_ROOT/tmp" \
-    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/dlfail-spec" > "$FAIL_ROOT/stdout" 2>&1
+    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/dlfail-spec" --operation=install > "$FAIL_ROOT/stdout" 2>&1
 code=$?
 set -e
 [ "$code" -ne 0 ] || fail "install reported success although every package download failed"
@@ -617,10 +618,11 @@ FAKE
 chmod +x "$FAIL_ROOT/bin/pkg"
 set +e
 PATH="$FAIL_ROOT/bin:$PATH" PREFIX="$FAIL_ROOT/usr" TMPDIR="$FAIL_ROOT/tmp" \
-    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/dlfail-spec" > "$FAIL_ROOT/apt-stdout" 2>&1
+    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/dlfail-spec" --operation=install > "$FAIL_ROOT/apt-stdout" 2>&1
 code=$?
 set -e
-[ "$code" -ne 0 ] || fail "apt dependency failure reported success"
+assert_eq "$code" 100 "install apt dependency exit"
+assert_eq "$(cat "$TEST_ROOT/state/dlfail.status")" exit:100 "failed install status"
 grep -q 'Command failed (exit 100): pkg install -y x11-repo' "$FAIL_ROOT/apt-stdout" \
     || fail "apt failure omitted command or exit code"
 grep -q 'E: Unmet dependencies: libtest Depends: libmissing (= 2)' "$FAIL_ROOT/apt-stdout" \
@@ -950,7 +952,7 @@ assert_eq "$(status)" stopped "completed stop must not become failed"
 # --- 25. package holds are required, including cached Turnip retries -----------------------
 set +e
 FAKE_HOLD_STATUS=42 PATH="$INST_ROOT/bin:$PATH" PREFIX="$INST_ROOT/usr" TMPDIR="$TEST_ROOT/tmp" \
-    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/inst-spec" > "$TEST_ROOT/hold-failure" 2>&1
+    sh "$TEST_ROOT/desktop_install.sh" "$TEST_ROOT/inst-spec" --operation=install > "$TEST_ROOT/hold-failure" 2>&1
 code=$?
 set -e
 [ "$code" -ne 0 ] || fail "failed Xserver package hold reported installation success"
@@ -1038,6 +1040,7 @@ DESKTOP_MODE=proot
 DESKTOP_REMOVE_METHOD=proot-distro
 DESKTOP_PROOT_DISTRO=debian-test
 SPEC
+printf 'DESKTOP_STATUS_FILE="%s"\n' "$REMOVE_ROOT/status" >> "$REMOVE_ROOT/spec"
 export REMOVE_CALLS="$REMOVE_ROOT/calls"
 set +e
 REMOVE_STATUS=42 PREFIX="$REMOVE_ROOT/usr" PATH="$REMOVE_ROOT/bin:/usr/bin:/bin" \
@@ -1045,6 +1048,7 @@ REMOVE_STATUS=42 PREFIX="$REMOVE_ROOT/usr" PATH="$REMOVE_ROOT/bin:/usr/bin:/bin"
 code=$?
 set -e
 assert_eq "$code" 42 "uninstall original failure exit"
+assert_eq "$(cat "$REMOVE_ROOT/status")" exit:42 "uninstall failure state"
 assert_eq "$(wc -l < "$REMOVE_CALLS" | tr -d ' ')" 1 "uninstall must not retry"
 [ -d "$REMOVE_ROOT/usr/var/lib/proot-distro/containers/debian-test" ] || fail "failed uninstall fell back to deleting rootfs"
 grep -q 'original uninstall diagnostic' "$REMOVE_ROOT/out" || fail "uninstall original error was hidden"
@@ -1052,6 +1056,7 @@ assert_eq "$(cat "$REMOVE_CALLS")" 'remove debian-test' "explicit uninstall comm
 REMOVE_STATUS=0 PREFIX="$REMOVE_ROOT/usr" PATH="$REMOVE_ROOT/bin:/usr/bin:/bin" \
     /bin/sh "$ASSETS/desktop_remove.sh" "$REMOVE_ROOT/spec" > "$REMOVE_ROOT/success" 2>&1 \
     || fail "successful explicit uninstall failed"
+assert_eq "$(cat "$REMOVE_ROOT/status")" exit:0 "uninstall success state"
 set +e
 PREFIX="$REMOVE_ROOT/no-tools" PATH=/usr/bin:/bin /bin/sh "$ASSETS/desktop_remove.sh" "$REMOVE_ROOT/spec" > "$REMOVE_ROOT/missing-tool" 2>&1
 code=$?

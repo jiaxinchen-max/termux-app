@@ -63,6 +63,28 @@ public final class DesktopSessionOverrides {
         edit(desktopId + ".orientation", value == null ? null : value.getStorageValue());
     }
 
+    /** Commit both imported overrides before publishing the new desktop inventory record. */
+    public void restore(@NonNull String desktopId, @Nullable String touchMode,
+                        @Nullable String orientation) throws java.io.IOException {
+        if (!com.termux.ui.domain.DesktopDistro.isValidId(desktopId)
+            || (touchMode != null && !isTouchMode(touchMode))) {
+            throw new java.io.IOException("desktop_archive_settings_invalid");
+        }
+        if (orientation != null) {
+            boolean known = false;
+            for (OrientationPreference choice : OrientationPreference.values()) {
+                if (choice.getStorageValue().equals(orientation)) known = true;
+            }
+            if (!known) throw new java.io.IOException("desktop_archive_settings_invalid");
+        }
+        SharedPreferences.Editor editor = preferences.edit();
+        if (touchMode == null) editor.remove(desktopId + ".touchMode");
+        else editor.putString(desktopId + ".touchMode", touchMode);
+        if (orientation == null) editor.remove(desktopId + ".orientation");
+        else editor.putString(desktopId + ".orientation", orientation);
+        if (!editor.commit()) throw new java.io.IOException("desktop_archive_settings_write_failed");
+    }
+
     /** The orientation a session of this desktop runs in: its own, else the global one. */
     @NonNull
     public OrientationPreference effectiveOrientation(@NonNull Context context,

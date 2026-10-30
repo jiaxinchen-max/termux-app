@@ -22,6 +22,10 @@ import java.util.Set;
 /** One durable, validated properties file per desktop distribution. */
 public final class FileDesktopDistroRepository implements DesktopDistroRepository {
 
+    public interface NewRecordIdentity {
+        void created(File temporary, long device, long inode) throws IOException;
+    }
+
     private static final String SUFFIX = ".properties";
     private static final Set<String> KEYS = new HashSet<>(Arrays.asList("schemaVersion", "id",
         "name", "runMode", "prootDistro", "de", "glMode", "resolution", "refreshRate"));
@@ -70,6 +74,35 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
     @Override public synchronized void delete(String distroId) throws IOException {
         File file = fileFor(distroId);
         if (file.exists() && !file.delete()) throw new IOException("desktop_delete_failed");
+    }
+
+    /** Publishes a new record without replacement; persist its identity before writing bytes. */
+    public synchronized void saveNew(DesktopDistro distro, NewRecordIdentity identity) throws IOException {
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            throw new IOException("desktop_repository_create_failed");
+        }
+        File target = fileFor(distro.getId());
+        File temporary = new File(directory, distro.getId() + ".new-" + java.util.UUID.randomUUID());
+        com.termux.ui.desktop.archive.DesktopArchiveFileSystem fs =
+            new com.termux.ui.desktop.archive.AndroidDesktopArchiveFileSystem();
+        com.termux.ui.desktop.archive.DesktopArchiveFileSystem.Stat created = null;
+        try {
+            try (com.termux.ui.desktop.archive.DesktopArchiveFileSystem.ExclusiveOutput output =
+                     fs.createExclusiveFile(temporary)) {
+                created = output.getIdentity();
+                identity.created(temporary, created.device, created.inode);
+                encode(distro).store(output, null);
+                output.sync();
+            }
+            com.termux.shared.file.AtomicFilePublisher.moveNoReplace(temporary, target);
+        } finally {
+            if (created != null) {
+                com.termux.ui.desktop.archive.DesktopArchiveFileSystem.Stat current = fs.lstat(temporary);
+                if (current != null && current.kind == com.termux.ui.desktop.archive.DesktopArchiveFileSystem.Kind.FILE
+                        && current.device == created.device && current.inode == created.inode
+                        && !temporary.delete()) throw new IOException("desktop_inventory_temporary_cleanup_failed");
+            }
+        }
     }
 
     private DesktopDistro read(File file) throws IOException {

@@ -19,6 +19,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import com.termux.ui.R;
+import com.termux.ui.api.DesktopArchiveTasks;
 import com.termux.ui.api.DesktopTasks;
 import com.termux.ui.api.LaunchHostException;
 import com.termux.ui.databinding.ActivityDesktopBinding;
@@ -51,6 +52,7 @@ public final class DesktopActivity extends AppCompatActivity {
     private static final int MENU_SETTINGS = 5;
     private static final int MENU_LOGS = 3;
     private static final int MENU_DELETE = 4;
+    private static final int MENU_EXPORT = 6;
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "DesktopIo"));
@@ -77,18 +79,24 @@ public final class DesktopActivity extends AppCompatActivity {
         binding.desktopTabNative.setOnClickListener(view -> switchTab(DesktopRunMode.NATIVE));
         binding.desktopTabContainer.setOnClickListener(view -> switchTab(DesktopRunMode.PROOT));
         binding.desktopEmptyCreate.setOnClickListener(view -> openCreate());
+        binding.desktopImportContainer.setOnClickListener(view ->
+            DesktopArchiveFlow.instance().startImport());
+        binding.desktopArchiveDetails.setOnClickListener(view ->
+            DesktopArchiveFlow.instance().showProgress());
         paintTabs();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        DesktopArchiveFlow.instance().attach(this, this::renderArchiveStatus, this::refresh);
         refresh();
     }
 
     @Override
     protected void onPause() {
         handler.removeCallbacks(refreshTick);
+        DesktopArchiveFlow.instance().detach(this);
         super.onPause();
     }
 
@@ -131,6 +139,22 @@ public final class DesktopActivity extends AppCompatActivity {
             ? R.drawable.desktop_bg_tab_off : R.drawable.desktop_bg_tab_on));
         binding.desktopTabContainer.setTextColor(getColor(isNative
             ? R.color.local_games_on_surface_secondary : android.R.color.white));
+        binding.desktopImportContainer.setVisibility(isNative ? View.GONE : View.VISIBLE);
+    }
+
+    private void renderArchiveStatus(@Nullable DesktopArchiveTasks.Snapshot snapshot,
+                                     boolean preparing) {
+        if (destroyed || binding == null) return;
+        boolean running = preparing || (snapshot != null
+            && snapshot.status == DesktopArchiveTasks.Status.RUNNING);
+        boolean visible = preparing || (snapshot != null
+            && snapshot.status != DesktopArchiveTasks.Status.IDLE);
+        binding.desktopImportContainer.setEnabled(!running && !DesktopArchiveTasks.isBusy());
+        binding.desktopArchiveTask.setVisibility(visible ? View.VISIBLE : View.GONE);
+        binding.desktopArchiveProgress.setVisibility(running ? View.VISIBLE : View.GONE);
+        binding.desktopArchiveStatus.setText(preparing
+            ? getString(R.string.desktop_archive_preparing)
+            : DesktopArchiveFlow.statusText(this, snapshot));
     }
 
     /** Reloads the inventory and every state off the main thread, then re-renders. */
@@ -267,6 +291,10 @@ public final class DesktopActivity extends AppCompatActivity {
         if (active) items.add(Menu.NONE, MENU_STOP, Menu.NONE, R.string.desktop_action_stop);
         items.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.desktop_action_settings);
         items.add(Menu.NONE, MENU_LOGS, Menu.NONE, R.string.desktop_action_logs);
+        if (distro.getRunMode() == DesktopRunMode.PROOT) {
+            items.add(Menu.NONE, MENU_EXPORT, Menu.NONE, R.string.desktop_archive_export)
+                .setEnabled(!active && !DesktopArchiveFlow.instance().isBusy());
+        }
         if (!active) items.add(Menu.NONE, MENU_DELETE, Menu.NONE, R.string.desktop_action_delete);
         menu.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
@@ -277,6 +305,9 @@ public final class DesktopActivity extends AppCompatActivity {
                     return true;
                 case MENU_LOGS: showLogs(distro); return true;
                 case MENU_DELETE: confirmDelete(distro); return true;
+                case MENU_EXPORT:
+                    DesktopArchiveFlow.instance().startExport(distro, active);
+                    return true;
                 default: return false;
             }
         });
@@ -354,8 +385,8 @@ public final class DesktopActivity extends AppCompatActivity {
             builder.setPositiveButton(R.string.desktop_action_delete, (dialog, which) ->
                 ioExecutor.execute(() -> {
                     try {
-                        tasks.delete(distro);
-                        if (check.isChecked()) tasks.removeContainer(distro);
+                        if (check.isChecked()) tasks.deleteAndRemoveContainer(distro);
+                        else tasks.delete(distro);
                     } catch (IOException error) {
                         toastOnUi("desktop_running".equals(error.getMessage())
                             ? getString(R.string.desktop_delete_running)

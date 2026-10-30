@@ -14,6 +14,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -206,18 +207,23 @@ public final class LaunchScriptInstaller {
                 throw new IOException("Cannot remove retired desktop asset: " + oldAsset);
             }
         }
-        return new DesktopScripts(install, start, stop, remove);
+        File fullInstall = new File(runtimeDirectory, "desktop_install_full.sh");
+        installText("#!/data/data/com.termux/files/usr/bin/sh\nexec '"
+            + install.getPath().replace("'", "'\"'\"'") + "' \"$1\" --operation=install\n", fullInstall);
+        return new DesktopScripts(fullInstall, install, start, stop, remove);
     }
 
     /** The deployed desktop scripts. */
     public static final class DesktopScripts {
         public final File install;
+        public final File rawInstall;
         public final File start;
         public final File stop;
         public final File remove;
 
-        DesktopScripts(File install, File start, File stop, File remove) {
+        DesktopScripts(File install, File rawInstall, File start, File stop, File remove) {
             this.install = install;
+            this.rawInstall = rawInstall;
             this.start = start;
             this.stop = stop;
             this.remove = remove;
@@ -270,6 +276,20 @@ public final class LaunchScriptInstaller {
         if (!temporary.renameTo(target)) {
             temporary.delete();
             throw new IOException("launch_script_publish_failed");
+        }
+    }
+
+    private void installText(String text, File target) throws IOException {
+        File temporary = File.createTempFile(target.getName(), ".tmp", runtimeDirectory);
+        try {
+            try (FileOutputStream output = new FileOutputStream(temporary)) {
+                output.write(text.getBytes(StandardCharsets.UTF_8));
+                output.getFD().sync();
+            }
+            chmod(temporary);
+            if (!temporary.renameTo(target)) throw new IOException("launch_script_publish_failed");
+        } finally {
+            temporary.delete();
         }
     }
 

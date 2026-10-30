@@ -52,12 +52,16 @@ public final class DesktopTasks {
     }
 
     public void save(@NonNull DesktopDistro distro) throws IOException {
-        Optional<DesktopDistro> previous = repository.find(distro.getId());
-        if (previous.isPresent()) {
-            DesktopDistro old = previous.get();
-            requireEditableSettings(old, distro, state(old));
+        synchronized (DesktopOperationGate.LOCK) {
+            DesktopOperationGate.requireAvailable();
+            Optional<DesktopDistro> previous = repository.find(distro.getId());
+            if (previous.isPresent()) {
+                DesktopDistro old = previous.get();
+                requireEditableSettings(old, distro, state(old));
+            }
+            repository.save(distro);
+
         }
-        repository.save(distro);
     }
 
     static void requireEditableSettings(DesktopDistro old, DesktopDistro updated,
@@ -76,29 +80,61 @@ public final class DesktopTasks {
      * {@link DesktopRunMode#PROOT}; the record must already be deleted or being deleted.
      */
     public void removeContainer(@NonNull DesktopDistro distro) throws LaunchHostException {
-        // delete() removes the old spec before this call; deploy a fresh explicit removal spec.
-        LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
-        LocalGames.requireHost(context).startLaunch(new LaunchRequest("desktop-remove-"
-            + distro.getId() + "-" + System.currentTimeMillis(), scripts.remove.getPath(),
-            paths.getDesktopSpecFile(distro.getId()).getPath(),
-            paths.getRuntimeDirectory().getPath(), LaunchExecutionMode.APP_SHELL));
+        synchronized (DesktopOperationGate.LOCK) {
+            try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
+                throw new LaunchHostException("desktop_archive_busy", true, busy);
+            }
+            // delete() removes the old spec before this call; deploy a fresh explicit removal spec.
+            LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
+            commandStatus(distro, "removing");
+            try {
+                LocalGames.requireHost(context).startLaunch(new LaunchRequest("desktop-remove-"
+                    + distro.getId() + "-" + System.currentTimeMillis(), scripts.remove.getPath(),
+                    paths.getDesktopSpecFile(distro.getId()).getPath(),
+                    paths.getRuntimeDirectory().getPath(), LaunchExecutionMode.APP_SHELL));
+            } catch (LaunchHostException error) {
+                commandStatus(distro, "exit:1");
+                throw error;
+            }
+
+        }
     }
 
     /** Removes the record and its state; a running or starting desktop must be stopped first. */
-    public void delete(@NonNull DesktopDistro distro) throws IOException {
-        DesktopSessionState state = state(distro);
-        if (state == DesktopSessionState.RUNNING || state == DesktopSessionState.STARTING) {
-            throw new IOException("desktop_running");
+    public void deleteAndRemoveContainer(@NonNull DesktopDistro distro)
+        throws IOException, LaunchHostException {
+        synchronized (DesktopOperationGate.LOCK) {
+            DesktopOperationGate.requireAvailable();
+            DesktopSessionState state = state(distro);
+            if (state == DesktopSessionState.RUNNING || state == DesktopSessionState.STARTING) {
+                throw new IOException("desktop_running");
+            }
+            // Submit removal before deleting inventory. Failed submission preserves the record.
+            removeContainer(distro);
+            new com.termux.ui.platform.DesktopSessionOverrides(context).restore(distro.getId(), null, null);
+            repository.delete(distro.getId());
         }
-        repository.delete(distro.getId());
-        paths.getDesktopSpecFile(distro.getId()).delete();
-        paths.getDesktopPidFile(distro.getId()).delete();
-        paths.getDesktopStatusFile(distro.getId()).delete();
-        File log = paths.getDesktopLogFile(distro.getId());
-        log.delete();
-        // Companions the start script writes next to the log and the pid file.
-        new File(log.getPath() + ".out").delete();
-        new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".container").delete();
+    }
+
+    public void delete(@NonNull DesktopDistro distro) throws IOException {
+        synchronized (DesktopOperationGate.LOCK) {
+            DesktopOperationGate.requireAvailable();
+            DesktopSessionState state = state(distro);
+            if (state == DesktopSessionState.RUNNING || state == DesktopSessionState.STARTING) {
+                throw new IOException("desktop_running");
+            }
+            new com.termux.ui.platform.DesktopSessionOverrides(context).restore(distro.getId(), null, null);
+            repository.delete(distro.getId());
+            paths.getDesktopSpecFile(distro.getId()).delete();
+            paths.getDesktopPidFile(distro.getId()).delete();
+            paths.getDesktopStatusFile(distro.getId()).delete();
+            File log = paths.getDesktopLogFile(distro.getId());
+            log.delete();
+            // Companions the start script writes next to the log and the pid file.
+            new File(log.getPath() + ".out").delete();
+            new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".container").delete();
+
+        }
     }
 
     public boolean isInstalled(@NonNull DesktopDistro distro) {
@@ -135,12 +171,23 @@ public final class DesktopTasks {
     /** Runs the install script in a visible Termux terminal; returns the task id. */
     @NonNull
     public String install(@NonNull DesktopDistro distro) throws LaunchHostException {
-        String taskId = "desktop-install-" + distro.getId() + "-" + System.currentTimeMillis();
-        LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
-        LocalGames.requireHost(context).startTermuxPackageInstall(new RuntimeSetupRequest(
-            taskId, scripts.install.getPath(), paths.getDesktopSpecFile(distro.getId()).getPath(),
-            paths.getRuntimeDirectory().getPath()));
-        return taskId;
+        synchronized (DesktopOperationGate.LOCK) {
+            try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
+                throw new LaunchHostException("desktop_archive_busy", true, busy);
+            }
+            String taskId = "desktop-install-" + distro.getId() + "-" + System.currentTimeMillis();
+            LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
+            commandStatus(distro, "installing");
+            try {
+                LocalGames.requireHost(context).startTermuxPackageInstall(new RuntimeSetupRequest(
+                    taskId, scripts.install.getPath(), paths.getDesktopSpecFile(distro.getId()).getPath(),
+                    paths.getRuntimeDirectory().getPath()));
+            } catch (LaunchHostException error) {
+                commandStatus(distro, "exit:1");
+                throw error;
+            }
+            return taskId;
+        }
     }
 
     /** The visible terminal of an install task, once the host has created it. */
@@ -154,22 +201,60 @@ public final class DesktopTasks {
      * after, so call this once the session view is bound.
      */
     public void start(@NonNull DesktopDistro distro) throws LaunchHostException {
-        LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
-        LocalGamesHost host = LocalGames.requireHost(context);
-        host.prepareLaunchRuntime();
-        host.startLaunch(new LaunchRequest("desktop-start-" + distro.getId() + "-"
-            + System.currentTimeMillis(), scripts.start.getPath(),
-            paths.getDesktopSpecFile(distro.getId()).getPath(),
-            paths.getRuntimeDirectory().getPath(), LaunchExecutionMode.APP_SHELL));
+        synchronized (DesktopOperationGate.LOCK) {
+            try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
+                throw new LaunchHostException("desktop_archive_busy", true, busy);
+            }
+            LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
+            LocalGamesHost host = LocalGames.requireHost(context);
+            host.prepareLaunchRuntime();
+            commandStatus(distro, "starting");
+            try {
+                host.startLaunch(new LaunchRequest("desktop-start-" + distro.getId() + "-"
+                    + System.currentTimeMillis(), scripts.start.getPath(),
+                    paths.getDesktopSpecFile(distro.getId()).getPath(),
+                    paths.getRuntimeDirectory().getPath(), LaunchExecutionMode.APP_SHELL));
+            } catch (LaunchHostException error) {
+                commandStatus(distro, "exit:1");
+                throw error;
+            }
+
+        }
     }
 
     /** Stops the compositor and, in proot mode, the container's Plasma processes. */
     public void stop(@NonNull DesktopDistro distro) throws LaunchHostException {
-        LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
-        LocalGames.requireHost(context).startLaunch(new LaunchRequest("desktop-stop-"
-            + distro.getId() + "-" + System.currentTimeMillis(), scripts.stop.getPath(),
-            paths.getDesktopSpecFile(distro.getId()).getPath(),
-            paths.getRuntimeDirectory().getPath(), LaunchExecutionMode.APP_SHELL));
+        synchronized (DesktopOperationGate.LOCK) {
+            try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
+                throw new LaunchHostException("desktop_archive_busy", true, busy);
+            }
+            LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
+            commandStatus(distro, "stopping");
+            try {
+                LocalGames.requireHost(context).startLaunch(new LaunchRequest("desktop-stop-"
+                    + distro.getId() + "-" + System.currentTimeMillis(), scripts.stop.getPath(),
+                    paths.getDesktopSpecFile(distro.getId()).getPath(),
+                    paths.getRuntimeDirectory().getPath(), LaunchExecutionMode.APP_SHELL));
+            } catch (LaunchHostException error) {
+                commandStatus(distro, "exit:1");
+                throw error;
+            }
+
+        }
+    }
+
+    private void commandStatus(DesktopDistro distro, String status) throws LaunchHostException {
+        try {
+            File file = paths.getDesktopStatusFile(distro.getId());
+            File parent = file.getParentFile();
+            if (!parent.isDirectory() && !parent.mkdirs()) throw new IOException("desktop_state_directory_failed");
+            try (FileOutputStream output = new FileOutputStream(file)) {
+                output.write((status + "\n").getBytes(StandardCharsets.UTF_8));
+                output.getFD().sync();
+            }
+        } catch (IOException error) {
+            throw new LaunchHostException("desktop_state_write_failed", true, error);
+        }
     }
 
     private LaunchScriptInstaller.DesktopScripts deploy(DesktopDistro distro)
