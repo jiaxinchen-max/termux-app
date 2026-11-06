@@ -16,7 +16,7 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
- * Shared file-backed store for the atomic-write/{@code .bak}-recovery pattern used by the
+ * Shared file-backed store for atomic replacement and legacy {@code .bak} recovery used by the
  * Reset/Component/RuntimeSetup task repositories. Each repository keeps its own
  * schema-versioning and migration quirks in its {@link Codec}; this class only owns the
  * directory scan and the tmp+fsync+rename dance.
@@ -50,19 +50,22 @@ public final class PropertiesTaskStore<T> {
         ensureDirectory(directory);
         Properties value = codec.toProperties(task);
         File target = file(codec.taskId(task));
-        File temporary = new File(target.getPath() + ".tmp");
+        File temporary = File.createTempFile(target.getName() + ".", ".tmp", directory);
         File backup = new File(target.getPath() + ".bak");
-        try (FileOutputStream output = new FileOutputStream(temporary, false)) {
-            value.store(output, storeComment);
-            output.flush();
-            output.getFD().sync();
-        }
-        if (backup.exists() && !backup.delete()) throw new IOException("task_backup_failed");
-        boolean hadTarget = target.isFile();
-        if (hadTarget && !target.renameTo(backup)) throw new IOException("task_stage_failed");
-        if (!temporary.renameTo(target)) {
-            if (hadTarget) backup.renameTo(target);
-            throw new IOException("task_publish_failed");
+        try {
+            try (FileOutputStream output = new FileOutputStream(temporary, false)) {
+                value.store(output, storeComment);
+                output.flush();
+                output.getFD().sync();
+            }
+            // Same-directory rename atomically replaces the existing inode on Android/Linux.
+            // Readers use separate store instances, so moving the old target away first
+            // exposes an ENOENT window despite the instance-level synchronized methods.
+            if (!temporary.renameTo(target)) throw new IOException("task_publish_failed");
+        } finally {
+            if (temporary.exists() && !temporary.delete()) {
+                LOG.warning("unable to remove temporary task file: " + temporary.getName());
+            }
         }
         if (backup.exists() && !backup.delete()) throw new IOException("task_backup_cleanup_failed");
     }

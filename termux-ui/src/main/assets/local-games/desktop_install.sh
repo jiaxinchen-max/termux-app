@@ -87,8 +87,8 @@ if [ "$DESKTOP_DE" = gnome ]; then
 fi
 
 BASE_URL="https://github.com/jiaxinchen-max/kwin/releases/download/$DESKTOP_RELEASE_TAG"
-# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.6-r27).
-if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r27" ]; then
+# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.6-r28).
+if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r28" ]; then
     log "Unsupported desktop release $DESKTOP_RELEASE_TAG"
     exit 65
 fi
@@ -101,11 +101,11 @@ esac
 
 # Xlorie (independent X server) packages, pinned to the xserver release that carries the
 # termux-render fixes; needed by every XFCE4 desktop and shared with the KWin ones.
-XLORIE_RELEASE_TAG="termux-xlorie-21.1.16-r8"
+XLORIE_RELEASE_TAG="termux-xlorie-21.1.16-r9"
 XLORIE_BASE_URL="https://github.com/jiaxinchen-max/xserver/releases/download/$XLORIE_RELEASE_TAG"
 XLORIE_DEBS="
 libandroid-stub_30-3_aarch64.deb 88c7f4ba78a5eb57eafc2f1102ceea562a156fe7346528ca35c771eb0927fefc
-xorg-server_21.1.16-8_aarch64.deb 0a243786b8ac14e6557590b5c6c4b14f7d51358084c5075383a06aa57e2128a2
+xorg-server_21.1.16-9_aarch64.deb fa06b6bcc1dcc19b4b78d7497fc33acce43cc72320c62b7a9679a9113aeceaac
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 libxshmfence_1.3.3-2_aarch64.deb be95caf500b002fed8b5c0142ad360efbdec4ff1334be5565e9b9628f8663dc2
 termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
@@ -114,7 +114,7 @@ termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00
 DEBS="
 libandroid-stub_30-3_aarch64.deb 88c7f4ba78a5eb57eafc2f1102ceea562a156fe7346528ca35c771eb0927fefc
 gl4es_1.1.7.20260927_aarch64.deb eb0ba70d084c87b84b144ef2ce6ad415ca3810dcb356d77e4e8cefe962157913
-kwin_6.6.0-27_aarch64.deb b5c4ccd7983849eea8008cb5d61740c90ab834d3fa23730385e0a01dafe8ecf3
+kwin_6.6.0-28_aarch64.deb d6b97467522ce0736d0f142baddd333072da76208c1bca985685b4a2b2d82cdf
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 qt6-qtbase-cross-tools_6.12.0-1+termuxkwin1_all.deb 07b9a9ae857225a814e85c74fdc613cc0720c328d3b2f4f5270a47b67169bf5f
 qt6-qtbase-gtk-platformtheme_6.12.0-1+termuxkwin1_aarch64.deb c682bf46ff7251449f41c420fe7818b2ff4f91a21477266fc458bf7d86795bb5
@@ -125,7 +125,7 @@ xwayland_24.1.11-1_aarch64.deb 3cc2999ae0ba90495abad71445f794723efc06a97c001b383
 
 # Reviewed GNOME/USB runtime assets; all downloaded payloads require an exact SHA256.
 GNOME_USB_RELEASE_TAG="gnome-usb-20261030-r1"
-GNOME_USB_BASE_URL="https://github.com/jiaxinchen-max/termux-app/releases/download/$GNOME_USB_RELEASE_TAG"
+GNOME_USB_BASE_URL="https://github.com/jiaxinchen-max/termux-app-packages/releases/download/$GNOME_USB_RELEASE_TAG"
 GNOME_DEBS="
 accountsservice_23.13.9_aarch64.deb 4d1dfa7ae196beba68378d04913a0ab2eb09b105b4e305da27bd97a355fe1f4e
 gexiv2_0.14.7_aarch64.deb 2eea495d80f59b7285f8225df2526cd8a7c06ce03f9abd1ca2d65b9427772221
@@ -432,6 +432,9 @@ $name $digest"
         fi
     done < "$host_manifest"
     standard_packages=''
+    if [ ! -x "$PREFIX/bin/pulseaudio" ] || [ ! -x "$PREFIX/bin/pactl" ]; then
+        standard_packages="$standard_packages pulseaudio"
+    fi
     proot_valid || standard_packages="$standard_packages proot"
     proot_distro_valid || standard_packages="$standard_packages proot-distro"
     if [ -n "$missing_debs" ] || [ -n "$standard_packages" ]; then
@@ -460,6 +463,7 @@ $name $digest"
     rm -f "$host_manifest"
     proot_valid || fail 'proot verification failed'
     proot_distro_valid || fail 'proot-distro new containers layout verification failed (requires 5.10.3 <= version < 6 and --name)'
+    [ -x "$PREFIX/bin/pulseaudio" ] && [ -x "$PREFIX/bin/pactl" ] || fail 'host PulseAudio support is missing'
     audit=$(dpkg --audit 2>&1) || fail 'dpkg --audit failed'
     [ -z "$audit" ] || fail "dpkg --audit reported problems: $audit"
     if [ "$DESKTOP_DE" = xfce4 ]; then
@@ -511,19 +515,19 @@ fi
 if [ "$DESKTOP_MODE" = "native" ]; then
     if [ "$DESKTOP_DE" = gnome ]; then
         # shellcheck disable=SC2086
-        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS python dbus dconf adwaita-icon-theme gnome-backgrounds xorg-xdpyinfo || fail 'apt install GNOME'
+        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio python dbus dconf adwaita-icon-theme gnome-backgrounds xorg-xdpyinfo || fail 'apt install GNOME'
     elif [ "$DESKTOP_DE" = "xfce4" ]; then
         # shellcheck disable=SC2086
-        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS xfce4 xfce4-terminal dbus || fail "apt install xfce4"
+        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio xfce4 xfce4-terminal dbus || fail "apt install xfce4"
     else
         # shellcheck disable=SC2086
-        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS plasma-desktop plasma-workspace kactivitymanagerd \
+        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole \
             || fail "apt install"
     fi
 else
     # The session itself lives in the container; the host needs the display server and proot.
     # shellcheck disable=SC2086
-    host_packages="proot proot-distro"
+    host_packages="proot proot-distro pulseaudio"
     if [ "$DESKTOP_DE" = gnome ]; then
         host_packages="$host_packages python dbus xorg-xdpyinfo"
         [ "$DESKTOP_GL_MODE" != zink ] || host_packages="$host_packages mesa mesa-vulkan-icd-freedreno vulkan-loader"
@@ -554,7 +558,7 @@ else
             gnome) container_packages="gnome-shell gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils"
                 [ "$DESKTOP_GL_MODE" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm19 libdrm2"
                 ;;
-            *) container_packages="plasma-desktop plasma-workspace kactivitymanagerd dbus-x11 packagekit polkitd"
+            *) container_packages="plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit polkitd"
                [ "$DESKTOP_GL_MODE" != "zink" ] || container_packages="$container_packages libvulkan-dev" ;;
         esac
         container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"

@@ -10,15 +10,17 @@ import org.junit.Test;
 public final class SettingsPageTest {
 
     @Test
-    public void environmentPagesReturnToTheFirstLevel() {
-        assertEquals(SettingsPage.ROOT, SettingsPage.NATIVE.parent());
-        assertEquals(SettingsPage.ROOT, SettingsPage.PROOT.parent());
+    public void runtimePagesReturnThroughCoreComponents() {
+        assertEquals(SettingsPage.CORE_COMPONENTS, SettingsPage.NATIVE.parent());
+        assertEquals(SettingsPage.CORE_COMPONENTS, SettingsPage.PROOT.parent());
+        assertEquals(SettingsPage.ROOT, SettingsPage.CORE_COMPONENTS.parent());
     }
 
     @Test
     public void firstLevelHasNowhereToGoBack() {
         assertNull(SettingsPage.ROOT.parent());
         assertTrue(SettingsPage.ROOT.isRoot());
+        assertFalse(SettingsPage.CORE_COMPONENTS.isRoot());
         assertFalse(SettingsPage.NATIVE.isRoot());
         assertFalse(SettingsPage.PROOT.isRoot());
     }

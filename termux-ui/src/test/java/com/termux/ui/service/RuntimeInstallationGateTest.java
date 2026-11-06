@@ -1,22 +1,22 @@
 package com.termux.ui.service;
 
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 import com.termux.ui.components.ComponentStoragePaths;
 import com.termux.ui.data.FileComponentTaskRepository;
-import com.termux.ui.data.FileRuntimeSetupTaskRepository;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.domain.ComponentTask;
 import com.termux.ui.domain.ComponentTaskState;
-import com.termux.ui.domain.RuntimeSetupTask;
-import com.termux.ui.domain.RuntimeSetupTaskState;
+import com.termux.ui.wine.data.FileRuntimeSetupTaskRepository;
+import com.termux.ui.wine.domain.RuntimeSetupTask;
+import com.termux.ui.wine.domain.RuntimeSetupTaskState;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /** Covers the cross-task-type admission checks, including requireResetSlot -- Reset previously
  *  never participated in this gate at all, so a reset could run concurrently with a component

@@ -1,6 +1,6 @@
 package com.termux.ui.components.index;
 
-import com.termux.ui.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

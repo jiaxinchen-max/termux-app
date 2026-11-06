@@ -54,7 +54,7 @@
             android:lineSpacingExtra="4dp"
             android:padding="12dp"
             android:text="@string/desktop_settings_native_name_note"
-            android:textColor="#7A5A2E"
+            android:textColor="@color/local_games_primary_text"
             android:textSize="11sp" />
 
         <com.google.android.material.textfield.TextInputLayout
@@ -81,7 +81,7 @@
             android:paddingEnd="20dp"
             android:paddingBottom="6dp"
             android:text="@string/desktop_create_section_display"
-            android:textColor="#8A5A2B"
+            android:textColor="@color/local_games_primary_text"
             android:textSize="12sp"
             android:textStyle="bold" />
 
@@ -128,7 +128,7 @@
             android:layout_marginTop="8dp"
             android:layout_marginEnd="20dp"
             android:text="@string/desktop_settings_cancel"
-            android:textColor="#8A5A2B"
+            android:textColor="@color/local_games_primary_text"
             android:textSize="15sp"
             android:textStyle="bold" />
     </LinearLayout>

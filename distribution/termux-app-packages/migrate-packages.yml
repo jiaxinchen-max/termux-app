@@ -1,0 +1,27 @@
+name: Verify and publish package catalog
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify payloads and publish exact catalog URLs
+        run: python3 tools/verify-catalog.py --catalog catalog-v1.json --output repository/index-v1.json
+      - name: Commit verified index
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add repository/index-v1.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish verified package catalog"
+            git push
+          fi

@@ -1,14 +1,12 @@
 package com.termux.ui.runtime;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import com.termux.ui.data.GameStoragePaths;
-import com.termux.ui.domain.GameRuntimeBackendType;
 import com.termux.ui.domain.LaunchExecutionMode;
-import com.termux.ui.domain.RuntimeProfile;
 import com.termux.ui.domain.XServerBackendType;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.domain.RuntimeProfile;
+import com.termux.ui.wine.runtime.GlibcTermuxBoxBackend;
+import com.termux.ui.wine.runtime.RootfsProotBackend;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -19,6 +17,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Set;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class XServerBackendSelectionTest {
 

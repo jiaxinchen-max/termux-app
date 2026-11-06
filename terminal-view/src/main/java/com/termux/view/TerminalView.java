@@ -39,6 +39,7 @@ import androidx.annotation.RequiresApi;
 import com.termux.terminal.KeyHandler;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalSession;
+import com.termux.terminal.TextStyle;
 import com.termux.view.textselection.TextSelectionCursorController;
 
 /** View displaying and interacting with a {@link TerminalSession}. */
@@ -51,6 +52,24 @@ public final class TerminalView extends View {
     public TerminalSession mTermSession;
     /** Our terminal emulator whose session is {@link #mTermSession}. */
     public TerminalEmulator mEmulator;
+
+    // A view-local theme never changes colors in a shared terminal session.
+    private int[] mColorPaletteOverride;
+    private final int[] mRenderPalette = new int[TextStyle.NUM_INDEXED_COLORS];
+
+    /** Override ANSI 0–15 and default text/background/cursor colors for this view only.
+     * Indexed colors 16–255 and true-color escape sequences retain their original meaning. */
+    public void setColorPaletteOverride(@Nullable int[] palette) {
+        if (palette != null && palette.length != TextStyle.NUM_INDEXED_COLORS)
+            throw new IllegalArgumentException("Invalid terminal palette length");
+        mColorPaletteOverride = palette == null ? null : palette.clone();
+        invalidate();
+    }
+
+    public int getTerminalBackgroundColor() {
+        return mColorPaletteOverride != null ? mColorPaletteOverride[TextStyle.COLOR_INDEX_BACKGROUND]
+            : mEmulator == null ? 0xFF000000 : mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_BACKGROUND];
+    }
 
     public TerminalRenderer mRenderer;
 
@@ -967,7 +986,7 @@ public final class TerminalView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         if (mEmulator == null) {
-            canvas.drawColor(0XFF000000);
+            canvas.drawColor(getTerminalBackgroundColor());
         } else {
             // render the terminal view and highlight any selected text
             int[] sel = mDefaultSelectors;
@@ -975,7 +994,17 @@ public final class TerminalView extends View {
                 mTextSelectionCursorController.getSelectors(sel);
             }
 
-            mRenderer.render(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+            int[] palette = mEmulator.mColors.mCurrentColors;
+            if (mColorPaletteOverride != null) {
+                // Keep the application's 256-color entries and true-color text intact.
+                System.arraycopy(palette, 0, mRenderPalette, 0, palette.length);
+                System.arraycopy(mColorPaletteOverride, 0, mRenderPalette, 0, 16);
+                System.arraycopy(mColorPaletteOverride, TextStyle.COLOR_INDEX_FOREGROUND,
+                    mRenderPalette, TextStyle.COLOR_INDEX_FOREGROUND, 3);
+                palette = mRenderPalette;
+                canvas.drawColor(palette[TextStyle.COLOR_INDEX_BACKGROUND]);
+            }
+            mRenderer.render(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3], palette);
 
             // render the text selection handles
             renderTextSelection();

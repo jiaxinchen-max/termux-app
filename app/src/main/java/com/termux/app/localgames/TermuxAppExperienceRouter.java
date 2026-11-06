@@ -16,4 +16,8 @@ public final class TermuxAppExperienceRouter {
     public static boolean shouldIntegrateX11(@NonNull AppExperienceMode mode) {
         return mode == AppExperienceMode.TERMINAL;
     }
+
+    public static boolean shouldIntegrateX11(@NonNull AppExperienceMode mode, boolean uiTerminalPage) {
+        return !uiTerminalPage && shouldIntegrateX11(mode);
+    }
 }

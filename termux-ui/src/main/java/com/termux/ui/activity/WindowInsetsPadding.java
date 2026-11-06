@@ -16,11 +16,11 @@ import androidx.core.view.WindowInsetsCompat;
  * window is laid out behind the bars (edge-to-edge, cutout "short edges", freeform windows): the
  * view's own padding is kept and the insets are added on top, only on the requested sides.
  */
-final class WindowInsetsPadding {
+public final class WindowInsetsPadding {
 
     private WindowInsetsPadding() {}
 
-    static void apply(@NonNull View view, boolean left, boolean top, boolean right,
+    public static void apply(@NonNull View view, boolean left, boolean top, boolean right,
                       boolean bottom) {
         final int initialLeft = view.getPaddingLeft();
         final int initialTop = view.getPaddingTop();

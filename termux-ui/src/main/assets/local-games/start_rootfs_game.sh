@@ -9,7 +9,7 @@ SCRIPT_PATH=$(realpath "$0" 2>/dev/null) || {
     exit 2
 }
 TERMUX_FILES_DIR=$(dirname "$(dirname "$(dirname "$SCRIPT_PATH")")")
-GAMES_PRIVATE_ROOT="$TERMUX_FILES_DIR/games"
+GAMES_PRIVATE_ROOT="$TERMUX_FILES_DIR/front"
 # Winlator-style: one shared, always-current RootFS every container's proot session mounts with
 # `-r` -- never a per-containerId copy (see setup_rootfs_runtime.sh, which publishes it, and
 # GameStoragePaths.getSharedRootfsDirectory(), which RootfsProotBackend resolves RUNTIME_ROOT_PATH
@@ -256,11 +256,15 @@ if [ "$MANIFEST_SCHEMA" = 2 ]; then
     case "$(uname -m)" in aarch64|arm64) ;; *) terminal_failure host_architecture_unsupported ;; esac
     manifest_has audioDrivers "$AUDIO_DRIVER" || terminal_failure rootfs_audio_driver_missing
 fi
-manifest_has runtimePackages "$WINE_PACKAGE" || terminal_failure rootfs_runtime_package_missing
+case "$WINE_PACKAGE" in custom-wine-?*) ;; *)
+    manifest_has runtimePackages "$WINE_PACKAGE" || terminal_failure rootfs_runtime_package_missing ;;
+esac
 manifest_has graphicsDrivers "$GRAPHICS_DRIVER" || terminal_failure rootfs_graphics_driver_missing
-manifest_has dxWrappers "$DX_WRAPPER" || terminal_failure rootfs_dx_wrapper_missing
+case "$DX_WRAPPER" in custom-dxvk-?*) ;; *)
+    manifest_has dxWrappers "$DX_WRAPPER" || terminal_failure rootfs_dx_wrapper_missing ;;
+esac
 case "$GRAPHICS_DRIVER:$DX_WRAPPER" in
-    rootfs-virgl-mesa:rootfs_dxvk_*)
+    rootfs-virgl-mesa:rootfs_dxvk_*|rootfs-virgl-mesa:custom-dxvk-*)
         terminal_failure runtime_combination_unsupported:virgl_dxvk ;;
 esac
 warmup_fail() { terminal_failure "$1" null true; }
@@ -514,29 +518,56 @@ case "${GAMES_LOCALE:-}" in
     zh_CN.UTF-8|zh_CN.utf8) GUEST_LOCALE=zh_CN.UTF-8 ;;
 esac
 
+# Each launch rewrites only this profile's prefix, clearing the previous D3D layer.
+clear_rootfs_dx_dlls() {
+    for managed_dll in d3d8 d3d9 d3d10 d3d10_1 d3d10core d3d11 dxgi d3d12 d3d12core; do
+        rm -f "$PREFIX_PATH/drive_c/windows/system32/$managed_dll.dll" \
+            "$PREFIX_PATH/drive_c/windows/syswow64/$managed_dll.dll" || terminal_failure rootfs_dx_cleanup_failed
+    done
+}
 case "$DX_WRAPPER" in
-    rootfs_dxvk_*)
+    rootfs_dxvk_*|custom-dxvk-?*)
         # The dxWrapper value doubles as the install dir name set up by setup-container.sh.
         DXVK_SYSTEM32="$ROOTFS_CANONICAL/opt/games-runtime/$DX_WRAPPER/system32"
         DXVK_SYSWOW64="$ROOTFS_CANONICAL/opt/games-runtime/$DX_WRAPPER/syswow64"
+        case "$DX_WRAPPER" in custom-dxvk-*)
+            case "$DX_WRAPPER" in *[!A-Za-z0-9._-]*) terminal_failure custom_dxvk_id_invalid ;; esac
+            DXVK_SYSTEM32="$ROOTFS_CANONICAL/opt/dxvk/$DX_WRAPPER/x64"
+            DXVK_SYSWOW64="$ROOTFS_CANONICAL/opt/dxvk/$DX_WRAPPER/x32"
+            rootfs_require_custom_receipt "/opt/dxvk/$DX_WRAPPER" "$DX_WRAPPER" dxvk
+            ;;
+        esac
         [ -d "$DXVK_SYSTEM32" ] && [ -d "$DXVK_SYSWOW64" ] || \
             terminal_failure rootfs_dxvk_payload_missing null true
+        for dxvk_source_directory in "$DXVK_SYSTEM32" "$DXVK_SYSWOW64"; do
+            dxvk_arch_count=0
+            for source in "$dxvk_source_directory"/*.dll; do
+                [ ! -f "$source" ] || dxvk_arch_count=$((dxvk_arch_count + 1))
+            done
+            [ "$dxvk_arch_count" -gt 0 ] || terminal_failure rootfs_dxvk_payload_missing null true
+        done
+        clear_rootfs_dx_dlls
         mkdir -p "$PREFIX_PATH/drive_c/windows/system32" "$PREFIX_PATH/drive_c/windows/syswow64"
         DXVK_FILE_COUNT=0
         for source in "$DXVK_SYSTEM32"/*.dll; do
             [ -f "$source" ] || continue
+            rm -f "$PREFIX_PATH/drive_c/windows/system32/${source##*/}" || terminal_failure rootfs_dxvk_install_failed
             cp "$source" "$PREFIX_PATH/drive_c/windows/system32/" || terminal_failure rootfs_dxvk_install_failed
             DXVK_FILE_COUNT=$((DXVK_FILE_COUNT + 1))
         done
         for source in "$DXVK_SYSWOW64"/*.dll; do
             [ -f "$source" ] || continue
+            rm -f "$PREFIX_PATH/drive_c/windows/syswow64/${source##*/}" || terminal_failure rootfs_dxvk_install_failed
             cp "$source" "$PREFIX_PATH/drive_c/windows/syswow64/" || terminal_failure rootfs_dxvk_install_failed
             DXVK_FILE_COUNT=$((DXVK_FILE_COUNT + 1))
         done
         [ "$DXVK_FILE_COUNT" -gt 0 ] || terminal_failure rootfs_dxvk_payload_missing null true
-        export WINEDLLOVERRIDES='d3d8,d3d9,d3d10core,d3d11,dxgi=n,b'
+        export WINEDLLOVERRIDES='d3d8,d3d9,d3d10core,d3d11,dxgi=n;d3d12,d3d12core=b'
         ;;
-    rootfs-wined3d) unset WINEDLLOVERRIDES ;;
+    rootfs-wined3d)
+        clear_rootfs_dx_dlls
+        export WINEDLLOVERRIDES='d3d8,d3d9,d3d10,d3d10_1,d3d10core,d3d11,dxgi,d3d12,d3d12core=b'
+        ;;
     *) terminal_failure rootfs_dx_wrapper_missing null true ;;
 esac
 

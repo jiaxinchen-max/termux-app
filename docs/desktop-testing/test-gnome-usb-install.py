@@ -39,6 +39,10 @@ elif command=='pkg':
 elif command=='apt':
     if state.get('apt_error'):
         print('E: fixture dependency failure',file=sys.stderr);sys.exit(state['apt_error'])
+    if 'pulseaudio' in args:
+        for name in ('pulseaudio','pactl'):
+            target=case/'usr/bin'/name
+            target.write_text('#!/bin/sh\nexit 0\n');target.chmod(0o700)
 elif command=='dpkg-query':
     package=args[-1]
     if package not in state['versions']: sys.exit(1)
@@ -104,7 +108,7 @@ class InstallContract(unittest.TestCase):
         self.state = dict(digests=digests, versions=versions, host_files=host_files)
         for path in ASSETS.glob('desktop_*'):
             if path.is_file(): shutil.copy2(path, self.base/path.name)
-        for name in ('uname','curl','sha256sum','pkg','apt','dpkg','dpkg-query','apt-mark','proot','proot-distro','python3','tar'):
+        for name in ('uname','curl','sha256sum','pkg','apt','dpkg','dpkg-query','apt-mark','proot','proot-distro','python3','tar','pulseaudio','pactl'):
             target = self.base/'usr/bin'/name
             target.write_text('#!'+sys.executable+'\n'+MOCK)
             target.chmod(0o700)
@@ -124,7 +128,7 @@ class InstallContract(unittest.TestCase):
             DESKTOP_GNOME_RENDERER=renderer, DESKTOP_CONTAINER_CODENAME='trixie',
             DESKTOP_PROOT_DISTRO='debian-'+de.replace('_','-')+'-1',
             DESKTOP_LOG_FILE=str(self.base/'install.log'), DESKTOP_PID_FILE=str(self.base/'state/pid'),
-            DESKTOP_STATUS_FILE=str(self.base/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.6-r27')
+            DESKTOP_STATUS_FILE=str(self.base/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.6-r28')
         if de=='gnome' and mode=='proot':
             values['DESKTOP_GNOME_DISPLAY_GL_MODE']='zink' if renderer=='zink' else 'system'
             values['DESKTOP_GNOME_DISPLAY_BUFFER_MODE']='dmabuf' if renderer=='zink' else 'native'
@@ -232,6 +236,16 @@ class InstallContract(unittest.TestCase):
                 if de=='gnome': self.assertIn('--no-install-recommends',logins[0])
                 else: self.assertNotIn('--no-install-recommends',logins[0])
 
+    def test_plasma_installs_its_default_file_manager_and_terminal(self):
+        for mode in ('native', 'proot'):
+            with self.subTest(mode=mode):
+                result,calls = self.run_install(de='kwin_plasma',mode=mode,renderer='llvmpipe')
+                self.assertEqual(0,result.returncode,result.stdout)
+                install = next(call for call in calls if call[0]=='apt') if mode=='native' else next(
+                    call for call in calls if call[:2]==['proot-distro','login'])
+                for package in ('dolphin','konsole'):
+                    self.assertIn(package,install)
+
     def test_proot_gnome_does_not_download_or_verify_native_gnome_packages(self):
         result,calls=self.run_install(mode='proot',renderer='llvmpipe')
         self.assertEqual(0,result.returncode,result.stdout)
@@ -335,6 +349,15 @@ class InstallContract(unittest.TestCase):
         self.assertEqual(64,result.returncode,result.stdout)
         self.assertFalse(calls,calls)
         self.assertIn('state=failed',(self.base/'result').read_text())
+
+    def test_restore_installs_missing_host_audio_support(self):
+        (self.base/'usr/bin/pactl').unlink()
+        result,calls = self.run_install(de='xfce4',mode='proot',renderer='system',
+            operation='host-prerequisites')
+        self.assertEqual(0,result.returncode,result.stdout)
+        self.assertTrue(any(call[0]=='apt' and 'pulseaudio' in call for call in calls),calls)
+        self.assertTrue((self.base/'usr/bin/pactl').is_file())
+        self.assertIn('state=succeeded',(self.base/'result').read_text())
 
     def test_held_xorg_remains_valid_during_final_package_verification(self):
         result,calls = self.run_install(de='xfce4')

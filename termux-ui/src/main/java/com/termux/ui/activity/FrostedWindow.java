@@ -29,14 +29,14 @@ import com.termux.ui.R;
  * programmatic surfaces, and window blur for dialog windows on API 31+. Below API 31 only the
  * translucent fill is used (minSdk is 21, so nothing above it is called unguarded).
  */
-final class FrostedWindow {
+public final class FrostedWindow {
 
     /** Background blur radius for dialog windows (design: about 20-24 dp). */
-    static final int BLUR_RADIUS_DP = 22;
+    public static final int BLUR_RADIUS_DP = 22;
     /** Corner radius of menu rows (design token). */
-    static final int ROW_RADIUS_DP = 6;
+    public static final int ROW_RADIUS_DP = 6;
     /** Corner radius of cards, panels, dialogs, popups and the in-game overlay (design token). */
-    static final int PANEL_RADIUS_DP = 8;
+    public static final int PANEL_RADIUS_DP = 8;
 
     private static final int FIRST_BLUR_API = 31;
     /** Same value as {@code R.dimen.local_games_dialog_dim_amount}, which the dialog theme applies to Material dialogs. */
@@ -46,26 +46,26 @@ final class FrostedWindow {
     private FrostedWindow() {}
 
     /** Pure rule behind {@link #isBlurSupported()}; kept separate so it can be unit tested. */
-    static boolean isBlurSupported(int sdkInt) {
+    public static boolean isBlurSupported(int sdkInt) {
         return sdkInt >= FIRST_BLUR_API;
     }
 
     @ChecksSdkIntAtLeast(api = FIRST_BLUR_API)
-    static boolean isBlurSupported() {
+    public static boolean isBlurSupported() {
         return Build.VERSION.SDK_INT >= FIRST_BLUR_API;
     }
 
-    static int blurRadiusPx(float density) {
+    public static int blurRadiusPx(float density) {
         return Math.round(BLUR_RADIUS_DP * density);
     }
 
     /** Pixel corner radius of the panel shape; kept separate so it can be unit tested. */
-    static float panelRadiusPx(float density) {
+    public static float panelRadiusPx(float density) {
         return PANEL_RADIUS_DP * density;
     }
 
     /** With a real blur behind the window a light dim is enough; without it dim a bit more. */
-    static float dimAmount(int sdkInt) {
+    public static float dimAmount(int sdkInt) {
         return isBlurSupported(sdkInt) ? DIM_WITH_BLUR : DIM_WITHOUT_BLUR;
     }
 
@@ -74,23 +74,23 @@ final class FrostedWindow {
      * mode the window dim is off and a warm scrim is drawn instead ({@link #applyScrim}); dark
      * mode keeps {@link #dimAmount(int)}.
      */
-    static float dimAmount(int sdkInt, boolean night) {
+    public static float dimAmount(int sdkInt, boolean night) {
         return night ? dimAmount(sdkInt) : 0f;
     }
 
     /** Pure rule behind the mode check; kept separate so it can be unit tested. */
-    static boolean isNight(int uiMode) {
+    public static boolean isNight(int uiMode) {
         return (uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
     }
 
     /** Scrim colour resource: a lighter warm tint when the window blur softens the page, a stronger one without. */
     @ColorRes
-    static int scrimColorRes(int sdkInt) {
+    public static int scrimColorRes(int sdkInt) {
         return isBlurSupported(sdkInt) ? R.color.local_games_dialog_scrim : R.color.local_games_dialog_scrim_noblur;
     }
 
     /** Blurs the content behind {@code window} on API 31+; does nothing below. */
-    static void applyBlur(@Nullable Window window, float density) {
+    public static void applyBlur(@Nullable Window window, float density) {
         if (window == null || !isBlurSupported()) return;
         applyBlurApi31(window, blurRadiusPx(density));
     }
@@ -109,7 +109,7 @@ final class FrostedWindow {
      * (8 dp radius, hairline, no inset). Content containers must stay transparent. A plain shape
      * (not an inset wrapper) is also what gives the API 31+ blur region its rounded corners.
      */
-    static void applyDialogSurface(@Nullable Window window, @NonNull Context context) {
+    public static void applyDialogSurface(@Nullable Window window, @NonNull Context context) {
         if (window == null) return;
         window.setBackgroundDrawable(ContextCompat.getDrawable(context, R.drawable.local_games_bg_dialog));
         applyBlur(window, context.getResources().getDisplayMetrics().density);
@@ -121,14 +121,14 @@ final class FrostedWindow {
      * like the panel instead of the full square window. Pair with {@link #clipToPanel(View, Context)}
      * for content that draws to its edges.
      */
-    static void applyPanelSurface(@Nullable Window window, @NonNull Context context, @ColorRes int fillRes) {
+    public static void applyPanelSurface(@Nullable Window window, @NonNull Context context, @ColorRes int fillRes) {
         if (window == null) return;
         window.setBackgroundDrawable(surface(context, fillRes, PANEL_RADIUS_DP));
         applyBlur(window, context.getResources().getDisplayMetrics().density);
     }
 
     /** Clips {@code view} (and its children) to the panel's rounded corners without drawing a fill. */
-    static void clipToPanel(@NonNull View view, @NonNull Context context) {
+    public static void clipToPanel(@NonNull View view, @NonNull Context context) {
         final float radius = panelRadiusPx(context.getResources().getDisplayMetrics().density);
         view.setOutlineProvider(new ViewOutlineProvider() {
             @Override
@@ -143,10 +143,17 @@ final class FrostedWindow {
      * Light mode: no black window dim, instead a warm scrim view over the host activity for as
      * long as the dialog window is attached. Dark mode: only the window dim.
      */
-    static void applyScrim(@NonNull Dialog dialog) {
+    public static void applyScrim(@NonNull Dialog dialog) {
         Window window = dialog.getWindow();
         if (window == null) return;
         Context context = dialog.getContext();
+        View decor = window.getDecorView();
+        ScrimController previous = (ScrimController) decor.getTag(R.id.local_games_dialog_scrim_controller);
+        if (previous != null) {
+            decor.removeOnAttachStateChangeListener(previous);
+            previous.onViewDetachedFromWindow(decor);
+            decor.setTag(R.id.local_games_dialog_scrim_controller, null);
+        }
         boolean night = isNight(context.getResources().getConfiguration().uiMode);
         window.setDimAmount(dimAmount(Build.VERSION.SDK_INT, night));
         // Night: the one window dim, whichever builder made the dialog (Material or self-drawn).
@@ -154,11 +161,15 @@ final class FrostedWindow {
             window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
             return;
         }
+        // Full-window blur is treated as dimming by DisplayPolicy and overrides the
+        // light status-bar region. Light dialogs keep the panel's background blur.
+        window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND
+            | WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
         Activity host = findActivity(context);
         if (host == null) return;
         int color = ContextCompat.getColor(context, scrimColorRes(Build.VERSION.SDK_INT));
-        View decor = window.getDecorView();
         ScrimController controller = new ScrimController(host, color);
+        decor.setTag(R.id.local_games_dialog_scrim_controller, controller);
         decor.addOnAttachStateChangeListener(controller);
         if (decor.isAttachedToWindow()) controller.onViewAttachedToWindow(decor);
     }
@@ -204,7 +215,7 @@ final class FrostedWindow {
     }
 
     /** A translucent rounded surface with a hairline outline; fill is a colour resource. */
-    static GradientDrawable surface(@NonNull Context context, @ColorRes int fillRes, int radiusDp) {
+    public static GradientDrawable surface(@NonNull Context context, @ColorRes int fillRes, int radiusDp) {
         GradientDrawable shape = new GradientDrawable();
         shape.setColor(ContextCompat.getColor(context, fillRes));
         shape.setCornerRadius(dp(context, radiusDp));
@@ -212,7 +223,7 @@ final class FrostedWindow {
         return shape;
     }
 
-    static float dp(@NonNull Context context, int value) {
+    public static float dp(@NonNull Context context, int value) {
         return value * context.getResources().getDisplayMetrics().density;
     }
 }

@@ -1,6 +1,7 @@
 package com.termux.app.localgames;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -18,6 +19,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
+import java.io.File;
 
 @RunWith(RobolectricTestRunner.class)
 public class TermuxLocalGamesHostFactoryTest {
@@ -74,5 +78,49 @@ public class TermuxLocalGamesHostFactoryTest {
         LaunchRequest request = new LaunchRequest("task-1", "/private/start.sh",
             "/private/task.launchspec", "/private/runtime", mode);
         return TermuxLocalGamesHostFactory.createLaunchIntent(context, "/bin/sh", request);
+    }
+
+    @Test
+    public void setupPreludeReplaysLogBeforeScriptAndPreservesArgumentsAndExitStatus() throws Exception {
+        File directory = Files.createTempDirectory("setup console '").toFile();
+        File log = new File(directory, "preparation $(false).log");
+        File script = new File(directory, "setup ' script.sh");
+        File spec = new File(directory, "spec with spaces");
+        try {
+            Files.write(log.toPath(), "组件准备完成\n".getBytes(StandardCharsets.UTF_8));
+            Files.write(script.toPath(), "printf 'script: %s\\n' \"$1\"; exit 17\n".getBytes(StandardCharsets.UTF_8));
+            RuntimeSetupRequest request = new RuntimeSetupRequest("build-prelude", script.getPath(),
+                spec.getPath(), directory.getPath(), log.getPath());
+            Intent intent = TermuxLocalGamesHostFactory.createSetupIntent(
+                RuntimeEnvironment.getApplication(), "/bin/sh", request);
+            String[] args = intent.getStringArrayExtra(TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_ARGUMENTS);
+            String[] command = new String[args.length + 1];
+            command[0] = "/bin/sh";
+            System.arraycopy(args, 0, command, 1, args.length);
+            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            assertEquals(17, process.waitFor());
+            assertEquals("组件准备完成\n\nscript: " + spec.getPath() + "\n", output);
+
+            assertTrue(log.delete());
+            process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            assertTrue(process.waitFor() != 0);
+            assertFalse(output.contains("script:"));
+        } finally {
+            log.delete();
+            script.delete();
+            directory.delete();
+        }
+    }
+
+    @Test
+    public void setupWithoutPreparationLogExecutesScriptDirectly() {
+        RuntimeSetupRequest request = new RuntimeSetupRequest("archive", "/private/archive.sh",
+            "/private/archive.spec", "/private/runtime");
+        Intent intent = TermuxLocalGamesHostFactory.createSetupIntent(
+            RuntimeEnvironment.getApplication(), "/bin/sh", request);
+        assertArrayEquals(new String[] {request.getScriptPath(), request.getSpecPath()},
+            intent.getStringArrayExtra(TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_ARGUMENTS));
     }
 }

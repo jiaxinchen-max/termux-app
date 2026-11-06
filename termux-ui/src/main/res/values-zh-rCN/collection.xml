@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="collection_runtime_mode">运行模式</string>
+    <string name="local_game_card_details_compact">详情</string>
+    <string name="collection_runtime_switch">当前模式：%1$s。切换到 %2$s</string>
+</resources>

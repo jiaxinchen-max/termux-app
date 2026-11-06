@@ -1,6 +1,6 @@
 package com.termux.ui.data;
 
-import com.termux.ui.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
 
 import java.io.File;
 
@@ -14,9 +14,9 @@ public final class GameStoragePaths {
     public GameStoragePaths(File filesDirectory) {
         if (filesDirectory == null) throw new IllegalArgumentException("filesDirectory required");
         this.filesDirectory = filesDirectory;
-        libraryDirectory = new File(new File(filesDirectory, "games"), "library");
-        profilesDirectory = new File(new File(filesDirectory, "games"), "profiles");
-        launchesDirectory = new File(new File(filesDirectory, "games"), "launches");
+        libraryDirectory = new File(FrontStorage.root(filesDirectory), "library");
+        profilesDirectory = new File(FrontStorage.root(filesDirectory), "profiles");
+        launchesDirectory = new File(FrontStorage.root(filesDirectory), "launches");
     }
 
     public File getLibraryDirectory() { return libraryDirectory; }
@@ -121,6 +121,10 @@ public final class GameStoragePaths {
     public File getTermuxPrefixDirectory() { return new File(filesDirectory, "usr"); }
     public File getProotDistroContainersDirectory() {
         return new File(getTermuxPrefixDirectory(), "var/lib/proot-distro/containers");
+    }
+    /** Scratch image used by setup_rootfs_runtime.sh before publishing the shared RootFS. */
+    public File getRootfsBuildContainerDirectory() {
+        return new File(getProotDistroContainersDirectory(), "tmpl-build");
     }
     /** The one shared RootFS every ROOTFS_PROOT container's proot session mounts with `-r`
      *  (Winlator-style: extracted once from the base archive, never per-container). Beside

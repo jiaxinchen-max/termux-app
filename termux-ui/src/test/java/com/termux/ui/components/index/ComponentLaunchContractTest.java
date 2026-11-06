@@ -1,9 +1,6 @@
 package com.termux.ui.components.index;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-import com.termux.ui.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
 
 import org.junit.Test;
 
@@ -11,6 +8,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Locks the contract between catalog profileValues and the on-device launch scripts.
@@ -37,7 +37,7 @@ public class ComponentLaunchContractTest {
 
     private static ComponentIndex index() throws IOException {
         InputStream input = ComponentLaunchContractTest.class.getClassLoader()
-            .getResourceAsStream("termux-box-packages/index-v1.json");
+            .getResourceAsStream("termux-app-packages/index-v1.json");
         assertTrue("bundled index must be available to tests", input != null);
         try (InputStream closeable = input) {
             return new ComponentIndexParser().parse(closeable);

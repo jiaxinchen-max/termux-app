@@ -1,241 +1,268 @@
 #!/data/data/com.termux/files/usr/bin/sh
-# Installs a user-picked local Wine or Box64 build into the already-published shared RootFS --
-# an incremental, single-component add, distinct from setup_rootfs_runtime.sh's full base-image
-# build/publish pipeline. Spec format (see CustomComponentInstallSpecCodec):
-#   schemaVersion=1
-#   taskId=<id>
-#   kind=wine|box64
-#   componentId=<custom-wine-<slug>|custom-box64-<slug>>
-#   payloadPath=<app-private staged copy of the SAF-picked file, canonical>
-#   payloadKind=wine-tree|box64-tree
-#   eventsPath=<private events jsonl path, under .../games/runtime/custom-install/events/>
-#   logPath=<private log path, under .../games/runtime/custom-install/logs/>
-#
-# Both kinds are a tar(.xz/.gz/.zst/.tar) archive, detected and extracted identically (by content,
-# not by the payload file's name/extension -- the staged file is named after its taskId, not the
-# original SAF-picked display name). No .deb/apt-get path exists for either: apt-get install would
-# let an arbitrary .deb's dependency resolution touch/replace shared libraries used by every other
-# container, which is unacceptable for a user-supplied package nobody has reviewed. Everything here
-# is a plain, isolated file copy -- never a package manager -- so a bad pick can only ever leave its
-# own dedicated /opt/custom-*/<componentId>/ directory in a bad state, never the rest of the RootFS.
-#
-# wine:wine-tree  -- archive containing bin/wine+bin/wineboot+lib*/wine at some depth (same
-#                     content-detection runtime-rootfs/setup-container.sh already uses for its own
-#                     portable-Wine-build loop). The whole wine tree is copied to
-#                     /opt/custom-wine/<componentId>/ inside the shared RootFS.
-# box64:box64-tree -- archive containing a `box64` executable at some depth. Only that one binary
-#                     is copied, to /opt/box64/<componentId>/bin/box64 -- the same per-id directory
-#                     convention catalog box64 builds use (rootfs_box64_0.4.5, rootfs_box64_0.4.5-mprotect-
-#                     patch); never a shared system location.
-
+EXPECTED_BACKEND=rootfs_proot
+# A component import is an isolated archive copy, never apt/pkg/deb execution.
+# runtimeBackend is mandatory; selecting the other installer is an error.
 set -eu
-PS4='+ '
-set -x
 
-SPEC_PATH=${1:?Usage: install_custom_rootfs_component.sh <install-spec>}
-SCRIPT_PATH=$(realpath "$0" 2>/dev/null) || {
-    printf '%s\n' custom_install_script_unreadable >&2
-    exit 2
-}
-
-TASK_ID=
-KIND=
-COMPONENT_ID=
-PAYLOAD_PATH=
-PAYLOAD_KIND=
-EVENTS_PATH=
-LOG_PATH=
+SPEC_PATH=${1:?Usage: custom-component-installer <install-spec>}
+SCRIPT_PATH=$(realpath "$0") || exit 2
+SPEC_VERSION=
+TASK_ID= KIND= COMPONENT_ID= PAYLOAD_PATH= PAYLOAD_KIND= EVENTS_PATH= LOG_PATH= RUNTIME_BACKEND= RUNTIME_TRANSLATOR= PAYLOAD_SHA256=
+OUTPUTS_READY=false
 COMPLETED=false
+PUBLISHED=false
 FAILURE_CODE=custom_install_script_failed
+STAGE_DIR= DEST=
 
+fail() { FAILURE_CODE=$1; exit "${2:-1}"; }
 on_exit() {
     status=$?
-    if [ "$status" -ne 0 ] && [ "$COMPLETED" = false ] && [ -n "$EVENTS_PATH" ]; then
-        event_directory=${EVENTS_PATH%/*}
-        mkdir -p "$event_directory" 2>/dev/null || true
-        if [ -n "$LOG_PATH" ]; then
-            log_directory=${LOG_PATH%/*}
-            mkdir -p "$log_directory" 2>/dev/null || true
-            printf 'FAILED: %s (exit=%s)\n' "$FAILURE_CODE" "$status" \
-                >> "$LOG_PATH" 2>/dev/null || true
+    if [ "$status" -ne 0 ] && [ "$COMPLETED" = false ]; then
+        if [ "$PUBLISHED" = true ] && [ -n "$DEST" ]; then rm -rf "$DEST"; fi
+        if [ "$OUTPUTS_READY" = true ]; then
+            printf '{"schemaVersion":1,"taskId":"%s","state":"FAILED","errorCode":"%s"}\n' \
+                "$TASK_ID" "$FAILURE_CODE" >> "$EVENTS_PATH" 2>/dev/null || true
         fi
-        printf '{"schemaVersion":1,"taskId":"%s","state":"FAILED","errorCode":"%s"}\n' \
-            "$TASK_ID" "$FAILURE_CODE" >> "$EVENTS_PATH" 2>/dev/null || true
+        [ "$OUTPUTS_READY" = false ] || printf 'FAILED: %s (exit=%s)\n' "$FAILURE_CODE" "$status" >> "$LOG_PATH" 2>/dev/null || true
     fi
-    [ -z "${STAGE_DIR:-}" ] || rm -rf "$STAGE_DIR" 2>/dev/null || true
+    if [ -n "$STAGE_DIR" ]; then
+        # Archives may carry read-only directories; make our private stage removable.
+        find "$STAGE_DIR" -type d -exec chmod u+rwx {} + 2>/dev/null || true
+        rm -rf "$STAGE_DIR"
+    fi
 }
 trap on_exit EXIT
-
-fail() {
-    FAILURE_CODE=$1
-    exit "${2:-1}"
-}
+trap 'fail custom_install_interrupted 130' INT TERM
 
 while IFS='=' read -r key value; do
     case "$key" in
-        schemaVersion) [ "$value" = 1 ] || fail unsupported_custom_install_spec 64 ;;
+        schemaVersion) SPEC_VERSION=$value ;;
         taskId) TASK_ID=$value ;;
         kind) KIND=$value ;;
+        runtimeBackend) RUNTIME_BACKEND=$value ;;
+        runtimeTranslator) RUNTIME_TRANSLATOR=$value ;;
         componentId) COMPONENT_ID=$value ;;
         payloadPath) PAYLOAD_PATH=$value ;;
         payloadKind) PAYLOAD_KIND=$value ;;
+        payloadSha256) PAYLOAD_SHA256=$value ;;
         eventsPath) EVENTS_PATH=$value ;;
         logPath) LOG_PATH=$value ;;
         '') ;;
         *) fail invalid_custom_install_spec 64 ;;
     esac
 done < "$SPEC_PATH"
-
-case "$KIND" in wine|box64) ;; *) fail invalid_custom_install_spec 64 ;; esac
+# Validate identifiers before using them in paths or JSON.
 case "$TASK_ID" in ''|*[!A-Za-z0-9._-]*) fail invalid_custom_install_identifier 64 ;; esac
-case "$COMPONENT_ID" in
-    custom-wine-*) [ "$KIND" = wine ] || fail custom_install_kind_mismatch 64 ;;
-    custom-box64-*) [ "$KIND" = box64 ] || fail custom_install_kind_mismatch 64 ;;
-    *) fail invalid_custom_component_id 64 ;;
-esac
+case "$KIND" in wine|box64|dxvk|vkd3d|turnip) ;; *) fail invalid_custom_install_kind 64 ;; esac
+case "$COMPONENT_ID" in "custom-$KIND-"?*) ;; *) fail invalid_custom_component_id 64 ;; esac
 case "$COMPONENT_ID" in *[!A-Za-z0-9._-]*) fail invalid_custom_component_id 64 ;; esac
-case "$PAYLOAD_KIND" in wine-tree|box64-tree) ;; *) fail invalid_custom_install_spec 64 ;; esac
-case "$KIND:$PAYLOAD_KIND" in
-    wine:wine-tree|box64:box64-tree) ;;
-    *) fail custom_component_kind_unsupported 64 ;;
-esac
-case "$PAYLOAD_PATH" in /*) ;; *) fail invalid_custom_install_payload_path 64 ;; esac
-case "$PAYLOAD_PATH" in *'/../'*|*/..|*'/./'*|*/.) fail invalid_custom_install_payload_path 64 ;; esac
+[ "$PAYLOAD_KIND" = "$KIND-tree" ] || fail custom_install_kind_mismatch 64
 
 PRIVATE_ROOT=${SPEC_PATH%/runtime/custom-install/specs/*}
-[ -n "$PRIVATE_ROOT" ] && [ "$PRIVATE_ROOT" != "$SPEC_PATH" ] || \
-    fail invalid_custom_install_spec_path 64
-case "$SPEC_PATH" in "$PRIVATE_ROOT"/runtime/custom-install/specs/*.installspec) ;; *)
-    fail invalid_custom_install_spec_path 64 ;;
-esac
-# Same Java-getCanonicalPath()-derived convention as setup_rootfs_runtime.sh/backup_restore_rootfs.sh.
-TERMUX_FILES_ROOT=${PRIVATE_ROOT%/games}
-[ -n "$TERMUX_FILES_ROOT" ] && [ "$TERMUX_FILES_ROOT" != "$PRIVATE_ROOT" ] || \
-    fail invalid_custom_install_spec_path 64
-for path in "$EVENTS_PATH" "$LOG_PATH" "$PAYLOAD_PATH"; do
+[ -n "$PRIVATE_ROOT" ] && [ "$PRIVATE_ROOT" != "$SPEC_PATH" ] || fail invalid_custom_install_spec_path 64
+TERMUX_FILES_ROOT=${PRIVATE_ROOT%/front}
+[ "$TERMUX_FILES_ROOT" != "$PRIVATE_ROOT" ] || fail invalid_custom_install_spec_path 64
+# Canonical private paths only. Reject symlinked output directories as well as textual traversal.
+for path in "$SPEC_PATH" "$EVENTS_PATH" "$LOG_PATH" "$PAYLOAD_PATH"; do
     case "$path" in "$PRIVATE_ROOT"/*) ;; *) fail custom_install_path_outside_private_storage 64 ;; esac
     case "$path" in *'/../'*|*/..|*'/./'*|*/.) fail invalid_custom_install_private_path 64 ;; esac
+    canonical=$(realpath -m "$path") || fail invalid_custom_install_private_path 64
+    [ "$canonical" = "$path" ] || fail invalid_custom_install_private_path 64
 done
-
-events_directory=${EVENTS_PATH%/*}
-logs_directory=${LOG_PATH%/*}
-[ "$events_directory" != "$EVENTS_PATH" ] && [ "$logs_directory" != "$LOG_PATH" ] || \
-    fail invalid_custom_install_output_path 64
-mkdir -p "$events_directory" "$logs_directory" || fail custom_install_output_directory_failed 70
+mkdir -p "${EVENTS_PATH%/*}" "${LOG_PATH%/*}"
 : >> "$LOG_PATH"
-
-# Co-located with this script by LaunchScriptInstaller (same runtimeDirectory). Defines progress(),
-# run_logged(), run_logged_watchdog().
+OUTPUTS_READY=true
+[ "$SPEC_VERSION" = 1 ] || fail unsupported_custom_install_spec 64
+[ "$RUNTIME_BACKEND" = "$EXPECTED_BACKEND" ] || fail custom_install_backend_mismatch 64
+if [ "$RUNTIME_BACKEND" = rootfs_proot ]; then
+    case "$KIND" in wine|box64|dxvk) ;; *) fail custom_component_backend_unsupported 64 ;; esac
+fi
+case "$KIND:$RUNTIME_BACKEND:$RUNTIME_TRANSLATOR" in
+    wine:rootfs_proot:hangover|wine:rootfs_proot:box64|wine:glibc_termux_box:none) ;;
+    wine:*) fail custom_wine_translator_mismatch 64 ;;
+    *:*:none) ;;
+    *) fail custom_component_translator_not_allowed 64 ;;
+esac
 . "$(dirname "$SCRIPT_PATH")/rootfs_script_common.sh"
-
-PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
-SHARED_ROOTFS_CONTAINER_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-shared-rootfs"
-SHARED_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY/rootfs"
-STAGE_DIR="$SHARED_ROOTFS_CONTAINER_DIRECTORY/.custom-install-stage/$COMPONENT_ID"
-
 [ -f "$PAYLOAD_PATH" ] || fail custom_component_payload_missing 70
+case "$PAYLOAD_SHA256" in ''|*[!a-f0-9]*) fail custom_component_hash_invalid 64 ;; esac
+[ "${#PAYLOAD_SHA256}" = 64 ] || fail custom_component_hash_invalid 64
+actual_sha256=$(sha256sum "$PAYLOAD_PATH")
+actual_sha256=${actual_sha256%% *}
+[ "$actual_sha256" = "$PAYLOAD_SHA256" ] || fail custom_component_hash_mismatch 64
 
-# Same completeness check setup_rootfs_runtime.sh/backup_restore_rootfs.sh use.
-runtime_complete() {
-    root=$1
-    [ -x "$root/usr/bin/env" ] &&
-        [ -x "$root/opt/box64/rootfs_box64_0.4.5/bin/box64" ] &&
-        [ -x "$root/usr/bin/wine" ] &&
-        [ -x "$root/usr/bin/wineboot" ] &&
-        [ -f "$root/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" ] &&
-        [ -f "$root/etc/games-runtime.properties" ] &&
-        [ -d "$root/mnt/games/game" ] &&
-        [ -d "$root/mnt/games/prefix" ]
-}
-
-progress '==> Checking the shared base environment is built'
-runtime_complete "$SHARED_ROOTFS" || fail rootfs_not_built_yet 70
-
+TERMUX_GLIBC_DIR="$TERMUX_FILES_ROOT/usr/glibc"
+SHARED_CONTAINER="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-shared-rootfs"
+SHARED_ROOTFS="$SHARED_CONTAINER/rootfs"
+if [ "$RUNTIME_BACKEND" = glibc_termux_box ]; then
+    [ -x "$TERMUX_GLIBC_DIR/bin/box64" ] && [ -f "$TERMUX_GLIBC_DIR/lib/ld-linux-aarch64.so.1" ] || fail glibc_runtime_not_installed 70
+    case "$KIND" in
+        wine) DEST="$TERMUX_GLIBC_DIR/$COMPONENT_ID" ;;
+        *) DEST="$TERMUX_GLIBC_DIR/components/$COMPONENT_ID" ;;
+    esac
+    STAGE_BASE="$TERMUX_GLIBC_DIR/.custom-install-stage"
+else
+    [ -x "$SHARED_ROOTFS/usr/bin/env" ] && [ -x "$SHARED_ROOTFS/usr/bin/wine" ] &&
+        [ -f "$SHARED_ROOTFS/etc/games-runtime.properties" ] || fail rootfs_not_built_yet 70
+    case "$KIND" in
+        wine) DEST="$SHARED_ROOTFS/opt/custom-wine/$COMPONENT_ID" ;;
+        box64) DEST="$SHARED_ROOTFS/opt/box64/$COMPONENT_ID" ;;
+        dxvk) DEST="$SHARED_ROOTFS/opt/dxvk/$COMPONENT_ID" ;;
+    esac
+    STAGE_BASE="$SHARED_CONTAINER/.custom-install-stage"
+fi
+[ ! -e "$DEST" ] && [ ! -L "$DEST" ] || fail custom_component_already_installed 73
+mkdir -p "$(dirname "$DEST")" "$STAGE_BASE"
+STAGE_DIR=$(mktemp -d "$STAGE_BASE/$COMPONENT_ID.XXXXXX") || fail custom_install_staging_directory_failed 70
+EXTRACT="$STAGE_DIR/extract"
+PUBLISH="$STAGE_DIR/publish"
+mkdir "$EXTRACT" "$PUBLISH"
 printf '{"schemaVersion":1,"taskId":"%s","state":"RUNNING"}\n' "$TASK_ID" >> "$EVENTS_PATH"
 
-rm -rf "$STAGE_DIR"
-mkdir -p "$STAGE_DIR"
-
-progress '==> Extracting the custom build'
-# Detected by content (magic bytes), not by the payload file's name/extension -- see this script's
-# header comment. Matches this codebase's existing "install by content" convention (see
-# runtime-rootfs/setup-container.sh's own header comment on the same principle for the base-image
-# build).
-MAGIC=$(od -An -tx1 -N 6 "$PAYLOAD_PATH" 2>/dev/null | tr -d ' \n')
+progress '==> Validating the local component archive'
+# GNU tar is supplied by Termux. Never retry an unknown format using a different extraction mode.
+MAGIC=$(od -An -tx1 -N 6 "$PAYLOAD_PATH" | tr -d ' \n')
 case "$MAGIC" in
-    fd377a585a00*) run_logged tar -C "$STAGE_DIR" -J -xpf "$PAYLOAD_PATH" ;;
-    1f8b*) run_logged tar -C "$STAGE_DIR" -z -xpf "$PAYLOAD_PATH" ;;
-    28b52ffd*) run_logged tar -C "$STAGE_DIR" --zstd -xpf "$PAYLOAD_PATH" ;;
+    fd377a585a00*) COMPRESSION=-J ;;
+    1f8b*) COMPRESSION=-z ;;
+    28b52ffd*) COMPRESSION=--zstd ;;
     *)
-        # Not a recognized compressed-archive magic -- try as a plain uncompressed tar (ustar
-        # magic at offset 257) before giving up.
-        if ! run_logged tar -C "$STAGE_DIR" -xpf "$PAYLOAD_PATH"; then
-            fail custom_archive_format_unsupported 64
+        TAR_MAGIC=$(dd if="$PAYLOAD_PATH" bs=1 skip=257 count=5 2>/dev/null)
+        [ "$TAR_MAGIC" = ustar ] || fail custom_archive_format_unsupported 64
+        COMPRESSION= ;;
+esac
+# Listing must succeed before extraction. Quoting makes control characters visible; reject them.
+tar $COMPRESSION --quoting-style=escape -tf "$PAYLOAD_PATH" > "$STAGE_DIR/members" || fail custom_archive_invalid 64
+[ -s "$STAGE_DIR/members" ] || fail custom_archive_empty 64
+while IFS= read -r member; do
+    case "$member" in /*|..|../*|*/../*|*/..|*'\'*|'') fail custom_archive_unsafe_path 64 ;; esac
+done < "$STAGE_DIR/members"
+tar $COMPRESSION --quoting-style=escape -tvf "$PAYLOAD_PATH" > "$STAGE_DIR/listing" || fail custom_archive_invalid 64
+# Device nodes, FIFOs and sockets have no place in component archives.
+awk 'substr($0,1,1) !~ /^[-dlh]$/ {exit 1}' "$STAGE_DIR/listing" || fail custom_archive_unsafe_entry 64
+# GNU tar refuses symlink traversal and hardlinks outside the extraction root. Duplicate files
+# are errors; no ownership or special permissions from an untrusted archive are retained.
+tar $COMPRESSION --no-same-owner --no-same-permissions --keep-old-files -xf "$PAYLOAD_PATH" -C "$EXTRACT" >> "$LOG_PATH" 2>&1 || fail custom_archive_extract_failed 64
+validate_links() {
+    checked_root=$1
+    find "$checked_root" -type l > "$STAGE_DIR/links"
+    while IFS= read -r link; do
+        resolved=$(realpath -e "$link") || fail custom_archive_unsafe_link 64
+        case "$resolved" in "$checked_root"/*) ;; *) fail custom_archive_unsafe_link 64 ;; esac
+    done < "$STAGE_DIR/links"
+}
+validate_links "$EXTRACT"
+find "$EXTRACT" -type d -exec chmod u+rwx,go-rwx {} +
+find "$EXTRACT" -type f -exec chmod u+rw,u-s,g-s {} +
+
+require_aarch64() {
+    header=$(od -An -tx1 -N 20 "$1" | tr -d ' \n')
+    case "$header" in 7f454c460201*) ;; *) fail custom_component_not_elf64_le 64 ;; esac
+    [ "$(printf '%s' "$header" | cut -c37-40)" = b700 ] || fail custom_component_not_aarch64 64
+}
+require_wine_abi() {
+    # The chosen backend and translator determine one ABI; never probe another execution mode.
+    case "$RUNTIME_BACKEND:$RUNTIME_TRANSLATOR" in
+        glibc_termux_box:none|rootfs_proot:box64) wine_machine=3e00 ;;
+        rootfs_proot:hangover) wine_machine=b700 ;;
+        *) fail custom_wine_translator_mismatch 64 ;;
+    esac
+    wine_header=$(od -An -tx1 -N 20 "$1" | tr -d ' \n')
+    case "$wine_header" in 7f454c460201*) ;; *) fail custom_wine_arch_mismatch 64 ;; esac
+    [ "$(printf '%s' "$wine_header" | cut -c37-40)" = "$wine_machine" ] || fail custom_wine_arch_mismatch 64
+    [ "$(wc -c < "$1" | tr -d ' ')" -ge 64 ] || fail custom_wine_arch_mismatch 64
+}
+require_pe() {
+    pe_file=$1 expected_machine=$2
+    magic=$(od -An -tx1 -N 2 "$pe_file" | tr -d ' \n')
+    [ "$magic" = 4d5a ] || fail custom_component_not_pe_dll 64
+    # PE's e_lfanew is a little-endian 32-bit offset, independent of the host architecture.
+    set -- $(od -An -tu1 -j 60 -N 4 "$pe_file")
+    [ "$#" = 4 ] || fail custom_component_not_pe_dll 64
+    pe_offset=$(($1 + $2 * 256 + $3 * 65536 + $4 * 16777216))
+    pe_signature=$(od -An -tx1 -j "$pe_offset" -N 6 "$pe_file" | tr -d ' \n')
+    [ "$pe_signature" = "50450000$expected_machine" ] || fail custom_component_dll_arch_mismatch 64
+    set -- $(od -An -tu1 -j "$((pe_offset + 22))" -N 2 "$pe_file")
+    [ "$#" = 2 ] || fail custom_component_not_pe_dll 64
+    [ "$(($2 & 32))" = 32 ] || fail custom_component_not_pe_dll 64
+}
+unique_file() {
+    find "$EXTRACT" -type f -name "$1" > "$STAGE_DIR/matches"
+    [ "$(wc -l < "$STAGE_DIR/matches" | tr -d ' ')" = 1 ] || fail custom_component_binary_missing_or_ambiguous 64
+    IFS= read -r FOUND < "$STAGE_DIR/matches"
+}
+
+progress "==> Preparing $COMPONENT_ID for $RUNTIME_BACKEND"
+case "$KIND" in
+    wine)
+        find "$EXTRACT" \( -type f -o -type l \) -path '*/bin/wine' > "$STAGE_DIR/matches"
+        [ "$(wc -l < "$STAGE_DIR/matches" | tr -d ' ')" = 1 ] || fail custom_wine_binary_missing_or_ambiguous 64
+        IFS= read -r wine_bin < "$STAGE_DIR/matches"
+        source_root=${wine_bin%/bin/wine}
+        [ -f "$source_root/bin/wineboot" ] && [ -f "$source_root/bin/wineserver" ] || fail custom_wine_missing_runtime_binary 64
+        [ -d "$source_root/lib/wine" ] || [ -d "$source_root/lib64/wine" ] || fail custom_wine_not_a_wine_build 64
+        require_wine_abi "$source_root/bin/wine"
+        require_wine_abi "$source_root/bin/wineserver"
+        # Keep executable and DLL links self-contained after removing the archive's wrapper dirs.
+        validate_links "$source_root"
+        cp -a "$source_root/." "$PUBLISH/"
+        chmod +x "$PUBLISH/bin/wine" "$PUBLISH/bin/wineboot" "$PUBLISH/bin/wineserver"
+        ;;
+    box64)
+        unique_file box64
+        require_aarch64 "$FOUND"
+        mkdir "$PUBLISH/bin"
+        cp "$FOUND" "$PUBLISH/bin/box64"
+        chmod 755 "$PUBLISH/bin/box64"
+        if [ "$RUNTIME_BACKEND" = glibc_termux_box ]; then
+            # A version probe detects an incompatible libc/loader without changing this build.
+            # Android W^X/JIT compatibility is verified at launch; failure never selects another version.
+            run_logged env -u LD_PRELOAD timeout 15 "$TERMUX_GLIBC_DIR/lib/ld-linux-aarch64.so.1" \
+                --library-path "$TERMUX_GLIBC_DIR/lib" "$PUBLISH/bin/box64" --version || fail custom_box64_native_incompatible 64
         fi
+        ;;
+    dxvk|vkd3d)
+        if [ "$KIND" = dxvk ]; then probe_dll=d3d11.dll; low_dest=x32; else probe_dll=d3d12.dll; low_dest=x86; fi
+        find "$EXTRACT" -type f -path "*/x64/$probe_dll" > "$STAGE_DIR/matches"
+        [ "$(wc -l < "$STAGE_DIR/matches" | tr -d ' ')" = 1 ] || fail custom_component_dll_layout_invalid 64
+        IFS= read -r probe_path < "$STAGE_DIR/matches"
+        dll_root=${probe_path%/x64/*}
+        # DXVK upstream uses x32, some packages use x86. Reject ambiguous layouts.
+        if [ -d "$dll_root/x32" ] && [ -d "$dll_root/x86" ]; then fail custom_component_dll_layout_ambiguous 64; fi
+        if [ -d "$dll_root/x32" ]; then low_source=x32; else low_source=x86; fi
+        [ -f "$dll_root/$low_source/$probe_dll" ] || fail custom_component_dll_layout_invalid 64
+        if [ "$KIND" = dxvk ]; then
+            [ -f "$dll_root/x64/dxgi.dll" ] && [ -f "$dll_root/$low_source/dxgi.dll" ] || fail custom_component_dll_layout_invalid 64
+        else
+            [ -f "$dll_root/x64/d3d12core.dll" ] && [ -f "$dll_root/$low_source/d3d12core.dll" ] || fail custom_component_dll_layout_invalid 64
+        fi
+        for architecture in "$low_source" x64; do
+            if [ "$architecture" = x64 ]; then output_arch=x64; machine=6486; else output_arch=$low_dest; machine=4c01; fi
+            mkdir "$PUBLISH/$output_arch"
+            find "$dll_root/$architecture" -maxdepth 1 -type f -name '*.dll' > "$STAGE_DIR/dlls"
+            while IFS= read -r dll; do
+                require_pe "$dll" "$machine"
+                cp "$dll" "$PUBLISH/$output_arch/"
+            done < "$STAGE_DIR/dlls"
+        done
+        ;;
+    turnip)
+        unique_file libvulkan_freedreno.so
+        require_aarch64 "$FOUND"
+        mkdir "$PUBLISH/lib"
+        cp "$FOUND" "$PUBLISH/lib/libvulkan_freedreno.so"
         ;;
 esac
+validate_links "$PUBLISH"
 
-case "$KIND:$PAYLOAD_KIND" in
-    wine:wine-tree)
-        WINEBIN=$(find "$STAGE_DIR" \( -type f -o -type l \) -name wine -path '*/bin/*' | head -n 1)
-        [ -n "$WINEBIN" ] || fail custom_wine_missing_wine_binary 70
-        WINEBOOTBIN=$(find "$STAGE_DIR" \( -type f -o -type l \) -name wineboot -path '*/bin/*' | head -n 1)
-        [ -n "$WINEBOOTBIN" ] || fail custom_wine_missing_wineboot_binary 70
-        # A genuine Wine build ships its PE/builtin DLL tree under lib/wine (or lib64/wine) -- bin/
-        # wine and bin/wineboot alone can be present in an unrelated archive, so require the DLL
-        # tree too before trusting this as a real Wine build. All still in staging: an archive that
-        # fails here has not touched the shared RootFS.
-        if ! find "$STAGE_DIR" -type d -path '*/lib*/wine' 2>/dev/null | grep -q .; then
-            fail custom_wine_not_a_wine_build 64
-        fi
-        SRCROOT=$(dirname "$(dirname "$WINEBIN")")
-
-        progress "==> Installing $COMPONENT_ID into the shared RootFS"
-        DEST="$SHARED_ROOTFS/opt/custom-wine/$COMPONENT_ID"
-        rm -rf "$DEST"
-        mkdir -p "$(dirname "$DEST")"
-        cp -a "$SRCROOT" "$DEST"
-        chmod +x "$DEST/bin/wine" "$DEST/bin/wineboot"
-
-        progress "==> Registering $COMPONENT_ID in /etc/games-runtime.properties"
-        MANIFEST="$SHARED_ROOTFS/etc/games-runtime.properties"
-        [ -f "$MANIFEST" ] || fail rootfs_runtime_manifest_missing 70
-        if ! grep -q "^runtimePackages=.*\\b$COMPONENT_ID\\b" "$MANIFEST"; then
-            CURRENT=$(sed -n 's/^runtimePackages=//p' "$MANIFEST")
-            [ -n "$CURRENT" ] || fail rootfs_runtime_manifest_missing_packages_key 70
-            sed -i "s/^runtimePackages=.*/runtimePackages=${CURRENT},${COMPONENT_ID}/" "$MANIFEST"
-        fi
-        ;;
-    box64:box64-tree)
-        progress '==> Validating the custom Box64 binary'
-        BOX64BIN=$(find "$STAGE_DIR" -type f -name box64 | head -n 1)
-        [ -n "$BOX64BIN" ] || fail custom_box64_missing_binary 70
-        # box64 on this RootFS must be a NATIVE ARM64 (AArch64) executable (box64 translates x86
-        # guests but is itself an ARM64 binary); an x86 build picked by mistake would be copied in
-        # and then fail to exec at launch. Still entirely within staging -- nothing written to the
-        # shared RootFS until this passes. ELF e_machine is a 2-byte little-endian field at offset
-        # 18; AArch64 == 0x00B7.
-        BOX64_MAGIC=$(od -An -tx1 -N 20 "$BOX64BIN" 2>/dev/null | tr -d ' \n')
-        case "$BOX64_MAGIC" in
-            7f454c46*) ;;
-            *) fail custom_box64_not_elf 64 ;;
-        esac
-        [ "$(printf '%s' "$BOX64_MAGIC" | cut -c37-40)" = b700 ] || fail custom_box64_not_aarch64 64
-
-        progress "==> Installing $COMPONENT_ID into the shared RootFS"
-        # Only the one binary is copied, to its own dedicated directory under the same
-        # /opt/box64/<id>/bin/box64 convention catalog builds use (rootfs_box64_0.4.5,
-        # rootfs_box64_0.4.5) -- never a shared system path, so a bad or malicious pick
-        # cannot affect any other container or translator. See this script's header comment.
-        DEST="$SHARED_ROOTFS/opt/box64/$COMPONENT_ID/bin/box64"
-        mkdir -p "$(dirname "$DEST")"
-        cp "$BOX64BIN" "$DEST"
-        chmod 755 "$DEST"
-        ;;
-esac
-
-rm -rf "$STAGE_DIR"
+# Publish the receipt in the same rename as the payload; no half-installed registry entries.
+printf 'schemaVersion=1\nruntimeBackend=%s\nruntimeTranslator=%s\nkind=%s\ncomponentId=%s\nsha256=%s\n' \
+    "$RUNTIME_BACKEND" "$RUNTIME_TRANSLATOR" "$KIND" "$COMPONENT_ID" "$PAYLOAD_SHA256" > "$PUBLISH/.custom-component.properties"
+progress "==> Publishing $COMPONENT_ID"
+# Same filesystem rename; -n preserves an existing version even if an outside writer raced us.
+mv -T -n "$PUBLISH" "$DEST" || fail custom_component_publish_failed 70
+[ ! -d "$PUBLISH" ] || fail custom_component_already_installed 73
+PUBLISHED=true
 progress '==> Custom component install completed'
-
 printf '{"schemaVersion":1,"taskId":"%s","state":"SUCCEEDED"}\n' "$TASK_ID" >> "$EVENTS_PATH"
 COMPLETED=true

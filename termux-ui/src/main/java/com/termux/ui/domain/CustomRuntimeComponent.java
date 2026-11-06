@@ -1,16 +1,15 @@
 package com.termux.ui.domain;
 
-/** A user-installed Wine or Box64 build, registered after install_custom_rootfs_component.sh
- *  (ROOTFS_PROOT) or install_custom_glibc_wine_component.sh (GLIBC_TERMUX_BOX) reports success --
- *  see CustomComponentInstallForegroundService, which picks between the two scripts based on
- *  whether translator is null. Lives in a separate, writable registry from the read-only bundled
- *  component catalog (ComponentIndex), since these entries are created at runtime from a
- *  locally-picked file rather than shipped with the app. */
+import com.termux.ui.wine.domain.RuntimeTranslator;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
+
+/** A locally imported, backend-specific component registered only after atomic publication. */
 public final class CustomRuntimeComponent {
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
 
-    public enum Kind { WINE, BOX64 }
+    public enum Kind { WINE, BOX64, DXVK, VKD3D, TURNIP }
 
+    private final GameRuntimeBackendType backendType;
     private final String id;
     private final Kind kind;
     private final RuntimeTranslator translator;
@@ -21,18 +20,17 @@ public final class CustomRuntimeComponent {
     public CustomRuntimeComponent(String id, Kind kind, RuntimeTranslator translator,
                                   String displayName, long installedAtEpochSeconds,
                                   String sha256) {
-        if (kind == null) throw new IllegalArgumentException("kind required");
+        this(id, kind, translator, displayName, installedAtEpochSeconds, sha256,
+            legacyBackend(kind, translator));
+    }
+
+    public CustomRuntimeComponent(String id, Kind kind, RuntimeTranslator translator,
+                                  String displayName, long installedAtEpochSeconds,
+                                  String sha256, GameRuntimeBackendType backendType) {
+        validateTarget(kind, translator, backendType);
+        this.backendType = backendType;
         this.kind = kind;
         this.id = requireId(id, kind);
-        if (kind == Kind.WINE) {
-            // null means a GLIBC_TERMUX_BOX install -- that backend has exactly one translation
-            // path (box64) and no ROOTFS-style translator choice, so there is nothing to record.
-            if (translator == RuntimeTranslator.FEX) {
-                throw new IllegalArgumentException("invalid translator for custom wine");
-            }
-        } else if (translator != null) {
-            throw new IllegalArgumentException("box64 kind must not declare a translator");
-        }
         this.translator = translator;
         if (displayName == null || displayName.trim().isEmpty() || displayName.length() > 128) {
             throw new IllegalArgumentException("invalid displayName");
@@ -46,6 +44,7 @@ public final class CustomRuntimeComponent {
         this.sha256 = sha256;
     }
 
+    public GameRuntimeBackendType getBackendType() { return backendType; }
     public String getId() { return id; }
     public Kind getKind() { return kind; }
     public RuntimeTranslator getTranslator() { return translator; }
@@ -53,16 +52,33 @@ public final class CustomRuntimeComponent {
     public long getInstalledAtEpochSeconds() { return installedAtEpochSeconds; }
     public String getSha256() { return sha256; }
 
+    /** Legacy source compatibility only. Persistent records and production installs require a backend. */
+    static GameRuntimeBackendType legacyBackend(Kind kind, RuntimeTranslator translator) {
+        return kind == Kind.WINE && translator == null
+            ? GameRuntimeBackendType.GLIBC_TERMUX_BOX : GameRuntimeBackendType.ROOTFS_PROOT;
+    }
+
+    static void validateTarget(Kind kind, RuntimeTranslator translator, GameRuntimeBackendType backend) {
+        if (kind == null || backend == null) throw new IllegalArgumentException("custom_component_backend_required");
+        if (kind != Kind.WINE && translator != null)
+            throw new IllegalArgumentException("custom_component_translator_not_allowed");
+        if (kind == Kind.WINE) {
+            if (backend == GameRuntimeBackendType.GLIBC_TERMUX_BOX && translator != null)
+                throw new IllegalArgumentException("native_wine_translator_not_allowed");
+            if (backend == GameRuntimeBackendType.ROOTFS_PROOT &&
+                translator != RuntimeTranslator.HANGOVER && translator != RuntimeTranslator.BOX64)
+                throw new IllegalArgumentException("custom_wine_translator_required");
+        }
+        if (backend == GameRuntimeBackendType.ROOTFS_PROOT && (kind == Kind.TURNIP || kind == Kind.VKD3D))
+            throw new IllegalArgumentException("custom_component_backend_unsupported");
+    }
+
     private static String requireId(String id, Kind kind) {
         if (id == null || !id.matches("[A-Za-z0-9._-]{1,128}")) {
             throw new IllegalArgumentException("invalid id");
         }
-        if (kind == Kind.WINE && !id.startsWith("custom-wine-")) {
-            throw new IllegalArgumentException("wine id must start with custom-wine-");
-        }
-        if (kind == Kind.BOX64 && !id.startsWith("custom-box64-")) {
-            throw new IllegalArgumentException("box64 id must start with custom-box64-");
-        }
+        String prefix = "custom-" + kind.name().toLowerCase(java.util.Locale.ROOT) + "-";
+        if (!id.startsWith(prefix)) throw new IllegalArgumentException("component id must start with " + prefix);
         return id;
     }
 }

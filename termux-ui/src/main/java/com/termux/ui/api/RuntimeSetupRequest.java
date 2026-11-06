@@ -6,19 +6,28 @@ public final class RuntimeSetupRequest {
     private final String scriptPath;
     private final String specPath;
     private final String workingDirectory;
+    private final String preparationLogPath;
 
     public RuntimeSetupRequest(String taskId, String scriptPath, String specPath,
                                    String workingDirectory) {
+        this(taskId, scriptPath, specPath, workingDirectory, null);
+    }
+
+    public RuntimeSetupRequest(String taskId, String scriptPath, String specPath,
+                               String workingDirectory, String preparationLogPath) {
         this.taskId = requireId(taskId);
         this.scriptPath = requirePath(scriptPath, "scriptPath");
         this.specPath = requirePath(specPath, "specPath");
         this.workingDirectory = requirePath(workingDirectory, "workingDirectory");
+        this.preparationLogPath = preparationLogPath == null ? null
+            : requirePath(preparationLogPath, "preparationLogPath");
     }
 
     public String getTaskId() { return taskId; }
     public String getScriptPath() { return scriptPath; }
     public String getSpecPath() { return specPath; }
     public String getWorkingDirectory() { return workingDirectory; }
+    public String getPreparationLogPath() { return preparationLogPath; }
     public String getShellName() { return "games-runtime-setup-" + taskId; }
 
     private static String requireId(String value) {

@@ -22,6 +22,8 @@ WINE_PREFIX_DIRECTORY=
 HOME_DIRECTORY=
 WINE_PACKAGE=
 PREFIX_WARMUP_SCRIPT=
+GAMES_RUNTIME_TRANSLATOR=
+GAMES_CUSTOM_BOX64_ID=
 COMPLETED=false
 FAILURE_CODE=setup_script_failed
 WARMUP_DISPLAY_PID=
@@ -73,6 +75,8 @@ while IFS='=' read -r key value; do
         homeDirectory) HOME_DIRECTORY=$value ;;
         winePackage) WINE_PACKAGE=$value ;;
         prefixWarmupScript) PREFIX_WARMUP_SCRIPT=$value ;;
+        runtimeTranslator) GAMES_RUNTIME_TRANSLATOR=$value ;;
+        box64ComponentId) GAMES_CUSTOM_BOX64_ID=$value ;;
         '') ;;
         *) fail invalid_setup_spec 64 ;;
     esac
@@ -87,6 +91,7 @@ if [ "$BASE_ONLY" = false ]; then
     [ -n "$WINE_PREFIX_DIRECTORY" ] || fail invalid_setup_spec 64
     [ -n "$HOME_DIRECTORY" ] || fail invalid_setup_spec 64
 fi
+
 
 for value in "$TASK_ID" "$PACKAGE_NAME" "$CONTAINER_ID" "$CONTAINER_NAME"; do
     case "$value" in ''|*[!A-Za-z0-9._-]*) fail invalid_setup_identifier 64 ;; esac
@@ -113,7 +118,7 @@ esac
 # is exactly why the RootFS prefix warmup done at import/save time was silently redone, in full,
 # every time at launch. Keying every container/template path off this single Java-derived string
 # instead, consistently, is what makes the marker comparison agree across both call sites.
-TERMUX_FILES_ROOT=${PRIVATE_ROOT%/games}
+TERMUX_FILES_ROOT=${PRIVATE_ROOT%/front}
 [ -n "$TERMUX_FILES_ROOT" ] && [ "$TERMUX_FILES_ROOT" != "$PRIVATE_ROOT" ] || \
     fail invalid_setup_spec_path 64
 for path in "$SPEC_PATH" "$BUILD_CONTEXT" "$RECIPE_DIRECTORY" \
@@ -246,27 +251,30 @@ supports_container_setup || {
 [ -f "$RECIPE_DIRECTORY/setup-container.sh" ] || fail rootfs_recipe_script_missing 66
 [ -f "$RECIPE_DIRECTORY/games-runtime.properties" ] || fail rootfs_recipe_manifest_missing 66
 
-progress '==> [2/4] Preparing runtime build context'
-rm -rf "$BUILD_CONTEXT"
-mkdir -p "$BUILD_CONTEXT/components"
-cp "$RECIPE_DIRECTORY/setup-container.sh" "$BUILD_CONTEXT/setup-container.sh"
-cp "$RECIPE_DIRECTORY/games-runtime.properties" "$BUILD_CONTEXT/games-runtime.properties"
-# Stage every base component under components/<id>/ for the guest to install by content.
-OLD_IFS=$IFS
-IFS='
-'
-for entry in $COMPONENTS; do
-    [ -n "$entry" ] || continue
-    cid=${entry%%|*}
-    cdir=${entry#*|}
-    find "$cdir" -type f | grep -q . || fail rootfs_source_packages_missing 66
-    mkdir -p "$BUILD_CONTEXT/components/$cid"
-    cp -al "$cdir"/. "$BUILD_CONTEXT/components/$cid"/ 2>/dev/null || \
-        cp -a "$cdir"/. "$BUILD_CONTEXT/components/$cid"/
-done
-IFS=$OLD_IFS
-
 printf '{"schemaVersion":1,"taskId":"%s","state":"BUILDING"}\n' "$TASK_ID" >> "$EVENTS_PATH"
+
+# Only a guest rebuild consumes component payloads. Prefix-only preparation must not
+# duplicate the installed Wine trees while creating a multi-GB prefix.
+prepare_build_context() {
+    progress '==> [2/4] Preparing runtime build context'
+    rm -rf "$BUILD_CONTEXT"
+    mkdir -p "$BUILD_CONTEXT/components"
+    cp "$RECIPE_DIRECTORY/setup-container.sh" "$BUILD_CONTEXT/setup-container.sh"
+    cp "$RECIPE_DIRECTORY/games-runtime.properties" "$BUILD_CONTEXT/games-runtime.properties"
+    # Create guest bind targets. Bind installed sources directly below; Android can deny hardlinks,
+    # and duplicating all Wine payloads here can exhaust storage before the guest installation.
+    OLD_IFS=$IFS
+    IFS='
+'
+    for entry in $COMPONENTS; do
+        [ -n "$entry" ] || continue
+        cid=${entry%%|*}
+        cdir=${entry#*|}
+        find "$cdir" -type f | grep -q . || fail rootfs_source_packages_missing 66
+        mkdir -p "$BUILD_CONTEXT/components/$cid"
+    done
+    IFS=$OLD_IFS
+}
 
 # $1 = rootfs path to check (either a real container's or the shared template's).
 runtime_complete() {
@@ -286,6 +294,38 @@ base_container_ready() {
     root=$2
     [ -x "$root/usr/bin/env" ] && [ -f "$directory/manifest.json" ]
 }
+
+# Ordinary configuration preparation may install a base for the first time, but must never
+# replace an existing or interrupted installation. Only the explicit base-build command owns
+# recovery. Check before deleting caches, staging sources or entering the guest.
+if [ "$BASE_ONLY" = false ]; then
+    if runtime_complete "$SHARED_ROOTFS"; then
+        [ "$(cat "$TEMPLATE_RECIPE" 2>/dev/null)" = "$RECIPE_SHA256" ] || {
+            progress 'The Proot base needs an explicit rebuild in Settings > Core components > Proot. Existing data was kept.'
+            fail rootfs_rebuild_required 70
+        }
+    elif [ -e "$SHARED_ROOTFS_CONTAINER_DIRECTORY" ] || [ -e "$TEMPLATE_RECIPE" ] || \
+        [ -e "$BUILD_DIRECTORY" ]; then
+        progress 'The Proot base is incomplete or missing. Rebuild it explicitly in Settings > Core components > Proot. Existing data was kept.'
+        fail rootfs_rebuild_required 70
+    fi
+fi
+# Budget the base image plus the transient prefix-template build. Source payloads are
+# bound directly, never copied. A resumable scratch image already occupies part of this budget.
+if [ "$BASE_ONLY" = true ] || ! runtime_complete "$SHARED_ROOTFS"; then
+    available_kb=$(df -Pk "$TERMUX_FILES_ROOT" | awk 'END {print $4}')
+    scratch_kb=0
+    if [ -d "$BUILD_DIRECTORY" ]; then
+        scratch_kb=$(du -sk "$BUILD_DIRECTORY" | awk '{print $1}')
+    fi
+    required_kb=$((9 * 1024 * 1024 - scratch_kb))
+    [ "$required_kb" -ge 524288 ] || required_kb=524288
+    if [ "$available_kb" -lt "$required_kb" ]; then
+        progress "Not enough storage for the Proot base: need at least ${required_kb} KiB free, available ${available_kb} KiB. Existing data was kept."
+        fail rootfs_insufficient_storage 70
+    fi
+fi
+
 # Builds a fresh proot-distro container from the base image and runs the games
 # setup script inside it. $1 = container name, $2 = its directory, $3 = its rootfs.
 build_runtime_into() {
@@ -307,10 +347,20 @@ build_runtime_into() {
     if ! base_container_ready "$directory" "$root"; then
         fail proot_distro_base_container_invalid 70
     fi
+    prepare_build_context
     progress '==> [4/4] Installing game runtime packages in Debian'
-    if ! run_logged "$PROOT_DISTRO" login "$name" --isolated \
-        --bind "$BUILD_CONTEXT:/run/games-setup" -- \
-        /bin/sh /run/games-setup/setup-container.sh; then
+    set -- "$PROOT_DISTRO" login "$name" --isolated --bind "$BUILD_CONTEXT:/run/games-setup"
+    OLD_IFS=$IFS
+    IFS='
+'
+    for entry in $COMPONENTS; do
+        [ -n "$entry" ] || continue
+        cid=${entry%%|*}
+        cdir=${entry#*|}
+        set -- "$@" --bind "$cdir:/run/games-setup/components/$cid"
+    done
+    IFS=$OLD_IFS
+    if ! run_logged "$@" -- /bin/sh /run/games-setup/setup-container.sh; then
         fail rootfs_guest_setup_failed 70
     fi
 }
@@ -389,11 +439,13 @@ if ! runtime_complete "$SHARED_ROOTFS" || \
     # long wineboot -u inside the first container that used it. A Hangover prefix and a box64 prefix
     # are also incompatible with each other (`wine: could not load kernel32.dll, status c000007b`).
     # Doing the work here moves it to the explicit environment install, so saving a game's options
-    # and launching it only ever clone. Read the package list from the manifest already staged into
-    # the build context, rather than hardcoding it, so adding a wine package to the recipe is
+    # and launching it only ever clone. Read the package list from the recipe manifest,
+    # rather than hardcoding it, so adding a wine package to the recipe is
     # enough on its own to get a pre-booted template.
-    runtime_packages=$(sed -n 's/^runtimePackages=//p' "$BUILD_CONTEXT/games-runtime.properties")
+    runtime_packages=$(sed -n 's/^runtimePackages=//p' "$RECIPE_DIRECTORY/games-runtime.properties")
     [ -n "$runtime_packages" ] || fail rootfs_runtime_packages_missing 70
+    # Guest setup has finished; release copied payloads before prefix/template allocation.
+    rm -rf "$BUILD_CONTEXT"
     build_prefix_templates "$runtime_packages"
 fi
 

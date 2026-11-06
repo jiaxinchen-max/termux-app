@@ -8,10 +8,10 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.termux.ui.R;
 
 /** Small, explicit entry point for non-essential feature guidance. */
-final class GamesHelpDialog {
+public final class GamesHelpDialog {
     private GamesHelpDialog() { }
 
-    static void attach(MaterialToolbar toolbar, @StringRes int title, @StringRes int message) {
+    public static void attach(MaterialToolbar toolbar, @StringRes int title, @StringRes int message) {
         toolbar.inflateMenu(R.menu.local_games_help);
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() != R.id.local_games_action_help) return false;
@@ -20,7 +20,7 @@ final class GamesHelpDialog {
         });
     }
 
-    static void show(Context context, @StringRes int title, @StringRes int message) {
+    public static void show(Context context, @StringRes int title, @StringRes int message) {
         new FrostedDialogBuilder(context)
             .setTitle(title)
             .setMessage(message)
@@ -28,7 +28,7 @@ final class GamesHelpDialog {
             .show();
     }
 
-    static void show(Context context, CharSequence title, CharSequence message) {
+    public static void show(Context context, CharSequence title, CharSequence message) {
         new FrostedDialogBuilder(context)
             .setTitle(title)
             .setMessage(message)

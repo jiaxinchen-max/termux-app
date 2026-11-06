@@ -81,11 +81,26 @@ resolve_template_prefix_archive() {
     fi
 }
 
+rootfs_require_custom_receipt() {
+    custom_receipt="$ROOTFS_CANONICAL$1/.custom-component.properties"
+    [ -f "$custom_receipt" ] && grep -Fqx 'schemaVersion=1' "$custom_receipt" &&
+        grep -Fqx 'runtimeBackend=rootfs_proot' "$custom_receipt" &&
+        grep -Fqx "componentId=$2" "$custom_receipt" && grep -Fqx "kind=$3" "$custom_receipt" ||
+        warmup_fail "custom_component_receipt_invalid:$2"
+}
+
 resolve_rootfs_translator() {
     RUNTIME_TRANSLATOR=${GAMES_RUNTIME_TRANSLATOR:-}
-    [ -n "$RUNTIME_TRANSLATOR" ] || case "$WINE_PACKAGE" in
-        rootfs_hangover_*) RUNTIME_TRANSLATOR=hangover ;;
-        *) RUNTIME_TRANSLATOR=box64 ;;
+    case "$WINE_PACKAGE" in
+        custom-wine-?*)
+            case "$WINE_PACKAGE" in *[!A-Za-z0-9._-]*) warmup_fail custom_wine_id_invalid ;; esac
+            [ -n "$RUNTIME_TRANSLATOR" ] || warmup_fail custom_wine_translator_required
+            SELECTED_CUSTOM_WINE_ROOT="/opt/custom-wine/$WINE_PACKAGE"
+            rootfs_require_custom_receipt "$SELECTED_CUSTOM_WINE_ROOT" "$WINE_PACKAGE" wine
+            ;;
+        rootfs_hangover_*) [ -n "$RUNTIME_TRANSLATOR" ] || RUNTIME_TRANSLATOR=hangover; SELECTED_CUSTOM_WINE_ROOT= ;;
+        rootfs_wine_*|rootfs_proton_*) [ -n "$RUNTIME_TRANSLATOR" ] || RUNTIME_TRANSLATOR=box64; SELECTED_CUSTOM_WINE_ROOT= ;;
+        *) warmup_fail rootfs_wine_package_unsupported ;;
     esac
     case "$RUNTIME_TRANSLATOR" in
         hangover)
@@ -95,9 +110,9 @@ resolve_rootfs_translator() {
             # RUNTIME_TRANSLATOR, not a literal path match -- a custom hangover-family build's own
             # bin/wine replaces the apt-installed one here exactly the same way). GUEST_WINE is
             # unused for this translator (no wrapper binary involved), left blank as before.
-            GUEST_COMMAND=${GAMES_CUSTOM_WINE_PATH:-/usr/bin/wine}
+            GUEST_COMMAND=${SELECTED_CUSTOM_WINE_ROOT:-/usr}/bin/wine
             GUEST_WINE=
-            GUEST_WINEBOOT=${GAMES_CUSTOM_WINEBOOT_PATH:-/usr/bin/wineboot}
+            GUEST_WINEBOOT=${SELECTED_CUSTOM_WINE_ROOT:-/usr}/bin/wineboot
             [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || warmup_fail rootfs_wine_missing
             [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || warmup_fail rootfs_wineboot_missing
             ;;
@@ -115,7 +130,11 @@ resolve_rootfs_translator() {
                 *) box64_wine_root=/opt/box64-wine; box64_wine_bin=wine64 ;;
             esac
             GUEST_COMMAND=/opt/box64/rootfs_box64_0.4.5/bin/box64
-            GUEST_WINE=${GAMES_CUSTOM_WINE_PATH:-$box64_wine_root/bin/$box64_wine_bin}
+            if [ -n "$SELECTED_CUSTOM_WINE_ROOT" ]; then
+                GUEST_WINE="$SELECTED_CUSTOM_WINE_ROOT/bin/wine"
+            else
+                GUEST_WINE="$box64_wine_root/bin/$box64_wine_bin"
+            fi
             # The biarch build's bin/wineboot is a #!/bin/sh wrapper script, not an ELF -- box64
             # cannot translate/exec it directly ("Not an ELF file"). wineboot is instead invoked
             # as the WoW64 launcher's own built-in program dispatch (it recognises "wineboot" as
@@ -126,9 +145,9 @@ resolve_rootfs_translator() {
             # is trusted to be the same kind of dispatch wrapper around its bin/wine64 launcher
             # (install_custom_rootfs_component.sh only accepts wine-tree payloads shaped like the
             # vanilla one), so the no-separate-binary convention applies to it too.
-            GUEST_WINEBOOT=${GAMES_CUSTOM_WINE_PATH:-$box64_wine_root/bin/$box64_wine_bin}
+            GUEST_WINEBOOT=$GUEST_WINE
             GUEST_WINEBOOT_ARG=wineboot
-            [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || warmup_fail rootfs_box64_missing
+            [ -n "${GAMES_CUSTOM_BOX64_ID:-}" ] || [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || warmup_fail rootfs_box64_missing
             [ -x "$ROOTFS_CANONICAL$GUEST_WINE" ] || warmup_fail rootfs_wine_missing
             [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || warmup_fail rootfs_wineboot_missing
             ;;
@@ -153,7 +172,16 @@ resolve_rootfs_translator() {
     # build isn't actually installed, so a typo'd/missing id is caught here rather than silently
     # running whatever the default happened to be.
     if [ -n "${GAMES_CUSTOM_BOX64_ID:-}" ]; then
+        [ "$RUNTIME_TRANSLATOR" = box64 ] || warmup_fail box64_translator_mismatch
+        case "$GAMES_CUSTOM_BOX64_ID" in
+            custom-box64-?*|rootfs_box64_0.4.5) ;;
+            *) warmup_fail custom_box64_id_invalid ;;
+        esac
+        case "$GAMES_CUSTOM_BOX64_ID" in *[!A-Za-z0-9._-]*) warmup_fail custom_box64_id_invalid ;; esac
         custom_box64_bin="/opt/box64/$GAMES_CUSTOM_BOX64_ID/bin/box64"
+        case "$GAMES_CUSTOM_BOX64_ID" in custom-box64-*)
+            rootfs_require_custom_receipt "/opt/box64/$GAMES_CUSTOM_BOX64_ID" "$GAMES_CUSTOM_BOX64_ID" box64 ;;
+        esac
         [ -x "$ROOTFS_CANONICAL$custom_box64_bin" ] || warmup_fail custom_box64_id_invalid
         GUEST_COMMAND=$custom_box64_bin
     fi
@@ -165,7 +193,7 @@ resolve_rootfs_translator() {
     # unwrapped run leaves the same registry as a wrapped one. Left empty (clean shutdown skipped) for an
     # unexpected path.
     case "$RUNTIME_TRANSLATOR" in
-        hangover) GUEST_WINESERVER=$(dirname "${GAMES_CUSTOM_WINE_PATH:-/usr/bin/wine}")/wineserver ;;
+        hangover) GUEST_WINESERVER=$(dirname "$GUEST_COMMAND")/wineserver ;;
         *) GUEST_WINESERVER="$GUEST_COMMAND $(dirname "$GUEST_WINE")/wineserver" ;;
     esac
     case "$GUEST_WINESERVER" in *[!A-Za-z0-9._/\ -]*) GUEST_WINESERVER= ;; esac
@@ -207,6 +235,8 @@ resolve_rootfs_translator() {
 # box64-translated Wine's ntdll.so needs) live in the stock build's lib dir, and the mprotect-patch
 # build ships no lib dir at all. Without this, wineboot dies with "could not load ntdll.so" and the
 # whole RootFS rebuild fails with rootfs_prefix_initialization_failed.
+# Prefix maintenance always uses CPU rendering on its private display; the game renderer
+# is applied separately by start_rootfs_game.sh. Never inherit host Zink/driver paths here.
 run_rootfs_maintenance_command() {
     exec "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
         -r "$ROOTFS_CANONICAL" \
@@ -216,10 +246,12 @@ run_rootfs_maintenance_command() {
         -b "$PREFIX_PATH:/mnt/games/prefix" \
         -w /root \
         /usr/bin/env -u PULSE_SERVER -u FONTCONFIG_PATH -u FONTCONFIG_FILE -u FONTCONFIG_SYSROOT \
+        -u LIBGL_DRIVERS_PATH -u __EGL_VENDOR_LIBRARY_FILENAMES -u GALLIUM_HUD \
         HOME=/root USER=root LOGNAME=root LANG=C.UTF-8 LC_ALL=C.UTF-8 \
         PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
         FONTCONFIG_PATH=/etc/fonts FONTCONFIG_FILE=/etc/fonts/fonts.conf \
         XDG_DATA_DIRS=/usr/local/share:/usr/share DISPLAY="${MAINTENANCE_DISPLAY:-:0}" \
+        GALLIUM_DRIVER=llvmpipe MESA_LOADER_DRIVER_OVERRIDE=swrast LIBGL_ALWAYS_SOFTWARE=1 \
         WINEPREFIX=/mnt/games/prefix WINEDLLOVERRIDES=mscoree,mshtml=d WINEDEBUG=+wineboot \
         BOX64_LD_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu \
         "$@"
@@ -382,13 +414,28 @@ warmup_rootfs_prefix() {
     EXPECTED_PREFIX_MARKER="$RUNTIME_ROOT_PATH|$WINE_PACKAGE"
     CURRENT_PREFIX_MARKER=
     [ ! -f "$PREFIX_MARKER" ] || CURRENT_PREFIX_MARKER=$(sed -n '1p' "$PREFIX_MARKER" 2>/dev/null)
+    # A failed extraction or a lost marker is not permission to replace the user's C drive.
+    # Only an empty prefix is a new installation; reject partial data even when its marker matches.
+    if [ -n "$(find "$PREFIX_PATH" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
+        if [ -z "$CURRENT_PREFIX_MARKER" ] || [ ! -d "$PREFIX_PATH/drive_c" ] || \
+            [ ! -s "$PREFIX_PATH/system.reg" ] || [ ! -s "$PREFIX_PATH/user.reg" ]; then
+            printf '%s\n' 'The Wine C drive is incomplete. Existing files were kept; restore a backup or explicitly reset this configuration.' >> "$LOG_PATH"
+            warmup_fail rootfs_prefix_recovery_required
+        fi
+    else
+        prefix_available_kb=$(df -Pk "$TERMUX_FILES_DIR" | awk 'END {print $4}')
+        if [ "$prefix_available_kb" -lt 3145728 ]; then
+            printf '%s\n' "Not enough storage for a new Wine C drive: need at least 3 GiB free, available ${prefix_available_kb} KiB. Existing files were kept." >> "$LOG_PATH"
+            warmup_fail rootfs_prefix_insufficient_storage
+        fi
+    fi
     if [ "$CURRENT_PREFIX_MARKER" != "$EXPECTED_PREFIX_MARKER" ]; then
         # A different Wine build of the same translator keeps the prefix (saves, settings, installed
         # programs) and updates it in place: the fallback below seeds the stubs the new build ships and runs
         # `wineboot -u`, which also covers going back to an older build. A prefix of another translator
         # (Hangover vs Box64) cannot be reused and must not be replaced -- it holds the player's data -- so the
         # app never offers that switch, and this refuses it instead of deleting anything. A prefix with no
-        # runtime marker never finished initialising and is simply rebuilt.
+        # runtime marker is rejected above instead of being replaced.
         KEEP_PREFIX=0
         if [ -f "$PREFIX_PATH/system.reg" ] && [ -n "$CURRENT_PREFIX_MARKER" ]; then
             if [ "$(prefix_translator "$PREFIX_PATH" "$CURRENT_PREFIX_MARKER")" = "$RUNTIME_TRANSLATOR" ]; then
@@ -424,7 +471,6 @@ warmup_rootfs_prefix() {
                 *.tar.zst) TEMPLATE_PREFIX_COMPRESSOR=zstd ;;
                 *) TEMPLATE_PREFIX_COMPRESSOR=gzip ;;
             esac
-            rm -rf "$PREFIX_PATH"
             mkdir -p "$PREFIX_PATH"
             if ! tar -C "$PREFIX_PATH" --use-compress-program "$TEMPLATE_PREFIX_COMPRESSOR" \
                 --numeric-owner -xpf "$TEMPLATE_PREFIX_ARCHIVE" >> "$LOG_PATH" 2>&1; then
@@ -650,6 +696,13 @@ build_prefix_templates() {
     done
     IFS=$templates_old_ifs
     [ "$templates_pending" = true ] || return 0
+    template_selected_wine=${WINE_PACKAGE:-}
+    template_selected_translator=${GAMES_RUNTIME_TRANSLATOR:-}
+    template_selected_box64=${GAMES_CUSTOM_BOX64_ID:-}
+    # Base templates describe their own catalog Wine. The profile selection applies only to
+    # the later per-container warmup, never to the other Wine packages in this loop.
+    GAMES_RUNTIME_TRANSLATOR=
+    GAMES_CUSTOM_BOX64_ID=
     command -v termux-x11 >/dev/null 2>&1 || warmup_fail rootfs_prefix_warmup_display_missing
     MAINTENANCE_DISPLAY=:9
     termux-x11 "$MAINTENANCE_DISPLAY" >> "$LOG_PATH" 2>&1 &
@@ -701,4 +754,8 @@ build_prefix_templates() {
     kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
     wait "$WARMUP_DISPLAY_PID" 2>/dev/null || true
     WARMUP_DISPLAY_PID=
+    # The last template package is not the caller's selected game runtime.
+    WINE_PACKAGE=$template_selected_wine
+    GAMES_RUNTIME_TRANSLATOR=$template_selected_translator
+    GAMES_CUSTOM_BOX64_ID=$template_selected_box64
 }

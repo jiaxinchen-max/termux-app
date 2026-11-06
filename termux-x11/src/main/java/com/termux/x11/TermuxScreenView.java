@@ -1,7 +1,6 @@
 package com.termux.x11;
 
 import android.content.Context;
-import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -12,6 +11,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 public class TermuxScreenView extends FrameLayout {
+    public enum IdlePresentation {
+        TERMINAL(R.layout.view_x11_idle_terminal),
+        UI(R.layout.view_x11_idle_ui);
+
+        private final int layout;
+
+        IdlePresentation(int layout) {
+            this.layout = layout;
+        }
+    }
+
+    @NonNull private final IdlePresentation idlePresentation;
     private static final long START_DRAWER_DOUBLE_GESTURE_TIMEOUT_MS = 1200;
     @Nullable
     private Runnable mStartDrawerGestureListener;
@@ -23,29 +34,31 @@ public class TermuxScreenView extends FrameLayout {
     private boolean mStartDrawerGestureUnlocked;
     private boolean mTrackingStartDrawerGesture;
 
-    public TermuxScreenView(@NonNull Context context) {
+    public TermuxScreenView(@NonNull Context context, @NonNull IdlePresentation idlePresentation) {
         super(context);
-        init(context);
-    }
-
-    public TermuxScreenView(@NonNull Context context, @Nullable AttributeSet attrs) {
-        super(context, attrs);
-        init(context);
-    }
-
-    public TermuxScreenView(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
+        this.idlePresentation = java.util.Objects.requireNonNull(idlePresentation);
         init(context);
     }
 
     private void init(@NonNull Context context) {
         setClipToPadding(false);
         LayoutInflater.from(context).inflate(R.layout.view_x11_display, this, true);
+        LayoutInflater.from(context).inflate(idlePresentation.layout,
+            (FrameLayout) findViewById(R.id.stub), true);
 
         ViewConfiguration viewConfiguration = ViewConfiguration.get(context);
         float density = getResources().getDisplayMetrics().density;
         mStartDrawerEdgeSize = Math.max(viewConfiguration.getScaledEdgeSlop(), Math.round(24 * density));
         mStartDrawerMinSwipeDistance = Math.max(viewConfiguration.getScaledTouchSlop() * 4, Math.round(72 * density));
+    }
+
+    public void setTerminalIdleActions(@NonNull Runnable preferences, @NonNull Runnable start,
+                                       @NonNull Runnable exit) {
+        if (idlePresentation != IdlePresentation.TERMINAL)
+            throw new IllegalStateException("Terminal actions require the terminal idle layout");
+        findViewById(R.id.preferences_button).setOnClickListener(view -> preferences.run());
+        findViewById(R.id.help_button).setOnClickListener(view -> start.run());
+        findViewById(R.id.exit_button).setOnClickListener(view -> exit.run());
     }
 
     public void setStartDrawerGestureListener(@Nullable Runnable listener) {

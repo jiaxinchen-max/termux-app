@@ -1,11 +1,16 @@
 package com.termux.ui.api;
 
-import java.util.Collections;
-import java.util.List;
-
 import androidx.annotation.Nullable;
 
 import com.termux.terminal.TerminalSession;
+import com.termux.ui.domain.CustomRuntimeComponent;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.api.LegacyRuntimeConfiguration;
+import com.termux.ui.wine.api.ResolvedGameDirectory;
+
+import java.util.Collections;
+import java.util.List;
+import java.io.IOException;
 
 /** Narrow main-app capability surface exposed to the games module. */
 public interface LocalGamesHost {
@@ -23,11 +28,22 @@ public interface LocalGamesHost {
         throw new UnsupportedOperationException("open_terminal_not_supported");
     }
 
+    /** Fully stops the host app, its services and its runtime processes after UI confirmation. */
+    default void exitApp() {
+        throw new UnsupportedOperationException("app_exit_not_supported");
+    }
+
     /** Returns whether the Termux runtime storage is currently accessible. */
     boolean isRuntimeAvailable();
 
     /** Returns whether the component is active in the runtime consumed by game launches. */
     default boolean isRuntimeComponentAvailable(String componentId) { return false; }
+
+    /** Returns only installed variants for the explicitly requested runtime and component kind. */
+    default List<RuntimeComponentVariant> listInstalledRuntimeComponentVariants(
+        CustomRuntimeComponent.Kind kind, GameRuntimeBackendType backend) throws IOException {
+        return Collections.emptyList();
+    }
 
     /** Returns whether the exact catalog version is active in the launcher runtime. */
     default boolean isRuntimeComponentAvailable(String componentId, int version,

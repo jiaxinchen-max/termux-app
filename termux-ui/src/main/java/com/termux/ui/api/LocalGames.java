@@ -6,15 +6,15 @@ import android.content.Intent;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.termux.ui.activity.DesktopActivity;
 import com.termux.ui.activity.GameFileManagerActivity;
-import com.termux.ui.activity.GameDetailActivity;
-import com.termux.ui.activity.GameReauthorizeActivity;
-import com.termux.ui.activity.GameRuntimeOptionsActivity;
-import com.termux.ui.activity.GameAssetsActivity;
-import com.termux.ui.activity.GameLaunchActivity;
-import com.termux.ui.activity.GameSessionActivity;
 import com.termux.ui.activity.LocalGamesActivity;
+import com.termux.ui.desktop.activity.DesktopActivity;
+import com.termux.ui.wine.activity.GameAssetsActivity;
+import com.termux.ui.wine.activity.GameDetailActivity;
+import com.termux.ui.wine.activity.GameLaunchActivity;
+import com.termux.ui.wine.activity.GameReauthorizeActivity;
+import com.termux.ui.wine.activity.GameRuntimeOptionsActivity;
+import com.termux.ui.wine.activity.GameSessionActivity;
 
 /** Public integration entry point for the standalone games feature. */
 public final class LocalGames {

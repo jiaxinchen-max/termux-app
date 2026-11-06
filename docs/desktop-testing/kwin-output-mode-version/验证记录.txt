@@ -1,0 +1,16 @@
+模拟器真实发送层诊断，由主线程在 emulator-5554 执行。
+测试直接加载 old/fixed libkwin，通过 socketpair 绑定实际输出协议资源。
+
+old:
+v18 mode_version=18 size_events=1 flags_opcode4=1 flags=1 FAIL
+v19 mode_version=19 size_events=1 flags_opcode4=1 flags=1 PASS
+v20 mode_version=20 size_events=1 flags_opcode4=1 flags=1 PASS
+old_status=1
+
+fixed:
+v18 mode_version=18 size_events=1 flags_opcode4=0 flags=0 PASS
+v19 mode_version=19 size_events=1 flags_opcode4=1 flags=1 PASS
+v20 mode_version=20 size_events=1 flags_opcode4=1 flags=1 PASS
+fixed_status=0
+
+这是实际发送层回归；旧 trixie Plasma 的正式 App UI 流程尚未覆盖。

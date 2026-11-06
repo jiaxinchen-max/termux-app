@@ -10,8 +10,7 @@
         android:id="@+id/local_game_file_manager_toolbar"
         android:layout_width="match_parent"
         android:layout_height="@dimen/local_games_toolbar_height"
-        android:title="@string/local_game_file_manager_title"
-        app:navigationIcon="@drawable/local_games_ic_back" />
+        android:title="@string/local_game_file_manager_title" />
 
     <TextView
         android:id="@+id/local_game_file_manager_location"
@@ -27,6 +26,7 @@
         android:textColor="@color/local_games_on_surface_secondary" />
 
     <ScrollView
+        android:id="@+id/local_game_file_manager_scroll"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"

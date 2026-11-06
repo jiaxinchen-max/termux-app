@@ -32,12 +32,12 @@ import java.util.concurrent.RejectedExecutionException;
  * no longer wanted (page hidden, newer load started, Activity gone) is dropped. The log is loaded
  * when the page is shown and on Refresh; new lines are not streamed.</p>
  */
-final class GameLogPanel {
+public final class GameLogPanel {
 
     /** Lines read per backward page. */
-    static final int EARLIER_CHUNK_LINES = 2000;
+    public static final int EARLIER_CHUNK_LINES = 2000;
     /** Upper bound on the lines held in memory (each is cut at {@link GameLogTailReader#MAX_LINE_BYTES}). */
-    static final int MAX_BUFFERED_LINES = 20_000;
+    public static final int MAX_BUFFERED_LINES = 20_000;
 
     private final Activity activity;
     private final ExecutorService io;
@@ -61,7 +61,7 @@ final class GameLogPanel {
     /** True once the user has scrolled the list; programmatic positioning never pages. */
     private boolean userScrolled;
 
-    GameLogPanel(@NonNull Activity activity, @NonNull ExecutorService io, @NonNull ListView list,
+    public GameLogPanel(@NonNull Activity activity, @NonNull ExecutorService io, @NonNull ListView list,
                  @NonNull TextView status, @NonNull View refreshButton) {
         this.activity = activity;
         this.io = io;
@@ -84,7 +84,7 @@ final class GameLogPanel {
     }
 
     /** The log file of the current launch task; empty/null until the task has produced one. */
-    void setLogRef(@Nullable String newLogRef) {
+    public void setLogRef(@Nullable String newLogRef) {
         String value = newLogRef == null ? "" : newLogRef;
         if (value.equals(logRef)) return;
         logRef = value;
@@ -92,7 +92,7 @@ final class GameLogPanel {
     }
 
     /** The page became visible (true) or not (false); (re)loads the log on becoming visible. */
-    void setShown(boolean visible) {
+    public void setShown(boolean visible) {
         if (visible == shown) return;
         shown = visible;
         if (visible) {
@@ -104,7 +104,7 @@ final class GameLogPanel {
     }
 
     /** The Activity is going away: no result may be delivered any more. */
-    void release() {
+    public void release() {
         released = true;
         generation++;
     }

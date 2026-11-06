@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="local_games_rootfs_rebuild_required">The Proot base is incomplete or outdated. Existing data was kept. Rebuild it in Settings → Core components → Proot.</string>
+    <string name="local_games_rootfs_prefix_recovery_required">The Wine C drive is incomplete. Existing files were kept. Restore a backup or explicitly reset this configuration.</string>
+    <string name="local_games_rootfs_insufficient_storage">Not enough storage to install the Proot base. Free space and retry; existing data was kept.</string>
+    <string name="local_games_rootfs_prefix_insufficient_storage">Not enough storage to prepare the Wine C drive. At least 3 GiB free is required. Existing files were kept.</string>
+</resources>

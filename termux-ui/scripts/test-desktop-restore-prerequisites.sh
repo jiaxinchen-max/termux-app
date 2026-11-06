@@ -107,7 +107,7 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
         data = {'versions':dict(versions), 'files':files, 'manifests':manifests}
         if mutate: mutate(data, case)
         (case/'state.json').write_text(json.dumps(data))
-        for command in ('uname','dpkg-query','dpkg','sha256sum','proot','proot-distro','python3','curl','apt','pkg','apt-mark'):
+        for command in ('uname','dpkg-query','dpkg','sha256sum','proot','proot-distro','python3','curl','apt','pkg','apt-mark','pulseaudio','pactl'):
             if command in data.get('missing_binaries', []): continue
             target = case/'usr/bin'/command
             target.write_text(mock)
@@ -121,7 +121,7 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
         spec = dict(DESKTOP_MODE='proot', DESKTOP_DE=de,
                     DESKTOP_GL_MODE='llvmpipe' if de=='kwin_plasma' else 'system', DESKTOP_USB_STORAGE='off',
                     DESKTOP_LOG_FILE=str(case/'install.log'), DESKTOP_PID_FILE=str(case/'state/pid'),
-                    DESKTOP_STATUS_FILE=str(case/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.6-r27')
+                    DESKTOP_STATUS_FILE=str(case/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.6-r28')
         spec.update(data.get('spec', {}))
         (case/'spec').write_text(''.join(k+'='+v+'\n' for k,v in spec.items()))
         (case/'state/status').write_text('running\n')
@@ -171,7 +171,7 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
         run(name+'-remains', lambda data,case,b=binary,k=keep: data.update(missing_binaries=[b], **{k:True}), code=1)
     def missing(data, case): data['versions'].pop('kwin')
     case, calls = run('missing', missing)
-    assert len(re.findall(r'^curl ',calls,re.M)) == 1 and 'kwin_6.6.0-27_aarch64.deb' in calls
+    assert len(re.findall(r'^curl ',calls,re.M)) == 1 and 'kwin_6.6.0-28_aarch64.deb' in calls
     def mismatch(data, case): data['versions']['kwin'] = '6.6.0-26'
     case, calls = run('version-mismatch', mismatch)
     assert len(re.findall(r'^curl ',calls,re.M)) == 1

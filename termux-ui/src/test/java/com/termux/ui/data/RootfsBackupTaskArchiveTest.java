@@ -1,11 +1,9 @@
 package com.termux.ui.data;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import com.termux.ui.domain.RootfsBackupTask;
-import com.termux.ui.domain.RootfsBackupTaskState;
+import com.termux.ui.wine.data.FileRootfsBackupTaskRepository;
+import com.termux.ui.wine.data.RootfsBackupSpecCodec;
+import com.termux.ui.wine.domain.RootfsBackupTask;
+import com.termux.ui.wine.domain.RootfsBackupTaskState;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -15,6 +13,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public final class RootfsBackupTaskArchiveTest {
     @Rule public TemporaryFolder temp = new TemporaryFolder();

@@ -133,6 +133,12 @@ if ! wait_for_socket; then
     exit 66
 fi
 
+if start_desktop_audio "${DESKTOP_AUDIO_MODE:-}"; then :; else
+    audio_code=$?
+    printf 'exit:%s\n' "$audio_code" > "$DESKTOP_STATUS_FILE"
+    exit "$audio_code"
+fi
+
 CONTAINER_PID_FILE="$DESKTOP_PID_FILE.container"
 rm -f "$CONTAINER_PID_FILE"
 code=0
@@ -321,7 +327,7 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
         [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
         "$PREFIX/bin/python3" -I -B "$XFCE_LAUNCHER" "$@" >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     elif [ "$DESKTOP_MODE" = "proot" ]; then
-        proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- env DISPLAY=:0 \
+        proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- env DISPLAY=:0 PULSE_SERVER="$PULSE_SERVER" \
             sh -c 'export XDG_RUNTIME_DIR=/tmp/xdg; mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"; exec dbus-run-session -- xfce4-session' \
             >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     else
@@ -400,7 +406,7 @@ if [ "$DESKTOP_MODE" = "proot" ]; then
             --bind "$(dirname "$0")/desktop_container_statx_setup.sh:/tmp/desktop_container_statx_setup.sh" \
             --bind "$(dirname "$0")/desktop_container_run_config.sh:/tmp/desktop_container_run_config.sh" \
             --bind "$(dirname "$0")/desktop_container_statx_aarch64.bin:/tmp/desktop_container_statx_aarch64.bin" \
-            -- env DESKTOP_GL_MODE="$DESKTOP_GL_MODE" DESKTOP_STATX_BACKEND=proc-fdinfo \
+            -- env DESKTOP_GL_MODE="$DESKTOP_GL_MODE" PULSE_SERVER="$PULSE_SERVER" DESKTOP_STATX_BACKEND=proc-fdinfo \
                 DESKTOP_KDE_SERVICE_POLICY=kwin-wayland QT_QPA_PLATFORM=wayland XDG_SESSION_TYPE=wayland \
                 sh /tmp/plasma-container-session.sh >> "$DESKTOP_LOG_FILE.out" 2>&1 &
         container=$!

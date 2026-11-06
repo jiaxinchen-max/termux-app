@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="collection_runtime_mode">Runtime mode</string>
+    <string name="collection_mode_native">Native</string>
+    <string name="collection_mode_proot">Proot</string>
+    <string name="collection_runtime_count">%1$s · %2$d</string>
+    <string name="local_game_card_details_compact">Details</string>
+    <string name="collection_runtime_switch">Current mode: %1$s. Switch to %2$s</string>
+</resources>

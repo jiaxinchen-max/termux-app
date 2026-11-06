@@ -56,6 +56,12 @@ public final class TerminalRenderer {
     /** Render the terminal to a canvas with at a specified row scroll, and an optional rectangular selection. */
     public final void render(TerminalEmulator mEmulator, Canvas canvas, int topRow,
                              int selectionY1, int selectionY2, int selectionX1, int selectionX2) {
+        render(mEmulator, canvas, topRow, selectionY1, selectionY2, selectionX1, selectionX2,
+            mEmulator.mColors.mCurrentColors);
+    }
+
+    public final void render(TerminalEmulator mEmulator, Canvas canvas, int topRow,
+                             int selectionY1, int selectionY2, int selectionX1, int selectionX2, int[] palette) {
         final boolean reverseVideo = mEmulator.isReverseVideo();
         final int endRow = topRow + mEmulator.mRows;
         final int columns = mEmulator.mColumns;
@@ -63,7 +69,6 @@ public final class TerminalRenderer {
         final int cursorRow = mEmulator.getCursorRow();
         final boolean cursorVisible = mEmulator.shouldCursorBeVisible();
         final TerminalBuffer screen = mEmulator.getScreen();
-        final int[] palette = mEmulator.mColors.mCurrentColors;
         final int cursorShape = mEmulator.getCursorStyle();
 
         if (reverseVideo)
@@ -117,7 +122,7 @@ public final class TerminalRenderer {
                     } else {
                         final int columnWidthSinceLastRun = column - lastRunStartColumn;
                         final int charsSinceLastRun = currentCharIndex - lastRunStartIndex;
-                        int cursorColor = lastRunInsideCursor ? mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_CURSOR] : 0;
+                        int cursorColor = lastRunInsideCursor ? palette[TextStyle.COLOR_INDEX_CURSOR] : 0;
                         boolean invertCursorTextColor = false;
                         if (lastRunInsideCursor && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
                             invertCursorTextColor = true;
@@ -146,7 +151,7 @@ public final class TerminalRenderer {
 
             final int columnWidthSinceLastRun = columns - lastRunStartColumn;
             final int charsSinceLastRun = currentCharIndex - lastRunStartIndex;
-            int cursorColor = lastRunInsideCursor ? mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_CURSOR] : 0;
+            int cursorColor = lastRunInsideCursor ? palette[TextStyle.COLOR_INDEX_CURSOR] : 0;
             boolean invertCursorTextColor = false;
             if (lastRunInsideCursor && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
                 invertCursorTextColor = true;

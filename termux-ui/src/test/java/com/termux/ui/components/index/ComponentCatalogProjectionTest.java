@@ -1,10 +1,6 @@
 package com.termux.ui.components.index;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import com.termux.ui.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
 
 import org.junit.Test;
 
@@ -12,12 +8,16 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 /** Guards the GameHub slot projection of the bundled catalog. */
 public class ComponentCatalogProjectionTest {
 
     private static ComponentIndex bundledIndex() throws Exception {
         InputStream input = ComponentCatalogProjectionTest.class.getClassLoader()
-            .getResourceAsStream("termux-box-packages/index-v1.json");
+            .getResourceAsStream("termux-app-packages/index-v1.json");
         assertTrue("bundled index must be available to tests", input != null);
         try (InputStream closeable = input) {
             return new ComponentIndexParser().parse(closeable);

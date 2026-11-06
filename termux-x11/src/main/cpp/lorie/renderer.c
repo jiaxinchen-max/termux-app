@@ -658,8 +658,12 @@ void rendererRefreshContext(void) {
     firstFrameReported = false;
 
     // We should redraw image at least once right after surface change
-    if (state)
+    if (state) {
         state->surfaceAvailable = state->drawRequested = state->cursor.updated = win != defaultWin;
+        // The previous Surface's frame has already been presented. Its producer may be
+        // idle, so repaint the cached buffer on this Surface without waiting for a new frame.
+        state->waitForNextFrame = false;
+    }
 
     glViewport(0, 0, ANativeWindow_getWidth(win), ANativeWindow_getHeight(win));
     log("Xlorie: new surface applied: %p\n", sfc);
@@ -1031,9 +1035,13 @@ __noreturn static void* rendererThread(void) {
             stateChanged = false;
             waitingForBuffers = false;
 
-            if (state)
+            if (state) {
                 state->surfaceAvailable = win != defaultWin;
-            else if (win != defaultWin) {
+                if (state->surfaceAvailable) {
+                    state->drawRequested = state->cursor.updated = true;
+                    state->waitForNextFrame = false;
+                }
+            } else if (win != defaultWin) {
                 glClearColor(0, 0, 0, 0);
                 glClear(GL_COLOR_BUFFER_BIT);
                 eglSwapBuffers(egl_display, sfc);

@@ -1,0 +1,36 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- The monitor fills the adaptive icon's safe area. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M26,30 H82 V69 H26 Z M50,69 H58 V72 H82 V76 H26 V72 H50 Z" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M30,34 H78 V65 H30 Z" />
+    <!-- Small prompt in the screen's upper-left corner. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,38 H36.5 L40,42.5 L36.5,47 H34 L37.5,42.5 Z M40.5,46 H44 V47.5 H40.5 Z" />
+    <!-- Same penguin scale, centered inside the screen, entirely black and white. -->
+    <group android:translateX="45" android:translateY="39.2" android:scaleX="0.9" android:scaleY="0.9">
+        <path
+            android:fillColor="#000000"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="0.7"
+            android:pathData="M10,1 C5.5,1 4,5 4,9 C2,12 1,16 2.5,19 L5,17 C5,20 7,22 10,22 C13,22 15,20 15,17 L17.5,19 C19,16 18,12 16,9 C16,5 14.5,1 10,1 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M10,9 C6,9 5.5,13 5.5,16 C5.5,19 7,20.5 10,20.5 C13,20.5 14.5,19 14.5,16 C14.5,13 14,9 10,9 Z M7.5,4 C5.5,4 5.5,8 7.5,8 C9.5,8 9.5,4 7.5,4 Z M12.5,4 C10.5,4 10.5,8 12.5,8 C14.5,8 14.5,4 12.5,4 Z" />
+        <path
+            android:fillColor="#000000"
+            android:pathData="M8,5.5 a0.7,1 0,1 0,0,2 a0.7,1 0,1 0,0,-2 M12,5.5 a0.7,1 0,1 0,0,2 a0.7,1 0,1 0,0,-2" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#000000"
+            android:strokeWidth="0.5"
+            android:pathData="M6.5,9 L10,7.5 L13.5,9 L10,11 Z M5,20 L9,21 L9,23 L2,23 Z M15,20 L18,23 L11,23 L11,21 Z" />
+    </group>
+</vector>

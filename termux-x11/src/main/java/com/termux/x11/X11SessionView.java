@@ -98,7 +98,7 @@ public final class X11SessionView extends FrameLayout {
     }
 
     private void initialize(@NonNull Context context) {
-        displayView = new TermuxScreenView(context);
+        displayView = new TermuxScreenView(context, TermuxScreenView.IdlePresentation.UI);
         addView(displayView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
     }
 

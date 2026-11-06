@@ -1,6 +1,10 @@
 package com.termux.ui.desktop.archive;
 
-import com.termux.ui.domain.DesktopDistro;
+import com.termux.ui.desktop.domain.DesktopDistro;
+
+import org.apache.commons.compress.archivers.tar.*;
+import org.apache.commons.compress.compressors.gzip.*;
+
 import java.io.*;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -8,8 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import org.apache.commons.compress.archivers.tar.*;
-import org.apache.commons.compress.compressors.gzip.*;
 
 /** Streaming, versioned container archives. No shell, package installation, or host restoration. */
 public final class DesktopArchiveEngine {

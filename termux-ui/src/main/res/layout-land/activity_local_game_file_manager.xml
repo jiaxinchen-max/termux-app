@@ -27,6 +27,7 @@
         android:textColor="@color/local_games_on_surface_secondary" />
 
     <ScrollView
+        android:id="@+id/local_game_file_manager_scroll"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"

@@ -6,9 +6,11 @@ import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.FileObserver;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.format.Formatter;
 import android.view.Gravity;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -19,21 +21,22 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.core.content.ContextCompat;
 
+import com.termux.shared.android.PermissionUtils;
 import com.termux.ui.R;
 import com.termux.ui.api.LocalGames;
-import com.termux.ui.data.FileGameRepository;
-import com.termux.ui.data.FileRuntimeProfileRepository;
-import com.termux.ui.data.GameRepository;
 import com.termux.ui.data.GameStoragePaths;
-import com.termux.ui.data.RuntimeProfileRepository;
 import com.termux.ui.databinding.ActivityLocalGameFileManagerBinding;
-import com.termux.ui.importer.PeExecutableInspector;
-import com.termux.ui.importer.QuickGameImport;
-import com.termux.shared.android.PermissionUtils;
+import com.termux.ui.wine.data.FileGameRepository;
+import com.termux.ui.wine.data.FileGameContainerRepository;
+import com.termux.ui.wine.data.FileRuntimeProfileRepository;
+import com.termux.ui.wine.data.GameRepository;
+import com.termux.ui.wine.data.RuntimeProfileRepository;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.importer.PeExecutableInspector;
+import com.termux.ui.wine.importer.QuickGameImport;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -50,7 +53,9 @@ import java.util.concurrent.Executors;
  *  content on its own -- tapping a file shows read-only details, long-pressing one offers to
  *  import it as a game. Whole-folder import (the old "⋯" menu) is gone: a game is always a
  *  specific picked file, never an unscanned directory. */
-public final class GameFileManagerActivity extends AppCompatActivity {
+public final class GameFileManagerActivity extends AppUiActivity {
+    public static final String EXTRA_IMPORT_BACKEND = "com.termux.ui.extra.IMPORT_BACKEND";
+    @Nullable private GameRuntimeBackendType importBackend;
 
     private static final int REQUEST_SHARED_STORAGE_PERMISSION = 8402;
     private static final String STATE_BROWSED_DIRECTORY = "browsed_directory";
@@ -60,12 +65,20 @@ public final class GameFileManagerActivity extends AppCompatActivity {
     private static final int ROW_MIN_HEIGHT_DP = 40;
     private static final int ROW_ICON_DP = 26;
     private static final int ROW_MARGIN_DP = 1;
+    private static final int DIRECTORY_CHANGE_EVENTS = FileObserver.CREATE | FileObserver.DELETE
+        | FileObserver.MOVED_FROM | FileObserver.MOVED_TO | FileObserver.DELETE_SELF
+        | FileObserver.MOVE_SELF;
+    private static final long DIRECTORY_REFRESH_DELAY_MS = 150L;
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "GamesFileManagerIo"));
     private final PeExecutableInspector peInspector = new PeExecutableInspector();
+    private final Handler directoryHandler = new Handler(Looper.getMainLooper());
+    private final Runnable directoryRefresh = this::refreshDirectory;
 
     private ActivityLocalGameFileManagerBinding binding;
+    private UiNavigation navigation;
+    private CollectionToolbar collectionToolbar;
     private GameRepository gameRepository;
     private RuntimeProfileRepository profileRepository;
     private File filesRoot;
@@ -74,11 +87,16 @@ public final class GameFileManagerActivity extends AppCompatActivity {
     private File localCurrent;
     private FileManagerViewMode viewMode = FileManagerViewMode.GRID;
     @Nullable private Runnable pendingSharedStorageAction;
+    @Nullable private FileObserver directoryObserver;
+    @Nullable private File watchedDirectory;
+    private boolean resumed;
     private boolean destroyed;
+    private boolean importing;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        readImportBackend(getIntent());
         binding = ActivityLocalGameFileManagerBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         GameStoragePaths paths = new GameStoragePaths(getFilesDir());
@@ -90,29 +108,44 @@ public final class GameFileManagerActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.local_game_file_manager_empty, Toast.LENGTH_SHORT).show();
         }
         sharedStorageRoot = Environment.getExternalStorageDirectory();
-        binding.localGameFileManagerToolbar.setNavigationOnClickListener(view -> navigateUp());
-        viewMode = FileManagerViewMode.load(this);
-        binding.localGameFileManagerToolbar.inflateMenu(R.menu.local_games_file_manager);
-        GamesHelpDialog.attach(binding.localGameFileManagerToolbar,
-            R.string.local_game_file_manager_title, R.string.local_game_file_manager_help);
-        // attach() installed the help-only listener; replace it with one that also handles the toggle.
-        binding.localGameFileManagerToolbar.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == R.id.local_games_action_view_mode) {
-                toggleViewMode();
-                return true;
-            }
-            if (item.getItemId() == R.id.local_games_action_help) {
-                GamesHelpDialog.show(this, R.string.local_game_file_manager_title,
-                    R.string.local_game_file_manager_help);
-                return true;
-            }
-            return false;
-        });
-        updateViewModeAction();
-        WindowInsetsPadding.apply(binding.getRoot(), true, false, true, true);
+        collectionToolbar = new CollectionToolbar(this, binding.localGameFileManagerToolbar,
+            "file_manager", R.string.local_game_file_manager_title,
+            R.string.local_game_file_manager_help, this::refreshDirectory, () -> {
+                viewMode = collectionToolbar.getMode();
+                File current = localCurrent;
+                if (current != null) showLocal(current); else showHome();
+            });
+        viewMode = collectionToolbar.getMode();
+        navigation = UiNavigation.install(this, R.id.local_games_navigation_file_manager, null);
         File restored = restoreBrowsedDirectory(savedInstanceState);
         if (restored != null) showLocal(restored);
         else showHome();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        readImportBackend(intent);
+    }
+
+    private void readImportBackend(Intent intent) {
+        String value = intent.getStringExtra(EXTRA_IMPORT_BACKEND);
+        importBackend = value == null ? null : GameRuntimeBackendType.fromStorageValue(value);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        resumed = true;
+        if (localCurrent != null) refreshDirectory();
+    }
+
+    @Override
+    protected void onPause() {
+        resumed = false;
+        stopWatchingDirectory();
+        super.onPause();
     }
 
     @Override
@@ -126,32 +159,12 @@ public final class GameFileManagerActivity extends AppCompatActivity {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+        navigation.updateConfiguration();
         if (binding == null) return;
         // Keeps localCurrent (showLocal re-canonicalises it) and pendingSharedStorageAction.
         File current = localCurrent;
         if (current != null) showLocal(current);
         else showHome();
-    }
-
-    private void toggleViewMode() {
-        viewMode = viewMode.toggled();
-        viewMode.save(this);
-        updateViewModeAction();
-        File current = localCurrent;
-        if (current != null) showLocal(current);
-        else showHome();
-    }
-
-    /** The toolbar action shows the mode a tap switches to. */
-    private void updateViewModeAction() {
-        MenuItem action = binding.localGameFileManagerToolbar.getMenu()
-            .findItem(R.id.local_games_action_view_mode);
-        if (action == null) return;
-        boolean toList = viewMode == FileManagerViewMode.GRID;
-        action.setIcon(toList ? R.drawable.local_games_ic_view_list
-            : R.drawable.local_games_ic_view_grid);
-        action.setTitle(toList ? R.string.local_game_file_manager_view_list
-            : R.string.local_game_file_manager_view_grid);
     }
 
     /** Process-death safe restore of the browsed directory; null means "show Home". */
@@ -193,6 +206,8 @@ public final class GameFileManagerActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         destroyed = true;
+        stopWatchingDirectory();
+        directoryHandler.removeCallbacksAndMessages(null);
         ioExecutor.shutdownNow();
         binding = null;
         super.onDestroy();
@@ -228,6 +243,7 @@ public final class GameFileManagerActivity extends AppCompatActivity {
     }
 
     private void showHome() {
+        stopWatchingDirectory();
         localCurrent = null;
         binding.localGameFileManagerLocation.setText(
             R.string.local_game_file_manager_internal_storage);
@@ -275,10 +291,15 @@ public final class GameFileManagerActivity extends AppCompatActivity {
                 return;
             }
             localCurrent = canonical;
+            watchDirectory(canonical);
             binding.localGameFileManagerLocation.setText(canonical.getPath());
             clearRows();
             File[] entries = canonical.listFiles();
-            if (entries == null || entries.length == 0) {
+            if (entries == null) {
+                addEmpty(getString(R.string.local_game_file_manager_unreadable));
+                return;
+            }
+            if (entries.length == 0) {
                 addEmpty(getString(R.string.local_game_file_manager_empty));
                 return;
             }
@@ -302,6 +323,47 @@ public final class GameFileManagerActivity extends AppCompatActivity {
         }
     }
 
+    private void refreshDirectory() {
+        if (destroyed || binding == null || localCurrent == null) return;
+        int scrollY = binding.localGameFileManagerScroll.getScrollY();
+        File directory = localCurrent;
+        showLocal(directory);
+        binding.localGameFileManagerScroll.post(() -> {
+            if (!destroyed && binding != null && directory.equals(localCurrent)) {
+                binding.localGameFileManagerScroll.scrollTo(0, scrollY);
+            }
+        });
+    }
+
+    private void watchDirectory(File directory) {
+        if (directoryObserver != null && directory.equals(watchedDirectory)) return;
+        stopWatchingDirectory();
+        if (!resumed) return;
+        watchedDirectory = directory;
+        directoryObserver = new FileObserver(directory.getPath(), DIRECTORY_CHANGE_EVENTS) {
+            @Override
+            public void onEvent(int event, @Nullable String path) {
+                // FileObserver calls from its own thread. Ignore callbacks from a previous
+                // directory and coalesce bursts from transfers into one UI update.
+                directoryHandler.post(() -> {
+                    if (destroyed || !resumed || directoryObserver != this) return;
+                    directoryHandler.removeCallbacks(directoryRefresh);
+                    directoryHandler.postDelayed(directoryRefresh, DIRECTORY_REFRESH_DELAY_MS);
+                });
+            }
+        };
+        directoryObserver.startWatching();
+    }
+
+    private void stopWatchingDirectory() {
+        directoryHandler.removeCallbacks(directoryRefresh);
+        if (directoryObserver != null) {
+            directoryObserver.stopWatching();
+            directoryObserver = null;
+        }
+        watchedDirectory = null;
+    }
+
     /** Request #2: tapping a file shows read-only details instead of doing nothing. */
     private void showFileDetails(File file) {
         boolean looksExecutable = looksLikePortableExecutable(file);
@@ -310,12 +372,13 @@ public final class GameFileManagerActivity extends AppCompatActivity {
             DateFormat.getDateTimeInstance().format(new Date(file.lastModified())),
             getString(looksExecutable ? R.string.local_game_file_details_looks_executable
                 : R.string.local_game_file_details_not_executable));
+        GameRuntimeBackendType backend = selectedImportBackend();
         new FrostedDialogBuilder(this)
             .setTitle(file.getName())
             .setMessage(details + "\n\n" + getString(R.string.local_game_file_details_c_drive_tip))
             .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.local_game_file_manager_import_as_game,
-                (dialog, which) -> quickImport(file))
+            .setPositiveButton(importLabel(backend),
+                (dialog, which) -> importConfiguration(file, backend))
             .show();
     }
 
@@ -330,26 +393,36 @@ public final class GameFileManagerActivity extends AppCompatActivity {
     /** Request #2: long-pressing a file offers to import it directly (no whole-folder scan). */
     private void showFileImportMenu(View anchor, File file) {
         PopupMenu menu = new PopupMenu(this, anchor);
-        menu.getMenu().add(R.string.local_game_file_manager_import_as_game);
+        GameRuntimeBackendType backend = selectedImportBackend();
+        menu.getMenu().add(importLabel(backend));
         menu.setOnMenuItemClickListener(item -> {
-            quickImport(file);
+            importConfiguration(file, backend);
             return true;
         });
         menu.show();
     }
 
-    /** Request #3: no confirmation screen -- import immediately and land in the game's own edit
-     *  page. GameImportReadinessGate.require() is the same fail-fast check
-     *  GameImportActivity.onCreate() used to run; with that Activity gone this is now the sole
-     *  backstop for this entry point (LocalGamesActivity.startImportFlow() already runs it once
-     *  before launching this Activity, but re-checking here guards a stale instance reached any
-     *  other way, e.g. process restore). */
-    private void quickImport(File file) {
-        GameImportReadinessGate.require(this, ioExecutor, () -> ioExecutor.execute(() -> {
+    private GameRuntimeBackendType selectedImportBackend() {
+        return importBackend != null ? importBackend
+            : CollectionToolbar.isProotSelected(this, "wine")
+                ? GameRuntimeBackendType.ROOTFS_PROOT : GameRuntimeBackendType.GLIBC_TERMUX_BOX;
+    }
+
+    private String importLabel(GameRuntimeBackendType backend) {
+        return getString(backend == GameRuntimeBackendType.ROOTFS_PROOT
+            ? R.string.local_game_import_proot_exe : R.string.local_game_import_native_exe);
+    }
+
+    private void importConfiguration(File file, GameRuntimeBackendType backend) {
+        if (destroyed || importing) return;
+        importing = true;
+        ioExecutor.execute(() -> {
             String gameId;
             String error = null;
             try {
-                gameId = QuickGameImport.importGame(gameRepository, profileRepository, file, this);
+                gameId = QuickGameImport.importGame(gameRepository, profileRepository,
+                    new FileGameContainerRepository(new GameStoragePaths(getFilesDir())
+                        .getContainersDirectory()), file, backend);
             } catch (IOException | RuntimeException importError) {
                 gameId = null;
                 error = importError.getMessage() == null
@@ -358,6 +431,7 @@ public final class GameFileManagerActivity extends AppCompatActivity {
             String importedId = gameId;
             String failure = error;
             runOnUiThread(() -> {
+                importing = false;
                 if (destroyed) return;
                 if (failure != null) {
                     Toast.makeText(this, getString(R.string.local_game_import_save_failed, failure),
@@ -367,7 +441,7 @@ public final class GameFileManagerActivity extends AppCompatActivity {
                 startActivity(LocalGames.createGameDetailIntent(this, importedId));
                 finish();
             });
-        }));
+        });
     }
 
     private void clearRows() {

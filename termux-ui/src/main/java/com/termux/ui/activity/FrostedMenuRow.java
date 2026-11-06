@@ -30,16 +30,16 @@ import com.termux.ui.R;
  * the selected one is tinted with an accent outline and ends with a check mark instead of a chevron.
  * {@link #addToggle} is the on/off variant: the same row ending in a switch, dimmed when disabled.</p>
  */
-final class FrostedMenuRow {
+public final class FrostedMenuRow {
 
-    static final int PADDING_START_DP = 18;
-    static final int PADDING_END_DP = 14;
-    static final int PADDING_VERTICAL_DP = 8;
-    static final int ROW_GAP_DP = 8;
-    static final int SUMMARY_GAP_DP = 2;
-    static final int CHEVRON_BOX_DP = 24;
-    static final float TITLE_SP = 15.5f;
-    static final float SUMMARY_SP = 12f;
+    public static final int PADDING_START_DP = 18;
+    public static final int PADDING_END_DP = 14;
+    public static final int PADDING_VERTICAL_DP = 8;
+    public static final int ROW_GAP_DP = 8;
+    public static final int SUMMARY_GAP_DP = 2;
+    public static final int CHEVRON_BOX_DP = 24;
+    public static final float TITLE_SP = 15.5f;
+    public static final float SUMMARY_SP = 12f;
 
     private FrostedMenuRow() {}
 
@@ -47,7 +47,7 @@ final class FrostedMenuRow {
      * Adds one menu row to {@code parent} and returns it. A null {@code onClick} (or
      * {@code interactive == false}) makes it a read-only row without a chevron.
      */
-    static LinearLayout add(@NonNull Context context, @NonNull LinearLayout parent,
+    public static LinearLayout add(@NonNull Context context, @NonNull LinearLayout parent,
                             @NonNull CharSequence label, @Nullable CharSequence summary,
                             int summaryMaxLines, boolean interactive,
                             @Nullable View.OnClickListener onClick) {
@@ -66,7 +66,7 @@ final class FrostedMenuRow {
      * outline, a tinted fill and a trailing check mark (and is reported as selected to
      * accessibility), while the others end without an icon. Always clickable.
      */
-    static LinearLayout addChoice(@NonNull Context context, @NonNull LinearLayout parent,
+    public static LinearLayout addChoice(@NonNull Context context, @NonNull LinearLayout parent,
                                   @NonNull CharSequence label, @Nullable CharSequence summary,
                                   boolean selected, @Nullable View.OnClickListener onClick) {
         Drawable background = selected
@@ -85,7 +85,7 @@ final class FrostedMenuRow {
      * A disabled row is dimmed and ignores touches. {@code onChanged} only reports changes made by
      * the user, never the initial {@code checked} state.
      */
-    static LinearLayout addToggle(@NonNull Context context, @NonNull LinearLayout parent,
+    public static LinearLayout addToggle(@NonNull Context context, @NonNull LinearLayout parent,
                                   @NonNull CharSequence label, @Nullable CharSequence summary,
                                   boolean checked, boolean enabled,
                                   @NonNull CompoundButton.OnCheckedChangeListener onChanged) {

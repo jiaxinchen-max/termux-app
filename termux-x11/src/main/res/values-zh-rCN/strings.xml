@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="terminal_open_ui">UI 模式</string>
+    <string name="terminal_data">数据</string>
+    <string name="terminal_backup">备份</string>
+    <string name="terminal_restore">恢复</string>
     <string name="app_name">终端</string>
     <string name="plugin_info">这是\n应用程序的插件应用程序。\n\n查看应用程序 github %1$s 和应用程序 github %2$s 了解更多信息。</string>
     <string name="msg_storage_permission_not_granted_warning">必须向应用授予存储权限才能正常工作</string>

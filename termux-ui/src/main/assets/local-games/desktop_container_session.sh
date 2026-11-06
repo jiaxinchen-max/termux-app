@@ -3,6 +3,10 @@
 
 set -u
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# proot-distro's non-login command environment omits SHELL. Konsole otherwise
+# receives an empty command and selects its own fallback shell.
+export SHELL=/bin/bash
+[ -x "$SHELL" ] || { echo "ERROR: container shell is missing: $SHELL" >&2; exit 127; }
 
 # This launcher supports one explicit session policy. Choose services before launching them.
 case "${DESKTOP_KDE_SERVICE_POLICY:-}:${QT_QPA_PLATFORM:-}:${XDG_SESSION_TYPE:-}" in
@@ -18,6 +22,7 @@ export QT_QPA_PLATFORM
 export GDK_BACKEND="${GDK_BACKEND:-wayland}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-KDE}"
 export XDG_SESSION_TYPE
+export PULSE_SERVER="${PULSE_SERVER:?Explicit host PulseAudio endpoint is required}"
 export XDG_DATA_DIRS="${XDG_DATA_DIRS:-/usr/share:/usr/local/share}"
 export XDG_MENU_PREFIX="${XDG_MENU_PREFIX:-plasma-}"
 unset DISPLAY

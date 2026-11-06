@@ -9,9 +9,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Environment;
-import android.os.IBinder;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
+import android.os.Bundle;
+import android.os.ResultReceiver;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
@@ -31,17 +33,17 @@ import com.termux.ui.components.delivery.ComponentDeliveryCoordinator;
 import com.termux.ui.components.index.ComponentDescriptor;
 import com.termux.ui.components.index.ComponentIndex;
 import com.termux.ui.components.index.ComponentIndexParser;
+import com.termux.ui.components.install.ComponentInstallException;
 import com.termux.ui.components.install.ComponentInstallationReader;
 import com.termux.ui.components.install.ComponentInstaller;
-import com.termux.ui.components.install.ComponentInstallException;
 import com.termux.ui.components.install.InstalledComponent;
-import com.termux.ui.domain.GameRuntimeBackendType;
 import com.termux.ui.data.ComponentTaskRepository;
 import com.termux.ui.data.FileComponentTaskRepository;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.domain.ComponentTask;
 import com.termux.ui.domain.ComponentTaskState;
-import com.termux.ui.runtime.GlibcTermuxBoxBackend;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.runtime.GlibcTermuxBoxBackend;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -67,7 +69,7 @@ public final class ComponentTaskForegroundService extends Service {
     private static final String TAG = "GamesComponentTask";
     private static final String CHANNEL_ID = "games_component_delivery";
     private static final int NOTIFICATION_ID = 23091;
-    private static final String INDEX_ASSET = "termux-box-packages/index-v1.json";
+    private static final String INDEX_ASSET = "termux-app-packages/index-v1.json";
     private static final long TERMUX_GLIBC_INSTALL_TIMEOUT_MS = 30L * 60L * 1000L;
     private static final long TERMUX_GLIBC_INSTALL_POLL_MS = 250L;
     /**
@@ -105,11 +107,14 @@ public final class ComponentTaskForegroundService extends Service {
     @Override
     public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
         latestStartId = startId;
+        // A new command can reach this instance after its previous idle transition.
+        startForeground(NOTIFICATION_ID, buildPreparingNotification());
         if (intent == null || intent.getAction() == null) return START_STICKY;
 
         String action = intent.getAction();
         String taskId = intent.getStringExtra(ComponentTasks.EXTRA_TASK_ID);
         String componentId = intent.getStringExtra(ComponentTasks.EXTRA_COMPONENT_ID);
+        ResultReceiver receiver = intent.getParcelableExtra(ComponentTasks.EXTRA_COMMAND_RECEIVER);
         if (ComponentTasks.ACTION_PAUSE.equals(action) && taskId != null) {
             synchronized (controlRegistrationLock) {
                 ComponentDeliveryCoordinator current = coordinator;
@@ -125,7 +130,7 @@ public final class ComponentTaskForegroundService extends Service {
                 }
             }
         }
-        submit(() -> handleCommand(action, taskId, componentId));
+        submit(() -> handleCommand(action, taskId, componentId, receiver));
         return START_STICKY;
     }
 
@@ -143,10 +148,12 @@ public final class ComponentTaskForegroundService extends Service {
         super.onDestroy();
     }
 
-    private void handleCommand(String action, String taskId, String componentId) {
+    private void handleCommand(String action, String taskId, String componentId,
+                               @Nullable ResultReceiver receiver) {
         try {
             ComponentDeliveryCoordinator current = requireCoordinator();
             if (ComponentTasks.ACTION_ENQUEUE.equals(action)) {
+                ComponentTaskConsoleLog.clearCommandFailure(getFilesDir(), taskId);
                 RuntimeInstallationGate.requireComponentSlot(getFilesDir(), null);
                 ComponentDescriptor descriptor = requiredDescriptor(componentId);
                 current.enqueue(descriptor, requiredIdentifier(taskId, "taskId"));
@@ -168,10 +175,13 @@ public final class ComponentTaskForegroundService extends Service {
             } else if (ComponentTasks.ACTION_RESUME.equals(action) ||
                 ComponentTasks.ACTION_RETRY.equals(action)) {
                 String requiredTaskId = requiredIdentifier(taskId, "taskId");
+                ComponentTaskConsoleLog.clearCommandFailure(getFilesDir(), requiredTaskId);
                 RuntimeInstallationGate.requireComponentSlot(getFilesDir(), requiredTaskId);
                 current.prepareResume(requiredTaskId, this::publishTask);
                 ComponentTaskConsoleLog.append(getFilesDir(), requiredTaskId,
                     ComponentTasks.ACTION_RETRY.equals(action) ? "Retry requested" : "Resume requested");
+                if (receiver != null) receiver.send(0, null);
+                receiver = null;
                 executeTask(requiredTaskId);
             } else if (ComponentTasks.ACTION_ROLLBACK.equals(action)) {
                 RuntimeInstallationGate.requireComponentSlot(getFilesDir(), null);
@@ -188,6 +198,16 @@ public final class ComponentTaskForegroundService extends Service {
                 throw new IOException("Unsupported component task command");
             }
         } catch (Exception error) {
+            if (receiver != null) {
+                Bundle result = new Bundle();
+                result.putString(ComponentTasks.EXTRA_COMMAND_ERROR, stableMessage(error));
+                receiver.send(1, result);
+            }
+            if (taskId != null && taskId.matches("[A-Za-z0-9._-]+") &&
+                (ComponentTasks.ACTION_ENQUEUE.equals(action) || ComponentTasks.ACTION_RETRY.equals(action) ||
+                    ComponentTasks.ACTION_RESUME.equals(action))) {
+                ComponentTaskConsoleLog.commandFailed(getFilesDir(), taskId, stableMessage(error));
+            }
             publishFailure(error);
         }
     }
@@ -211,14 +231,12 @@ public final class ComponentTaskForegroundService extends Service {
                 current.prepareExecution(taskId);
             } catch (IOException error) {
                 runningTasks.remove(taskId);
-                ComponentTaskConsoleLog.append(getFilesDir(), taskId,
-                    "Task blocked: " + error.getMessage());
+                ComponentTaskConsoleLog.commandFailed(getFilesDir(), taskId, stableMessage(error));
                 publishFailure(error);
                 return;
             } catch (Exception error) {
                 runningTasks.remove(taskId);
-                ComponentTaskConsoleLog.append(getFilesDir(), taskId,
-                    "Task blocked: " + error.getMessage());
+                ComponentTaskConsoleLog.commandFailed(getFilesDir(), taskId, stableMessage(error));
                 publishFailure(error);
                 return;
             }
@@ -268,7 +286,8 @@ public final class ComponentTaskForegroundService extends Service {
             LocalGamesHost host = LocalGames.requireHost(this);
             host.startTermuxPackageInstall(new RuntimeSetupRequest(taskId,
                 script.getCanonicalPath(), specification.getCanonicalPath(),
-                paths.getRuntimeDirectory().getCanonicalPath()));
+                paths.getRuntimeDirectory().getCanonicalPath(),
+                ComponentTaskConsoleLog.file(getFilesDir(), taskId).getCanonicalPath()));
             String eventState = waitForTermuxGlibcEvent(event);
             if ("SUCCEEDED".equals(eventState) && host.isRuntimeComponentAvailable(
                 GlibcTermuxBoxBackend.TERMUX_GLIBC_ID)) {
@@ -473,8 +492,8 @@ public final class ComponentTaskForegroundService extends Service {
 
     private void stopIfIdle() {
         if (pendingCommands.get() != 0 || !runningTasks.isEmpty()) return;
-        stopForeground(false);
-        stopSelfResult(latestStartId);
+        // An AMS start queued ahead of onStartCommand must keep its foreground lease.
+        if (stopSelfResult(latestStartId)) stopForeground(false);
     }
 
     private void publishTask(ComponentTask task) {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="local_games_rootfs_rebuild_required">Proot 基础环境不完整或需要更新，已有数据已保留。请前往设置 → 核心组件 → Proot，手动重建。</string>
+    <string name="local_games_rootfs_prefix_recovery_required">Wine C 盘不完整，已有文件已保留。请恢复备份，或手动重置此配置。</string>
+    <string name="local_games_rootfs_insufficient_storage">存储空间不足，无法安装 Proot 基础环境。请清理空间后重试，已有数据已保留。</string>
+    <string name="local_games_rootfs_prefix_insufficient_storage">准备 Wine C 盘的空间不足，至少需要 3 GiB 可用空间。已有文件已保留。</string>
+</resources>

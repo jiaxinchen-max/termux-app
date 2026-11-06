@@ -23,6 +23,19 @@ assert_eq() { [ "$1" = "$2" ] || fail "$3: expected '$2' got '$1'"; }
 export PREFIX="$TEST_ROOT/usr"
 export HOME="$TEST_ROOT/home"
 mkdir -p "$PREFIX/bin" "$PREFIX/tmp" "$HOME" "$TEST_ROOT/state" "$TEST_ROOT/logs"
+# Backend launch contracts use a healthy host audio endpoint; audio lifecycle has separate tests.
+cat > "$PREFIX/bin/pulseaudio" <<'FAKE'
+#!/bin/sh
+exit 0
+FAKE
+cat > "$PREFIX/bin/pactl" <<'FAKE'
+#!/bin/sh
+case "$*" in
+    *"list short sinks"*) printf '0\tOpenSL_ES_sink\tmodule-sles-sink.c\ts16le 2ch 44100Hz\tIDLE\n' ;;
+esac
+exit 0
+FAKE
+chmod +x "$PREFIX/bin/pulseaudio" "$PREFIX/bin/pactl"
 cp "$ASSETS"/desktop_*.sh "$TEST_ROOT/"
 cp "$ASSETS/desktop_container_statx_aarch64.bin" "$TEST_ROOT/"
 
@@ -33,6 +46,7 @@ DESKTOP_DE=${3:-kwin_plasma}
 DESKTOP_MODE=$1
 DESKTOP_GL_MODE=zink
 DESKTOP_USB_STORAGE=off
+DESKTOP_AUDIO_MODE=host-pulseaudio
 DESKTOP_PROOT_DISTRO=$2
 DESKTOP_RESOLUTION=1280x720
 DESKTOP_WIDTH=1280
@@ -42,7 +56,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/test.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/test.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/test.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r27
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r28
 SPEC
 }
 
@@ -333,7 +347,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/inst.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/inst.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/inst.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r27
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r28
 SPEC
 INST_LOG="$TEST_ROOT/inst-calls"
 INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-distro/containers"
@@ -404,7 +418,8 @@ chmod +x "$TURNIP_ROOT/bin/proot-distro"
 {
     printf 'PREFIX=%s\nTMPDIR=%s\nlog() { :; }\nfail() { echo "FAIL: $*" >&2; exit 1; }\nrun() { "$@"; }\n' \
         "$TURNIP_ROOT/prefix" "$TURNIP_ROOT/tmp"
-    sed -n '/^TURNIP_REPO=/,/^}/p' "$ASSETS/desktop_install.sh"
+    sed -n '/^TURNIP_REPO=/,/^ensure_gnome_turnip_icd()/ { /^ensure_gnome_turnip_icd()/!p; }' "$ASSETS/desktop_install.sh"
+    sed -n '/^ensure_turnip_icd()/,/^}/p' "$ASSETS/desktop_install.sh"
     printf 'ensure_turnip_icd debian-kwin-plasma-1\nensure_turnip_icd debian-kwin-plasma-1\n'
 } > "$TURNIP_ROOT/run.sh"
 FAKE_CURL_URLS="$TURNIP_ROOT/urls" FAKE_CURL_PAYLOAD="$TURNIP_ROOT/turnip.tar.gz" \
@@ -598,7 +613,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/dlfail.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/dlfail.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/dlfail.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r27
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r28
 SPEC
 rm -rf "$FAIL_ROOT/usr/tmp"/desktop-debs-* "$TEST_ROOT/tmp"/desktop-debs-* 2>/dev/null || true
 : > "$FAIL_ROOT/calls"
@@ -655,6 +670,7 @@ grep -q 'E: Unmet dependencies: libtest Depends: libmissing (= 2)' "$FAIL_ROOT/a
 
 # --- 19. container renderer contracts clear inherited paths and never switch after failure ---
 SESSION_FIXTURE="$TEST_ROOT/session"
+export PULSE_SERVER=tcp:127.0.0.1:4713
 mkdir -p "$SESSION_FIXTURE/bin" "$SESSION_FIXTURE/usr/bin" "$SESSION_FIXTURE/runtime" \
     "$SESSION_FIXTURE/usr/lib/aarch64-linux-gnu/qt6/plugins/platforms" "$SESSION_FIXTURE/usr/libexec" \
     "$SESSION_FIXTURE/usr/lib/polkit-1" "$SESSION_FIXTURE/usr/lib/sysusers.d" "$SESSION_FIXTURE/info"
@@ -720,18 +736,19 @@ sed '/^# Each desktop owns/,$d' "$ASSETS/desktop_container_session.sh" \
           -e "s#/var/lib/dpkg/info#$SESSION_FIXTURE/info#g" \
           -e "s#^export PATH=.*#export PATH=$SESSION_FIXTURE/bin:$PATH#" > "$SESSION_FIXTURE/preflight.sh"
 cat >> "$SESSION_FIXTURE/preflight.sh" <<'CAPTURE'
-printf 'RHI=%s\nQUICK=%s\nICD=%s\nDRIVER=%s\n' \
+printf 'RHI=%s\nQUICK=%s\nICD=%s\nDRIVER=%s\nSHELL=%s\n' \
     "${QSG_RHI_BACKEND:-unset}" "${QT_QUICK_BACKEND:-unset}" \
-    "${VK_ICD_FILENAMES:-unset}" "${GALLIUM_DRIVER:-unset}"
+    "${VK_ICD_FILENAMES:-unset}" "${GALLIUM_DRIVER:-unset}" "$SHELL"
 CAPTURE
 DESKTOP_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
-    QSG_RHI_BACKEND=vulkan QT_QUICK_BACKEND=legacy VK_ICD_FILENAMES=/bad/inherited.json \
+    SHELL= QSG_RHI_BACKEND=vulkan QT_QUICK_BACKEND=legacy VK_ICD_FILENAMES=/bad/inherited.json \
     PATH="$SESSION_FIXTURE/bin:$PATH" sh "$SESSION_FIXTURE/preflight.sh" \
     || fail "explicit software mode required Vulkan or failed to clear an inherited renderer"
 grep -q 'RHI=unset' "$SESSION_FIXTURE/runtime/plasma-container.log" || fail "software inherited Vulkan RHI"
 grep -q 'QUICK=software' "$SESSION_FIXTURE/runtime/plasma-container.log" || fail "software mode did not select Qt software"
 grep -q 'ICD=unset' "$SESSION_FIXTURE/runtime/plasma-container.log" || fail "software inherited a Vulkan ICD"
 grep -q 'DRIVER=llvmpipe' "$SESSION_FIXTURE/runtime/plasma-container.log" || fail "software Mesa mode is not llvmpipe"
+grep -qx 'SHELL=/bin/bash' "$SESSION_FIXTURE/runtime/plasma-container.log" || fail "container terminal shell is not explicit"
 [ -f "$SESSION_FIXTURE/passwd" ] && [ -f "$SESSION_FIXTURE/group" ] || fail "explicit sysusers was not called"
 # Provisioning failure and an unsafe root identity stop before any bus or desktop is launched.
 rm "$SESSION_FIXTURE/passwd"

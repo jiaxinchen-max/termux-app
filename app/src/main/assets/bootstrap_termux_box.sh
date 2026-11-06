@@ -65,14 +65,17 @@ run_with_affinity() {
 # functions live in glibc_prefix_extras.sh next to this script; they need a run_container_wine that runs the
 # prefix's own wine (called by its real path: $GLIBC_BIN/wine may still point at a previous build here).
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-[ ! -f "$SCRIPT_DIR/glibc_prefix_extras.sh" ] || . "$SCRIPT_DIR/glibc_prefix_extras.sh"
+. "$SCRIPT_DIR/glibc_prefix_extras.sh"
+. "$SCRIPT_DIR/native_runtime_components.sh"
 run_container_wine() {
     WINEDLLOVERRIDES="winegstreamer,mscoree=d" \
-        run_with_affinity "$GLIBC_BIN/box64" "$WINE_PATH/bin/wine" "$@"
+        run_with_affinity "$NATIVE_GLIBC_LOADER" --library-path "$TERMUX_GLIBC_DIR/lib" "$NATIVE_BOX64_BIN" "$WINE_PATH/bin/wine" "$@"
 }
 prepare_game_extras() {
     command -v ensure_games_wine_fonts >/dev/null 2>&1 || return 0
     unset LD_PRELOAD
+    apply_native_graphics_component || exit 1
+    apply_native_dx_component || exit 1
     export GAMES_WINESERVER_BIN="$WINE_PATH/bin/wineserver"
     TERMUX_BOX_RUN_DIR="$TERMUX_BOX_ROOT/run"
     mkdir -p "$TERMUX_BOX_RUN_DIR"
@@ -85,8 +88,11 @@ echo "[bootstrap] Loading configuration..."
 . "$CONTAINER_CONF"
 
 # ---- 2. Resolve container-specific variables (with defaults) ----
-export WINE_PATH="$TERMUX_GLIBC_DIR/${TERMUX_BOX_WINE_PACKAGE:-glibc_wine_9.0-staging}"
-TERMUX_BOX_WINE_PACKAGE="${TERMUX_BOX_WINE_PACKAGE:-glibc_wine_9.0-staging}"
+case "${TERMUX_BOX_WINE_PACKAGE:-}" in glibc_wine_*|glibc_proton_*|custom-wine-?*) ;; *) echo "ERROR: wine_package_required"; exit 1 ;; esac
+case "$TERMUX_BOX_WINE_PACKAGE" in *[!A-Za-z0-9._-]*) echo "ERROR: wine_package_invalid"; exit 1 ;; esac
+export WINE_PATH="$TERMUX_GLIBC_DIR/$TERMUX_BOX_WINE_PACKAGE"
+resolve_native_box64 || exit 1
+require_native_wine_runtime || exit 1
 export WINEPREFIX="${TERMUX_BOX_CONTAINER_PREFIX:-${TERMUX_BOX_ROOT}/containers/container-1/prefix}"
 CONTAINER_NAME="${TERMUX_BOX_CONTAINER_NAME:-unknown}"
 export PRIMARY_CORES="${PRIMARY_CORES:-0-1}"
@@ -119,7 +125,6 @@ cleanup_bootstrap() {
 export BOX64_LD_LIBRARY_PATH="${BOX64_LD_LIBRARY_PATH:-$WINE_PATH/lib64:$WINE_PATH/lib64/wine/x86_64-unix:$WINE_PATH/lib:$WINE_PATH/lib/wine/x86_64-unix:$TERMUX_GLIBC_DIR/lib/x86_64-linux-gnu}"
 export BOX64_PATH="${BOX64_PATH:-$GLIBC_BIN}"
 export BOX64_MMAP32="${BOX64_MMAP32:-1}"
-export VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-$TERMUX_GLIBC_DIR/share/vulkan/icd.d/freedreno_icd.aarch64.json}"
 export DXVK_CONFIG_FILE="${DXVK_CONFIG_FILE:-$TERMUX_OPT_DIR/dxvk.conf}"
 export FONTCONFIG_PATH="${FONTCONFIG_PATH:-$TERMUX_GLIBC_DIR/etc/fonts}"
 export DXVK_ASYNC="${DXVK_ASYNC:-1}"
@@ -159,11 +164,6 @@ if [ ! -f "$WINE_PATH/bin/wine" ]; then
     echo "Install required packages from Package Manager first."
     exit 1
 fi
-if [ ! -f "$GLIBC_BIN/box64" ]; then
-    echo "ERROR: Missing box64 runtime: $GLIBC_BIN/box64"
-    exit 1
-fi
-
 # ---- Early exit if already bootstrapped ----
 mkdir -p "$WINEPREFIX"
 RUNTIME_SWITCH=0
@@ -205,40 +205,6 @@ trap cleanup_bootstrap EXIT INT TERM
 echo "[bootstrap] Setting up Wine binaries..."
 chmod +x "$WINE_PATH/bin/wine" "$WINE_PATH/bin/wineserver" 2>/dev/null || true
 
-echo "[bootstrap] Patching box64 ELF (interpreter + rpath)..."
-# patchelf rewrites in place, which fails with ETXTBSY while any process still has
-# box64 mapped (a previous container, or the app itself right after installing it).
-# Skip the rewrite when the binary already carries the interpreter we want.
-box64_interpreter=
-if command -v patchelf >/dev/null 2>&1; then
-    box64_interpreter=$(patchelf --print-interpreter "$GLIBC_BIN/box64" 2>/dev/null || true)
-elif [ -x /system/bin/file ]; then
-    box64_description=$(/system/bin/file "$GLIBC_BIN/box64" 2>/dev/null || true)
-    case "$box64_description" in
-        *"dynamic ($TERMUX_GLIBC_DIR/lib/ld-linux-aarch64.so.1)"*)
-            # Indexed Box64 packages are already patched. A clean Termux bootstrap
-            # does not include patchelf, so use Android's ELF inspection fallback.
-            box64_interpreter="$TERMUX_GLIBC_DIR/lib/ld-linux-aarch64.so.1"
-            ;;
-    esac
-fi
-if [ "$box64_interpreter" = "$TERMUX_GLIBC_DIR/lib/ld-linux-aarch64.so.1" ]; then
-    echo "[bootstrap] box64 already patched; keeping existing interpreter."
-elif ! command -v patchelf >/dev/null 2>&1; then
-    echo "ERROR: Box64 has an unexpected ELF interpreter and patchelf is unavailable."
-    exit 1
-elif ! patchelf --force-rpath \
-     --set-rpath "$TERMUX_GLIBC_DIR/lib" \
-     --set-interpreter "$TERMUX_GLIBC_DIR/lib/ld-linux-aarch64.so.1" \
-     "$GLIBC_BIN/box64"; then
-    echo "ERROR: patchelf failed. Install the patchelf package first."
-    exit 1
-fi
-
-rm -rf "$GLIBC_BIN/wine" "$GLIBC_BIN/wineserver" 2>/dev/null || true
-ln -sf "$WINE_PATH/bin/wine" "$GLIBC_BIN/wine"
-ln -sf "$WINE_PATH/bin/wineserver" "$GLIBC_BIN/wineserver"
-
 # ---- Critical: clear bionic LD_PRELOAD before running glibc binaries ----
 unset LD_PRELOAD
 
@@ -252,6 +218,7 @@ else
     rm -rf "$WINEPREFIX"
 fi
 mkdir -p "$WINEPREFIX"
+apply_native_graphics_component || exit 1
 
 # A newer Wine can add DLLs that other builtin DLLs forward to (e.g. advapi32 -> cryptbase). The
 # processes wineboot starts first load the new builtins before wineboot has copied those files into
@@ -311,7 +278,7 @@ unset BOX64_DYNAREC_BIGBLOCK BOX64_DYNAREC_CALLRET WINEESYNC WINEESYNC_TERMUX
 # blocks it forever once a display is available.
 DISPLAY=:97 LC_ALL="$LC_ALL" \
 WINEDLLOVERRIDES="winegstreamer,mscoree=d" \
-    run_with_affinity "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" wineboot -u &
+    run_with_affinity "$NATIVE_GLIBC_LOADER" --library-path "$TERMUX_GLIBC_DIR/lib" "$NATIVE_BOX64_BIN" "$WINE_PATH/bin/wine" wineboot -u &
 WINEBOOT_PID=$!
 WINEBOOT_ELAPSED=0
 IDLE_COUNT=0
@@ -333,15 +300,15 @@ while kill -0 "$WINEBOOT_PID" 2>/dev/null; do
         PREV_TICKS=$CPU_TICKS
         if [ "$IDLE_COUNT" -ge 30 ]; then
             echo "[bootstrap] Wineboot is hung (Wine processes idle for 30s); stopping Wine services..."
-            WINEPREFIX="$WINEPREFIX" "$GLIBC_BIN/box64" \
-                "$GLIBC_BIN/wineserver" -k >/dev/null 2>&1 || true
+            WINEPREFIX="$WINEPREFIX" native_run_box64 \
+                "$WINE_PATH/bin/wineserver" -k >/dev/null 2>&1 || true
             break
         fi
     fi
     if [ "$WINEBOOT_ELAPSED" -ge 300 ]; then
         echo "[bootstrap] Wineboot timeout; stopping Wine services..."
-        WINEPREFIX="$WINEPREFIX" "$GLIBC_BIN/box64" \
-            "$GLIBC_BIN/wineserver" -k >/dev/null 2>&1 || true
+        WINEPREFIX="$WINEPREFIX" native_run_box64 \
+            "$WINE_PATH/bin/wineserver" -k >/dev/null 2>&1 || true
         break
     fi
 done
@@ -366,7 +333,7 @@ X11_PID=
 if [ ! -e "$WINEPREFIX/.update-timestamp" ]; then
     echo "ERROR: Cannot configure Wine prefix."
     echo "Check that required packages are installed and try again."
-    "$GLIBC_BIN/box64" "$GLIBC_BIN/wineserver" -k 2>/dev/null || true
+    native_run_box64 "$WINE_PATH/bin/wineserver" -k 2>/dev/null || true
     exit 1
 fi
 if [ "$WINEBOOT_EXIT" -ne 0 ]; then
@@ -399,35 +366,6 @@ elif [ -f "$TERMUX_OPT_DIR/prefix/directx.7z" ]; then
     7z x "$TERMUX_OPT_DIR/prefix/directx.7z" -o"$WINEPREFIX/drive_c" -y >/dev/null 2>&1
 fi
 
-# The Turnip catalog release only ships driver builds packed inside .7z archives (using
-# 7-Zip's ARM64 filter, which Apache Commons Compress cannot decode), so the component
-# installer publishes that bundle as-is; extract the selected build here with the real
-# `7z` binary and write the Vulkan ICD manifest the loader needs to find it.
-TURNIP_ICD="$TERMUX_GLIBC_DIR/share/vulkan/icd.d/freedreno_icd.aarch64.json"
-TURNIP_BUNDLE="$TERMUX_GLIBC_DIR/opt/libs/mesa/turnip-v6.5.7z"
-if [ ! -f "$TURNIP_ICD" ] && [ -f "$TURNIP_BUNDLE" ]; then
-    echo "[bootstrap] Extracting Turnip Vulkan driver..."
-    command -v 7z >/dev/null 2>&1 || {
-        echo "ERROR: Turnip driver bundle was staged but p7zip is unavailable."
-        exit 1
-    }
-    mkdir -p "$TERMUX_GLIBC_DIR/share/vulkan/icd.d"
-    if 7z x "$TURNIP_BUNDLE" -o"$TERMUX_GLIBC_DIR" -y "lib/libvulkan_freedreno.so" \
-        >/dev/null 2>&1 && [ -f "$TERMUX_GLIBC_DIR/lib/libvulkan_freedreno.so" ]; then
-        cat >"$TURNIP_ICD" <<'EOF'
-{
-    "file_format_version": "1.0.0",
-    "ICD": {
-        "library_path": "../../../lib/libvulkan_freedreno.so",
-        "api_version": "1.3.255"
-    }
-}
-EOF
-    else
-        echo "ERROR: Unable to extract Turnip Vulkan driver from bundle."
-    fi
-fi
-
 # Step D: Set up extra dosdevices drive mappings
 echo "[bootstrap] Setting up drive mappings..."
 rm -rf "$WINEPREFIX/dosdevices/z:" 2>/dev/null || true
@@ -451,18 +389,18 @@ fi
 
 if [ -f "$TERMUX_OPT_DIR/prefix/user.reg" ]; then
     echo "[bootstrap] Importing user registry..."
-    run_with_affinity "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" regedit "$TERMUX_OPT_DIR/prefix/user.reg" 2>/dev/null || true
+    run_with_affinity "$NATIVE_GLIBC_LOADER" --library-path "$TERMUX_GLIBC_DIR/lib" "$NATIVE_BOX64_BIN" "$WINE_PATH/bin/wine" regedit "$TERMUX_OPT_DIR/prefix/user.reg" 2>/dev/null || true
 fi
 
 if [ -f "$TERMUX_OPT_DIR/prefix/system.reg" ]; then
     echo "[bootstrap] Importing system registry..."
-    run_with_affinity "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" regedit "$TERMUX_OPT_DIR/prefix/system.reg" 2>/dev/null || true
+    run_with_affinity "$NATIVE_GLIBC_LOADER" --library-path "$TERMUX_GLIBC_DIR/lib" "$NATIVE_BOX64_BIN" "$WINE_PATH/bin/wine" regedit "$TERMUX_OPT_DIR/prefix/system.reg" 2>/dev/null || true
 fi
 
 mkdir -p "$WINEPREFIX/termux-boxmeta"
 if [ -f "$TERMUX_OPT_DIR/prefix/fix-services.reg" ]; then
     echo "[bootstrap] Applying service fixes..."
-    run_with_affinity "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" regedit "$TERMUX_OPT_DIR/prefix/fix-services.reg" 2>/dev/null || true
+    run_with_affinity "$NATIVE_GLIBC_LOADER" --library-path "$TERMUX_GLIBC_DIR/lib" "$NATIVE_BOX64_BIN" "$WINE_PATH/bin/wine" regedit "$TERMUX_OPT_DIR/prefix/fix-services.reg" 2>/dev/null || true
 fi
 touch "$WINEPREFIX/termux-boxmeta/services-fix-applied"
 

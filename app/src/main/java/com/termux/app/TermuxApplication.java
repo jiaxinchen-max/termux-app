@@ -27,6 +27,9 @@ public class TermuxApplication extends Application {
     public void onCreate() {
         super.onCreate();
 
+        // The exit helper must not create sockets or runtime facilities of its own.
+        if (isExitProcess()) return;
+
         Context context = getApplicationContext();
 
         // Register the app-owned Termux runtime bridge for the independently packaged local-games feature.
@@ -78,6 +81,23 @@ public class TermuxApplication extends Application {
         if (isTermuxFilesDirectoryAccessible) {
             TermuxShellEnvironment.writeEnvironmentToFile(this);
         }
+    }
+
+    private boolean isExitProcess() {
+        String expected = getPackageName() + ":exit";
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            return expected.equals(Application.getProcessName());
+        }
+        android.app.ActivityManager manager =
+            (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        java.util.List<android.app.ActivityManager.RunningAppProcessInfo> processes =
+            manager.getRunningAppProcesses();
+        if (processes != null) {
+            for (android.app.ActivityManager.RunningAppProcessInfo process : processes) {
+                if (process.pid == android.os.Process.myPid()) return expected.equals(process.processName);
+            }
+        }
+        throw new IllegalStateException("Cannot identify application process");
     }
 
     public static void setLogConfig(Context context) {

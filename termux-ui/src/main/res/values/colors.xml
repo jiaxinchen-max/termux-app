@@ -10,6 +10,7 @@
     <color name="local_games_surface_elevated">#B8FFFCF7</color>
     <color name="local_games_surface_high">#D0FFFDF9</color>
     <color name="local_games_surface_pressed">#33A8651F</color>
+    <color name="local_games_selected_surface">#F6EBDD</color>
     <color name="local_games_outline">#1F5A3C1E</color>
     <color name="local_games_on_surface">#2B211A</color>
     <color name="local_games_on_surface_secondary">#74665A</color>
@@ -46,9 +47,9 @@
     <color name="local_games_icon_file_front">#F6EEE4</color>
     <color name="local_games_icon_file_fold">#B7A48D</color>
     <color name="local_games_icon_warning">#B97A1E</color>
-    <color name="local_games_terminal_background">#FF000000</color>
-    <color name="local_games_terminal_text">#FFFFFFFF</color>
-    <color name="local_games_terminal_secondary">#B3A598</color>
+    <color name="local_games_terminal_background">#F3ECE3</color>
+    <color name="local_games_terminal_text">#2B211A</color>
+    <color name="local_games_terminal_secondary">#74665A</color>
     <!-- Session log viewer: level text colors (error reuses local_games_error) and tinted row fills. -->
     <color name="local_games_log_warn">#955A0E</color>
     <color name="local_games_log_warn_container">#1FB97A1E</color>
@@ -56,4 +57,23 @@
     <color name="local_games_system_bar_legacy">#8C7C6B</color>
     <!-- true: light system bars icons are dark (light mode) -->
     <bool name="local_games_light_system_bars">true</bool>
+    <!-- ANSI 0–15, tuned for the UI terminal surface. -->
+    <array name="local_games_terminal_ansi">
+        <item>#382C23</item>
+        <item>#A3312C</item>
+        <item>#316537</item>
+        <item>#795400</item>
+        <item>#285E9B</item>
+        <item>#85478C</item>
+        <item>#21696B</item>
+        <item>#6F6256</item>
+        <item>#55483C</item>
+        <item>#B63830</item>
+        <item>#3B713C</item>
+        <item>#885C00</item>
+        <item>#336BAB</item>
+        <item>#934A96</item>
+        <item>#277476</item>
+        <item>#8A7969</item>
+    </array>
 </resources>

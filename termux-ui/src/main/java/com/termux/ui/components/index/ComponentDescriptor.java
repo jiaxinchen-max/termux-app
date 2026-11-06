@@ -1,7 +1,7 @@
 package com.termux.ui.components.index;
 
 import com.termux.ui.domain.ComponentTask;
-import com.termux.ui.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
 
 import java.net.MalformedURLException;
 import java.net.URL;

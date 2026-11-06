@@ -1,5 +1,6 @@
 #!/bin/sh
 # The selected backend applies only to this package-configuration process and its children.
+# ucf/ucfr preserve UCF_* and LD_PRELOAD together when sanitising child environments.
 set -u
 case "${1:-}" in
     --statx-backend=proc-fdinfo) shift ;;
@@ -8,7 +9,7 @@ esac
 [ "$#" -gt 0 ] || { echo 'ERROR: package configuration command is missing' >&2; exit 64; }
 library=/usr/local/lib/termux-proot/libstatx-procfdinfo.so
 [ -r "$library" ] || { echo "ERROR: statx backend library is missing: $library" >&2; exit 66; }
-probe=$(env TERMUX_PROOT_STATX_MODE=proc-fdinfo TERMUX_PROOT_STATX_PROBE=1 \
+probe=$(env UCF_TERMUX_PROOT_STATX_MODE=proc-fdinfo TERMUX_PROOT_STATX_PROBE=1 \
     LD_PRELOAD="$library" /bin/true 2>&1)
 code=$?
 if [ "$code" -ne 0 ]; then
@@ -20,5 +21,5 @@ matched=$(printf '%s\n' "$probe" | grep -E '^proot statx backend=proc-fdinfo mnt
     printf 'ERROR: statx backend did not load and verify exactly: %s\n' "$probe" >&2
     exit 65
 }
-exec env -u TERMUX_PROOT_STATX_PROBE TERMUX_PROOT_STATX_MODE=proc-fdinfo \
+exec env -u TERMUX_PROOT_STATX_PROBE UCF_TERMUX_PROOT_STATX_MODE=proc-fdinfo \
     DEBIAN_FRONTEND=noninteractive LD_PRELOAD="$library" "$@"

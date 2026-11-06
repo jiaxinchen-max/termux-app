@@ -6,14 +6,12 @@ import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-/** How the file manager lays out a folder: compact icon tiles or one compact row per entry. The
- *  choice is kept in a stored preference so it survives restarts. */
-enum FileManagerViewMode {
+/** Grid or compact rows for a root collection, saved independently for Wine, Desktop and Files. */
+public enum FileManagerViewMode {
     GRID("grid"),
     LIST("list");
 
     private static final String PREFERENCES = "local_games_settings";
-    private static final String KEY = "file_manager_view_mode";
 
     private final String storageValue;
 
@@ -21,11 +19,11 @@ enum FileManagerViewMode {
         this.storageValue = storageValue;
     }
 
-    String getStorageValue() { return storageValue; }
+    public String getStorageValue() { return storageValue; }
 
     /** The other mode (what the toolbar toggle switches to). */
     @NonNull
-    FileManagerViewMode toggled() {
+    public FileManagerViewMode toggled() {
         return this == GRID ? LIST : GRID;
     }
 
@@ -39,12 +37,27 @@ enum FileManagerViewMode {
     }
 
     @NonNull
-    static FileManagerViewMode load(@NonNull Context context) {
-        return fromStorageValue(preferences(context).getString(KEY, GRID.storageValue));
+    public static FileManagerViewMode load(@NonNull Context context) {
+        return load(context, "file_manager");
     }
 
-    void save(@NonNull Context context) {
-        preferences(context).edit().putString(KEY, storageValue).apply();
+    public void save(@NonNull Context context) {
+        save(context, "file_manager");
+    }
+
+    public static FileManagerViewMode load(Context context, String page) {
+        return fromStorageValue(preferences(context).getString(key(page), GRID.storageValue));
+    }
+
+    public void save(Context context, String page) {
+        preferences(context).edit().putString(key(page), storageValue).apply();
+    }
+
+    private static String key(String page) {
+        if (!"wine".equals(page) && !"desktop".equals(page) && !"file_manager".equals(page)) {
+            throw new IllegalArgumentException("collection_page_unknown");
+        }
+        return page + "_view_mode";
     }
 
     private static SharedPreferences preferences(Context context) {

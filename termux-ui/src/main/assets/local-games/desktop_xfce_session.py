@@ -61,6 +61,7 @@ exec xfce4-session
     for key in ('DBUS_SESSION_BUS_ADDRESS', 'DBUS_SESSION_BUS_PID', 'SESSION_MANAGER'):
         host.pop(key, None)
     guest_values = ['DISPLAY=' + args.display, 'XDG_RUNTIME_DIR=' + str(runtime),
+                    'PULSE_SERVER=' + os.environ['PULSE_SERVER'],
                     'TERMUX_USB_DESKTOP_DIR=' + str(usb_runtime)]
     if args.usb_storage == 'read-only':
         module_dir = (prefix / 'var/lib/proot-distro/containers' / args.alias /

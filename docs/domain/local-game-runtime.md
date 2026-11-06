@@ -73,7 +73,7 @@
 7. RUNNING 必须同时具备有效游戏进程和可操作 X11 会话证据。
 8. 任务进入终态后必须完成或明确记录未完成的清理动作。
 9. `:termux-ui` 不得引用 `com.termux.app.*`，主应用能力必须经过公开 Host 契约。
-10. 组件索引必须来自 `:termux-ui`，但合并后的 asset 路径保持 `termux-box-packages/index-v1.json`。
+10. 组件索引必须来自 `:termux-ui`，但合并后的 asset 路径保持 `termux-app-packages/index-v1.json`。
 11. 组件归档必须在 app 私有 staging 中完成路径和链接检查，写入 receipt 后才能发布版本目录。
 12. active pointer 只引用不可变版本目录；切换失败保留旧 active，rollback 交换 active/previous。
 13. 仅 QUEUED、DOWNLOADING、VERIFYING、VERIFIED、INSTALLING 自动恢复；FAILED 需 retry，PAUSED 需 resume。

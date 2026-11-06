@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Warm frosted-matte theme. All colours come from values/colors.xml (light) and
-         values-night/colors.xml (dark), so the module follows the system dark/light setting only. -->
+         values-night/colors.xml (dark), selected by the UI's Auto / Light / Dark preference. -->
     <style name="Theme.TermuxLocalGames.DayNight.Base" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/local_games_primary</item>
         <item name="colorPrimaryVariant">@color/local_games_primary_dark</item>

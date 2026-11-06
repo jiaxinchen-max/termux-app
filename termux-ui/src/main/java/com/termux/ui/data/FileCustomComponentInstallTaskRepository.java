@@ -3,7 +3,8 @@ package com.termux.ui.data;
 import com.termux.ui.domain.CustomComponentInstallTask;
 import com.termux.ui.domain.CustomComponentInstallTaskState;
 import com.termux.ui.domain.CustomRuntimeComponent;
-import com.termux.ui.domain.RuntimeTranslator;
+import com.termux.ui.wine.domain.RuntimeTranslator;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
 
 import java.io.File;
 import java.io.IOException;
@@ -53,6 +54,7 @@ public final class FileCustomComponentInstallTaskRepository {
             value.setProperty("taskId", task.getTaskId());
             value.setProperty("componentId", task.getComponentId());
             value.setProperty("kind", task.getKind().name());
+            value.setProperty("runtimeBackend", task.getBackendType().getStorageValue());
             value.setProperty("translator",
                 task.getTranslator() == null ? "" : task.getTranslator().getStorageValue());
             value.setProperty("displayName", task.getDisplayName());
@@ -67,7 +69,7 @@ public final class FileCustomComponentInstallTaskRepository {
         @Override
         public CustomComponentInstallTask fromProperties(Properties value) throws IOException {
             try {
-                if (!"1".equals(value.getProperty("schemaVersion"))) {
+                if (!"2".equals(value.getProperty("schemaVersion"))) {
                     throw new IOException("custom_install_task_schema_unsupported");
                 }
                 CustomRuntimeComponent.Kind kind =
@@ -81,7 +83,8 @@ public final class FileCustomComponentInstallTaskRepository {
                     CustomComponentInstallTaskState.valueOf(required(value, "state")),
                     value.getProperty("errorCode", ""),
                     Long.parseLong(required(value, "createdAt")),
-                    Long.parseLong(required(value, "updatedAt")));
+                    Long.parseLong(required(value, "updatedAt")),
+                    GameRuntimeBackendType.fromStorageValue(required(value, "runtimeBackend")));
             } catch (IllegalArgumentException error) {
                 throw new IOException("custom_install_task_invalid", error);
             }

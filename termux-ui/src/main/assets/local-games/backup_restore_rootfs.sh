@@ -11,8 +11,8 @@
 #                                        go into the archive -- they can be rebuilt, so leaving them out
 #                                        only makes the archive smaller
 #   backupArchivePath=<absolute external-storage path, read for restore / written for backup>
-#   eventsPath=<private events jsonl path, under .../games/runtime/backup/events/>
-#   logPath=<private log path, under .../games/runtime/backup/logs/>
+#   eventsPath=<private events jsonl path, under .../front/runtime/backup/events/>
+#   logPath=<private log path, under .../front/runtime/backup/logs/>
 
 set -eu
 PS4='+ '
@@ -89,7 +89,7 @@ esac
 # Same Java-getCanonicalPath()-derived convention as setup_rootfs_runtime.sh -- see that script's
 # own comment on why this must be string-derived from a path Java actually produced, not a bare
 # hardcoded guess or a realpath of this script's own (different) install location.
-TERMUX_FILES_ROOT=${PRIVATE_ROOT%/games}
+TERMUX_FILES_ROOT=${PRIVATE_ROOT%/front}
 [ -n "$TERMUX_FILES_ROOT" ] && [ "$TERMUX_FILES_ROOT" != "$PRIVATE_ROOT" ] || \
     fail invalid_backup_spec_path 64
 for path in "$EVENTS_PATH" "$LOG_PATH"; do

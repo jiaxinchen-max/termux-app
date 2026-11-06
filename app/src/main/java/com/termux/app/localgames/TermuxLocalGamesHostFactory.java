@@ -12,34 +12,37 @@ import android.system.OsConstants;
 
 import androidx.annotation.NonNull;
 
-import com.termux.ui.api.LocalGamesHost;
-import com.termux.ui.api.LocalGamesHostFactory;
-import com.termux.ui.api.AppExperienceMode;
-import com.termux.ui.api.LegacyRuntimeConfiguration;
-import com.termux.ui.api.LaunchRequest;
-import com.termux.ui.api.LaunchHostException;
-import com.termux.ui.api.RuntimeSetupRequest;
-import com.termux.ui.api.RuntimeComponentActivation;
-import com.termux.ui.domain.LaunchExecutionMode;
-import com.termux.ui.api.ResolvedGameDirectory;
-import com.termux.ui.data.GameStoragePaths;
-import com.termux.ui.importer.SafGameRootUri;
-import com.termux.app.TermuxService;
 import com.termux.app.TermuxActivity;
+import com.termux.app.TermuxService;
 import com.termux.app.activities.termuxbox.TermuxBoxContainerSpec;
 import com.termux.app.activities.termuxbox.TermuxBoxPackageSpec;
 import com.termux.app.activities.termuxbox.TermuxBoxRepository;
 import com.termux.shared.logger.Logger;
-import com.termux.shared.termux.file.TermuxFileUtils;
 import com.termux.shared.shell.command.ExecutionCommand;
 import com.termux.shared.termux.TermuxConstants;
+import com.termux.shared.termux.file.TermuxFileUtils;
 import com.termux.terminal.TerminalSession;
+import com.termux.ui.api.AppExperienceMode;
+import com.termux.ui.api.LaunchHostException;
+import com.termux.ui.api.LaunchRequest;
+import com.termux.ui.api.LocalGamesHost;
+import com.termux.ui.api.LocalGamesHostFactory;
+import com.termux.ui.api.RuntimeComponentActivation;
+import com.termux.ui.api.RuntimeComponentVariant;
+import com.termux.ui.api.RuntimeSetupRequest;
+import com.termux.ui.data.GameStoragePaths;
+import com.termux.ui.domain.LaunchExecutionMode;
+import com.termux.ui.domain.CustomRuntimeComponent;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.api.LegacyRuntimeConfiguration;
+import com.termux.ui.wine.api.ResolvedGameDirectory;
+import com.termux.ui.wine.importer.SafGameRootUri;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.io.File;
-import java.io.IOException;
 
 /**
  * Main-app integration bridge for the standalone games feature.
@@ -82,12 +85,18 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
             if (!appExperienceStore.set(mode)) {
                 throw new IllegalStateException("app_experience_persist_failed");
             }
+            TermuxLauncherIcon.sync(applicationContext, mode);
             TermuxAppRestart.coldRestart(applicationContext);
         }
 
         @Override
         public void openTerminal() {
-            applicationContext.startActivity(TermuxActivity.createSessionOnlyIntent(applicationContext));
+            applicationContext.startActivity(com.termux.app.TermuxUiTerminalActivity.createIntent(applicationContext));
+        }
+
+        @Override
+        public void exitApp() {
+            TermuxAppExit.request(applicationContext);
         }
 
         @Override
@@ -98,6 +107,13 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
         @Override
         public boolean isRuntimeComponentAvailable(String componentId) {
             return runtimeComponentProbe.isAvailable(componentId);
+        }
+
+        @Override
+        public List<RuntimeComponentVariant> listInstalledRuntimeComponentVariants(
+            CustomRuntimeComponent.Kind kind, GameRuntimeBackendType backend) throws IOException {
+            return new TermuxInstalledRuntimeVariants(
+                new File(TermuxConstants.TERMUX_FILES_DIR_PATH)).list(kind, backend);
         }
 
         @Override
@@ -273,6 +289,9 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
                 requirePrivatePath(request.getScriptPath());
                 requirePrivatePath(request.getSpecPath());
                 requirePrivatePath(request.getWorkingDirectory());
+                if (request.getPreparationLogPath() != null) {
+                    requirePrivatePath(request.getPreparationLogPath());
+                }
                 String shell = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/sh";
                 if (!new File(shell).isFile()) throw new IOException("termux_shell_missing");
                 Intent intent = createSetupIntent(applicationContext, shell, request);
@@ -359,7 +378,11 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
         intent.setClass(context, TermuxService.class);
         intent.setData(Uri.parse(shell));
         intent.putExtra(TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_ARGUMENTS,
-            new String[] {request.getScriptPath(), request.getSpecPath()});
+            request.getPreparationLogPath() == null
+                ? new String[] {request.getScriptPath(), request.getSpecPath()}
+                : new String[] {"-c", "cat -- \"$1\" || exit $?; printf '\\n'; exec \"$2\" \"$3\" \"$4\"",
+                    "runtime-setup", request.getPreparationLogPath(), shell,
+                    request.getScriptPath(), request.getSpecPath()});
         intent.putExtra(TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_WORKDIR,
             request.getWorkingDirectory());
         intent.putExtra(TermuxConstants.TERMUX_APP.TERMUX_SERVICE.EXTRA_RUNNER,

@@ -45,6 +45,23 @@ public final class ComponentTaskConsoleLog {
         return task.getPackageName() + " · " + task.getState().name() + progress + error;
     }
 
+    public static synchronized void commandFailed(File filesDirectory, String taskId, String message) {
+        append(filesDirectory, taskId, "Command failed: " + message);
+        try {
+            java.nio.file.Files.write(new File(file(filesDirectory, taskId).getPath() + ".error").toPath(),
+                message.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (IOException ignored) { }
+    }
+
+    public static synchronized String commandFailure(File filesDirectory, String taskId) throws IOException {
+        return SetupPreparationLog.readTail(new File(file(filesDirectory, taskId).getPath() + ".error"));
+    }
+
+    public static synchronized void clearCommandFailure(File filesDirectory, String taskId) throws IOException {
+        File error = new File(file(filesDirectory, taskId).getPath() + ".error");
+        if (error.exists() && !error.delete()) throw new IOException("component_command_error_clear_failed");
+    }
+
     private static void requireTaskId(String taskId) {
         if (taskId == null || !taskId.matches("[A-Za-z0-9._-]+")) {
             throw new IllegalArgumentException("component_task_id_invalid");

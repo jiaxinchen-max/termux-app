@@ -188,6 +188,7 @@ def main():
             base += ['-b', str(usb_parent) + ':' + str(usb_parent)]
         base += ['-w', '/', '/usr/bin/env', '-i']
     values = dict(HOME=session_home, DISPLAY=args.display, XDG_RUNTIME_DIR=gr,
+                  PULSE_SERVER=os.environ['PULSE_SERVER'],
                   XCURSOR_PATH='/usr/share/icons' if args.rootfs else str(prefix / 'share/icons'),
                   XCURSOR_THEME='Adwaita',
                   XDG_CONFIG_HOME=session_config, XDG_CACHE_HOME=session_cache,

@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:id="@+id/action_termux_box_containers"
-        android:title="@string/termux_box_container_title" />
-    <item
-        android:id="@+id/action_termux_box_packages"
-        android:title="@string/termux_box_packages_title" />
-</menu>

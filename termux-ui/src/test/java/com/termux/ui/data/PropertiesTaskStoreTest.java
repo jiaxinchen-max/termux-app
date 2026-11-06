@@ -1,8 +1,6 @@
 package com.termux.ui.data;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import com.termux.ui.wine.data.FileResetTaskRepository;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -15,6 +13,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.regex.Pattern;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class PropertiesTaskStoreTest {
     private static final Pattern ID_PATTERN = Pattern.compile("[A-Za-z0-9._-]{1,128}");
@@ -40,6 +47,41 @@ public class PropertiesTaskStoreTest {
         PropertiesTaskStore<FakeTask> store = newStore(directory);
 
         assertFalse(store.find("missing").isPresent());
+    }
+
+    @Test
+    public void independentReadersNeverLosePublishedTaskDuringReplacement() throws Exception {
+        File directory = temporary.newFolder("concurrent-tasks");
+        newStore(directory).save(new FakeTask("task-1", FakeTarget.ALPHA));
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            Future<?> writer = executor.submit(() -> {
+                start.await();
+                PropertiesTaskStore<FakeTask> store = newStore(directory);
+                for (int i = 0; i < 400; i++) {
+                    store.save(new FakeTask("task-1", i % 2 == 0 ? FakeTarget.ALPHA : FakeTarget.BETA));
+                }
+                return null;
+            });
+            java.util.concurrent.Callable<Void> read = () -> {
+                start.await();
+                PropertiesTaskStore<FakeTask> store = newStore(directory);
+                for (int i = 0; i < 5000; i++) {
+                    assertTrue("published task disappeared", store.find("task-1").isPresent());
+                    assertEquals(1, store.list().size());
+                }
+                return null;
+            };
+            Future<Void> first = executor.submit(read);
+            Future<Void> second = executor.submit(read);
+            start.countDown();
+            writer.get(30, TimeUnit.SECONDS);
+            first.get(30, TimeUnit.SECONDS);
+            second.get(30, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     @Test

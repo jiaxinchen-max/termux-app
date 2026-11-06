@@ -3,43 +3,42 @@ package com.termux.ui.activity;
 import android.app.Dialog;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.core.content.ContextCompat;
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 
-import com.termux.ui.R;
-import com.termux.ui.data.FilePrefixSetupTaskRepository;
-import com.termux.ui.data.GameStoragePaths;
-import com.termux.ui.domain.PrefixSetupTask;
-import com.termux.ui.domain.RuntimeSetupTaskState;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 import com.termux.shared.termux.terminal.TermuxTerminalViewClientBase;
 import com.termux.terminal.TerminalSession;
+import com.termux.ui.R;
+import com.termux.ui.api.LocalGames;
+import com.termux.ui.data.GameStoragePaths;
+import com.termux.ui.wine.data.FilePrefixSetupTaskRepository;
+import com.termux.ui.wine.domain.PrefixSetupTask;
+import com.termux.ui.wine.domain.RuntimeSetupTaskState;
 import com.termux.view.TerminalView;
 
 import java.io.IOException;
-
-import android.os.Handler;
-import android.os.Looper;
-
-import com.termux.ui.api.LocalGames;
 
 /** Modal TerminalView attached to the actual Termux GLIBC prefix setup session -- the
  *  PrefixSetupTask counterpart of {@link RuntimeSetupConsoleDialog}. Structurally identical
  *  (same golden-ratio sizing, same terminal attach/refresh/dismiss-on-complete flow, same host
  *  terminal lookup keyed purely by taskId); only the pre-terminal-attach status read differs,
  *  since GLIBC prefix tasks live in their own repository and domain type. */
-final class PrefixSetupConsoleDialog extends Dialog {
+public final class PrefixSetupConsoleDialog extends Dialog {
     private final String taskId;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TerminalSession consoleSession;
     private TerminalView terminalView;
     private TextView status;
+    private SetupPreparationConsole preparation;
     private boolean dismissed;
     private boolean setupFailed;
     private long sessionPollStartedAtMs;
@@ -51,7 +50,7 @@ final class PrefixSetupConsoleDialog extends Dialog {
         setCanceledOnTouchOutside(true);
     }
 
-    static PrefixSetupConsoleDialog show(@NonNull Context context, @NonNull String taskId) {
+    public static PrefixSetupConsoleDialog show(@NonNull Context context, @NonNull String taskId) {
         PrefixSetupConsoleDialog dialog = new PrefixSetupConsoleDialog(context, taskId);
         dialog.show();
         return dialog;
@@ -72,13 +71,23 @@ final class PrefixSetupConsoleDialog extends Dialog {
         status.setTextColor(ContextCompat.getColor(getContext(),
             R.color.local_games_terminal_secondary));
         status.setTextSize(13);
+        status.setText(R.string.local_games_runtime_setup_preparing);
         status.setPadding(dp(8), dp(8), dp(8), 0);
         content.addView(status, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        preparation = new SetupPreparationConsole(getContext(), taskId, false, message -> {
+            setupFailed = true;
+            applyTheme();
+            status.setVisibility(android.view.View.VISIBLE);
+            status.setText(getContext().getString(R.string.local_games_runtime_setup_failed) + "\n" + message);
+        });
+        content.addView(preparation, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
         terminalView = new TerminalView(getContext(), null);
-        terminalView.setBackgroundColor(ContextCompat.getColor(getContext(),
-            R.color.local_games_terminal_background));
+        terminalView.setVisibility(android.view.View.GONE);
+        com.termux.ui.platform.UiTerminalTheme.apply(terminalView);
         terminalView.setTerminalViewClient(new TermuxTerminalViewClientBase());
         TermuxAppSharedPreferences preferences = TermuxAppSharedPreferences.build(getContext());
         terminalView.setTextSize(preferences == null ? 14 : preferences.getFontSize());
@@ -89,16 +98,16 @@ final class PrefixSetupConsoleDialog extends Dialog {
         ConfigurationAwareFrameLayout root = new ConfigurationAwareFrameLayout(getContext());
         root.addView(content, new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        root.setListener(configuration -> applyWindowSize());
+        root.setListener(configuration -> {
+            applyTheme();
+            applyWindowSize();
+        });
         setContentView(root);
-        terminalView.post(this::attachSetupSession);
-        refreshStatus();
 
         Window window = getWindow();
         if (window != null) {
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-            FrostedWindow.applyPanelSurface(window, getContext(), R.color.local_games_terminal_background);
-            FrostedWindow.applyScrim(this);
+            applyTheme();
         }
     }
 
@@ -108,7 +117,15 @@ final class PrefixSetupConsoleDialog extends Dialog {
     @Override
     protected void onStart() {
         super.onStart();
+        applyTheme();
         applyWindowSize();
+        terminalView.post(this::attachSetupSession);
+        handler.post(this::refreshStatus);
+        preparation.start();
+    }
+
+    private void applyTheme() {
+        ConsoleDialogTheme.applySetup(this, terminalView, preparation, status, setupFailed);
     }
 
     private void applyWindowSize() {
@@ -136,6 +153,7 @@ final class PrefixSetupConsoleDialog extends Dialog {
     @Override
     public void dismiss() {
         dismissed = true;
+        if (preparation != null) preparation.stop();
         handler.removeCallbacksAndMessages(null);
         super.dismiss();
     }
@@ -156,21 +174,23 @@ final class PrefixSetupConsoleDialog extends Dialog {
             // Without this, the poll loops forever and the dialog hangs on a blank black terminal.
             // The Library screen surfaces success/failure on its own, so just close.
             PrefixSetupTask task = readTask();
-            if (task != null && task.getState().isTerminal()) {
-                dismiss();
+            if (setupFailed) return;
+            if (task != null && task.getState() == RuntimeSetupTaskState.SUCCEEDED) {
+                complete();
                 return;
             }
-            // Task ids outside the prefix repository (desktop installs) have no record to
-            // consult; give the host a bounded window to publish the session, then close.
+            // A missing task/session must remain visible as a startup failure.
             if (task == null
                 && System.currentTimeMillis() - sessionPollStartedAtMs > 10_000) {
-                dismiss();
+                showFailure("setup_session_unavailable");
                 return;
             }
             handler.postDelayed(this::attachSetupSession, 100);
             return;
         }
         consoleSession = session;
+        preparation.terminalAttached();
+        terminalView.setVisibility(android.view.View.VISIBLE);
         status.setVisibility(android.view.View.GONE);
         terminalView.attachSession(session);
         refreshTerminal();
@@ -182,19 +202,28 @@ final class PrefixSetupConsoleDialog extends Dialog {
         if (consoleSession.isRunning()) {
             handler.postDelayed(this::refreshTerminal, 100);
         } else {
-            handler.postDelayed(this::dismiss, 2500);
+            PrefixSetupTask task = readTask();
+            if (setupFailed) return;
+            if (consoleSession.getExitStatus() != 0 || (task != null &&
+                (task.getState() == RuntimeSetupTaskState.FAILED || task.getState() == RuntimeSetupTaskState.CANCELLED))) {
+                showFailure(task == null ? "setup_process_failed" : task.getErrorCode());
+            } else if (task != null && task.getState() != RuntimeSetupTaskState.SUCCEEDED) {
+                handler.postDelayed(this::refreshTerminal, 500);
+            } else {
+                handler.postDelayed(this::complete, 1500);
+            }
         }
     }
 
     private void refreshStatus() {
-        if (dismissed || !isShowing() || consoleSession != null) return;
+        if (dismissed || !isShowing() || consoleSession != null || setupFailed) return;
         PrefixSetupTask task = readTask();
+        if (setupFailed) return;
         String preparing = getContext().getString(R.string.local_games_runtime_setup_preparing);
         if (task == null) {
             status.setText(preparing);
         } else if (task.getState() == RuntimeSetupTaskState.FAILED) {
-            setupFailed = true;
-            status.setText(getContext().getString(R.string.local_games_runtime_setup_failed));
+            showFailure(task.getErrorCode());
             return;
         } else if (task.getState() == RuntimeSetupTaskState.CANCELLED) {
             setupFailed = true;
@@ -207,7 +236,7 @@ final class PrefixSetupConsoleDialog extends Dialog {
             // otherwise keep polling getRuntimeSetupTerminal() forever for a session that no
             // longer exists, leaving this dialog stuck on a blank black terminal. There is
             // nothing left to show, so close -- mirroring refreshTerminal()'s dismiss-on-finish.
-            dismiss();
+            complete();
             return;
         } else {
             status.setText(preparing + " (" + task.getState().name() + ")");
@@ -219,9 +248,24 @@ final class PrefixSetupConsoleDialog extends Dialog {
         try {
             return new FilePrefixSetupTaskRepository(new GameStoragePaths(getContext()
                 .getFilesDir()).getPrefixSetupTasksDirectory()).find(taskId).orElse(null);
-        } catch (IOException | RuntimeException ignored) {
+        } catch (IOException | RuntimeException error) {
+            showFailure("task_read_failed: " + error.getMessage());
             return null;
         }
+    }
+
+    private void complete() {
+        if (dismissed || setupFailed) return;
+        android.widget.Toast.makeText(getContext(), R.string.local_games_preparation_completed,
+            android.widget.Toast.LENGTH_SHORT).show();
+        dismiss();
+    }
+
+    private void showFailure(String message) {
+        setupFailed = true;
+        applyTheme();
+        status.setVisibility(android.view.View.VISIBLE);
+        status.setText(getContext().getString(R.string.local_games_runtime_setup_failed) + "\n" + message);
     }
 
     private int dp(int value) {

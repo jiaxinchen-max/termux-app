@@ -3,6 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="0dp"
     android:layout_height="wrap_content"
+    android:minHeight="@dimen/desktop_action_card_min_height"
     android:layout_columnWeight="1"
     android:layout_gravity="fill_horizontal"
     android:layout_marginStart="2dp"
@@ -69,8 +70,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
-                android:ellipsize="middle"
-                android:singleLine="true"
+                android:ellipsize="end"
+                android:lines="2"
+                android:maxLines="2"
                 android:textColor="@color/local_games_on_surface_secondary"
                 android:textSize="9sp" />
 
@@ -93,7 +95,8 @@
                 android:ellipsize="end"
                 android:singleLine="true"
                 android:textColor="@color/local_games_on_surface_secondary"
-                android:textSize="8sp" />
+                android:textSize="8sp"
+                android:visibility="gone" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -115,7 +118,7 @@
                     android:minWidth="0dp"
                     android:padding="0dp"
                     android:textSize="10sp"
-                    android:text="@string/local_game_card_details"
+                    android:text="@string/local_game_card_details_compact"
                     android:textAllCaps="false"
                     android:textColor="@color/local_games_on_surface" />
 

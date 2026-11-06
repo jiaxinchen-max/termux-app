@@ -47,6 +47,7 @@ public class TerminalToolbarViewPager {
                 extraKeysView.setExtraKeysViewClient(mActivity.getTermuxTerminalExtraKeys());
                 extraKeysView.setButtonTextAllCaps(mActivity.getProperties().shouldExtraKeysTextBeAllCaps());
                 mActivity.setExtraKeysView(extraKeysView);
+                mActivity.styleTerminalToolbar(layout);
                 extraKeysView.reload(mActivity.getTermuxTerminalExtraKeys().getExtraKeysInfo(),
                         mActivity.getTerminalToolbarDefaultHeight());
 
@@ -57,6 +58,7 @@ public class TerminalToolbarViewPager {
 
             } else {
                 layout = inflater.inflate(R.layout.view_terminal_toolbar_text_input, collection, false);
+                mActivity.styleTerminalToolbar(layout);
                 final EditText editText = layout.findViewById(R.id.terminal_toolbar_text_input);
 
                 if (mSavedTextInput != null) {

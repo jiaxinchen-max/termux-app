@@ -13,25 +13,25 @@ import androidx.annotation.Nullable;
  * configuration changes; the framework delivers that change to the dialog's view tree, and this
  * root forwards it.
  */
-final class ConfigurationAwareFrameLayout extends FrameLayout {
+public final class ConfigurationAwareFrameLayout extends FrameLayout {
 
-    interface Listener {
+    public interface Listener {
         void onConfigurationChanged(@NonNull Configuration configuration);
     }
 
     @Nullable private Listener listener;
     private int maxHeightPx;
 
-    ConfigurationAwareFrameLayout(@NonNull Context context) {
+    public ConfigurationAwareFrameLayout(@NonNull Context context) {
         super(context);
     }
 
-    void setListener(@Nullable Listener listener) {
+    public void setListener(@Nullable Listener listener) {
         this.listener = listener;
     }
 
     /** Upper bound for this root's height (a dialog never taller than its window); 0 = none. */
-    void setMaxHeightPx(int maxHeightPx) {
+    public void setMaxHeightPx(int maxHeightPx) {
         if (this.maxHeightPx == maxHeightPx) return;
         this.maxHeightPx = maxHeightPx;
         requestLayout();

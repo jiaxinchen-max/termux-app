@@ -25,7 +25,7 @@ configure_proot_statx proc-fdinfo /tmp/desktop_container_statx_aarch64.bin /tmp/
 [ -z "$(dpkg-divert --listpackage /usr/bin/systemd-sysusers)" ] || exit 65
 [ ! -f /etc/termux-proot-sysusers.conf ] || exit 65
 [ "$QSG_RHI_BACKEND" = vulkan ] && [ "$VK_ICD_FILENAMES" = /explicit/renderer.json ] || exit 65
-[ -z "${LD_PRELOAD+x}" ] && [ -z "${TERMUX_PROOT_STATX_MODE+x}" ] || exit 65
+[ -z "${LD_PRELOAD+x}" ] && [ -z "${UCF_TERMUX_PROOT_STATX_MODE+x}" ] || exit 65
 echo 'PASS strict owned-diversion retirement; no renderer/environment leakage'
 
 printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d
@@ -55,6 +55,6 @@ set -e
 run_proot_config proc-fdinfo sh -c 'exit 37' && exit 65 || code=$?
 [ "$code" -eq 37 ] || exit 65
 configure_proot_statx proc-fdinfo /tmp/desktop_container_statx_aarch64.bin /tmp/desktop_container_run_config.sh
-[ -z "${LD_PRELOAD+x}" ] && [ -z "${TERMUX_PROOT_STATX_MODE+x}" ] || exit 65
+[ -z "${LD_PRELOAD+x}" ] && [ -z "${UCF_TERMUX_PROOT_STATX_MODE+x}" ] || exit 65
 echo 'PASS standard tool, explicit backend, original command failure and idempotence'
 echo 'Independent standard-tool proc-fdinfo rootfs tests passed'

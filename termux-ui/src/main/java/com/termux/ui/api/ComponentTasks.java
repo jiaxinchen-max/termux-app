@@ -3,12 +3,18 @@ package com.termux.ui.api;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.ResultReceiver;
 
 import androidx.annotation.NonNull;
 
 import com.termux.ui.service.ComponentTaskForegroundService;
 
 import java.util.UUID;
+import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Public command API for durable component delivery tasks. */
 public final class ComponentTasks {
@@ -25,6 +31,8 @@ public final class ComponentTasks {
 
     public static final String EXTRA_TASK_ID = "com.termux.ui.extra.TASK_ID";
     public static final String EXTRA_COMPONENT_ID = "com.termux.ui.extra.COMPONENT_ID";
+    public static final String EXTRA_COMMAND_RECEIVER = "com.termux.ui.extra.COMPONENT_COMMAND_RECEIVER";
+    public static final String EXTRA_COMMAND_ERROR = "com.termux.ui.extra.COMPONENT_COMMAND_ERROR";
 
     private ComponentTasks() {
     }
@@ -49,6 +57,31 @@ public final class ComponentTasks {
 
     public static void retry(@NonNull Context context, @NonNull String taskId) {
         start(context, command(context, ACTION_RETRY, taskId));
+    }
+
+    /** Worker-only handshake: old PAUSED/FAILED state is valid until this command is accepted. */
+    public static void resumeAndAwaitAcceptance(Context context, String taskId, boolean retry,
+                                                long timeoutMs) throws IOException {
+        CountDownLatch accepted = new CountDownLatch(1);
+        AtomicReference<String> rejected = new AtomicReference<>();
+        ResultReceiver receiver = new ResultReceiver(null) {
+            @Override protected void onReceiveResult(int resultCode, Bundle data) {
+                if (resultCode != 0) rejected.set(data == null ? "component_command_rejected"
+                    : data.getString(EXTRA_COMMAND_ERROR, "component_command_rejected"));
+                accepted.countDown();
+            }
+        };
+        start(context, command(context, retry ? ACTION_RETRY : ACTION_RESUME, taskId)
+            .putExtra(EXTRA_COMMAND_RECEIVER, receiver));
+        try {
+            if (!accepted.await(timeoutMs, TimeUnit.MILLISECONDS)) {
+                throw new IOException("component_command_timeout:" + taskId);
+            }
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            throw new IOException("component_prepare_interrupted", error);
+        }
+        if (rejected.get() != null) throw new IOException(rejected.get());
     }
 
     public static void cancel(@NonNull Context context, @NonNull String taskId) {

@@ -8,6 +8,12 @@ import com.termux.ui.api.AppExperienceMode;
 import org.junit.Test;
 
 public class TermuxAppExperienceRouterTest {
+    @Test public void uiTerminalNeverIntegratesX11EvenWhenRootModeIsTerminal() {
+        assertFalse(TermuxAppExperienceRouter.shouldIntegrateX11(AppExperienceMode.TERMINAL, true));
+        assertFalse(TermuxAppExperienceRouter.shouldIntegrateX11(AppExperienceMode.GAMES, true));
+        assertTrue(TermuxAppExperienceRouter.shouldIntegrateX11(AppExperienceMode.TERMINAL, false));
+    }
+
     @Test public void terminalModeKeepsIntegratedX11() {
         assertFalse(TermuxAppExperienceRouter.shouldOpenGames(
             AppExperienceMode.TERMINAL, false));

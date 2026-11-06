@@ -5,9 +5,11 @@ import android.system.ErrnoException;
 import android.system.Os;
 
 import com.termux.ui.data.GameStoragePaths;
-import com.termux.ui.runtime.GameRuntimeBackend;
-import com.termux.ui.runtime.GlibcTermuxBoxBackend;
-import com.termux.ui.runtime.RootfsProotBackend;
+import com.termux.ui.wine.runtime.GameRuntimeBackend;
+import com.termux.ui.wine.runtime.GlibcTermuxBoxBackend;
+import com.termux.ui.wine.runtime.RootfsProotBackend;
+import com.termux.ui.wine.service.RootfsBackupForegroundService;
+import com.termux.ui.wine.service.RootfsSetupForegroundService;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -90,6 +92,8 @@ public final class LaunchScriptInstaller {
                 new File(runtimeDirectory, "setup_glibc_prefix.sh"));
             installAsset(PREFIX_EXTRAS_ASSET,
                 new File(runtimeDirectory, "glibc_prefix_extras.sh"));
+            installAsset("local-games/native_runtime_components.sh",
+                new File(runtimeDirectory, "native_runtime_components.sh"));
         } else if (backend instanceof RootfsProotBackend) {
             // Co-located with start_rootfs_game.sh itself (same runtimeDirectory), so that
             // script can source it via a path relative to its own install location with no new

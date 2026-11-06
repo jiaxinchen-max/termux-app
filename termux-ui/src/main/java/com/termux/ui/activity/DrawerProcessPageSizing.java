@@ -10,48 +10,48 @@ import com.termux.x11.session.TaskManagerDialogSizing;
  * 430+140dp side-by-side layout is never used here; the dashboard/column maths is
  * {@link TaskManagerDialogSizing#computeEmbedded}. dp arithmetic only, so it runs on the JVM.
  */
-final class DrawerProcessPageSizing {
+public final class DrawerProcessPageSizing {
 
     /** Outer drawer padding on every side (R.dimen.local_games_overlay_padding). */
-    static final int DRAWER_PADDING_DP = 12;
+    public static final int DRAWER_PADDING_DP = 12;
     /** Header row (category title, Exit, close) plus its gap to the page. */
-    static final int HEADER_DP = 48 + 14;
+    public static final int HEADER_DP = 48 + 14;
     /** Footer row (Processes: N and New Task) including its top gap. */
-    static final int FOOTER_DP = 48 + 8;
+    public static final int FOOTER_DP = 48 + 8;
     /** Room reserved for system bars the side drawer layer is padded by. */
-    static final int SYSTEM_INSETS_DP = 48;
+    public static final int SYSTEM_INSETS_DP = 48;
     /**
      * Room reserved for the status bar, the navigation bar / gesture area and the cutout when the bottom
      * sheet's 85% cap is derived from the window height; the cap applies to the layer height left after
      * those insets (about 74dp on a 1080x2400 phone), so the window height alone overestimates it.
      */
-    static final int SHEET_SYSTEM_INSETS_DP = 80;
+    public static final int SHEET_SYSTEM_INSETS_DP = 80;
     /**
      * The category tab strip that sits above the header inside the bottom sheet (one
      * R.dimen.local_games_menu_row_min_height row plus R.dimen.local_games_overlay_nav_gap). The side
      * drawer keeps its categories in a separate column, so this only counts for the sheet.
      */
-    static final int SHEET_NAV_STRIP_DP = 48 + 8;
+    public static final int SHEET_NAV_STRIP_DP = 48 + 8;
     /** The page never gets less than this much height for the panel. */
-    static final int MIN_PANEL_HEIGHT_DP = 160;
+    public static final int MIN_PANEL_HEIGHT_DP = 160;
     /** Below this window height the footer scrolls at the end of the page instead of staying fixed. */
-    static final int FIXED_FOOTER_MIN_WINDOW_HEIGHT_DP = 480;
+    public static final int FIXED_FOOTER_MIN_WINDOW_HEIGHT_DP = 480;
 
-    static final class Result {
+    public static final class Result {
         /** Width available to the panel inside the drawer. */
-        final int panelWidthDp;
+        public final int panelWidthDp;
         /** Height available to the panel (between header and footer). */
-        final int panelHeightDp;
+        public final int panelHeightDp;
         /** Stacked task-manager layout for exactly that size. */
-        final TaskManagerDialogSizing.Result layout;
+        public final TaskManagerDialogSizing.Result layout;
         /** True when the page needs this explicit height (bottom sheet wraps its content). */
-        final boolean explicitHeight;
+        public final boolean explicitHeight;
         /**
          * Whether the footer (Processes count + New Task) stays fixed below the page. False only in
          * short windows (below {@link #FIXED_FOOTER_MIN_WINDOW_HEIGHT_DP}), where it scrolls at the
          * end of the content.
          */
-        final boolean footerFixed;
+        public final boolean footerFixed;
 
         Result(int panelWidthDp, int panelHeightDp, TaskManagerDialogSizing.Result layout,
                boolean explicitHeight, boolean footerFixed) {
@@ -65,7 +65,7 @@ final class DrawerProcessPageSizing {
 
     private DrawerProcessPageSizing() {}
 
-    static Result compute(int windowWidthDp, int windowHeightDp,
+    public static Result compute(int windowWidthDp, int windowHeightDp,
                           OverlayDrawerSizing.Placement placement, int cpuCores) {
         int width = Math.max(0, windowWidthDp);
         int height = Math.max(0, windowHeightDp);

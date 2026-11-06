@@ -1,39 +1,39 @@
 package com.termux.app.localgames;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import android.content.Context;
 
-import androidx.test.core.app.ApplicationProvider;
 import androidx.test.core.app.ActivityScenario;
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.termux.app.TermuxActivity;
 import com.termux.ui.api.ComponentTasks;
 import com.termux.ui.api.LocalGames;
-import com.termux.ui.api.PrefixSetupTasks;
 import com.termux.ui.components.ComponentStoragePaths;
 import com.termux.ui.data.ComponentTaskRepository;
 import com.termux.ui.data.FileComponentTaskRepository;
-import com.termux.ui.data.FileGameRepository;
-import com.termux.ui.data.FilePrefixSetupTaskRepository;
-import com.termux.ui.data.FileRuntimeProfileRepository;
 import com.termux.ui.data.GameStoragePaths;
-import com.termux.ui.domain.Game;
 import com.termux.ui.domain.ComponentTask;
 import com.termux.ui.domain.ComponentTaskState;
 import com.termux.ui.domain.LaunchExecutionMode;
-import com.termux.ui.domain.PrefixSetupTask;
-import com.termux.ui.domain.RuntimeProfile;
-import com.termux.ui.domain.RuntimeSetupTaskState;
+import com.termux.ui.wine.api.PrefixSetupTasks;
+import com.termux.ui.wine.data.FileGameRepository;
+import com.termux.ui.wine.data.FilePrefixSetupTaskRepository;
+import com.termux.ui.wine.data.FileRuntimeProfileRepository;
+import com.termux.ui.wine.domain.Game;
+import com.termux.ui.wine.domain.PrefixSetupTask;
+import com.termux.ui.wine.domain.RuntimeProfile;
+import com.termux.ui.wine.domain.RuntimeSetupTaskState;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.util.Collections;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Runs GLIBC prefix setup through the real app Host and Termux AppShell. */
 @RunWith(AndroidJUnit4.class)

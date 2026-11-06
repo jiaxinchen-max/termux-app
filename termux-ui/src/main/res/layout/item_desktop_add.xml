@@ -10,7 +10,7 @@
     android:contentDescription="@string/desktop_add"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    android:minHeight="@dimen/local_games_import_card_min_height"
+    android:minHeight="@dimen/desktop_action_card_min_height"
     app:cardBackgroundColor="@color/local_games_surface"
     app:cardCornerRadius="4dp"
     app:cardElevation="0dp"
@@ -21,7 +21,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
-        android:minHeight="@dimen/local_games_import_card_min_height"
+        android:minHeight="@dimen/desktop_action_card_min_height"
         android:orientation="vertical"
         android:padding="6dp">
 

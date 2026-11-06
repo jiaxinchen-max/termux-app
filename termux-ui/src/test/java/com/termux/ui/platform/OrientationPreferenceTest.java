@@ -15,7 +15,7 @@ public final class OrientationPreferenceTest {
             OrientationPreference.VERTICAL.getRequestedOrientation());
         assertEquals(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
             OrientationPreference.HORIZONTAL.getRequestedOrientation());
-        assertEquals(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
+        assertEquals(ActivityInfo.SCREEN_ORIENTATION_FULL_USER,
             OrientationPreference.AUTO.getRequestedOrientation());
     }
 

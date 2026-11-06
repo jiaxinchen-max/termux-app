@@ -1,7 +1,8 @@
 package com.termux.ui.data;
 
 import com.termux.ui.domain.CustomRuntimeComponent;
-import com.termux.ui.domain.RuntimeTranslator;
+import com.termux.ui.wine.domain.RuntimeTranslator;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
 
 import java.io.File;
 import java.io.IOException;
@@ -59,6 +60,7 @@ public final class FileCustomRuntimeComponentRepository {
             value.setProperty("schemaVersion", String.valueOf(CustomRuntimeComponent.SCHEMA_VERSION));
             value.setProperty("id", component.getId());
             value.setProperty("kind", component.getKind().name());
+            value.setProperty("runtimeBackend", component.getBackendType().getStorageValue());
             value.setProperty("translator",
                 component.getTranslator() == null ? "" : component.getTranslator().getStorageValue());
             value.setProperty("displayName", component.getDisplayName());
@@ -71,7 +73,7 @@ public final class FileCustomRuntimeComponentRepository {
         @Override
         public CustomRuntimeComponent fromProperties(Properties value) throws IOException {
             try {
-                if (!"1".equals(value.getProperty("schemaVersion"))) {
+                if (!"2".equals(value.getProperty("schemaVersion"))) {
                     throw new IOException("custom_component_schema_unsupported");
                 }
                 CustomRuntimeComponent.Kind kind =
@@ -82,7 +84,8 @@ public final class FileCustomRuntimeComponentRepository {
                 return new CustomRuntimeComponent(required(value, "id"), kind, translator,
                     required(value, "displayName"),
                     Long.parseLong(required(value, "installedAtEpochSeconds")),
-                    required(value, "sha256"));
+                    required(value, "sha256"),
+                    GameRuntimeBackendType.fromStorageValue(required(value, "runtimeBackend")));
             } catch (IllegalArgumentException error) {
                 throw new IOException("custom_component_invalid", error);
             }

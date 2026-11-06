@@ -1,17 +1,5 @@
 package com.termux.ui.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static androidx.test.espresso.Espresso.onView;
-import static androidx.test.espresso.action.ViewActions.click;
-import static androidx.test.espresso.assertion.ViewAssertions.matches;
-import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
-import static androidx.test.espresso.matcher.ViewMatchers.withId;
-import static androidx.test.espresso.matcher.ViewMatchers.withText;
-
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -21,49 +9,63 @@ import android.preference.PreferenceManager;
 import android.view.KeyEvent;
 import android.view.View;
 
+import androidx.lifecycle.Lifecycle;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
-import androidx.lifecycle.Lifecycle;
 
-import com.termux.ui.activity.LocalGamesActivity;
 import com.termux.ui.activity.GameFileManagerActivity;
-import com.termux.ui.activity.GameReauthorizeActivity;
-import com.termux.ui.activity.GameDetailActivity;
-import com.termux.ui.activity.GameAssetsActivity;
-import com.termux.ui.activity.GameLaunchActivity;
-import com.termux.ui.activity.GameSessionActivity;
-import com.termux.ui.artwork.GameArtworkLoader;
-import com.termux.ui.artwork.GameArtworkStore;
-import com.termux.ui.data.FileGameRepository;
-import com.termux.ui.data.FileRuntimeProfileRepository;
+import com.termux.ui.activity.LocalGamesActivity;
 import com.termux.ui.data.GameStoragePaths;
-import com.termux.ui.platform.OrientationPreference;
-import com.termux.ui.data.FileLaunchTaskRepository;
-import com.termux.ui.domain.Game;
 import com.termux.ui.domain.LaunchExecutionMode;
-import com.termux.ui.domain.LaunchStage;
-import com.termux.ui.domain.LaunchTask;
-import com.termux.ui.domain.LaunchTaskState;
-import com.termux.ui.domain.RuntimeProfilePreset;
-import com.termux.ui.domain.RuntimeProfilePresets;
-import com.termux.ui.recovery.GameUninstallPlan;
-import com.termux.ui.recovery.GameUninstaller;
-import com.termux.ui.importer.SafPermissionManager;
+import com.termux.ui.platform.OrientationPreference;
 import com.termux.ui.service.ComponentTaskForegroundService;
-import com.termux.ui.service.LocalGameOrchestratorService;
+import com.termux.ui.wine.activity.GameAssetsActivity;
+import com.termux.ui.wine.activity.GameDetailActivity;
+import com.termux.ui.wine.activity.GameLaunchActivity;
+import com.termux.ui.wine.activity.GameReauthorizeActivity;
+import com.termux.ui.wine.activity.GameSessionActivity;
+import com.termux.ui.wine.api.LaunchTasks;
+import com.termux.ui.wine.api.RuntimeSetupTasks;
+import com.termux.ui.wine.artwork.GameArtworkLoader;
+import com.termux.ui.wine.artwork.GameArtworkStore;
+import com.termux.ui.wine.data.FileGameRepository;
+import com.termux.ui.wine.data.FileLaunchTaskRepository;
+import com.termux.ui.wine.data.FileRuntimeProfileRepository;
+import com.termux.ui.wine.domain.Game;
+import com.termux.ui.wine.domain.LaunchStage;
+import com.termux.ui.wine.domain.LaunchTask;
+import com.termux.ui.wine.domain.LaunchTaskState;
+import com.termux.ui.wine.domain.RuntimeProfilePreset;
+import com.termux.ui.wine.domain.RuntimeProfilePresets;
+import com.termux.ui.wine.importer.SafPermissionManager;
+import com.termux.ui.wine.recovery.GameUninstallPlan;
+import com.termux.ui.wine.recovery.GameUninstaller;
+import com.termux.ui.wine.service.LocalGameOrchestratorService;
 import com.termux.x11.X11SessionView;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
+import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @RunWith(AndroidJUnit4.class)
 public class LocalGamesApiInstrumentedTest {
@@ -97,7 +99,7 @@ public class LocalGamesApiInstrumentedTest {
         Intent intent = RuntimeSetupTasks.createReconcileAllIntent(context);
 
         assertEquals(RuntimeSetupTasks.ACTION_RECONCILE_ALL, intent.getAction());
-        assertEquals(com.termux.ui.service.RootfsSetupForegroundService.class.getName(),
+        assertEquals(com.termux.ui.wine.service.RootfsSetupForegroundService.class.getName(),
             intent.getComponent().getClassName());
         assertFalse(context.getPackageManager().getServiceInfo(intent.getComponent(), 0).exported);
     }
@@ -371,7 +373,7 @@ public class LocalGamesApiInstrumentedTest {
                 new ByteArrayInputStream(png))) {
                 mutation.commit();
             }
-            String reference = com.termux.ui.artwork.GameArtworkReference.forGame(gameId);
+            String reference = com.termux.ui.wine.artwork.GameArtworkReference.forGame(gameId);
             assertNotNull(new GameArtworkLoader(store).load(reference, 64));
 
             try (GameArtworkStore.Mutation ignored = store.stageReplacement(gameId,

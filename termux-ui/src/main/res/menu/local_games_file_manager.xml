@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/local_games_action_refresh_directory"
+        android:icon="@drawable/local_games_ic_refresh"
+        android:title="@string/local_game_file_manager_refresh"
+        app:showAsAction="always" />
     <!-- Icon/title are swapped at runtime to show the mode a tap switches to. -->
     <item
         android:id="@+id/local_games_action_view_mode"

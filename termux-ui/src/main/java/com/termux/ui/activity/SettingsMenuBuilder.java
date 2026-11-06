@@ -14,16 +14,16 @@ import com.termux.ui.R;
 /** Builds the Settings page's menu rows into a vertical container: a heading, rows with a title, a
  *  current value or description and a chevron, and rows that open a single-choice selector. Matches the
  *  look of the game runtime options menus (frosted surface rows, 15.5sp title, 12sp secondary text). */
-final class SettingsMenuBuilder {
+public final class SettingsMenuBuilder {
 
-    interface IndexCallback {
+    public interface IndexCallback {
         void choose(int index);
     }
 
     private final Context context;
     private final LinearLayout container;
 
-    SettingsMenuBuilder(Context context, LinearLayout container) {
+    public SettingsMenuBuilder(Context context, LinearLayout container) {
         this.context = context;
         this.container = container;
         container.removeAllViews();
@@ -33,14 +33,14 @@ final class SettingsMenuBuilder {
      * The big heading only repeats the toolbar title when the toolbar is visible and already shows
      * the same text; in that case the page keeps the toolbar title and drops the heading.
      */
-    static boolean repeatsToolbarTitle(boolean toolbarVisible, @Nullable CharSequence toolbarTitle,
+    public static boolean repeatsToolbarTitle(boolean toolbarVisible, @Nullable CharSequence toolbarTitle,
                                        @Nullable CharSequence heading) {
         if (!toolbarVisible || toolbarTitle == null || heading == null) return false;
         String title = toolbarTitle.toString().trim();
         return !title.isEmpty() && title.equals(heading.toString().trim());
     }
 
-    void heading(String value) {
+    public void heading(String value) {
         TextView heading = text(value, 26, R.color.local_games_on_surface);
         heading.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
@@ -50,12 +50,12 @@ final class SettingsMenuBuilder {
     }
 
     /** A menu row. A null {@code onClick} makes it a read-only row without a chevron. */
-    void row(String label, @Nullable String summary, @Nullable View.OnClickListener onClick) {
+    public void row(String label, @Nullable String summary, @Nullable View.OnClickListener onClick) {
         FrostedMenuRow.add(context, container, label, summary, 3, onClick != null, onClick);
     }
 
     /** A row showing the current choice; tapping it opens a single-choice selector. */
-    void choice(String label, String[] options, int checked, IndexCallback onChoose) {
+    public void choice(String label, String[] options, int checked, IndexCallback onChoose) {
         String current = checked >= 0 && checked < options.length ? options[checked] : "";
         row(label, current, view -> new FrostedDialogBuilder(context,
             R.style.ThemeOverlay_TermuxLocalGames_Dialog)

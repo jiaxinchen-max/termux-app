@@ -1,33 +1,30 @@
 package com.termux.ui.data;
 
 import com.termux.ui.domain.CustomComponentInstallTask;
-import com.termux.ui.domain.CustomRuntimeComponent;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-/** Writes a non-executable, shell input contract for install_custom_rootfs_component.sh. Unlike
- *  RootfsBackupSpecCodec's backupArchivePath, payloadPath here is always required to live under
- *  the app's own private storage (the SAF-picked file is drained there before this spec is ever
- *  written -- see CustomComponentInstallForegroundService). payloadKind is always derivable from
- *  the task's kind (WINE -> wine-tree, BOX64 -> box64-tree) -- both are always a compressed
- *  archive (see install_custom_rootfs_component.sh's header comment on why no .deb/raw-binary
- *  path exists), so there is no separate classification step or parameter for it. */
+/** Writes the non-executable archive-install contract with a mandatory backend and payload hash. */
 public final class CustomComponentInstallSpecCodec {
     public void write(File file, CustomComponentInstallTask task, File payloadPath,
                       File eventsPath, File logPath) throws IOException {
         if (file == null || task == null) {
             throw new IllegalArgumentException("custom install spec required");
         }
-        boolean wine = task.getKind() == CustomRuntimeComponent.Kind.WINE;
+        String kind = task.getKind().name().toLowerCase(java.util.Locale.ROOT);
         StringBuilder value = new StringBuilder("schemaVersion=1\n");
         text(value, "taskId", task.getTaskId());
-        text(value, "kind", wine ? "wine" : "box64");
+        text(value, "kind", kind);
+        text(value, "runtimeBackend", task.getBackendType().getStorageValue());
+        text(value, "runtimeTranslator", task.getTranslator() == null
+            ? "none" : task.getTranslator().getStorageValue());
         text(value, "componentId", task.getComponentId());
         text(value, "payloadPath", canonical(payloadPath));
-        text(value, "payloadKind", wine ? "wine-tree" : "box64-tree");
+        text(value, "payloadKind", kind + "-tree");
+        text(value, "payloadSha256", task.getSha256());
         text(value, "eventsPath", canonical(eventsPath));
         text(value, "logPath", canonical(logPath));
         File parent = file.getParentFile();

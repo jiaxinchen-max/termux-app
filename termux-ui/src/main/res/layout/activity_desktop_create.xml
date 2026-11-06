@@ -43,7 +43,7 @@
                     android:paddingTop="4dp"
                     android:paddingBottom="6dp"
                     android:text="@string/desktop_create_section_container"
-                    android:textColor="#8A5A2B"
+                    android:textColor="@color/local_games_primary_text"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -61,7 +61,7 @@
                 android:paddingTop="8dp"
                 android:paddingBottom="6dp"
                 android:text="@string/desktop_create_section_de"
-                android:textColor="#8A5A2B"
+                android:textColor="@color/local_games_primary_text"
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
@@ -80,7 +80,7 @@
                 android:background="@drawable/desktop_bg_option"
                 android:lineSpacingExtra="4dp"
                 android:padding="12dp"
-                android:textColor="#7A5A2E"
+                android:textColor="@color/local_games_primary_text"
                 android:textSize="11sp"
                 tools:text="note"
                 xmlns:tools="http://schemas.android.com/tools" />
@@ -90,7 +90,7 @@
                 android:layout_height="wrap_content"
                 android:paddingBottom="6dp"
                 android:text="@string/desktop_create_section_display"
-                android:textColor="#8A5A2B"
+                android:textColor="@color/local_games_primary_text"
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
@@ -109,7 +109,7 @@
                 android:paddingTop="4dp"
                 android:paddingBottom="6dp"
                 android:text="@string/desktop_create_section_renderer"
-                android:textColor="#8A5A2B"
+                android:textColor="@color/local_games_primary_text"
                 android:textSize="12sp"
                 android:textStyle="bold" />
 

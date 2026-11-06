@@ -9,6 +9,25 @@ import org.junit.Test;
 public class LocalGamesBackNavigationTest {
 
     @Test
+    public void componentListReturnsToCategoriesBeforeLibrary() {
+        assertEquals(LocalGamesBackNavigation.Action.GO_UP_IN_COMPONENTS,
+            LocalGamesBackNavigation.resolve(false, false, true, true, false));
+        assertEquals(LocalGamesBackNavigation.Action.SHOW_LIBRARY,
+            LocalGamesBackNavigation.resolve(false, false, true, true, true));
+        assertEquals(LocalGamesBackNavigation.Action.LEAVE_SCREEN,
+            LocalGamesBackNavigation.resolve(true, false, true, false, true));
+    }
+
+    @Test
+    public void componentLevelsInterceptSystemBackAndLeaveSettingsBehaviorIntact() {
+        assertTrue(LocalGamesBackNavigation.interceptsSystemBack(false, false, true, true, false));
+        assertTrue(LocalGamesBackNavigation.interceptsSystemBack(false, false, true, true, true));
+        assertFalse(LocalGamesBackNavigation.interceptsSystemBack(true, false, true, false, true));
+        assertEquals(LocalGamesBackNavigation.Action.GO_UP_IN_SETTINGS,
+            LocalGamesBackNavigation.resolve(false, true, false, false, true));
+    }
+
+    @Test
     public void settingsRootGoesBackToTheLibrary() {
         assertEquals(LocalGamesBackNavigation.Action.SHOW_LIBRARY,
             LocalGamesBackNavigation.resolve(false, true, true));

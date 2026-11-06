@@ -1,0 +1,20 @@
+<resources>
+    <string name="component_versions_title">%1$s 版本</string>
+    <string name="component_versions_installed">已安装</string>
+    <string name="component_versions_online">在线安装</string>
+    <string name="component_versions_manual">从文件安装</string>
+    <string name="component_versions_select">选择版本</string>
+    <string name="component_versions_empty">尚无已安装版本</string>
+    <string name="component_versions_current">当前游戏已选择</string>
+    <string name="component_versions_download">下载并安装</string>
+    <string name="component_versions_downloaded">启用已下载的组件</string>
+    <string name="component_versions_failed">组件操作失败：%1$s</string>
+    <string name="component_versions_runtime_box64">运行环境内置 Box64</string>
+    <string name="component_versions_kind">组件</string>
+    <string name="component_versions_virgl_dxvk">请先选择 WineD3D 再选择 VirGL；DXVK 需要 Vulkan。</string>
+    <string name="component_versions_vulkan_required">DXVK 需要 Vulkan 渲染器，请先选择支持 Vulkan 的渲染器。</string>
+    <string name="component_versions_default_translator">使用容器运行环境版本</string>
+    <string name="component_versions_in_progress">正在安装</string>
+    <string name="component_versions_retry">重试安装</string>
+    <string name="component_versions_missing">所选版本尚未安装：%1$s</string>
+</resources>

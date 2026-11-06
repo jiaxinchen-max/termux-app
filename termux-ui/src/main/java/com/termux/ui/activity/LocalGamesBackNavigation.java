@@ -2,13 +2,15 @@ package com.termux.ui.activity;
 
 /**
  * What "back" does on the library screen, shared by the system BACK callback and the toolbar arrow
- * so both always agree: a second-level Settings page goes up one level, every other non-Library
+ * so both always agree: a Settings or Components sub-page goes up one level, every other non-Library
  * page returns to the Library tab, and only the Library tab leaves the screen.
  */
 final class LocalGamesBackNavigation {
 
     enum Action {
-        /** Show the parent of the current second-level Settings page. */
+        /** Show the component categories above the current install list. */
+        GO_UP_IN_COMPONENTS,
+        /** Show the parent of the current Settings sub-page. */
         GO_UP_IN_SETTINGS,
         /** Switch to the Library tab. */
         SHOW_LIBRARY,
@@ -24,9 +26,21 @@ final class LocalGamesBackNavigation {
         return Action.LEAVE_SCREEN;
     }
 
+    static Action resolve(boolean libraryTab, boolean settingsTab, boolean settingsRoot,
+                          boolean componentsTab, boolean componentsRoot) {
+        if (componentsTab && !componentsRoot) return Action.GO_UP_IN_COMPONENTS;
+        return resolve(libraryTab, settingsTab, settingsRoot);
+    }
+
     /** Whether the system BACK callback must intercept; on the Library tab the default applies. */
     static boolean interceptsSystemBack(boolean libraryTab, boolean settingsTab, boolean settingsRoot) {
         return resolve(libraryTab, settingsTab, settingsRoot) != Action.LEAVE_SCREEN;
+    }
+
+    static boolean interceptsSystemBack(boolean libraryTab, boolean settingsTab, boolean settingsRoot,
+                                        boolean componentsTab, boolean componentsRoot) {
+        return resolve(libraryTab, settingsTab, settingsRoot, componentsTab, componentsRoot)
+            != Action.LEAVE_SCREEN;
     }
 
     /** The navigation chrome of the library screen: a bottom bar in portrait, a row of icon tabs

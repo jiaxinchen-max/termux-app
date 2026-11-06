@@ -20,10 +20,7 @@ printf '%s\n' 'Acquire::Check-Valid-Until "false";' \
     > /etc/apt/apt.conf.d/99games-snapshot
 
 apt-get update
-if ! dpkg --configure -a; then
-    apt-get -f install -y
-    dpkg --configure -a
-fi
+dpkg --configure -a
 # The libx*/libcups/libsdl2 row is for box64's "native library bridge": box64 prefers the rootfs's
 # native ARM64 build of these X11 / cups / SDL2 client libs over translating the guest's x86_64 copy
 # (less overhead, and it silences the `[BOX64] Error initializing native libX.../libSDL2-2.0.so.0
@@ -58,10 +55,7 @@ locale-gen
 # 1) Install every Debian package across all components in one dependency-resolving pass.
 if find "$COMPONENTS_ROOT" -name '*.deb' -type f | grep -q .; then
     find "$COMPONENTS_ROOT" -name '*.deb' -type f -exec \
-        apt-get install -y --no-install-recommends {} + || {
-        apt-get -f install -y
-        dpkg --configure -a
-    }
+        apt-get install -y --no-install-recommends {} +
 fi
 
 # 2) Lay out any DXVK components by their WoW64 split.

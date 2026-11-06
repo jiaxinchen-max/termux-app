@@ -4,7 +4,7 @@ package com.termux.ui.activity;
  * Height of the landscape top tab bar: it is exactly as tall as the system status bar, so the
  * icon-only row reads as an extension of it. Pure arithmetic so the fallback order is unit-testable.
  */
-final class TopTabBarHeight {
+public final class TopTabBarHeight {
 
     private TopTabBarHeight() {}
 
@@ -18,7 +18,7 @@ final class TopTabBarHeight {
      * @param resourceStatusBarPx {@code status_bar_height} in px, or {@code <= 0} when unreadable
      * @param fallbackPx used when neither source yields a positive height (24 dp in px)
      */
-    static int resolve(int insetsStatusBarPx, int resourceStatusBarPx, int fallbackPx) {
+    public static int resolve(int insetsStatusBarPx, int resourceStatusBarPx, int fallbackPx) {
         if (insetsStatusBarPx > 0) return insetsStatusBarPx;
         if (resourceStatusBarPx > 0) return resourceStatusBarPx;
         return Math.max(1, fallbackPx);
@@ -36,12 +36,12 @@ final class TopTabBarHeight {
      * @param targetPx a value returned by {@link #resolve}
      * @param force {@code true} after a visibility/configuration change: apply even if equal
      */
-    static boolean needsApply(int currentLayoutHeightPx, int targetPx, boolean force) {
+    public static boolean needsApply(int currentLayoutHeightPx, int targetPx, boolean force) {
         return targetPx > 0 && (force || currentLayoutHeightPx != targetPx);
     }
 
     /** Same as {@link #needsApply(int, int, boolean)} without forcing (plain re-validation). */
-    static boolean needsApply(int currentLayoutHeightPx, int targetPx) {
+    public static boolean needsApply(int currentLayoutHeightPx, int targetPx) {
         return needsApply(currentLayoutHeightPx, targetPx, false);
     }
 
@@ -53,7 +53,7 @@ final class TopTabBarHeight {
      *
      * @return the cached inset, or {@code -1} when unknown or recorded in another orientation
      */
-    static int usableCachedInset(int cachedInsetPx, boolean cachedWasLandscape,
+    public static int usableCachedInset(int cachedInsetPx, boolean cachedWasLandscape,
                                  boolean landscapeNow) {
         if (cachedInsetPx < 0 || cachedWasLandscape != landscapeNow) return -1;
         return cachedInsetPx;
@@ -63,7 +63,7 @@ final class TopTabBarHeight {
      * Whether the root window's insets may be read directly. Between a configuration change and the
      * next insets dispatch they still describe the old orientation, so they are not trusted then.
      */
-    static boolean rootInsetsTrusted(boolean dispatchedSinceConfigChange) {
+    public static boolean rootInsetsTrusted(boolean dispatchedSinceConfigChange) {
         return dispatchedSinceConfigChange;
     }
 
@@ -72,7 +72,7 @@ final class TopTabBarHeight {
      * sources may describe the orientation it is not shown in); it is sized the moment it becomes
      * visible and again after the next layout/insets dispatch.
      */
-    static boolean shouldApplyNow(boolean barVisible) {
+    public static boolean shouldApplyNow(boolean barVisible) {
         return barVisible;
     }
 
@@ -81,7 +81,7 @@ final class TopTabBarHeight {
      * framework dimen, then the generic one. The generic {@code status_bar_height} follows the
      * device's default orientation, not necessarily the window's.
      */
-    static String[] statusBarResourceNames(boolean landscape) {
+    public static String[] statusBarResourceNames(boolean landscape) {
         return landscape
             ? new String[] {"status_bar_height_landscape", "status_bar_height"}
             : new String[] {"status_bar_height_portrait", "status_bar_height"};

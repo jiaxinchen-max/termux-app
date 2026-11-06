@@ -18,9 +18,6 @@
     <!-- Horizontal page padding shared by the Settings menu (activity_local_games) and the
          programmatic runtime-options page (GameRuntimeOptionsView), so their rows line up. -->
     <dimen name="local_games_page_horizontal_padding">16dp</dimen>
-    <!-- Import card, the last item of the Library grid: never shorter than this, and stretched to the
-         tallest game card in its grid row. -->
-    <dimen name="local_games_import_card_min_height">75dp</dimen>
     <!-- Left/right inset of a Material dialog title panel; dialog content views (backup chooser)
          use the same value so they share the title's left edge. -->
     <dimen name="local_games_dialog_content_inset">24dp</dimen>
@@ -49,4 +46,5 @@
          sharing the row equally. -->
     <dimen name="local_games_top_tab_width">34dp</dimen>
     <dimen name="local_games_top_tab_gap">0dp</dimen>
+    <dimen name="desktop_action_card_min_height">160dp</dimen>
 </resources>

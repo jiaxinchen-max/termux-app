@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardBackgroundColor="@color/local_games_surface"
+    app:cardCornerRadius="4dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical" android:padding="8dp">
+        <ImageView android:layout_width="48dp" android:layout_height="48dp"
+            android:layout_marginEnd="12dp" android:padding="8dp"
+            android:importantForAccessibility="no" android:src="@drawable/local_games_ic_desktop"
+            app:tint="@color/local_games_on_surface_secondary" />
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:orientation="vertical">
+        <TextView android:id="@+id/desktop_name"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:maxLines="1" android:ellipsize="end" android:textSize="14sp"
+            android:textColor="@color/local_games_on_surface" android:fontFamily="sans-serif-medium" />
+        <TextView android:id="@+id/desktop_mode_badge"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:maxLines="1" android:ellipsize="end" android:textSize="11sp"
+            android:textColor="@color/local_games_on_surface_secondary" />
+        <TextView android:id="@+id/desktop_detail"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:maxLines="1" android:ellipsize="end" android:textSize="11sp"
+            android:textColor="@color/local_games_on_surface_secondary" />
+        <TextView android:id="@+id/desktop_status"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:maxLines="1" android:ellipsize="end" android:textSize="11sp"
+            android:textColor="@color/local_games_on_surface_secondary" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:orientation="vertical" android:gravity="center">
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/desktop_primary"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="72dp" android:layout_height="40dp"
+            android:insetTop="0dp" android:insetBottom="0dp"
+            android:minWidth="0dp" android:minHeight="0dp" android:padding="0dp"
+            android:textAllCaps="false" android:textSize="12sp"
+            android:textColor="@color/local_games_on_surface" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/desktop_more"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="48dp" android:layout_height="40dp"
+            android:insetTop="0dp" android:insetBottom="0dp"
+            android:minWidth="0dp" android:minHeight="0dp" android:padding="0dp"
+            android:textAllCaps="false" android:textSize="12sp"
+            android:textColor="@color/local_games_on_surface" android:contentDescription="@string/desktop_more" android:text="⋯" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -12,12 +12,12 @@ import com.termux.x11.session.DialogPalette;
  * Builds the warm Frosted dialog palette handed to the embedded X11 session so the task manager
  * (and its child dialogs) match the other games dialogs in light and dark mode.
  */
-final class GameDialogPalettes {
+public final class GameDialogPalettes {
     private GameDialogPalettes() {
     }
 
     @NonNull
-    static DialogPalette frosted(@NonNull Context context) {
+    public static DialogPalette frosted(@NonNull Context context) {
         return new DialogPalette(
             ContextCompat.getColor(context, R.color.local_games_overlay_game),
             ContextCompat.getColor(context, R.color.local_games_dialog_outline),

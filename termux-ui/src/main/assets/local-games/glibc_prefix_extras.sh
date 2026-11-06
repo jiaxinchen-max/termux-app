@@ -6,7 +6,7 @@
 #
 # Callers provide: TERMUX_GLIBC_DIR, GLIBC_BIN, WINEPREFIX, TERMUX_BOX_RUN_DIR and a run_container_wine
 # function that runs the prefix's wine with the given arguments. GAMES_WINESERVER_BIN may name the wineserver
-# to use for flushing the registry (default: $GLIBC_BIN/wineserver).
+# to use for flushing the registry; the runtime selector sets its exact version path.
 
 ensure_games_wine_fonts() {
     _glibc_font_dir="$TERMUX_GLIBC_DIR/share/fonts"
@@ -75,8 +75,8 @@ ensure_games_wine_fonts() {
         return 1
     fi
     # regedit may return before its wineserver flushes the prefix hives.
-    "$GLIBC_BIN/box64" "${GAMES_WINESERVER_BIN:-$GLIBC_BIN/wineserver}" -w >/dev/null 2>&1 || true
-    "$GLIBC_BIN/box64" "${GAMES_WINESERVER_BIN:-$GLIBC_BIN/wineserver}" -k >/dev/null 2>&1 || true
+    native_run_box64 "${GAMES_WINESERVER_BIN:?selected_wineserver_required}" -w >/dev/null 2>&1 || true
+    native_run_box64 "${GAMES_WINESERVER_BIN:?selected_wineserver_required}" -k >/dev/null 2>&1 || true
     if _font_registry_is_persisted; then
         : > "$_font_marker"
         echo "Configured CJK FontLink for the game prefix."

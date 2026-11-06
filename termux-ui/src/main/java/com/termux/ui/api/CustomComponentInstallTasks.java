@@ -11,8 +11,10 @@ import com.termux.ui.data.FileCustomComponentInstallTaskRepository;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.domain.CustomComponentInstallTask;
 import com.termux.ui.domain.CustomRuntimeComponent;
-import com.termux.ui.domain.RuntimeTranslator;
 import com.termux.ui.service.CustomComponentInstallForegroundService;
+import com.termux.ui.wine.api.RootfsBackupTasks;
+import com.termux.ui.wine.domain.RuntimeTranslator;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,17 +41,19 @@ public final class CustomComponentInstallTasks {
         "com.termux.ui.extra.CUSTOM_INSTALL_PAYLOAD_PATH";
     public static final String EXTRA_SHA256 = "com.termux.ui.extra.CUSTOM_INSTALL_SHA256";
 
+    public static final String EXTRA_BACKEND = "com.termux.ui.extra.CUSTOM_INSTALL_BACKEND";
+
     private CustomComponentInstallTasks() {}
 
-    /** @param translator for WINE kind: HANGOVER/BOX64 for a ROOTFS install, null for a
-     *         GLIBC_TERMUX_BOX one (that backend has no translator choice -- see
-     *         CustomRuntimeComponent's doc comment); always null for BOX64 kind.
-     *  @param stagedPayload already drained into app-private storage (see
-     *         GameStoragePaths#getCustomComponentStagingDirectory()) before this is called. */
+    /** translator is required only for PRoot Wine; backendType always selects the install target.
+     * stagedPayload must already be drained into the app's custom-component staging directory. */
     @NonNull
     public static String enqueue(@NonNull Context context, @NonNull String componentId,
             @NonNull CustomRuntimeComponent.Kind kind, @Nullable RuntimeTranslator translator,
-            @NonNull String displayName, @NonNull File stagedPayload, @NonNull String sha256) {
+            @NonNull String displayName, @NonNull File stagedPayload, @NonNull String sha256,
+            @NonNull GameRuntimeBackendType backendType) {
+        // Validate before sending an Intent so invalid combinations never enqueue work.
+        new CustomRuntimeComponent(componentId, kind, translator, displayName, 1, sha256, backendType);
         try {
             FileCustomComponentInstallTaskRepository repository =
                 new FileCustomComponentInstallTaskRepository(new GameStoragePaths(
@@ -59,7 +63,8 @@ public final class CustomComponentInstallTasks {
             // collide with each other, so this is scoped per-id rather than "at most one in
             // flight at all".
             for (CustomComponentInstallTask task : repository.list()) {
-                if (!task.getState().isTerminal() && componentId.equals(task.getComponentId())) {
+                if (!task.getState().isTerminal() && componentId.equals(task.getComponentId()) &&
+                    backendType == task.getBackendType()) {
                     reconcileAll(context);
                     return task.getTaskId();
                 }
@@ -73,6 +78,7 @@ public final class CustomComponentInstallTasks {
             .putExtra(EXTRA_TASK_ID, taskId)
             .putExtra(EXTRA_COMPONENT_ID, componentId)
             .putExtra(EXTRA_KIND, kind.name())
+            .putExtra(EXTRA_BACKEND, backendType.getStorageValue())
             .putExtra(EXTRA_TRANSLATOR, translator == null ? "" : translator.getStorageValue())
             .putExtra(EXTRA_DISPLAY_NAME, displayName)
             .putExtra(EXTRA_PAYLOAD_PATH, stagedPayload.getAbsolutePath())

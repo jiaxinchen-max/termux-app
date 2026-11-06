@@ -2,6 +2,8 @@ package com.termux.ui.components;
 
 import java.io.File;
 
+import com.termux.ui.data.FrontStorage;
+
 /** Stable private-storage layout shared by component workers and read-only UI repositories. */
 public final class ComponentStoragePaths {
 
@@ -16,7 +18,7 @@ public final class ComponentStoragePaths {
         if (applicationFilesDirectory == null) {
             throw new IllegalArgumentException("applicationFilesDirectory must not be null");
         }
-        root = new File(applicationFilesDirectory, "games/components");
+        root = new File(FrontStorage.root(applicationFilesDirectory), "components");
         downloadsDirectory = retainedDownloadsDirectory == null
             ? new File(root, "downloads") : retainedDownloadsDirectory;
     }

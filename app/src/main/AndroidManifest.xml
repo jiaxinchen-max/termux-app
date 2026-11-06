@@ -88,6 +88,23 @@
             android:supportsPictureInPicture="true"
             android:theme="@style/Theme.TermuxActivity.DayNight.NoActionBar"
             tools:targetApi="n">
+        </activity>
+
+        <activity
+            android:name=".app.localgames.TermuxLauncherActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity="${TERMUX_PACKAGE_NAME}.launcher"
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <activity-alias
+            android:name=".TerminalLauncher"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/launcher_name_terminal"
+            android:targetActivity=".app.localgames.TermuxLauncherActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -100,7 +117,24 @@
             <meta-data
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
-        </activity>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".UiLauncher"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_ui"
+            android:label="@string/launcher_name_desktop"
+            android:targetActivity=".app.localgames.TermuxLauncherActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <activity
             android:name=".app.localgames.TermuxRestartActivity"
@@ -110,6 +144,24 @@
             android:process=":restart"
             android:taskAffinity="${TERMUX_PACKAGE_NAME}.restart"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
+            android:name=".app.localgames.TermuxExitActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:process=":exit"
+            android:taskAffinity="${TERMUX_PACKAGE_NAME}.exit"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
+            android:name=".app.TermuxUiTerminalActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|smallestScreenSize|density|screenLayout|keyboard|keyboardHidden|navigation"
+            android:launchMode="singleTop"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxActivity.DayNight.NoActionBar"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity-alias
             android:name=".HomeActivity"
@@ -139,11 +191,6 @@
             android:label="@string/title_activity_termux_settings"
             android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
 
-        <activity
-            android:name=".app.activities.TermuxBoxActivity"
-            android:exported="true"
-            android:label="@string/title_activity_termux_box"
-            android:theme="@style/Theme.TermuxBoxActivity.DayNight.NoActionBar" />
 
         <activity
             android:name=".shared.activities.ReportActivity"

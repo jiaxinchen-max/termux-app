@@ -1,6 +1,7 @@
 package com.termux.ui.desktop.archive;
 
-import com.termux.ui.domain.DesktopDistro;
+import com.termux.ui.desktop.domain.DesktopDistro;
+
 import java.io.File;
 
 public final class DesktopArchiveImportResult {

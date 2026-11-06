@@ -7,7 +7,7 @@ import androidx.annotation.NonNull;
 import com.termux.ui.platform.OrientationPreference;
 
 /** Pure mapping from the Settings "Orientation" choice to the game session's requested orientation. */
-final class GameSessionOrientation {
+public final class GameSessionOrientation {
 
     private GameSessionOrientation() {}
 
@@ -16,7 +16,7 @@ final class GameSessionOrientation {
      * follows the user's system rotation setting in either direction. The library screen keeps its
      * own mapping in {@link OrientationPreference#getRequestedOrientation()}.
      */
-    static int requestedFor(@NonNull OrientationPreference preference) {
+    public static int requestedFor(@NonNull OrientationPreference preference) {
         switch (preference) {
             case HORIZONTAL:
                 return ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;

@@ -2,18 +2,19 @@ package com.termux.ui.service;
 
 import com.termux.ui.components.ComponentStoragePaths;
 import com.termux.ui.data.FileComponentTaskRepository;
-import com.termux.ui.data.FileRuntimeSetupTaskRepository;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.domain.ComponentTask;
-import com.termux.ui.domain.RuntimeSetupTask;
+import com.termux.ui.wine.data.FileRuntimeSetupTaskRepository;
+import com.termux.ui.wine.domain.RuntimeSetupTask;
 
 import java.io.File;
 
 /** Cross-service admission check: a component delivery and RootFS build never overlap. */
-final class RuntimeInstallationGate {
+public final class RuntimeInstallationGate {
     private RuntimeInstallationGate() { }
 
-    static void requireComponentSlot(File filesDirectory, String selfTaskId) throws Exception {
+    public static void requireComponentSlot(File filesDirectory, String selfTaskId) throws Exception {
+        com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(filesDirectory);
         GameStoragePaths games = new GameStoragePaths(filesDirectory);
         for (RuntimeSetupTask task : new FileRuntimeSetupTaskRepository(
             games.getRuntimeSetupTasksDirectory()).list()) {
@@ -28,7 +29,8 @@ final class RuntimeInstallationGate {
         }
     }
 
-    static void requireRootfsSlot(File filesDirectory, String selfTaskId) throws Exception {
+    public static void requireRootfsSlot(File filesDirectory, String selfTaskId) throws Exception {
+        com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(filesDirectory);
         for (ComponentTask task : new FileComponentTaskRepository(new ComponentStoragePaths(
             filesDirectory).getTasksDirectory()).list()) {
             if (task.getState().shouldRecoverAutomatically()) {
@@ -44,7 +46,8 @@ final class RuntimeInstallationGate {
         }
     }
 
-    static void requireResetSlot(File filesDirectory, String selfTaskId) throws Exception {
+    public static void requireResetSlot(File filesDirectory, String selfTaskId) throws Exception {
+        com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(filesDirectory);
         for (ComponentTask task : new FileComponentTaskRepository(new ComponentStoragePaths(
             filesDirectory).getTasksDirectory()).list()) {
             if (task.getState().shouldRecoverAutomatically()) {

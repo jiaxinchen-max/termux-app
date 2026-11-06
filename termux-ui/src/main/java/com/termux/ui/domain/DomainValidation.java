@@ -6,30 +6,30 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-final class DomainValidation {
+public final class DomainValidation {
 
     private DomainValidation() {
     }
 
-    static String requireText(String value, String field) {
+    public static String requireText(String value, String field) {
         if (value == null || value.trim().isEmpty()) {
             throw new IllegalArgumentException(field + " must not be blank");
         }
         return value;
     }
 
-    static String optionalText(String value) {
+    public static String optionalText(String value) {
         return value == null ? "" : value;
     }
 
-    static int requireProgress(int progress) {
+    public static int requireProgress(int progress) {
         if (progress < 0 || progress > 100) {
             throw new IllegalArgumentException("progress must be between 0 and 100");
         }
         return progress;
     }
 
-    static List<String> immutableTextList(List<String> values, String field) {
+    public static List<String> immutableTextList(List<String> values, String field) {
         if (values == null) {
             throw new IllegalArgumentException(field + " must not be null");
         }
@@ -40,7 +40,7 @@ final class DomainValidation {
         return Collections.unmodifiableList(copy);
     }
 
-    static Map<String, String> immutableTextMap(Map<String, String> values, String field) {
+    public static Map<String, String> immutableTextMap(Map<String, String> values, String field) {
         if (values == null) {
             throw new IllegalArgumentException(field + " must not be null");
         }

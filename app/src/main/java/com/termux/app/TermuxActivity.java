@@ -17,7 +17,6 @@ import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
@@ -25,7 +24,6 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
-import android.util.TypedValue;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Gravity;
@@ -41,7 +39,6 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -60,11 +57,10 @@ import com.termux.app.activities.SettingsActivity;
 import com.termux.app.api.file.FileReceiverActivity;
 import com.termux.app.localgames.TermuxLocalGamesEntry;
 import com.termux.app.localgames.TermuxAppExperienceStore;
+import com.termux.app.localgames.TermuxLauncherIcon;
 import com.termux.app.localgames.TermuxAppExperienceRouter;
 import com.termux.app.terminal.FloatBallMenuClient;
 import com.termux.app.terminal.MainSurfaceController;
-import com.termux.app.terminal.MenuEntryClient;
-import com.termux.app.terminal.TermuxBoxContainerManagerClient;
 import com.termux.app.terminal.TermuxX11ActivityIntegration;
 import com.termux.app.terminal.TermuxX11HostClient;
 import com.termux.app.terminal.TermuxActivityRootView;
@@ -117,7 +113,7 @@ import java.util.Arrays;
  * </ul>
  * about memory leaks.
  */
-public class TermuxActivity extends AppCompatActivity implements ServiceConnection, PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
+public class TermuxActivity extends AppCompatActivity implements ServiceConnection, LoriePreferences.TerminalActions, PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
 
     public static final String EXTRA_SESSION_ONLY =
         "com.termux.app.extra.SESSION_ONLY";
@@ -222,8 +218,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     private int mNavBarHeight;
 
     private float mTerminalToolbarDefaultHeight;
-    private MenuEntryClient mMenuEntryClient;
-    private TermuxBoxContainerManagerClient mTermuxBoxContainerManagerClient;
     private boolean mPendingTerminalExit;
     private boolean mPendingTerminalMoveToBack;
     private boolean mDisplaySidePanelsUnlocked;
@@ -272,10 +266,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
     public TermuxX11HostClient getX11HostClient() {
         return mX11HostClient;
-    }
-
-    public TermuxBoxContainerManagerClient getTermuxBoxContainerManagerClient() {
-        return mTermuxBoxContainerManagerClient;
     }
 
     public void onMenuOpen(boolean isOpen, int flag) {
@@ -490,12 +480,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     }
 
     private void openTerminalSessionListView() {
-        setDrawerSectionExpanded(
-            findViewById(R.id.terminal_sessions_list),
-            findViewById(R.id.toggle_session_list_button),
-            R.string.session_list_expanded,
-            R.string.session_list_collapsed,
-            true);
         openStartDrawerExplicitly();
     }
 
@@ -600,7 +584,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         AppExperienceMode appMode = new TermuxAppExperienceStore(this).get();
         boolean sessionOnly = getIntent().getBooleanExtra(EXTRA_SESSION_ONLY, false);
         boolean shouldOpenGames = TermuxAppExperienceRouter.shouldOpenGames(appMode, sessionOnly);
-        mIntegratedX11Enabled = TermuxAppExperienceRouter.shouldIntegrateX11(appMode);
+        mIntegratedX11Enabled = TermuxAppExperienceRouter.shouldIntegrateX11(appMode, isUiTerminalPage());
         if (savedInstanceState != null)
             mIsActivityRecreated = savedInstanceState.getBoolean(ARG_ACTIVITY_RECREATED, false);
 
@@ -615,6 +599,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         // A saved Terminal-mode task can contain X11 fragments. Never restore that state after
         // switching to Games mode, where this activity intentionally has no X11 host.
         super.onCreate(mIntegratedX11Enabled ? savedInstanceState : null);
+        TermuxLauncherIcon.sync(this, appMode);
 
         if (shouldOpenGames) {
             mIsInvalidState = true;
@@ -666,10 +651,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
         setTerminalToolbarView(savedInstanceState);
 
-        if (mIntegratedX11Enabled) {
-            setSettingsButtonView();
-            setLocalGamesButtonView();
-        }
+        setSettingsButtonView();
 
         if (mIntegratedX11Enabled) setX11PreferenceBackButtonView();
         setBackPressedCallback();
@@ -678,21 +660,11 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
         setToggleKeyboardView();
 
-        if (mIntegratedX11Enabled) {
-            mMenuEntryClient = new MenuEntryClient(this, mTermuxTerminalSessionActivityClient);
-            mTermuxBoxContainerManagerClient = new TermuxBoxContainerManagerClient(
-                this, mTermuxTerminalSessionActivityClient);
-        }
-        setLeftDrawerCollapseButtonViews();
-        if (!mIntegratedX11Enabled) configureSessionOnlyDrawer();
-        applyResponsiveLeftDrawerLayout();
 
         registerForContextMenu(mTerminalView);
 
         FileReceiverActivity.updateFileReceiverActivityComponentsState(this);
 
-        if (mIntegratedX11Enabled) setRecoverView();
-        if (mIntegratedX11Enabled) setBackupView();
         if (mIntegratedX11Enabled) setFloatBallMenuClient();
         else getDrawer().setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED,
             GravityCompat.END);
@@ -789,8 +761,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         if (mTermuxTerminalViewClient != null)
             mTermuxTerminalViewClient.onResume();
 
-        if (mTermuxBoxContainerManagerClient != null)
-            mTermuxBoxContainerManagerClient.refresh();
 
         // Check if a crash happened on last run of the app or if a plugin crashed and show a
         // notification with the crash details if it did
@@ -859,7 +829,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        applyResponsiveLeftDrawerLayout();
         if (mLorieViewRuntimeController != null)
             mLorieViewRuntimeController.onConfigurationChanged(newConfig);
     }
@@ -1009,7 +978,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     }
 
 
-    private void setActivityTheme() {
+    protected void setActivityTheme() {
         // Update NightMode.APP_NIGHT_MODE
         TermuxThemeUtils.setAppNightMode(mProperties.getNightMode());
 
@@ -1021,8 +990,8 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
 
     private void setMargins() {
         RelativeLayout relativeLayout = findViewById(R.id.activity_termux_root_relative_layout);
-        int marginHorizontal = mProperties.getTerminalMarginHorizontal();
-        int marginVertical = mProperties.getTerminalMarginVertical();
+        int marginHorizontal = isUiTerminalPage() ? 0 : mProperties.getTerminalMarginHorizontal();
+        int marginVertical = isUiTerminalPage() ? 0 : mProperties.getTerminalMarginVertical();
         ViewUtils.setLayoutMarginsInDp(relativeLayout, marginHorizontal, marginVertical, marginHorizontal, marginVertical);
     }
 
@@ -1034,6 +1003,21 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     public void removeTermuxActivityRootViewGlobalLayoutListener() {
         if (getTermuxActivityRootView() != null)
             getTermuxActivityRootView().getViewTreeObserver().removeOnGlobalLayoutListener(getTermuxActivityRootView());
+    }
+
+    private void exitApp() {
+        if (mPendingTerminalExit) {
+            mPendingTerminalExit = false;
+            Intent exitIntent = new Intent(this, TermuxService.class)
+                .setAction(TermuxConstants.TERMUX_APP.TERMUX_SERVICE.ACTION_STOP_SERVICE);
+            startService(exitIntent);
+            finishActivityIfNotFinishing();
+        } else {
+            Toast.makeText(this, R.string.exit_toast_text, Toast.LENGTH_SHORT).show();
+            mPendingTerminalExit = true;
+            mPendingTerminalMoveToBack = false;
+            LoriePreferences.handler.postDelayed(() -> mPendingTerminalExit = false, 2000);
+        }
     }
 
     private void moveTaskToBackOrPrompt() {
@@ -1054,29 +1038,31 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         CommandUtils.exec(this, "termux-x11", args);
     }
 
-    private void setRecoverView() {
-        findViewById(R.id.recover_button).setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-            intent.setType("*/*");
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            startActivityForResult(intent, FILE_REQUEST_BACKUP_CODE);
-        });
+    @Override
+    public void openFrontUi() {
+        getDrawer().closeDrawers();
+        ActivityUtils.startActivity(this, TermuxLocalGamesEntry.createIntent(this));
     }
 
-    private void setBackupView() {
-        findViewById(R.id.backup_button).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String command = "tar -zcf /sdcard/termux-backup.tar.gz -C /data/data/com.termux/files ./home ./usr \n";
-                File file = new File(getFilesDir().getAbsolutePath() + File.separator + "home" + File.separator + "storage");
-                if (!file.exists()) {
-                    command = "termux-setup-storage;sleep 5s;tar -zcf /sdcard/termux-backup.tar.gz -C /data/data/com.termux/files ./home ./usr \n";
-                }
-                mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, "termux-backup");
-                showTerminalSurface();
-                closeTerminalSessionListView();
-            }
-        });
+    @Override
+    public void restoreTermux() {
+        getDrawer().closeDrawers();
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("*/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        startActivityForResult(intent, FILE_REQUEST_BACKUP_CODE);
+    }
+
+    @Override
+    public void backupTermux() {
+        getDrawer().closeDrawers();
+        String command = "tar -zcf /sdcard/termux-backup.tar.gz -C /data/data/com.termux/files ./home ./usr \n";
+        File storage = new File(getFilesDir(), "home/storage");
+        if (!storage.exists()) {
+            command = "termux-setup-storage;sleep 5s;" + command;
+        }
+        mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, "termux-backup");
+        showTerminalSurface();
     }
 
     private void closeTerminalSessionListView() {
@@ -1137,7 +1123,10 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         });
         updateDisplaySidePanelPolicy();
         setDisplaySidePanelDrawerListener();
-        TermuxScreenView termuxScreenView = new TermuxScreenView(this);
+        TermuxScreenView termuxScreenView = new TermuxScreenView(this,
+            TermuxScreenView.IdlePresentation.TERMINAL);
+        termuxScreenView.setTerminalIdleActions(() -> openX11Preferences(true),
+            this::startX11Display, this::exitApp);
         mMainSurfaceController.attachDisplayView(termuxScreenView);
         getLorieViewRuntime().attachTermuxScreenView(termuxScreenView);
         getLorieViewRuntime().setX11ConnectionStateListener(connected -> {
@@ -1196,7 +1185,8 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         final ViewPager terminalToolbarViewPager = getTerminalToolbarViewPager();
         if (terminalToolbarViewPager == null) return;
 
-        terminalToolbarViewPager.setVisibility(!isDisplaySurfaceMode() && mPreferences.shouldShowTerminalToolbar() ? View.VISIBLE : View.GONE);
+        terminalToolbarViewPager.setVisibility(!isDisplaySurfaceMode()
+            && mPreferences.shouldShowTerminalToolbar() ? View.VISIBLE : View.GONE);
     }
 
     private void setTerminalToolbarHeight() {
@@ -1243,14 +1233,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         ImageButton settingsButton = findViewById(R.id.settings_button);
         settingsButton.setOnClickListener(v -> {
             ActivityUtils.startActivity(this, new Intent(this, SettingsActivity.class));
-        });
-    }
-
-    private void setLocalGamesButtonView() {
-        ImageButton localGamesButton = findViewById(R.id.local_games_button);
-        localGamesButton.setOnClickListener(v -> {
-            closeTerminalSessionListView();
-            ActivityUtils.startActivity(this, TermuxLocalGamesEntry.createIntent(this));
         });
     }
 
@@ -1324,140 +1306,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         });
     }
 
-    private void setLeftDrawerCollapseButtonViews() {
-        View sessionListButton = findViewById(R.id.toggle_session_list_button);
-        View containerManagerButton = findViewById(R.id.toggle_container_manager_button);
-        View toolboxButton = findViewById(R.id.toggle_toolbox_button);
-
-        if (sessionListButton != null) {
-            View sessionList = findViewById(R.id.terminal_sessions_list);
-            sessionListButton.setOnClickListener(v -> toggleDrawerSection(
-                sessionList, sessionListButton, R.string.session_list_expanded, R.string.session_list_collapsed));
-        }
-
-        if (containerManagerButton != null) {
-            View containerManager = findViewById(R.id.container_manager_container);
-            containerManagerButton.setOnClickListener(v -> toggleDrawerSection(
-                containerManager, containerManagerButton, R.string.container_manager_expanded, R.string.container_manager_collapsed));
-        }
-
-        if (toolboxButton != null) {
-            View toolbox = findViewById(R.id.toolbox_container);
-            toolboxButton.setOnClickListener(v -> toggleDrawerSection(
-                toolbox, toolboxButton, R.string.toolbox_expanded, R.string.toolbox_collapsed));
-        }
-
-        // All sections collapsed by default
-        collapseSectionIfExists(R.id.terminal_sessions_list, R.id.toggle_session_list_button, R.string.session_list_collapsed);
-        collapseSectionIfExists(R.id.toolbox_container, R.id.toggle_toolbox_button, R.string.toolbox_collapsed);
-        collapseSectionIfExists(R.id.container_manager_container, R.id.toggle_container_manager_button, R.string.container_manager_collapsed);
-    }
-
     /** Games-mode terminal exposes only session selection and terminal actions. */
-    private void configureSessionOnlyDrawer() {
-        findViewById(R.id.left_drawer_header).setVisibility(View.GONE);
-        findViewById(R.id.toggle_toolbox_button).setVisibility(View.GONE);
-        findViewById(R.id.toolbox_container).setVisibility(View.GONE);
-        findViewById(R.id.toggle_container_manager_button).setVisibility(View.GONE);
-        findViewById(R.id.container_manager_container).setVisibility(View.GONE);
-    }
-
-    private void collapseSectionIfExists(int sectionId, int buttonId, int collapsedTextResId) {
-        View section = findViewById(sectionId);
-        View button = findViewById(buttonId);
-        if (section != null && button != null) {
-            section.setVisibility(View.GONE);
-            button.setAlpha(1f);
-            if (button instanceof TextView)
-                ((TextView) button).setText(collapsedTextResId);
-        }
-    }
-
-    private void toggleDrawerSection(View section, View button, int expandedTextResId, int collapsedTextResId) {
-        if (section == null || button == null)
-            return;
-
-        boolean show = section.getVisibility() != View.VISIBLE;
-        setDrawerSectionExpanded(section, button, expandedTextResId, collapsedTextResId, show);
-    }
-
-    private void setDrawerSectionExpanded(View section, View button, int expandedTextResId, int collapsedTextResId, boolean expanded) {
-        if (section == null || button == null)
-            return;
-
-        section.setVisibility(expanded ? View.VISIBLE : View.GONE);
-        button.setAlpha(1f);
-        if (button instanceof TextView)
-            ((TextView) button).setText(expanded ? expandedTextResId : collapsedTextResId);
-    }
-
-    private void applyResponsiveLeftDrawerLayout() {
-        boolean landscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-
-        setVisibleIfExists(R.id.toggle_session_list_button, true);
-        setVisibleIfExists(R.id.toggle_container_manager_button, mIntegratedX11Enabled);
-        setVisibleIfExists(R.id.toggle_toolbox_button, mIntegratedX11Enabled);
-
-        setViewHeight(R.id.left_drawer_header, landscape ? dp(40) : ViewGroup.LayoutParams.WRAP_CONTENT);
-        setViewHeight(R.id.terminal_sessions_list, landscape ? dp(96) : dp(280));
-        setViewHeight(R.id.left_drawer_actions, landscape ? dp(20) : ViewGroup.LayoutParams.WRAP_CONTENT);
-
-        applyDrawerSectionHeaderStyle(findViewById(R.id.toggle_session_list_button), landscape);
-        applyDrawerSectionHeaderStyle(findViewById(R.id.toggle_toolbox_button), landscape);
-        applyDrawerSectionHeaderStyle(findViewById(R.id.toggle_container_manager_button), landscape);
-        applyBottomDrawerButtonStyle(findViewById(R.id.toggle_keyboard_button), landscape);
-        applyBottomDrawerButtonStyle(findViewById(R.id.new_session_button), landscape);
-
-        if (mTermuxSessionListViewController != null)
-            mTermuxSessionListViewController.notifyDataSetChanged();
-    }
-
-    private void applyDrawerSectionHeaderStyle(View header, boolean landscape) {
-        if (!(header instanceof TextView))
-            return;
-
-        ViewGroup.LayoutParams params = header.getLayoutParams();
-        params.height = dp(landscape ? 18 : 28);
-        header.setLayoutParams(params);
-        TextView textView = (TextView) header;
-        textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, landscape ? 8 : 14);
-        textView.setTextColor(Color.BLACK);
-        textView.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
-    }
-
-    private void applyBottomDrawerButtonStyle(View button, boolean landscape) {
-        if (button == null)
-            return;
-
-        ViewGroup.LayoutParams params = button.getLayoutParams();
-        params.height = landscape ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT;
-        button.setLayoutParams(params);
-        button.setMinimumHeight(landscape ? 0 : dp(48));
-        button.setPadding(button.getPaddingLeft(), landscape ? 0 : dp(6), button.getPaddingRight(), landscape ? 0 : dp(6));
-        if (button instanceof TextView)
-            ((TextView) button).setTextSize(TypedValue.COMPLEX_UNIT_SP, landscape ? 7 : 14);
-    }
-
-    private void setVisibleIfExists(int viewId, boolean visible) {
-        View view = findViewById(viewId);
-        if (view != null)
-            view.setVisibility(visible ? View.VISIBLE : View.GONE);
-    }
-
-    private void setViewHeight(int viewId, int height) {
-        View view = findViewById(viewId);
-        if (view == null)
-            return;
-
-        ViewGroup.LayoutParams params = view.getLayoutParams();
-        params.height = height;
-        view.setLayoutParams(params);
-    }
-
-    private int dp(int value) {
-        return Math.round(value * getResources().getDisplayMetrics().density);
-    }
-
     @SuppressLint({"RtlHardcoded", "MissingSuperCall"})
     @Override
     public void onBackPressed() {
@@ -1662,8 +1511,6 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         Logger.logVerbose(LOG_TAG, "onActivityResult: requestCode: " + requestCode + ", resultCode: " + resultCode + ", data: " + IntentUtils.getIntentString(data));
-        if (mMenuEntryClient != null && mMenuEntryClient.onActivityResult(requestCode, resultCode, data))
-            return;
         if (mLorieViewRuntimeController != null && mLorieViewRuntimeController.onActivityResult(requestCode, resultCode, data))
             return;
         if (requestCode == PermissionUtils.REQUEST_GRANT_STORAGE_PERMISSION) {
@@ -1898,6 +1745,11 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         }
     }
 
+
+    /** UI terminal pages can theme the extra keys and text-input page locally. */
+    public void styleTerminalToolbar(View view) { }
+
+    protected boolean isUiTerminalPage() { return false; }
 
     public static void startTermuxActivity(@NonNull final Context context) {
         ActivityUtils.startActivity(context, newInstance(context));

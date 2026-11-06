@@ -1,0 +1,20 @@
+<resources>
+    <string name="component_versions_title">%1$s versions</string>
+    <string name="component_versions_installed">Installed</string>
+    <string name="component_versions_online">Online installation</string>
+    <string name="component_versions_manual">Install from file</string>
+    <string name="component_versions_select">Select version</string>
+    <string name="component_versions_empty">No installed versions</string>
+    <string name="component_versions_current">Selected for this game</string>
+    <string name="component_versions_download">Download and install</string>
+    <string name="component_versions_downloaded">Publish installed component</string>
+    <string name="component_versions_failed">Component operation failed: %1$s</string>
+    <string name="component_versions_runtime_box64">Runtime Box64</string>
+    <string name="component_versions_kind">Component</string>
+    <string name="component_versions_virgl_dxvk">Select WineD3D before choosing VirGL; DXVK requires Vulkan.</string>
+    <string name="component_versions_vulkan_required">DXVK requires a Vulkan renderer. Select one first.</string>
+    <string name="component_versions_default_translator">Use container runtime</string>
+    <string name="component_versions_in_progress">Installing</string>
+    <string name="component_versions_retry">Retry installation</string>
+    <string name="component_versions_missing">Selected version is not installed: %1$s</string>
+</resources>

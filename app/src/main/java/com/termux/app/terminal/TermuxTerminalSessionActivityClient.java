@@ -155,7 +155,6 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         // The plugin can handle/show errors itself.
         boolean isPluginExecutionCommandWithPendingResult = false;
         TermuxSession termuxSession = service.getTermuxSession(index);
-        notifyTermuxBoxSessionFinished(finishedSession);
         if (termuxSession != null) {
             isPluginExecutionCommandWithPendingResult = termuxSession.getExecutionCommand().isPluginExecutionCommandWithPendingResult();
             if (termuxSession.getExecutionCommand().autoCloseOnExit) {
@@ -185,16 +184,6 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             if (finishedSession.getExitStatus() == 0 || finishedSession.getExitStatus() == 130 || isPluginExecutionCommandWithPendingResult) {
                 removeFinishedSession(finishedSession);
             }
-        }
-    }
-
-    private void notifyTermuxBoxSessionFinished(TerminalSession finishedSession) {
-        if (!"termux-box-start-wine".equals(finishedSession.mSessionName)) {
-            return;
-        }
-        TermuxBoxContainerManagerClient boxClient = mActivity.getTermuxBoxContainerManagerClient();
-        if (boxClient != null) {
-            boxClient.onContainerSessionFinished();
         }
     }
 
@@ -592,7 +581,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         if (!mActivity.isVisible()) return;
         TerminalSession session = mActivity.getCurrentSession();
         if (session != null && session.getEmulator() != null) {
-            mActivity.getWindow().getDecorView().setBackgroundColor(session.getEmulator().mColors.mCurrentColors[TextStyle.COLOR_INDEX_BACKGROUND]);
+            mActivity.getWindow().getDecorView().setBackgroundColor(mActivity.getTerminalView().getTerminalBackgroundColor());
         }
     }
 

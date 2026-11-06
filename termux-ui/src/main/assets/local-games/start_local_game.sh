@@ -10,7 +10,7 @@ SCRIPT_PATH=$(realpath "$0" 2>/dev/null) || {
 }
 SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
 TERMUX_FILES_DIR=$(dirname "$(dirname "$(dirname "$SCRIPT_PATH")")")
-GAMES_PRIVATE_ROOT="$TERMUX_FILES_DIR/games"
+GAMES_PRIVATE_ROOT="$TERMUX_FILES_DIR/front"
 TERMUX_BOX_GAME_START="$SCRIPT_DIR/start_termux_box_game.sh"
 SEQUENCE=0
 RUNTIME_PID=

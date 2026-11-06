@@ -1,11 +1,6 @@
 package com.termux.ui.components.index;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import com.termux.ui.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
 
 import org.junit.Test;
 
@@ -14,12 +9,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 public class ComponentIndexParserTest {
 
     @Test
     public void parsesBundledGameHubAlignedIndexWithoutChangingDelivery() throws Exception {
         InputStream input = getClass().getClassLoader()
-            .getResourceAsStream("termux-box-packages/index-v1.json");
+            .getResourceAsStream("termux-app-packages/index-v1.json");
         assertTrue("bundled index must be available to tests", input != null);
 
         ComponentIndex index;

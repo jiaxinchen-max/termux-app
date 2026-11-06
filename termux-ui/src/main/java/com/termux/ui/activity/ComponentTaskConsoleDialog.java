@@ -2,11 +2,10 @@ package com.termux.ui.activity;
 
 import android.app.Dialog;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.method.ScrollingMovementMethod;
-import android.view.Gravity;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
@@ -25,18 +24,16 @@ import com.termux.ui.domain.ComponentTask;
 import com.termux.ui.domain.ComponentTaskState;
 import com.termux.ui.service.ComponentTaskConsoleLog;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 
 /** Non-cancelable foreground log surface for one durable component installation. */
 final class ComponentTaskConsoleDialog extends Dialog {
-    private static final int MAX_LOG_CHARS = 48 * 1024;
-
     private final String taskId;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private TextView output;
+    private final java.util.concurrent.ExecutorService reader =
+        java.util.concurrent.Executors.newSingleThreadExecutor();
+    private FollowingLogView output;
     private TextView state;
     private ProgressBar progress;
     private MaterialButton hide;
@@ -47,6 +44,7 @@ final class ComponentTaskConsoleDialog extends Dialog {
     private LinearLayout.LayoutParams outputParams;
     private LinearLayout.LayoutParams actionParams;
     private boolean dismissed;
+    private boolean failed;
 
     private ComponentTaskConsoleDialog(@NonNull Context context, @NonNull String taskId) {
         super(context);
@@ -91,14 +89,7 @@ final class ComponentTaskConsoleDialog extends Dialog {
             ViewGroup.LayoutParams.MATCH_PARENT, dp(5));
         content.addView(progress, progressParams);
 
-        output = new TextView(getContext());
-        output.setTextColor(ContextCompat.getColor(getContext(), R.color.local_games_terminal_text));
-        output.setTextSize(13);
-        output.setTypeface(android.graphics.Typeface.MONOSPACE);
-        output.setBackground(FrostedWindow.surface(getContext(),
-            R.color.local_games_terminal_background, FrostedWindow.ROW_RADIUS_DP));
-        output.setPadding(dp(10), dp(10), dp(10), dp(10));
-        output.setMovementMethod(new ScrollingMovementMethod());
+        output = new FollowingLogView(getContext());
         outputParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
         content.addView(output, outputParams);
@@ -107,32 +98,53 @@ final class ComponentTaskConsoleDialog extends Dialog {
         hide.setText(R.string.local_games_component_console_hide);
         hide.setOnClickListener(view -> dismiss());
         actionParams = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        actionParams.gravity = Gravity.END;
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         hide.setMinHeight(dp(48));
         hide.setMinimumHeight(dp(48));
         content.addView(hide, actionParams);
         ConfigurationAwareFrameLayout root = new ConfigurationAwareFrameLayout(getContext());
         root.addView(content, new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        root.setListener(configuration -> applyWindowSize());
+        root.setListener(configuration -> {
+            applyTheme();
+            applyWindowSize();
+        });
         setContentView(root);
         applyCompactness();
 
         Window window = getWindow();
         if (window != null) {
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-            FrostedWindow.applyPanelSurface(window, getContext(), R.color.local_games_console_background);
-            FrostedWindow.applyScrim(this);
+            applyTheme();
         }
-        refresh();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        applyTheme();
         applyWindowSize();
+        handler.post(this::refresh);
     }
+
+    private void applyTheme() {
+        ConsoleDialogTheme.applyWindow(this);
+        title.setTextColor(color(R.color.local_games_on_surface));
+        state.setTextColor(color(failed ? R.color.local_games_error : R.color.local_games_terminal_secondary));
+        output.applyTheme();
+        output.setBackground(FrostedWindow.surface(getContext(),
+            R.color.local_games_console_background, FrostedWindow.ROW_RADIUS_DP));
+        int accent = color(failed ? R.color.local_games_error : R.color.local_games_primary);
+        progress.setProgressTintList(ColorStateList.valueOf(accent));
+        progress.setIndeterminateTintList(ColorStateList.valueOf(accent));
+        progress.setProgressBackgroundTintList(ColorStateList.valueOf(color(R.color.local_games_outline)));
+        hide.setBackgroundTintList(ColorStateList.valueOf(color(R.color.local_games_primary)));
+        hide.setTextColor(color(R.color.local_games_on_primary));
+        hide.setRippleColor(ColorStateList.valueOf(color(R.color.local_games_surface_pressed)));
+
+    }
+
+    private int color(int resource) { return ContextCompat.getColor(getContext(), resource); }
 
     private void applyWindowSize() {
         Window window = getWindow();
@@ -163,18 +175,39 @@ final class ComponentTaskConsoleDialog extends Dialog {
     @Override
     public void dismiss() {
         dismissed = true;
+        reader.shutdownNow();
         handler.removeCallbacksAndMessages(null);
         super.dismiss();
     }
 
     private void refresh() {
         if (dismissed || !isShowing()) return;
-        ComponentTask task = readTask();
-        output.setText(readLog());
-        boolean terminal = task == null || isFinished(task.getState());
+        reader.execute(() -> {
+            ComponentTask task = readTask();
+            String log = readLog();
+            String rejected;
+            try {
+                rejected = ComponentTaskConsoleLog.commandFailure(getContext().getFilesDir(), taskId);
+            } catch (IOException error) {
+                rejected = "log_unavailable: " + error.getMessage();
+            }
+            final String commandError = rejected;
+            handler.post(() -> render(task, log, commandError));
+        });
+    }
+
+    private void render(ComponentTask task, String log, String rejected) {
+        if (dismissed || !isShowing()) return;
+        output.setOutput(log);
+        boolean nowFailed = !rejected.isEmpty() || (task != null && task.getState() == ComponentTaskState.FAILED);
+        if (failed != nowFailed) {
+            failed = nowFailed;
+            applyTheme();
+        }
+        boolean terminal = task != null && isFinished(task.getState());
         if (task == null) {
-            state.setText(R.string.local_games_component_console_missing);
-            progress.setIndeterminate(false);
+            state.setText(R.string.local_games_component_console_waiting);
+            progress.setIndeterminate(true);
             progress.setProgress(0);
         } else {
             state.setText(ComponentTaskConsoleLog.stateLine(task));
@@ -186,6 +219,11 @@ final class ComponentTaskConsoleDialog extends Dialog {
                 progress.setIndeterminate(!terminal);
                 progress.setProgress(terminal ? 100 : 0);
             }
+        }
+        if (!rejected.isEmpty()) {
+            terminal = true;
+            state.setText(rejected);
+            progress.setIndeterminate(false);
         }
         hide.setText(terminal ? R.string.local_games_runtime_setup_console_close
             : R.string.local_games_component_console_hide);
@@ -204,20 +242,13 @@ final class ComponentTaskConsoleDialog extends Dialog {
     private String readLog() {
         File file = ComponentTaskConsoleLog.file(getContext().getFilesDir(), taskId);
         if (!file.isFile()) return getContext().getString(R.string.local_games_component_console_waiting);
-        StringBuilder text = new StringBuilder();
-        try (BufferedReader input = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = input.readLine()) != null) {
-                if (text.length() + line.length() + 1 > MAX_LOG_CHARS) {
-                    text.delete(0, Math.min(text.length(), 8192));
-                }
-                text.append(line).append('\n');
-            }
+        try {
+            String text = com.termux.ui.service.SetupPreparationLog.readTail(file);
+            return text.isEmpty() ? getContext().getString(
+                R.string.local_games_component_console_waiting) : text;
         } catch (IOException error) {
             return error.getMessage() == null ? "log_unavailable" : error.getMessage();
         }
-        return text.length() == 0 ? getContext().getString(
-            R.string.local_games_component_console_waiting) : text.toString();
     }
 
     private static boolean isFinished(ComponentTaskState state) {

@@ -1,6 +1,5 @@
 package com.termux.ui.activity;
 
-import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.Intent;
 import android.content.res.Configuration;
@@ -8,14 +7,14 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.os.StatFs;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.StatFs;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.text.format.Formatter;
-import android.view.Gravity;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -31,76 +30,76 @@ import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
+import com.termux.shared.android.PermissionUtils;
 import com.termux.ui.R;
-import com.termux.ui.api.ComponentTasks;
-import com.termux.ui.api.RootfsBackupTasks;
-import com.termux.ui.api.RuntimeSetupTasks;
-import com.termux.ui.api.PrefixSetupTasks;
 import com.termux.ui.api.AppExperienceMode;
+import com.termux.ui.api.ComponentTasks;
 import com.termux.ui.api.LocalGames;
 import com.termux.ui.api.LocalGamesHost;
-import com.termux.ui.artwork.GameArtworkLoader;
-import com.termux.ui.artwork.GameArtworkStore;
 import com.termux.ui.components.ComponentStoragePaths;
 import com.termux.ui.components.catalog.ComponentCatalogItem;
 import com.termux.ui.components.catalog.ComponentCatalogRepository;
 import com.termux.ui.components.catalog.ComponentCatalogState;
+import com.termux.ui.components.index.ComponentDescriptor;
 import com.termux.ui.components.index.ComponentIndex;
 import com.termux.ui.components.index.ComponentIndexParser;
-import com.termux.ui.components.index.ComponentDescriptor;
 import com.termux.ui.components.index.ComponentType;
 import com.termux.ui.components.install.ComponentInstallationReader;
 import com.termux.ui.data.FileComponentTaskRepository;
-import com.termux.ui.data.FileGameRepository;
-import com.termux.ui.data.FilePrefixSetupTaskRepository;
-import com.termux.ui.data.FileResetTaskRepository;
-import com.termux.ui.data.FileRootfsBackupTaskRepository;
-import com.termux.ui.data.FileRuntimeProfileRepository;
-import com.termux.ui.data.FileRuntimeSetupTaskRepository;
-import com.termux.ui.data.GameAccessState;
-import com.termux.ui.data.GameLibraryItem;
-import com.termux.ui.data.GameLibraryRepository;
 import com.termux.ui.data.GameStoragePaths;
-import com.termux.ui.platform.OrientationPreference;
 import com.termux.ui.data.SettingsPage;
+import com.termux.ui.platform.UiThemePreference;
 import com.termux.ui.databinding.ActivityLocalGamesBinding;
 import com.termux.ui.databinding.DialogGameActionsBinding;
 import com.termux.ui.databinding.DialogGameLaunchBinding;
-import com.termux.ui.databinding.ItemLocalGamesComponentBinding;
-import com.termux.ui.databinding.ItemLocalGamesComponentSectionBinding;
 import com.termux.ui.databinding.ItemLocalGameBinding;
 import com.termux.ui.databinding.ItemLocalGameImportBinding;
+import com.termux.ui.databinding.ItemLocalGamesComponentBinding;
 import com.termux.ui.domain.ComponentTask;
-import com.termux.ui.domain.Game;
-import com.termux.ui.domain.GameRuntimeBackendType;
-import com.termux.ui.domain.PrefixSetupTask;
-import com.termux.ui.domain.ResetTarget;
-import com.termux.ui.domain.ResetTask;
-import com.termux.ui.domain.RootfsBackupTask;
+import com.termux.ui.domain.CustomRuntimeComponent;
+import com.termux.ui.platform.OrientationPreference;
 import com.termux.ui.runtime.RuntimeBackupSharedStorage;
-import com.termux.ui.domain.RuntimeReadinessState;
-import com.termux.ui.api.ResetTasks;
-import com.termux.ui.runtime.RuntimeEnvironmentStatus;
-import com.termux.ui.runtime.RootfsSetupRecipe;
-import com.termux.ui.domain.RuntimeSetupTask;
-import com.termux.ui.domain.RuntimeProfile;
-import com.termux.ui.importer.SafGameAccessProbe;
-import com.termux.ui.recovery.GameUninstallPlan;
-import com.termux.ui.recovery.GameOrphanSweeper;
-import com.termux.ui.recovery.GameUninstaller;
-import com.termux.shared.android.PermissionUtils;
+import com.termux.ui.wine.activity.GameRuntimeOptionsView;
+import com.termux.ui.wine.activity.RuntimeBackupFlow;
+import com.termux.ui.wine.api.PrefixSetupTasks;
+import com.termux.ui.wine.api.ResetTasks;
+import com.termux.ui.wine.api.RootfsBackupTasks;
+import com.termux.ui.wine.api.RuntimeSetupTasks;
+import com.termux.ui.wine.artwork.GameArtworkLoader;
+import com.termux.ui.wine.artwork.GameArtworkStore;
+import com.termux.ui.wine.data.FileGameRepository;
+import com.termux.ui.wine.data.FilePrefixSetupTaskRepository;
+import com.termux.ui.wine.data.FileResetTaskRepository;
+import com.termux.ui.wine.data.FileRootfsBackupTaskRepository;
+import com.termux.ui.wine.data.FileRuntimeProfileRepository;
+import com.termux.ui.wine.data.FileRuntimeSetupTaskRepository;
+import com.termux.ui.wine.data.GameAccessState;
+import com.termux.ui.wine.data.GameLibraryItem;
+import com.termux.ui.wine.data.GameLibraryRepository;
+import com.termux.ui.wine.domain.Game;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.domain.PrefixSetupTask;
+import com.termux.ui.wine.domain.ResetTarget;
+import com.termux.ui.wine.domain.ResetTask;
+import com.termux.ui.wine.domain.RootfsBackupTask;
+import com.termux.ui.wine.domain.RuntimeProfile;
+import com.termux.ui.wine.domain.RuntimeReadinessState;
+import com.termux.ui.wine.domain.RuntimeSetupTask;
+import com.termux.ui.wine.importer.SafGameAccessProbe;
+import com.termux.ui.wine.recovery.GameOrphanSweeper;
+import com.termux.ui.wine.recovery.GameUninstallPlan;
+import com.termux.ui.wine.recovery.GameUninstaller;
+import com.termux.ui.wine.runtime.RootfsSetupRecipe;
+import com.termux.ui.wine.runtime.RuntimeEnvironmentStatus;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Date;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -113,28 +112,26 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Root Activity owned by the standalone games feature module. */
-public final class LocalGamesActivity extends AppCompatActivity {
+public final class LocalGamesActivity extends AppUiActivity {
 
     public static final String EXTRA_COMPONENT_GAME_ID =
         "com.termux.ui.extra.COMPONENT_GAME_ID";
-    private static final String INDEX_ASSET = "termux-box-packages/index-v1.json";
+    private static final String INDEX_ASSET = "termux-app-packages/index-v1.json";
     private static final String TERMUX_GLIBC_ID = "termux-glibc";
     private static final String STATE_SELECTED_TAB = "local_games.selected_tab";
     private static final String STATE_SETTINGS_PAGE = "local_games.settings_page";
+    private static final String STATE_COMPONENT_PAGE = "local_games.component_page";
     private boolean navigationUpdating;
-    /** Last statusBars top inset delivered to the top tab bar, or -1 before the first dispatch. */
-    private int dispatchedStatusBarInsetPx = -1;
-    /** Whether {@link #dispatchedStatusBarInsetPx} was received in a landscape window. */
-    private boolean dispatchedStatusBarInsetLandscape;
-    /** False from a configuration change until the next insets dispatch: root insets are stale. */
-    private boolean insetsDispatchedSinceConfigChange;
+    private UiNavigation navigation;
+    private CollectionToolbar collectionToolbar;
     private static final int TAB_LIBRARY = 0;
     private static final int TAB_COMPONENTS = 1;
     private static final int TAB_SETTINGS = 2;
     private static final int GAME_ACTION_ENGINE = 0;
     private static final int GAME_ACTION_EDIT = 1;
-    private static final int GAME_ACTION_BACKUP = 2;
-    private static final int GAME_ACTION_CONTROLS = 3;
+    private static final int GAME_ACTION_STORAGE = 2;
+    private static final int GAME_ACTION_CDRIVE_BACKUP = 6;
+    private com.termux.ui.wine.activity.WineCDriveBackupFlow cdriveBackupFlow;
     private static final int GAME_ACTION_REAUTHORIZE = 4;
     private static final int GAME_ACTION_REMOVE = 5;
     /** The launch sheet is a compact card; wider windows do not stretch it. */
@@ -160,6 +157,10 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private ActivityLocalGamesBinding binding;
     private ComponentCatalogRepository catalogRepository;
+    @Nullable private ComponentType componentPage;
+    @Nullable private ComponentType renderedComponentPage;
+    @Nullable private List<String> renderedComponentIds;
+    private List<ComponentCatalogItem> componentCatalog = Collections.emptyList();
     private FileRuntimeSetupTaskRepository runtimeSetupTaskRepository;
     private GameLibraryRepository libraryRepository;
     private GameArtworkLoader artworkLoader;
@@ -176,6 +177,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     @Nullable private PopupWindow moreMenuPopup;
     private Runnable pendingBackupStorageAction;
     private Map<String, BuildingTask> buildingGameTasks = Collections.emptyMap();
+    private Map<String, GameRuntimeBackendType> libraryBackends = Collections.emptyMap();
     private static final long BUILDING_POLL_MS = 2500L;
     private final Runnable buildingPoll = () -> loadLibraryAsync(true);
     private final List<android.animation.ObjectAnimator> libraryCardBreathAnimators =
@@ -188,6 +190,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
     @Nullable private RuntimeReadinessState glibcStatus;
     @Nullable private RuntimeReadinessState rootfsStatus;
     private OnBackPressedCallback settingsBackCallback;
+    private final BackExitConfirmation exitConfirmation = new BackExitConfirmation();
+    @Nullable private Toast exitToast;
     @Nullable private String componentGameId;
     @Nullable private String componentContainerId;
     @Nullable private GameRuntimeBackendType componentBackend;
@@ -206,10 +210,18 @@ public final class LocalGamesActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setRequestedOrientation(OrientationPreference.load(this).getRequestedOrientation());
         binding = ActivityLocalGamesBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        configureResponsiveLibrary();
+        navigation = UiNavigation.install(this, R.id.local_games_navigation_library,
+            this::onNavigationDestination);
+        collectionToolbar = new CollectionToolbar(this, binding.localGamesLibraryToolbar,
+            "wine", R.string.local_games_title, R.string.local_games_import_hero_message,
+            this::loadLibraryAsync, () -> {
+                if (renderedLibraryItems != null) populateLibraryGrid(renderedLibraryItems, libraryGeneration);
+            });
+        collectionToolbar.enableRuntimeSelector(() -> {
+            if (renderedLibraryItems != null) populateLibraryGrid(renderedLibraryItems, libraryGeneration);
+        });
         componentGameId = getIntent().getStringExtra(EXTRA_COMPONENT_GAME_ID);
 
         selectedTab = savedInstanceState == null
@@ -221,7 +233,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         SettingsPage restoredSettingsPage = savedInstanceState == null ? SettingsPage.ROOT
             : SettingsPage.fromOrdinal(savedInstanceState.getInt(STATE_SETTINGS_PAGE, 0));
         binding.localGamesToolbar.setNavigationOnClickListener(view -> {
-            if (!navigateBackInLibraryScreen()) finish();
+            navigateBackOrConfirmExit();
         });
         binding.localGamesToolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() != R.id.local_games_action_help) return false;
@@ -239,55 +251,14 @@ public final class LocalGamesActivity extends AppCompatActivity {
         });
         binding.localGamesComponentTaskConsole.setOnClickListener(view ->
             showActiveInstallationConsole());
-        // System BACK behaves like the toolbar arrow (LocalGamesBackNavigation): second-level
-        // Settings page -> first level, any other non-Library page -> Library. On the Library tab
-        // the callback is disabled and back leaves the screen as before.
+        // Sub-pages navigate upwards. The UI home requires two consecutive Back presses to exit.
         settingsBackCallback = new OnBackPressedCallback(false) {
             @Override
             public void handleOnBackPressed() {
-                navigateBackInLibraryScreen();
+                navigateBackOrConfirmExit();
             }
         };
         getOnBackPressedDispatcher().addCallback(this, settingsBackCallback);
-        // One destination handler for both chromes: the bottom bar (portrait) and the icon tabs
-        // at the top (landscape).
-        binding.localGamesNavigation.setOnItemSelectedListener(item ->
-            onNavigationDestination(item.getItemId()));
-        binding.localGamesTopTabLibrary.setOnClickListener(view ->
-            onNavigationDestination(R.id.local_games_navigation_library));
-        binding.localGamesTopTabFileManager.setOnClickListener(view ->
-            onNavigationDestination(R.id.local_games_navigation_file_manager));
-        binding.localGamesTopTabDesktop.setOnClickListener(view ->
-            onNavigationDestination(R.id.local_games_navigation_desktop));
-        binding.localGamesTopTabSettings.setOnClickListener(view ->
-            onNavigationDestination(R.id.local_games_navigation_settings));
-        WindowInsetsPadding.apply(binding.localGamesRoot, true, true, true, true);
-        // The root insets are null before the window is attached and still the old orientation's
-        // while onConfigurationChanged runs, so the bar height is also (re)applied from every fresh
-        // dispatch: cold start, rotation and tab switches then all end at the status bar height.
-        // The dispatched value is remembered together with its orientation so that a portrait
-        // value is never reused for a landscape window.
-        ViewCompat.setOnApplyWindowInsetsListener(binding.localGamesTopTabs, (view, insets) -> {
-            dispatchedStatusBarInsetPx =
-                insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
-            dispatchedStatusBarInsetLandscape = isLandscape();
-            insetsDispatchedSinceConfigChange = true;
-            applyTopTabBarHeight(true);
-            return insets;
-        });
-        // Last line of defence: whenever the bar is laid out again (it just became visible, the
-        // window was resized by a rotation, a LayoutParams reset), re-check its height against
-        // freshly resolved sources instead of trusting whatever was applied earlier. Not forced, so
-        // a correct height ends the cycle.
-        binding.localGamesTopTabs.addOnLayoutChangeListener((view, left, top, right, bottom,
-                                                              oldLeft, oldTop, oldRight,
-                                                              oldBottom) -> {
-            if (view.getVisibility() == View.VISIBLE) {
-                view.post(() -> {
-                    if (binding != null) applyTopTabBarHeight(false);
-                });
-            }
-        });
         // The grid re-flows when its width changes (rotation, split-screen).
         binding.localGamesLibraryItems.addOnLayoutChangeListener((view, left, top, right, bottom,
                                                                    oldLeft, oldTop, oldRight,
@@ -312,15 +283,28 @@ public final class LocalGamesActivity extends AppCompatActivity {
         ComponentTasks.reconcile(this);
         RuntimeSetupTasks.reconcileAll(this);
         PrefixSetupTasks.reconcileAll(this);
+        if (getIntent().hasExtra(UiNavigation.EXTRA_DESTINATION)) {
+            selectedTab = getIntent().getIntExtra(UiNavigation.EXTRA_DESTINATION, 0)
+                == R.id.local_games_navigation_settings ? TAB_SETTINGS : TAB_LIBRARY;
+            getIntent().removeExtra(UiNavigation.EXTRA_DESTINATION);
+        }
         int initialPage = selectedTab;
         syncNavigationSelection(R.id.local_games_navigation_library);
         showPage(initialPage);
         if (initialPage == TAB_SETTINGS && !restoredSettingsPage.isRoot()) {
             openSettingsPage(restoredSettingsPage);
         }
+        if (initialPage == TAB_COMPONENTS && savedInstanceState != null) {
+            String restoredComponent = savedInstanceState.getString(STATE_COMPONENT_PAGE);
+            if (restoredComponent != null) componentPage = ComponentType.fromStorageValue(restoredComponent);
+            updateChrome();
+            updateSettingsBackCallback();
+        }
         ResetTasks.reconcileAll(this);
         RootfsBackupTasks.reconcileAll(this);
         RuntimeBackupFlow.instance().attach(this, this::renderRuntimeStatus);
+        cdriveBackupFlow = new com.termux.ui.wine.activity.WineCDriveBackupFlow(this);
+        cdriveBackupFlow.resume();
         renderRuntimeStatus();
         mainHandler.post(this::consumePendingSetupConsoleIntent);
     }
@@ -329,6 +313,11 @@ public final class LocalGamesActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        if (intent.hasExtra(UiNavigation.EXTRA_DESTINATION)) {
+            int destination = intent.getIntExtra(UiNavigation.EXTRA_DESTINATION, 0);
+            intent.removeExtra(UiNavigation.EXTRA_DESTINATION);
+            showPage(destination == R.id.local_games_navigation_settings ? TAB_SETTINGS : TAB_LIBRARY);
+        }
         mainHandler.post(this::consumePendingSetupConsoleIntent);
     }
 
@@ -366,6 +355,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     @Override
     protected void onStop() {
+        resetExitConfirmation();
         started = false;
         mainHandler.removeCallbacks(catalogRefresh);
         mainHandler.removeCallbacks(buildingPoll);
@@ -416,6 +406,8 @@ public final class LocalGamesActivity extends AppCompatActivity {
     protected void onSaveInstanceState(Bundle outState) {
         outState.putInt(STATE_SELECTED_TAB, selectedTab);
         outState.putInt(STATE_SETTINGS_PAGE, settingsPage.ordinal());
+        outState.putString(STATE_COMPONENT_PAGE,
+            componentPage == null ? null : componentPage.getStorageValue());
         super.onSaveInstanceState(outState);
     }
 
@@ -441,15 +433,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
         }
     }
 
-    private void configureResponsiveLibrary() {
-        boolean landscape = getResources().getConfiguration().orientation ==
-            Configuration.ORIENTATION_LANDSCAPE;
-        binding.localGamesPageTitle.setVisibility(landscape ? View.GONE : View.VISIBLE);
-        // File manager and Settings are reached from the navigation (bottom bar in portrait, top
-        // icon tabs in landscape); Import is the last card of the game grid itself.
-        binding.localGamesCount.setVisibility(landscape ? View.GONE : View.VISIBLE);
-    }
-
     private void initializeLibrary() {
         GameStoragePaths paths = new GameStoragePaths(getFilesDir());
         libraryRepository = new GameLibraryRepository(
@@ -459,10 +442,12 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void showPage(int tab) {
+        resetExitConfirmation();
         if (tab == TAB_COMPONENTS && TextUtils.isEmpty(componentGameId)) tab = TAB_LIBRARY;
         selectedTab = tab == TAB_COMPONENTS ? TAB_COMPONENTS :
             (tab == TAB_SETTINGS ? TAB_SETTINGS : TAB_LIBRARY);
         if (selectedTab != TAB_SETTINGS) settingsPage = SettingsPage.ROOT;
+        if (selectedTab != TAB_COMPONENTS) componentPage = null;
         boolean showComponents = selectedTab == TAB_COMPONENTS;
         boolean showSettings = selectedTab == TAB_SETTINGS;
         binding.localGamesLibraryPage.setVisibility(
@@ -477,64 +462,31 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void updateChrome() {
-        boolean landscape = getResources().getConfiguration().orientation ==
-            Configuration.ORIENTATION_LANDSCAPE;
-        boolean gamesMode = appHost != null &&
-            appHost.getAppExperienceMode() == AppExperienceMode.GAMES;
-        boolean topTabs = LocalGamesBackNavigation.topTabsVisible(
-            landscape, selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS);
-        boolean bottomBar = LocalGamesBackNavigation.bottomBarVisible(
-            landscape, selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS);
-        binding.localGamesNavigation.setVisibility(bottomBar ? View.VISIBLE : View.GONE);
-        binding.localGamesNavigationDivider.setVisibility(bottomBar ? View.VISIBLE : View.GONE);
-        binding.localGamesTopTabs.setVisibility(topTabs ? View.VISIBLE : View.GONE);
-        // Sized when it becomes visible, unconditionally: its previous LayoutParams height may
-        // come from the other orientation. The re-request makes the window deliver the insets of
-        // the current orientation, and the post runs once this pass's layout has settled.
-        if (TopTabBarHeight.shouldApplyNow(topTabs)) {
-            applyTopTabBarHeight(true);
-            ViewCompat.requestApplyInsets(binding.localGamesTopTabs);
-            binding.localGamesTopTabs.post(() -> {
-                if (binding != null) applyTopTabBarHeight(true);
-            });
-        }
-        if (selectedTab != TAB_COMPONENTS) {
-            int highlighted = LocalGamesBackNavigation.highlight(
-                selectedTab == TAB_SETTINGS) == LocalGamesBackNavigation.Highlight.SETTINGS
-                ? R.id.local_games_navigation_settings : R.id.local_games_navigation_library;
-            // The top tabs are plain views and always follow; the bottom bar is already on the
-            // tapped item while its own listener runs.
-            syncTopTabSelection(highlighted);
-            if (!navigationUpdating) syncNavigationSelection(highlighted);
-        }
-        binding.localGamesToolbar.setVisibility(
-            selectedTab != TAB_LIBRARY || (!gamesMode && !landscape) ? View.VISIBLE : View.GONE);
+        navigation.setVisible(selectedTab != TAB_COMPONENTS);
+        navigation.setSelected(selectedTab == TAB_SETTINGS
+            ? R.id.local_games_navigation_settings : R.id.local_games_navigation_library);
+        navigation.updateConfiguration();
+        binding.localGamesToolbar.setVisibility(selectedTab == TAB_LIBRARY ? View.GONE : View.VISIBLE);
+        binding.localGamesLibraryToolbar.setVisibility(selectedTab == TAB_LIBRARY ? View.VISIBLE : View.GONE);
         if (selectedTab == TAB_COMPONENTS) {
-            binding.localGamesToolbar.setTitle(R.string.local_games_tab_components);
+            binding.localGamesToolbar.setNavigationIcon(R.drawable.local_games_ic_back);
+            binding.localGamesToolbar.setTitle(componentPage == null
+                ? R.string.local_games_tab_components : componentTypeLabel(componentPage));
         } else if (selectedTab == TAB_SETTINGS) {
-            binding.localGamesToolbar.setTitle(settingsPageTitle(settingsPage));
+            binding.localGamesToolbar.setNavigationIcon(null);
+            binding.localGamesToolbar.setTitle(null);
         } else {
             binding.localGamesToolbar.setTitle(R.string.local_games_title);
         }
     }
 
-    /** Handles a tap on a navigation destination of either chrome; returns whether the bottom bar
-     *  should select the item (the File manager entry never becomes selected). */
+    /** Root pages share navigation; this Activity owns the Wine and Settings content. */
     private boolean onNavigationDestination(int itemId) {
         // Programmatic syncs (showPage) must not re-enter navigation.
         if (navigationUpdating) return true;
-        if (itemId == R.id.local_games_navigation_file_manager) {
-            // An entry, not a tab: returning from the file manager lands on the Library.
-            if (LocalGamesBackNavigation.showsLibraryBeforeFileManager(
-                    selectedTab == TAB_LIBRARY)) {
-                showPage(TAB_LIBRARY);
-            }
-            startImportFlow();
-            return false;
-        }
-        if (itemId == R.id.local_games_navigation_desktop) {
-            // An entry like the file manager: the Desktop screen is separate and never highlighted.
-            startActivity(DesktopActivity.createIntent(this));
+        if (itemId != R.id.local_games_navigation_library &&
+            itemId != R.id.local_games_navigation_settings) {
+            UiNavigation.openDestination(this, itemId);
             return false;
         }
         boolean settings = itemId == R.id.local_games_navigation_settings;
@@ -543,71 +495,15 @@ public final class LocalGamesActivity extends AppCompatActivity {
         navigationUpdating = true;
         try {
             showPage(settings ? TAB_SETTINGS : TAB_LIBRARY);
+            navigation.animateContentChange();
         } finally {
             navigationUpdating = false;
         }
         return true;
     }
 
-    private boolean isLandscape() {
-        return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-    }
-
-    /** Sizes the landscape top tab bar to the system status bar: the live WindowInsets height if the
-     *  window is given it for the current orientation, else the orientation's
-     *  {@code status_bar_height*} resource, else 24 dp. The resource is read by name because that is
-     *  the only way to reach it; an unreadable value falls back. A hidden bar is not sized; with
-     *  {@code force} the height is applied even if it equals the current LayoutParams value, which
-     *  may have been resolved for the other orientation. */
-    @SuppressLint({"DiscouragedApi", "InternalInsetResource"})
-    private void applyTopTabBarHeight(boolean force) {
-        if (binding == null) return;
-        boolean visible = binding.localGamesTopTabs.getVisibility() == View.VISIBLE;
-        if (!TopTabBarHeight.shouldApplyNow(visible)) return;
-        boolean landscape = isLandscape();
-        int insetsPx = TopTabBarHeight.usableCachedInset(
-            dispatchedStatusBarInsetPx, dispatchedStatusBarInsetLandscape, landscape);
-        if (insetsPx < 0) {
-            insetsPx = 0;
-            WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(binding.localGamesRoot);
-            if (insets != null &&
-                TopTabBarHeight.rootInsetsTrusted(insetsDispatchedSinceConfigChange)) {
-                insetsPx = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
-            }
-        }
-        int resourcePx = 0;
-        for (String name : TopTabBarHeight.statusBarResourceNames(landscape)) {
-            int resourceId = getResources().getIdentifier(name, "dimen", "android");
-            resourcePx = resourceId > 0 ? getResources().getDimensionPixelSize(resourceId) : 0;
-            if (resourcePx > 0) break;
-        }
-        int height = TopTabBarHeight.resolve(insetsPx, resourcePx,
-            getResources().getDimensionPixelSize(R.dimen.local_games_top_tabs_fallback_height));
-        ViewGroup.LayoutParams params = binding.localGamesTopTabs.getLayoutParams();
-        if (TopTabBarHeight.needsApply(params.height, height, force)) {
-            params.height = height;
-            binding.localGamesTopTabs.setLayoutParams(params);
-        }
-    }
-
-    private void syncTopTabSelection(int menuItemId) {
-        binding.localGamesTopTabLibrary.setSelected(
-            menuItemId == R.id.local_games_navigation_library);
-        binding.localGamesTopTabSettings.setSelected(
-            menuItemId == R.id.local_games_navigation_settings);
-    }
-
-    /** Highlights the same destination in the bottom bar and the top tabs, without re-entering
-     *  navigation. */
     private void syncNavigationSelection(int menuItemId) {
-        boolean wasUpdating = navigationUpdating;
-        navigationUpdating = true;
-        try {
-            binding.localGamesNavigation.setSelectedItemId(menuItemId);
-            syncTopTabSelection(menuItemId);
-        } finally {
-            navigationUpdating = wasUpdating;
-        }
+        navigation.setSelected(menuItemId);
     }
 
     @Override
@@ -617,12 +513,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
         // scroll positions stay as they are; only the orientation-dependent chrome is re-laid out.
         dismissMoreMenu();
         if (binding == null) return;
-        // Everything cached for the previous orientation (dispatched inset, root insets) is stale
-        // now; the bar is re-sized from the new orientation's sources right away and again once the
-        // rotated layout and the new insets have arrived (updateChrome posts that pass).
-        dispatchedStatusBarInsetPx = -1;
-        insetsDispatchedSinceConfigChange = false;
-        configureResponsiveLibrary();
         updateChrome();
     }
 
@@ -681,6 +571,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         libraryExecutor.execute(() -> {
             List<GameLibraryItem> items = null;
             Map<String, BuildingTask> building = new HashMap<>();
+            Map<String, GameRuntimeBackendType> backends = new HashMap<>();
             String error = null;
             try {
                 // Containers and profiles that removed games or abandoned edits left behind are reclaimed
@@ -712,6 +603,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 }
                 for (GameLibraryItem item : items) {
                     profiles.find(item.getGame().getId()).ifPresent(profile -> {
+                        backends.put(item.getGame().getId(), profile.getRuntimeBackendType());
                         if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
                             String taskId = activeRootfsSetupByContainer.get(
                                 profile.getContainerId());
@@ -726,6 +618,9 @@ public final class LocalGamesActivity extends AppCompatActivity {
                             }
                         }
                     });
+                    if (!backends.containsKey(item.getGame().getId())) {
+                        throw new IOException("game_runtime_profile_missing:" + item.getGame().getId());
+                    }
                 }
             } catch (IOException loadError) {
                 error = safeMessage(loadError);
@@ -740,6 +635,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 if (failure == null) {
                     boolean unchanged = pollOnly && sameBuilding(buildingGameTasks, loadedBuilding);
                     buildingGameTasks = loadedBuilding;
+                    libraryBackends = backends;
                     if (!unchanged) renderLibrary(loaded, generation);
                     else binding.localGamesLibraryLoading.hide();
                     if (!loadedBuilding.isEmpty()) {
@@ -763,8 +659,6 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void renderLibrary(List<GameLibraryItem> items, int generation) {
         binding.localGamesLibraryLoading.hide();
         binding.localGamesLibraryError.setVisibility(View.GONE);
-        binding.localGamesCount.setText(getString(R.string.local_games_my_games_count,
-            items.size()));
         populateLibraryGrid(items, generation);
     }
 
@@ -784,21 +678,30 @@ public final class LocalGamesActivity extends AppCompatActivity {
         boolean landscape = getResources().getConfiguration().orientation ==
             Configuration.ORIENTATION_LANDSCAPE;
         renderedLibraryItems = items;
+        GameRuntimeBackendType backend = collectionToolbar.isProot()
+            ? GameRuntimeBackendType.ROOTFS_PROOT : GameRuntimeBackendType.GLIBC_TERMUX_BOX;
+        List<GameLibraryItem> visibleItems = new ArrayList<>();
+        for (GameLibraryItem item : items) {
+            if (libraryBackends.get(item.getGame().getId()) == backend) visibleItems.add(item);
+        }
+        binding.localGamesCount.setText(collectionToolbar.getRuntimeCountText(visibleItems.size()));
         renderedGridWidth = gridWidth;
-        libraryColumns = LibraryGridColumns.columnsFor(
+        libraryColumns = collectionToolbar.isList() ? 1 : LibraryGridColumns.columnsFor(
             Math.round(gridWidth / getResources().getDisplayMetrics().density), landscape);
         binding.localGamesLibraryItems.setColumnCount(libraryColumns);
-        for (int index = 0; index < items.size(); index++) {
-            GameLibraryItem item = items.get(index);
-            ItemLocalGameBinding row = ItemLocalGameBinding.inflate(
-                getLayoutInflater(), binding.localGamesLibraryItems, false);
+        for (int index = 0; index < visibleItems.size(); index++) {
+            GameLibraryItem item = visibleItems.get(index);
+            ItemLocalGameBinding row = ItemLocalGameBinding.bind(getLayoutInflater().inflate(
+                collectionToolbar.isList() ? R.layout.item_local_game_list : R.layout.item_local_game,
+                binding.localGamesLibraryItems, false));
             applyGameCardLayout(row.getRoot(), index);
             renderGameRow(row, item, generation);
             binding.localGamesLibraryItems.addView(row.getRoot());
         }
-        ItemLocalGameImportBinding importCard = ItemLocalGameImportBinding.inflate(
-            getLayoutInflater(), binding.localGamesLibraryItems, false);
-        applyGameCardLayout(importCard.getRoot(), LibraryGridColumns.importCardIndex(items.size()),
+        ItemLocalGameImportBinding importCard = ItemLocalGameImportBinding.bind(getLayoutInflater().inflate(
+            collectionToolbar.isList() ? R.layout.item_local_game_import_list : R.layout.item_local_game_import,
+            binding.localGamesLibraryItems, false));
+        applyGameCardLayout(importCard.getRoot(), LibraryGridColumns.importCardIndex(visibleItems.size()),
             true);
         importCard.getRoot().setOnClickListener(view -> startImportFlow());
         binding.localGamesLibraryItems.addView(importCard.getRoot());
@@ -836,7 +739,13 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void renderGameRow(ItemLocalGameBinding row, GameLibraryItem item, int generation) {
         Game game = item.getGame();
         row.localGameName.setText(game.getName());
-        row.localGameExecutable.setText(game.getExecutable());
+        GameRuntimeBackendType backend = libraryBackends.get(game.getId());
+        String runtime = getString(backend == null ? R.string.local_game_configuration_unconfigured
+            : backend == GameRuntimeBackendType.ROOTFS_PROOT
+                ? R.string.local_game_runtime_profile_backend_rootfs
+                : R.string.local_game_runtime_profile_backend_glibc);
+        row.localGameExecutable.setText(getString(R.string.local_game_configuration_executable,
+            runtime, game.getExecutable()));
         row.localGameAccessStatus.setText(accessLabel(item.getAccessState()));
         row.localGameAccessStatus.setTextColor(ContextCompat.getColor(this,
             item.getAccessState() == GameAccessState.ACCESSIBLE
@@ -930,12 +839,16 @@ public final class LocalGamesActivity extends AppCompatActivity {
         });
         content.gameActionsAssets.setOnClickListener(view -> {
             dialog.dismiss();
-            performGameAction(item, GAME_ACTION_BACKUP);
+            performGameAction(item, GAME_ACTION_STORAGE);
         });
-        content.gameActionsInput.setOnClickListener(view -> {
-            dialog.dismiss();
-            performGameAction(item, GAME_ACTION_CONTROLS);
-        });
+        if (libraryBackends.get(game.getId()) == GameRuntimeBackendType.ROOTFS_PROOT) {
+            content.gameActionsBackup.setOnClickListener(view -> {
+                dialog.dismiss();
+                performGameAction(item, GAME_ACTION_CDRIVE_BACKUP);
+            });
+        } else {
+            ((ViewGroup) content.gameActionsBackup.getParent()).removeView(content.gameActionsBackup);
+        }
         boolean reauthorize = item.getAccessState() != GameAccessState.ACCESSIBLE;
         if (reauthorize) {
             content.gameActionsReauthorize.setOnClickListener(view -> {
@@ -943,8 +856,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
                 performGameAction(item, GAME_ACTION_REAUTHORIZE);
             });
         } else {
-            // GridLayout keeps a cell for GONE children, which left a hole before Remove; take
-            // the cell out so Controls and Remove sit next to each other.
+            // Remove unused GridLayout cells so the remaining actions stay adjacent.
             ((ViewGroup) content.gameActionsReauthorize.getParent())
                 .removeView(content.gameActionsReauthorize);
         }
@@ -979,10 +891,11 @@ public final class LocalGamesActivity extends AppCompatActivity {
             GAME_ACTION_ENGINE);
         addTextPopupAction(content, popup, item, R.string.local_game_action_edit,
             GAME_ACTION_EDIT);
+        if (libraryBackends.get(item.getGame().getId()) == GameRuntimeBackendType.ROOTFS_PROOT) {
+            addTextPopupAction(content, popup, item, R.string.wine_cdrive_title, GAME_ACTION_CDRIVE_BACKUP);
+        }
         addTextPopupAction(content, popup, item, R.string.local_game_action_assets,
-            GAME_ACTION_BACKUP);
-        addTextPopupAction(content, popup, item, R.string.local_game_action_input,
-            GAME_ACTION_CONTROLS);
+            GAME_ACTION_STORAGE);
         if (item.getAccessState() != GameAccessState.ACCESSIBLE) {
             addTextPopupAction(content, popup, item, R.string.local_game_action_reauthorize,
                 GAME_ACTION_REAUTHORIZE);
@@ -1040,15 +953,17 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private int textPopupWidth(GameLibraryItem item) {
         int[] labels = item.getAccessState() == GameAccessState.ACCESSIBLE
             ? new int[] { R.string.local_game_action_engine, R.string.local_game_action_edit,
-                R.string.local_game_action_assets, R.string.local_game_action_input,
+                R.string.local_game_action_assets,
                 R.string.local_game_action_remove }
             : new int[] { R.string.local_game_action_engine, R.string.local_game_action_edit,
-                R.string.local_game_action_assets, R.string.local_game_action_input,
+                R.string.local_game_action_assets,
                 R.string.local_game_action_reauthorize, R.string.local_game_action_remove };
         android.text.TextPaint paint = new android.text.TextPaint();
         paint.setTextSize(getResources().getDisplayMetrics().scaledDensity * 16f);
         float widest = 0f;
         for (int label : labels) widest = Math.max(widest, paint.measureText(getString(label)));
+        if (libraryBackends.get(item.getGame().getId()) == GameRuntimeBackendType.ROOTFS_PROOT)
+            widest = Math.max(widest, paint.measureText(getString(R.string.wine_cdrive_title)));
         int wanted = Math.round(widest) + dp(48);
         // Never wider than the window (long labels, large font, split-screen).
         return Math.min(wanted, DialogSizing.maxWidthPx(
@@ -1059,14 +974,16 @@ public final class LocalGamesActivity extends AppCompatActivity {
         Game game = item.getGame();
         switch (action) {
             case GAME_ACTION_ENGINE:
-            case GAME_ACTION_CONTROLS:
                 startActivity(LocalGames.createRuntimeOptionsIntent(this, game.getId()));
                 return;
             case GAME_ACTION_EDIT:
                 startActivity(LocalGames.createGameDetailIntent(this, game.getId()));
                 return;
-            case GAME_ACTION_BACKUP:
+            case GAME_ACTION_STORAGE:
                 startActivity(LocalGames.createGameAssetsIntent(this, game.getId()));
+                return;
+            case GAME_ACTION_CDRIVE_BACKUP:
+                ensureBackupStoragePermission(() -> cdriveBackupFlow.show(game));
                 return;
             case GAME_ACTION_REAUTHORIZE:
                 startActivity(LocalGames.createReauthorizeIntent(this, game.getRootUri()));
@@ -1079,7 +996,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         }
     }
 
-    /** Dialog surface (glass fill, scrim): applied once when the sheet is shown. */
+    /** Dialog surface (glass fill, scrim): configured before the sheet is shown. */
     private void configurePresentationSurface(Dialog dialog) {
         Window window = dialog.getWindow();
         if (window == null) return;
@@ -1124,10 +1041,10 @@ public final class LocalGamesActivity extends AppCompatActivity {
             if (dialog.isShowing()) fitPresentationWindow(dialog, root, maxWidthDp);
         }));
         dialog.setContentView(root);
-        dialog.setOnShowListener(ignored -> {
-            configurePresentationSurface(dialog);
-            fitPresentationWindow(dialog, root, maxWidthDp);
-        });
+        // Dialog.show() attaches the window before delivering OnShowListener. Configure the final
+        // bounds first so WindowManager never animates from the theme's initial size and gravity.
+        configurePresentationSurface(dialog);
+        fitPresentationWindow(dialog, root, maxWidthDp);
         return dialog;
     }
 
@@ -1193,6 +1110,11 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private void loadCatalogAsync() {
         if (!started || selectedTab != TAB_COMPONENTS || !loadInFlight.compareAndSet(false, true)) {
+            return;
+        }
+        if (componentBackend == null) {
+            loadInFlight.set(false);
+            renderComponentBackendChoices();
             return;
         }
         if (catalogRepository == null) {
@@ -1270,60 +1192,171 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void renderCatalog(List<ComponentCatalogItem> items) {
+        componentCatalog = items;
         binding.localGamesComponentsLoading.setVisibility(View.GONE);
         binding.localGamesComponentsError.setVisibility(View.GONE);
         renderActiveInstallationConsoleAction();
         ensureComponentRows(items);
         for (ComponentCatalogItem item : items) {
-            renderComponent(componentRows.get(item.getDescriptor().getId()), item);
+            ItemLocalGamesComponentBinding row = componentRows.get(item.getDescriptor().getId());
+            if (row != null) renderComponent(row, item);
         }
     }
 
     private void ensureComponentRows(List<ComponentCatalogItem> items) {
-        if (componentRows.size() == items.size()) return;
+        List<ComponentCatalogItem> visible = new ArrayList<>();
+        for (ComponentCatalogItem item : items) {
+            if (componentPage == null || item.getDescriptor().getType() == componentPage) {
+                visible.add(item);
+            }
+        }
+        visible.sort((left, right) -> ComponentIndex.compareForPresentation(
+            left.getDescriptor(), right.getDescriptor()));
+        List<String> ids = new ArrayList<>();
+        for (ComponentCatalogItem item : visible) ids.add(item.getDescriptor().getId());
+        // Polling updates install actions in place, preserving focus and scroll in the sub-page.
+        if (renderedComponentPage == componentPage && ids.equals(renderedComponentIds)) return;
+        renderedComponentPage = componentPage;
+        renderedComponentIds = ids;
         componentRows.clear();
         binding.localGamesComponentSections.removeAllViews();
-        for (ComponentType type : ComponentType.values()) {
-            List<ComponentCatalogItem> sectionItems = new java.util.ArrayList<>();
-            for (ComponentCatalogItem item : items) {
-                if (item.getDescriptor().getType() == type) sectionItems.add(item);
-            }
-            sectionItems.sort((left, right) -> ComponentIndex.compareForPresentation(
-                left.getDescriptor(), right.getDescriptor()));
-            ItemLocalGamesComponentSectionBinding section = null;
-            for (ComponentCatalogItem item : sectionItems) {
-                if (section == null) {
-                    section = ItemLocalGamesComponentSectionBinding.inflate(
-                        getLayoutInflater(), binding.localGamesComponentSections, false);
-                    configureComponentSection(section, type);
-                    binding.localGamesComponentSections.addView(section.getRoot());
+        if (componentPage == null) {
+            SettingsMenuBuilder menu = new SettingsMenuBuilder(this, binding.localGamesComponentSections);
+            for (ComponentType type : ComponentType.values()) {
+                int count = 0;
+                for (ComponentCatalogItem item : items) {
+                    if (item.getDescriptor().getType() == type) count++;
                 }
+                if (count > 0) {
+                    menu.row(getString(componentTypeLabel(type)), null,
+                        view -> openComponentPage(type));
+                }
+            }
+        } else {
+            List<CustomRuntimeComponent.Kind> versionKinds = componentVersionKinds(componentPage);
+            if (!versionKinds.isEmpty()) {
+                SettingsMenuBuilder menu = new SettingsMenuBuilder(this,
+                    binding.localGamesComponentSections);
+                for (CustomRuntimeComponent.Kind kind : versionKinds) {
+                    menu.row(componentKindName(kind), null, view -> openComponentVersions(kind));
+                }
+            }
+            for (ComponentCatalogItem item : visible) {
+                if (managedVersionComponent(item.getDescriptor())) continue;
                 ItemLocalGamesComponentBinding row = ItemLocalGamesComponentBinding.inflate(
-                    getLayoutInflater(), section.localGamesComponentSectionItems, false);
-                section.localGamesComponentSectionItems.addView(row.getRoot());
+                    getLayoutInflater(), binding.localGamesComponentSections, false);
+                binding.localGamesComponentSections.addView(row.getRoot());
                 componentRows.put(item.getDescriptor().getId(), row);
             }
         }
     }
 
-    private void configureComponentSection(ItemLocalGamesComponentSectionBinding section,
-                                           ComponentType type) {
-        setComponentSectionExpanded(section, type, false);
-        section.localGamesComponentSectionTitle.setOnClickListener(view ->
-            setComponentSectionExpanded(section, type,
-                section.localGamesComponentSectionItems.getVisibility() != View.VISIBLE));
+    private void openComponentPage(@Nullable ComponentType type) {
+        resetExitConfirmation();
+        if (type != null) {
+            List<CustomRuntimeComponent.Kind> kinds = componentVersionKinds(type);
+            boolean hasBasicDependencies = false;
+            for (ComponentCatalogItem item : componentCatalog) {
+                if (item.getDescriptor().getType() == type &&
+                    !managedVersionComponent(item.getDescriptor())) {
+                    hasBasicDependencies = true;
+                    break;
+                }
+            }
+            if (kinds.size() == 1 && !hasBasicDependencies) {
+                openComponentVersions(kinds.get(0));
+                return;
+            }
+        }
+        componentPage = type;
+        renderCatalog(componentCatalog);
+        binding.localGamesComponentsPage.scrollTo(0, 0);
+        updateChrome();
+        updateSettingsBackCallback();
     }
 
-    private void setComponentSectionExpanded(ItemLocalGamesComponentSectionBinding section,
-                                             ComponentType type, boolean expanded) {
-        int label = componentTypeLabel(type);
-        section.localGamesComponentSectionTitle.setText(getString(expanded
-            ? R.string.local_games_component_section_expanded
-            : R.string.local_games_component_section_collapsed, getString(label)));
-        section.localGamesComponentSectionTitle.setContentDescription(getString(expanded
-            ? R.string.local_games_component_section_collapse
-            : R.string.local_games_component_section_expand, getString(label)));
-        section.localGamesComponentSectionItems.setVisibility(expanded ? View.VISIBLE : View.GONE);
+    private void renderComponentBackendChoices() {
+        binding.localGamesComponentsLoading.setVisibility(View.GONE);
+        binding.localGamesComponentsError.setVisibility(View.GONE);
+        componentRows.clear();
+        renderedComponentIds = Collections.emptyList();
+        renderedComponentPage = null;
+        SettingsMenuBuilder menu = new SettingsMenuBuilder(this,
+            binding.localGamesComponentSections);
+        menu.heading(getString(R.string.component_management_environment));
+        menu.row(getString(R.string.local_game_runtime_profile_backend_glibc), null,
+            view -> chooseComponentBackend(GameRuntimeBackendType.GLIBC_TERMUX_BOX));
+        menu.row(getString(R.string.local_game_runtime_profile_backend_rootfs), null,
+            view -> chooseComponentBackend(GameRuntimeBackendType.ROOTFS_PROOT));
+    }
+
+    private void chooseComponentBackend(GameRuntimeBackendType backend) {
+        componentBackend = backend;
+        componentPage = null;
+        scheduleCatalogRefresh(0);
+    }
+
+    private void openComponentVersions(CustomRuntimeComponent.Kind kind) {
+        if (componentBackend == null) {
+            renderComponentBackendChoices();
+            return;
+        }
+        resetExitConfirmation();
+        startActivity(RuntimeComponentVersionsActivity.createManageIntent(this, kind,
+            componentBackend));
+    }
+
+    private List<CustomRuntimeComponent.Kind> componentVersionKinds(ComponentType type) {
+        if (componentBackend == null || type == null) return Collections.emptyList();
+        List<CustomRuntimeComponent.Kind> result = new ArrayList<>();
+        switch (type) {
+            case CONTAINER:
+                result.add(CustomRuntimeComponent.Kind.WINE);
+                break;
+            case GPU_DRIVER:
+                if (componentBackend == GameRuntimeBackendType.GLIBC_TERMUX_BOX)
+                    result.add(CustomRuntimeComponent.Kind.TURNIP);
+                break;
+            case DX_WRAPPER:
+                result.add(CustomRuntimeComponent.Kind.DXVK);
+                if (componentBackend == GameRuntimeBackendType.GLIBC_TERMUX_BOX)
+                    result.add(CustomRuntimeComponent.Kind.VKD3D);
+                break;
+            case TRANSLATOR:
+                if (componentBackend == GameRuntimeBackendType.ROOTFS_PROOT)
+                    result.add(CustomRuntimeComponent.Kind.WINE);
+                result.add(CustomRuntimeComponent.Kind.BOX64);
+                break;
+            default:
+                break;
+        }
+        return result;
+    }
+
+    private static boolean managedVersionComponent(ComponentDescriptor descriptor) {
+        switch (descriptor.getType()) {
+            case CONTAINER:
+            case TRANSLATOR:
+                return true;
+            case GPU_DRIVER:
+                return "turnip".equals(descriptor.getId());
+            case DX_WRAPPER:
+                return "dxvk".equals(descriptor.getId()) ||
+                    descriptor.getId().startsWith("rootfs_dxvk_");
+            default:
+                return false;
+        }
+    }
+
+    private static String componentKindName(CustomRuntimeComponent.Kind kind) {
+        switch (kind) {
+            case WINE: return "Wine";
+            case BOX64: return "Box64";
+            case DXVK: return "DXVK";
+            case VKD3D: return "VKD3D";
+            case TURNIP: return "Turnip";
+            default: throw new IllegalArgumentException("unsupported_component_kind:" + kind);
+        }
     }
 
     private void renderComponent(ItemLocalGamesComponentBinding row,
@@ -1607,7 +1640,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private void showComponentInstallationConsole(String componentId, String taskId) {
         if (TERMUX_GLIBC_ID.equals(componentId)) {
-            RuntimeSetupConsoleDialog.show(this, taskId,
+            RuntimeSetupConsoleDialog.showComponent(this, taskId,
                 R.string.local_games_component_console_title);
         } else {
             ComponentTaskConsoleDialog.show(this, taskId);
@@ -1643,7 +1676,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private boolean requiresRuntimeActivation(ComponentCatalogItem item) {
         if (item.getState() != ComponentCatalogState.INSTALLED ||
             !item.getDescriptor().supportsBackend(
-                com.termux.ui.domain.GameRuntimeBackendType.GLIBC_TERMUX_BOX)) {
+                com.termux.ui.wine.domain.GameRuntimeBackendType.GLIBC_TERMUX_BOX)) {
             return false;
         }
         if (appHost == null) return true;
@@ -1685,13 +1718,14 @@ public final class LocalGamesActivity extends AppCompatActivity {
         binding.localGamesComponentsError.setVisibility(View.VISIBLE);
     }
 
-    /** Fail-fast "ToC" entry point for every "Import game" affordance on this screen -- stops
-     *  the user at tap-time when a required runtime is missing, rather than after they've picked
-     *  a folder and scanned it in GameImportActivity (whose own gate remains the authoritative
-     *  backstop, covering GameFileManagerActivity's "import as game" action too). */
+    /** The file picker imports into the explicitly selected Wine collection. */
     private void startImportFlow() {
-        GameImportReadinessGate.require(this, libraryExecutor, () ->
-            startActivity(LocalGames.createFileManagerIntent(this)));
+        startActivity(UiNavigation.tabIntent(LocalGames.createFileManagerIntent(this))
+            .putExtra(GameFileManagerActivity.EXTRA_IMPORT_BACKEND,
+                (collectionToolbar.isProot() ? GameRuntimeBackendType.ROOTFS_PROOT
+                    : GameRuntimeBackendType.GLIBC_TERMUX_BOX).getStorageValue())
+            .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+        overridePendingTransition(0, 0);
     }
 
     /** Refreshes the readiness shown on the Native / Proot Environment rows in Settings. */
@@ -1738,28 +1772,54 @@ public final class LocalGamesActivity extends AppCompatActivity {
         });
     }
 
-    // ---- Settings menu: first level and the Native / Proot Environment pages ----
+    // ---- Settings > Core components > Native / Proot ----
 
     private String settingsPageTitle(SettingsPage page) {
         switch (page) {
-            case NATIVE: return getString(R.string.local_games_settings_native_environment);
-            case PROOT: return getString(R.string.local_games_settings_proot_environment);
+            case CORE_COMPONENTS: return getString(R.string.local_games_settings_core_components);
+            case NATIVE: return getString(R.string.collection_mode_native);
+            case PROOT: return getString(R.string.collection_mode_proot);
             default: return getString(R.string.local_games_settings_title);
         }
     }
 
     private void updateSettingsBackCallback() {
         if (settingsBackCallback != null) {
-            settingsBackCallback.setEnabled(LocalGamesBackNavigation.interceptsSystemBack(
-                selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS, settingsPage.isRoot()));
+            settingsBackCallback.setEnabled(selectedTab == TAB_LIBRARY || LocalGamesBackNavigation.interceptsSystemBack(
+                selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS, settingsPage.isRoot(),
+                selectedTab == TAB_COMPONENTS, componentPage == null));
         }
     }
 
-    /** Performs one back step inside this screen; returns false when the Library tab is showing
-     *  and nothing was navigated (the caller then leaves the screen). */
+    private void navigateBackOrConfirmExit() {
+        if (navigateBackInLibraryScreen()) {
+            resetExitConfirmation();
+            return;
+        }
+        if (exitConfirmation.onBack(android.os.SystemClock.elapsedRealtime())) {
+            if (exitToast != null) exitToast.cancel();
+            LocalGames.requireHost(this).exitApp();
+        } else {
+            if (exitToast != null) exitToast.cancel();
+            exitToast = Toast.makeText(this, R.string.local_games_back_again_exit, Toast.LENGTH_SHORT);
+            exitToast.show();
+        }
+    }
+
+    private void resetExitConfirmation() {
+        exitConfirmation.reset();
+        if (exitToast != null) exitToast.cancel();
+        exitToast = null;
+    }
+
+    /** Performs one navigation step; false means the caller should confirm app exit. */
     private boolean navigateBackInLibraryScreen() {
         switch (LocalGamesBackNavigation.resolve(
-            selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS, settingsPage.isRoot())) {
+            selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS, settingsPage.isRoot(),
+            selectedTab == TAB_COMPONENTS, componentPage == null)) {
+            case GO_UP_IN_COMPONENTS:
+                openComponentPage(null);
+                return true;
             case GO_UP_IN_SETTINGS:
                 goBackInSettings();
                 return true;
@@ -1772,6 +1832,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
     }
 
     private void openSettingsPage(SettingsPage page) {
+        resetExitConfirmation();
         settingsPage = page;
         renderSettingsMenu();
         updateChrome();
@@ -1786,13 +1847,18 @@ public final class LocalGamesActivity extends AppCompatActivity {
     private void renderSettingsMenu() {
         if (binding == null) return;
         SettingsMenuBuilder menu = new SettingsMenuBuilder(this, binding.localGamesSettingsMenu);
-        // updateChrome() shows this page's title in the toolbar while the Settings tab is selected,
-        // so a big heading with the same text underneath would only repeat it.
+        // The toolbar only holds Help; sub-pages carry their title in the content.
         String pageTitle = settingsPageTitle(settingsPage);
-        if (!SettingsMenuBuilder.repeatsToolbarTitle(selectedTab == TAB_SETTINGS, pageTitle, pageTitle)) {
+        if (!settingsPage.isRoot()) {
             menu.heading(pageTitle);
         }
         switch (settingsPage) {
+            case CORE_COMPONENTS:
+                menu.row(getString(R.string.collection_mode_native),
+                    environmentStateLabel(glibcStatus), view -> openSettingsPage(SettingsPage.NATIVE));
+                menu.row(getString(R.string.collection_mode_proot),
+                    environmentStateLabel(rootfsStatus), view -> openSettingsPage(SettingsPage.PROOT));
+                break;
             case NATIVE:
                 renderEnvironmentPage(menu, glibcStatus, this::buildNativeFromNetwork);
                 break;
@@ -1813,23 +1879,30 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private void renderSettingsRoot(SettingsMenuBuilder menu) {
         String modeTitle = getString(R.string.local_games_app_mode_title);
-        String terminalTitle = getString(R.string.local_games_open_terminal);
         if (appHost != null) {
             String[] modes = {getString(R.string.local_games_app_mode_terminal),
                 getString(R.string.local_games_app_mode_games)};
             int checked = appHost.getAppExperienceMode() == AppExperienceMode.GAMES ? 1 : 0;
             menu.choice(modeTitle, modes, checked, which -> confirmAppExperienceSwitch(
                 which == 1 ? AppExperienceMode.GAMES : AppExperienceMode.TERMINAL));
-            menu.row(terminalTitle, null, view -> appHost.openTerminal());
         } else {
             menu.row(modeTitle, null, null);
-            menu.row(terminalTitle, null, null);
         }
-        menu.row(getString(R.string.local_games_settings_native_environment),
-            environmentStateLabel(glibcStatus), view -> openSettingsPage(SettingsPage.NATIVE));
-        menu.row(getString(R.string.local_games_settings_proot_environment),
-            environmentStateLabel(rootfsStatus), view -> openSettingsPage(SettingsPage.PROOT));
+        menu.row(getString(R.string.local_games_settings_core_components),
+            getString(R.string.local_games_settings_core_components_summary),
+            view -> openSettingsPage(SettingsPage.CORE_COMPONENTS));
         XServerSettings.render(this, menu, this::renderSettingsMenu);
+        UiThemePreference[] themes = UiThemePreference.values();
+        String[] themeLabels = new String[themes.length];
+        for (int index = 0; index < themes.length; index++) {
+            themeLabels[index] = getString(themes[index].getLabelRes());
+        }
+        menu.choice(getString(R.string.local_games_settings_theme), themeLabels,
+            UiThemePreference.load(this).ordinal(), which -> {
+                themes[which].save(this);
+                renderSettingsMenu();
+                UiThemePreference.applyTo(this);
+            });
         OrientationPreference[] choices = OrientationPreference.values();
         String[] labels = new String[choices.length];
         for (int index = 0; index < choices.length; index++) labels[index] = orientationLabel(choices[index]);
@@ -1928,7 +2001,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     private void installGlibcRuntime() {
         String taskId = ComponentTasks.enqueue(this, TERMUX_GLIBC_ID);
-        RuntimeSetupConsoleDialog.show(this, taskId)
+        RuntimeSetupConsoleDialog.showComponent(this, taskId, R.string.local_games_component_console_title)
             .setOnDismissListener(dialog -> renderRuntimeStatus());
         mainHandler.postDelayed(this::renderRuntimeStatus, 400);
     }
@@ -2055,7 +2128,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
         // disposable id instead of forcing a game context here.
         String taskId = RuntimeSetupTasks.enqueueBaseOnly(this, "debian-13-games-rootfs",
             "shared-rebuild-" + UUID.randomUUID());
-        RuntimeSetupConsoleDialog.show(this, taskId)
+        RuntimeSetupConsoleDialog.show(this, taskId, R.string.local_games_component_console_title)
             .setOnDismissListener(dialog -> renderRuntimeStatus());
         mainHandler.postDelayed(this::renderRuntimeStatus, 400);
     }
@@ -2118,6 +2191,7 @@ public final class LocalGamesActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (cdriveBackupFlow != null) cdriveBackupFlow.release();
         RuntimeBackupFlow.instance().detach(this);
         catalogExecutor.shutdownNow();
         libraryExecutor.shutdownNow();

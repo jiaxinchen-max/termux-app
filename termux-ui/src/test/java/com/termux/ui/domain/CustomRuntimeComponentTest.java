@@ -1,10 +1,12 @@
 package com.termux.ui.domain;
 
+import com.termux.ui.wine.domain.RuntimeTranslator;
+
+import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
-
-import org.junit.Test;
 
 public class CustomRuntimeComponentTest {
 

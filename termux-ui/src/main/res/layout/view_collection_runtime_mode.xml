@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@id/local_games_action_runtime_mode"
+    android:layout_width="64dp"
+    android:layout_height="48dp"
+    android:background="?attr/selectableItemBackgroundBorderless"
+    android:clickable="true"
+    android:focusable="true">
+
+    <ImageView
+        android:id="@+id/collection_runtime_icon"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="2dp"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/collection_runtime_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="2dp"
+        android:background="@color/local_games_background"
+        android:fontFamily="sans-serif-medium"
+        android:includeFontPadding="false"
+        android:importantForAccessibility="no"
+        android:paddingStart="3dp"
+        android:paddingEnd="3dp"
+        android:singleLine="true"
+        android:textColor="@color/local_games_primary_text"
+        android:textSize="11sp" />
+</FrameLayout>

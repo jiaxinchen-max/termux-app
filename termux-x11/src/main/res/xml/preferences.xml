@@ -9,6 +9,7 @@
         <Preference app:title="@string/pref_other" app:fragment="other" />
         <Preference app:key="version" app:title="@string/pref_version" />
     </PreferenceScreen>
+    <PreferenceScreen app:key="data" app:title="@string/terminal_data" />
     <PreferenceScreen app:key="output">
         <ListPreference app:key="displayResolutionMode" app:defaultValue="native" app:entries="@array/displayResolutionVariants" app:entryValues="@array/displayResolutionVariants"  />
         <SeekBarPreference app:key="displayScale" app:defaultValue="100" app:min="30" android:max="300" app:seekBarIncrement="10" app:showSeekBarValue="true" app:updatesContinuously="true" />

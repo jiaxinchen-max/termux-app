@@ -7,9 +7,9 @@ package com.termux.ui.activity;
  * a sub-level (the Controller page under Operation) first goes back one level up. BACK
  * never asks to exit the game; leaving is the Exit button's job.
  */
-final class GameSessionBackPolicy {
+public final class GameSessionBackPolicy {
 
-    enum Action {
+    public enum Action {
         /** The drawer is closed: slide it in. */
         OPEN_DRAWER,
         /** The drawer is open inside a sub-level (the Controller page): go back one level up. */
@@ -21,11 +21,11 @@ final class GameSessionBackPolicy {
     }
 
     /** One physical BACK can arrive through several routes; repeats this close together are one. */
-    static final long DUPLICATE_WINDOW_MS = 250L;
+    public static final long DUPLICATE_WINDOW_MS = 250L;
 
     private GameSessionBackPolicy() {}
 
-    static Action decide(boolean drawerOpen, boolean drawerHasSubLevel,
+    public static Action decide(boolean drawerOpen, boolean drawerHasSubLevel,
                          boolean dialogShowingOrPending) {
         if (dialogShowingOrPending) return Action.IGNORE;
         if (!drawerOpen) return Action.OPEN_DRAWER;
@@ -33,7 +33,7 @@ final class GameSessionBackPolicy {
     }
 
     /** True when {@code nowMs} is a repeat of the BACK handled at {@code lastHandledMs}. */
-    static boolean isDuplicate(long lastHandledMs, long nowMs) {
+    public static boolean isDuplicate(long lastHandledMs, long nowMs) {
         return lastHandledMs >= 0 && nowMs >= lastHandledMs && nowMs - lastHandledMs < DUPLICATE_WINDOW_MS;
     }
 }

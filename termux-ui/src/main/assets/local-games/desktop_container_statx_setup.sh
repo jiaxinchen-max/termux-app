@@ -63,7 +63,7 @@ configure_proot_statx() { # explicit-backend bundled-library bundled-runner
     [ "$(id -u)" = 0 ] || { echo 'ERROR: statx setup requires the selected root container' >&2; return 69; }
     statx_library_source="$2"
     statx_runner_source="$3"
-    statx_library_hash=92c351c40c267ec620cce42a9ae97f0ccd4600cff91848130f33ae5557e87fce
+    statx_library_hash=cc47aae3d46589bda4138b1fee328476d3beb51b5b56865731826b633ab8b997
     [ "$(statx_file_sha "$statx_library_source")" = "$statx_library_hash" ] || {
         echo 'ERROR: bundled statx library checksum mismatch' >&2; return 65;
     }

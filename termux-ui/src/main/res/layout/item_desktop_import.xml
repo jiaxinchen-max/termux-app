@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Import is an action card beside Add desktop, with pending-import logs in its own menu. -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/desktop_import_card"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:contentDescription="@string/desktop_import"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    android:minHeight="@dimen/desktop_action_card_min_height"
+    app:cardBackgroundColor="@color/local_games_surface"
+    app:cardCornerRadius="4dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/local_games_outline"
+    app:strokeWidth="1dp">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:minHeight="@dimen/desktop_action_card_min_height"
+            android:orientation="vertical"
+            android:padding="6dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/local_games_ic_download"
+                app:tint="@color/local_games_on_surface" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:importantForAccessibility="no"
+                android:letterSpacing="0.02"
+                android:text="@string/desktop_import"
+                android:textColor="@color/local_games_on_surface"
+                android:textSize="11sp" />
+        </LinearLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/desktop_import_more"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="bottom|end"
+            android:contentDescription="@string/desktop_more"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:padding="0dp"
+            android:text="⋯"
+            android:textColor="@color/local_games_on_surface"
+            android:textSize="14sp"
+            android:visibility="gone" />
+    </FrameLayout>
+</com.google.android.material.card.MaterialCardView>

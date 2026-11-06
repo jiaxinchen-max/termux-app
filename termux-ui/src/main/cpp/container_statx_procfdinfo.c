@@ -13,9 +13,9 @@
 static int procfdinfo_statx(int, const char *, int, unsigned int, struct statx *);
 __attribute__((constructor)) static void require_explicit_mode(void)
 {
-    const char *mode = getenv("TERMUX_PROOT_STATX_MODE");
+    const char *mode = getenv("UCF_TERMUX_PROOT_STATX_MODE");
     if (!mode || strcmp(mode, "proc-fdinfo") != 0) {
-        static const char message[] = "statx backend requires TERMUX_PROOT_STATX_MODE=proc-fdinfo\n";
+        static const char message[] = "statx backend requires UCF_TERMUX_PROOT_STATX_MODE=proc-fdinfo\n";
         write(2, message, sizeof(message) - 1);
         _exit(64);
     }

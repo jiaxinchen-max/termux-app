@@ -71,7 +71,7 @@
         android:background="@drawable/desktop_bg_tab_on"
         android:gravity="center"
         android:text="✓"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/local_games_on_primary"
         android:textSize="11sp"
         android:visibility="gone"
         tools:ignore="HardcodedText" />

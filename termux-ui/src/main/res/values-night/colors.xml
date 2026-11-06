@@ -10,6 +10,7 @@
     <color name="local_games_surface_elevated">#99503E34</color>
     <color name="local_games_surface_high">#A85C4A3F</color>
     <color name="local_games_surface_pressed">#40E3A35C</color>
+    <color name="local_games_selected_surface">#3A2B20</color>
     <color name="local_games_outline">#1AFFE8CE</color>
     <color name="local_games_on_surface">#F3EBE2</color>
     <color name="local_games_on_surface_secondary">#B3A598</color>
@@ -42,8 +43,8 @@
     <color name="local_games_icon_file_front">#F3EBE2</color>
     <color name="local_games_icon_file_fold">#8C7C6B</color>
     <color name="local_games_icon_warning">#F4B45F</color>
-    <color name="local_games_terminal_background">#FF000000</color>
-    <color name="local_games_terminal_text">#FFFFFFFF</color>
+    <color name="local_games_terminal_background">#17110D</color>
+    <color name="local_games_terminal_text">#F3EBE2</color>
     <color name="local_games_terminal_secondary">#B3A598</color>
     <color name="local_games_log_warn">#F4B45F</color>
     <color name="local_games_log_warn_container">#26F4B45F</color>
@@ -51,4 +52,23 @@
     <color name="local_games_system_bar_legacy">#17110D</color>
     <!-- true: light system bars icons are dark (light mode) -->
     <bool name="local_games_light_system_bars">false</bool>
+    <!-- ANSI 0–15, tuned for the UI terminal surface. -->
+    <array name="local_games_terminal_ansi">
+        <item>#42342B</item>
+        <item>#F0837A</item>
+        <item>#7FD3A4</item>
+        <item>#E6BC78</item>
+        <item>#8DB9F0</item>
+        <item>#D8A1DA</item>
+        <item>#85D2CE</item>
+        <item>#E1D6CB</item>
+        <item>#8C7C6B</item>
+        <item>#FF9B91</item>
+        <item>#9BE5BB</item>
+        <item>#F4D29A</item>
+        <item>#ACCEFA</item>
+        <item>#E9B7EB</item>
+        <item>#A2E3DF</item>
+        <item>#FFF7EE</item>
+    </array>
 </resources>

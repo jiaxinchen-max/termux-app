@@ -2,12 +2,12 @@ package com.termux.ui.data;
 
 import androidx.annotation.Nullable;
 
-/** The menu level currently shown on the Settings page. The first level lists the settings; the two
- *  environment entries open a second-level menu of their own. */
+/** Settings > Core components > Native / Proot. */
 public enum SettingsPage {
     ROOT(null),
-    NATIVE(ROOT),
-    PROOT(ROOT);
+    CORE_COMPONENTS(ROOT),
+    NATIVE(CORE_COMPONENTS),
+    PROOT(CORE_COMPONENTS);
 
     @Nullable private final SettingsPage parent;
 

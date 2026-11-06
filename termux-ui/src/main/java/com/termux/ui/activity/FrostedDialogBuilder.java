@@ -14,14 +14,14 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
  * zero insets, so the 8 dp radius, the hairline and the API 31+ blur region all come from one
  * shape, and the page behind gets the warm light-mode scrim ({@link FrostedWindow#applyScrim}).
  */
-final class FrostedDialogBuilder extends MaterialAlertDialogBuilder {
+public final class FrostedDialogBuilder extends MaterialAlertDialogBuilder {
 
-    FrostedDialogBuilder(@NonNull Context context) {
+    public FrostedDialogBuilder(@NonNull Context context) {
         super(context);
         removeBackgroundInsets();
     }
 
-    FrostedDialogBuilder(@NonNull Context context, @StyleRes int overrideThemeResId) {
+    public FrostedDialogBuilder(@NonNull Context context, @StyleRes int overrideThemeResId) {
         super(context, overrideThemeResId);
         removeBackgroundInsets();
     }

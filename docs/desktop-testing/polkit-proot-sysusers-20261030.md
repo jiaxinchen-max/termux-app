@@ -47,3 +47,11 @@ cc -std=c11 -O2 -fPIC -shared -Wall -Wextra -Werror \
 初版 final 只在 run-config 中设置 frontend，遗漏恢复函数直接执行 APT 时的前置 dpkg-preconfigure。final-v2 在恢复子shell入口显式 export，未更改维护脚本、恢复算法或原错误处理。
 
 `test-proot-restore-frontend.sh` 在独立 rootfs 将 polkitd 设为历史 no-op fixture，父环境刻意设为 dialog，直接调用生产 restore 函数执行真实签名 APT 同版本重装。APT Pre-Install-Pkgs 实际子进程 hook 核验 noninteractive；恢复后父环境仍为 dialog、无 preload 泄漏，原 postinst 字节恢复且 audit 为空。日志为 `final-v2-real-restore-frontend-test.log`。脚本契约另核验 download/simulation/install 三个 APT 子进程都收到 noninteractive，并保持原失败码和父环境。
+
+## 2026-11-05：ucf/ucfr 环境清理兼容
+
+全新 forky Plasma 安装暴露出参数传递缺陷：ucf 保留 LD_PRELOAD 但清除 TERMUX_*；ucfr 的白名单更窄，也清除 DEB_*。两者都保留 UCF_*，因此生产 runner 与适配库统一使用 UCF_TERMUX_PROOT_STATX_MODE=proc-fdinfo。缺参、非法值仍退出64，没有其他后端；未修改发行版维护脚本。
+
+构建在用户指定的 builder@120.24.191.156:6022 完成，使用隔离 Debian trixie amd64 编译 rootfs 的 GCC14.2 ARM64交叉编译器。新源SHA256为63eccff3d234c932783882b49c2e4733a96c67d9dc7bd1a1d3ccf722481f5e0b；库SHA256为cc47aae3d46589bda4138b1fee328476d3beb51b5b56865731826b633ab8b997，仍要求GLIBC2.38。
+
+模拟器正式App终端以单进程临时绑定候选库及runner：真实ucf/ucfr、缺参/非法值64、ARM64 statx边界与fdinfo EACCES保留均通过，退出0；合同测试和最终APK构建通过。最终生产APK已部署，原参数UI安装重试exit0；正式安装库再次经App终端完成同一组真实回归。dpkg --audit为空，十个原先失败的包均为install ok installed；libdebuginfod-common与samba-common原postinst配置前后SHA256一致。

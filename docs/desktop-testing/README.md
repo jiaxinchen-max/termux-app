@@ -1,12 +1,14 @@
 # 桌面（XFCE4 / KWin Plasma）进度、测试工具与 TODO
 
+整个项目的模块结构、当前功能状态与未完成验收见 [工程状态](../project-status.md)。本文件保留桌面专项及历史 TODO，逐日验证记录用于说明各版本的实际边界。
+
 ## 1. 组件与版本
 
 | 组件 | 仓库 / 分支 | 当前版本 |
 |---|---|---|
-| App | jiaxinchen-max/termux-app `master-x11-submodule-tmp` | 桌面修复与 r27/r7 固定安装清单，基于 `280cbe79` |
-| X server（Xlorie） | jiaxinchen-max/xserver `termuxdc` | release `termux-xlorie-21.1.16-r7`，xorg-server 21.1.16-7（需 hold） |
-| KWin | jiaxinchen-max/kwin `Plasma/6.6` | release `termux-hwaccel-6.6-r27`（kwin 6.6.0-27） |
+| App | jiaxinchen-max/termux-app `master-x11-submodule-tmp` | 桌面修复与 r28/r9 固定安装清单 |
+| X server（Xlorie） | jiaxinchen-max/xserver `codex/gnome-glx-swap-event` | release `termux-xlorie-21.1.16-r9`，xorg-server 21.1.16-9（需 hold） |
+| KWin | jiaxinchen-max/kwin `codex/kwin-r28-egl-teardown` | release `termux-hwaccel-6.6-r28`（kwin 6.6.0-28） |
 | 容器 Mesa | lfdevs/mesa-for-android-container（`mesa-*` tag） | 完整 Mesa 覆盖层，提供 Turnip ICD |
 
 `DesktopLaunchSpec.RELEASE_TAG` 与 `desktop_install.sh` 里的 deb 文件名/SHA256 必须同步更新。

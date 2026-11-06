@@ -26,7 +26,7 @@ public final class CappedHeightLinearLayout extends LinearLayout {
         super(context, attrs, defStyleAttr);
     }
 
-    void setCapHeight(boolean capHeight) {
+    public void setCapHeight(boolean capHeight) {
         if (this.capHeight == capHeight) return;
         this.capHeight = capHeight;
         requestLayout();

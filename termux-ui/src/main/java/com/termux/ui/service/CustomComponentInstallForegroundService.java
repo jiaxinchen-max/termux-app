@@ -20,13 +20,19 @@ import com.termux.ui.api.LocalGames;
 import com.termux.ui.api.LocalGamesHost;
 import com.termux.ui.api.RuntimeSetupRequest;
 import com.termux.ui.data.CustomComponentInstallSpecCodec;
+import com.termux.ui.data.CustomComponentInstallation;
 import com.termux.ui.data.FileCustomComponentInstallTaskRepository;
 import com.termux.ui.data.FileCustomRuntimeComponentRepository;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.domain.CustomComponentInstallTask;
 import com.termux.ui.domain.CustomComponentInstallTaskState;
 import com.termux.ui.domain.CustomRuntimeComponent;
-import com.termux.ui.domain.RuntimeTranslator;
+import com.termux.ui.wine.domain.RuntimeTranslator;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.service.RootfsBackupForegroundService;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -39,9 +45,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.json.JSONException;
-import org.json.JSONObject;
 
 /** Persistent owner for installing a user-picked local Wine/Box64 build into the shared RootFS --
  *  mirrors RootfsBackupForegroundService's reconcile-loop shape. Unlike that service, SUCCEEDED
@@ -92,7 +95,9 @@ public final class CustomComponentInstallForegroundService extends Service {
                         optionalTranslator(intent.getStringExtra(CustomComponentInstallTasks.EXTRA_TRANSLATOR)),
                         requiredText(intent.getStringExtra(CustomComponentInstallTasks.EXTRA_DISPLAY_NAME)),
                         requiredText(intent.getStringExtra(CustomComponentInstallTasks.EXTRA_PAYLOAD_PATH)),
-                        requiredText(intent.getStringExtra(CustomComponentInstallTasks.EXTRA_SHA256)));
+                        requiredText(intent.getStringExtra(CustomComponentInstallTasks.EXTRA_SHA256)),
+                        GameRuntimeBackendType.fromStorageValue(requiredText(
+                            intent.getStringExtra(CustomComponentInstallTasks.EXTRA_BACKEND))));
                 } else if (CustomComponentInstallTasks.ACTION_RECONCILE.equals(action)) {
                     reconcile(requiredTask(requiredId(taskId)));
                 } else if (CustomComponentInstallTasks.ACTION_RECONCILE_ALL.equals(action)) {
@@ -117,7 +122,8 @@ public final class CustomComponentInstallForegroundService extends Service {
     }
 
     private void enqueue(String taskId, String componentId, CustomRuntimeComponent.Kind kind,
-            RuntimeTranslator translator, String displayName, String payloadPath, String sha256)
+            RuntimeTranslator translator, String displayName, String payloadPath, String sha256,
+            GameRuntimeBackendType backendType)
             throws Exception {
         if (tasks.find(taskId).isPresent()) return;
         // The UI stages the SAF-drained file at a path of its own choosing (it does not know
@@ -127,6 +133,12 @@ public final class CustomComponentInstallForegroundService extends Service {
         // restart-recovery path in reconcile().
         File staged = stagedPayloadFile(taskId);
         File source = new File(payloadPath);
+        String stagingRoot = paths.getCustomComponentStagingDirectory().getCanonicalPath() + File.separator;
+        if (!source.getCanonicalPath().startsWith(stagingRoot) || !source.isFile()) {
+            throw new IOException("custom_install_payload_outside_staging");
+        }
+        // Validate the full target before moving the staged payload or persisting work.
+        new CustomRuntimeComponent(componentId, kind, translator, displayName, 1, sha256, backendType);
         if (!source.getCanonicalFile().equals(staged.getCanonicalFile())) {
             File parent = staged.getParentFile();
             if (!parent.isDirectory() && !parent.mkdirs()) {
@@ -135,7 +147,7 @@ public final class CustomComponentInstallForegroundService extends Service {
             if (!source.renameTo(staged)) throw new IOException("custom_install_staging_move_failed");
         }
         CustomComponentInstallTask task = CustomComponentInstallTask.queued(taskId, componentId,
-            kind, translator, displayName, sha256, System.currentTimeMillis());
+            kind, translator, displayName, sha256, System.currentTimeMillis(), backendType);
         tasks.save(task);
         prepareAndStart(task, staged);
     }
@@ -143,13 +155,8 @@ public final class CustomComponentInstallForegroundService extends Service {
     private void prepareAndStart(CustomComponentInstallTask task, File payload) throws Exception {
         if (!submitted.add(task.getTaskId())) return;
         try {
-            // A WINE-kind task with no translator came from the GLIBC_TERMUX_BOX "Wine package"
-            // row (see GameRuntimeOptionsView) -- that backend has no ROOTFS-style translator
-            // choice, which is exactly how CustomRuntimeComponent/CustomComponentInstallTask tell
-            // the two install targets apart (see their own doc comments).
             LaunchScriptInstaller installer = new LaunchScriptInstaller(this, paths);
-            boolean glibc = task.getKind() == CustomRuntimeComponent.Kind.WINE
-                && task.getTranslator() == null;
+            boolean glibc = task.getBackendType() == GameRuntimeBackendType.GLIBC_TERMUX_BOX;
             File script = glibc ? installer.installCustomGlibcWineComponentScript()
                 : installer.installCustomComponentScript();
             File spec = new File(paths.getCustomComponentInstallSpecsDirectory(),
@@ -218,7 +225,10 @@ public final class CustomComponentInstallForegroundService extends Service {
     private void registerComponent(CustomComponentInstallTask task) throws IOException {
         CustomRuntimeComponent entry = new CustomRuntimeComponent(task.getComponentId(),
             task.getKind(), task.getTranslator(), task.getDisplayName(),
-            System.currentTimeMillis() / 1000, task.getSha256());
+            System.currentTimeMillis() / 1000, task.getSha256(), task.getBackendType());
+        if (!CustomComponentInstallation.isAvailable(paths, entry)) {
+            throw new IOException("custom_component_published_payload_invalid");
+        }
         new FileCustomRuntimeComponentRepository(paths.getCustomRuntimeComponentsDirectory())
             .save(entry);
     }

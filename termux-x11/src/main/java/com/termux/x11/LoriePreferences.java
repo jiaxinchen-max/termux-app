@@ -89,6 +89,13 @@ import java.util.regex.PatternSyntaxException;
 
 @SuppressWarnings("deprecation")
 public final class LoriePreferences {
+    /** Destinations supplied only by the integrated terminal host. */
+    public interface TerminalActions {
+        void openFrontUi();
+        void backupTermux();
+        void restoreTermux();
+    }
+
     static final String ACTION_PREFERENCES_CHANGED = "com.termux.x11.ACTION_PREFERENCES_CHANGED";
     public static Prefs prefs = null;
 
@@ -180,6 +187,20 @@ public final class LoriePreferences {
             listView.setPadding(horizontalPadding, listView.getPaddingTop(), horizontalPadding, listView.getPaddingBottom());
         }
 
+        private void addTerminalAction(PreferenceScreen screen, String key, int title,
+                                       int order, Runnable action) {
+            Preference preference = new Preference(requireContext());
+            preference.setKey(key);
+            preference.setTitle(title);
+            preference.setOrder(order);
+            preference.setIconSpaceReserved(false);
+            preference.setOnPreferenceClickListener(clicked -> {
+                action.run();
+                return true;
+            });
+            screen.addPreference(preference);
+        }
+
         private void compactPreferenceInsets(@Nullable Preference preference) {
             if (preference == null)
                 return;
@@ -237,6 +258,23 @@ public final class LoriePreferences {
 
             with("showAdditionalKbd", p -> p.setLayoutResource(R.layout.display_preference));
             with("version", p -> p.setSummary(BuildConfig.VERSION_NAME));
+            if (getActivity() instanceof TerminalActions) {
+                TerminalActions actions = (TerminalActions) getActivity();
+                if ("main".equals(screen.getKey())) {
+                    with("version", p -> p.setOrder(100));
+                    addTerminalAction(screen, "front_ui", R.string.terminal_open_ui, 90, actions::openFrontUi);
+                    Preference data = new Preference(requireContext());
+                    data.setKey("terminal_data");
+                    data.setTitle(R.string.terminal_data);
+                    data.setOrder(91);
+                    data.setIconSpaceReserved(false);
+                    data.setFragment("data");
+                    screen.addPreference(data);
+                } else if ("data".equals(screen.getKey())) {
+                    addTerminalAction(screen, "termux_backup", R.string.terminal_backup, 0, actions::backupTermux);
+                    addTerminalAction(screen, "termux_restore", R.string.terminal_restore, 1, actions::restoreTermux);
+                }
+            }
 
             setSummary("displayStretch", R.string.pref_summary_requiresExactOrCustom);
             setSummary("adjustResolution", R.string.pref_summary_requiresExactOrCustom);

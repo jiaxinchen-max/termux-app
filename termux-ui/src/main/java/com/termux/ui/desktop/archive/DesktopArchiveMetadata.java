@@ -1,10 +1,12 @@
 package com.termux.ui.desktop.archive;
 
-import com.termux.ui.domain.DesktopDe;
-import com.termux.ui.domain.DesktopDistro;
-import com.termux.ui.domain.DesktopGlMode;
-import com.termux.ui.domain.DesktopRunMode;
+import com.termux.ui.desktop.domain.DesktopDe;
+import com.termux.ui.desktop.domain.DesktopDistro;
+import com.termux.ui.desktop.domain.DesktopGlMode;
+import com.termux.ui.desktop.domain.DesktopRunMode;
+
 import org.json.JSONObject;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -25,7 +27,7 @@ public final class DesktopArchiveMetadata {
         if (!"aarch64".equals(architecture)) throw new IllegalArgumentException("unsupported_archive_architecture");
         if (desktop == null || desktop.getRunMode() != DesktopRunMode.PROOT)
             throw new IllegalArgumentException("archive_requires_container");
-        if (desktop.getUsbStorage() != com.termux.ui.domain.DesktopUsbStorageMode.OFF)
+        if (desktop.getUsbStorage() != com.termux.ui.desktop.domain.DesktopUsbStorageMode.OFF)
             throw new IllegalArgumentException("archive_requires_usb_storage_off");
         if (desktop.getGlMode() == DesktopGlMode.AUTO)
             throw new IllegalArgumentException("archive_requires_explicit_renderer");

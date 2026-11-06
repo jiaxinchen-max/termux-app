@@ -37,7 +37,7 @@ import java.util.concurrent.Executors;
  * and it never offers anything above that root; the system document picker is deliberately not
  * involved.
  */
-final class SharedStorageChooserDialog {
+public final class SharedStorageChooserDialog {
     private static final String ROOT_LABEL = "~/storage/shared";
     /**
      * Horizontal inset AppCompat's default EditText background adds on each side; the file-name
@@ -46,7 +46,7 @@ final class SharedStorageChooserDialog {
     private static final int EDIT_TEXT_BACKGROUND_INSET_DP = 4;
     private static final int ROW_MIN_HEIGHT_DP = 48;
 
-    interface OnChosen {
+    public interface OnChosen {
         void onChosen(File file);
     }
 
@@ -96,7 +96,7 @@ final class SharedStorageChooserDialog {
      * Pick a folder inside {@code root} and a file name ending in {@code extension}; the chosen
      * file may not exist yet.
      */
-    static SharedStorageChooserDialog chooseSaveFile(Activity activity, File root, String defaultName,
+    public static SharedStorageChooserDialog chooseSaveFile(Activity activity, File root, String defaultName,
                                                      String extension, OnChosen callback) {
         SharedStorageChooserDialog chooser =
             new SharedStorageChooserDialog(activity, root, true, true, extension, callback);
@@ -105,7 +105,7 @@ final class SharedStorageChooserDialog {
     }
 
     /** Pick a new file; an existing destination keeps the chooser open and requires a new name. */
-    static SharedStorageChooserDialog chooseNewSaveFile(Activity activity, File root, String defaultName,
+    public static SharedStorageChooserDialog chooseNewSaveFile(Activity activity, File root, String defaultName,
                                                        String extension, OnChosen callback) {
         SharedStorageChooserDialog chooser =
             new SharedStorageChooserDialog(activity, root, true, false, extension, callback);
@@ -114,7 +114,7 @@ final class SharedStorageChooserDialog {
     }
 
     /** Pick one existing file ending in {@code extension} inside {@code root}. */
-    static SharedStorageChooserDialog chooseArchive(Activity activity, File root, String extension,
+    public static SharedStorageChooserDialog chooseArchive(Activity activity, File root, String extension,
                                                     OnChosen callback) {
         SharedStorageChooserDialog chooser =
             new SharedStorageChooserDialog(activity, root, false, false, extension, callback);
@@ -123,7 +123,7 @@ final class SharedStorageChooserDialog {
     }
 
     /** Closes the chooser, its overwrite confirmation and its worker thread; safe to call twice. */
-    void dismiss() {
+    public void dismiss() {
         executor.shutdownNow();
         if (overwriteDialog != null && overwriteDialog.isShowing()) overwriteDialog.dismiss();
         if (dialog != null && dialog.isShowing()) dialog.dismiss();

@@ -44,6 +44,7 @@ mkdir -p "$TERMUX_BOX_ROOT" "$TERMUX_BOX_RUN_DIR"
 # setup task); here they are only a marker check, kept as a safety net for prefixes that predate that step.
 GAMES_RUNTIME_SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$GAMES_RUNTIME_SCRIPT_DIR/glibc_prefix_extras.sh"
+. "$GAMES_RUNTIME_SCRIPT_DIR/native_runtime_components.sh"
 # install_games_controller_runtime / games_controller_dll_overrides: the patched xinput/dinput DLLs and winhandler.exe
 . "$GAMES_RUNTIME_SCRIPT_DIR/controller_runtime.sh"
 # x_server_start / x_server_kill_all: legacy termux-x11 or the Xlorie package
@@ -138,7 +139,7 @@ load_configs() {
     # ---- 2. Resolve container-specific variables (with defaults aligned to Winlator) ----
     export TERMUX_BOX_CONTAINER_DIR="${TERMUX_BOX_CONTAINER_DIR:-$TERMUX_BOX_ROOT/containers/container-1}"
     export TERMUX_BOX_CONTAINER_PREFIX="${TERMUX_BOX_CONTAINER_PREFIX:-$TERMUX_BOX_CONTAINER_DIR/prefix}"
-    export WINE_PATH="$TERMUX_GLIBC_DIR/${TERMUX_BOX_WINE_PACKAGE:-glibc_wine_9.0-staging}"
+    export WINE_PATH="$TERMUX_GLIBC_DIR/${TERMUX_BOX_WINE_PACKAGE:?wine_package_required}"
     export WINEPREFIX="$TERMUX_BOX_CONTAINER_PREFIX"
     export RESOLUTION="${TERMUX_BOX_RESOLUTION:-1280x720}"
     export TERMUX_BOX_TRANSLATOR="${TERMUX_BOX_TRANSLATOR:-box64}"
@@ -155,12 +156,6 @@ load_configs() {
 
     # ---- 4. Hardcoded runtime defaults ----
     export BOX64_LD_LIBRARY_PATH="$WINE_PATH/lib64:$WINE_PATH/lib64/wine/x86_64-unix:$WINE_PATH/lib:$WINE_PATH/lib/wine/x86_64-unix:$TERMUX_GLIBC_DIR/lib/x86_64-linux-gnu"
-    VORTEK_ICD="$TERMUX_GLIBC_DIR/share/vulkan/icd.d/vortek_icd.aarch64.json"
-    if [ -f "$VORTEK_ICD" ]; then
-        export VK_ICD_FILENAMES="$VORTEK_ICD"
-    else
-        export VK_ICD_FILENAMES="$TERMUX_GLIBC_DIR/share/vulkan/icd.d/freedreno_icd.aarch64.json"
-    fi
     export DXVK_CONFIG_FILE="$TERMUX_OPT_DIR/dxvk.conf"
     export FONTCONFIG_PATH="$TERMUX_GLIBC_DIR/etc/fonts"
     export BOX64_PATH="$TERMUX_GLIBC_DIR/bin"
@@ -318,14 +313,15 @@ acquire_single_instance_lock() {
     fi
     echo $$ >"$TERMUX_BOX_WINE_LOCK_DIR/pid"
     # Cleanup on interrupt: kill wine process group, stop services, then exit
-    trap 'echo; echo "Stopping container..."; kill "$WINE_PID" 2>/dev/null; wait "$WINE_PID" 2>/dev/null; "$GLIBC_BIN/box64" "$GLIBC_BIN/wineserver" -k >/dev/null 2>&1; stop_all; release_single_instance_lock; exit 130' INT TERM
+    trap 'echo; echo "Stopping container..."; kill "$WINE_PID" 2>/dev/null; wait "$WINE_PID" 2>/dev/null; native_run_box64 "$WINE_PATH/bin/wineserver" -k >/dev/null 2>&1; stop_all; release_single_instance_lock; exit 130' INT TERM
     # Cleanup on normal exit
-    trap '"$GLIBC_BIN/box64" "$GLIBC_BIN/wineserver" -k >/dev/null 2>&1; stop_all; release_single_instance_lock' EXIT
+    trap 'native_run_box64 "$WINE_PATH/bin/wineserver" -k >/dev/null 2>&1; stop_all; release_single_instance_lock' EXIT
 }
 
 # ---- Runtime package check ----
 ensure_runtime_packages() {
     echo "[1/4] Checking runtime packages"
+    require_native_wine_runtime || exit 1
     missing=0
     if [ ! -f "$WINE_PATH/bin/wine" ]; then
         echo "Missing wine runtime: $WINE_PATH/bin/wine"
@@ -335,10 +331,7 @@ ensure_runtime_packages() {
         echo "Missing wine runtime: $WINE_PATH/bin/wineserver"
         missing=1
     fi
-    if [ ! -f "$TERMUX_GLIBC_DIR/bin/box64" ]; then
-        echo "Missing box64 runtime: $TERMUX_GLIBC_DIR/bin/box64"
-        missing=1
-    fi
+    resolve_native_box64 || exit 1
     if [ "$missing" = "1" ]; then
         echo "Install required packages from Package Manager first."
         exit 1
@@ -381,19 +374,23 @@ resolve_resolution() {
 # ============================================================
 
 load_configs
+resolve_native_box64 || exit 1
 normalize_cpu_affinity
 snapshot_user_env
 apply_debug_mode
 restore_user_env
+# Selected profile fields are authoritative over arbitrary environment overrides.
+. "$CONTAINER_CONF"
 ensure_launch_log || exit 1
 acquire_single_instance_lock
 ensure_runtime_packages
+apply_native_graphics_component || exit 1
 
 # Stop previous services, then start fresh
 stop_all
 
 echo "[2/4] Starting graphics and audio services"
-if [ -e "$PREFIX/glibc/opt/virgl/virgl-enabled" ]; then
+if [ "$NATIVE_VIRGL" = 1 ]; then
     chmod +x "$PREFIX/glibc/opt/virgl/libvirgl_test_server.so" >/dev/null 2>&1 || true
     TMPDIR="$PREFIX/tmp" "$PREFIX/glibc/opt/virgl/libvirgl_test_server.so" >/dev/null 2>&1 &
 fi
@@ -401,7 +398,7 @@ if command -v pulseaudio >/dev/null 2>&1; then
     pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1 || true
 fi
 start_x11_when_ready || exit 1
-if [ -e "$PREFIX/glibc/opt/virgl/virgl-enabled" ]; then
+if [ "$NATIVE_VIRGL" = 1 ]; then
     chmod 777 "$PREFIX/tmp/.virgl_test" >/dev/null 2>&1 || true
 fi
 
@@ -409,10 +406,6 @@ resolve_resolution
 
 # Setup Wine binaries
 chmod +x "$WINE_PATH/bin/wine" "$WINE_PATH/bin/wineserver" >/dev/null 2>&1 || true
-patchelf --force-rpath --set-rpath "$PREFIX/glibc/lib" --set-interpreter "$PREFIX/glibc/lib/ld-linux-aarch64.so.1" "$PREFIX/glibc/bin/box64" >/dev/null 2>&1 || true
-rm -rf "$PREFIX/glibc/bin/wine" "$PREFIX/glibc/bin/wineserver"
-ln -sf "$WINE_PATH/bin/wine" "$PREFIX/glibc/bin/wine"
-ln -sf "$WINE_PATH/bin/wineserver" "$PREFIX/glibc/bin/wineserver"
 # Critical: clear bionic LD_PRELOAD before running glibc binaries
 unset LD_PRELOAD
 
@@ -423,27 +416,23 @@ run_container_wine() {
     if [ -n "$GAMES_EFFECTIVE_CPU_CORES" ] && command -v taskset >/dev/null 2>&1; then
         case "$GAMES_EFFECTIVE_CPU_CORES" in *[!0-9,-]*|'') echo "Invalid CPU affinity: $GAMES_EFFECTIVE_CPU_CORES"; return 2 ;; esac
         case "$TERMUX_BOX_TRANSLATOR" in
-            box64) taskset -c "$GAMES_EFFECTIVE_CPU_CORES" "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" "$@"; return $? ;;
-            hangover) taskset -c "$GAMES_EFFECTIVE_CPU_CORES" "$TERMUX_GLIBC_DIR/bin/hangover" "$GLIBC_BIN/wine" "$@"; return $? ;;
-            fex) taskset -c "$GAMES_EFFECTIVE_CPU_CORES" "$TERMUX_GLIBC_DIR/bin/FEXInterpreter" "$GLIBC_BIN/wine" "$@"; return $? ;;
+            box64) taskset -c "$GAMES_EFFECTIVE_CPU_CORES" "$NATIVE_GLIBC_LOADER" --library-path "$TERMUX_GLIBC_DIR/lib" "$NATIVE_BOX64_BIN" "$WINE_PATH/bin/wine" "$@"; return $? ;;
+            hangover) taskset -c "$GAMES_EFFECTIVE_CPU_CORES" "$TERMUX_GLIBC_DIR/bin/hangover" "$WINE_PATH/bin/wine" "$@"; return $? ;;
+            fex) taskset -c "$GAMES_EFFECTIVE_CPU_CORES" "$TERMUX_GLIBC_DIR/bin/FEXInterpreter" "$WINE_PATH/bin/wine" "$@"; return $? ;;
         esac
     fi
     case "$TERMUX_BOX_TRANSLATOR" in
-        box64) "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" "$@" ;;
+        box64) native_run_box64 "$WINE_PATH/bin/wine" "$@" ;;
         hangover)
             [ -x "$TERMUX_GLIBC_DIR/bin/hangover" ] || {
                 echo "ERROR: Missing Hangover translator"; return 127;
             }
-            "$TERMUX_GLIBC_DIR/bin/hangover" "$GLIBC_BIN/wine" "$@" ;;
+            "$TERMUX_GLIBC_DIR/bin/hangover" "$WINE_PATH/bin/wine" "$@" ;;
         fex)
-            if [ -x "$TERMUX_GLIBC_DIR/bin/FEXInterpreter" ]; then
-                "$TERMUX_GLIBC_DIR/bin/FEXInterpreter" "$GLIBC_BIN/wine" "$@"
-            elif [ -x "$TERMUX_GLIBC_DIR/bin/fex" ]; then
-                "$TERMUX_GLIBC_DIR/bin/fex" "$GLIBC_BIN/wine" "$@"
-            else
-                echo "ERROR: Missing FEX translator"
-                return 127
-            fi
+            [ -x "$TERMUX_GLIBC_DIR/bin/FEXInterpreter" ] || {
+                echo "ERROR: Missing FEX translator"; return 127;
+            }
+            "$TERMUX_GLIBC_DIR/bin/FEXInterpreter" "$WINE_PATH/bin/wine" "$@"
             ;;
         *) echo "ERROR: Unsupported translator: $TERMUX_BOX_TRANSLATOR"; return 127 ;;
     esac
@@ -506,6 +495,7 @@ if [ ! -e "$WINEPREFIX/.termux-box-bootstrap-done" ]; then
 fi
 ensure_games_wine_fonts || exit 1
 ensure_games_cjk_locale
+apply_native_dx_component || exit 1
 apply_game_options
 
 # Release the controller DLLs into the Wine runtime (Wine loads them as builtin DLLs from there) and winhandler.exe
@@ -537,7 +527,7 @@ fi
 
 # Build WINEDLLOVERRIDES from container gamepad mapper type
 # 0 = Standard (DInput), 1 = XInput
-WINE_DLL_OVERRIDES=$(games_controller_dll_overrides "${TERMUX_BOX_GAMEPAD_MAPPER:-1}")
+WINE_DLL_OVERRIDES="${NATIVE_D3D_OVERRIDES};$(games_controller_dll_overrides "${TERMUX_BOX_GAMEPAD_MAPPER:-1}")"
 [ -n "${GAMES_DLL_D3D:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}d3d8,d3d9,d3d10core,d3d11,dxgi=${GAMES_DLL_D3D};"
 [ -n "${GAMES_DLL_DSOUND:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}dsound=${GAMES_DLL_DSOUND};"
 [ -n "${GAMES_DLL_DMUSIC:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}dmusic=${GAMES_DLL_DMUSIC};"
@@ -555,7 +545,7 @@ case "${TERMUX_BOX_GAME_ID:-}" in
 esac
 [ -d "${TERMUX_BOX_GAME_ROOT:-}" ] || { echo "Game root is unavailable"; exit 2; }
 [ -d "${TERMUX_BOX_GAME_WORKDIR:-}" ] || { echo "Game working directory is unavailable"; exit 2; }
-GAME_MOUNT_ROOT="$TERMUX_FILES_DIR/games/mounts"
+GAME_MOUNT_ROOT="$TERMUX_FILES_DIR/front/mounts"
 GAME_MOUNT="$GAME_MOUNT_ROOT/$TERMUX_BOX_GAME_ID"
 mkdir -p "$GAME_MOUNT_ROOT"
 rm -f "$GAME_MOUNT" 2>/dev/null || true
@@ -577,7 +567,7 @@ fi
 WINE_PID=$!
 
 if [ "${STARTUP_WINEDEVICE_MODE:-1}" = "0" ]; then
-    "$GLIBC_BIN/box64" "$GLIBC_BIN/wine" taskkill /f /im services.exe >/dev/null 2>&1 &
+    native_run_box64 "$WINE_PATH/bin/wine" taskkill /f /im services.exe >/dev/null 2>&1 &
 fi
 
 # GameSessionActivity owns the embedded X11 view.
