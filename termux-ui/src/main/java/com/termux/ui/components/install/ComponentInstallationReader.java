@@ -22,6 +22,7 @@ public final class ComponentInstallationReader {
     public ComponentInstallationSnapshot read(String packageName) throws IOException {
         requirePackageName(packageName);
         File packageRoot = new File(installRoot, packageName);
+        requirePackageRoot(packageRoot);
         File pointerFile = new File(packageRoot, "active.properties");
         if (!pointerFile.isFile()) {
             File backup = new File(pointerFile.getPath() + ".bak");
@@ -43,11 +44,42 @@ public final class ComponentInstallationReader {
         return new ComponentInstallationSnapshot(active, previous);
     }
 
+    /** Reopen a frozen version without consulting active.properties. */
+    public InstalledComponent readFrozen(String packageName, File directory,
+                                         int version, String sha256) throws IOException {
+        requirePackageName(packageName);
+        File packageRoot = new File(installRoot.getCanonicalFile(), packageName);
+        requirePackageRoot(packageRoot);
+        File canonical = directory.getCanonicalFile();
+        if (!directory.equals(canonical) || !canonical.getParentFile().equals(new File(packageRoot, "versions"))) {
+            throw invalid("Frozen version is outside component installation");
+        }
+        InstalledComponent component = readVersion(packageRoot, packageName,
+            safeDirectory(canonical.getName()));
+        if (component == null || component.getVersion() != version ||
+            !component.getSha256().equals(sha256)) {
+            throw invalid("Frozen component identity mismatch");
+        }
+        return component;
+    }
+
     private static InstalledComponent readVersion(File packageRoot, String packageName,
                                                   String directoryName) throws IOException {
         if (directoryName.isEmpty()) return null;
         File directory = new File(new File(packageRoot, "versions"), directoryName);
-        Properties receipt = readProperties(new File(directory, RECEIPT));
+        File canonicalPackage = packageRoot.getCanonicalFile();
+        File versions = new File(canonicalPackage, "versions");
+        File canonicalDirectory = directory.getCanonicalFile();
+        if (!versions.equals(versions.getCanonicalFile()) ||
+            !versions.equals(canonicalDirectory.getParentFile()) ||
+            !canonicalDirectory.getName().equals(directoryName)) {
+            throw invalid("Component version escapes installation directory");
+        }
+        File receiptFile = new File(directory, RECEIPT);
+        if (!receiptFile.getCanonicalFile().equals(new File(canonicalDirectory, RECEIPT))) {
+            throw invalid("Component receipt escapes version directory");
+        }
+        Properties receipt = readProperties(receiptFile);
         if (!"1".equals(receipt.getProperty("schemaVersion"))) {
             throw invalid("Unsupported component receipt schema");
         }
@@ -68,12 +100,21 @@ public final class ComponentInstallationReader {
 
     private static String safeDirectory(String value) throws IOException {
         if (value.isEmpty()) return value;
-        if (!value.matches("[A-Za-z0-9._-]+")) throw invalid("Invalid version directory");
+        if (!value.matches("[A-Za-z0-9._-]+") || value.equals(".") || value.equals("..")) {
+            throw invalid("Invalid version directory");
+        }
         return value;
     }
 
+    private void requirePackageRoot(File packageRoot) throws IOException {
+        File expected = new File(installRoot.getCanonicalFile(), packageRoot.getName());
+        if (!expected.equals(packageRoot.getCanonicalFile())) {
+            throw invalid("Component package escapes installation root");
+        }
+    }
+
     private static void requirePackageName(String value) {
-        if (value == null || !value.matches("[A-Za-z0-9._-]+")) {
+        if (value == null || !value.matches("[A-Za-z0-9._-]+") || value.equals(".") || value.equals("..")) {
             throw new IllegalArgumentException("invalid packageName");
         }
     }

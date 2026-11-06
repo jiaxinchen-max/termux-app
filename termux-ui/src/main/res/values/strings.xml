@@ -435,7 +435,6 @@
     <string name="local_game_runtime_save">Save</string>
     <string name="local_game_runtime_title_root">%1$s · Runtime</string>
     <string name="local_game_runtime_menu_general">General</string>
-    <string name="local_game_runtime_menu_backend">Runtime backend</string>
     <string name="local_game_runtime_menu_common">Common</string>
     <string name="local_game_runtime_menu_wine">Wine configuration</string>
     <string name="local_game_runtime_menu_wine_summary">Theme, background, font, DPI and mouse overlay</string>
@@ -453,11 +452,8 @@
     <string name="local_game_runtime_general_launch_args">Launch arguments</string>
     <string name="local_game_runtime_general_launch_args_invalid">Launch arguments are invalid</string>
     <string name="local_game_runtime_general_executable">Executable</string>
-    <string name="local_game_runtime_backend_rootfs_package">Rootfs package</string>
-    <string name="local_game_runtime_backend_container_id">Container id</string>
     <string name="local_game_runtime_backend_components">Components</string>
     <string name="local_game_runtime_backend_components_summary">Manage installed runtime components</string>
-    <string name="local_game_runtime_backend_container_failed">Unable to create rootfs container</string>
     <string name="local_game_runtime_common_resolution">Game resolution</string>
     <string name="local_game_runtime_common_graphics_driver">Graphics driver</string>
     <string name="local_game_runtime_common_dx">DirectX translation</string>
@@ -690,4 +686,6 @@
     <string name="local_game_assets_shared_suffix"> (shared)</string>
     <string name="local_games_preparation_completed">Preparation completed</string>
     <string name="local_game_assets_build_cache">Runtime build cache</string>
+    <string name="local_game_runtime_backend_subtitle">Backend: %1$s</string>
+    <string name="local_game_runtime_backend_unavailable">Backend unavailable</string>
 </resources>

@@ -117,7 +117,6 @@ SHARED_ROOTFS_CONTAINER_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/g
 SHARED_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY/rootfs"
 TEMPLATE_CACHE_DIR="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-template-cache"
 TEMPLATE_RECIPE="$TEMPLATE_CACHE_DIR/games-rootfs-base.recipe"
-STAGING_DIRECTORY="$TEMPLATE_CACHE_DIR/backup-staging"
 if command -v zstd >/dev/null 2>&1; then
     ARCHIVE_COMPRESSOR=zstd
 else
@@ -136,6 +135,15 @@ runtime_complete() {
         [ -d "$root/mnt/games/game" ] &&
         [ -d "$root/mnt/games/prefix" ]
 }
+
+# This legacy engine cannot preserve external frozen dependencies. Fail before staging or output.
+if [ "$MODE" = restore ]; then
+    fail rootfs_backup_format_unsupported 64
+fi
+if grep -Fqx 'layout=external-components-v1' "$SHARED_ROOTFS/etc/games-runtime.properties" 2>/dev/null; then
+    fail rootfs_external_backup_not_ready 69
+fi
+STAGING_DIRECTORY="$TEMPLATE_CACHE_DIR/backup-staging"
 
 printf '{"schemaVersion":1,"taskId":"%s","state":"RUNNING"}\n' "$TASK_ID" >> "$EVENTS_PATH"
 

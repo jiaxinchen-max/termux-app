@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-/** Writes a non-executable, private-path-only shell input contract. */
+/** Private non-executable inputs: unchanged v3 for legacy recipes, Base64 v4 for frozen bindings. */
 public final class RootfsSetupSpecCodec {
     public void write(File file, RuntimeSetupTask task, File recipeDirectory,
                       Map<String, File> componentDirectories, File buildContext,
@@ -25,9 +25,27 @@ public final class RootfsSetupSpecCodec {
                       File winePrefixDirectory, File homeDirectory,
                       File prefixWarmupScript, String runtimeTranslator,
                       String box64ComponentId) throws IOException {
+        write(file, task, recipeDirectory, componentDirectories, buildContext, eventsPath, logPath,
+            winePackage, winePrefixDirectory, homeDirectory, prefixWarmupScript, runtimeTranslator,
+            box64ComponentId, null);
+    }
+
+    public void write(File file, RuntimeSetupTask task, File recipeDirectory,
+                      Map<String, File> componentDirectories, File buildContext,
+                      File eventsPath, File logPath, String winePackage,
+                      File winePrefixDirectory, File homeDirectory,
+                      File prefixWarmupScript, String runtimeTranslator,
+                      String box64ComponentId,
+                      java.util.List<com.termux.ui.wine.domain.ProotComponentBinding> bindings) throws IOException {
         if (file == null || task == null) throw new IllegalArgumentException("setup spec required");
         if (componentDirectories == null || componentDirectories.isEmpty()) {
             throw new IllegalArgumentException("component directories required");
+        }
+        if (bindings != null) {
+            writeV4(file, task, recipeDirectory, componentDirectories, buildContext, eventsPath,
+                logPath, winePackage, winePrefixDirectory, homeDirectory, prefixWarmupScript,
+                runtimeTranslator, box64ComponentId, bindings);
+            return;
         }
         StringBuilder value = new StringBuilder("schemaVersion=3\n");
         text(value, "taskId", task.getTaskId());
@@ -66,8 +84,61 @@ public final class RootfsSetupSpecCodec {
             output.flush();
             output.getFD().sync();
         }
-        if (file.exists() && !file.delete()) throw new IOException("setup_spec_replace_failed");
         if (!temporary.renameTo(file)) throw new IOException("setup_spec_publish_failed");
+    }
+
+    private static void writeV4(File file, RuntimeSetupTask task, File recipeDirectory,
+                                Map<String, File> components, File buildContext, File eventsPath,
+                                File logPath, String winePackage, File prefix, File home,
+                                File warmup, String translator, String box64,
+                                java.util.List<com.termux.ui.wine.domain.ProotComponentBinding> bindings)
+        throws IOException {
+        if (components.size() > 16) throw new IllegalArgumentException("too_many_setup_components");
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        lines.add("schemaVersion=4");
+        encoded(lines, "taskId", task.getTaskId());
+        encoded(lines, "packageName", task.getPackageName());
+        encoded(lines, "version", Integer.toString(task.getVersion()));
+        encoded(lines, "recipeSha256", task.getRecipeSha256());
+        encoded(lines, "containerId", task.getContainerId());
+        encoded(lines, "containerName", task.getContainerName());
+        encoded(lines, "baseOnly", Boolean.toString(task.isBaseOnly()));
+        encoded(lines, "buildContext", canonical(buildContext));
+        encoded(lines, "recipeDirectory", canonical(recipeDirectory));
+        lines.add("componentCount=" + components.size());
+        int index = 0;
+        for (Map.Entry<String, File> component : components.entrySet()) {
+            if (component.getKey() == null || !component.getKey().matches("[A-Za-z0-9][A-Za-z0-9._-]{0,127}")) {
+                throw new IllegalArgumentException("invalid_setup_component_id");
+            }
+            encoded(lines, "component." + index + ".id", component.getKey());
+            encoded(lines, "component." + index + ".directory", canonical(component.getValue()));
+            index++;
+        }
+        encoded(lines, "eventsPath", canonical(eventsPath));
+        encoded(lines, "logPath", canonical(logPath));
+        encoded(lines, "winePackage", winePackage == null ? "" : winePackage);
+        encoded(lines, "winePrefixDirectory", canonicalOrEmpty(prefix));
+        encoded(lines, "homeDirectory", canonicalOrEmpty(home));
+        encoded(lines, "prefixWarmupScript", canonicalOrEmpty(warmup));
+        encoded(lines, "runtimeTranslator", translator);
+        encoded(lines, "box64ComponentId", box64);
+        ProotBindingsCodec.append(lines, bindings);
+        File parent = file.getParentFile();
+        if (!parent.isDirectory() && !parent.mkdirs()) throw new IOException("setup_spec_directory_failed");
+        File temporary = new File(file.getPath() + ".tmp");
+        try (FileOutputStream out = new FileOutputStream(temporary)) {
+            for (String line : lines) out.write((line + "\n").getBytes(StandardCharsets.US_ASCII));
+            out.getFD().sync();
+        }
+        if (!temporary.renameTo(file)) throw new IOException("setup_spec_publish_failed");
+    }
+
+    private static void encoded(java.util.List<String> lines, String key, String value) {
+        if (value == null || value.indexOf('\0') >= 0 || value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0) {
+            throw new IllegalArgumentException("invalid_setup_spec_value:" + key);
+        }
+        lines.add(key + "=" + Base64Text.encode(value.getBytes(StandardCharsets.UTF_8)));
     }
 
     private static void text(StringBuilder output, String key, String value) {

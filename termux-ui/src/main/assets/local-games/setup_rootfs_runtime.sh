@@ -27,11 +27,18 @@ GAMES_CUSTOM_BOX64_ID=
 COMPLETED=false
 FAILURE_CODE=setup_script_failed
 WARMUP_DISPLAY_PID=
+SETUP_SCHEMA=
+CONTROL_PATHS_VALIDATED=false
+SEEN_SETUP_FIELDS=' '
+SETUP_COMPONENT_COUNT=
+SETUP_COMPONENT_INDEX=0
+SETUP_PENDING_COMPONENT=
 
 on_exit() {
     status=$?
+    [ -z "${PROOT_PID:-}" ] || kill "$PROOT_PID" 2>/dev/null || true
     [ -z "$WARMUP_DISPLAY_PID" ] || kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
-    if [ "$status" -ne 0 ] && [ "$COMPLETED" = false ] && [ -n "$EVENTS_PATH" ]; then
+    if [ "$CONTROL_PATHS_VALIDATED" = true ] && [ "$status" -ne 0 ] && [ "$COMPLETED" = false ] && [ -n "$EVENTS_PATH" ]; then
         event_directory=${EVENTS_PATH%/*}
         mkdir -p "$event_directory" 2>/dev/null || true
         if [ -n "$LOG_PATH" ]; then
@@ -46,18 +53,72 @@ on_exit() {
     # The per-task build context holds a full copy of the source .debs (~hundreds of MB) and is
     # only needed while the guest setup runs. Drop it on every exit (success or failure) so
     # staging/ does not accumulate one dead copy per setup and fill the data partition.
-    [ -n "$BUILD_CONTEXT" ] && rm -rf "$BUILD_CONTEXT" 2>/dev/null || true
+    [ "$CONTROL_PATHS_VALIDATED" = true ] && [ -n "$BUILD_CONTEXT" ] && rm -rf "$BUILD_CONTEXT" 2>/dev/null || true
 }
 trap on_exit EXIT
+trap 'fail rootfs_setup_interrupted 130' INT TERM
 
 fail() {
     FAILURE_CODE=$1
     exit "${2:-1}"
 }
 
-while IFS='=' read -r key value; do
+while IFS= read -r line || [ -n "$line" ]; do
+    key=${line%%=*}
+    value=${line#*=}
+    [ "$key" != "$line" ] || fail invalid_setup_spec 64
+    if [ "$key" = schemaVersion ]; then
+        [ -z "$SETUP_SCHEMA" ] || fail invalid_setup_spec 64
+        case "$value" in 3|4) SETUP_SCHEMA=$value ;; *) fail unsupported_setup_spec 64 ;; esac
+        if [ "$SETUP_SCHEMA" = 4 ]; then
+            PRIVATE_ROOT=${SPEC_PATH%/runtime/setup/specs/*}
+            [ "$PRIVATE_ROOT" != "$SPEC_PATH" ] || fail invalid_setup_spec_path 64
+            TERMUX_FILES_DIR=${PRIVATE_ROOT%/front}
+            [ "$TERMUX_FILES_DIR" != "$PRIVATE_ROOT" ] || fail invalid_setup_spec_path 64
+            [ "$(realpath "$SPEC_PATH")" = "$SPEC_PATH" ] || fail invalid_setup_spec_path 64
+            [ -f "$PRIVATE_ROOT/runtime/proot_component_bindings.sh" ] || fail proot_binding_helper_missing 64
+            . "$PRIVATE_ROOT/runtime/proot_component_bindings.sh"
+        fi
+        continue
+    fi
+    [ -n "$SETUP_SCHEMA" ] || fail unsupported_setup_spec 64
+    if [ "$SETUP_SCHEMA" = 4 ]; then
+        case "$key" in
+            bindingCount|binding.*)
+                proot_binding_field "$key" "$value" || fail invalid_proot_bindings 64
+                continue ;;
+            componentCount)
+                [ -z "$SETUP_COMPONENT_COUNT" ] || fail invalid_setup_spec 64
+                case "$value" in ''|0*|*[!0-9]*) fail invalid_setup_spec 64 ;; esac
+                [ "${#value}" -le 2 ] && [ "$value" -le 16 ] || fail invalid_setup_spec 64
+                SETUP_COMPONENT_COUNT=$value
+                continue ;;
+            component.*)
+                [ -n "$SETUP_COMPONENT_COUNT" ] && [ "$SETUP_COMPONENT_INDEX" -lt "$SETUP_COMPONENT_COUNT" ] || fail invalid_setup_spec 64
+                value=$(proot_binding_decode "$value") || fail invalid_setup_spec_base64 64
+                case "$key" in
+                    "component.$SETUP_COMPONENT_INDEX.id")
+                        [ -z "$SETUP_PENDING_COMPONENT" ] || fail invalid_setup_spec 64
+                        case "$value" in ''|*[!A-Za-z0-9._-]*) fail invalid_setup_identifier 64 ;; esac
+                        SETUP_PENDING_COMPONENT=$value ;;
+                    "component.$SETUP_COMPONENT_INDEX.directory")
+                        [ -n "$SETUP_PENDING_COMPONENT" ] || fail invalid_setup_spec 64
+                        COMPONENTS="$COMPONENTS$SETUP_PENDING_COMPONENT|$value
+"
+                        SETUP_PENDING_COMPONENT=
+                        SETUP_COMPONENT_INDEX=$((SETUP_COMPONENT_INDEX + 1)) ;;
+                    *) fail invalid_setup_spec 64 ;;
+                esac
+                continue ;;
+            component) fail invalid_setup_spec 64 ;;
+        esac
+        value=$(proot_binding_decode "$value") || fail invalid_setup_spec_base64 64
+    fi
+    if [ "$key" != component ]; then
+        case "$SEEN_SETUP_FIELDS" in *" $key "*) fail duplicate_setup_spec_field 64 ;; esac
+        SEEN_SETUP_FIELDS="$SEEN_SETUP_FIELDS$key "
+    fi
     case "$key" in
-        schemaVersion) [ "$value" = 3 ] || fail unsupported_setup_spec 64 ;;
         taskId) TASK_ID=$value ;;
         packageName) PACKAGE_NAME=$value ;;
         version) VERSION=$value ;;
@@ -81,6 +142,15 @@ while IFS='=' read -r key value; do
         *) fail invalid_setup_spec 64 ;;
     esac
 done < "$SPEC_PATH"
+case "$SETUP_SCHEMA" in
+    3) ;;
+    4)
+        proot_bindings_complete || fail invalid_proot_bindings 64
+        [ -n "$SETUP_COMPONENT_COUNT" ] && [ "$SETUP_COMPONENT_COUNT" -eq "$SETUP_COMPONENT_INDEX" ] &&
+            [ -z "$SETUP_PENDING_COMPONENT" ] || fail invalid_setup_spec 64 ;;
+    *) fail unsupported_setup_spec 64 ;;
+esac
+[ "$SETUP_SCHEMA" = 4 ] && [ "$VERSION" = 11 ] || fail unsupported_setup_spec 64
 case "$BASE_ONLY" in true|false) ;; *) fail invalid_setup_spec 64 ;; esac
 # Required unconditionally, even for BASE_ONLY: that path also builds the shared template Wine
 # prefix (see below), sourcing the same rootfs_prefix_warmup.sh functions a per-container warmup
@@ -154,6 +224,7 @@ logs_directory=${LOG_PATH%/*}
     fail invalid_setup_output_path 64
 mkdir -p "$events_directory" "$logs_directory" || fail setup_output_directory_failed 70
 : >> "$LOG_PATH"
+CONTROL_PATHS_VALIDATED=true
 
 # Co-located with $PREFIX_WARMUP_SCRIPT by LaunchScriptInstaller (same runtimeDirectory) --
 # derive its path from PREFIX_WARMUP_SCRIPT's own directory rather than adding a new spec field,
@@ -280,7 +351,7 @@ prepare_build_context() {
 runtime_complete() {
     root=$1
     [ -x "$root/usr/bin/env" ] &&
-        [ -x "$root/opt/box64/rootfs_box64_0.4.5/bin/box64" ] &&
+        grep -Fqx 'layout=external-components-v1' "$root/etc/games-runtime.properties" &&
         [ -x "$root/usr/bin/wine" ] &&
         [ -x "$root/usr/bin/wineboot" ] &&
         [ -f "$root/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" ] &&
@@ -318,7 +389,10 @@ if [ "$BASE_ONLY" = true ] || ! runtime_complete "$SHARED_ROOTFS"; then
     if [ -d "$BUILD_DIRECTORY" ]; then
         scratch_kb=$(du -sk "$BUILD_DIRECTORY" | awk '{print $1}')
     fi
-    required_kb=$((9 * 1024 * 1024 - scratch_kb))
+    # Baseline measured 4.84 GiB includes ~1.39 GiB portable Wine copies plus Box64/DXVK.
+    # v11 budgets 5 GiB for Debian + Hangover and apt/unpack peak; source versions are bound.
+    # Prefix/template allocation has its own check after the base build is published.
+    required_kb=$((5 * 1024 * 1024 - scratch_kb))
     [ "$required_kb" -ge 524288 ] || required_kb=524288
     if [ "$available_kb" -lt "$required_kb" ]; then
         progress "Not enough storage for the Proot base: need at least ${required_kb} KiB free, available ${available_kb} KiB. Existing data was kept."
@@ -405,12 +479,12 @@ fi
 # cleared $TEMPLATE_RECIPE.
 if ! runtime_complete "$SHARED_ROOTFS" || \
     [ "$(cat "$TEMPLATE_RECIPE" 2>/dev/null)" != "$RECIPE_SHA256" ]; then
-    if ! runtime_complete "$BUILD_ROOTFS"; then
+    if ! runtime_complete "$BUILD_ROOTFS" || ! grep -Fqx "recipeSha256=$RECIPE_SHA256" "$BUILD_ROOTFS/etc/games-runtime.properties"; then
         build_runtime_into "$BUILD_CONTAINER_NAME" "$BUILD_DIRECTORY" "$BUILD_ROOTFS"
         runtime_complete "$BUILD_ROOTFS" || fail rootfs_template_build_invalid 70
     fi
-    printf '%s\n' "$RECIPE_SHA256" > "$TEMPLATE_RECIPE.tmp" &&
-        mv "$TEMPLATE_RECIPE.tmp" "$TEMPLATE_RECIPE" || fail rootfs_recipe_record_failed 70
+    sed -i '/^recipeSha256=/d' "$BUILD_ROOTFS/etc/games-runtime.properties"
+    printf 'recipeSha256=%s\n' "$RECIPE_SHA256" >> "$BUILD_ROOTFS/etc/games-runtime.properties"
     # Recording the recipe and publishing the one live, shared RootFS happen in the same task so
     # the two can never disagree -- every container, old and new alike, mounts whatever this
     # leaves behind (see GameStoragePaths.getSharedRootfsDirectory()). A rebuild therefore takes
@@ -425,28 +499,23 @@ if ! runtime_complete "$SHARED_ROOTFS" || \
     # explicitly user-triggered Backup feature (see backup_restore_rootfs.sh), not as a hidden
     # cost of every build.
     progress '==> Publishing the shared RootFS image'
-    rm -rf "$SHARED_ROOTFS_CONTAINER_DIRECTORY"
-    mv "$BUILD_DIRECTORY" "$SHARED_ROOTFS_CONTAINER_DIRECTORY" || \
+    PREVIOUS_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY.previous"
+    [ ! -e "$PREVIOUS_ROOTFS" ] || fail rootfs_publish_recovery_required 70
+    if [ -e "$SHARED_ROOTFS_CONTAINER_DIRECTORY" ]; then
+        mv "$SHARED_ROOTFS_CONTAINER_DIRECTORY" "$PREVIOUS_ROOTFS" || fail rootfs_shared_image_publish_failed 70
+    fi
+    if ! mv "$BUILD_DIRECTORY" "$SHARED_ROOTFS_CONTAINER_DIRECTORY"; then
+        [ ! -e "$PREVIOUS_ROOTFS" ] || mv "$PREVIOUS_ROOTFS" "$SHARED_ROOTFS_CONTAINER_DIRECTORY"
         fail rootfs_shared_image_publish_failed 70
+    fi
     runtime_complete "$SHARED_ROOTFS" || fail rootfs_shared_image_invalid 70
+    printf '%s\n' "$RECIPE_SHA256" > "$TEMPLATE_RECIPE.tmp" &&
+        mv "$TEMPLATE_RECIPE.tmp" "$TEMPLATE_RECIPE" || fail rootfs_recipe_record_failed 70
+    rm -rf "$PREVIOUS_ROOTFS"
 
-    # Pre-boot one Wine prefix per wine *package* (wineboot -u + CJK FontLink), archived alongside
-    # the rootfs, so every subsequent container -- and every switch between packages -- extracts a
-    # ready-made prefix instead of paying the wineboot cost again (see rootfs_prefix_warmup.sh's
-    # resolve_template_prefix_archive() / TEMPLATE_PREFIX_ARCHIVE fast path). One per package, not
-    # per translator: a different Wine build of the same translator (Wine 10 vs Proton 11) ships PE
-    # stubs the other's prefix lacks, so sharing a template made the second package run a minutes-
-    # long wineboot -u inside the first container that used it. A Hangover prefix and a box64 prefix
-    # are also incompatible with each other (`wine: could not load kernel32.dll, status c000007b`).
-    # Doing the work here moves it to the explicit environment install, so saving a game's options
-    # and launching it only ever clone. Read the package list from the recipe manifest,
-    # rather than hardcoding it, so adding a wine package to the recipe is
-    # enough on its own to get a pre-booted template.
-    runtime_packages=$(sed -n 's/^runtimePackages=//p' "$RECIPE_DIRECTORY/games-runtime.properties")
-    [ -n "$runtime_packages" ] || fail rootfs_runtime_packages_missing 70
-    # Guest setup has finished; release copied payloads before prefix/template allocation.
+    # v11 base construction never boots Wine or creates templates. Configuration preparation
+    # below builds only the selected identity, on demand.
     rm -rf "$BUILD_CONTEXT"
-    build_prefix_templates "$runtime_packages"
 fi
 
 if [ "$BASE_ONLY" = true ]; then
@@ -471,6 +540,16 @@ runtime_complete "$SHARED_ROOTFS" || fail rootfs_shared_image_missing 70
 # deferred to launch time.
 progress '==> Warming the Wine prefix for this container (locale, CJK fonts, wineboot)'
 ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS") || fail rootfs_unreadable 70
+while IFS= read -r setup_bind; do
+    [ -n "$setup_bind" ] || continue
+    setup_target=${setup_bind##*:}
+    setup_host_target="$ROOTFS_CANONICAL$setup_target"
+    setup_resolved=$(realpath -m "$setup_host_target") || fail rootfs_binding_target_invalid 70
+    case "$setup_resolved" in "$ROOTFS_CANONICAL"/opt/*) ;; *) fail rootfs_binding_target_invalid 70 ;; esac
+    mkdir -p "$setup_host_target"
+done <<SETUP_BIND_TARGETS
+$PROOT_COMPONENT_BINDS
+SETUP_BIND_TARGETS
 PREFIX_PATH="$WINE_PREFIX_DIRECTORY"
 HOME_PATH="$HOME_DIRECTORY"
 RUNTIME_ROOT_PATH="$ROOTFS_CANONICAL"
@@ -486,8 +565,10 @@ MAINTENANCE_DISPLAY=:9
 termux-x11 "$MAINTENANCE_DISPLAY" >> "$LOG_PATH" 2>&1 &
 WARMUP_DISPLAY_PID=$!
 resolve_rootfs_translator
-resolve_template_prefix_archive
+prepare_external_prefix_template
 warmup_rootfs_prefix
+[ "${CANCELLED:-0}" != 1 ] || fail rootfs_setup_cancelled 130
+require_external_prepared_prefix
 kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
 WARMUP_DISPLAY_PID=
 

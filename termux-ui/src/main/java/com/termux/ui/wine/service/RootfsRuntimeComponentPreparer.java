@@ -38,6 +38,7 @@ final class RootfsRuntimeComponentPreparer {
     private static final long POLL_INTERVAL_MS = 250L;
 
     private final SetupPreparationLog console;
+    private final String parentTaskId;
     private final Context context;
     private final ComponentIndex index;
     private final FileComponentTaskRepository tasks;
@@ -45,6 +46,7 @@ final class RootfsRuntimeComponentPreparer {
 
     RootfsRuntimeComponentPreparer(Context context, String parentTaskId) throws IOException {
         this.context = context.getApplicationContext();
+        this.parentTaskId = parentTaskId;
         console = new SetupPreparationLog(context.getFilesDir(), parentTaskId);
         ComponentStoragePaths paths = new ComponentStoragePaths(context.getFilesDir());
         tasks = new FileComponentTaskRepository(paths.getTasksDirectory());
@@ -58,7 +60,11 @@ final class RootfsRuntimeComponentPreparer {
      *  version; returns once all are present, or throws if any cannot be prepared in time. */
     void ensure(Collection<String> componentIds) throws IOException {
         for (String componentId : componentIds) {
-            ensure(requiredDescriptor(componentId));
+            if (componentId.startsWith("custom-")) {
+                if (!installations.read(componentId).getActive().isPresent()) {
+                    throw new IOException("rootfs_custom_component_prepare_required:" + componentId);
+                }
+            } else ensure(requiredDescriptor(componentId));
         }
     }
 
@@ -74,9 +80,10 @@ final class RootfsRuntimeComponentPreparer {
         ComponentTask reusable = findReusableTask(descriptor, tasks.list());
         String taskId;
         if (reusable == null) {
-            taskId = ComponentTasks.enqueue(context, descriptor.getId());
+            taskId = ComponentTasks.enqueueRuntimeDependency(context, descriptor.getId(), parentTaskId);
         } else {
             taskId = reusable.getTaskId();
+            com.termux.ui.service.RuntimeInstallationGate.registerDependency(context.getFilesDir(), parentTaskId, taskId);
             ComponentTaskConsoleLog.clearCommandFailure(context.getFilesDir(), taskId);
             if (reusable.getState() == ComponentTaskState.FAILED) {
                 ComponentTasks.resumeAndAwaitAcceptance(context, taskId, true, 30000L);
@@ -133,8 +140,9 @@ final class RootfsRuntimeComponentPreparer {
 
     /** RootFS components are "ready" once installed into the private tree at the catalog version;
      *  unlike GLIBC components they are not published to the host prefix. An empty descriptor
-     *  sha256 means it was resolved without a pre-known digest (Hangover never publishes one) --
-     *  identity then falls back to the version alone, since the installed receipt always holds
+     *  sha256 means a descriptor was resolved without a pre-known digest --
+     *  the bundled Hangover catalog pins both version and SHA-256. For unpinned descriptors,
+     *  identity falls back to the version alone, since the installed receipt always holds
      *  the real computed hash and could never equal an empty string. */
     private boolean isInstalled(ComponentDescriptor descriptor) throws IOException {
         InstalledComponent active = installations.read(descriptor.getId()).getActive().orElse(null);

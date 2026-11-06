@@ -136,6 +136,7 @@ public final class LaunchScriptInstaller {
      *  and setup_rootfs_runtime.sh (import/config-time warmup) for initializing a RootFS
      *  container's Wine prefix -- see rootfs_prefix_warmup.sh. */
     public File installRootfsPrefixWarmup() throws IOException {
+        installProotComponentBindings();
         File script = new File(runtimeDirectory, "rootfs_prefix_warmup.sh");
         installAsset(ROOTFS_PREFIX_WARMUP_ASSET, script);
         return script;
@@ -147,9 +148,15 @@ public final class LaunchScriptInstaller {
      *  sibling-path lookup, since both live in this same runtimeDirectory). See
      *  rootfs_script_common.sh. */
     public File installRootfsScriptCommon() throws IOException {
+        installProotComponentBindings();
         File script = new File(runtimeDirectory, "rootfs_script_common.sh");
         installAsset(ROOTFS_SCRIPT_COMMON_ASSET, script);
         return script;
+    }
+
+    private void installProotComponentBindings() throws IOException {
+        installAsset("local-games/proot_component_bindings.sh",
+            new File(runtimeDirectory, "proot_component_bindings.sh"));
     }
 
     /** Deploys the trusted terminal script backing the base-environment Backup/Restore feature --

@@ -35,7 +35,9 @@ public final class RootfsSetupRecipe {
             "rootfs_dxvk_1.10.3",
             BOX64_WINE_COMPONENT,
             BOX64_PROTON_COMPONENT));
-    public static final int DEFAULT_VERSION = 10;
+    // New installations use the external-component layout. Legacy tasks retain their version.
+    public static final int DEFAULT_VERSION = 11;
+    public static final int EXTERNAL_COMPONENTS_VERSION = 11;
 
 
     private final String packageName;
@@ -52,11 +54,18 @@ public final class RootfsSetupRecipe {
     }
 
     public static RootfsSetupRecipe require(String packageName) {
+        return require(packageName, DEFAULT_VERSION);
+    }
+
+    public static RootfsSetupRecipe require(String packageName, int version) {
         if (!DEFAULT_PACKAGE.equals(packageName)) {
             throw new IllegalArgumentException("rootfs_recipe_unknown:" + packageName);
         }
-        return new RootfsSetupRecipe(DEFAULT_PACKAGE, DEFAULT_VERSION, DEFAULT_SOURCE,
-            DEFAULT_BASE_COMPONENTS);
+        if (version != 10 && version != EXTERNAL_COMPONENTS_VERSION) {
+            throw new IllegalArgumentException("rootfs_recipe_version_unsupported:" + version);
+        }
+        return new RootfsSetupRecipe(DEFAULT_PACKAGE, version, DEFAULT_SOURCE,
+            version == 10 ? DEFAULT_BASE_COMPONENTS : Collections.singletonList(DEFAULT_SOURCE));
     }
 
     public String getPackageName() { return packageName; }
@@ -64,6 +73,14 @@ public final class RootfsSetupRecipe {
     public String getSourceComponentId() { return sourceComponentId; }
     /** Full ordered set of components the shared base image is built from. */
     public List<String> getBaseComponentIds() { return baseComponentIds; }
-    public String getAssetDirectory() { return "local-games/runtime-rootfs"; }
+    /** Keep the exact legacy host bytes when replaying a v10 task; new protocol support
+     *  must not silently change that task's recipe hash. */
+    public String getSetupScriptAssetPath() {
+        return version == 10 ? "local-games/runtime-rootfs/setup_rootfs_runtime_v10.sh" :
+            "local-games/setup_rootfs_runtime.sh";
+    }
+    public String getAssetDirectory() {
+        return version == 10 ? "local-games/runtime-rootfs" : "local-games/runtime-rootfs-v11";
+    }
     public String getContainerPrefix() { return "games-debian13-hangover119-v" + version + "-"; }
 }

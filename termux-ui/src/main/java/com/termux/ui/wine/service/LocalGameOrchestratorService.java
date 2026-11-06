@@ -415,48 +415,17 @@ public final class LocalGameOrchestratorService extends Service {
         throw new IOException("prefix_setup_timeout");
     }
 
-    /** Builds this game's RootFS container on first launch (and after a reset/removal) so the
-     *  user never has to manually tap "Repair"/"Install runtime" -- the launch just prepares the
-     *  runtime and proceeds, mirroring ensureGlibcPrefix() for the GLIBC backend. Returns true
-     *  once the container is ready, false if the launch was cancelled while preparing. */
+    /** Launch consumes only an explicitly prepared configuration. */
     private boolean ensureRootfsRuntime(String launchTaskId, RuntimeProfile profile)
         throws Exception {
-        if (rootfsRuntimeReady(profile)) return true;
-        FileRuntimeSetupTaskRepository setupTasks = new FileRuntimeSetupTaskRepository(
-            paths.getRuntimeSetupTasksDirectory());
-        String setupTaskId = RuntimeSetupTasks.enqueue(this, profile.getRootfsPackage(),
-            profile.getContainerId());
-        long deadline = System.currentTimeMillis() + PREFIX_PREPARE_TIMEOUT_MS;
-        while (System.currentTimeMillis() < deadline) {
-            if (cancelFile(launchTaskId).isFile()) {
-                cancelTask(requiredTask(launchTaskId), "cancelled_during_runtime_prepare");
-                return false;
-            }
-            RuntimeSetupTask setup = setupTasks.find(setupTaskId).orElse(null);
-            if (setup != null) {
-                RuntimeSetupTaskState state = setup.getState();
-                if (state == RuntimeSetupTaskState.SUCCEEDED) return true;
-                if (state == RuntimeSetupTaskState.FAILED) {
-                    String error = setup.getErrorCode();
-                    throw new IOException(error == null || error.isEmpty()
-                        ? "rootfs_setup_failed" : error);
-                }
-                if (state == RuntimeSetupTaskState.CANCELLED) {
-                    throw new IOException("rootfs_setup_cancelled");
-                }
-            }
-            sleepForRuntimePreparation();
-        }
-        throw new IOException("rootfs_setup_timeout");
-    }
-
-    private boolean rootfsRuntimeReady(RuntimeProfile profile) {
-        if (!paths.getSharedRootfsDirectory().isDirectory()) return false;
+        com.termux.ui.wine.runtime.ProotPreparedRuntime.require(paths, profile);
         File prefix = paths.getContainerPrefixDirectory(profile.getContainerId(),
             GameRuntimeBackendType.ROOTFS_PROOT);
-        File home = paths.getContainerHomeDirectory(profile.getContainerId(),
-            GameRuntimeBackendType.ROOTFS_PROOT);
-        return prefix.isDirectory() && home.isDirectory();
+        if (!new File(prefix, ".games-runtime/runtime").isFile() ||
+            !new File(prefix, "system.reg").isFile() || !new File(prefix, "user.reg").isFile()) {
+            throw new IOException("rootfs_configuration_prepare_required");
+        }
+        return true;
     }
 
     private RuntimeProfile resolveContainer(RuntimeProfile gameProfile) throws IOException {

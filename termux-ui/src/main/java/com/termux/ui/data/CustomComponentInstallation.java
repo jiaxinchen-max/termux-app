@@ -17,14 +17,11 @@ public final class CustomComponentInstallation {
             File glibc = new File(paths.getTermuxPrefixDirectory(), "glibc");
             return new File(component.getKind() == CustomRuntimeComponent.Kind.WINE ? glibc : new File(glibc, "components"), component.getId());
         }
-        String base;
-        switch (component.getKind()) {
-            case WINE: base = "opt/custom-wine"; break;
-            case BOX64: base = "opt/box64"; break;
-            case DXVK: base = "opt/dxvk"; break;
-            default: throw new IllegalArgumentException("custom_component_backend_unsupported");
-        }
-        return new File(new File(paths.getSharedRootfsDirectory(), base), component.getId());
+        File version = new File(new File(new com.termux.ui.components.ComponentStoragePaths(
+            paths.getTermuxPrefixDirectory().getParentFile()).getInstallDirectory(), component.getId()),
+            "versions/1-" + component.getSha256());
+        return version;
+
     }
 
     public static boolean isAvailable(GameStoragePaths paths, CustomRuntimeComponent component) throws IOException {

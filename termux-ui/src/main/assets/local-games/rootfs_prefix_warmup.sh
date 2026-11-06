@@ -81,8 +81,26 @@ resolve_template_prefix_archive() {
     fi
 }
 
+# Both host-side checks/copies and guest execution consume the same frozen mapping.
+# Old embedded callers do not have the helper and retain their original paths.
+rootfs_component_host() {
+    if command -v proot_binding_host_path >/dev/null 2>&1; then
+        proot_binding_host_path "$1"
+    else
+        printf '%s%s\n' "$ROOTFS_CANONICAL" "$1"
+    fi
+}
+if ! command -v proot_exec_bound >/dev/null 2>&1; then
+    proot_exec_bound() { exec "$PROOT_BIN" "$@"; }
+fi
+
 rootfs_require_custom_receipt() {
-    custom_receipt="$ROOTFS_CANONICAL$1/.custom-component.properties"
+    if command -v proot_component_receipt_root >/dev/null 2>&1 && [ -n "${PROOT_BINDING_COUNT:-}" ]; then
+        custom_root=$(proot_component_receipt_root "$2") || warmup_fail custom_component_receipt_invalid
+    else
+        custom_root=$(rootfs_component_host "$1") || warmup_fail custom_component_receipt_invalid
+    fi
+    custom_receipt="$custom_root/.custom-component.properties"
     [ -f "$custom_receipt" ] && grep -Fqx 'schemaVersion=1' "$custom_receipt" &&
         grep -Fqx 'runtimeBackend=rootfs_proot' "$custom_receipt" &&
         grep -Fqx "componentId=$2" "$custom_receipt" && grep -Fqx "kind=$3" "$custom_receipt" ||
@@ -113,8 +131,8 @@ resolve_rootfs_translator() {
             GUEST_COMMAND=${SELECTED_CUSTOM_WINE_ROOT:-/usr}/bin/wine
             GUEST_WINE=
             GUEST_WINEBOOT=${SELECTED_CUSTOM_WINE_ROOT:-/usr}/bin/wineboot
-            [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || warmup_fail rootfs_wine_missing
-            [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || warmup_fail rootfs_wineboot_missing
+            [ -x "$(rootfs_component_host "$GUEST_COMMAND")" ] || warmup_fail rootfs_wine_missing
+            [ -x "$(rootfs_component_host "$GUEST_WINEBOOT")" ] || warmup_fail rootfs_wineboot_missing
             ;;
         box64)
             case "$WINE_PACKAGE" in rootfs_wine_*|rootfs_proton_*|custom-wine-*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
@@ -147,18 +165,18 @@ resolve_rootfs_translator() {
             # vanilla one), so the no-separate-binary convention applies to it too.
             GUEST_WINEBOOT=$GUEST_WINE
             GUEST_WINEBOOT_ARG=wineboot
-            [ -n "${GAMES_CUSTOM_BOX64_ID:-}" ] || [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || warmup_fail rootfs_box64_missing
-            [ -x "$ROOTFS_CANONICAL$GUEST_WINE" ] || warmup_fail rootfs_wine_missing
-            [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || warmup_fail rootfs_wineboot_missing
+            [ -n "${GAMES_CUSTOM_BOX64_ID:-}" ] || [ -x "$(rootfs_component_host "$GUEST_COMMAND")" ] || warmup_fail rootfs_box64_missing
+            [ -x "$(rootfs_component_host "$GUEST_WINE")" ] || warmup_fail rootfs_wine_missing
+            [ -x "$(rootfs_component_host "$GUEST_WINEBOOT")" ] || warmup_fail rootfs_wineboot_missing
             ;;
         fex)
             case "$WINE_PACKAGE" in rootfs_wine_*) ;; *) warmup_fail runtime_translator_package_mismatch ;; esac
             GUEST_COMMAND=/usr/bin/FEXInterpreter
             GUEST_WINE=/opt/box64-wine/bin/wine
             GUEST_WINEBOOT=/opt/box64-wine/bin/wineboot
-            [ -x "$ROOTFS_CANONICAL$GUEST_COMMAND" ] || warmup_fail rootfs_fex_missing
-            [ -x "$ROOTFS_CANONICAL$GUEST_WINE" ] || warmup_fail rootfs_wine_missing
-            [ -x "$ROOTFS_CANONICAL$GUEST_WINEBOOT" ] || warmup_fail rootfs_wineboot_missing
+            [ -x "$(rootfs_component_host "$GUEST_COMMAND")" ] || warmup_fail rootfs_fex_missing
+            [ -x "$(rootfs_component_host "$GUEST_WINE")" ] || warmup_fail rootfs_wine_missing
+            [ -x "$(rootfs_component_host "$GUEST_WINEBOOT")" ] || warmup_fail rootfs_wineboot_missing
             ;;
         *) warmup_fail runtime_translator_unsupported ;;
     esac
@@ -182,7 +200,7 @@ resolve_rootfs_translator() {
         case "$GAMES_CUSTOM_BOX64_ID" in custom-box64-*)
             rootfs_require_custom_receipt "/opt/box64/$GAMES_CUSTOM_BOX64_ID" "$GAMES_CUSTOM_BOX64_ID" box64 ;;
         esac
-        [ -x "$ROOTFS_CANONICAL$custom_box64_bin" ] || warmup_fail custom_box64_id_invalid
+        [ -x "$(rootfs_component_host "$custom_box64_bin")" ] || warmup_fail custom_box64_id_invalid
         GUEST_COMMAND=$custom_box64_bin
     fi
     # The wineserver that belongs to the selected Wine, run the same way as Wine itself. The game launcher uses
@@ -238,7 +256,7 @@ resolve_rootfs_translator() {
 # Prefix maintenance always uses CPU rendering on its private display; the game renderer
 # is applied separately by start_rootfs_game.sh. Never inherit host Zink/driver paths here.
 run_rootfs_maintenance_command() {
-    exec "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
+    proot_exec_bound --kill-on-exit --link2symlink --sysvipc -0 \
         -r "$ROOTFS_CANONICAL" \
         -b /dev -b /proc -b /sys \
         -b "$TERMUX_FILES_DIR/usr/tmp:/tmp" \
@@ -358,12 +376,15 @@ run_prefix_wineboot_update() {
 seed_missing_prefix_dlls() {
     [ -n "${box64_wine_root:-}" ] || return 0
     for dll_pair in x86_64-windows:system32 i386-windows:syswow64; do
-        dll_source="$ROOTFS_CANONICAL$box64_wine_root/lib/wine/${dll_pair%%:*}"
+        dll_source=$(rootfs_component_host "$box64_wine_root/lib/wine/${dll_pair%%:*}") || warmup_fail rootfs_binding_missing
         dll_target="$PREFIX_PATH/drive_c/windows/${dll_pair##*:}"
         [ -d "$dll_source" ] && [ -d "$dll_target" ] || continue
         for dll_file in "$dll_source"/*; do
             [ -f "$dll_file" ] || continue
-            [ -e "$dll_target/${dll_file##*/}" ] || cp "$dll_file" "$dll_target/" 2>/dev/null || true
+            if [ ! -e "$dll_target/${dll_file##*/}" ]; then
+                rm -f "$dll_target/${dll_file##*/}" || warmup_fail rootfs_prefix_dll_copy_failed
+                cp "$dll_file" "$dll_target/" 2>/dev/null || true
+            fi
         done
     done
 }
@@ -372,7 +393,7 @@ seed_missing_prefix_dlls() {
 prefix_lacks_builtin_dlls() {
     [ -n "${box64_wine_root:-}" ] || return 1
     for dll_pair in x86_64-windows:system32 i386-windows:syswow64; do
-        dll_source="$ROOTFS_CANONICAL$box64_wine_root/lib/wine/${dll_pair%%:*}"
+        dll_source=$(rootfs_component_host "$box64_wine_root/lib/wine/${dll_pair%%:*}") || warmup_fail rootfs_binding_missing
         dll_target="$PREFIX_PATH/drive_c/windows/${dll_pair##*:}"
         [ -d "$dll_source" ] && [ -d "$dll_target" ] || continue
         for dll_file in "$dll_source"/*; do
@@ -405,7 +426,26 @@ prefix_translator() {
 # either per-container used to be merely redundant (the base already had them); now that the
 # RootFS is one shared, conceptually read-only image instead of a per-container copy, it would
 # also be a correctness bug (concurrent per-container setups writing into the same shared tree).
+# Prefix DLL replacement must not follow a writable-directory link into a shared
+# component (or another game's files). Leaf DLL links are removed before copying.
+rootfs_assert_prefix_write_directories() {
+    prefix_write_root=$(realpath "$PREFIX_PATH") || warmup_fail rootfs_prefix_unreadable
+    for prefix_write_relative in drive_c drive_c/windows drive_c/windows/system32 \
+        drive_c/windows/syswow64 drive_c/windows/Fonts dosdevices .games-runtime; do
+        prefix_write_path="$PREFIX_PATH/$prefix_write_relative"
+        if [ -e "$prefix_write_path" ] || [ -L "$prefix_write_path" ]; then
+            prefix_write_canonical=$(realpath "$prefix_write_path") || warmup_fail rootfs_prefix_path_escape
+            case "$prefix_write_canonical" in "$prefix_write_root"/*) ;; *) warmup_fail rootfs_prefix_path_escape ;; esac
+        fi
+    done
+}
+
 warmup_rootfs_prefix() {
+    if [ -n "${GAMES_TEMPLATE_KEY:-}" ] && [ -e "$PREFIX_PATH/.games-runtime/prepared-identity" ]; then
+        [ "$(cat "$PREFIX_PATH/.games-runtime/prepared-identity")" = "$GAMES_TEMPLATE_KEY" ] ||
+            warmup_fail rootfs_prefix_identity_mismatch
+    fi
+    rootfs_assert_prefix_write_directories
     GUEST_LOCALE=zh_CN.UTF-8
     PREFIX_MARKER_DIR="$PREFIX_PATH/.games-runtime"
     GUEST_CJK_FONT=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
@@ -424,8 +464,9 @@ warmup_rootfs_prefix() {
         fi
     else
         prefix_available_kb=$(df -Pk "$TERMUX_FILES_DIR" | awk 'END {print $4}')
-        if [ "$prefix_available_kb" -lt 3145728 ]; then
-            printf '%s\n' "Not enough storage for a new Wine C drive: need at least 3 GiB free, available ${prefix_available_kb} KiB. Existing files were kept." >> "$LOG_PATH"
+        prefix_required_kb=${EXTERNAL_PREFIX_REQUIRED_KB:-3145728}
+        if [ "$prefix_available_kb" -lt "$prefix_required_kb" ]; then
+            printf '%s\n' "Not enough storage for a new Wine C drive: need ${prefix_required_kb} KiB free, available ${prefix_available_kb} KiB. Existing files were kept." >> "$LOG_PATH"
             warmup_fail rootfs_prefix_insufficient_storage
         fi
     fi
@@ -552,6 +593,8 @@ warmup_rootfs_prefix() {
         FONT_DIRECTORY="$PREFIX_PATH/drive_c/windows/Fonts"
         FONT_REGISTRY_FILE="$PREFIX_MARKER_DIR/cjk-fonts.reg"
         mkdir -p "$FONT_DIRECTORY" "$PREFIX_MARKER_DIR"
+        rm -f "$PREFIX_PATH/drive_c/windows/Fonts/NotoSansCJK-Regular.ttc" \
+            "$PREFIX_PATH/drive_c/windows/Fonts/NotoSansCJK-Bold.ttc" || warmup_fail rootfs_prefix_font_copy_failed
         cp "$ROOTFS_CANONICAL/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" \
             "$FONT_DIRECTORY/NotoSansCJK-Regular.ttc" && \
         cp "$ROOTFS_CANONICAL/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc" \
@@ -648,6 +691,9 @@ warmup_rootfs_prefix() {
         else
             printf '%s\n' 'Wine CJK FontLink registry setup failed.' >> "$LOG_PATH"
         fi
+    fi
+    if [ -n "${GAMES_TEMPLATE_KEY:-}" ] && [ "${CANCELLED:-0}" != 1 ]; then
+        printf '%s\n' "$GAMES_TEMPLATE_KEY" > "$PREFIX_MARKER_DIR/prepared-identity"
     fi
 }
 
@@ -758,4 +804,87 @@ build_prefix_templates() {
     WINE_PACKAGE=$template_selected_wine
     GAMES_RUNTIME_TRANSLATOR=$template_selected_translator
     GAMES_CUSTOM_BOX64_ID=$template_selected_box64
+}
+
+# v11 caches are keyed by the recipe (including Hangover input digest), selected Wine,
+# translator and exact immutable component identities. Host absolute paths never enter the key.
+resolve_external_template_identity() {
+    external_recipe=$(sed -n 's/^recipeSha256=//p' "$ROOTFS_CANONICAL/etc/games-runtime.properties")
+    case "$external_recipe" in ''|*[!0-9a-f]*) warmup_fail rootfs_recipe_identity_missing ;; esac
+    [ "${#external_recipe}" = 64 ] || warmup_fail rootfs_recipe_identity_missing
+    GAMES_TEMPLATE_KEY=$(printf '%s\n' 'prefix-v11-init5-aarch64' "$external_recipe" \
+        "$WINE_PACKAGE" "$RUNTIME_TRANSLATOR" "${GAMES_CUSTOM_BOX64_ID:-}" "${PROOT_BINDING_IDENTITY:-}" | sha256sum)
+    GAMES_TEMPLATE_KEY=${GAMES_TEMPLATE_KEY%% *}
+    EXTERNAL_TEMPLATE_DIR="$TEMPLATE_CACHE_DIR/v11/$GAMES_TEMPLATE_KEY"
+}
+
+external_template_valid() {
+    [ -f "$EXTERNAL_TEMPLATE_DIR/manifest" ] && [ -f "$EXTERNAL_TEMPLATE_DIR/prefix.tar.gz" ] || return 1
+    grep -Fqx "identity=$GAMES_TEMPLATE_KEY" "$EXTERNAL_TEMPLATE_DIR/manifest" || return 1
+    et_expected=$(sed -n 's/^sha256=//p' "$EXTERNAL_TEMPLATE_DIR/manifest")
+    case "$et_expected" in ''|*[!0-9a-f]*) return 1 ;; esac
+    [ "${#et_expected}" = 64 ] || return 1
+    et_actual=$(sha256sum "$EXTERNAL_TEMPLATE_DIR/prefix.tar.gz")
+    [ "${et_actual%% *}" = "$et_expected" ]
+}
+
+# Called only by explicit setup, under the persistent global RootFS owner. Staging is unique
+# to the task; a process death cannot publish a half-built template or block future preparation.
+prepare_external_prefix_template() {
+    resolve_external_template_identity
+    TEMPLATE_PREFIX_ARCHIVE=
+    if ! external_template_valid; then
+        ep_saved_prefix=$PREFIX_PATH
+        ep_saved_home=$HOME_PATH
+        ep_saved_runtime=$RUNTIME_ROOT_PATH
+        EXTERNAL_TEMPLATE_STAGE="$TEMPLATE_CACHE_DIR/v11/.stage-$TASK_ID"
+        [ ! -L "$EXTERNAL_TEMPLATE_STAGE" ] || warmup_fail rootfs_template_path_invalid
+        rm -rf "$EXTERNAL_TEMPLATE_STAGE"
+        mkdir -p "$EXTERNAL_TEMPLATE_STAGE/prefix" "$EXTERNAL_TEMPLATE_STAGE/home"
+        PREFIX_PATH="$EXTERNAL_TEMPLATE_STAGE/prefix"
+        HOME_PATH="$EXTERNAL_TEMPLATE_STAGE/home"
+        RUNTIME_ROOT_PATH=template
+        progress "==> Preparing selected Wine template: $WINE_PACKAGE"
+        warmup_rootfs_prefix
+        [ "${CANCELLED:-0}" != 1 ] || warmup_fail rootfs_setup_cancelled
+        [ -s "$PREFIX_PATH/system.reg" ] && [ -s "$PREFIX_PATH/user.reg" ] ||
+            warmup_fail rootfs_prefix_initialization_failed
+        if ! run_logged tar -C "$PREFIX_PATH" -czf "$EXTERNAL_TEMPLATE_STAGE/prefix.tar.gz" .; then
+            warmup_fail rootfs_prefix_template_archive_failed
+        fi
+        et_sha=$(sha256sum "$EXTERNAL_TEMPLATE_STAGE/prefix.tar.gz")
+        et_size=$(du -sk "$PREFIX_PATH" | awk '{print $1}')
+        printf 'schemaVersion=1\nidentity=%s\nsha256=%s\nprefixKiB=%s\n' \
+            "$GAMES_TEMPLATE_KEY" "${et_sha%% *}" "$et_size" > "$EXTERNAL_TEMPLATE_STAGE/manifest"
+        # Only task-owned scratch prefix and home are reclaimed; published cache keeps the archive.
+        rm -rf "$EXTERNAL_TEMPLATE_STAGE/prefix" "$EXTERNAL_TEMPLATE_STAGE/home"
+        if [ -e "$EXTERNAL_TEMPLATE_DIR" ]; then
+            # A corrupt cache is replaceable, an already valid cache never gets removed.
+            external_template_valid && warmup_fail rootfs_template_publish_conflict
+            [ ! -L "$EXTERNAL_TEMPLATE_DIR" ] || warmup_fail rootfs_template_path_invalid
+            rm -rf "$EXTERNAL_TEMPLATE_DIR"
+        fi
+        mv "$EXTERNAL_TEMPLATE_STAGE" "$EXTERNAL_TEMPLATE_DIR" || warmup_fail rootfs_template_publish_failed
+        EXTERNAL_TEMPLATE_STAGE=
+        PREFIX_PATH=$ep_saved_prefix
+        HOME_PATH=$ep_saved_home
+        RUNTIME_ROOT_PATH=$ep_saved_runtime
+    fi
+    external_template_valid || warmup_fail rootfs_prefix_template_corrupt
+    TEMPLATE_PREFIX_ARCHIVE="$EXTERNAL_TEMPLATE_DIR/prefix.tar.gz"
+    EXTERNAL_PREFIX_REQUIRED_KB=$(sed -n 's/^prefixKiB=//p' "$EXTERNAL_TEMPLATE_DIR/manifest")
+    case "$EXTERNAL_PREFIX_REQUIRED_KB" in ''|*[!0-9]*) warmup_fail rootfs_prefix_template_corrupt ;; esac
+    EXTERNAL_PREFIX_REQUIRED_KB=$((EXTERNAL_PREFIX_REQUIRED_KB + 262144))
+}
+
+require_external_prepared_prefix() {
+    rootfs_assert_prefix_write_directories
+    [ -n "${GAMES_TEMPLATE_KEY:-}" ] || warmup_fail rootfs_configuration_prepare_required
+    [ -s "$PREFIX_PATH/system.reg" ] && [ -s "$PREFIX_PATH/user.reg" ] &&
+        [ -d "$PREFIX_PATH/drive_c" ] &&
+        [ "$(cat "$PREFIX_PATH/.games-runtime/prepared-identity" 2>/dev/null)" = "$GAMES_TEMPLATE_KEY" ] &&
+        [ "$(cat "$PREFIX_PATH/.games-runtime/runtime" 2>/dev/null)" = "$RUNTIME_ROOT_PATH|$WINE_PACKAGE" ] &&
+        [ ! -e "$PREFIX_PATH/.games-runtime/wine-dlls-pending" ] ||
+        warmup_fail rootfs_configuration_prepare_required
+    GUEST_LOCALE=zh_CN.UTF-8
 }

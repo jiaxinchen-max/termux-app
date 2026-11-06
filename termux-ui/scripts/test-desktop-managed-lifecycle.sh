@@ -7,17 +7,22 @@ import os,pathlib,shlex,shutil,socket,subprocess,sys,tempfile,threading,time
 assets=pathlib.Path(sys.argv[1])/'termux-ui/src/main/assets/local-games'
 with tempfile.TemporaryDirectory(prefix='dl-',dir='/tmp') as directory:
  base=pathlib.Path(directory)
- def run(name,failed=False,missing_spec=False,missing_asset=False,mode='native',gl='system',renderer=None,display=None,buffer=None,rejected=False):
+ def run(name,failed=False,missing_spec=False,missing_asset=False,mode='native',gl='system',renderer=None,display=None,buffer=None,rejected=False,audio='host-pulseaudio',audio_failure=False):
   work=base/name; work.mkdir(); prefix=work/'p'; (prefix/'bin').mkdir(parents=True)
   (prefix/'bin/python3').symlink_to(sys.executable)
+  for audio_command in ('pulseaudio','pactl'):
+   command=prefix/'bin'/audio_command
+   command.write_text('#!/bin/sh\n[ "$FIXTURE_AUDIO_FAILURE" = 0 ] || exit 1\ncase "$*" in *"list short sinks"*) printf "0 android_sink module-sles-sink.c s16le\\n" ;; esac\n')
+   command.chmod(0o700)
   home=work/'home'; home.mkdir(); state=work/'desktop/state'; state.mkdir(parents=True); specs=work/'desktop/specs'; specs.mkdir()
   scripts=work/'scripts'; scripts.mkdir()
   for filename in ('desktop_start.sh','desktop_stop.sh','desktop_common.sh'): shutil.copy(assets/filename,scripts/filename)
-  (scripts/'desktop_gnome_launch.py').write_text('import json,os,pathlib,sys\npathlib.Path(os.environ["FIXTURE"],"new-started").write_text(json.dumps(sys.argv[1:]))\n')
+  (scripts/'desktop_gnome_launch.py').write_text('import json,os,pathlib,sys\npathlib.Path(os.environ["FIXTURE"],"new-started").write_text(json.dumps(sys.argv[1:]))\npathlib.Path(os.environ["FIXTURE"],"new-audio").write_text(os.environ["PULSE_SERVER"])\n')
   if not missing_asset: (scripts/'desktop_usb_storage.py').write_text('# fixture\n')
-  env=dict(os.environ,PREFIX=str(prefix),HOME=str(home),FIXTURE=str(work))
+  env=dict(os.environ,PREFIX=str(prefix),HOME=str(home),FIXTURE=str(work),FIXTURE_AUDIO_FAILURE='1' if audio_failure else '0')
   def spec(identifier):
    values=dict(DESKTOP_ID=identifier,DESKTOP_MODE=mode,DESKTOP_DE='gnome',DESKTOP_GL_MODE=gl,DESKTOP_USB_STORAGE='off',DESKTOP_GNOME_BACKEND='x11' if mode=='proot' else 'android',DESKTOP_GNOME_RENDERER=renderer or gl,DESKTOP_GNOME_SESSION_STARTUP='direct',DESKTOP_REFRESH_RATE='60',DESKTOP_WIDTH='800',DESKTOP_HEIGHT='600',DESKTOP_RENDER_SOCKET=str(work/'render'),DESKTOP_PID_FILE=str(state/(identifier+'.pid')),DESKTOP_STATUS_FILE=str(state/(identifier+'.status')),DESKTOP_LOG_FILE=str(work/(identifier+'.log')))
+   if audio is not None: values['DESKTOP_AUDIO_MODE']=audio
    if mode=='proot': values.update(DESKTOP_PROOT_DISTRO='debian-test',DESKTOP_CONTAINER_CODENAME='trixie')
    if display is not None: values['DESKTOP_GNOME_DISPLAY_GL_MODE']=display
    if buffer is not None: values['DESKTOP_GNOME_DISPLAY_BUFFER_MODE']=buffer
@@ -52,9 +57,15 @@ while True: time.sleep(.05)
    elif missing_asset:
     assert result.returncode==74 and not (work/'new-started').exists(),result.stdout
     assert (work/'old-cleaned').exists()
+   elif audio != 'host-pulseaudio' or audio_failure:
+    expected=70 if audio_failure else 64
+    assert result.returncode==expected and not (work/'new-started').exists(),result.stdout
+    assert (state/'new.status').read_text()=='exit:'+str(expected)+'\n'
+    assert (work/'old-cleaned').exists(), 'audio failure bypassed owned session cleanup'
    else:
     assert result.returncode==0 and (work/'new-started').exists(),result.stdout
     assert (work/'old-cleaned').exists(),'new session started before old cleanup'
+    assert (work/'new-audio').read_text()=='tcp:127.0.0.1:4713', 'managed audio endpoint was not forwarded'
     if mode=='proot':
      import json
      args=json.loads((work/'new-started').read_text())
@@ -67,6 +78,7 @@ while True: time.sleep(.05)
    reaper.join(timeout=5)
    if old.poll() is None: old.kill(); old.wait()
    render_socket.close()
+ run('audio-missing',audio=None); run('audio-invalid',audio='auto'); run('audio-service-failed',audio_failure=True)
  run('switch-ok'); run('switch-cleanup-error',failed=True); run('switch-spec-missing',missing_spec=True); run('stage-error',missing_asset=True)
  run('proot-llvmpipe',mode='proot',gl='llvmpipe',display='system',buffer='native')
  run('proot-zink',mode='proot',gl='zink',display='zink',buffer='dmabuf')
@@ -84,5 +96,5 @@ while True: time.sleep(.05)
  assert result.returncode==0,result.stderr
  assert (autostart/'user.desktop').read_text()=='unchanged'
  hidden=(autostart/'tusb-desktop.desktop').read_text(); assert 'Hidden=true' in hidden and 'Exec=' not in hidden
- print('PASS: 12 managed desktop lifecycle fixtures')
+ print('PASS: 15 managed desktop lifecycle fixtures')
 PY

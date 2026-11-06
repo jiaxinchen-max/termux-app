@@ -31,6 +31,18 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
     public Set<String> requiredComponentIds(RuntimeProfile profile, GameStoragePaths paths) {
         requireProfile(profile, paths);
         Set<String> result = new LinkedHashSet<>();
+        if (paths != null) {
+            try {
+                if (ProotPreparedRuntime.usesExternalLayout(paths.getSharedRootfsDirectory())) {
+                    // Read exact prepared versions below; a newer catalog/active pointer cannot
+                    // redirect a launch or force an unrelated update/download.
+                    ProotPreparedRuntime.require(paths, profile);
+                    return result;
+                }
+            } catch (IOException error) {
+                throw new IllegalArgumentException(error.getMessage(), error);
+            }
+        }
         if (profile.getWinePackage().startsWith("rootfs_hangover_")) {
             // The one shared base image is built from this whole set (Hangover source, Box64,
             // and every selectable DXVK), all delivered through the unified component framework.
@@ -81,6 +93,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
         File rootfs = paths.getSharedRootfsDirectory().getCanonicalFile();
         if (!rootfs.isDirectory()) throw new IOException("rootfs_setup_required");
         verifyManifest(rootfs, profile);
+        if (ProotPreparedRuntime.usesExternalLayout(rootfs)) ProotPreparedRuntime.require(paths, profile);
         if (!new File(rootfs, "mnt/games/game").isDirectory() ||
             !new File(rootfs, "mnt/games/prefix").isDirectory()) {
             throw new IOException("rootfs_mountpoints_missing");
@@ -155,26 +168,31 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
             properties.load(input);
         }
         String schemaVersion = properties.getProperty("schemaVersion");
-        if (!("1".equals(schemaVersion) || "2".equals(schemaVersion))) {
+        if (!("1".equals(schemaVersion) || "2".equals(schemaVersion) || "3".equals(schemaVersion))) {
             throw new IOException("rootfs_runtime_manifest_unsupported");
         }
-        if ("2".equals(schemaVersion)) {
+        if (!"1".equals(schemaVersion)) {
             requireValue(properties, "runtimeBackend", "rootfs_proot",
                 "rootfs_runtime_backend_mismatch");
             requireValue(properties, "architecture", "aarch64",
                 "rootfs_architecture_mismatch");
         }
-        if (!profile.getWinePackage().startsWith("custom-wine-")) {
+        if ("3".equals(schemaVersion)) {
+            requireCapability(properties, "runtimePackages", RootfsSetupRecipe.DEFAULT_SOURCE,
+                "rootfs_runtime_package_missing");
+            requireCapability(properties, "dxWrappers", "rootfs-wined3d",
+                "rootfs_dx_wrapper_missing");
+        } else if (!profile.getWinePackage().startsWith("custom-wine-")) {
             requireCapability(properties, "runtimePackages", profile.getWinePackage(),
                 "rootfs_runtime_package_missing");
         }
         requireCapability(properties, "graphicsDrivers", profile.getGraphicsDriver(),
             "rootfs_graphics_driver_missing");
-        if (!profile.getDxWrapper().startsWith("custom-dxvk-")) {
+        if (!"3".equals(schemaVersion) && !profile.getDxWrapper().startsWith("custom-dxvk-")) {
             requireCapability(properties, "dxWrappers", profile.getDxWrapper(),
                 "rootfs_dx_wrapper_missing");
         }
-        if ("2".equals(schemaVersion)) {
+        if (!"1".equals(schemaVersion)) {
             requireCapability(properties, "audioDrivers", profile.getAudioDriver(),
                 "rootfs_audio_driver_missing");
         }

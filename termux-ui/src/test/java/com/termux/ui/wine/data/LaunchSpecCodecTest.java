@@ -3,6 +3,8 @@ package com.termux.ui.wine.data;
 import com.termux.ui.domain.LaunchExecutionMode;
 import com.termux.ui.wine.domain.GameRuntimeBackendType;
 import com.termux.ui.wine.domain.LaunchSpec;
+import com.termux.ui.wine.domain.ProotComponentBinding;
+import java.util.Collections;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -120,6 +122,93 @@ public class LaunchSpecCodecTest {
             "DXVK", "ALSA", "1280x720", "INTERMEDIATE", "unknown:3",
             new LinkedHashMap<>(), "/private/events", "/private/log", "/private/lock",
             "/private/cancel", 60);
+    }
+
+    @Test
+    public void nativeAndLegacyRootfsStillEncodeV6WhileBoundRootfsEncodesV7() throws Exception {
+        LaunchSpecCodec codec = new LaunchSpecCodec();
+        File f = temporary.newFile();
+        codec.write(f, spec(new LinkedHashMap<>()));
+        assertEquals("schemaVersion=6", Files.readAllLines(f.toPath()).get(0));
+        codec.write(f, externalSpec());
+        assertEquals("schemaVersion=7", Files.readAllLines(f.toPath()).get(0));
+        LaunchSpec restored = codec.read(f);
+        assertEquals(true, restored.hasExternalComponentLayout());
+        assertEquals(1, restored.getComponentBindings().size());
+        ProotComponentBinding b = restored.getComponentBindings().get(0);
+        assertEquals("/private/install $' =/rootfs_wine_10.0/versions/v1-aaaa", b.getVersionDirectory());
+        assertEquals("wine $' = 目录", b.getContentRelativePath());
+        assertEquals(codec.fingerprint(externalSpec()), codec.fingerprint(restored));
+    }
+
+    @Test(expected = IOException.class)
+    public void refusesV7OnNativeEvenWithNoBindings() throws Exception {
+        File f = temporary.newFile();
+        LaunchSpecCodec codec = new LaunchSpecCodec();
+        codec.write(f, spec(new LinkedHashMap<>()));
+        String raw = new String(Files.readAllBytes(f.toPath()), StandardCharsets.US_ASCII)
+            .replace("schemaVersion=6", "schemaVersion=7") + "bindingCount=0\n";
+        Files.write(f.toPath(), raw.getBytes(StandardCharsets.US_ASCII));
+        codec.read(f);
+    }
+
+    @Test(expected = IOException.class)
+    public void refusesExtraBindingFieldsInV6() throws Exception {
+        File f = temporary.newFile();
+        LaunchSpecCodec codec = new LaunchSpecCodec();
+        codec.write(f, spec(new LinkedHashMap<>()));
+        Files.write(f.toPath(), "bindingCount=0\n".getBytes(StandardCharsets.US_ASCII),
+            java.nio.file.StandardOpenOption.APPEND);
+        codec.read(f);
+    }
+
+    @Test(expected = IOException.class)
+    public void refusesUnknownBindingRevision() throws Exception {
+        File f = temporary.newFile();
+        LaunchSpecCodec codec = new LaunchSpecCodec();
+        codec.write(f, externalSpec());
+        String raw = new String(Files.readAllBytes(f.toPath()), StandardCharsets.US_ASCII)
+            .replace("binding.0.revision=MQ==", "binding.0.revision=Mg==");
+        Files.write(f.toPath(), raw.getBytes(StandardCharsets.US_ASCII));
+        codec.read(f);
+    }
+
+    @Test(expected = IOException.class)
+    public void rejectsBindingTargetOutsideFixedAllowlist() throws Exception {
+        File f = temporary.newFile();
+        LaunchSpecCodec codec = new LaunchSpecCodec();
+        codec.write(f, externalSpec());
+        String raw = new String(Files.readAllBytes(f.toPath()), StandardCharsets.US_ASCII);
+        raw = raw.replace("binding.0.guestTarget=" + Base64Text.encode("/opt/box64-wine".getBytes(StandardCharsets.UTF_8)),
+            "binding.0.guestTarget=" + Base64Text.encode("/usr".getBytes(StandardCharsets.UTF_8)));
+        Files.write(f.toPath(), raw.getBytes(StandardCharsets.US_ASCII));
+        codec.read(f);
+    }
+
+    @Test(expected = IOException.class)
+    public void rejectsExcessiveBindingCountBeforeAllocatingRecords() throws Exception {
+        File f = temporary.newFile();
+        LaunchSpecCodec codec = new LaunchSpecCodec();
+        codec.write(f, externalSpec());
+        String raw = new String(Files.readAllBytes(f.toPath()), StandardCharsets.US_ASCII)
+            .replace("bindingCount=1", "bindingCount=999999999");
+        Files.write(f.toPath(), raw.getBytes(StandardCharsets.US_ASCII));
+        codec.read(f);
+    }
+
+    private static LaunchSpec externalSpec() {
+        LaunchSpec b = spec(new LinkedHashMap<>());
+        ProotComponentBinding binding = new ProotComponentBinding("rootfs_wine_10.0", 1,
+            String.join("", Collections.nCopies(64, "a")),
+            "/private/install $' =/rootfs_wine_10.0/versions/v1-aaaa", "wine $' = 目录",
+            "/opt/box64-wine", ProotComponentBinding.Role.WINE);
+        return new LaunchSpec(b.getTaskId(), b.getGameId(), b.getGameRootPath(), b.getExecutable(),
+            b.getWorkingDirectory(), b.getArguments(), b.getPrefixPath(), "rootfs_wine_10.0",
+            "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", b.getResolution(), b.getBox64Preset(),
+            b.getInputProfileId(), b.getLaunchExecutionMode(), b.getEnvironment(), b.getEventPath(),
+            b.getLogPath(), b.getLockPath(), b.getCancelPath(), b.getTimeoutSeconds(),
+            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", "/private/rootfs",
+            "/private/home", false, Collections.singletonList(binding));
     }
 
     private static LaunchSpec spec(Map<String, String> environment) {

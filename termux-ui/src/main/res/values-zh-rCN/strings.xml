@@ -418,7 +418,6 @@
     <string name="local_game_runtime_save">保存</string>
     <string name="local_game_runtime_title_root">%1$s · 运行环境</string>
     <string name="local_game_runtime_menu_general">常规</string>
-    <string name="local_game_runtime_menu_backend">运行环境后端</string>
     <string name="local_game_runtime_menu_common">通用</string>
     <string name="local_game_runtime_menu_wine">Wine 配置</string>
     <string name="local_game_runtime_menu_wine_summary">主题、背景、字体、DPI 和鼠标叠加偏移</string>
@@ -436,11 +435,8 @@
     <string name="local_game_runtime_general_launch_args">启动参数</string>
     <string name="local_game_runtime_general_launch_args_invalid">启动参数无效</string>
     <string name="local_game_runtime_general_executable">可执行文件</string>
-    <string name="local_game_runtime_backend_rootfs_package">Rootfs 包</string>
-    <string name="local_game_runtime_backend_container_id">容器 ID</string>
     <string name="local_game_runtime_backend_components">组件</string>
     <string name="local_game_runtime_backend_components_summary">管理已安装的运行组件</string>
-    <string name="local_game_runtime_backend_container_failed">无法创建 rootfs 容器</string>
     <string name="local_game_runtime_common_resolution">游戏分辨率</string>
     <string name="local_game_runtime_common_graphics_driver">图形驱动</string>
     <string name="local_game_runtime_common_dx">DirectX 转译</string>
@@ -672,4 +668,6 @@
     <string name="local_game_assets_shared_suffix">（共享）</string>
     <string name="local_games_preparation_completed">准备完成</string>
     <string name="local_game_assets_build_cache">运行环境构建缓存</string>
+    <string name="local_game_runtime_backend_subtitle">后端：%1$s</string>
+    <string name="local_game_runtime_backend_unavailable">后端信息不可用</string>
 </resources>

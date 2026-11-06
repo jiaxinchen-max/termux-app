@@ -33,9 +33,12 @@ import com.termux.ui.wine.api.ResolvedGameDirectory;
 import com.termux.ui.wine.artwork.GameArtworkLoader;
 import com.termux.ui.wine.artwork.GameArtworkStore;
 import com.termux.ui.wine.data.FileGameRepository;
+import com.termux.ui.wine.data.FileRuntimeProfileRepository;
 import com.termux.ui.wine.data.GameAccessState;
 import com.termux.ui.wine.data.GameRepository;
 import com.termux.ui.wine.domain.Game;
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
+import com.termux.ui.wine.domain.RuntimeProfile;
 import com.termux.ui.wine.importer.LaunchArguments;
 import com.termux.ui.wine.importer.SafGameAccessProbe;
 import com.termux.ui.wine.recovery.GameAssetCategory;
@@ -97,6 +100,7 @@ public final class GameDetailActivity extends AppUiActivity {
     private GameArtworkLoader artworkLoader;
     private String gameId;
     private Game game;
+    @Nullable private GameRuntimeBackendType runtimeBackend;
     private GameAccessState accessState;
     private int operationGeneration;
     private boolean destroyed;
@@ -255,9 +259,17 @@ public final class GameDetailActivity extends AppUiActivity {
             GameAccessState loadedAccess = null;
             Bitmap cover = null;
             String error = null;
+            GameRuntimeBackendType loadedBackend = null;
             try {
                 found = gameRepository.find(gameId);
                 if (found.isPresent()) {
+                    try {
+                        loadedBackend = new FileRuntimeProfileRepository(
+                            new GameStoragePaths(getFilesDir()).getProfilesDirectory())
+                            .find(gameId).map(RuntimeProfile::getRuntimeBackendType).orElse(null);
+                    } catch (IOException | RuntimeException profileError) {
+                        android.util.Log.w("GameDetail", "Unable to read runtime backend", profileError);
+                    }
                     loadedAccess = accessProbe.check(found.get());
                     try {
                         artworkStore.recover(gameId);
@@ -272,6 +284,7 @@ public final class GameDetailActivity extends AppUiActivity {
             GameAccessState state = loadedAccess;
             Bitmap artwork = cover;
             String failure = error;
+            GameRuntimeBackendType backend = loadedBackend;
             runOnUiThread(() -> {
                 if (!isCurrent(generation)) return;
                 setProgressVisible(false);
@@ -285,6 +298,7 @@ public final class GameDetailActivity extends AppUiActivity {
                     finish();
                 } else {
                     game = loaded.get();
+                    runtimeBackend = backend;
                     accessState = state;
                     renderGame(artwork, applyRestoredForm);
                 }
@@ -296,6 +310,12 @@ public final class GameDetailActivity extends AppUiActivity {
         clearErrors();
         binding.gameDetailContent.setVisibility(View.VISIBLE);
         binding.gameDetailTitleName.setText(game.getName());
+        binding.gameDetailBackend.setText(runtimeBackend == null
+            ? getString(R.string.local_game_runtime_backend_unavailable)
+            : getString(R.string.local_game_runtime_backend_subtitle,
+                getString(runtimeBackend == GameRuntimeBackendType.ROOTFS_PROOT
+                    ? R.string.local_game_runtime_profile_backend_rootfs
+                    : R.string.local_game_runtime_profile_backend_glibc)));
         binding.gameDetailExecutable.setText(getString(
             R.string.local_game_detail_executable, game.getExecutable()));
         binding.gameDetailRootUri.setText(getString(

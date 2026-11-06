@@ -58,8 +58,16 @@ public final class RootfsSetupAssetInstaller {
                 }
             }
         }
-        File script = new File(paths.getRuntimeSetupDirectory(), "setup_rootfs_runtime.sh");
-        copyAsset("local-games/setup_rootfs_runtime.sh", script, digest);
+        if (recipe.getVersion() == RootfsSetupRecipe.EXTERNAL_COMPONENTS_VERSION) {
+            for (String helper : new String[]{"rootfs_prefix_warmup.sh", "proot_component_bindings.sh"}) {
+                try (InputStream input = context.getAssets().open("local-games/" + helper)) {
+                    byte[] buffer = new byte[32768]; int count;
+                    while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count);
+                }
+            }
+        }
+        File script = new File(paths.getRuntimeSetupDirectory(), "setup_rootfs_runtime_v" + recipe.getVersion() + ".sh");
+        copyAsset(recipe.getSetupScriptAssetPath(), script, digest);
         if (!script.setExecutable(true, true)) throw new IOException("rootfs_setup_script_mode_failed");
         return new Installed(directory.getCanonicalFile(), script.getCanonicalFile(), hex(digest.digest()));
     }

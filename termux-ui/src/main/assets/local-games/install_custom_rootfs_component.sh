@@ -104,12 +104,10 @@ if [ "$RUNTIME_BACKEND" = glibc_termux_box ]; then
 else
     [ -x "$SHARED_ROOTFS/usr/bin/env" ] && [ -x "$SHARED_ROOTFS/usr/bin/wine" ] &&
         [ -f "$SHARED_ROOTFS/etc/games-runtime.properties" ] || fail rootfs_not_built_yet 70
-    case "$KIND" in
-        wine) DEST="$SHARED_ROOTFS/opt/custom-wine/$COMPONENT_ID" ;;
-        box64) DEST="$SHARED_ROOTFS/opt/box64/$COMPONENT_ID" ;;
-        dxvk) DEST="$SHARED_ROOTFS/opt/dxvk/$COMPONENT_ID" ;;
-    esac
-    STAGE_BASE="$SHARED_CONTAINER/.custom-install-stage"
+    COMPONENT_PACKAGE_ROOT="$PRIVATE_ROOT/components/install/$COMPONENT_ID"
+    COMPONENT_VERSION_NAME="1-$PAYLOAD_SHA256"
+    DEST="$COMPONENT_PACKAGE_ROOT/versions/$COMPONENT_VERSION_NAME"
+    STAGE_BASE="$COMPONENT_PACKAGE_ROOT/.custom-install-stage"
 fi
 [ ! -e "$DEST" ] && [ ! -L "$DEST" ] || fail custom_component_already_installed 73
 mkdir -p "$(dirname "$DEST")" "$STAGE_BASE"
@@ -258,11 +256,19 @@ validate_links "$PUBLISH"
 # Publish the receipt in the same rename as the payload; no half-installed registry entries.
 printf 'schemaVersion=1\nruntimeBackend=%s\nruntimeTranslator=%s\nkind=%s\ncomponentId=%s\nsha256=%s\n' \
     "$RUNTIME_BACKEND" "$RUNTIME_TRANSLATOR" "$KIND" "$COMPONENT_ID" "$PAYLOAD_SHA256" > "$PUBLISH/.custom-component.properties"
+if [ "$RUNTIME_BACKEND" = rootfs_proot ]; then
+    printf 'schemaVersion=1\npackageName=%s\nversion=1\nsha256=%s\n' \
+        "$COMPONENT_ID" "$PAYLOAD_SHA256" > "$PUBLISH/.games-component.properties"
+fi
 progress "==> Publishing $COMPONENT_ID"
 # Same filesystem rename; -n preserves an existing version even if an outside writer raced us.
 mv -T -n "$PUBLISH" "$DEST" || fail custom_component_publish_failed 70
 [ ! -d "$PUBLISH" ] || fail custom_component_already_installed 73
 PUBLISHED=true
+if [ "$RUNTIME_BACKEND" = rootfs_proot ]; then
+    printf 'schemaVersion=1\nactive=%s\nprevious=\n' "$COMPONENT_VERSION_NAME" > "$COMPONENT_PACKAGE_ROOT/active.properties.tmp"
+    mv "$COMPONENT_PACKAGE_ROOT/active.properties.tmp" "$COMPONENT_PACKAGE_ROOT/active.properties" || fail custom_component_publish_failed 70
+fi
 progress '==> Custom component install completed'
 printf '{"schemaVersion":1,"taskId":"%s","state":"SUCCEEDED"}\n' "$TASK_ID" >> "$EVENTS_PATH"
 COMPLETED=true

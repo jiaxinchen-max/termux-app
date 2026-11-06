@@ -73,6 +73,26 @@ public class ComponentInstallationReaderTest {
         expectInvalid(root);
     }
 
+    @Test
+    public void rejectsPackageAndReceiptSymlinkEscapes() throws Exception {
+        File root = temporaryFolder.newFolder("link-install");
+        File outside = temporaryFolder.newFolder("outside");
+        writeReceipt(outside, "runtime", "v1-aaaaaaaaaaaa", 1, SHA_A);
+        writePointer(outside, "runtime", "v1-aaaaaaaaaaaa", "");
+        java.nio.file.Files.createSymbolicLink(new File(root, "runtime").toPath(),
+            new File(outside, "runtime").toPath());
+        expectInvalid(root);
+
+        File safe = temporaryFolder.newFolder("receipt-link-install");
+        writeReceipt(safe, "runtime", "v1-aaaaaaaaaaaa", 1, SHA_A);
+        writePointer(safe, "runtime", "v1-aaaaaaaaaaaa", "");
+        File receipt = new File(safe, "runtime/versions/v1-aaaaaaaaaaaa/.games-component.properties");
+        java.nio.file.Files.delete(receipt.toPath());
+        java.nio.file.Files.createSymbolicLink(receipt.toPath(),
+            new File(outside, "runtime/versions/v1-aaaaaaaaaaaa/.games-component.properties").toPath());
+        expectInvalid(safe);
+    }
+
     private static void expectInvalid(File root) throws Exception {
         try {
             new ComponentInstallationReader(root).read("runtime");

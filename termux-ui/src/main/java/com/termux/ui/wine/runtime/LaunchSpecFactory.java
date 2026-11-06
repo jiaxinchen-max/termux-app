@@ -50,6 +50,11 @@ public final class LaunchSpecFactory {
             throw new IOException("game_workdir_unreadable");
         }
         File home = backend.resolveHomeDirectory(paths, profile);
+        java.util.List<com.termux.ui.wine.domain.ProotComponentBinding> bindings = null;
+        if (profile.getRuntimeBackendType() == com.termux.ui.wine.domain.GameRuntimeBackendType.ROOTFS_PROOT &&
+            ProotPreparedRuntime.usesExternalLayout(new File(runtimeRootPath))) {
+            bindings = ProotPreparedRuntime.require(paths, profile).getBindings();
+        }
         return new LaunchSpec(taskId, game.getId(), root.getPath(), game.getExecutable(),
             game.getWorkingDirectory(), game.getArguments(),
             backend.resolvePrefix(paths, profile).getCanonicalPath(),
@@ -62,7 +67,7 @@ public final class LaunchSpecFactory {
             new File(paths.getLaunchLocksDirectory(), taskId).getCanonicalPath(),
             new File(paths.getLaunchCancelDirectory(), taskId + ".cancel").getCanonicalPath(),
             43200, profile.getRuntimeBackendType(), profile.getRootfsPackage(),
-            runtimeRootPath, home == null ? "" : home.getCanonicalPath(), desktopOnly);
+            runtimeRootPath, home == null ? "" : home.getCanonicalPath(), desktopOnly, bindings);
     }
 
     private static void requireContained(File root, File child, String error) throws IOException {

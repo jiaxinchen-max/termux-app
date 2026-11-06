@@ -78,6 +78,16 @@ public class RuntimeInstallationGateTest {
             RuntimeInstallationGate.requireRootfsSlot(files, "self-task"));
     }
 
+    @Test public void onlyRegisteredDependencyCanRunUnderItsQueuedParent() throws Exception {
+        File files = temporary.newFolder("owned-dependency");
+        saveSetupTask(files, "parent", RuntimeSetupTaskState.PREPARING);
+        RuntimeInstallationGate.registerDependency(files, "parent", "child");
+        RuntimeInstallationGate.requireComponentSlot(files, "child");
+        assertThrows(Exception.class, () -> RuntimeInstallationGate.requireComponentSlot(files, "unrelated"));
+        assertThrows(Exception.class, () -> RuntimeInstallationGate.requireComponentSlot(files, null));
+        assertThrows(Exception.class, () -> RuntimeInstallationGate.requireResetSlot(files, "unrelated"));
+    }
+
     private static void saveComponentTask(File files, String taskId, ComponentTaskState state)
         throws Exception {
         ComponentTask task = new ComponentTask(taskId, "termux-glibc", 1,

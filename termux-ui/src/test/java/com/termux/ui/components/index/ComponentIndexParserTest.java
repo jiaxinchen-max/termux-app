@@ -28,14 +28,17 @@ public class ComponentIndexParserTest {
         }
 
         assertEquals(2, index.getSchemaVersion());
-        assertEquals("2026-09-13T01:00:00Z", index.getGeneratedAt());
+        assertEquals("2026-11-06T17:33:04Z", index.getGeneratedAt());
         assertEquals(21, index.getComponents().size());
         assertFalse(index.find("termux-glibc").isPresent());
         ComponentDescriptor source = index.find("rootfs_hangover_11.16").get();
         assertEquals(ComponentType.RUNTIME_SUPPORT, source.getType());
         assertTrue(source.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
-        assertEquals(293099520L, source.getSize());
-        assertEquals("b5493f5903ab3c05f78bf4c03b06ac0005eb26f732437748c1592fefa45e861a",
+        assertEquals(2, source.getVersion());
+        assertEquals("https://github.com/jiaxinchen-max/termux-app-packages/releases/download/"
+            + "rootfs_hangover_11.16-v2/rootfs_hangover_11.16.tar", source.getUrl());
+        assertEquals(100485120L, source.getSize());
+        assertEquals("ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1",
             source.getSha256());
         ComponentDescriptor box64Rootfs = index.find("rootfs_box64_0.4.5").get();
         assertTrue(box64Rootfs.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));

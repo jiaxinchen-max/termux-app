@@ -47,6 +47,15 @@ public final class ComponentTasks {
         return taskId;
     }
 
+    /** The parent is persisted before this exact child is admitted by the installation gate. */
+    public static String enqueueRuntimeDependency(Context context, String componentId, String parent) throws IOException {
+        requireIdentifier(componentId, "componentId");
+        String taskId = UUID.randomUUID().toString();
+        com.termux.ui.service.RuntimeInstallationGate.registerDependency(context.getFilesDir(), parent, taskId);
+        start(context, command(context, ACTION_ENQUEUE, taskId).putExtra(EXTRA_COMPONENT_ID, componentId));
+        return taskId;
+    }
+
     public static void pause(@NonNull Context context, @NonNull String taskId) {
         start(context, command(context, ACTION_PAUSE, taskId));
     }

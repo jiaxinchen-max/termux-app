@@ -23,6 +23,8 @@ grep -q '^apply_container_env_vars() {' "$FUNCS" || fail "apply_container_env_va
 grep -q '^apply_debug_mode() {' "$FUNCS" || fail "apply_debug_mode not found in the launcher"
 grep -q '^apply_debug_mode$' "$SEQUENCE" || fail "apply_debug_mode is not part of the launcher main flow"
 
+: > "$WORK/container.conf"
+
 KEYS="MESA_NO_ERROR WINEDEBUG BOX64_LOG BOX64_NOBANNER BOX64_SHOWSEGV BOX64_DLSYM_ERROR BOX64_DYNAREC_MISSING BOX64_TRACE_FILE"
 
 # snapshot: the preset-controlled variables as KEY=value lines, <unset> when absent.
@@ -65,7 +67,9 @@ main_flow() {
         export TERMUX_BOX_ENV_VARS TERMUX_BOX_INHERITED_ENV_KEYS
         . "$FUNCS"
         load_configs() { apply_container_env_vars; }
+        resolve_native_box64() { :; }
         normalize_cpu_affinity() { :; }
+        CONTAINER_CONF="$WORK/container.conf"
         . "$SEQUENCE"
         snapshot
     )

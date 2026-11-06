@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-13T01:00:00Z",
+  "generatedAt": "2026-11-06T17:33:04Z",
   "packages": [
     {
       "id": "glibc_box64_0.2.7",
@@ -287,8 +287,8 @@
       "category": "runtime",
       "type": "runtime_support",
       "displayName": "hangover_11.16",
-      "versionName": "11.16",
-      "summary": "Hangover 11.16 Debian 13 ImageFS source, pinned.",
+      "versionName": "11.16 (IDAP pdb2)",
+      "summary": "Source-built Hangover 11.16 for Debian 13; separate PDB/ELF symbols, scoped device-tested.",
       "framework": "ROOTFS",
       "base": false,
       "recommended": false,
@@ -297,10 +297,10 @@
       "runtimeBackends": [
         "rootfs_proot"
       ],
-      "version": 1,
-      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_hangover_11.16-v1/rootfs_hangover_11.16.tar",
-      "size": 293099520,
-      "sha256": "b5493f5903ab3c05f78bf4c03b06ac0005eb26f732437748c1592fefa45e861a"
+      "version": 2,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_hangover_11.16-v2/rootfs_hangover_11.16.tar",
+      "size": 100485120,
+      "sha256": "ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1"
     },
     {
       "id": "rootfs_box64_0.4.5",

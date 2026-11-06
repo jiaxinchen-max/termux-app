@@ -97,6 +97,20 @@ public class RuntimeEnvironmentStatusTest {
     }
 
     @Test
+    public void externalRootfsIsReadyWithoutStandaloneBox64() throws Exception {
+        GameStoragePaths paths = new GameStoragePaths(temporary.newFolder("files-external"));
+        File root = createCompleteSharedRootfs(paths);
+        assertTrue(new File(root, "opt/box64/rootfs_box64_0.4.5/bin/box64").delete());
+        File manifest = new File(root, "etc/games-runtime.properties");
+        java.nio.file.Files.write(manifest.toPath(),
+            "schemaVersion=3\nlayout=external-components-v1\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertEquals(RuntimeReadinessState.READY, new RuntimeEnvironmentStatus(paths).rootfsState());
+        java.nio.file.Files.write(manifest.toPath(),
+            "schemaVersion=3\nlayout=unknown\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertEquals(RuntimeReadinessState.INCOMPLETE, new RuntimeEnvironmentStatus(paths).rootfsState());
+    }
+
+    @Test
     public void rootfsIncompleteWhenSharedRootfsIsMissingOneMarker() throws Exception {
         File files = temporary.newFolder("files-rootfs-incomplete");
         GameStoragePaths paths = new GameStoragePaths(files);

@@ -47,7 +47,7 @@ public final class RuntimeEnvironmentStatus {
     public RuntimeReadinessState rootfsState() {
         File root = paths.getSharedRootfsDirectory();
         boolean complete = new File(root, "usr/bin/env").canExecute() &&
-            new File(root, "opt/box64/rootfs_box64_0.4.5/bin/box64").canExecute() &&
+            externalLayoutOrLegacyBox64(root) &&
             new File(root, "usr/bin/wine").canExecute() &&
             new File(root, "usr/bin/wineboot").canExecute() &&
             new File(root, "usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc").isFile() &&
@@ -62,4 +62,11 @@ public final class RuntimeEnvironmentStatus {
         }
         return RuntimeReadinessState.NOT_READY;
     }
+    private boolean externalLayoutOrLegacyBox64(File root) {
+        try {
+            if (ProotPreparedRuntime.usesExternalLayout(root)) return true;
+        } catch (java.io.IOException error) { return false; }
+        return new File(root, "opt/box64/rootfs_box64_0.4.5/bin/box64").canExecute();
+    }
+
 }

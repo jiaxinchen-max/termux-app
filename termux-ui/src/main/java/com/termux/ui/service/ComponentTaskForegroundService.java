@@ -154,7 +154,7 @@ public final class ComponentTaskForegroundService extends Service {
             ComponentDeliveryCoordinator current = requireCoordinator();
             if (ComponentTasks.ACTION_ENQUEUE.equals(action)) {
                 ComponentTaskConsoleLog.clearCommandFailure(getFilesDir(), taskId);
-                RuntimeInstallationGate.requireComponentSlot(getFilesDir(), null);
+                RuntimeInstallationGate.requireComponentSlot(getFilesDir(), requiredIdentifier(taskId, "taskId"));
                 ComponentDescriptor descriptor = requiredDescriptor(componentId);
                 current.enqueue(descriptor, requiredIdentifier(taskId, "taskId"));
                 ComponentTaskConsoleLog.append(getFilesDir(), taskId,

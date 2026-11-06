@@ -10,7 +10,7 @@ mock = '#!'+sys.executable+'\n'+r'''
 import html,json,os,pathlib,re,signal,socket,subprocess,sys,time
 base=pathlib.Path(os.environ['FIXTURE']); prefix=pathlib.Path(os.environ['PREFIX'])
 name=pathlib.Path(sys.argv[0]).name; args=sys.argv[1:]
-record={k:os.environ.get(k) for k in ('XLORIE_GL_MODE','XLORIE_GLX','TERMUX_RENDER_AHB_RECEIVE','LIBGL_ALWAYS_SOFTWARE','GALLIUM_DRIVER','MESA_LOADER_DRIVER_OVERRIDE','VK_DRIVER_FILES','VK_ICD_FILENAMES','LIBGL_KOPPER_DRI2','MESA_VK_DEVICE_SELECT','DRI_PRIME','COGL_DRIVER','CLUTTER_DRIVER','HOME','XCURSOR_PATH','XCURSOR_THEME','XDG_CONFIG_HOME','XDG_CACHE_HOME','XDG_DATA_HOME','XDG_RUNTIME_DIR','DBUS_SESSION_BUS_ADDRESS','TERMUX_USB_DESKTOP_DIR','PLASMA_LOG')}
+record={k:os.environ.get(k) for k in ('XLORIE_GL_MODE','XLORIE_GLX','TERMUX_RENDER_AHB_RECEIVE','LIBGL_ALWAYS_SOFTWARE','GALLIUM_DRIVER','MESA_LOADER_DRIVER_OVERRIDE','VK_DRIVER_FILES','VK_ICD_FILENAMES','LIBGL_KOPPER_DRI2','MESA_VK_DEVICE_SELECT','DRI_PRIME','COGL_DRIVER','CLUTTER_DRIVER','HOME','XCURSOR_PATH','XCURSOR_THEME','XDG_CONFIG_HOME','XDG_CACHE_HOME','XDG_DATA_HOME','XDG_RUNTIME_DIR','DBUS_SESSION_BUS_ADDRESS','TERMUX_USB_DESKTOP_DIR','PLASMA_LOG','PULSE_SERVER')}
 record['KWIN_ENV']={key:value for key,value in os.environ.items() if key.startswith('KWIN_')}
 with (base/'calls').open('a') as out: out.write(json.dumps([name,args,record])+'\n')
 def serve(path):
@@ -120,7 +120,7 @@ while True: time.sleep(.1)
   sock=socket.socket(socket.AF_UNIX); sock.bind(str(render))
   termux_home=folder/'termux-home'; termux_home.mkdir()
   ready=folder/'ready'; work=folder/'work'; env=dict(os.environ,HOME=str(termux_home),LIBGL_ALWAYS_SOFTWARE='1',GALLIUM_DRIVER='softpipe',MESA_LOADER_DRIVER_OVERRIDE='swrast',VK_DRIVER_FILES='/stale/lvp.json',VK_ICD_FILENAMES='/stale/lvp.json',LIBGL_KOPPER_DRI2='true',MESA_VK_DEVICE_SELECT='wrong',DRI_PRIME='wrong',KWIN_ANDROID_GL_MODE='llvmpipe',KWIN_ANDROID_RUNTIME_ROOT='/stale-kwin-runtime',KWIN_ANDROID_REFRESH_RATE='120',KWIN_UNRELATED_TEST='must-not-leak',PLASMA_LOG='/stale-plasma.log',FIXTURE_ACCELERATED=probe_accelerated,FIXTURE_RENDERER=probe_renderer,FIXTURE_RENDERER_EXIT=str(probe_code),XCURSOR_PATH='/inherited-wrong-path',XCURSOR_THEME='WrongTheme',PREFIX=str(prefix),PATH=str(prefix/'bin')+':/usr/bin:/bin',FIXTURE=str(folder))
-  env.update(COGL_DRIVER='gles2',CLUTTER_DRIVER='gles2,any')
+  env.update(COGL_DRIVER='gles2',CLUTTER_DRIVER='gles2,any',PULSE_SERVER='tcp:127.0.0.1:4713')
   command=[sys.executable,'-I','-B',str(launcher),'--desktop-id',name,'--ready-file',str(ready),'--run-mode',mode,'--backend',backend,'--gl-mode',gl,'--size','800x600','--refresh-rate',str(hz),'--render-socket',str(render),'--display',':0','--wayland-display','wayland-gnome','--usb-storage','read-only' if usb else 'off','--service-policy','core','--work',str(work)]
   if startup is not None: command+=['--session-startup',startup]
   if display_gl=='by-backend': display_gl=('zink' if gl=='zink' else 'system') if backend=='x11' else None
@@ -183,6 +183,8 @@ while True: time.sleep(.1)
      assert '--wayland' in shell[1] and '--no-x11' in shell[1]
      assert shell[2]['COGL_DRIVER'] is None and shell[2]['CLUTTER_DRIVER']=='gles2'
      assert not any(row[0]=='Xlorie' for row in calls)
+    shell_audio=next(row for row in calls if row[0]=='gnome-shell')
+    assert shell_audio[2]['PULSE_SERVER']=='tcp:127.0.0.1:4713', 'audio endpoint was not forwarded'
     child_pid=int((folder/'shell-running').read_text())
     sentinel=subprocess.Popen(['/bin/sleep','30'])
     try:
@@ -293,7 +295,7 @@ while True: time.sleep(.1)
    modules=rootfs/'usr/local/lib/termux-usb-bridge/gio/modules'
    (rootfs/'usr/local/libexec').mkdir(parents=True); helper=rootfs/'usr/local/libexec/tusb-gio-mount'; helper.touch(); helper.chmod(0o700)
   modules.mkdir(parents=True); (modules/'libtusb-volume-monitor.so').touch()
-  env=dict(os.environ,PREFIX=str(prefix),PATH=str(prefix/'bin')+':/usr/bin:/bin',FIXTURE=str(folder))
+  env=dict(os.environ,PREFIX=str(prefix),PATH=str(prefix/'bin')+':/usr/bin:/bin',FIXTURE=str(folder),PULSE_SERVER='tcp:127.0.0.1:4713')
   command=[sys.executable,'-I','-B',str(launcher),'--desktop-id',name,'--run-mode',mode,'--usb-storage','read-only','--display',':0']
   if mode=='proot': command+=['--alias','debian-test']
   output=(folder/'output').open('w'); process=subprocess.Popen(command,env=env,stdout=output,stderr=output)
@@ -303,6 +305,9 @@ while True: time.sleep(.1)
    parent=prefix/('tmp/tusb-'+hashlib.sha256(name.encode()).hexdigest()[:16])
    wait_for(lambda:(parent/'desktop/control.sock').is_socket(),process)
    process.terminate(); assert process.wait(timeout=10)==(1 if cleanup_failure else 130)
+   calls=[json.loads(line) for line in (folder/'calls').read_text().splitlines()]
+   shell=next(row for row in calls if row[0]=='xfce4-session')
+   assert shell[2]['PULSE_SERVER']=='tcp:127.0.0.1:4713'
    assert (folder/'storage-cleanup').read_text()=='session-alive'
    assert (folder/'storage-bus').read_text()=='unix:path='+str(parent/'xfce-session/session-bus')
   except BaseException:

@@ -79,6 +79,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private List<RuntimeComponentVariant> installedVariants = Collections.emptyList();
     private LinearLayout content;
     private TextView title;
+    private TextView backendSubtitle;
     private LinearLayout header;
     private ProgressBar progress;
     private LinearLayout progressHost;
@@ -100,7 +101,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private Intent restoredComponentSelection;
 
     private enum Page {
-        ROOT, GENERAL, CONTAINER, BASE, WINE, LIBRARIES, ENVIRONMENT, FOLDERS, ADVANCED
+        ROOT, GENERAL, BASE, WINE, LIBRARIES, ENVIRONMENT, FOLDERS, ADVANCED
     }
 
     public interface Listener {
@@ -157,10 +158,16 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         title.setIncludeFontPadding(false);
         title.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout titleBlock = new LinearLayout(getContext());
+        titleBlock.setOrientation(LinearLayout.VERTICAL);
+        titleBlock.addView(title);
+        backendSubtitle = text("", 12, R.color.local_games_on_surface_secondary);
+        backendSubtitle.setVisibility(View.GONE);
+        titleBlock.addView(backendSubtitle);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0,
             LinearLayout.LayoutParams.WRAP_CONTENT, 1);
         titleParams.setMarginStart(dp(8));
-        header.addView(title, titleParams);
+        header.addView(titleBlock, titleParams);
         // The same "?" help action every games toolbar has (icon, description, GamesHelpDialog).
         ImageView help = new ImageView(getContext());
         help.setImageResource(R.drawable.local_games_ic_help);
@@ -281,9 +288,11 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     private void render() {
         content.removeAllViews();
+        backendSubtitle.setText(getContext().getString(R.string.local_game_runtime_backend_subtitle,
+            runtimeBackendLabel(profile.getRuntimeBackendType())));
+        backendSubtitle.setVisibility(View.VISIBLE);
         switch (page) {
             case GENERAL: renderGeneral(); break;
-            case CONTAINER: renderContainer(); break;
             case BASE: renderBase(); break;
             case WINE: renderWine(); break;
             case LIBRARIES: renderLibraries(); break;
@@ -296,9 +305,11 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     }
 
     private void renderRoot() {
-        title.setText(getContext().getString(R.string.local_game_runtime_title_root, game.getName()));
+        pageTitle(getContext().getString(R.string.local_game_runtime_title_root, game.getName()));
         addMenu(s(R.string.local_game_runtime_menu_general), workingDirectoryDisplay() + " · " + game.getExecutable(), Page.GENERAL);
-        addMenu(s(R.string.local_game_runtime_menu_backend), runtimeBackendLabel(profile.getRuntimeBackendType()), Page.CONTAINER);
+        addRow(s(R.string.local_game_runtime_backend_components),
+            s(R.string.local_game_runtime_backend_components_summary), true, view ->
+            getContext().startActivity(LocalGames.createComponentsIntent(getContext(), game.getId())));
         addMenu(s(R.string.local_game_runtime_menu_common), profile.getResolution() + " · "
             + componentLabel(profile.getGraphicsDriver()) + " · " + componentLabel(profile.getDxWrapper()), Page.BASE);
         addMenu(s(R.string.local_game_runtime_menu_wine), s(R.string.local_game_runtime_menu_wine_summary), Page.WINE);
@@ -353,18 +364,6 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         } catch (IOException error) {
             return s(R.string.local_game_import_working_directory_missing);
         }
-    }
-
-    private void renderContainer() {
-        pageTitle(s(R.string.local_game_runtime_menu_backend));
-        addReadOnly(s(R.string.local_game_runtime_menu_backend), runtimeBackendLabel(profile.getRuntimeBackendType()));
-        if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
-            addReadOnly(s(R.string.local_game_runtime_backend_rootfs_package), profile.getRootfsPackage());
-        }
-        addReadOnly(s(R.string.local_game_runtime_backend_container_id), profile.getContainerId());
-        addRow(s(R.string.local_game_runtime_backend_components),
-            s(R.string.local_game_runtime_backend_components_summary), true, view ->
-            getContext().startActivity(LocalGames.createComponentsIntent(getContext(), game.getId())));
     }
 
     private String runtimeBackendLabel(GameRuntimeBackendType type) {
@@ -691,12 +690,17 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private void pageTitle(String value) {
         title.setText(value);
         if (header.getVisibility() != View.VISIBLE) {
+            LinearLayout headingBlock = new LinearLayout(getContext());
+            headingBlock.setOrientation(LinearLayout.VERTICAL);
             TextView heading = text(value, 20, R.color.local_games_on_surface);
             heading.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            headingBlock.addView(heading);
+            headingBlock.addView(text(backendSubtitle.getText().toString(), 12,
+                R.color.local_games_on_surface_secondary));
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             params.setMargins(dp(4), dp(4), dp(4), dp(14));
-            content.addView(heading, params);
+            content.addView(headingBlock, params);
         }
     }
 
@@ -950,7 +954,14 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     /** Embedded landscape panels use the device back key instead of a second navigation bar. */
     public void setShowHeader(boolean show) {
-        header.setVisibility(show ? View.VISIBLE : View.GONE);
+        int visibility = show ? View.VISIBLE : View.GONE;
+        if (header.getVisibility() == visibility) return;
+        header.setVisibility(visibility);
+        if (profile != null && game != null) {
+            int scrollY = optionsScroll.getScrollY();
+            render();
+            optionsScroll.post(() -> optionsScroll.scrollTo(0, scrollY));
+        }
     }
 
     private void close() {

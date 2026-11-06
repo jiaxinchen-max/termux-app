@@ -11,6 +11,7 @@ import java.util.Map;
 public final class LaunchSpec {
 
     public static final int SCHEMA_VERSION = 6;
+    public static final int PROOT_SCHEMA_VERSION = 7;
     public static final int MAX_ARGUMENTS = 256;
     public static final int MAX_ENVIRONMENT = 256;
 
@@ -43,6 +44,8 @@ public final class LaunchSpec {
      *  the game's executable -- the user just wants to poke around inside the container. Every
      *  other value (container, prefix, game root mount) is still real, so no validation relaxes. */
     private final boolean desktopOnly;
+    private final List<ProotComponentBinding> componentBindings;
+    private final boolean externalComponentLayout;
 
     public LaunchSpec(String taskId, String gameId, String gameRootPath,
                       String executable, String workingDirectory, List<String> arguments,
@@ -107,6 +110,23 @@ public final class LaunchSpec {
                       String logPath, String lockPath, String cancelPath, long timeoutSeconds,
                       GameRuntimeBackendType runtimeBackendType, String rootfsPackage,
                       String runtimeRootPath, String homeDirectoryPath, boolean desktopOnly) {
+        this(taskId, gameId, gameRootPath, executable, workingDirectory, arguments,
+            prefixPath, winePackage, graphicsDriver, dxWrapper, audioDriver, resolution,
+            box64Preset, inputProfileId, launchExecutionMode, environment, eventPath,
+            logPath, lockPath, cancelPath, timeoutSeconds, runtimeBackendType, rootfsPackage,
+            runtimeRootPath, homeDirectoryPath, desktopOnly, null);
+    }
+
+    public LaunchSpec(String taskId, String gameId, String gameRootPath,
+                      String executable, String workingDirectory, List<String> arguments,
+                      String prefixPath, String winePackage, String graphicsDriver,
+                      String dxWrapper, String audioDriver, String resolution, String box64Preset,
+                      String inputProfileId, LaunchExecutionMode launchExecutionMode,
+                      Map<String, String> environment, String eventPath,
+                      String logPath, String lockPath, String cancelPath, long timeoutSeconds,
+                      GameRuntimeBackendType runtimeBackendType, String rootfsPackage,
+                      String runtimeRootPath, String homeDirectoryPath, boolean desktopOnly,
+                      List<ProotComponentBinding> componentBindings) {
         this.taskId = requireId(taskId, "taskId");
         this.gameId = requireId(gameId, "gameId");
         this.gameRootPath = requireAbsolute(gameRootPath, "gameRootPath");
@@ -175,6 +195,12 @@ public final class LaunchSpec {
             throw new IllegalArgumentException("rootfs fields not supported for GLIBC backend");
         }
         this.desktopOnly = desktopOnly;
+        this.externalComponentLayout = componentBindings != null;
+        if (externalComponentLayout && runtimeBackendType != GameRuntimeBackendType.ROOTFS_PROOT) {
+            throw new IllegalArgumentException("proot_bindings_on_native_backend");
+        }
+        this.componentBindings = ProotComponentBinding.immutableBindings(componentBindings == null ?
+            java.util.Collections.emptyList() : componentBindings);
     }
 
     private static String requireId(String value, String field) {
@@ -241,5 +267,8 @@ public final class LaunchSpec {
     public String getRootfsPackage() { return rootfsPackage; }
     public String getRuntimeRootPath() { return runtimeRootPath; }
     public String getHomeDirectoryPath() { return homeDirectoryPath; }
+    public int getSchemaVersion() { return externalComponentLayout ? PROOT_SCHEMA_VERSION : SCHEMA_VERSION; }
+    public boolean hasExternalComponentLayout() { return externalComponentLayout; }
+    public List<ProotComponentBinding> getComponentBindings() { return componentBindings; }
     public boolean isDesktopOnly() { return desktopOnly; }
 }

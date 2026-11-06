@@ -1,6 +1,6 @@
 # 工程结构与完成进度
 
-更新日期：2026-11-06。源码分支：`master-x11-submodule-tmp`。
+更新日期：2026-11-06。原工程汇总来自 `master-x11-submodule-tmp` 的 `4c4229d2`；本次在该提交的独立 worktree 接续测试修复。
 
 项目处于功能集成与设备回归阶段。核心操作已有 App UI 验证，但完整设备/驱动矩阵及部分专项验收尚未完成，不能据此判定达到正式发布条件。以下按实际证据列状态，不用缺少验收口径的百分比表示完成度。
 
@@ -101,20 +101,51 @@ r9/r28 已公开，39 项资产及 App 的 14 个下载 URL 已校验；源码�
 4. 并发显示 owner 冲突门禁；暂停外部烟测后的成功不等于并发问题修复。
 5. 桌面归档恢复时缺少支撑组件的真实网络安装；GNOME 归档暂不支持。
 6. Discover 旧实例空池的精确历史根因未完整重放；新版本主路径通过，不关闭该证据边界。
-7. 6 个脚本测试尚未通过：`test-controller-runtime.sh` 的覆盖块提取、`test-launcher-env-precedence.sh` 的新增 resolver 调用、`test-start-local-game.sh` 的启动夹具、`test-start-rootfs-game.sh` 的 spec schema，以及 `test-desktop-gnome-scripts.sh` / `test-desktop-managed-lifecycle.sh` 的音频夹具。这些失败均已实际记录，需同步契约后再验证，未作为通过或删除测试。
+7. 原有 6 个失败脚本的夹具已在 `repair-current-script-fixtures` 中修复并串行通过：控制器、环境优先级、Native/RootFS 启动、GNOME/XFCE（45 场景）、托管桌面生命周期（15 场景）。仅更新测试，未修改生产代码；本次证据见第 7 节，不代表设备待办完成。
 8. Fold 最后验收时仅余约 1.07 GiB；新建独立 C 盘需至少 3 GiB。已恢复临时移走的 Native 组件并完成 24,621 文件 SHA 校验，容量问题未永久解决。
 9. 桌面历史 TODO 仍有旧 tag 清理等条目；未经当前远端核对，不标记完成。
 
-## 6. 本次提交前检查
+## 6. 原基线提交前检查（历史记录）
 
 - 本地 `:app:assembleDebug` 成功，包含四 ABI 原生目标。
 - `app` 50、`termux-ui` 603、`termux-x11` 108 项 Java 单测通过，共 761 项；`terminal-view:testDebugUnitTest` 无测试用例。
 - 模块边界检查通过；RootFS staging 8 场景、prefix recovery 5 场景、维护环境隔离检查通过。
 - 桌面脚本合同测试通过（macOS 需 `TMPDIR=/tmp` 避免 Unix socket 路径过长），USB 策略 6 项、恢复预检 39 项通过。
 - GIO 安全测试 10 项全部因平台条件跳过；Mesa 18 项中 5 项通过、13 项跳过。Linux 专用测试不计为在本机已验。
-- 上述 6 个脚本测试失败单独保留，不声称所有自动检查全绿。
+- 原基线中上述 6 个脚本测试失败单独保留；本次接续修复结果另行记录，不改写历史结果。
 - 29 个运行 Shell 脚本语法、文档链接和 Git 空白检查通过。
 - 7 个原生子模块的 28 个文件差异逐字节确认全部来自已跟踪的 `patches-darwin` 构建补丁；不更改子模块提交指针，不把补丁应用结果另行提交到上游仓库。
 - 本次仅整理文档并提交已有改动，没有重新执行完整设备 UI 矩阵；既有验证按对应日期与 APK 记录引用。
 
 构建日志：`/tmp/termux-project-summary-20261106-gradle.log`；脚本结果：`/tmp/project-test-*.log`。设备证据中的 `/tmp` 路径属于本机临时产物，不保证新 clone 可访问。
+
+
+## 7. 本次脚本夹具修复验证（2026-11-06）
+
+OpenSpec：[`repair-current-script-fixtures`](../openspec/changes/repair-current-script-fixtures/tasks.md)。用户已确认实施，仅修改六项测试夹具与状态/规划记录；生产源码、组件和子模块提交指针不变。
+
+- 六项原失败脚本已全部串行通过：控制器 DLL/override、用户环境优先级、Native 启动、共享 RootFS 启动、GNOME/XFCE（45 场景）、托管桌面生命周期（15 场景）。
+- Native/RootFS 使用当前 schema 6、`files/front` 和包/translator 契约；保留参数、环境、失败、取消、超时及清理断言，新增旧 schema/缺 launcher/跨 translator C 盘保护检查。
+- 六项临时故障均被对应断言检测：override 未导出、用户环境未恢复、两种启动 argv 损坏、GNOME 音频端点错误、托管桌面音频端点错误。故障只注入临时副本。
+- 串行检查合计 13/13 通过。 命令和退出码见 run-local `evidence/serial-verification-results.json`；故障检查见 `evidence/isolated-mutation-results.json`，均含日志 SHA-256。
+- 首次并行尝试为 10/13：GNOME/X server 清理发生进程互扰，恢复预检超过初始 180 秒预算。原始失败日志保留；最终使用串行执行和 600 秒单项预算。首次 GNOME 故障注入同样受互扰，已明确作废并重跑。
+- 恢复预检的首个串行尝试因 `/usr/local/bin/python3` 重复启动开销主动终止，未计为通过；保留 `serial-first-attempt-results.json` 和 `restore-retry-reason.json`，以 PATH 显式选择 `/usr/bin/python3` 完整重跑，未修改该测试或断言。最终结果记录包含实际 PATH 和解释器。
+- 六个修改脚本逐项 `sh -n`、Git 空白检查及 OpenSpec strict 校验通过。实现与测试由主 Agent 直接评审，无独立评审人。
+- 当前 `.harness/scripts/verify.sh` 和权威 Harness 规则缺失；strict 命令实测无法打开脚本，不能声称完整 Harness 通过。`.harness/` 被 Git 忽略，本次新建台账仅记录事实。
+- 无 ADB 设备；本次未运行 APK 构建、761 项 Java 单测或任何设备矩阵。第 5 节真实 USB、Plasma Stop、phantom-process、并发 display owner 与网络恢复安装等待办仍未关闭。没有 staging、commit、push、PR、部署或归档。
+
+本次 run ledger：`.harness/runs/repair-current-script-fixtures/`；可分享的本地报告和日志副本位于 `/home/user/workspace/artifacts/continue-4c4229d2/`。第 6 节仍为原基线历史记录。
+
+
+### 2026-11-06：自编译 Hangover pdb2 直接设备验证
+
+2026-11-06 用户明确使用自编译版本并要求“不要搞兼容，直接上”：停止独立映射验证，直接 dpkg 安装 pdb2 到当前共享 RootFS。设备 loader/ntdll SHA 与候选一致，包版本 11.16~trixie+idap.pdb2。App 新 Hangover 配置首次准备约 515.7 秒成功，Winfile 中文实际出图，安全退出无运行进程残留；真实 App 终端上下文 32/64 位 smoke 均退出 0，位数标记和 version.dll 动态加载通过。RootFS 安装后 3.32→1.89 GiB，减少约 1.43 GiB；App 运行后 1.90 GiB，最终可用约 2.90 GiB。7 份原有配置/绑定文件内容未变。外部 helper 的路径/上下文/LD_PRELOAD 失败单独保留，不判为已证实产品回归。当前仅替换测试设备现有 base，APK 远程索引/原组件源未切换，网络重建仍会使用官方包；完整 ABI/ODBC、物理手柄、正式来源/身份、备份与恢复矩阵继续未完成。详情 `.harness/runs/optimize-proot-runtime-storage/evidence/device-pdb2-direct-20261106/verification-report.md`。产品一致性 Pending，未归档、未执行 Git 发布。
+
+
+## 2026-11-06 自编译 Hangover 分发接入
+
+用户明确授权后，独立 `rootfs_hangover_11.16-v2` 测试组件已发布，v1 保留；运行 tar 100,485,120 bytes，SHA-256 `ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1`。公开地址实际重下载摘要一致，设备 HEAD 返回 200 和正确大小。App 与组件仓库目录同步到 version 2，Wine deb 为 `11.16~trixie+idap.pdb2`，源码与复用输入见发布附带 manifest，符号不进入运行包。
+
+现有准备链按目录版本和摘要重新获取组件；配方摘要自然变为 `6a87fd7bb8562d2f309eb084c45bfb4ab75f20077b1cd0beb977d3203a3c239a`，模板身份随之变化，不重标旧 receipt 或模板。APK 保持 `termux-app_apt-android-7-debug_arm64-v8a.apk`，由用户手动下载安装；集成 APK 的全新网络准备尚待设备验收，不以先前直接 dpkg 安装的成功代替。
+
+本轮 633 JVM 与 35 打包用例通过，默认 APK 构建、签名、CRC、ARM64 和打包目录身份检查通过；启动、绑定、模板、staging、备份拒绝与模块合同另有本轮日志。完整 ABI/混合导出/异常展开、物理手柄和完整游戏矩阵、新格式离线备份恢复仍未完成。v11 备份保持显式拒绝，产品一致性 Pending，不归档。权威 Harness 脚本缺失，未报告 strict-run 通过。

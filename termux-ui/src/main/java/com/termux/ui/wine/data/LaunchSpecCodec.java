@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Strict Base64 line protocol shared with start_local_game.sh. */
+/** Strict Base64 line protocol: Native/embedded PRoot v6 and frozen-binding PRoot v7. */
 public final class LaunchSpecCodec {
 
     public void write(File target, LaunchSpec spec) throws IOException {
@@ -86,7 +86,7 @@ public final class LaunchSpecCodec {
 
     private static List<String> encodeLines(LaunchSpec spec) {
         List<String> lines = new ArrayList<>();
-        plain(lines, "schemaVersion", Integer.toString(LaunchSpec.SCHEMA_VERSION));
+        plain(lines, "schemaVersion", Integer.toString(spec.getSchemaVersion()));
         text(lines, "taskId", spec.getTaskId());
         text(lines, "gameId", spec.getGameId());
         text(lines, "gameRootPath", spec.getGameRootPath());
@@ -123,13 +123,12 @@ public final class LaunchSpecCodec {
             text(lines, "environment." + index + ".key", key);
             text(lines, "environment." + index + ".value", spec.getEnvironment().get(key));
         }
+        if (spec.hasExternalComponentLayout()) ProotBindingsCodec.append(lines, spec.getComponentBindings());
         return Collections.unmodifiableList(lines);
     }
 
     private static LaunchSpec decode(Map<String, String> fields) throws IOException {
-        // Dev-phase: only the current schema is accepted (matches the launcher scripts' exact
-        // schema check). No older-version spec files are read.
-        integer(fields, "schemaVersion", LaunchSpec.SCHEMA_VERSION, LaunchSpec.SCHEMA_VERSION);
+        int schema = integer(fields, "schemaVersion", LaunchSpec.SCHEMA_VERSION, LaunchSpec.PROOT_SCHEMA_VERSION);
         int arguments = integer(fields, "argumentCount", 0, LaunchSpec.MAX_ARGUMENTS);
         int environment = integer(fields, "environmentCount", 0, LaunchSpec.MAX_ENVIRONMENT);
         Set<String> expected = new HashSet<>();
@@ -156,6 +155,12 @@ public final class LaunchSpecCodec {
                 throw new IOException("duplicate_launch_environment_key");
             }
         }
+        List<com.termux.ui.wine.domain.ProotComponentBinding> bindings = schema == LaunchSpec.PROOT_SCHEMA_VERSION ?
+            ProotBindingsCodec.decode(fields, expected) : null;
+        if (schema == LaunchSpec.PROOT_SCHEMA_VERSION &&
+            !"rootfs_proot".equals(decoded(fields, "runtimeBackendType"))) {
+            throw new IOException("proot_bindings_on_native_backend");
+        }
         if (!fields.keySet().equals(expected)) throw new IOException("invalid_launch_spec_fields");
         try {
             return new LaunchSpec(decoded(fields, "taskId"), decoded(fields, "gameId"),
@@ -174,7 +179,7 @@ public final class LaunchSpecCodec {
                 decoded(fields, "rootfsPackage"),
                 decoded(fields, "runtimeRootPath"),
                 decoded(fields, "homeDirectory"),
-                "1".equals(fields.get("desktopOnly")));
+                "1".equals(fields.get("desktopOnly")), bindings);
         } catch (IllegalArgumentException error) {
             throw new IOException("invalid_launch_spec", error);
         }

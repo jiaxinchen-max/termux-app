@@ -100,7 +100,7 @@ build_prefix_templates() { test ! -e "$BUILD_CONTEXT" || exit 81; printf templat
                    FIXTURE_SOURCE=str(front / "components/component"),
                    FIXTURE_GUEST=str(files / "guest"), FIXTURE_WARM=str(files / "warm"),
                    FIXTURE_TEMPLATE=str(files / "template"))
-        result = subprocess.run(["sh", str(ASSETS / "setup_rootfs_runtime.sh"), str(spec)],
+        result = subprocess.run(["sh", str(ASSETS / "runtime-rootfs/setup_rootfs_runtime_v10.sh"), str(spec)],
                                 env=env, capture_output=True, text=True, timeout=20)
         if rejected:
             assert result.returncode == 70, result.stderr + result.stdout

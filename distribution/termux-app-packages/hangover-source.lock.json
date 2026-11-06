@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "hangover": {
+    "url": "https://github.com/AndreRH/hangover.git",
+    "tag": "hangover-11.16",
+    "commit": "56e385b7ff490edd281b288f420677093563560b",
+    "wineCommit": "3ea3a14941b6a122b892c84141ce9662c008081e",
+    "fexCommit": "fa556167d5a64ec7adb5503c2aa15b169c292cac",
+    "box64Commit": "2f130fab1d6e1a4ee8a71dc60cfdfcc839ad192a"
+  },
+  "buildRootfs": {
+    "upstreamCommit": "373f61a386722a989c79f0c11f23fcf379b56e94",
+    "url": "https://raw.githubusercontent.com/debuerreotype/docker-debian-artifacts/373f61a386722a989c79f0c11f23fcf379b56e94/trixie/oci/blobs/rootfs.tar.gz",
+    "sha256": "a6dd1c05fbba4f9028078a11f143cbb625d2408921eb8207bfa1dd1ad301276f",
+    "bytes": 49412508,
+    "architecture": "amd64"
+  },
+  "llvmMingw": {
+    "release": "20260826",
+    "name": "llvm-mingw-20260826-ucrt-ubuntu-22.04-x86_64",
+    "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20260826/llvm-mingw-20260826-ucrt-ubuntu-22.04-x86_64.tar.xz",
+    "sha256": "cee8d2ce3da5145ce4dc882e70d0b0719a783d53a99752c60948fc0659975a65",
+    "bytes": 83880560
+  },
+  "originalComponent": {
+    "sha256": "b5493f5903ab3c05f78bf4c03b06ac0005eb26f732437748c1592fefa45e861a",
+    "reusePolicy": "Only unchanged emulator debs and dxvk payload may be reused; record every reused member hash."
+  },
+  "sourceDateEpoch": 1787940812,
+  "crossDebug": "pdb",
+  "targetArchitectures": [
+    "arm64ec",
+    "aarch64",
+    "i386"
+  ],
+  "debianRevision": "11.16~trixie+idap.pdb2",
+  "configureWithout": [
+    "opencl",
+    "pcap"
+  ]
+}

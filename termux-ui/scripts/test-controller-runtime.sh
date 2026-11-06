@@ -208,7 +208,7 @@ grep -q 'controller_winhandler.exe' "$PROJECT_ROOT/termux-ui/src/main/java/com/t
 # variable was never assigned, so no override reached Wine. Run that block as the launcher does and look at what ends
 # up in the environment (`env` lists exported variables only).
 OVERRIDES_BLOCK="$WORK/overrides-block.sh"
-sed -n '/^WINE_DLL_OVERRIDES=\$(games_controller_dll_overrides/,/unset WINEDLLOVERRIDES$/p' \
+sed -n '/^WINE_DLL_OVERRIDES=/,/unset WINEDLLOVERRIDES$/p' \
     "$ASSETS/start_termux_box_game.sh" > "$OVERRIDES_BLOCK"
 [ -s "$OVERRIDES_BLOCK" ] || fail "overrides block not found in the native launcher"
 
@@ -219,29 +219,33 @@ launcher_overrides() {
         unset WINEDLLOVERRIDES GAMES_DLL_D3D GAMES_DLL_DSOUND GAMES_DLL_DMUSIC GAMES_DLL_DSHOW GAMES_DLL_DPLAY GAMES_DLL_DINPUT GAMES_DLL_XINPUT
         for _assignment in "$@"; do export "$_assignment"; done
         TERMUX_BOX_GAMEPAD_MAPPER=$_mapper
+        NATIVE_D3D_OVERRIDES=$D3D_BASE
         . "$OVERRIDES_BLOCK"
         _value=$(env | sed -n 's/^WINEDLLOVERRIDES=//p')
         printf '%s' "${_value:-<unset>}"
     )
 }
 
-# Nothing is exported for the controller DLLs while their settings are empty: they load as builtin DLLs.
-[ "$(launcher_overrides 1)" = '<unset>' ] || fail "native launcher exports controller overrides without a setting"
-[ "$(launcher_overrides 0)" = '<unset>' ] || fail "native launcher exports dinput overrides without a setting"
-[ "$(launcher_overrides 1 GAMES_DLL_D3D=native,builtin)" = 'd3d8,d3d9,d3d10core,d3d11,dxgi=native,builtin;' ] \
+# Direct3D selection now always supplies its own baseline. Empty controller settings must
+# add no controller overrides, while preserving that explicit Direct3D selection.
+D3D_BASE='d3d8,d3d9,d3d10,d3d10_1,d3d10core,d3d11,dxgi,d3d12,d3d12core=b'
+[ "$(launcher_overrides 1)" = "$D3D_BASE;" ] || fail "native launcher exports controller overrides without a setting"
+[ "$(launcher_overrides 0)" = "$D3D_BASE;" ] || fail "native launcher exports dinput overrides without a setting"
+[ "$(launcher_overrides 1 GAMES_DLL_D3D=native,builtin)" = "$D3D_BASE;d3d8,d3d9,d3d10core,d3d11,dxgi=native,builtin;" ] \
     || fail "native launcher does not export the D3D override on its own"
 # The Libraries settings reach the exported variable through the launcher, ahead of the other libraries.
-[ "$(launcher_overrides 1 GAMES_DLL_XINPUT=native,builtin)" = "$(expected_overrides native,builtin $XINPUT_DLLS)" ] \
+[ "$(launcher_overrides 1 GAMES_DLL_XINPUT=native,builtin)" = "$D3D_BASE;$(expected_overrides native,builtin $XINPUT_DLLS)" ] \
     || fail "native launcher ignores the XInput library setting"
-[ "$(launcher_overrides 0 GAMES_DLL_DINPUT=builtin GAMES_DLL_DSOUND=b)" = 'dinput=builtin;dinput8=builtin;dsound=b;' ] \
+[ "$(launcher_overrides 0 GAMES_DLL_DINPUT=builtin GAMES_DLL_DSOUND=b)" = "$D3D_BASE;dinput=builtin;dinput8=builtin;dsound=b;" ] \
     || fail "native launcher ignores the DirectInput library setting"
 [ "$(launcher_overrides 0 GAMES_DLL_DINPUT=native GAMES_DLL_D3D=n GAMES_DLL_DSOUND=b GAMES_DLL_DMUSIC=d GAMES_DLL_DSHOW=n,b GAMES_DLL_DPLAY=b)" \
-    = 'dinput=native;dinput8=native;d3d8,d3d9,d3d10core,d3d11,dxgi=n;dsound=b;dmusic=d;quartz=n,b;dplayx=b;' ] \
+    = "$D3D_BASE;dinput=native;dinput8=native;d3d8,d3d9,d3d10core,d3d11,dxgi=n;dsound=b;dmusic=d;quartz=n,b;dplayx=b;" ] \
     || fail "native launcher override order is wrong"
-# An empty override string must leave the variable unset, even if the caller had one.
-[ "$( (games_controller_dll_overrides() { :; }; WINEDLLOVERRIDES=stale; export WINEDLLOVERRIDES; \
+# A stale inherited value must be replaced by the selected Direct3D baseline,
+# even when no controller or optional library override is configured.
+[ "$( (games_controller_dll_overrides() { :; }; NATIVE_D3D_OVERRIDES=$D3D_BASE; WINEDLLOVERRIDES=stale; export WINEDLLOVERRIDES; \
     unset GAMES_DLL_D3D GAMES_DLL_DSOUND GAMES_DLL_DMUSIC GAMES_DLL_DSHOW GAMES_DLL_DPLAY; \
-    . "$OVERRIDES_BLOCK"; _value=$(env | sed -n 's/^WINEDLLOVERRIDES=//p'); printf '%s' "${_value:-<unset>}") )" = '<unset>' ] \
-    || fail "native launcher keeps WINEDLLOVERRIDES set when there is nothing to override"
+    . "$OVERRIDES_BLOCK"; _value=$(env | sed -n 's/^WINEDLLOVERRIDES=//p'); printf '%s' "${_value:-<unset>}") )" = "$D3D_BASE;" ] \
+    || fail "native launcher keeps stale inherited overrides instead of the Direct3D selection"
 
 echo "controller runtime checks passed"

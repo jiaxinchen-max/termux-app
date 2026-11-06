@@ -128,31 +128,74 @@ public final class RootfsSetupForegroundService extends Service {
         }
         RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), taskId);
         RootfsSetupRecipe recipe = RootfsSetupRecipe.require(packageName);
-        // Auto-download any base component that isn't installed yet, before the build starts.
-        // No rootfs setup task is persisted at this point, so the component tasks this enqueues
-        // pass their own RuntimeInstallationGate check; once they finish, resolveBaseComponents
-        // succeeds instead of throwing rootfs_source_component_missing (the rebuild-stuck cause).
-        new RootfsRuntimeComponentPreparer(this, taskId).ensure(recipe.getBaseComponentIds());
-        new SetupPreparationLog(getFilesDir(), taskId).append("Components ready; preparing RootFS.");
-        java.util.LinkedHashMap<String, InstalledComponent> baseComponents =
-            resolveBaseComponents(recipe);
-        RootfsSetupAssetInstaller.Installed assets = new RootfsSetupAssetInstaller(this, paths)
-            .install(recipe, componentSha256s(baseComponents));
-        String containerName = containerId;
+        if (!baseOnly) {
+            GameContainer selection = containers.find(containerId)
+                .orElseThrow(() -> new IOException("rootfs_container_missing"));
+            new FileGameContainerRepository(selectionDirectory(taskId)).save(selection);
+        }
+        // The all-zero digest denotes dependency preparation only, never a runnable recipe.
         RuntimeSetupTask task = RuntimeSetupTask.queued(taskId, packageName,
-            recipe.getVersion(), assets.getRecipeSha256(), recipe.getSourceComponentId(),
-            containerId, containerName, baseOnly, System.currentTimeMillis());
+            recipe.getVersion(), PENDING_RECIPE, recipe.getSourceComponentId(),
+            containerId, containerId, baseOnly, System.currentTimeMillis());
         tasks.save(task);
-        prepareAndStart(task, baseComponents, assets);
+        prepareAndStart(task);
+    }
+
+    private static final String PENDING_RECIPE = new String(new char[64]).replace('\0', '0');
+
+    private File selectionDirectory(String taskId) {
+        return new File(paths.getRuntimeSetupDirectory(), "selections/" + taskId);
+    }
+
+    private GameContainer selectedContainer(RuntimeSetupTask task) throws IOException {
+        return new FileGameContainerRepository(selectionDirectory(task.getTaskId()))
+            .find(task.getContainerId()).orElseThrow(() -> new IOException("rootfs_preparation_selection_missing"));
+    }
+
+    private com.termux.ui.wine.domain.RuntimeProfile selectedProfile(RuntimeSetupTask task) throws IOException {
+        GameContainer c = selectedContainer(task);
+        return new com.termux.ui.wine.domain.RuntimeProfile(c.getId(), c.getWinePackage(),
+            c.getGraphicsDriver(), c.getDxWrapper(), c.getAudioDriver(), c.getResolution(),
+            c.getBox64Preset(), c.getEnvironment(), "xinput",
+            com.termux.ui.domain.LaunchExecutionMode.APP_SHELL,
+            java.util.Collections.emptyMap(), c.getBackendType(), c.getRootfsPackage(), c.getId());
+    }
+
+    private com.termux.ui.wine.data.ProotBindingStore taskBindings() {
+        return new com.termux.ui.wine.data.ProotBindingStore(new File(paths.getRuntimeSetupDirectory(), "bindings"));
     }
 
     private void prepareAndStart(RuntimeSetupTask task) throws Exception {
-        RootfsSetupRecipe recipe = RootfsSetupRecipe.require(task.getPackageName());
-        java.util.LinkedHashMap<String, InstalledComponent> baseComponents =
-            resolveBaseComponents(recipe);
+        RootfsSetupRecipe recipe = RootfsSetupRecipe.require(task.getPackageName(), task.getVersion());
+        if (recipe.getVersion() != RootfsSetupRecipe.EXTERNAL_COMPONENTS_VERSION) {
+            throw new IOException("rootfs_old_preparation_unsupported");
+        }
+        java.util.Set<String> required = new java.util.LinkedHashSet<>(recipe.getBaseComponentIds());
+        if (!task.isBaseOnly()) required.addAll(new com.termux.ui.wine.runtime.ProotDependencyResolver()
+            .requiredComponentIds(selectedProfile(task), paths));
+        if (PENDING_RECIPE.equals(task.getRecipeSha256())) {
+            new RootfsRuntimeComponentPreparer(this, task.getTaskId()).ensure(required);
+        }
+        RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), task.getTaskId());
+        java.util.LinkedHashMap<String, InstalledComponent> baseComponents = resolveBaseComponents(recipe);
         RootfsSetupAssetInstaller.Installed assets = new RootfsSetupAssetInstaller(this, paths)
             .install(recipe, componentSha256s(baseComponents));
-        if (!task.getRecipeSha256().equals(assets.getRecipeSha256())) {
+        if (PENDING_RECIPE.equals(task.getRecipeSha256())) {
+            task = RuntimeSetupTask.queued(task.getTaskId(), task.getPackageName(), task.getVersion(),
+                assets.getRecipeSha256(), task.getSourceComponentId(), task.getContainerId(),
+                task.getContainerName(), task.isBaseOnly(), task.getCreatedAt());
+            if (!task.isBaseOnly()) {
+                com.termux.ui.wine.domain.RuntimeProfile p = selectedProfile(task);
+                taskBindings().write(task.getTaskId(), new com.termux.ui.wine.domain.ProotBindingSnapshot(
+                    p.getWinePackage(), p.getDxWrapper(),
+                    com.termux.ui.wine.runtime.GameContainerProfileResolver.resolveTranslator(p.getWinePackage(), paths),
+                    p.getEnvironment().getOrDefault("GAMES_CUSTOM_BOX64_ID", ""), assets.getRecipeSha256(),
+                    new com.termux.ui.wine.runtime.ProotBindingResolver(new ComponentStoragePaths(getFilesDir())
+                        .getInstallDirectory()).freeze(p, paths)));
+            }
+            // Publish the replayable task identity only after its frozen dependency record.
+            tasks.save(task);
+        } else if (!task.getRecipeSha256().equals(assets.getRecipeSha256())) {
             throw new IOException("rootfs_recipe_changed");
         }
         prepareAndStart(task, baseComponents, assets);
@@ -208,8 +251,7 @@ public final class RootfsSetupForegroundService extends Service {
             scripts.installRootfsScriptCommon();
             File prefixWarmupScript = scripts.installRootfsPrefixWarmup();
             if (!task.isBaseOnly()) {
-                GameContainer container = containers.find(task.getContainerId())
-                    .orElseThrow(() -> new IOException("rootfs_container_missing"));
+                GameContainer container = selectedContainer(task);
                 winePackage = container.getWinePackage();
                 runtimeTranslator = container.getTranslator().getStorageValue();
                 box64ComponentId = container.getEnvironment().getOrDefault("GAMES_CUSTOM_BOX64_ID", "");
@@ -226,7 +268,8 @@ public final class RootfsSetupForegroundService extends Service {
             new RootfsSetupSpecCodec().write(spec, preparing, assets.recipeDirectory,
                 componentDirectories, context, events, log,
                 winePackage, winePrefixDirectory, homeDirectory, prefixWarmupScript,
-                runtimeTranslator, box64ComponentId);
+                runtimeTranslator, box64ComponentId, task.isBaseOnly() ? java.util.Collections.emptyList()
+                    : taskBindings().read(task.getTaskId()).getBindings());
             new SetupPreparationLog(getFilesDir(), task.getTaskId()).append("Starting RootFS setup script.");
             com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(getFilesDir());
             host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
@@ -270,6 +313,13 @@ public final class RootfsSetupForegroundService extends Service {
         if (event.state == Event.SUCCEEDED) {
             RuntimeSetupTask current = requiredTask(task.getTaskId());
             if (!current.getState().isTerminal()) {
+                if (!current.isBaseOnly()) {
+                    com.termux.ui.wine.domain.ProotBindingSnapshot snapshot = taskBindings().read(current.getTaskId());
+                    new com.termux.ui.wine.runtime.ProotBindingResolver(new ComponentStoragePaths(getFilesDir())
+                        .getInstallDirectory()).validate(snapshot.getBindings());
+                    com.termux.ui.wine.runtime.ProotPreparedRuntime.configurations(paths)
+                        .write(current.getContainerId(), snapshot);
+                }
                 RuntimeSetupTask verifying = transition(current,
                     RuntimeSetupTaskState.VERIFYING, "");
                 RuntimeSetupTask activating = transition(verifying,

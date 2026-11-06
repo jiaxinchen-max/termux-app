@@ -1,5 +1,5 @@
 #!/bin/sh
-# RootFS/PRoot game launcher. Input is a private schema-v5 Base64 LaunchSpec.
+# RootFS/PRoot game launcher. Private Base64 LaunchSpec v6 (embedded) or v7 (frozen bindings).
 
 set -u
 
@@ -37,6 +37,7 @@ fail_before_events() { printf '%s\n' "$1" >&2; exit 2; }
 
 TASK_ID=
 SPEC_SCHEMA=
+PROOT_BINDINGS_PRESENT=0
 GAME_ID=
 GAME_ROOT=
 EXECUTABLE=
@@ -73,6 +74,17 @@ while IFS= read -r line || [ -n "$line" ]; do
     [ "$key" != "$line" ] || fail_before_events invalid_launch_spec_line
     case "$key" in
         schemaVersion) SPEC_SCHEMA=$value ;;
+        bindingCount)
+            [ "$SPEC_SCHEMA" = 7 ] && [ "$PROOT_BINDINGS_PRESENT" = 0 ] || fail_before_events invalid_proot_bindings
+            [ -f "$TERMUX_FILES_DIR/front/runtime/proot_component_bindings.sh" ] || fail_before_events proot_binding_helper_missing
+            . "$TERMUX_FILES_DIR/front/runtime/proot_component_bindings.sh"
+            PROOT_BINDINGS_PRESENT=1
+            proot_binding_field "$key" "$value" || fail_before_events invalid_proot_bindings
+            ;;
+        binding.*)
+            [ "$PROOT_BINDINGS_PRESENT" = 1 ] || fail_before_events invalid_proot_bindings
+            proot_binding_field "$key" "$value" || fail_before_events invalid_proot_bindings
+            ;;
         timeoutSeconds) TIMEOUT_SECONDS=$value ;;
         argumentCount) ARGUMENT_COUNT=$value ;;
         environmentCount) ENVIRONMENT_COUNT=$value ;;
@@ -109,7 +121,7 @@ while IFS= read -r line || [ -n "$line" ]; do
             PENDING_ENV_KEY=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64
             case "$PENDING_ENV_KEY" in ''|[0-9]*|*[!A-Za-z0-9_]*) fail_before_events invalid_launch_environment_key ;; esac
             case "$PENDING_ENV_KEY" in
-                PATH|HOME|USER|LOGNAME|TMPDIR|LD_*|PROOT_*|TERMUX_*|WINEPREFIX|DISPLAY|PULSE_SERVER)
+                PATH|HOME|USER|LOGNAME|TMPDIR|LD_*|PROOT_*|TERMUX_*|WINEPREFIX|DISPLAY|PULSE_SERVER|SCRIPT_PATH|SPEC_PATH|PB_*|pb_*|pbf_*|pbd_*)
                     fail_before_events reserved_launch_environment_key
                     ;;
             esac
@@ -125,7 +137,14 @@ while IFS= read -r line || [ -n "$line" ]; do
     esac
 done < "$SPEC_PATH"
 
-[ "$SPEC_SCHEMA" = 6 ] || fail_before_events unsupported_launch_spec_schema
+case "$SPEC_SCHEMA" in
+    6) [ "$PROOT_BINDINGS_PRESENT" = 0 ] || fail_before_events invalid_proot_bindings ;;
+    7) [ "$PROOT_BINDINGS_PRESENT" = 1 ] && proot_bindings_complete || fail_before_events invalid_proot_bindings ;;
+    *) fail_before_events unsupported_launch_spec_schema ;;
+esac
+if [ "$PROOT_BINDINGS_PRESENT" = 0 ]; then
+    proot_exec_bound() { exec "$PROOT_BIN" "$@"; }
+fi
 [ "$RUNTIME_BACKEND_TYPE" = rootfs_proot ] || fail_before_events runtime_backend_script_mismatch
 case "$DESKTOP_ONLY" in 0|1) ;; *) fail_before_events invalid_desktop_only ;; esac
 case "$TASK_ID" in ''|*[!A-Za-z0-9._-]*) fail_before_events invalid_task_id ;; esac
@@ -249,20 +268,25 @@ manifest_has() {
 }
 
 MANIFEST_SCHEMA=$(manifest_value schemaVersion 2>/dev/null) || terminal_failure rootfs_runtime_manifest_unsupported
-case "$MANIFEST_SCHEMA" in 1|2) ;; *) terminal_failure rootfs_runtime_manifest_unsupported ;; esac
-if [ "$MANIFEST_SCHEMA" = 2 ]; then
+case "$MANIFEST_SCHEMA" in 1|2|3) ;; *) terminal_failure rootfs_runtime_manifest_unsupported ;; esac
+if [ "$MANIFEST_SCHEMA" != 1 ]; then
     [ "$(manifest_value runtimeBackend 2>/dev/null)" = rootfs_proot ] || terminal_failure rootfs_runtime_backend_mismatch
     [ "$(manifest_value architecture 2>/dev/null)" = aarch64 ] || terminal_failure rootfs_architecture_mismatch
     case "$(uname -m)" in aarch64|arm64) ;; *) terminal_failure host_architecture_unsupported ;; esac
     manifest_has audioDrivers "$AUDIO_DRIVER" || terminal_failure rootfs_audio_driver_missing
 fi
-case "$WINE_PACKAGE" in custom-wine-?*) ;; *)
-    manifest_has runtimePackages "$WINE_PACKAGE" || terminal_failure rootfs_runtime_package_missing ;;
-esac
+if [ "$MANIFEST_SCHEMA" = 3 ]; then
+    [ "$SPEC_SCHEMA" = 7 ] && [ "$(manifest_value layout)" = external-components-v1 ] ||
+        terminal_failure rootfs_configuration_prepare_required null true
+else
+    case "$WINE_PACKAGE" in custom-wine-?*) ;; *)
+        manifest_has runtimePackages "$WINE_PACKAGE" || terminal_failure rootfs_runtime_package_missing ;;
+    esac
+    case "$DX_WRAPPER" in custom-dxvk-?*) ;; *)
+        manifest_has dxWrappers "$DX_WRAPPER" || terminal_failure rootfs_dx_wrapper_missing ;;
+    esac
+fi
 manifest_has graphicsDrivers "$GRAPHICS_DRIVER" || terminal_failure rootfs_graphics_driver_missing
-case "$DX_WRAPPER" in custom-dxvk-?*) ;; *)
-    manifest_has dxWrappers "$DX_WRAPPER" || terminal_failure rootfs_dx_wrapper_missing ;;
-esac
 case "$GRAPHICS_DRIVER:$DX_WRAPPER" in
     rootfs-virgl-mesa:rootfs_dxvk_*|rootfs-virgl-mesa:custom-dxvk-*)
         terminal_failure runtime_combination_unsupported:virgl_dxvk ;;
@@ -333,7 +357,7 @@ unset LD_PRELOAD
 # foreground command -- that would replace this whole script; use a ( ... ) subshell, as run_rootfs_wine does.
 run_rootfs_command() {
     if [ "$GUEST_PULSE_SERVER" = 1 ]; then
-        exec "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
+        proot_exec_bound --kill-on-exit --link2symlink --sysvipc -0 \
             -r "$ROOTFS_CANONICAL" \
             -b /dev -b /proc -b /sys \
             -b "$TERMUX_FILES_DIR/usr/tmp:/tmp" \
@@ -350,7 +374,7 @@ run_rootfs_command() {
             BOX64_LD_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu \
             "$@"
     else
-        exec "$PROOT_BIN" --kill-on-exit --link2symlink --sysvipc -0 \
+        proot_exec_bound --kill-on-exit --link2symlink --sysvipc -0 \
             -r "$ROOTFS_CANONICAL" \
             -b /dev -b /proc -b /sys \
             -b "$TERMUX_FILES_DIR/usr/tmp:/tmp" \
@@ -477,6 +501,7 @@ case "$AUDIO_DRIVER" in
         HOST_PULSEAUDIO="$TERMUX_FILES_DIR/usr/bin/pulseaudio"
         HOST_PKG="$TERMUX_FILES_DIR/usr/bin/pkg"
         if [ ! -x "$HOST_PULSEAUDIO" ]; then
+            [ "$MANIFEST_SCHEMA" != 3 ] || terminal_failure rootfs_configuration_prepare_required null true
             printf '%s\n' 'PulseAudio is missing from the Termux prefix; installing the shared host audio server.' \
                 >> "$LOG_PATH"
             if [ -x "$HOST_PKG" ]; then
@@ -508,8 +533,13 @@ case "$AUDIO_DRIVER" in
     *) terminal_failure rootfs_audio_driver_missing null true ;;
 esac
 
-resolve_template_prefix_archive
-warmup_rootfs_prefix
+if [ "$MANIFEST_SCHEMA" = 3 ]; then
+    resolve_external_template_identity
+    require_external_prepared_prefix
+else
+    resolve_template_prefix_archive
+    warmup_rootfs_prefix
+fi
 
 # English uses the always-present C.UTF-8 locale; Chinese uses the locale
 # setuped above. This remains a game-level override.
@@ -528,14 +558,16 @@ clear_rootfs_dx_dlls() {
 case "$DX_WRAPPER" in
     rootfs_dxvk_*|custom-dxvk-?*)
         # The dxWrapper value doubles as the install dir name set up by setup-container.sh.
-        DXVK_SYSTEM32="$ROOTFS_CANONICAL/opt/games-runtime/$DX_WRAPPER/system32"
-        DXVK_SYSWOW64="$ROOTFS_CANONICAL/opt/games-runtime/$DX_WRAPPER/syswow64"
         case "$DX_WRAPPER" in custom-dxvk-*)
             case "$DX_WRAPPER" in *[!A-Za-z0-9._-]*) terminal_failure custom_dxvk_id_invalid ;; esac
-            DXVK_SYSTEM32="$ROOTFS_CANONICAL/opt/dxvk/$DX_WRAPPER/x64"
-            DXVK_SYSWOW64="$ROOTFS_CANONICAL/opt/dxvk/$DX_WRAPPER/x32"
+            DXVK_SYSTEM32=$(rootfs_component_host "/opt/dxvk/$DX_WRAPPER/x64") || terminal_failure rootfs_binding_missing
+            DXVK_SYSWOW64=$(rootfs_component_host "/opt/dxvk/$DX_WRAPPER/x32") || terminal_failure rootfs_binding_missing
             rootfs_require_custom_receipt "/opt/dxvk/$DX_WRAPPER" "$DX_WRAPPER" dxvk
             ;;
+            *)
+                DXVK_SYSTEM32=$(rootfs_component_host "/opt/games-runtime/$DX_WRAPPER/system32") || terminal_failure rootfs_binding_missing
+                DXVK_SYSWOW64=$(rootfs_component_host "/opt/games-runtime/$DX_WRAPPER/syswow64") || terminal_failure rootfs_binding_missing
+                ;;
         esac
         [ -d "$DXVK_SYSTEM32" ] && [ -d "$DXVK_SYSWOW64" ] || \
             terminal_failure rootfs_dxvk_payload_missing null true
@@ -584,7 +616,12 @@ apply_rootfs_game_options
 . "$(dirname "$SCRIPT_PATH")/controller_runtime.sh"
 # The arm64 Hangover Wine takes its own build of the DLLs (wine-hangover/ in the payload) as builtin DLLs from the guest
 # Wine's lib/wine and from the prefix; the x86 copies would break it, and "native" would reject the builtin marker.
-if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
+if [ "$RUNTIME_TRANSLATOR" = hangover ] && [ "${WINE_PACKAGE#custom-wine-}" != "$WINE_PACKAGE" ]; then
+    # Custom versions are immutable. The builtin Hangover patcher writes guest /usr/lib/wine
+    # and cannot safely provide the custom build's builtin DLLs. Fall back to direct launch.
+    printf 'WARNING: controller injection is unavailable for custom Hangover; keeping its frozen component and the builtin Wine unchanged.\n' >> "$LOG_PATH"
+    false
+elif [ "$RUNTIME_TRANSLATOR" = hangover ]; then
     install_games_controller_hangover "$PREFIX_PATH" "$(dirname "$SCRIPT_PATH")" "$ROOTFS_CANONICAL/usr/lib/wine" >> "$LOG_PATH" 2>&1
 else
     install_games_controller_runtime "$PREFIX_PATH" "$(dirname "$SCRIPT_PATH")" >> "$LOG_PATH" 2>&1
