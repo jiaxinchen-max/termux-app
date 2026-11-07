@@ -297,8 +297,14 @@ supports_container_setup() {
         "$PROOT_DISTRO" login --help 2>&1 | grep -q -- '--bind'
 }
 progress '==> [1/4] Checking Termux runtime dependencies'
-if [ ! -x "$PREFIX/bin/proot" ] || [ ! -x "$PROOT_DISTRO" ] || \
-    ! "$PROOT_DISTRO" --help >/dev/null 2>&1 || [ ! -x "$PREFIX/bin/pulseaudio" ]; then
+host_runtime_ready() {
+    [ -x "$PREFIX/bin/proot" ] && [ -x "$PROOT_DISTRO" ] &&
+        "$PROOT_DISTRO" --help >/dev/null 2>&1 &&
+        [ -f "$PREFIX/lib/libexpat.so.1" ] &&
+        "$PREFIX/bin/dbus-daemon" --version >/dev/null 2>&1 &&
+        "$PREFIX/bin/pulseaudio" --version >/dev/null 2>&1
+}
+if ! host_runtime_ready; then
     [ -x "$PREFIX/bin/pkg" ] || fail termux_pkg_missing 69
     export DEBIAN_FRONTEND=noninteractive
     # PRoot-Distro 5.x imports Python ssl before it can print help. Explicitly
@@ -306,14 +312,15 @@ if [ ! -x "$PREFIX/bin/proot" ] || [ ! -x "$PROOT_DISTRO" ] || \
     # of leaving a runnable proot-distro launcher with a broken _ssl module.
     # AppShell has no stdin/PTY. DEBIAN_FRONTEND alone does not suppress a
     # dpkg conffile decision, so retain the existing file and accept defaults.
-    progress '==> Installing or repairing PRoot, PulseAudio, Python and OpenSSL'
+    progress '==> Installing or repairing PRoot, PulseAudio, dbus, libexpat, Python and OpenSSL'
     if ! run_logged "$PREFIX/bin/pkg" install -y \
         -o Dpkg::Options::=--force-confdef \
         -o Dpkg::Options::=--force-confold \
-        openssl python proot proot-distro pulseaudio; then
+        openssl python proot proot-distro pulseaudio dbus libexpat; then
         fail proot_distro_package_install_failed 69
     fi
 fi
+host_runtime_ready || fail termux_runtime_dependencies_invalid 69
 [ -x "$PROOT_DISTRO" ] || fail proot_distro_missing 69
 [ -x "$PREFIX/bin/proot" ] || fail proot_missing 69
 supports_container_setup || {
@@ -439,17 +446,25 @@ build_runtime_into() {
     fi
 }
 
+# locale-gen can succeed in staging while its host-absolute .l2s links fail after mv.
+# Check the guest libc result at the published path, before recording the recipe.
+verify_rootfs_locales() {
+    run_logged "$PREFIX/bin/proot" --link2symlink -0 -r "$1" -b /dev -b /proc -w / \
+        /usr/bin/env -i PATH=/usr/bin:/bin /bin/sh -eu -c '
+            test "$(LC_ALL=zh_CN.UTF-8 locale charmap)" = UTF-8
+            test "$(LC_ALL=zh_CN.GBK locale charmap)" = GBK
+        '
+}
+
 # Reclaim stray build dirs left by an older version of this script or an interrupted BASE_ONLY
 # rebuild. No game ever reads any of these directly, so it is always safe to drop anything that
 # is not the current fixed-name artifact.
 if [ "$BASE_ONLY" = true ]; then
-    # A rebuild must actually rebuild, not silently reuse the already-published shared RootFS --
-    # the gate below skips rebuilding whenever the recorded recipe still matches, so force a real
-    # rebuild by clearing the record first. Harmless (a no-op delete) on a first-ever "Build" too.
+    # The publish gate explicitly includes BASE_ONLY. Keep the old receipt until the new tree
+    # passes publication checks, so rollback also preserves the old ready identity.
     # Every per-package prefix template (games-rootfs-base-prefix-<wine package>.tar.*, see the
     # BASE_ONLY loop below) is rebuilt in lockstep with the rootfs for the same reason (the known
     # hash-drift failure mode this session already fixed once for the rootfs side).
-    rm -f "$TEMPLATE_RECIPE"
     for stray_prefix in "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*; do
         [ -e "$stray_prefix" ] || continue
         rm -f "$stray_prefix"
@@ -475,9 +490,9 @@ fi
 
 # Skip the expensive rebuild below unless the live shared RootFS is actually missing/broken, or
 # was last published from a different recipe (a base component or this script's own version
-# changed) -- BASE_ONLY always qualifies for the latter, since the stray-cleanup block above just
-# cleared $TEMPLATE_RECIPE.
-if ! runtime_complete "$SHARED_ROOTFS" || \
+# changed). An explicit BASE_ONLY rebuild always enters this gate; the old recipe receipt stays
+# intact until the replacement has passed its publication checks.
+if [ "$BASE_ONLY" = true ] || ! runtime_complete "$SHARED_ROOTFS" || \
     [ "$(cat "$TEMPLATE_RECIPE" 2>/dev/null)" != "$RECIPE_SHA256" ]; then
     if ! runtime_complete "$BUILD_ROOTFS" || ! grep -Fqx "recipeSha256=$RECIPE_SHA256" "$BUILD_ROOTFS/etc/games-runtime.properties"; then
         build_runtime_into "$BUILD_CONTAINER_NAME" "$BUILD_DIRECTORY" "$BUILD_ROOTFS"
@@ -485,6 +500,9 @@ if ! runtime_complete "$SHARED_ROOTFS" || \
     fi
     sed -i '/^recipeSha256=/d' "$BUILD_ROOTFS/etc/games-runtime.properties"
     printf 'recipeSha256=%s\n' "$RECIPE_SHA256" >> "$BUILD_ROOTFS/etc/games-runtime.properties"
+    [ -f "$RECIPE_DIRECTORY/relocate_rootfs_links.py" ] || fail rootfs_link_helper_missing 66
+    run_logged "$PREFIX/bin/python" "$RECIPE_DIRECTORY/relocate_rootfs_links.py" "$BUILD_ROOTFS" || \
+        fail rootfs_link_validation_failed 70
     # Recording the recipe and publishing the one live, shared RootFS happen in the same task so
     # the two can never disagree -- every container, old and new alike, mounts whatever this
     # leaves behind (see GameStoragePaths.getSharedRootfsDirectory()). A rebuild therefore takes
@@ -508,7 +526,16 @@ if ! runtime_complete "$SHARED_ROOTFS" || \
         [ ! -e "$PREVIOUS_ROOTFS" ] || mv "$PREVIOUS_ROOTFS" "$SHARED_ROOTFS_CONTAINER_DIRECTORY"
         fail rootfs_shared_image_publish_failed 70
     fi
-    runtime_complete "$SHARED_ROOTFS" || fail rootfs_shared_image_invalid 70
+    if ! runtime_complete "$SHARED_ROOTFS" || \
+        ! run_logged "$PREFIX/bin/python" "$RECIPE_DIRECTORY/relocate_rootfs_links.py" "$SHARED_ROOTFS" --verify || \
+        ! verify_rootfs_locales "$SHARED_ROOTFS"; then
+        # Keep the rejected build for an explicit retry; restore the previous live tree.
+        mv "$SHARED_ROOTFS_CONTAINER_DIRECTORY" "$BUILD_DIRECTORY" || fail rootfs_publish_recovery_required 70
+        if [ -e "$PREVIOUS_ROOTFS" ]; then
+            mv "$PREVIOUS_ROOTFS" "$SHARED_ROOTFS_CONTAINER_DIRECTORY" || fail rootfs_publish_recovery_required 70
+        fi
+        fail rootfs_shared_image_invalid 70
+    fi
     printf '%s\n' "$RECIPE_SHA256" > "$TEMPLATE_RECIPE.tmp" &&
         mv "$TEMPLATE_RECIPE.tmp" "$TEMPLATE_RECIPE" || fail rootfs_recipe_record_failed 70
     rm -rf "$PREVIOUS_ROOTFS"
@@ -531,14 +558,14 @@ fi
 # games-shared-rootfs/ directly without going through this script.
 runtime_complete "$SHARED_ROOTFS" || fail rootfs_shared_image_missing 70
 
-# Warms this container's Wine prefix (locale, CJK fonts, `wineboot -u`) right now, at
+# Prepares this container's Wine prefix right now, at
 # import/config-save time, instead of leaving it for the user's first Launch tap -- see
 # rootfs_prefix_warmup.sh, shared with start_rootfs_game.sh so the same marker files this writes
 # are recognized there and skipped (near-instant) on every subsequent launch. A confirmed design
 # choice: unlike RuntimeWarmup's own "never throws" wrapper, a warmup failure here fails this
 # whole setup task (surfaced as FAILED/retry in the Components tab) rather than being silently
 # deferred to launch time.
-progress '==> Warming the Wine prefix for this container (locale, CJK fonts, wineboot)'
+progress '==> Preparing the Wine prefix for this container'
 ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS") || fail rootfs_unreadable 70
 while IFS= read -r setup_bind; do
     [ -n "$setup_bind" ] || continue
@@ -557,19 +584,20 @@ CANCEL_PATH=
 TERMUX_FILES_DIR="$TERMUX_FILES_ROOT"
 PROOT_BIN="$PREFIX/bin/proot"
 mkdir -p "$PREFIX_PATH" "$HOME_PATH"
-command -v termux-x11 >/dev/null 2>&1 || fail rootfs_prefix_warmup_display_missing 70
-# Runs on a dedicated display number, never the shared ":0" a real game session on another
-# container might concurrently be using -- RuntimeInstallationGate only serializes setup/reset
-# tasks against each other, not against an already-running game.
-MAINTENANCE_DISPLAY=:9
-termux-x11 "$MAINTENANCE_DISPLAY" >> "$LOG_PATH" 2>&1 &
-WARMUP_DISPLAY_PID=$!
 resolve_rootfs_translator
+# The prebuilt Hangover path only copies files; it needs no maintenance X server.
+# Other runtimes still need a display before their template initializer is called.
+if [ "$WINE_PACKAGE" != rootfs_hangover_11.16 ] || [ "$RUNTIME_TRANSLATOR" != hangover ]; then
+    command -v termux-x11 >/dev/null 2>&1 || fail rootfs_prefix_warmup_display_missing 70
+    MAINTENANCE_DISPLAY=:9
+    termux-x11 "$MAINTENANCE_DISPLAY" >> "$LOG_PATH" 2>&1 &
+    WARMUP_DISPLAY_PID=$!
+fi
 prepare_external_prefix_template
 warmup_rootfs_prefix
 [ "${CANCELLED:-0}" != 1 ] || fail rootfs_setup_cancelled 130
 require_external_prepared_prefix
-kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
+[ -z "$WARMUP_DISPLAY_PID" ] || kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
 WARMUP_DISPLAY_PID=
 
 printf '{"schemaVersion":1,"taskId":"%s","state":"SUCCEEDED"}\n' "$TASK_ID" >> "$EVENTS_PATH"

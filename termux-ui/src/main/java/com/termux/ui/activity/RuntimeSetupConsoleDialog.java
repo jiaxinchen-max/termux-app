@@ -1,6 +1,10 @@
 package com.termux.ui.activity;
 
 import android.app.Dialog;
+import android.app.Activity;
+import android.app.Application;
+import android.content.ContextWrapper;
+import android.view.View;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
@@ -95,6 +99,10 @@ public final class RuntimeSetupConsoleDialog extends Dialog {
     private TextView status;
     private SetupPreparationConsole preparation;
     private boolean dismissed;
+    private Activity hostActivity;
+    private Application.ActivityLifecycleCallbacks hostLifecycle;
+    private ConfigurationAwareFrameLayout contentRoot;
+    private final Runnable attachRunnable = this::attachSetupSession;
     private boolean setupFailed;
     private int successMessage = R.string.local_games_preparation_completed;
     private int failureMessage = R.string.local_games_runtime_setup_failed;
@@ -108,6 +116,13 @@ public final class RuntimeSetupConsoleDialog extends Dialog {
     private RuntimeSetupConsoleDialog(@NonNull Context context, @NonNull String taskId,
                                       @NonNull TaskStatusLookup statusLookup, boolean componentTask) {
         super(context);
+        Context owner = context;
+        while (owner instanceof ContextWrapper && !(owner instanceof Activity)) {
+            Context base = ((ContextWrapper) owner).getBaseContext();
+            if (base == owner) break;
+            owner = base;
+        }
+        if (owner instanceof Activity) hostActivity = (Activity) owner;
         this.taskId = taskId;
         this.componentTask = componentTask;
         this.statusLookup = statusLookup;
@@ -193,6 +208,7 @@ public final class RuntimeSetupConsoleDialog extends Dialog {
 
         // Re-fit the golden box when the configuration (rotation, split screen) changes while open.
         ConfigurationAwareFrameLayout root = new ConfigurationAwareFrameLayout(getContext());
+        contentRoot = root;
         root.addView(content, new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         root.setListener(configuration -> {
@@ -222,7 +238,21 @@ public final class RuntimeSetupConsoleDialog extends Dialog {
         super.onStart();
         applyTheme();
         applyWindowSize();
-        terminalView.post(this::attachSetupSession);
+        if (hostActivity != null) {
+            hostLifecycle = new Application.ActivityLifecycleCallbacks() {
+                @Override public void onActivityDestroyed(Activity activity) {
+                    if (activity == hostActivity) dismiss();
+                }
+                @Override public void onActivityCreated(Activity a, Bundle b) {}
+                @Override public void onActivityStarted(Activity a) {}
+                @Override public void onActivityResumed(Activity a) {}
+                @Override public void onActivityPaused(Activity a) {}
+                @Override public void onActivityStopped(Activity a) {}
+                @Override public void onActivitySaveInstanceState(Activity a, Bundle b) {}
+            };
+            hostActivity.getApplication().registerActivityLifecycleCallbacks(hostLifecycle);
+        }
+        handler.post(attachRunnable);
         handler.post(this::refreshStatus);
         preparation.start();
     }
@@ -256,16 +286,59 @@ public final class RuntimeSetupConsoleDialog extends Dialog {
             DialogSizing.clamp(height, DialogSizing.maxHeightPx(screenHeight, metrics.density)));
     }
 
+    /** Only UI observation is released; the foreground service still owns the task. */
+    private void releaseObservation() {
+        dismissed = true;
+        handler.removeCallbacksAndMessages(null);
+        if (preparation != null) preparation.stop();
+        if (terminalView != null) terminalView.removeCallbacks(attachRunnable);
+        if (contentRoot != null) contentRoot.setListener(null);
+        consoleSession = null;
+        if (hostActivity != null && hostLifecycle != null) {
+            hostActivity.getApplication().unregisterActivityLifecycleCallbacks(hostLifecycle);
+        }
+        hostLifecycle = null;
+        hostActivity = null;
+    }
+
     @Override
     public void dismiss() {
-        dismissed = true;
-        if (preparation != null) preparation.stop();
-        handler.removeCallbacksAndMessages(null);
-        super.dismiss();
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            handler.post(this::dismiss);
+            return;
+        }
+        if (dismissed) return;
+        releaseObservation();
+        Window window = getWindow();
+        View decor = window == null ? null : window.peekDecorView();
+        // Activity teardown can remove the window before a queued task completion arrives.
+        // Dialog.dismiss() otherwise calls WindowManager.removeViewImmediate on a stale View.
+        if (isShowing() && decor != null && decor.isAttachedToWindow()) super.dismiss();
+    }
+
+    @Override
+    public void onDetachedFromWindow() {
+        releaseObservation();
+        super.onDetachedFromWindow();
+    }
+
+    @Override
+    protected void onStop() {
+        releaseObservation();
+        super.onStop();
+    }
+
+    private boolean canObserve() {
+        if (dismissed) return false;
+        if (hostActivity != null && (hostActivity.isFinishing() || hostActivity.isDestroyed())) {
+            dismiss();
+            return false;
+        }
+        return isShowing();
     }
 
     private void attachSetupSession() {
-        if (dismissed || !isShowing() || setupFailed) return;
+        if (!canObserve() || setupFailed) return;
         // TerminalView initializes its renderer from the configured text size.  Do not attach a
         // session until that initialization is observable on the UI queue.
         if (terminalView == null || terminalView.mRenderer == null) {
@@ -295,7 +368,7 @@ public final class RuntimeSetupConsoleDialog extends Dialog {
     }
 
     private void refreshTerminal() {
-        if (dismissed || terminalView == null || consoleSession == null) return;
+        if (!canObserve() || terminalView == null || consoleSession == null) return;
         terminalView.onScreenUpdated();
         if (consoleSession.isRunning()) {
             handler.postDelayed(this::refreshTerminal, 100);
@@ -321,7 +394,7 @@ public final class RuntimeSetupConsoleDialog extends Dialog {
     // The session only appears after a (potentially multi-minute) one-time X11 bridge install,
     // so without this the dialog looks identical to a hang.
     private void refreshStatus() {
-        if (dismissed || !isShowing() || consoleSession != null || setupFailed) return;
+        if (!canObserve() || consoleSession != null || setupFailed) return;
         TaskStatusLookup.Status taskStatus = statusLookup.lookup(taskId);
         String preparing = getContext().getString(R.string.local_games_runtime_setup_preparing);
         if (taskStatus == null) {
@@ -348,13 +421,14 @@ public final class RuntimeSetupConsoleDialog extends Dialog {
     }
 
     private void complete() {
-        if (dismissed || setupFailed) return;
+        if (!canObserve() || setupFailed) return;
         android.widget.Toast.makeText(getContext(), successMessage,
             android.widget.Toast.LENGTH_SHORT).show();
         dismiss();
     }
 
     private void showFailure(String message) {
+        if (!canObserve()) return;
         setupFailed = true;
         applyTheme();
         status.setVisibility(android.view.View.VISIBLE);

@@ -441,6 +441,27 @@ rootfs_assert_prefix_write_directories() {
 }
 
 warmup_rootfs_prefix() {
+    if [ "${PREBUILT_PREFIX_REQUIRED:-false}" = true ]; then
+        # This supported identity has no on-device Wine initialization fallback.
+        # Existing, exactly prepared C drives remain untouched.
+        if [ -n "$(find "$PREFIX_PATH" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
+            require_external_prepared_prefix
+            return 0
+        fi
+        progress '==> Restoring prebuilt Wine prefix and verifying public DLLs/fonts'
+        "$PREFIX/bin/python" "$RECIPE_DIRECTORY/restore_wine_prefix.py" \
+            --rootfs "$ROOTFS_CANONICAL" --assets "$PREBUILT_PREFIX_ASSETS" \
+            --destination "$PREFIX_PATH" --identity "$GAMES_TEMPLATE_KEY" \
+            --runtime "$RUNTIME_ROOT_PATH" --package "$WINE_PACKAGE" >> "$LOG_PATH" 2>&1 &
+        PROOT_PID=$!
+        prefix_restore_status=0
+        wait "$PROOT_PID" || prefix_restore_status=$?
+        PROOT_PID=
+        [ "$prefix_restore_status" = 0 ] || warmup_fail rootfs_prebuilt_prefix_restore_failed
+        require_external_prepared_prefix
+        progress '==> Prebuilt Wine prefix restored without wineboot'
+        return 0
+    fi
     if [ -n "${GAMES_TEMPLATE_KEY:-}" ] && [ -e "$PREFIX_PATH/.games-runtime/prepared-identity" ]; then
         [ "$(cat "$PREFIX_PATH/.games-runtime/prepared-identity")" = "$GAMES_TEMPLATE_KEY" ] ||
             warmup_fail rootfs_prefix_identity_mismatch
@@ -812,7 +833,7 @@ resolve_external_template_identity() {
     external_recipe=$(sed -n 's/^recipeSha256=//p' "$ROOTFS_CANONICAL/etc/games-runtime.properties")
     case "$external_recipe" in ''|*[!0-9a-f]*) warmup_fail rootfs_recipe_identity_missing ;; esac
     [ "${#external_recipe}" = 64 ] || warmup_fail rootfs_recipe_identity_missing
-    GAMES_TEMPLATE_KEY=$(printf '%s\n' 'prefix-v11-init5-aarch64' "$external_recipe" \
+    GAMES_TEMPLATE_KEY=$(printf '%s\n' 'prefix-v11-init6-prebuilt-aarch64' "$external_recipe" \
         "$WINE_PACKAGE" "$RUNTIME_TRANSLATOR" "${GAMES_CUSTOM_BOX64_ID:-}" "${PROOT_BINDING_IDENTITY:-}" | sha256sum)
     GAMES_TEMPLATE_KEY=${GAMES_TEMPLATE_KEY%% *}
     EXTERNAL_TEMPLATE_DIR="$TEMPLATE_CACHE_DIR/v11/$GAMES_TEMPLATE_KEY"
@@ -833,6 +854,17 @@ external_template_valid() {
 prepare_external_prefix_template() {
     resolve_external_template_identity
     TEMPLATE_PREFIX_ARCHIVE=
+    PREBUILT_PREFIX_REQUIRED=false
+    if [ "$WINE_PACKAGE" = rootfs_hangover_11.16 ] && [ "$RUNTIME_TRANSLATOR" = hangover ]; then
+        PREBUILT_PREFIX_REQUIRED=true
+        PREBUILT_PREFIX_ASSETS="$RECIPE_DIRECTORY/prefix-hangover-pdb2"
+        [ -s "$PREBUILT_PREFIX_ASSETS/bundle.json" ] && \
+            [ -s "$PREBUILT_PREFIX_ASSETS/manifest.json" ] && \
+            [ -s "$PREBUILT_PREFIX_ASSETS/delta.tgz" ] && \
+            [ -s "$RECIPE_DIRECTORY/restore_wine_prefix.py" ] ||
+            warmup_fail rootfs_prebuilt_prefix_missing
+        return 0
+    fi
     if ! external_template_valid; then
         ep_saved_prefix=$PREFIX_PATH
         ep_saved_home=$HOME_PATH

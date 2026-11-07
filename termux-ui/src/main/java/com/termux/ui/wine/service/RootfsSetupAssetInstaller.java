@@ -7,6 +7,7 @@ import com.termux.ui.wine.runtime.RootfsSetupRecipe;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -34,6 +35,19 @@ public final class RootfsSetupAssetInstaller {
     public Installed install(RootfsSetupRecipe recipe, String[] componentSha256s) throws IOException {
         if (componentSha256s == null || componentSha256s.length == 0) {
             throw new IOException("rootfs_component_digest_invalid");
+        }
+        if (recipe.getVersion() == RootfsSetupRecipe.EXTERNAL_COMPONENTS_VERSION) {
+            try (InputStream input = context.getAssets().open(recipe.getAssetDirectory()
+                    + "/prefix-hangover-pdb2/bundle.json")) {
+                ByteArrayOutputStream metadata = new ByteArrayOutputStream();
+                byte[] buffer = new byte[4096];
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                    if (metadata.size() + count > 65536) throw new IOException("prefix_metadata_too_large");
+                    metadata.write(buffer, 0, count);
+                }
+                requirePrefixSource(metadata.toString("UTF-8"), componentSha256s);
+            }
         }
         MessageDigest digest = sha256Digest();
         for (String componentSha256 : componentSha256s) {
@@ -66,10 +80,33 @@ public final class RootfsSetupAssetInstaller {
                 }
             }
         }
+        if (recipe.getVersion() == RootfsSetupRecipe.EXTERNAL_COMPONENTS_VERSION) {
+            copyAsset("local-games/relocate_rootfs_links.py",
+                new File(directory, "relocate_rootfs_links.py"), digest);
+            copyAsset("local-games/restore_wine_prefix.py",
+                new File(directory, "restore_wine_prefix.py"), digest);
+            for (String name : new String[]{"bundle.json", "manifest.json", "delta.tgz"}) {
+                String relative = "prefix-hangover-pdb2/" + name;
+                copyAsset(recipe.getAssetDirectory() + "/" + relative,
+                    new File(directory, relative), digest);
+            }
+        }
         File script = new File(paths.getRuntimeSetupDirectory(), "setup_rootfs_runtime_v" + recipe.getVersion() + ".sh");
         copyAsset(recipe.getSetupScriptAssetPath(), script, digest);
         if (!script.setExecutable(true, true)) throw new IOException("rootfs_setup_script_mode_failed");
         return new Installed(directory.getCanonicalFile(), script.getCanonicalFile(), hex(digest.digest()));
+    }
+
+    static void requirePrefixSource(String metadata, String[] componentSha256s) throws IOException {
+        try {
+            String expected = new org.json.JSONObject(metadata).getString("sourceComponentSha256");
+            if (!expected.matches("[0-9a-f]{64}") || componentSha256s == null
+                    || componentSha256s.length != 1 || !expected.equals(componentSha256s[0])) {
+                throw new IOException("rootfs_prebuilt_prefix_component_mismatch");
+            }
+        } catch (org.json.JSONException error) {
+            throw new IOException("rootfs_prebuilt_prefix_metadata_invalid", error);
+        }
     }
 
     private void copyAsset(String asset, File target, MessageDigest digest) throws IOException {

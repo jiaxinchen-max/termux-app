@@ -26,8 +26,8 @@ TEMPLATE_CACHE_DIR="$ROOT/cache"
 PREFIX_PATH="$ROOT/game"
 HOME_PATH="$ROOT/home"
 RUNTIME_ROOT_PATH="$ROOT/rootfs"
-WINE_PACKAGE=rootfs_hangover_11.16
-RUNTIME_TRANSLATOR=hangover
+WINE_PACKAGE=rootfs_wine_10.0
+RUNTIME_TRANSLATOR=box64
 TASK_ID=owned-task
 LOG_PATH="$ROOT/log"
 # Fake only Wine's initialization. All cache identity, tar, hashing and publication run unchanged.
@@ -55,6 +55,12 @@ prepare_external_prefix_template
 ''')
         self.assertEqual(0,p.returncode,p.stderr)
         self.assertEqual(1,len(list((self.root/'cache/v11').iterdir())))
+    def test_hangover_missing_asset_fails_without_boot(self):
+        p=self.run_shell('WINE_PACKAGE=rootfs_hangover_11.16\nRUNTIME_TRANSLATOR=hangover\nRECIPE_DIRECTORY="$ROOT/recipe"\nprepare_external_prefix_template\n')
+        self.assertEqual(70,p.returncode,p.stderr)
+        self.assertIn('rootfs_prebuilt_prefix_missing',p.stderr)
+        self.assertFalse((self.root/'boots').exists())
+
     def test_wine_translator_digest_and_recipe_change_key(self):
         p=self.run_shell('''resolve_external_template_identity
 old=$GAMES_TEMPLATE_KEY
@@ -62,7 +68,7 @@ PROOT_BINDING_IDENTITY='WINE|rootfs_wine_10.0|1|new-digest'
 resolve_external_template_identity
 [ "$old" != "$GAMES_TEMPLATE_KEY" ]
 new=$GAMES_TEMPLATE_KEY
-RUNTIME_TRANSLATOR=box64
+RUNTIME_TRANSLATOR=hangover
 resolve_external_template_identity
 [ "$new" != "$GAMES_TEMPLATE_KEY" ]
 ''')

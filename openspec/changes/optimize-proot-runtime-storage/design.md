@@ -129,3 +129,17 @@ X11/音频沿用现有任务拥有者与清理语义。模板构建串行复用�
 运行包沿用发布资产名 `rootfs_hangover_11.16.tar`，放在独立 v2 tag 下，保留 v1。原始候选 manifest 与补充运行证据分别提供，历史 NotRuntimeTested 状态不得篡改；符号保留为独立开发制品，不写入运行 tar。先验证实际公开 URL 下载字节、大小和 SHA，再改 App 和组件仓库三个目录。新 SHA 由现有 RootfsSetupAssetInstaller 自然进入 recipe/template 身份，不写假 receipt，不重用旧身份。对先前已手工替换的测试设备，本次不追加旧数据兼容路径；集成 APK 的网络全新安装验收待手动安装后执行。
 
 回滚：恢复目录到 v1 的版本、URL、size/SHA 并重新构建；旧资产始终保留。认证只在临时进程内存使用，不写入 Git、remote 或日志。代码推送到与当前 HEAD 对应的现有 `master-x11-submodule-tmp` 分支，不强推、不切换或改写其他分支。外部原生依赖中预先存在的构建脚本补丁由 Gradle 生成，本轮不提交到上游 submodule。
+
+## 预生成支持组合的后续边界
+
+`prebuild-wine-prefix-archives` 已获用户 APK 试用授权：当前 PRoot/aarch64/WoW64 自编译 Hangover pdb2 采用 APK 内小模板＋精确公共文件清单，准备时只校验、独立复制并原子发布，不在设备构建模板或全量 wineboot。其他组合仍按原按需生成路径。对应规范已同步；旧验证证据保留，新的 App 中文/图形验收及正式组件发布仍未完成。
+
+## 全新验证缺陷修复设计（批准范围内）
+
+只读证据已确认六条指向 tmpl-build 的 PRoot --link2symlink 链接在 mv 后失效，locale-archive 的最终实体仍在 .l2s；另外 Termux libexpat 2.4.8 无新 dbus 所需的 libexpat.so.1。中文乱码与 locale 的因果须通过修复对照确认，不先宣称已证明。
+
+在构建目录内先预检所有受控 .l2s 链接，拒绝外部宿主路径、逃逸、环及缺失实体；仅把同一 RootFS 的绝对模拟硬链接变成相对链接，保留 guest /usr 等绝对链接语义。不复制整个 RootFS，也不跟随链接写入外部。将辅助工具内容纳入配方摘要。搬迁后再次验证链接闭包，并通过实际 PRoot 检查 zh_CN.UTF-8/GBK charmap；通过之前不记录新配方、不删除 previous，失败恢复旧发布目录并保留本次构建供明确重试。
+
+宿主准备检测 proot-distro、Python/OpenSSL、PulseAudio、dbus 及版本化 libexpat 的真实可执行性；包管理显式选择 dbus/libexpat，避免仅依赖已安装旧版本的 Depends 被判满足。修复后再验证，失败不给准备成功标记。普通启动不安装依赖。同步前缀准备通用文案，预生成路径不再声称执行 wineboot。
+
+验证覆盖双层模拟硬链接、宿主路径别名、目录空格、搬迁后 locale 闭包、恶意逃逸/环/缺失、发布失败回滚及旧 libexpat 触发升级；设备先使用独立测试目录/受控终端做对照，不清空现有配置。APK 保持标准 assembleDebug、原文件名和 testOnly=false，用户自行安装后再全新复验。回滚采用上一 APK 并显式重建基础环境，不改已有 C 盘、不支持旧布局迁移。权威 Harness 缺失继续记 Unavailable。

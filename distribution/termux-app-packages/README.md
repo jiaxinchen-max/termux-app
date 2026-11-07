@@ -205,3 +205,42 @@ into the recipe; template identity then follows the new recipe automatically.
 Do not relabel old receipts or templates. This testing-stage switch adds no
 old-data migration. To roll back the source selection, restore the complete v1
 descriptor and rebuild the APK; never replace v2 release bytes in place.
+
+### 本地 APK 的预初始化前缀试用
+
+当前 PRoot/aarch64/WoW64 Hangover pdb2 使用 APK 内的
+`local-games/runtime-rootfs-v11/prefix-hangover-pdb2/`。`bundle.json` 绑定基础配方、
+Wine loader/server、FEX/Box64 翻译 DLL 和子文件摘要；`manifest.json` 列出每个文件的
+长度、权限、时间及 SHA256。带 `source` 的 DLL/字体从匹配 RootFS 独立复制，其余在
+`delta.tgz`。不使用硬链接，不在准备阶段执行 Wine，不为文件还原启动 X server。
+
+这份资产来自已经完成收尾的独立设备实验前缀，移除了 App 的运行就绪标记。
+控制台 i386/x86_64 已验证；中文和图形仍须通过新 APK 的实际显示链路验收。
+它是本地试用输入，不代表编译机可复现参考构建或新的组件 Release 已完成。
+现有 v2 组件字节和下载 URL 不变。容器设施裁剪不在本次范围。
+
+可从已校验的独立实验产物重新生成 APK 资产（输出目录必须不存在）：
+
+```sh
+python3 distribution/termux-app-packages/package-prefix-delta.py \
+  --delta /path/to/clean-delta.tgz \
+  --manifest /path/to/manifest.json \
+  --runtime-guards /path/to/runtime-guards.json \
+  --recipe termux-ui/src/main/assets/local-games/runtime-rootfs-v11 \
+  --evidence /path/to/results.json \
+  --output /path/to/prefix-hangover-pdb2
+python3 termux-ui/scripts/test-prebuilt-prefix.py
+```
+
+打包命令只整理已有完成凭据，不执行 wineboot，也不能替代独立图形验收。禁止将用户
+游戏 C 盘作为通用模板来源。新的正式初始化入口、编译机执行方案及组件版本发布仍
+由 `prebuild-wine-prefix-archives` 未完成任务追踪。
+
+准备时在目标的专用暂存目录还原，逐文件流式复制并核对 SHA，再原子发布。
+危险路径/链接、损坏资产、运行库不匹配、空间不足和非空目标均失败；不回退到
+设备全量初始化。SIGTERM 清理暂存，进程死亡后重试仅回收专用暂存，不删除游戏目录。
+全局准备任务所有权及目标文件锁串行化发布。每游戏仍需约824 MiB独立可写空间。
+APK 文件名保持 `termux-app_apt-android-7-debug_arm64-v8a.apk`，用户手动安装；
+回滚时重新安装上一 APK，并显式准备与其匹配的新测试配置，不覆盖现有 C 盘。
+
+APK 内 gzip 子资产使用 `.tgz` 扩展名，避免 Android Gradle AssetMerger 自动解压 `.gz` 并去掉文件后缀。最终 APK 内容必须逐字节核对，不能仅凭构建成功判定打包正确。

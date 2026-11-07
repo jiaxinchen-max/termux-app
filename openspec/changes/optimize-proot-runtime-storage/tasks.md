@@ -80,3 +80,48 @@
 
 
 2026-11-06 分发接入完成：组件仓库 `main` 已推送 `581eb78`，App 的既有 `master-x11-submodule-tmp` 已推送实现提交 `2069d1dc`。公开 v2 runtime 全量重下载 size/SHA 匹配，设备 HEAD 成功；独立符号 316,123,585 bytes 的 GitHub digest 与候选一致。App 与组件仓库目录一致；633 JVM、35 打包用例、11 个 shell/模块命令全部通过。默认名 ARM64 APK 为 46,545,151 bytes，SHA-256 `b42fa8e41b1e2c5da86add348771124e908a909a394dab38909b4b18d544b546`；新 recipe 为 `6a87fd7bb8562d2f309eb084c45bfb4ab75f20077b1cd0beb977d3203a3c239a`。用户手动安装新 APK 后再做网络全新准备；完整矩阵和备份 v2 等任务不因本轮推送而关闭，未归档。推送后只补本段任务完成记录，不改变已构建 APK 的源码/资产。
+
+## 2026-11-07 网络全新构建与功能复验
+
+用户“既然如此，开始验证功能”授权下，核对已安装 APK 摘要，App 恢复中断任务并真正通过网络构建 pdb2 v2 基础镜像；Wine 版本、loader/ntdll 与 recipe 摘要通过，基础 RootFS 实际分配约 1.892 GiB，可选运行组件仅空挂载目标，base 不预热模板。导入/编辑无配置级后端切换，标题下显示 Backend: PRoot。
+
+全新 Hangover 前缀首轮 321.238 秒失败：Wine 固定 5 分钟启动事件超时后，尚未复制完成的前缀缺 ws2_32.dll。来源 DLL 完整，未发布半成品模板或就绪状态。仅清理本任务失败 stage 后，通过 App 创建新 stage 重试，1207.684 秒成功；重试也出现固定等待超时，观测到 --init 与 -u 重叠执行，具体根因仍需修复实验确认。模板约 185.90 MiB，manifest/归档 SHA 与前缀标记一致。App 新容器 Winfile 中文窗口实际出图。
+
+准备完成时另外捕获 com.termux 主线程真实崩溃：RuntimeSetupConsoleDialog.dismiss/complete 移除已脱离窗口的 View；随后记录无焦点窗口输入 ANR。交互验证中 ADB 连接中断，短暂恢复后再次超时，32/64 smoke、模板复用和安全退出均未完成，不借用此前直接安装的通过结果。1.4/4.2/6.3 及整体功能验收保持未完成。准备期间旧 9 份游戏配置记录摘要未变；断连后无法补最终快照。
+
+工作区重建后验证事实记录：`.harness/runs/optimize-proot-runtime-storage/resumed-verification-state.json`；完整报告及原始证据：`/home/user/workspace/artifacts/hangover-pdb2-resumed-validation/verification-report.md`。权威 Harness 文件与 verify.sh 在恢复源码中仍缺失，strict-run 为 Unavailable，产品一致性 Pending。本轮仅补验证记录，未修改业务代码、提交、推送、部署或归档。
+
+
+扩容恢复后补充：真实 App untrusted_app_27 终端 32/64 位 smoke 均退出 0、位数标记正确，各约 5.86 秒。126 DLL/约 67 MiB 热缓存普通复制在 PRoot 内仅约 0.42/0.37 秒，不能把分钟级安装称为普通文件复制慢。独立新前缀仍复现 --init 未完成、固定五分钟事件等待超时、-u 再次安装的重叠；DefaultInstall 单阶段约 214.458 秒，源码确认还包含 manifest/注册资源处理。探针由操作者主动结束并定向清理，不计为产品失败；Windows API 复制对照与性能细分仍在进行。最终核对旧 9 份配置摘要全部未变；模板复用、交互/安全退出和首次准备修复尚未完成，任务不整体勾选；strict-run 仍 Unavailable，产品一致性 Pending。
+
+
+进一步对照已完成：同组 24 DLL/15 MiB，PRoot Linux cp 2.250 秒；Windows 批处理复制前后标记间约 12.536 秒（含输出/调度），Wine 命令总计 110.409 秒，退出 0、无超时且文件 SHA 全部匹配。多数耗时在复制之外，Windows 复制自身也有额外成本；不把此小样本当作完整 wineboot 性能归因。诊断结束最终采样无 Wine/PRoot/X11 残留，不代替 App UI 安全退出验收。详见恢复验证报告及 windows-copy-marked-full.json。
+
+
+## 清空 App 数据后的真实验证（2026-11-07 UTC）
+
+用户已正常安装交付 APK，并明确授权清理数据重验。已 pm clear com.termux、确认空数据后由真实 App 网络构建基础环境及两个配置；首个 prefix 54.463秒、第二个7.558秒，均从 APK 小模板还原，无 wineboot。独立32位探针写入位数标记；64位 Winfile 实际中文菜单及基本输入通过，退出后无运行子进程。关闭控制台/Home返回未复现 Java 崩溃或 ANR，但完整仪器交错矩阵未执行。
+
+中文文件名乱码未通过；只读审计发现共享 RootFS 搬迁后6条 staging 绝对链接失效，包含 locale-archive，与乱码的最终因果待修复对照。另有 dbus-daemon 缺 libexpat.so.1 的 linker 错误。保留现场，不改设备链接或运行库。5.6/整体兼容验收继续未完成；strict-run Unavailable，产品一致性 Pending。证据：`.harness/runs/prebuild-wine-prefix-archives/evidence/clean-app-validation/verification-report.md`。本轮无业务代码修改、Git操作或归档。
+
+## 8. 全新验证发现修复（用户明确要求修复）
+
+- [x] 8.1 实现发布前受控 .l2s 相对化与发布后链接/中文 locale 验证；覆盖双层链接、别名、空格、逃逸/环/缺失和搬迁失败，失败不发布配方且保留旧环境。
+- [x] 8.2 修复宿主 dbus/libexpat 的显式安装与执行探测；覆盖旧库/缺依赖修复成功与修复失败，普通启动不隐式下载；更新前缀准备提示。
+- [x] 8.3 完成源码复核、相关 shell/Python/JVM 与 OpenSpec strict；以设备独立实验确认 locale、中文名称及 dbus 可执行，未覆盖项明确保留。
+- [x] 8.4 标准编译并交付原名普通安装 APK，校验资产、签名、ABI 与 testOnly=false；用户安装后的全新 App 复验另记，不冒充已完成。
+
+
+8.* 修复交付说明：10项链接回归、13准备/发布场景、638 JVM、5模板/17前缀/13绑定及launch/recovery/maintenance均通过；两活动变更OpenSpec strict通过。真实AppShell独立目录中，同Wine同中文文件，原locale回退ASCII且CreateFileW失败；规范化迁址后UTF-8/GBK正确且中文读取成功。显式升级libexpat 2.4.8→2.10.0约102KB后dbus可执行。原名普通安装APK为48,409,174 bytes，SHA256 `263be3e5920019f117c7d49b6844302d587b519aa824578ce566db11a5e77581`，testOnly=false。8.*完成不表示整个活动变更验收；用户尚未安装本轮候选，完整清数据App/GUI重验与原5.6仍待执行。详情见`.harness/runs/optimize-proot-runtime-storage/evidence/relocation-repair/verification-report.md`；strict-run Unavailable，产品一致性Pending，无Git或Release操作。
+
+
+本轮已按用户修复授权交付RootFS迁址/中文locale与dbus依赖修复候选。Unicode中文文件读取、locale及dbus独立对照通过；额外独立Winfile未取得主窗口，保留失败且等待新APK全新真实App验证。没有活跃运行进程，宿主init尚有一个Winfile zombie；诊断前缀和误生成的基础挂载目标内容已定向清理。测试/制品身份见关联修复报告，产品一致性Pending，未归档。
+
+
+## 修复APK安装后的全新真实App复验（2026-11-07 UTC）
+
+用户已安装SHA256 `263be3e5920019f117c7d49b6844302d587b519aa824578ce566db11a5e77581` 并明确继续验证。按既有授权pm clear后从真实UI完成网络构建及两份prefix：基础2094.389秒，首份72.643秒，第二份165.642秒，均SUCCEEDED。发布前规范化6条链接，发布后verify6条及UTF-8/GBK检查退出0；独立审计无staging绝对断链。宿主libexpat自动升级，真实AppShell中dbus/PulseAudio/Python版本检查退出0。
+
+Winfile真实图形窗口中文菜单、中文目录和中文文件名显示正确；从Winfile执行64位探针写入位数标记，中文CreateFileW探针输出UNICODE_FILENAME_PASS；第二配置32位探针位数标记通过。触摸双击及键盘方向选择通过；正常UI退出后无本轮运行子进程。两前缀公共文件独立，启动删除各18个管理DX DLL后其余1695文件mtime未变。无新增crash/ANR。
+
+整体仍为部分验收：本轮基础构建/复制明显偏慢、完成后Ready状态刷新滞后、Python包postinst预编译环境告警保留待处理；完整生命周期仪器矩阵及原有分发/ABI等任务未执行，5.6及整体任务不勾选。产品一致性Pending，strict-run Unavailable，无业务代码/Git/发布/归档操作。证据：`.harness/runs/optimize-proot-runtime-storage/evidence/repair-apk-fresh-validation/verification-report.md`。
