@@ -304,9 +304,17 @@ run_image_restore() {
     return "$image_status"
 }
 image_complete() {
+    # A preparation recipe also hashes prefix bundles and scripts. Their update does not
+    # change the installed image. Verify that image against the CURRENT pinned descriptor
+    # and its ORIGINAL, mutually consistent installation receipts, without rewriting them.
+    image_recipe=${2:-$RECIPE_SHA256}
+    if [ "$#" -eq 1 ] && [ "$1" = "$SHARED_ROOTFS" ]; then
+        [ -f "$TEMPLATE_RECIPE" ] && [ ! -L "$TEMPLATE_RECIPE" ] || return 1
+        image_recipe=$(cat "$TEMPLATE_RECIPE") || return 1
+    fi
     [ -x "$1/usr/bin/wine" ] && [ -x "$1/usr/bin/env" ] &&
         "$PREFIX/bin/python" "$IMAGE_HELPER" verify --root "$1" \
-            --descriptor "$IMAGE_DESCRIPTOR" --recipe "$RECIPE_SHA256" >> "$LOG_PATH" 2>&1
+            --descriptor "$IMAGE_DESCRIPTOR" --recipe "$image_recipe" >> "$LOG_PATH" 2>&1
 }
 verify_rootfs_locales() {
     run_logged "$PREFIX/bin/proot" --kill-on-exit --link2symlink -0 -r "$1" -b /dev -b /proc \
@@ -319,8 +327,7 @@ verify_rootfs_locales() {
 
 printf '{"schemaVersion":1,"taskId":"%s","state":"BUILDING"}\n' "$TASK_ID" >> "$EVENTS_PATH"
 if [ "$BASE_ONLY" = false ] && { [ -e "$SHARED_ROOTFS_CONTAINER_DIRECTORY" ] || [ -e "$TEMPLATE_RECIPE" ]; }; then
-    image_complete "$SHARED_ROOTFS" && [ "$(cat "$TEMPLATE_RECIPE" 2>/dev/null)" = "$RECIPE_SHA256" ] ||
-        fail rootfs_rebuild_required 70
+    image_complete "$SHARED_ROOTFS" || fail rootfs_prebuilt_image_invalid 70
 fi
 if [ "$BASE_ONLY" = true ] || ! image_complete "$SHARED_ROOTFS"; then
     [ ! -e "$PREVIOUS_ROOTFS" ] || fail rootfs_publish_recovery_required 70
@@ -370,7 +377,7 @@ if [ "$BASE_ONLY" = true ] || ! image_complete "$SHARED_ROOTFS"; then
         [ ! -e "$PREVIOUS_ROOTFS" ] || mv "$PREVIOUS_ROOTFS" "$SHARED_ROOTFS_CONTAINER_DIRECTORY"
         fail rootfs_shared_image_publish_failed 70
     fi
-    if ! image_complete "$SHARED_ROOTFS" || ! verify_rootfs_locales "$SHARED_ROOTFS"; then
+    if ! image_complete "$SHARED_ROOTFS" "$RECIPE_SHA256" || ! verify_rootfs_locales "$SHARED_ROOTFS"; then
         mv "$SHARED_ROOTFS_CONTAINER_DIRECTORY" "$BUILD_DIRECTORY" || fail rootfs_publish_recovery_required 70
         [ ! -e "$PREVIOUS_ROOTFS" ] || mv "$PREVIOUS_ROOTFS" "$SHARED_ROOTFS_CONTAINER_DIRECTORY" || fail rootfs_publish_recovery_required 70
         fail rootfs_shared_image_invalid 70
@@ -413,14 +420,15 @@ SETUP_BIND_TARGETS
 PREFIX_PATH="$WINE_PREFIX_DIRECTORY"
 HOME_PATH="$HOME_DIRECTORY"
 RUNTIME_ROOT_PATH="$ROOTFS_CANONICAL"
+GAMES_PREPARATION_RECIPE_SHA256=$RECIPE_SHA256
 CANCEL_PATH=
 TERMUX_FILES_DIR="$TERMUX_FILES_ROOT"
 PROOT_BIN="$PREFIX/bin/proot"
 mkdir -p "$PREFIX_PATH" "$HOME_PATH"
 resolve_rootfs_translator
-# The prebuilt Hangover path only copies files; it needs no maintenance X server.
-# Other runtimes still need a display before their template initializer is called.
-if [ "$WINE_PACKAGE" != rootfs_hangover_11.16 ] || [ "$RUNTIME_TRANSLATOR" != hangover ]; then
+# Bundled Hangover/Wine/Proton prefixes only copy files, without a maintenance X server.
+# Unbundled custom runtimes still need a display for their initializer.
+if ! prebuilt_prefix_supported; then
     command -v termux-x11 >/dev/null 2>&1 || fail rootfs_prefix_warmup_display_missing 70
     MAINTENANCE_DISPLAY=:9
     termux-x11 "$MAINTENANCE_DISPLAY" >> "$LOG_PATH" 2>&1 &
@@ -430,6 +438,11 @@ prepare_external_prefix_template
 warmup_rootfs_prefix
 [ "${CANCELLED:-0}" != 1 ] || fail rootfs_setup_cancelled 130
 require_external_prepared_prefix
+# This belongs to this prepared prefix, never to the shared image installation.
+preparation_record="$PREFIX_PATH/.games-runtime/preparation-recipe"
+[ ! -L "$preparation_record" ] && [ ! -L "$preparation_record.tmp" ] || fail rootfs_prefix_path_invalid 70
+printf '%s\n' "$RECIPE_SHA256" > "$preparation_record.tmp" &&
+    mv "$preparation_record.tmp" "$preparation_record" || fail rootfs_preparation_record_failed 70
 [ -z "$WARMUP_DISPLAY_PID" ] || kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
 WARMUP_DISPLAY_PID=
 

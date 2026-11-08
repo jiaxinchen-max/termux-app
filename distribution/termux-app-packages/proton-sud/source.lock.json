@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "backend": "rootfs_proot",
+  "sourceBaseline": "dc26e61847081a1b5cb0733dc30feba6ee575482",
+  "upstreamSudReference": "cbb9906d75346c9ca9be8ac0b3ddb06d9d48824d",
+  "patchSha256": "ebb04b703759e91012da0056d8e97b4aed60bd7791fb07e9723488d3ec666151",
+  "runtimeArchive": {
+    "sha256": "a62eed7a78adb8b4edc2229e2e5f5c7a22e66eb7fcb13c25b27bd3667a7ffae6",
+    "bytes": 73929128,
+    "root": "box64-proton"
+  },
+  "buildTarget": {
+    "unixArch": "x86_64",
+    "windowsArchs": [
+      "i386",
+      "x86_64"
+    ],
+    "interpreter": "/lib64/ld-linux-x86-64.so.2",
+    "prefix": "/opt/box64-proton",
+    "debugFlags": "-O2 -g0",
+    "originalUnixModulesRetained": 39
+  },
+  "minimalImage": {
+    "bytes": 323406172,
+    "entryCount": 12707,
+    "expandedBytes": 1527659566,
+    "file": "rootfs-debian13-hangover-pdb2-minimal-v2.tar.zst",
+    "imageId": "rootfs_debian13_hangover_pdb2_minimal",
+    "manifestSha256": "4e27e7222f3677b760fd725a329046ace05944d803c42a7bcc8dfd97226a80a6",
+    "schemaVersion": 1,
+    "sha256": "01b6fe94fc711db2e80ea69518e4ebfd613881dbed4d52bdd900b159221784b7",
+    "sourceComponentSha256": "ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1"
+  },
+  "libraryProvenance": {
+    "backend": "rootfs_proot",
+    "packages": [
+      {
+        "file": "libgstreamer-gl1.0-0_1.26.2-1+deb13u2_arm64.deb",
+        "sha256": "61d3ce3107d55024a614a8f097df728e1306e3aabe3d96fea3a46ea5a7c550e4",
+        "url": "https://mirrors.ustc.edu.cn/debian-security/pool/updates/main/g/gst-plugins-base1.0/libgstreamer-gl1.0-0_1.26.2-1+deb13u2_arm64.deb",
+        "verification": "APT download against signed SDK package index; local SHA256 rechecked"
+      },
+      {
+        "file": "libgudev-1.0-0_238-6_arm64.deb",
+        "sha256": "f0fec02f1bbc0803c9d044413609d3cd0fde24bfe6a5141a38aabfa86c292b21",
+        "url": "https://mirrors.ustc.edu.cn/debian/pool/main/libg/libgudev/libgudev-1.0-0_238-6_arm64.deb",
+        "verification": "APT download against signed SDK package index; local SHA256 rechecked"
+      }
+    ],
+    "files": [
+      {
+        "path": "usr/lib/aarch64-linux-gnu/libgstgl-1.0.so.0.2602.0",
+        "sha256": "beecc70183fd080f67b458c4bb15a71d18726a775d59d0c94a8633af50aec190",
+        "bytes": 658832
+      },
+      {
+        "path": "usr/lib/aarch64-linux-gnu/libgstgl-1.0.so.0",
+        "link": "libgstgl-1.0.so.0.2602.0"
+      },
+      {
+        "path": "usr/lib/aarch64-linux-gnu/libgudev-1.0.so.0.3.0",
+        "sha256": "2d5c2a88c84b7d60cbbef4cdb3b6ebd85e9807c91b7b03c3b8c901bc9f635137",
+        "bytes": 67512
+      },
+      {
+        "path": "usr/lib/aarch64-linux-gnu/libgudev-1.0.so.0",
+        "link": "libgudev-1.0.so.0.3.0"
+      },
+      {
+        "path": "usr/share/doc/libgstreamer-gl1.0-0/copyright",
+        "sha256": "23d029140edadc14b5359b64c6598e0dc35d1376ff5aa62a79e27f9e3251ee55",
+        "bytes": 59736
+      },
+      {
+        "path": "usr/share/doc/libgudev-1.0-0/copyright",
+        "sha256": "e8208610819fd05fca6ea4776156858bb934e29c408ae9bdac4a8266a53178e3",
+        "bytes": 1056
+      }
+    ],
+    "nativeLibraryBytes": 726344,
+    "baseImageSha256": "22734affd772ccfc99b99d850c6bdefa22683827c4a7b9204ca1a2595c03fbce",
+    "scope": "Only GstGL and GUdev guest ARM64 runtime libraries, SONAME links and legal notices; inherited trim receipt, not rerun pruning"
+  },
+  "verification": "Exact Android SUD direct syscall, PE64/PE32 and separate GstGL load passed. Published assets verified publicly; installed APK App UI acceptance passed for Wine, Proton and Hangover PE64/PE32. Game compatibility and final user acceptance remain pending.",
+  "prefixDelivery": {
+    "mode": "independent-versioned-assets",
+    "resources": [
+      {
+        "name": "prefix-hangover-pdb2",
+        "winePackage": "rootfs_hangover_11.16",
+        "file": "prefix-hangover-pdb2-v1.tar.gz",
+        "bytes": 2720316,
+        "sha256": "ffc789ded7083cddc63d3506a8702cd6df5b6554f889f7de2e142327fc2d5147",
+        "status": "PublishedAndPublicBytesVerified"
+      },
+      {
+        "name": "prefix-wine10-wow64",
+        "winePackage": "rootfs_wine_10.0",
+        "file": "prefix-wine10-wow64-v1.tar.gz",
+        "bytes": 474599,
+        "sha256": "02986d6b5310ffe2ecfde0809e4cdcab2701a5e3b58ab0c3d96c5e155e81c02b",
+        "status": "PublishedAndPublicBytesVerified"
+      },
+      {
+        "name": "prefix-proton11-wow64",
+        "winePackage": "rootfs_proton_11.0",
+        "file": "prefix-proton11-wow64-v1.tar.gz",
+        "bytes": 772405,
+        "sha256": "07235c1e47351a29dde91c9f2d27a0b34ddea3300a8829f551d49cd1aa9dbab8",
+        "status": "PublishedAndPublicBytesVerified"
+      }
+    ]
+  }
+}

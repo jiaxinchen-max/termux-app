@@ -73,3 +73,8 @@
 Winfile真实图形窗口中文菜单、中文目录和中文文件名显示正确；从Winfile执行64位探针写入位数标记，中文CreateFileW探针输出UNICODE_FILENAME_PASS；第二配置32位探针位数标记通过。触摸双击及键盘方向选择通过；正常UI退出后无本轮运行子进程。两前缀公共文件独立，启动删除各18个管理DX DLL后其余1695文件mtime未变。无新增crash/ANR。
 
 整体仍为部分验收：本轮基础构建/复制明显偏慢、完成后Ready状态刷新滞后、Python包postinst预编译环境告警保留待处理；完整生命周期仪器矩阵及原有分发/ABI等任务未执行，5.6及整体任务不勾选。产品一致性Pending，strict-run Unavailable，无业务代码/Git/发布/归档操作。证据：`.harness/runs/prebuild-wine-prefix-archives/evidence/repair-apk-fresh-validation/verification-report.md`。
+
+
+## 普通 Wine/Proton 后续扩展（2026-11-08）
+
+用户已批准 `reuse-prebuilt-prefix-for-standard-wine`：复用同架构初始化骨架，各目录 Wine 使用自己的系统 DLL 与精确组件身份。普通 Wine 10.0/Proton 11.0 新配置改为只恢复模板；本文件先前“其他运行组合不替换”等表述限于首期历史阶段，自定义 Wine 仍保持原流程。实施及验收由新变更追踪，未提前归档或宣称完整兼容验收。

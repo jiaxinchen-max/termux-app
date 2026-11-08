@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "backend": "rootfs_proot",
+  "hostAbi": "aarch64",
+  "prefixArch": "wow64",
+  "peMachine": 34404,
+  "translator": "box64",
+  "winePackage": "rootfs_proton_11.0",
+  "windowsUser": "steamuser",
+  "componentVersion": 2,
+  "sourceComponentSha256": "a62eed7a78adb8b4edc2229e2e5f5c7a22e66eb7fcb13c25b27bd3667a7ffae6",
+  "baseRecipeSha256": "e19f08128523a441bdc0f6420d20f7897a3e2330c55074db78521464326e11c9",
+  "initializationRevision": "standard-wow64-zh-skeleton-2",
+  "runtimeFiles": {},
+  "wineRuntimeFiles": {
+    "bin/wine": "a4bb8126b17cca96ed4a006e36c0996df41371602ec85944dfa93de567046dd5",
+    "bin/wineserver": "2e7ea1662a1712ae6dea8c0e00bb04df8917c6050f78f4e71c48a62f9883d894",
+    "lib/wine/x86_64-windows/ntdll.dll": "03a98e6d317c370267ffcf5b17c478e184d5d4e8d97d5d9850c40f3d8afaf512",
+    "lib/wine/i386-windows/ntdll.dll": "053fccecebab7ba0600488ca2b5526bb99bb9db5a4a1131246dad2bdae09f69a"
+  },
+  "expandedBytes": 513427750,
+  "assets": {
+    "manifest.json": "61ff2fa43f28413b69d6bbd967a28d43abb6a3670d175e5e4d85ef71abab7d6c",
+    "delta.tgz": "d115f5443ccaa161e6398978efbb30576bc755a854081a455561ab6797cbc2bf"
+  },
+  "provenance": {
+    "kind": "x86_64-wow64-reference",
+    "referenceComponentSha256": "f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595",
+    "referenceEvidenceSha256": "dc1d435de8b10e0250912e55415a3f86a5b1660a0dfcf84e2cf30f377916aaaf",
+    "referenceRegistries": {
+      "system.reg": "71922107a3e2b2b0551253d44183381359676eb444cff28e91fcbee5be630aa0",
+      "user.reg": "e4907f04a429a46c42aeb8d3cb663f534de2854d9a5d3489eb4b261bc6fc9ca6",
+      "userdef.reg": "c6c2549ccb65f90001dcdc8eeb18985c1684299f18bcd18288378618b4ece576"
+    },
+    "missingReferenceFiles": [],
+    "omittedStartupEntries": [],
+    "targetAcceptance": "pending"
+  }
+}

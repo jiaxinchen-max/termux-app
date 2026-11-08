@@ -12,8 +12,8 @@ cleanup_fixture() {
         [ ! -f "${LOG:-}" ] || tail -80 "$LOG" >&2
         [ ! -f "${EVENT:-}" ] || cat "$EVENT" >&2
     fi
-    for owned in "$TEST_ROOT/x11.pid" "$TEST_ROOT/proot.pid"; do
-        [ ! -f "$owned" ] || kill "$(cat "$owned")" 2>/dev/null || true
+    for owned in "$TEST_ROOT/x11.pid" "$TEST_ROOT/proot.pid" "$TEST_ROOT/orphan.pid" "$TEST_ROOT/unrelated.pid"; do
+        [ ! -f "$owned" ] || kill -KILL "$(cat "$owned")" 2>/dev/null || true
     done
     rm -rf "$TEST_ROOT"
 }
@@ -48,6 +48,7 @@ ln -s "$TERMUX_ROOT" "$TERMUX_ALIAS"
 for asset in start_rootfs_game.sh proot_component_bindings.sh rootfs_prefix_warmup.sh controller_runtime.sh x_server_common.sh x_server_legacy.sh x_server_xlorie.sh; do
     cp "$PROJECT_ROOT/termux-ui/src/main/assets/local-games/$asset" "$RUNTIME_DIR/$asset"
 done
+[ -z "${ROOTFS_LAUNCHER_UNDER_TEST:-}" ] || cp "$ROOTFS_LAUNCHER_UNDER_TEST" "$RUNTIME_DIR/start_rootfs_game.sh"
 # This is a prepared prefix, matching the current shared RootFS and Wine package.
 seed_prefix() {
     mkdir -p "$1/drive_c/windows/system32" "$1/drive_c/windows/syswow64" "$1/.games-runtime"
@@ -65,7 +66,40 @@ import sys
 Path(sys.argv[1]).write_text('#!'+sys.executable+'\n'+"import os,pathlib,socket,time\np=pathlib.Path(os.environ['PREFIX'])/'tmp/.X11-unix/X0'\np.parent.mkdir(parents=True,exist_ok=True)\np.unlink(missing_ok=True)\ns=socket.socket(socket.AF_UNIX); s.bind(str(p))\npathlib.Path(os.environ['FIXTURE_X11_PID']).write_text(str(os.getpid()))\nwhile True: time.sleep(.1)\n")
 PYX11
 
-printf '#!/bin/sh\n: > "$CAPTURE_FILE"\nprintf "%%s\\n" "${VK_ICD_FILENAMES:-}" > "$CAPTURE_FILE.vk-icd"\nfor value in "$@"; do printf "%%s" "$value" | base64 | tr -d "\\n" >> "$CAPTURE_FILE"; printf "\\n" >> "$CAPTURE_FILE"; done\nif [ "${FAKE_PROOT_WAIT:-0}" = 1 ]; then printf "%%s\\n" "$$" > "$FIXTURE_PROOT_PID"; trap "exit 0" TERM INT; while :; do sleep 1; done; fi\nexit 0\n' > "$TERMUX_ROOT/usr/bin/proot"
+cat > "$TERMUX_ROOT/usr/bin/proot" <<'FAKEPROOT'
+#!/bin/sh
+: > "$CAPTURE_FILE"
+printf '%s\n' "${VK_ICD_FILENAMES:-}" > "$CAPTURE_FILE.vk-icd"
+for value in "$@"; do
+    printf '%s' "$value" | base64 | tr -d '\n' >> "$CAPTURE_FILE"
+    printf '\n' >> "$CAPTURE_FILE"
+done
+if [ "${FAKE_PROOT_ORPHAN:-0}" = 1 ]; then
+    python3 - <<'ORPHAN'
+import os, subprocess, sys, time
+from pathlib import Path
+code = """import os,signal,time
+from pathlib import Path
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+Path(os.environ['FIXTURE_ORPHAN_PID']).write_text(str(os.getpid()))
+while True: time.sleep(1)
+"""
+subprocess.Popen([sys.executable, '-c', code], start_new_session=True,
+                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+for _ in range(200):
+    if Path(os.environ['FIXTURE_ORPHAN_PID']).exists(): break
+    time.sleep(.01)
+else: raise RuntimeError('orphan did not start')
+ORPHAN
+fi
+if [ "${FAKE_PROOT_WAIT:-0}" = 1 ]; then
+    printf '%s\n' "$$" > "$FIXTURE_PROOT_PID"
+    trap 'exit 0' TERM INT HUP
+    [ "${FAKE_PROOT_IGNORE_TERM:-0}" != 1 ] || trap '' TERM
+    while :; do sleep 1; done
+fi
+exit "${FAKE_PROOT_EXIT:-0}"
+FAKEPROOT
 printf '#!/bin/sh\nexit 0\n' > "$ROOTFS/usr/bin/env"
 printf '#!/bin/sh\nexit 0\n' > "$ROOTFS/usr/bin/wine"
 printf '#!/bin/sh\nexit 0\n' > "$ROOTFS/usr/bin/wineboot"
@@ -88,6 +122,7 @@ chmod 700 "$RUNTIME_DIR/start_rootfs_game.sh" "$TERMUX_ROOT/usr/bin/proot" \
 
 cp "$FAKE_BIN/pulseaudio" "$TERMUX_ROOT/usr/bin/pulseaudio"
 export FIXTURE_PROOT_PID="$TEST_ROOT/proot.pid"
+export FIXTURE_ORPHAN_PID="$TEST_ROOT/orphan.pid"
 export PULSE_FAKE_STATE="$TEST_ROOT/pulse-state"
 export PULSE_FAKE_CALLS="$TEST_ROOT/pulse-calls"
 
@@ -286,10 +321,14 @@ V11MANIFEST
         case "$field" in bindingCount=*|binding.*=*) proot_binding_field "${field%%=*}" "${field#*=}" ;; esac
     done < "$SPEC"
     ROOTFS_CANONICAL=$ROOTFS
+    PREFIX_PATH=$BOX_PREFIX
     TEMPLATE_CACHE_DIR="$TERMUX_ROOT/usr/var/lib/proot-distro/games-template-cache"
     WINE_PACKAGE=rootfs_wine_10.0
     RUNTIME_TRANSLATOR=box64
     . "$RUNTIME_DIR/rootfs_prefix_warmup.sh"
+    # A newly prepared prefix has its own recipe; the shared image remains on recipe a.
+    GAMES_PREPARATION_RECIPE_SHA256=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    printf '%s\n' "$GAMES_PREPARATION_RECIPE_SHA256" > "$BOX_PREFIX/.games-runtime/preparation-recipe"
     resolve_external_template_identity
     printf '%s\n' "$GAMES_TEMPLATE_KEY" > "$BOX_PREFIX/.games-runtime/prepared-identity"
 )
@@ -357,6 +396,100 @@ wait "$LAUNCHER_PID"
 grep -q '"state":"CANCELLED".*"stage":"COMPLETE"' "$EVENT"
 [ ! -e "$LOCK" ]
 rm -f "$CANCEL"
+
+# Daemonized Wine-shaped children can survive the PRoot parent and ignore TERM.
+# A different launch marker must survive every cleanup below.
+GAMES_LAUNCH_TOKEN=unrelated-session python3 -c 'import time; time.sleep(180)' &
+UNRELATED_PID=$!
+printf '%s\n' "$UNRELATED_PID" > "$TEST_ROOT/unrelated.pid"
+assert_orphan_stopped() {
+    python3 - "$FIXTURE_ORPHAN_PID" <<'CHECKPROCESS'
+import sys
+from pathlib import Path
+pid = int(Path(sys.argv[1]).read_text())
+status = Path('/proc')/str(pid)/'status'
+if status.exists():
+    assert '\nState:\tZ' in status.read_text(), ('live session orphan', pid)
+CHECKPROCESS
+    kill -0 "$UNRELATED_PID"
+    [ ! -e "$LOCK" ]
+}
+wait_test_session() {
+    attempt=0
+    while [ ! -f "$FIXTURE_ORPHAN_PID" ] || ! grep -q '^+ STARTED_AT=' "$LOG"; do
+        kill -0 "$LAUNCHER_PID" 2>/dev/null || { wait "$LAUNCHER_PID"; exit 1; }
+        attempt=$((attempt + 1))
+        [ "$attempt" -lt 200 ] || { kill "$LAUNCHER_PID"; wait "$LAUNCHER_PID"; exit 1; }
+        sleep 0.1
+    done
+}
+rm -f "$FIXTURE_ORPHAN_PID" "$FIXTURE_PROOT_PID"
+FAKE_PROOT_ORPHAN=1 PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
+assert_orphan_stopped
+grep -q '"state":"SUCCEEDED".*"stage":"COMPLETE"' "$EVENT"
+for stop_method in cancel_file signal stubborn_proot; do
+    rm -f "$FIXTURE_ORPHAN_PID" "$FIXTURE_PROOT_PID" "$CANCEL"
+    ignore_term=0
+    [ "$stop_method" != stubborn_proot ] || ignore_term=1
+    FAKE_PROOT_ORPHAN=1 FAKE_PROOT_WAIT=1 FAKE_PROOT_IGNORE_TERM=$ignore_term \
+        PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC" &
+    LAUNCHER_PID=$!
+    wait_test_session
+    case "$stop_method" in
+        cancel_file|stubborn_proot) : > "$CANCEL" ;;
+        signal) kill -TERM "$LAUNCHER_PID" ;;
+    esac
+    wait "$LAUNCHER_PID"
+    assert_orphan_stopped
+    grep -q '"state":"CANCELLED".*"stage":"COMPLETE"' "$EVENT"
+done
+rm -f "$FIXTURE_ORPHAN_PID" "$FIXTURE_PROOT_PID" "$CANCEL"
+set +e
+FAKE_PROOT_ORPHAN=1 FAKE_PROOT_EXIT=7 PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
+STATUS=$?
+set -e
+[ "$STATUS" -ne 0 ]
+assert_orphan_stopped
+grep -q '"state":"FAILED".*"exitCode":7.*"errorCode":"wine_exit_nonzero"' "$EVENT"
+
+# Advance only the fixture's clock after the main loop starts; avoid a real 30s timeout.
+export FIXTURE_REAL_DATE=$(command -v date)
+export FIXTURE_CLOCK_EXPIRED="$TEST_ROOT/clock-expired"
+cat > "$FAKE_BIN/date" <<'FAKEDATE'
+#!/bin/sh
+if [ "$*" = +%s ] && [ -e "$FIXTURE_CLOCK_EXPIRED" ]; then
+    now=$($FIXTURE_REAL_DATE +%s)
+    printf '%s\n' "$((now + 100000))"
+else
+    exec "$FIXTURE_REAL_DATE" "$@"
+fi
+FAKEDATE
+chmod 700 "$FAKE_BIN/date"
+rm -f "$FIXTURE_ORPHAN_PID" "$FIXTURE_PROOT_PID"
+FAKE_PROOT_ORPHAN=1 FAKE_PROOT_WAIT=1 PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC" &
+LAUNCHER_PID=$!
+wait_test_session
+: > "$FIXTURE_CLOCK_EXPIRED"
+set +e
+wait "$LAUNCHER_PID"
+STATUS=$?
+set -e
+[ "$STATUS" -ne 0 ]
+assert_orphan_stopped
+grep -q '"state":"FAILED".*"errorCode":"launch_timeout"' "$EVENT"
+rm "$FAKE_BIN/date" "$FIXTURE_CLOCK_EXPIRED"
+
+# Profiles cannot impersonate a different internal session marker.
+sed 's/^environmentCount=1$/environmentCount=2/' "$SPEC" > "$SPEC.reserved"
+printf 'environment.1.key=%s\nenvironment.1.value=%s\n' \
+    "$(encode GAMES_LAUNCH_TOKEN)" "$(encode unrelated-session)" >> "$SPEC.reserved"
+if PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC.reserved" > "$TEST_ROOT/reserved-rejected" 2>&1; then
+    printf 'User-supplied session marker accepted\n' >&2; exit 1
+fi
+grep -qx reserved_launch_environment_key "$TEST_ROOT/reserved-rejected"
+kill "$UNRELATED_PID"
+wait "$UNRELATED_PID" 2>/dev/null || true
+rm "$TEST_ROOT/unrelated.pid"
 
 mv "$TERMUX_ROOT/usr/bin/proot" "$TERMUX_ROOT/usr/bin/proot.disabled"
 set +e

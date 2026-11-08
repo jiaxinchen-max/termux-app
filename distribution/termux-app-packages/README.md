@@ -403,3 +403,112 @@ https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/rootfs-debian
 1401 ELF依赖检查通过；严格离线full快照比对不代表运行后缓存仍逐字节不变。
 真实游戏/硬件兼容与最终用户接受另计。
 不覆盖既有 Hangover v2 Release，不实施旧数据迁移；旧准备任务会明确拒绝并要求重建。
+
+
+### 普通 Wine / Proton 预生成前缀（v12）
+
+`runtime-rootfs-v12/prefix-wine10-wow64` 与 `prefix-proton11-wow64` 使用各自
+在构建端完成初始化的 x86_64/WoW64 参考骨架，分别绑定普通 Wine 10.0 和 Proton 11.0。
+差量包包含注册表、目录及生成配置，系统 DLL 与字体从已下载组件/共享镜像恢复。
+Proton 固定使用 Windows 用户 `steamuser`，离线保留其账号、Desktop及Shell注册信息；
+设备首次准备不执行完整初始化。
+`manifest.json` 的 `sourceRoot=wine` 从该游戏固定版本的外置 Wine 组件读取 DLL/NLS，
+`sourceRoot=rootfs` 从共享镜像读取中文字体。不会把 Hangover ARM64EC DLL 放进普通
+Wine 前缀。旧 Hangover schemaVersion=1 格式继续使用原校验。
+
+普通 Wine 的 schemaVersion=2 额外固定组件版本/源包 SHA256、Wine loader/server、
+32/64位 ntdll、翻译器与PE架构。组件安装凭据、全部来源文件长度/摘要、路径范围、
+空间、归档及目标目录均验证通过后，才发布独立可写 C 盘。原始组件下载和挂载布局
+不变；这两个组合不再启动维护 X server 或在设备生成模板。自定义 Wine 保留原流程，
+不因同名架构而自动加入受支持模板目录。
+
+维护步骤：在独立 x86_64 构建目录用已固定的普通 Wine、root 用户身份、win64前缀和
+`LANG=zh_CN.UTF-8`、`LC_ALL=zh_CN.UTF-8`（构建主机须实际具备该locale）和
+`WINEDLLOVERRIDES=mscoree,mshtml=d` 完成一次初始化；等待命令及 `wineserver -w`
+自然退出，保存日志与退出证据。不使用游戏前缀。证据JSON包含 `exitCode=0`、
+`serverExitCode=0`、`user=root`、`locale=zh_CN.UTF-8`、参考组件 `sourceComponentSha256`。打包工具校验
+发布压缩包及选定组件文件，拒绝未完成注册表、宿主私有路径和错误PE架构：
+
+```sh
+python3 distribution/termux-app-packages/package-standard-wine-prefix.py \
+  --prefix /build/clean-reference-prefix \
+  --reference /build/wine-10.0-amd64-wow64 \
+  --wine /build/selected-portable-wine \
+  --archive /build/selected-component.tar.xz \
+  --component rootfs_wine_10.0 --version 1 --sha256 <component-sha256> \
+  --rootfs /build/shared-rootfs \
+  --recipe termux-ui/src/main/assets/local-games/runtime-rootfs-v12 \
+  --evidence /build/reference-result.json \
+  --output /build/prefix-wine10-wow64
+python3 distribution/termux-app-packages/test_standard_wine_prefix.py
+python3 termux-ui/scripts/test-prebuilt-prefix.py
+```
+
+Proton 使用对应组件在构建端离线完成的独立参考前缀、参考组件和退出证据。
+其 winsxs 的 comctl32_v6.dll 在安装后名为 comctl32.dll，须按摘要定位真实源，
+不能仅凭同名 DLL 替换。设备上仍只恢复预生成资产。
+新增模板必须经过目标环境的32/64位、中文及图形验证后再声明支持；构建主机原生
+Wine smoke 不代表 Android/Box64 的实际App验收。最终验收证据由对应Harness运行记录
+追踪；不修改已发布组件字节，不自动发布新版本。
+
+### 外置 Wine/Proton 的 PRoot 依赖门禁
+
+`audit-external-wine.py` 补充树内 `audit-rootfs-elf.py`：显式输入所有受支持的
+x86_64 Unix 运行时、固定 Box64 组件和经复核的包装映射。映射锁包含 Box64
+精确提交、二进制摘要、library_list 与包装源摘要、原生库名称及源码声明的别名。
+ARM64 库存在不代表 Box64 能包装它；无包装映射时必须由固定组件提供正确的
+x86_64 模拟库。Wine 私有 ntdll/win32u 只在其自己的命名空间解析。
+
+```sh
+python3 distribution/termux-app-packages/audit-external-wine.py \
+  --root /build/private-rootfs \
+  --runtime /build/proton-candidate \
+  --runtime /build/supported-wine \
+  --baseline-runtime /build/unchanged-proton \
+  --box64 /build/fixed-box64 \
+  --wrapper-lock /build/box64-wrapper-lock.json \
+  --output /build/external-wine-audit.json --seal
+```
+
+候选与基线比较作用于第一个 `--runtime`。模块缺失、直接依赖消失或库加载名称
+消失都触发复核；现代 glibc 合并的 pthread/dl/rt 单独变化不触发。
+库名称比较仅用于阻止未经复核的能力减少，不作为运行能力等价的证明。
+缺库、架构不匹配、跨 Native Termux glibc 路径或未经确认的包装映射均失败。
+门禁失败不写保留凭据，也不允许继续设备运行验收或交付可用包。
+
+仅在闭包检查与能力对比均通过后，`--seal` 为独立构建树写入
+`etc/games-external-wine-dependencies.json`。精简工具会保留其中每个原生文件和
+客体链接，重检内容摘要及链接目标；打包工具也会将这些文件纳入保护清单。
+分发目录与 APK 内的精简工具副本保持一致，设备仍只消费固定预构建镜像。
+这项检查覆盖 ELF 直接依赖，符号版本、实际媒体加载、驱动和 syscall 语义须另验；
+编译成功或模块文件存在均不能替代运行验收。
+
+本次候选的联合审计未通过：旧组件仍有 FFmpeg 等依赖缺口，新候选的构建配置
+自动关闭了部分原有能力。没有写入成功凭据、生成可用的新镜像或替换正式引用。
+
+外置审计同时检查 Wine Unix 模块内的字面 `dlopen` 库名。未被固定 Box64 包装的库需要
+真实 x86_64 提供者；客体标准目录及其插件均递归检查，原生 ARM64 同名文件不能替代。
+原生树审计默认继续拒绝 x86_64；只有 `--external-wine-audit <report>` 指向同一候选、
+无失败且逐文件摘要仍一致的外置报告时，才接受其中声明的模拟对象。客体 `/lib` 的
+usrmerge 别名在封存前规范化为实际路径，保留真实链接链；不支持的路径仍失败。
+这些静态结果不能替代 Box64 包装器、媒体加载及游戏运行验收。
+
+## 独立 prefix 资产
+
+当前 APK 只携带三套 prefix 的 bundle.json 校验描述。完整构建输入位于 prefix-assets/；旧 v11 的离线测试输入位于 legacy-prefix-assets/，不进入 APK。所选 Wine 的隐藏 runtime_support 依赖复用现有下载、安全安装和缓存流程，准备时仅复制受校验资源到对应配方目录，再从预生成骨架恢复。不会执行完整 wineboot 或切换后端。
+
+生成独立资源归档：
+
+```sh
+python3 distribution/termux-app-packages/package-prefix-assets.py \
+  --source distribution/termux-app-packages/prefix-assets/prefix-wine10-wow64 \
+  --output /path/to/prefix-wine10-wow64-v1.tar.gz
+```
+
+工具检查 bundle 绑定的两项数据摘要，确定性打包并逐字节验证归档；不执行 Wine 或上传。版本、归档大小/SHA-256/URL 固定在 App 组件索引；只允许发布实际对应的产物。资源未发布时，不将 APK 宣称为可完成在线首次准备。
+
+### 2026-11-08 已交付结果
+
+以上联合审计失败段落记录早期候选，不代表最终交付状态。最终采用已验证的精确 Proton + SUD 构建，并在原精简镜像仅补充 ARM64 客体 GstGL/GUdev；未引入 LLVM 或重建其他发行版。当前索引引用的五份资源已发布并完成公开下载字节数及 SHA-256 校验。
+
+用户安装当前 APK 后，通过实际 App 界面完成 Wine、Proton、Hangover 各 PE32/PE64 共六项测试：独立 prefix 自动下载恢复，配置准备 6.683–8.668 秒，无完整 wineboot 或游戏准备时镜像重建；动态 version.dll、中文文件写入和可见 Win32 窗口通过。通过 App 退出后无运行时进程或锁残留。此计时不含首次镜像下载及 Wine 服务启动；具体游戏、3D、音频和硬件兼容性未覆盖，用户最终接受仍待确认。

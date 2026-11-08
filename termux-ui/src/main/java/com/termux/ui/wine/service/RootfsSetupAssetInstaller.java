@@ -87,16 +87,49 @@ public final class RootfsSetupAssetInstaller {
                 copyAsset("local-games/" + helper, new File(directory, helper), digest);
             }
             copyAsset(recipe.getAssetDirectory() + "/image.json", new File(directory, "image.json"), digest);
-            for (String name : new String[]{"bundle.json", "manifest.json", "delta.tgz"}) {
-                String relative = "prefix-hangover-pdb2/" + name;
-                copyAsset(recipe.getAssetDirectory() + "/" + relative,
-                    new File(directory, relative), digest);
+            for (String prefix : new String[]{"prefix-hangover-pdb2", "prefix-wine10-wow64",
+                    "prefix-proton11-wow64"}) {
+                for (String name : new String[]{"bundle.json"}) {
+                    String relative = prefix + "/" + name;
+                    copyAsset(recipe.getAssetDirectory() + "/" + relative,
+                        new File(directory, relative), digest);
+                }
             }
         }
         File script = new File(paths.getRuntimeSetupDirectory(), "setup_rootfs_runtime_v" + recipe.getVersion() + ".sh");
         copyAsset(recipe.getSetupScriptAssetPath(), script, digest);
         if (!script.setExecutable(true, true)) throw new IOException("rootfs_setup_script_mode_failed");
         return new Installed(directory.getCanonicalFile(), script.getCanonicalFile(), hex(digest.digest()));
+    }
+
+    void installPrefix(RootfsSetupRecipe recipe, String winePackage) throws IOException {
+        String id = PrebuiltPrefixAssets.componentId(winePackage);
+        if (id == null) return;
+        com.termux.ui.components.index.ComponentDescriptor descriptor;
+        try (InputStream input = context.getAssets().open("termux-app-packages/index-v1.json")) {
+            descriptor = new com.termux.ui.components.index.ComponentIndexParser().parse(input)
+                .find(id).orElseThrow(() -> new IOException("prefix_component_unknown"));
+        }
+        com.termux.ui.components.install.InstalledComponent installed =
+            new com.termux.ui.components.install.ComponentInstallationReader(
+                new com.termux.ui.components.ComponentStoragePaths(context.getFilesDir()).getInstallDirectory())
+                .read(id).getActive().orElseThrow(() -> new IOException("prefix_component_missing"));
+        if (installed.getVersion() != descriptor.getVersion() ||
+            !installed.getSha256().equals(descriptor.getSha256())) {
+            throw new IOException("prefix_component_mismatch");
+        }
+        String folder = PrebuiltPrefixAssets.folder(winePackage);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (InputStream input = context.getAssets().open(recipe.getAssetDirectory() + "/" + folder + "/bundle.json")) {
+            byte[] buffer = new byte[4096]; int count;
+            while ((count = input.read(buffer)) != -1) {
+                if (bytes.size() + count > 65536) throw new IOException("prefix_metadata_too_large");
+                bytes.write(buffer, 0, count);
+            }
+        }
+        File directory = new File(paths.getRuntimeRecipeDirectory().getCanonicalFile(),
+            recipe.getPackageName() + "-v" + recipe.getVersion() + "/" + folder);
+        PrebuiltPrefixAssets.copy(installed.getDirectory(), directory, bytes.toByteArray());
     }
 
     static void requireImageSource(String metadata, String[] componentSha256s) throws IOException {

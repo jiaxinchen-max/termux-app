@@ -28,20 +28,20 @@ public class ComponentIndexParserTest {
         }
 
         assertEquals(2, index.getSchemaVersion());
-        assertEquals("2026-11-08T06:32:00Z", index.getGeneratedAt());
-        assertEquals(22, index.getComponents().size());
+        assertEquals("2026-11-08T15:52:52Z", index.getGeneratedAt());
+        assertEquals(25, index.getComponents().size());
         ComponentDescriptor image = index.find("rootfs_debian13_hangover_pdb2_minimal").get();
         assertEquals(ComponentType.IMAGE_FS, image.getType());
         assertTrue(image.isBase());
         assertTrue(image.isRecommended());
         assertFalse(image.isSelectable());
         assertTrue(image.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
-        assertEquals(1, image.getVersion());
+        assertEquals(2, image.getVersion());
         assertEquals("https://github.com/jiaxinchen-max/termux-app-packages/releases/download/"
-            + "rootfs-debian13-hangover-pdb2-minimal-v1/"
-            + "rootfs-debian13-hangover-pdb2-minimal-v1.tar.zst", image.getUrl());
-        assertEquals(322915320L, image.getSize());
-        assertEquals("22734affd772ccfc99b99d850c6bdefa22683827c4a7b9204ca1a2595c03fbce",
+            + "rootfs-debian13-hangover-pdb2-minimal-v2/"
+            + "rootfs-debian13-hangover-pdb2-minimal-v2.tar.zst", image.getUrl());
+        assertEquals(323406172L, image.getSize());
+        assertEquals("01b6fe94fc711db2e80ea69518e4ebfd613881dbed4d52bdd900b159221784b7",
             image.getSha256());
         assertFalse(index.find("termux-glibc").isPresent());
         ComponentDescriptor source = index.find("rootfs_hangover_11.16").get();
@@ -72,6 +72,17 @@ public class ComponentIndexParserTest {
         assertEquals(ComponentType.TRANSLATOR, boxProton.getType());
         assertTrue(boxProton.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
         assertEquals("rootfs_proton_11.0", boxProton.getProfileValue());
+        assertEquals(2, boxProton.getVersion());
+        assertEquals("a62eed7a78adb8b4edc2229e2e5f5c7a22e66eb7fcb13c25b27bd3667a7ffae6",
+            boxProton.getSha256());
+        for (String id : new String[]{"rootfs_prefix_hangover_pdb2", "rootfs_prefix_wine10_wow64",
+                "rootfs_prefix_proton11_wow64"}) {
+            ComponentDescriptor prefix = index.find(id).get();
+            assertTrue(prefix.isHidden());
+            assertFalse(prefix.isSelectable());
+            assertEquals(ComponentType.RUNTIME_SUPPORT, prefix.getType());
+            assertTrue(prefix.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
+        }
     }
 
     @Test

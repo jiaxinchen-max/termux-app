@@ -93,7 +93,34 @@ def elf(path):
         return result
 
 
-def scan(root, machine=183, contexts=None):
+def emulated_coverage(root, report):
+    """An external gate must bind every x86 object to this exact guest tree."""
+    m.require(report.get('rootfsRoot') == str(root.resolve()), 'external_audit_root')
+    m.require(report.get('status') == 'PassedDirectDependencyClosure'
+              and report.get('problems') == [] and report.get('backend') == 'rootfs_proot',
+              'external_audit_failed')
+    directories = ('lib/x86_64-linux-gnu/', 'usr/lib/x86_64-linux-gnu/',
+                   'usr/x86_64-linux-gnu/lib/', 'usr/lib/box64-x86_64-linux-gnu/')
+    result = {}
+    for record in report['records']:
+        if record['owner'] != 'rootfs-x86':
+            continue
+        name = record['path']
+        m.relative(name)
+        m.require(name.startswith(directories) and record['machine'] == 62
+                  and record['class'] == 64, 'external_emulated_scope')
+        p = m.leaf(root, name)
+        m.require(not p.is_symlink() and m.digest(p) == record['sha256'],
+                  'external_emulated_changed')
+        result[name] = record['sha256']
+    return result
+
+
+def scan(root, machine=183, contexts=None, emulated=None):
+    for name, expected in (emulated or {}).items():
+        p = m.leaf(root, name)
+        m.require(not p.is_symlink() and p.is_file() and m.digest(p) == expected,
+                  'external_emulated_changed')
     contexts = OWNER_CONTEXTS if contexts is None else contexts
     standard = ['usr/local/lib/aarch64-linux-gnu', 'usr/local/lib', 'lib/aarch64-linux-gnu',
                 'usr/lib/aarch64-linux-gnu', 'lib', 'usr/lib']
@@ -118,6 +145,10 @@ def scan(root, machine=183, contexts=None):
             record['resolved'] = {}
             record['ownerContextResolutions'] = {}
             records.append(record)
+            if record['machine'] == 62 and machine == 183 and emulated and relative in emulated:
+                m.require(m.digest(path) == emulated[relative], 'external_emulated_changed')
+                record['executionContext'] = 'Box64EmulatedExternalAudit'
+                continue
             if record['machine'] != machine:
                 problems.append({'path': relative, 'reason': 'unexpected_machine', 'machine': record['machine']})
             origin = '/' + path.parent.relative_to(root).as_posix()
@@ -168,6 +199,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--external-wine-audit', type=Path, help='Successful exact-tree external closure report for declared x86 libraries')
     args = parser.parse_args()
     root = args.root.absolute()
     fd = os.open(str(root) + '.minimize-lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
@@ -176,7 +208,10 @@ def main():
         marker = m.candidate_root(root)
         output = m.outside(root, args.output)
         m.require(not output.exists(), 'audit_output_exists')
-        result = scan(root)
+        coverage = emulated_coverage(root, json.loads(args.external_wine_audit.read_text())) if args.external_wine_audit else None
+        result = scan(root, emulated=coverage)
+        if args.external_wine_audit:
+            result['externalWineAuditSha256'] = m.digest(args.external_wine_audit)
         result['identity'] = marker['identity']
         m.save(output, result)
     print(json.dumps({k: v for k, v in result.items() if k not in ('records', 'identity')}))

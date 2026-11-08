@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "backend": "rootfs_proot",
+  "hostAbi": "aarch64",
+  "prefixArch": "wow64",
+  "winePackage": "rootfs_hangover_11.16",
+  "sourceComponentSha256": "ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1",
+  "baseRecipeSha256": "db6802f3cb01650b4f08d05cf3c9c35377444760e4e3e6cfbb371b10a85221ff",
+  "initializationRevision": "pdb2-clean-delta-1",
+  "runtimeFiles": {
+    "usr/bin/wine": "c0175739439aa4eabefadc9ac7e769e261c1fe9b217a34646bc11339586ca4e8",
+    "usr/bin/wineserver": "5a6452e930e5d9fe7fb9606bcd560cb7d7370ef62397942373eb932e18cb63de",
+    "usr/lib/wine/aarch64-windows/libarm64ecfex.dll": "45522fdea5edaf58066d0f265c0b42a4eac361393718625caf4a3639bf9246bf",
+    "usr/lib/wine/aarch64-windows/wowbox64.dll": "58d036888d638f05a72193702f97071aabc9baf7959e7736d48d9c450acc3440",
+    "usr/lib/wine/aarch64-windows/libwow64fex.dll": "e1d58bbda509f080518b9910a33209e26a49c7050b97612793c8c2aa18f74ea8"
+  },
+  "expandedBytes": 863808548,
+  "assets": {
+    "manifest.json": "a838c29b53468ca2803eb613e824bbcaffb588dfe5e394792496f0507094106f",
+    "delta.tgz": "946d06a5a38219bc749e1afc4921a6477e9e2f89384f6b33fe3fb8e413a50795"
+  },
+  "provenance": {
+    "kind": "isolated-device-prototype",
+    "inputArchiveSha256": "d2cd15c96d28bfff7c416d3972cd82b6f67aa0ba36345ce764ac0fd7d7e0298c",
+    "evidenceSha256": "f66bcca4748e5de3ddb8b2a94da1df8f9d5f4fd967a9d9442c16735e8f090808",
+    "graphicsAcceptance": "pending-app-verification"
+  }
+}

@@ -73,7 +73,7 @@ def copy_verified(source, target, record):
     os.utime(target, (record['mtime'], record['mtime']))
 
 
-def restore(rootfs, assets, destination, identity, runtime, package):
+def restore(rootfs, assets, destination, identity, runtime, package, wine_root=None):
     rootfs = Path(rootfs).resolve(strict=True)
     assets = Path(assets)
     destination = Path(os.path.abspath(destination))
@@ -81,9 +81,34 @@ def restore(rootfs, assets, destination, identity, runtime, package):
             not destination.is_symlink(), 'destination_invalid')
     require(len(identity) == 64 and all(c in '0123456789abcdef' for c in identity), 'identity_invalid')
     metadata = json.loads((assets / 'bundle.json').read_text())
-    require(metadata['schemaVersion'] == 1 and metadata['backend'] == 'rootfs_proot' and
+    require(metadata['schemaVersion'] in (1, 2) and metadata['backend'] == 'rootfs_proot' and
             metadata['hostAbi'] == 'aarch64' and metadata['prefixArch'] == 'wow64' and
             package == metadata['winePackage'], 'identity_mismatch')
+    roots = {'rootfs': rootfs}
+    translator = 'hangover'
+    if metadata['schemaVersion'] == 2:
+        require(package in ('rootfs_wine_10.0', 'rootfs_proton_11.0') and
+                metadata['translator'] == 'box64' and metadata['peMachine'] == 0x8664 and
+                wine_root is not None, 'identity_mismatch')
+        wine_root = Path(wine_root).resolve(strict=True)
+        # The caller resolves the frozen PRoot binding. Also pin its install receipt here;
+        # an adjacent, similarly named Wine tree is not an interchangeable input.
+        receipt = wine_root / '.games-component.properties'
+        if not receipt.is_file():
+            receipt = wine_root.parent / '.games-component.properties'
+        values = {}
+        for line in receipt.read_text().splitlines():
+            if '=' in line:
+                key, value = line.split('=', 1)
+                require(key not in values, 'component_receipt_invalid')
+                values[key] = value
+        require(values.get('schemaVersion') == '1' and values.get('packageName') == package and
+                values.get('version') == str(metadata['componentVersion']) and
+                values.get('sha256') == metadata['sourceComponentSha256'], 'component_mismatch')
+        roots['wine'] = wine_root
+        translator = 'box64'
+    else:
+        require(wine_root is None, 'identity_mismatch')
     for name in ['manifest.json', 'delta.tgz']:
         require(sha(assets / name) == metadata['assets'][name], 'asset_digest_mismatch')
     recipe = hashlib.sha256()
@@ -91,8 +116,14 @@ def restore(rootfs, assets, destination, identity, runtime, package):
         recipe.update((assets.parent / name).read_bytes())
     require(recipe.hexdigest() == metadata['baseRecipeSha256'], 'recipe_mismatch')
     parents = {}
+    source_parents = {'rootfs': parents, 'wine': {}}
     for relative, expected in metadata['runtimeFiles'].items():
         require(sha(checked_source(rootfs, relative, parents)) == expected, 'runtime_mismatch:' + relative)
+    if translator == 'box64':
+        for relative, expected in metadata['wineRuntimeFiles'].items():
+            require(relative.startswith(('bin/', 'lib/wine/', 'share/wine/')), 'source_invalid')
+            require(sha(checked_source(roots['wine'], relative, source_parents['wine'])) == expected,
+                    'runtime_mismatch:' + relative)
     records = json.loads((assets / 'manifest.json').read_text())
     require(isinstance(records, list) and 0 < len(records) <= MAX_FILES, 'manifest_invalid')
     entries = {}
@@ -108,7 +139,12 @@ def restore(rootfs, assets, destination, identity, runtime, package):
                 all(c in '0123456789abcdef' for c in record['sha256']), 'manifest_invalid')
         if 'source' in record:
             relative = safe_name(record['source'])
-            require(relative.startswith(SOURCE_PREFIXES), 'source_invalid')
+            source_root = record.get('sourceRoot', 'rootfs')
+            require(source_root in roots, 'source_invalid')
+            allowed = SOURCE_PREFIXES if source_root == 'rootfs' else ('lib/wine/', 'share/wine/')
+            require(relative.startswith(allowed), 'source_invalid')
+        else:
+            require('sourceRoot' not in record, 'source_invalid')
         entries[name] = record
         total += record['bytes']
     require(total == metadata['expandedBytes'] and total <= MAX_BYTES, 'expanded_size_invalid')
@@ -170,7 +206,10 @@ def restore(rootfs, assets, destination, identity, runtime, package):
                     target = stage / name
                     target.parent.mkdir(parents=True, exist_ok=True)
                     if 'source' in record:
-                        sourcepath = checked_source(rootfs, record['source'], parents)
+                        source_root = record.get('sourceRoot', 'rootfs')
+                        # Parent caches are scoped to an input root.
+                        sourcepath = checked_source(roots[source_root], record['source'],
+                                                    source_parents[source_root])
                         require(sourcepath.stat().st_size == record['bytes'], 'source_size_mismatch')
                         with sourcepath.open('rb') as source:
                             copy_verified(source, target, record)
@@ -186,7 +225,7 @@ def restore(rootfs, assets, destination, identity, runtime, package):
                 markers = stage / '.games-runtime'
                 markers.mkdir()
                 for name, value in {'runtime': runtime + '|' + package, 'wine-dlls': package,
-                                    'translator': 'hangover', 'prepared-identity': identity,
+                                    'translator': translator, 'prepared-identity': identity,
                                     'cjk-fonts': runtime + '|' + package + '|Noto Sans CJK SC|v4'}.items():
                     (markers / name).write_text(value + '\n')
                 # rename replaces only an empty directory; an intervening nonempty target fails.
@@ -202,12 +241,14 @@ def main():
     p = argparse.ArgumentParser()
     for name in ['rootfs', 'assets', 'destination', 'identity', 'runtime', 'package']:
         p.add_argument('--' + name, required=True)
+    p.add_argument('--wine-root')
     args = p.parse_args()
     def terminate(signum, frame):
         raise SystemExit(128 + signum)
     signal.signal(signal.SIGTERM, terminate)
     try:
-        restore(args.rootfs, args.assets, args.destination, args.identity, args.runtime, args.package)
+        restore(args.rootfs, args.assets, args.destination, args.identity, args.runtime, args.package,
+                args.wine_root)
     except (OSError, ValueError, KeyError, TypeError, tarfile.TarError) as error:
         p.exit(1, str(error) + '\n')
 

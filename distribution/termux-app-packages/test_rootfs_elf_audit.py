@@ -88,6 +88,34 @@ class Audit(unittest.TestCase):
         self.cc('-shared', '-fPIC', '-nostdlib', str(self.root/'dep.c'), '-Wl,-soname,wrong.so', '-o', str(provider))
         self.assertTrue(a.scan(self.root, self.machine, contexts)['problems'])
 
+    def test_emulated_context_requires_matching_exact_tree_gate(self):
+        # An x86 DSO in its declared guest dir still fails the native audit
+        # without a successful external closure report and current file hash.
+        x86 = self.root / 'usr/lib/x86_64-linux-gnu'
+        x86.mkdir()
+        shutil.copyfile(self.lib / 'libneeded.so', x86 / 'libextra.so')
+        for p in self.lib.iterdir():
+            data = bytearray(p.read_bytes())
+            data[18:20] = (183).to_bytes(2, 'little')
+            p.write_bytes(data)
+        self.assertTrue(a.scan(self.root)['problems'])
+        report = {'rootfsRoot': str(self.root.resolve()), 'status': 'PassedDirectDependencyClosure',
+                  'problems': [], 'backend': 'rootfs_proot', 'records': [
+                      {'owner': 'rootfs-x86', 'path': 'usr/lib/x86_64-linux-gnu/libextra.so',
+                       'machine': 62, 'class': 64, 'sha256': a.m.digest(x86 / 'libextra.so')}]}
+        coverage = a.emulated_coverage(self.root, report)
+        self.assertEqual([], a.scan(self.root, emulated=coverage)['problems'])
+        report['status'] = 'FailedDirectDependencyClosure'
+        with self.assertRaisesRegex(ValueError, 'external_audit_failed'):
+            a.emulated_coverage(self.root, report)
+        report['status'] = 'PassedDirectDependencyClosure'
+        report['rootfsRoot'] = '/another/tree'
+        with self.assertRaisesRegex(ValueError, 'external_audit_root'):
+            a.emulated_coverage(self.root, report)
+        (x86 / 'libextra.so').write_bytes(b'changed')
+        with self.assertRaisesRegex(ValueError, 'external_emulated_changed'):
+            a.scan(self.root, emulated=coverage)
+
     def test_bad_machine_or_program_header_is_rejected(self):
         self.assertTrue(a.scan(self.root, 0)['problems'])
         broken = self.lib/'broken.so'

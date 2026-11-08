@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-08T06:32:00Z",
+  "generatedAt": "2026-11-08T15:52:52Z",
   "packages": [
     {
       "id": "glibc_box64_0.2.7",
@@ -408,7 +408,7 @@
       "type": "translator",
       "displayName": "proton_11.0",
       "versionName": "11.0",
-      "summary": "Kron4ek Proton 11.0 WoW64 for Box64, pinned.",
+      "summary": "Proton 11.0 runtime for Windows games, pinned.",
       "framework": "ROOTFS",
       "base": false,
       "recommended": false,
@@ -417,17 +417,17 @@
       "runtimeBackends": [
         "rootfs_proot"
       ],
-      "version": 1,
-      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_proton_11.0-v1/rootfs_proton_11.0.tar.xz",
-      "size": 80017220,
-      "sha256": "f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595"
+      "version": 2,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_proton_11.0-v2/rootfs_proton_11.0.tar.xz",
+      "size": 73929128,
+      "sha256": "a62eed7a78adb8b4edc2229e2e5f5c7a22e66eb7fcb13c25b27bd3667a7ffae6"
     },
     {
       "id": "rootfs_debian13_hangover_pdb2_minimal",
       "category": "runtime",
       "type": "image_fs",
       "displayName": "Debian 13 + Hangover (minimal)",
-      "versionName": "pdb2 minimal v1",
+      "versionName": "pdb2 minimal v2",
       "summary": "Preinstalled minimal Debian RootFS with Hangover; extracted and verified without guest package installation.",
       "framework": "Debian PRoot",
       "base": true,
@@ -437,10 +437,70 @@
       "runtimeBackends": [
         "rootfs_proot"
       ],
+      "version": 2,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-debian13-hangover-pdb2-minimal-v2/rootfs-debian13-hangover-pdb2-minimal-v2.tar.zst",
+      "size": 323406172,
+      "sha256": "01b6fe94fc711db2e80ea69518e4ebfd613881dbed4d52bdd900b159221784b7"
+    },
+    {
+      "id": "rootfs_prefix_hangover_pdb2",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Wine environment",
+      "versionName": "1",
+      "summary": "Automatically prepared Wine environment.",
+      "framework": "ROOTFS",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "rootfs_proot"
+      ],
       "version": 1,
-      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-debian13-hangover-pdb2-minimal-v1/rootfs-debian13-hangover-pdb2-minimal-v1.tar.zst",
-      "size": 322915320,
-      "sha256": "22734affd772ccfc99b99d850c6bdefa22683827c4a7b9204ca1a2595c03fbce"
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/prefix-hangover-pdb2-v1/prefix-hangover-pdb2-v1.tar.gz",
+      "size": 2720316,
+      "sha256": "ffc789ded7083cddc63d3506a8702cd6df5b6554f889f7de2e142327fc2d5147"
+    },
+    {
+      "id": "rootfs_prefix_wine10_wow64",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Wine environment",
+      "versionName": "1",
+      "summary": "Automatically prepared Wine environment.",
+      "framework": "ROOTFS",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "rootfs_proot"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/prefix-wine10-wow64-v1/prefix-wine10-wow64-v1.tar.gz",
+      "size": 474599,
+      "sha256": "02986d6b5310ffe2ecfde0809e4cdcab2701a5e3b58ab0c3d96c5e155e81c02b"
+    },
+    {
+      "id": "rootfs_prefix_proton11_wow64",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Wine environment",
+      "versionName": "1",
+      "summary": "Automatically prepared Wine environment.",
+      "framework": "ROOTFS",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "rootfs_proot"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/prefix-proton11-wow64-v1/prefix-proton11-wow64-v1.tar.gz",
+      "size": 772405,
+      "sha256": "07235c1e47351a29dde91c9f2d27a0b34ddea3300a8829f551d49cd1aa9dbab8"
     }
   ]
 }

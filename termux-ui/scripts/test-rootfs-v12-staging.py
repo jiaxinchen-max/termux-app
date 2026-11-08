@@ -40,6 +40,12 @@ class StagingTests(unittest.TestCase):
                 if case=='unowned':write(scratch/'do-not-delete','user-data')
                 if case=='interrupted':write(scratch/'.idap-image-owner','prebuilt-image-v1');write(scratch/'rootfs/partial','partial')
                 if case=='bad-package':(component/seed.archive.name).write_bytes(b'bad')
+                installed_inode=(shared/'rootfs').stat().st_ino if shared.exists() else None
+                if case=='recipe-update':identity='b'*64
+                if case=='wrong-image':
+                    descriptor=json.loads((recipe/'image.json').read_text());descriptor['sha256']='c'*64
+                    (recipe/'image.json').write_text(json.dumps(descriptor))
+                if case=='damaged-image':(shared/'rootfs/usr/bin/wine').write_bytes(b'corrupt')
                 if case=='changed':write(cache/'games-rootfs-base.recipe','b'*64)
                 for name in ('python','zstd'):
                     (host/'bin').mkdir(parents=True,exist_ok=True);(host/'bin'/name).symlink_to(sys.executable if name=='python' else shutil.which('zstd'))
@@ -62,11 +68,12 @@ exec /bin/mv "$@"
                 write(host/'bin/pkg','#!/bin/sh\nexit 99\n',True)
                 for name in ('rootfs_script_common.sh','proot_component_bindings.sh'):shutil.copy2(ASSETS/name,runtime/name)
                 write(runtime/'warmup.sh','''resolve_rootfs_translator() { RUNTIME_TRANSLATOR=hangover; }
+prebuilt_prefix_supported() { return 0; }
 prepare_external_prefix_template() { :; }
-warmup_rootfs_prefix() { :; }
+warmup_rootfs_prefix() { mkdir -p "$PREFIX_PATH/.games-runtime"; }
 require_external_prepared_prefix() { :; }
 ''')
-                values={'taskId':'task','packageName':'debian-13-games-rootfs','version':'12','recipeSha256':identity,'containerId':'container','containerName':'container','buildContext':runtime/'setup/staging/task','recipeDirectory':recipe,'eventsPath':runtime/'setup/events/task.jsonl','logPath':runtime/'setup/logs/task.log','baseOnly':'false' if case in ('reuse','changed') else 'true','winePrefixDirectory':front/'containers/test/prefix','homeDirectory':front/'containers/test/home','winePackage':'rootfs_hangover_11.16','prefixWarmupScript':runtime/'warmup.sh','runtimeTranslator':'hangover','box64ComponentId':''}
+                values={'taskId':'task','packageName':'debian-13-games-rootfs','version':'12','recipeSha256':identity,'containerId':'container','containerName':'container','buildContext':runtime/'setup/staging/task','recipeDirectory':recipe,'eventsPath':runtime/'setup/events/task.jsonl','logPath':runtime/'setup/logs/task.log','baseOnly':'false' if case in ('reuse','changed','recipe-update','wrong-image','damaged-image') else 'true','winePrefixDirectory':front/'containers/test/prefix','homeDirectory':front/'containers/test/home','winePackage':'rootfs_hangover_11.16','prefixWarmupScript':runtime/'warmup.sh','runtimeTranslator':'hangover','box64ComponentId':''}
                 lines=['schemaVersion=4']+[k+'='+base64.b64encode(str(v).encode()).decode() for k,v in values.items()]+['componentCount=1','component.0.id='+base64.b64encode(fixture.m.IMAGE_ID.encode()).decode(),'component.0.directory='+base64.b64encode(str(component).encode()).decode(),'bindingCount=0']
                 specpath=runtime/'setup/specs/task.setupspec';write(specpath,'\n'.join(lines)+'\n')
                 command=['sh',str(ASSETS/'setup_rootfs_runtime.sh'),str(specpath)]
@@ -86,16 +93,23 @@ require_external_prepared_prefix() { :; }
                 else:
                     result=subprocess.run(command,env=env,capture_output=True,text=True,timeout=20)
                 log=(runtime/'setup/logs/task.log').read_text() if (runtime/'setup/logs/task.log').exists() else ''
-                if case in ('fresh','explicit','interrupted','reuse'):
-                    self.assertEqual(result.returncode,0,result.stderr[-1500:]+log);self.assertTrue((shared/'rootfs/etc/games-image-install.json').exists());self.assertEqual((cache/'games-rootfs-base.recipe').read_text().strip(),identity);self.assertFalse(shared.with_name(shared.name+'.previous').exists())
-                    if case=='reuse':self.assertNotIn('Extracting',log)
+                if case in ('fresh','explicit','interrupted','reuse','recipe-update'):
+                    self.assertEqual(result.returncode,0,result.stderr[-1500:]+log);self.assertTrue((shared/'rootfs/etc/games-image-install.json').exists());self.assertEqual((cache/'games-rootfs-base.recipe').read_text().strip(),'a'*64 if case=='recipe-update' else identity);self.assertFalse(shared.with_name(shared.name+'.previous').exists())
+                    if case in ('reuse','recipe-update'):
+                        self.assertNotIn('Extracting',log)
+                        self.assertEqual(installed_inode,(shared/'rootfs').stat().st_ino)
+                        self.assertEqual('keep',(shared/'rootfs/old-environment').read_text())
+                        self.assertEqual(identity+'\n',(front/'containers/test/prefix/.games-runtime/preparation-recipe').read_text())
+                        receipt=json.loads((shared/'rootfs/etc/games-image-install.json').read_text())
+                        self.assertEqual('a'*64,receipt['recipeSha256'])
                 else:
                     self.assertNotEqual(result.returncode,0,result.stderr+log);self.assertEqual((shared/'rootfs/old-environment').read_text(),'keep');self.assertEqual((cache/'games-rootfs-base.recipe').read_text().strip(),'b'*64 if case=='changed' else identity)
+                    self.assertNotIn('Extracting',log) if case in ('wrong-image','damaged-image','changed') else None
                     if case=='unowned':self.assertEqual((scratch/'do-not-delete').read_text(),'user-data')
                 self.assertEqual((front/'containers/existing/prefix/drive_c/game.save').read_text(),'save-data')
                 self.assertNotIn('apt-get',log);self.assertNotIn('proot-distro install',log)
             finally:seed.doCleanups()
 
-for case in ('fresh','explicit','reuse','changed','bad-package','interrupted','unowned','locale-failure','publish-failure','receipt-failure','cancel'):
+for case in ('fresh','explicit','reuse','recipe-update','wrong-image','damaged-image','changed','bad-package','interrupted','unowned','locale-failure','publish-failure','receipt-failure','cancel'):
     setattr(StagingTests,'test_'+case.replace('-','_'),lambda self,c=case:self.run_case(c))
 if __name__=='__main__':unittest.main()

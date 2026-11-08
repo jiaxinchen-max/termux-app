@@ -54,6 +54,25 @@ class Minimize(unittest.TestCase):
     def plan(self):
         return m.plan(self.root, self.assets, 'development')
 
+    def test_external_runtime_dependencies_survive_trim_and_detect_changed_links(self):
+        name = 'usr/include/wine/test.h'
+        path = self.root / name
+        alias = self.root / 'usr/include/wine/required.h'
+        alias.symlink_to('test.h')
+        receipt = {'schemaVersion': 1, 'state': 'Verified', 'backend': 'rootfs_proot',
+                   'protectedPaths': {name: {'type': 'file', 'bytes': path.stat().st_size, 'sha256': m.digest(path)},
+                                      'usr/include/wine/required.h': {'type': 'symlink', 'link': 'test.h'}}}
+        (self.root / m.EXTERNAL_WINE_RECEIPT).write_text(json.dumps(receipt))
+        plan = self.plan()
+        self.assertNotIn(name, {r['path'] for r in plan['deletions']})
+        self.assertNotIn('usr/include/wine/required.h', {r['path'] for r in plan['deletions']})
+        m.apply(self.root, self.assets, plan, self.journal)
+        self.assertTrue(path.is_file())
+        alias.unlink()
+        alias.symlink_to('other.h')
+        with self.assertRaisesRegex(ValueError, 'external_link_changed'):
+            m.protect(self.root, self.assets)
+
     def test_build_only_batch_preserves_runtime_and_package_identity(self):
         removed = ['usr/share/i18n/locales/zh_CN', 'usr/share/i18n/charmaps/GBK.gz',
                    'usr/bin/localedef', 'usr/sbin/locale-gen', 'usr/bin/apt-get',

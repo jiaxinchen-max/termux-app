@@ -449,10 +449,14 @@ warmup_rootfs_prefix() {
             return 0
         fi
         progress '==> Restoring prebuilt Wine prefix and verifying public DLLs/fonts'
-        "$PREFIX/bin/python" "$RECIPE_DIRECTORY/restore_wine_prefix.py" \
+        set -- "$PREFIX/bin/python" "$RECIPE_DIRECTORY/restore_wine_prefix.py" \
             --rootfs "$ROOTFS_CANONICAL" --assets "$PREBUILT_PREFIX_ASSETS" \
             --destination "$PREFIX_PATH" --identity "$GAMES_TEMPLATE_KEY" \
-            --runtime "$RUNTIME_ROOT_PATH" --package "$WINE_PACKAGE" >> "$LOG_PATH" 2>&1 &
+            --runtime "$RUNTIME_ROOT_PATH" --package "$WINE_PACKAGE"
+        if [ -n "${PREBUILT_PREFIX_WINE_ROOT:-}" ]; then
+            set -- "$@" --wine-root "$PREBUILT_PREFIX_WINE_ROOT"
+        fi
+        "$@" >> "$LOG_PATH" 2>&1 &
         PROOT_PID=$!
         prefix_restore_status=0
         wait "$PROOT_PID" || prefix_restore_status=$?
@@ -833,7 +837,21 @@ resolve_external_template_identity() {
     external_recipe=$(sed -n 's/^recipeSha256=//p' "$ROOTFS_CANONICAL/etc/games-runtime.properties")
     case "$external_recipe" in ''|*[!0-9a-f]*) warmup_fail rootfs_recipe_identity_missing ;; esac
     [ "${#external_recipe}" = 64 ] || warmup_fail rootfs_recipe_identity_missing
-    GAMES_TEMPLATE_KEY=$(printf '%s\n' 'prefix-v11-init6-prebuilt-aarch64' "$external_recipe" \
+    # The image's installation recipe stays immutable. New preparations bind the current
+    # APK recipe independently; launch reads the receipt published only after preparation.
+    preparation_recipe=${GAMES_PREPARATION_RECIPE_SHA256:-}
+    if [ -z "$preparation_recipe" ] && [ -e "$PREFIX_PATH/.games-runtime/preparation-recipe" ]; then
+        [ ! -L "$PREFIX_PATH/.games-runtime/preparation-recipe" ] || warmup_fail rootfs_preparation_identity_invalid
+        preparation_recipe=$(cat "$PREFIX_PATH/.games-runtime/preparation-recipe") ||
+            warmup_fail rootfs_preparation_identity_invalid
+        [ -n "$preparation_recipe" ] || warmup_fail rootfs_preparation_identity_invalid
+    fi
+    if [ -n "$preparation_recipe" ]; then
+        case "$preparation_recipe" in *[!0-9a-f]*) warmup_fail rootfs_preparation_identity_invalid ;; esac
+        [ "${#preparation_recipe}" = 64 ] || warmup_fail rootfs_preparation_identity_invalid
+        external_recipe="$external_recipe|$preparation_recipe"
+    fi
+    GAMES_TEMPLATE_KEY=$(printf '%s\n' 'prefix-v12-init7-prebuilt-wow64' "$external_recipe" \
         "$WINE_PACKAGE" "$RUNTIME_TRANSLATOR" "${GAMES_CUSTOM_BOX64_ID:-}" "${PROOT_BINDING_IDENTITY:-}" | sha256sum)
     GAMES_TEMPLATE_KEY=${GAMES_TEMPLATE_KEY%% *}
     EXTERNAL_TEMPLATE_DIR="$TEMPLATE_CACHE_DIR/v11/$GAMES_TEMPLATE_KEY"
@@ -851,13 +869,29 @@ external_template_valid() {
 
 # Called only by explicit setup, under the persistent global RootFS owner. Staging is unique
 # to the task; a process death cannot publish a half-built template or block future preparation.
+prebuilt_prefix_supported() {
+    case "$WINE_PACKAGE:$RUNTIME_TRANSLATOR" in
+        rootfs_hangover_11.16:hangover|rootfs_wine_10.0:box64|rootfs_proton_11.0:box64) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 prepare_external_prefix_template() {
     resolve_external_template_identity
     TEMPLATE_PREFIX_ARCHIVE=
     PREBUILT_PREFIX_REQUIRED=false
-    if [ "$WINE_PACKAGE" = rootfs_hangover_11.16 ] && [ "$RUNTIME_TRANSLATOR" = hangover ]; then
+    PREBUILT_PREFIX_WINE_ROOT=
+    if prebuilt_prefix_supported; then
         PREBUILT_PREFIX_REQUIRED=true
-        PREBUILT_PREFIX_ASSETS="$RECIPE_DIRECTORY/prefix-hangover-pdb2"
+        case "$WINE_PACKAGE" in
+            rootfs_hangover_11.16) PREBUILT_PREFIX_ASSETS="$RECIPE_DIRECTORY/prefix-hangover-pdb2" ;;
+            rootfs_wine_10.0) PREBUILT_PREFIX_ASSETS="$RECIPE_DIRECTORY/prefix-wine10-wow64" ;;
+            rootfs_proton_11.0) PREBUILT_PREFIX_ASSETS="$RECIPE_DIRECTORY/prefix-proton11-wow64" ;;
+        esac
+        if [ "$RUNTIME_TRANSLATOR" = box64 ]; then
+            PREBUILT_PREFIX_WINE_ROOT=$(rootfs_component_host "$box64_wine_root") ||
+                warmup_fail rootfs_binding_missing
+        fi
         [ -s "$PREBUILT_PREFIX_ASSETS/bundle.json" ] && \
             [ -s "$PREBUILT_PREFIX_ASSETS/manifest.json" ] && \
             [ -s "$PREBUILT_PREFIX_ASSETS/delta.tgz" ] && \

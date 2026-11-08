@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "backend": "rootfs_proot",
+  "hostAbi": "aarch64",
+  "prefixArch": "wow64",
+  "peMachine": 34404,
+  "translator": "box64",
+  "winePackage": "rootfs_wine_10.0",
+  "windowsUser": "root",
+  "componentVersion": 1,
+  "sourceComponentSha256": "aeebbbf239e548f0136f1cd72a2e109dd9a572a8f703da3c09fa40d74d5c255f",
+  "baseRecipeSha256": "e19f08128523a441bdc0f6420d20f7897a3e2330c55074db78521464326e11c9",
+  "initializationRevision": "standard-wow64-zh-skeleton-2",
+  "runtimeFiles": {},
+  "wineRuntimeFiles": {
+    "bin/wine64": "91dfdd714f2c9078f010341346196d426e81c633ca0865cf7cc678e2825562db",
+    "bin/wineserver": "c956f3cf73455cb971884fa00387d151b5bbbda0cf9868566e4be974cc5e91a3",
+    "lib/wine/x86_64-windows/ntdll.dll": "c00c19e1beab23f18308771520af868de55e0255d99e32a1b84503c2172ec575",
+    "lib/wine/i386-windows/ntdll.dll": "f5f43940adcd8227a73e59b646c87d87a5cf95a029dbca4e20ae7b1dad4cff2c"
+  },
+  "expandedBytes": 698176416,
+  "assets": {
+    "manifest.json": "1ec85f9eadd8fc424ae65caa61af2ac6db32267ab1db97ba93ef91e9f0cfe57e",
+    "delta.tgz": "a4252a7370d506a03bc3d48bb8c7dfd476c4e77540576a60a853549c70b0f44b"
+  },
+  "provenance": {
+    "kind": "x86_64-wow64-reference",
+    "referenceComponentSha256": "aeebbbf239e548f0136f1cd72a2e109dd9a572a8f703da3c09fa40d74d5c255f",
+    "referenceEvidenceSha256": "39041b71d40cc5256d79117d25610f8fa990ebc2316ea56c2596dbdc3a2ae480",
+    "referenceRegistries": {
+      "system.reg": "7b8332e467ec976e9f0295ef8ebbefa25b251bdb65507c22fe93efafaf03004f",
+      "user.reg": "12ae2a324949e979c0a9ed7d517dc79f1b8fcada1121881a188e7bfb4bc1554e",
+      "userdef.reg": "443b13770cf8135af6c8ce27702c783739f5c8b6752f23aa5bb4f84c45610f68"
+    },
+    "missingReferenceFiles": [],
+    "omittedStartupEntries": [
+      {
+        "section": "Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\RunServices",
+        "value": "\"winemenubuilder\"=\"C:\\\\windows\\\\system32\\\\winemenubuilder.exe -a -r\"",
+        "missingComponentFile": "lib/wine/x86_64-windows/winemenubuilder.exe"
+      }
+    ],
+    "targetAcceptance": "pending"
+  }
+}

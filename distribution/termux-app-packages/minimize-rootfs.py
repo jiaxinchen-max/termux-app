@@ -27,6 +27,7 @@ PACKAGE = '11.16~trixie+idap.pdb2'
 LIVE = 'games-shared-rootfs'
 BUILD_BATCHES = ('development', 'resources', 'fonts', 'build-tools', 'gpu-drivers')  # Expand only after each batch passes device validation.
 TRIM_RECEIPT = 'etc/games-rootfs-trim.json'
+EXTERNAL_WINE_RECEIPT = 'etc/games-external-wine-dependencies.json'
 
 
 def require(ok, message):
@@ -176,6 +177,26 @@ def tree(root, hashes=True):
     return result
 
 
+def external_wine_protected(root):
+    receipt = leaf(root, EXTERNAL_WINE_RECEIPT)
+    require(not receipt.is_symlink(), 'external_receipt_alias')
+    if not receipt.exists():
+        return {}
+    value = json.loads(receipt.read_text())
+    require(value['schemaVersion'] == 1 and value['state'] == 'Verified'
+            and value['backend'] == 'rootfs_proot' and bool(value['protectedPaths']),
+            'external_receipt_invalid')
+    for name, item in value['protectedPaths'].items():
+        p = leaf(root, name)
+        if item['type'] == 'file':
+            require(not p.is_symlink() and p.is_file() and digest(p) == item['sha256']
+                    and p.stat().st_size == item['bytes'], 'external_source_changed:' + name)
+        else:
+            require(item['type'] == 'symlink' and p.is_symlink()
+                    and os.readlink(p) == item['link'], 'external_link_changed:' + name)
+    return value['protectedPaths']
+
+
 def protect(root, assets, snapshot=None):
     metadata = json.loads((assets / 'bundle.json').read_text())
     require(metadata['sourceComponentSha256'] ==
@@ -202,6 +223,9 @@ def protect(root, assets, snapshot=None):
         require(check(p, expected), 'runtime_guard_mismatch:' + name)
         protected[relative(name)] = expected
         protected[str(p.relative_to(root))] = expected
+    for name, item in external_wine_protected(root).items():
+        if item['type'] == 'file':
+            protected[name] = item['sha256']
     return protected
 
 
@@ -509,6 +533,8 @@ def plan(root, assets, batch):
     snapshot = tree(root)
     protected = protect(root, assets, snapshot)
     selected = {name for name in snapshot if reason(name, batch)}
+    external = external_wine_protected(root)
+    selected.difference_update(external)
     if batch in ('fonts', 'runtime') and not any(name.startswith('usr/share/fonts/opentype/noto/') for name in selected):
         # No font removal means there is no stale cache to rebuild.
         selected = {name for name in selected if not name.startswith('var/cache/fontconfig/')}
@@ -534,6 +560,7 @@ def plan(root, assets, batch):
               'protectedSha256': signature(protected), 'protectedFiles': len(protected),
               'deletions': deletions, 'logicalBytes': sum(d['bytes'] for d in deletions if 'link' not in d),
               'allocatedBytes': sum(d['allocated'] for d in deletions if 'link' not in d)}
+    result['retainedByExternalDependencies'] = sorted(external)
     if batch in ('resources', 'runtime'):
         result['retainedByPolicy'] = [{'path': p, 'reason': why} for p, why in sorted(retained.items())]
     if batch in ('fonts', 'runtime'):

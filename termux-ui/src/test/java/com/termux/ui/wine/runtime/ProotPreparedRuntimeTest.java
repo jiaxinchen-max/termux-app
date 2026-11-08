@@ -68,4 +68,35 @@ public class ProotPreparedRuntimeTest {
         GameStoragePaths paths = paths(); prepare(paths, SHA.replace('a', 'b'));
         ProotPreparedRuntime.require(paths, profile("rootfs-wined3d"));
     }
+    private File preparationRecord(GameStoragePaths paths, String value) throws Exception {
+        File file = new File(paths.getContainerPrefixDirectory("container", GameRuntimeBackendType.ROOTFS_PROOT),
+            ".games-runtime/preparation-recipe");
+        file.getParentFile().mkdirs();
+        Files.write(file.toPath(), value.getBytes(StandardCharsets.US_ASCII));
+        return file;
+    }
+    @Test public void newPrefixRecipeUsesExistingPrebuiltImage() throws Exception {
+        GameStoragePaths paths = paths();
+        String updated = SHA.replace('a', 'b');
+        prepare(paths, updated); preparationRecord(paths, updated + "\n");
+        assertEquals(updated, ProotPreparedRuntime.require(paths, profile("rootfs-wined3d")).getRecipeSha256());
+        assertTrue(new String(Files.readAllBytes(new File(paths.getSharedRootfsDirectory(),
+            "etc/games-runtime.properties").toPath()), StandardCharsets.US_ASCII).contains("recipeSha256=" + SHA));
+    }
+    @Test(expected = IOException.class) public void anotherPreparationReceiptCannotAdmitBindings() throws Exception {
+        GameStoragePaths paths = paths(); prepare(paths, SHA);
+        preparationRecord(paths, SHA.replace('a', 'b') + "\n");
+        ProotPreparedRuntime.require(paths, profile("rootfs-wined3d"));
+    }
+    @Test(expected = IOException.class) public void emptyPreparationReceiptCannotFallBackToImageRecipe() throws Exception {
+        GameStoragePaths paths = paths(); prepare(paths, SHA); preparationRecord(paths, "");
+        ProotPreparedRuntime.require(paths, profile("rootfs-wined3d"));
+    }
+    @Test(expected = IOException.class) public void linkedPreparationReceiptRejected() throws Exception {
+        GameStoragePaths paths = paths(); prepare(paths, SHA);
+        File record = preparationRecord(paths, SHA + "\n");
+        File other = temp.newFile(); Files.write(other.toPath(), (SHA + "\n").getBytes(StandardCharsets.US_ASCII));
+        Files.delete(record.toPath()); Files.createSymbolicLink(record.toPath(), other.toPath());
+        ProotPreparedRuntime.require(paths, profile("rootfs-wined3d"));
+    }
 }

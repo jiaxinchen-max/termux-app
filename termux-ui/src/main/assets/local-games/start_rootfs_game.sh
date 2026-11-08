@@ -29,6 +29,8 @@ LOG_TAIL_PID=
 AUDIO_OWNED=0
 TASK_LOCK_OWNED=0
 CANCELLED=0
+# This marker is internal, never supplied by a profile or inherited launcher.
+unset GAMES_LAUNCH_TOKEN
 
 decode_text() { printf '%s' "$1" | base64 -d; }
 fail_before_events() { printf '%s\n' "$1" >&2; exit 2; }
@@ -121,7 +123,7 @@ while IFS= read -r line || [ -n "$line" ]; do
             PENDING_ENV_KEY=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64
             case "$PENDING_ENV_KEY" in ''|[0-9]*|*[!A-Za-z0-9_]*) fail_before_events invalid_launch_environment_key ;; esac
             case "$PENDING_ENV_KEY" in
-                PATH|HOME|USER|LOGNAME|TMPDIR|LD_*|PROOT_*|TERMUX_*|WINEPREFIX|DISPLAY|PULSE_SERVER|SCRIPT_PATH|SPEC_PATH|PB_*|pb_*|pbf_*|pbd_*)
+                PATH|HOME|USER|LOGNAME|TMPDIR|LD_*|PROOT_*|TERMUX_*|WINEPREFIX|DISPLAY|PULSE_SERVER|SCRIPT_PATH|SPEC_PATH|GAMES_LAUNCH_TOKEN|PB_*|pb_*|pbf_*|pbd_*)
                     fail_before_events reserved_launch_environment_key
                     ;;
             esac
@@ -157,6 +159,7 @@ case "$TIMEOUT_SECONDS" in ''|*[!0-9]*) fail_before_events invalid_launch_spec_n
 [ "$ACTUAL_ARGUMENT_COUNT" -eq "$ARGUMENT_COUNT" ] || fail_before_events launch_argument_count_mismatch
 [ "$ACTUAL_ENVIRONMENT_COUNT" -eq "$ENVIRONMENT_COUNT" ] || fail_before_events launch_environment_count_mismatch
 [ -z "$PENDING_ENV_KEY" ] || fail_before_events invalid_launch_environment_pair
+GAMES_LAUNCH_TOKEN=$TASK_ID:$$
 [ "$ARGUMENT_COUNT" -le 256 ] || fail_before_events launch_argument_count_out_of_range
 [ "$ENVIRONMENT_COUNT" -le 256 ] || fail_before_events launch_environment_count_out_of_range
 [ "$TIMEOUT_SECONDS" -ge 30 ] && [ "$TIMEOUT_SECONDS" -le 86400 ] || fail_before_events launch_timeout_out_of_range
@@ -206,14 +209,75 @@ emit() {
         "$TASK_ID" "$SEQUENCE" "$1" "$2" "$3" "$now" "$$" "$4" "$5" "$6" "$7" "$LOG_PATH" >> "$EVENT_PATH"
 }
 
+# Wine services can daemonize and outlive PRoot. Never use their names or their
+# current parent PID as ownership: only this launch's inherited, exact marker.
+session_pids() {
+    for session_proc in /proc/[0-9]*; do
+        [ -r "$session_proc/environ" ] || continue
+        if (tr '\000' '\n' < "$session_proc/environ" |
+                grep -Fxq "GAMES_LAUNCH_TOKEN=$GAMES_LAUNCH_TOKEN") 2>/dev/null; then
+            printf '%s\n' "${session_proc##*/}"
+        fi
+    done
+}
+
+signal_session() {
+    for session_pid in $(session_pids); do
+        # Recheck ownership immediately before signalling (PID reuse).
+        if (tr '\000' '\n' < "/proc/$session_pid/environ" |
+                grep -Fxq "GAMES_LAUNCH_TOKEN=$GAMES_LAUNCH_TOKEN") 2>/dev/null; then
+            kill "-$1" "$session_pid" 2>/dev/null || true
+        fi
+    done
+}
+
+stop_owned_session() {
+    if [ -n "$PROOT_PID" ]; then
+        kill "$PROOT_PID" 2>/dev/null || true
+        session_wait=0
+        while kill -0 "$PROOT_PID" 2>/dev/null && [ "$session_wait" -lt 25 ]; do
+            sleep 1
+            session_wait=$((session_wait + 1))
+        done
+        ! kill -0 "$PROOT_PID" 2>/dev/null || kill -9 "$PROOT_PID" 2>/dev/null || true
+        session_wait=0
+        while kill -0 "$PROOT_PID" 2>/dev/null && [ "$session_wait" -lt 3 ]; do
+            sleep 1
+            session_wait=$((session_wait + 1))
+        done
+        # Do not wait forever on an uninterruptible tracer, even after SIGKILL.
+        ! kill -0 "$PROOT_PID" 2>/dev/null || return 1
+        wait "$PROOT_PID" 2>/dev/null || true
+        PROOT_PID=
+    fi
+    [ -n "$(session_pids)" ] || return 0
+    signal_session TERM
+    session_wait=0
+    while [ -n "$(session_pids)" ] && [ "$session_wait" -lt 3 ]; do
+        sleep 1
+        session_wait=$((session_wait + 1))
+    done
+    [ -n "$(session_pids)" ] || return 0
+    signal_session KILL
+    session_wait=0
+    while [ -n "$(session_pids)" ] && [ "$session_wait" -lt 3 ]; do
+        sleep 1
+        session_wait=$((session_wait + 1))
+    done
+    [ -z "$(session_pids)" ]
+}
+
 terminal_failure() {
+    if ! stop_owned_session; then
+        printf 'Session cleanup failed while handling %s\n' "$1" >&2
+        set -- rootfs_session_cleanup_failed null false
+    fi
     emit FAILED COMPLETE 100 "${2:-null}" "$1" "${3:-false}" "$1"
     exit 1
 }
 
 cleanup() {
-    [ -z "$PROOT_PID" ] || kill "$PROOT_PID" 2>/dev/null || true
-    [ -z "$PROOT_PID" ] || wait "$PROOT_PID" 2>/dev/null || true
+    stop_owned_session || printf '%s\n' 'Session cleanup failed on launcher exit' >&2
     [ -z "$VIRGL_PID" ] || kill "$VIRGL_PID" 2>/dev/null || true
     [ -z "$DISPLAY_PID" ] || kill "$DISPLAY_PID" 2>/dev/null || true
     if [ "$AUDIO_OWNED" = 1 ]; then
@@ -232,8 +296,6 @@ on_signal() {
     CANCELLED=1
     : > "$CANCEL_PATH"
     [ -z "$PROOT_PID" ] || kill "$PROOT_PID" 2>/dev/null || true
-    [ -z "$VIRGL_PID" ] || kill "$VIRGL_PID" 2>/dev/null || true
-    [ -z "$DISPLAY_PID" ] || kill "$DISPLAY_PID" 2>/dev/null || true
 }
 trap cleanup EXIT
 trap on_signal HUP INT TERM
@@ -356,6 +418,8 @@ unset LD_PRELOAD
 # wait loops below then act on proot itself, not on an intermediate subshell). Never call it as a bare
 # foreground command -- that would replace this whole script; use a ( ... ) subshell, as run_rootfs_wine does.
 run_rootfs_command() {
+    # Export only in the PRoot subshell: host cleanup helpers must not acquire it.
+    export GAMES_LAUNCH_TOKEN
     if [ "$GUEST_PULSE_SERVER" = 1 ]; then
         proot_exec_bound --kill-on-exit --link2symlink --sysvipc -0 \
             -r "$ROOTFS_CANONICAL" \
@@ -689,30 +753,24 @@ STARTED_AT=$(date +%s)
 while kill -0 "$PROOT_PID" 2>/dev/null; do
     if [ -e "$CANCEL_PATH" ]; then
         CANCELLED=1
-        kill "$PROOT_PID" 2>/dev/null || true
-        # The guest flushes the registry and exits on TERM; if it does not within a bounded time, stop it.
-        cancel_wait=0
-        while kill -0 "$PROOT_PID" 2>/dev/null && [ "$cancel_wait" -lt 25 ]; do
-            sleep 1
-            cancel_wait=$((cancel_wait + 1))
-        done
-        ! kill -0 "$PROOT_PID" 2>/dev/null || kill -9 "$PROOT_PID" 2>/dev/null || true
+        stop_owned_session || terminal_failure rootfs_session_cleanup_failed
         break
     fi
     now=$(date +%s)
     if [ $((now - STARTED_AT)) -ge "$TIMEOUT_SECONDS" ]; then
-        kill "$PROOT_PID" 2>/dev/null || true
-        wait "$PROOT_PID" 2>/dev/null || true
-        PROOT_PID=
         terminal_failure launch_timeout null true
     fi
     sleep 1
 done
 
-wait "$PROOT_PID"
-EXIT_CODE=$?
+EXIT_CODE=0
+if [ -n "$PROOT_PID" ]; then
+    wait "$PROOT_PID"
+    EXIT_CODE=$?
+fi
 PROOT_PID=
 emit RUNNING CLEANING 95 null '' false cleaning
+stop_owned_session || terminal_failure rootfs_session_cleanup_failed
 if [ "$CANCELLED" = 1 ] || [ -e "$CANCEL_PATH" ]; then
     emit CANCELLED COMPLETE 100 null cancelled false cancelled
 elif [ "$EXIT_CODE" -eq 0 ]; then

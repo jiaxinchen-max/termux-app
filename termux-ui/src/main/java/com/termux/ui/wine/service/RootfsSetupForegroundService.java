@@ -173,6 +173,10 @@ public final class RootfsSetupForegroundService extends Service {
         java.util.Set<String> required = new java.util.LinkedHashSet<>(recipe.getBaseComponentIds());
         if (!task.isBaseOnly()) required.addAll(new com.termux.ui.wine.runtime.ProotDependencyResolver()
             .requiredComponentIds(selectedProfile(task), paths));
+        if (!task.isBaseOnly()) {
+            String prefix = PrebuiltPrefixAssets.componentId(selectedProfile(task).getWinePackage());
+            if (prefix != null) required.add(prefix);
+        }
         if (PENDING_RECIPE.equals(task.getRecipeSha256())) {
             new RootfsRuntimeComponentPreparer(this, task.getTaskId()).ensure(required);
         }
@@ -180,6 +184,10 @@ public final class RootfsSetupForegroundService extends Service {
         java.util.LinkedHashMap<String, InstalledComponent> baseComponents = resolveBaseComponents(recipe);
         RootfsSetupAssetInstaller.Installed assets = new RootfsSetupAssetInstaller(this, paths)
             .install(recipe, componentSha256s(baseComponents));
+        if (!task.isBaseOnly()) {
+            new RootfsSetupAssetInstaller(this, paths).installPrefix(recipe,
+                selectedProfile(task).getWinePackage());
+        }
         if (PENDING_RECIPE.equals(task.getRecipeSha256())) {
             task = RuntimeSetupTask.queued(task.getTaskId(), task.getPackageName(), task.getVersion(),
                 assets.getRecipeSha256(), task.getSourceComponentId(), task.getContainerId(),
