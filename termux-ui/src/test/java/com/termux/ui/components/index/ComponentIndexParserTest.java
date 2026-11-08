@@ -17,7 +17,7 @@ import static org.junit.Assert.fail;
 public class ComponentIndexParserTest {
 
     @Test
-    public void parsesBundledGameHubAlignedIndexWithoutChangingDelivery() throws Exception {
+    public void parsesBundledIndexWithPublishedPrebuiltRootfs() throws Exception {
         InputStream input = getClass().getClassLoader()
             .getResourceAsStream("termux-app-packages/index-v1.json");
         assertTrue("bundled index must be available to tests", input != null);
@@ -28,8 +28,21 @@ public class ComponentIndexParserTest {
         }
 
         assertEquals(2, index.getSchemaVersion());
-        assertEquals("2026-11-06T17:33:04Z", index.getGeneratedAt());
-        assertEquals(21, index.getComponents().size());
+        assertEquals("2026-11-08T06:32:00Z", index.getGeneratedAt());
+        assertEquals(22, index.getComponents().size());
+        ComponentDescriptor image = index.find("rootfs_debian13_hangover_pdb2_minimal").get();
+        assertEquals(ComponentType.IMAGE_FS, image.getType());
+        assertTrue(image.isBase());
+        assertTrue(image.isRecommended());
+        assertFalse(image.isSelectable());
+        assertTrue(image.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
+        assertEquals(1, image.getVersion());
+        assertEquals("https://github.com/jiaxinchen-max/termux-app-packages/releases/download/"
+            + "rootfs-debian13-hangover-pdb2-minimal-v1/"
+            + "rootfs-debian13-hangover-pdb2-minimal-v1.tar.zst", image.getUrl());
+        assertEquals(322915320L, image.getSize());
+        assertEquals("22734affd772ccfc99b99d850c6bdefa22683827c4a7b9204ca1a2595c03fbce",
+            image.getSha256());
         assertFalse(index.find("termux-glibc").isPresent());
         ComponentDescriptor source = index.find("rootfs_hangover_11.16").get();
         assertEquals(ComponentType.RUNTIME_SUPPORT, source.getType());

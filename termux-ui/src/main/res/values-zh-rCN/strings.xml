@@ -28,7 +28,7 @@
     <string name="local_games_install_confirm_glibc">这会下载并安装启动 GLIBC 游戏所需的运行环境（Wine、X11、显卡驱动），可能需要几分钟。</string>
     <string name="local_games_install_action">安装</string>
     <string name="local_games_rootfs_rebuild_confirm_title">重建基础运行环境？</string>
-    <string name="local_games_rootfs_rebuild_confirm_message">这会删除当前的共享 RootFS 基础环境并从头重新构建。已经装好的游戏不受影响，仍能正常运行；这可能需要几分钟。</string>
+    <string name="local_games_rootfs_rebuild_confirm_message">下载或复用缓存中的精简 RootFS，校验后替换共享基础环境，保留现有游戏前缀。安装失败时保留当前基础环境。</string>
     <string name="local_games_rootfs_rebuild_action">重建</string>
     <string name="local_games_import_gate_title">运行环境未就绪</string>
     <string name="local_games_import_gate_glibc_missing">GLIBC 运行时未就绪。</string>
@@ -161,7 +161,7 @@
     <string name="local_games_component_badge_base">基础组件</string>
     <string name="local_games_component_badge_recommended">推荐</string>
     <string name="local_games_component_badge_separator"> · </string>
-    <string name="local_games_component_summary_imagefs">用于构建可选 RootFS 固件的已校验 Debian 源包。</string>
+    <string name="local_games_component_summary_imagefs">已预装 Hangover 的精简 Debian RootFS，解压即可使用。</string>
     <string name="local_games_component_summary_wine">运行 Windows 游戏的 Wine 兼容层容器。</string>
     <string name="local_games_component_summary_turnip">适用于受支持 Qualcomm Adreno GPU 的 Vulkan 驱动。</string>
     <string name="local_games_component_summary_virgl">用于不兼容 Turnip 路径设备的 OpenGL 渲染器。</string>
@@ -219,7 +219,7 @@
     <string name="local_games_runtime_setup_in_progress">正在安装运行环境 · %1$s</string>
     <string name="local_games_runtime_setup_failed">运行环境安装失败，可点击重试。</string>
     <string name="local_games_runtime_setup_installed">Debian PRoot 运行环境已安装</string>
-    <string name="local_games_runtime_setup_available">源组件已安装，Debian PRoot 运行环境尚未安装</string>
+    <string name="local_games_runtime_setup_available">镜像已下载，PRoot 基础环境尚未准备</string>
     <string name="local_games_runtime_setup_console_title">运行环境安装日志</string>
     <string name="local_games_runtime_setup_console_close">关闭</string>
     <string name="local_games_prefix_setup_channel">游戏容器初始化</string>
@@ -670,4 +670,5 @@
     <string name="local_game_assets_build_cache">运行环境构建缓存</string>
     <string name="local_game_runtime_backend_subtitle">后端：%1$s</string>
     <string name="local_game_runtime_backend_unavailable">后端信息不可用</string>
+    <string name="local_games_install_confirm_rootfs">下载并解压已预装 Hangover 和字体的精简 RootFS。每个游戏使用独立的 Wine 前缀。</string>
 </resources>

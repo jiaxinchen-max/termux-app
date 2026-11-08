@@ -37,16 +37,14 @@ public final class RootfsSetupAssetInstaller {
             throw new IOException("rootfs_component_digest_invalid");
         }
         if (recipe.getVersion() == RootfsSetupRecipe.EXTERNAL_COMPONENTS_VERSION) {
-            try (InputStream input = context.getAssets().open(recipe.getAssetDirectory()
-                    + "/prefix-hangover-pdb2/bundle.json")) {
+            try (InputStream input = context.getAssets().open(recipe.getAssetDirectory() + "/image.json")) {
                 ByteArrayOutputStream metadata = new ByteArrayOutputStream();
-                byte[] buffer = new byte[4096];
-                int count;
+                byte[] buffer = new byte[4096]; int count;
                 while ((count = input.read(buffer)) != -1) {
-                    if (metadata.size() + count > 65536) throw new IOException("prefix_metadata_too_large");
+                    if (metadata.size() + count > 65536) throw new IOException("image_metadata_too_large");
                     metadata.write(buffer, 0, count);
                 }
-                requirePrefixSource(metadata.toString("UTF-8"), componentSha256s);
+                requireImageSource(metadata.toString("UTF-8"), componentSha256s);
             }
         }
         MessageDigest digest = sha256Digest();
@@ -85,6 +83,10 @@ public final class RootfsSetupAssetInstaller {
                 new File(directory, "relocate_rootfs_links.py"), digest);
             copyAsset("local-games/restore_wine_prefix.py",
                 new File(directory, "restore_wine_prefix.py"), digest);
+            for (String helper : new String[]{"prebuilt_rootfs.py"}) {
+                copyAsset("local-games/" + helper, new File(directory, helper), digest);
+            }
+            copyAsset(recipe.getAssetDirectory() + "/image.json", new File(directory, "image.json"), digest);
             for (String name : new String[]{"bundle.json", "manifest.json", "delta.tgz"}) {
                 String relative = "prefix-hangover-pdb2/" + name;
                 copyAsset(recipe.getAssetDirectory() + "/" + relative,
@@ -95,6 +97,22 @@ public final class RootfsSetupAssetInstaller {
         copyAsset(recipe.getSetupScriptAssetPath(), script, digest);
         if (!script.setExecutable(true, true)) throw new IOException("rootfs_setup_script_mode_failed");
         return new Installed(directory.getCanonicalFile(), script.getCanonicalFile(), hex(digest.digest()));
+    }
+
+    static void requireImageSource(String metadata, String[] componentSha256s) throws IOException {
+        try {
+            org.json.JSONObject image = new org.json.JSONObject(metadata);
+            String expected = image.getString("sha256");
+            if (!RootfsSetupRecipe.IMAGE_COMPONENT.equals(image.getString("imageId")) ||
+                !"ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1".equals(
+                    image.getString("sourceComponentSha256")) ||
+                !expected.matches("[0-9a-f]{64}") || componentSha256s == null ||
+                componentSha256s.length != 1 || !expected.equals(componentSha256s[0])) {
+                throw new IOException("rootfs_image_component_mismatch");
+            }
+        } catch (org.json.JSONException error) {
+            throw new IOException("rootfs_image_metadata_invalid", error);
+        }
     }
 
     static void requirePrefixSource(String metadata, String[] componentSha256s) throws IOException {

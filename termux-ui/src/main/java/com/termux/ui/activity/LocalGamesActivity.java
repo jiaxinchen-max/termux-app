@@ -1374,7 +1374,7 @@ public final class LocalGamesActivity extends AppUiActivity {
     }
 
     private static boolean isRootfsSource(ComponentCatalogItem item) {
-        return RootfsSetupRecipe.DEFAULT_SOURCE.equals(item.getDescriptor().getId());
+        return RootfsSetupRecipe.IMAGE_COMPONENT.equals(item.getDescriptor().getId());
     }
 
     private int componentTypeLabel(ComponentType type) {
@@ -1405,7 +1405,7 @@ public final class LocalGamesActivity extends AppUiActivity {
 
     private String componentSummary(ComponentDescriptor descriptor) {
         switch (descriptor.getId()) {
-            case RootfsSetupRecipe.DEFAULT_SOURCE:
+            case RootfsSetupRecipe.IMAGE_COMPONENT:
                 return getString(R.string.local_games_component_summary_imagefs);
             case "turnip":
                 return getString(R.string.local_games_component_summary_turnip);

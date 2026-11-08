@@ -481,9 +481,9 @@ case "$GRAPHICS_DRIVER" in
         export LP_NUM_THREADS=${LP_NUM_THREADS:-4}
         ;;
     rootfs-turnip)
-        [ -f "$ROOTFS_CANONICAL/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json" ] || \
+        [ -f "$ROOTFS_CANONICAL/usr/share/vulkan/icd.d/freedreno_icd.json" ] || \
             terminal_failure rootfs_turnip_icd_missing null true
-        export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json
+        export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/freedreno_icd.json
         ;;
     *) terminal_failure renderer_unsupported null true ;;
 esac

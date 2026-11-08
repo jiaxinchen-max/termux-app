@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-06T17:33:04Z",
+  "generatedAt": "2026-11-08T06:32:00Z",
   "packages": [
     {
       "id": "glibc_box64_0.2.7",
@@ -421,6 +421,26 @@
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_proton_11.0-v1/rootfs_proton_11.0.tar.xz",
       "size": 80017220,
       "sha256": "f166f7daa1a37b3c8e0ade213a6e7915e582091804071a58a4a32c6c672e1595"
+    },
+    {
+      "id": "rootfs_debian13_hangover_pdb2_minimal",
+      "category": "runtime",
+      "type": "image_fs",
+      "displayName": "Debian 13 + Hangover (minimal)",
+      "versionName": "pdb2 minimal v1",
+      "summary": "Preinstalled minimal Debian RootFS with Hangover; extracted and verified without guest package installation.",
+      "framework": "Debian PRoot",
+      "base": true,
+      "recommended": true,
+      "hidden": false,
+      "profileValue": "",
+      "runtimeBackends": [
+        "rootfs_proot"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-debian13-hangover-pdb2-minimal-v1/rootfs-debian13-hangover-pdb2-minimal-v1.tar.zst",
+      "size": 322915320,
+      "sha256": "22734affd772ccfc99b99d850c6bdefa22683827c4a7b9204ca1a2595c03fbce"
     }
   ]
 }

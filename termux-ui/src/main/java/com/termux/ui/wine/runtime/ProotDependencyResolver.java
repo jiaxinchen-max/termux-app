@@ -18,7 +18,7 @@ public final class ProotDependencyResolver {
             throw new IllegalArgumentException("runtime_backend_profile_mismatch");
         }
         LinkedHashSet<String> result = new LinkedHashSet<>();
-        result.add(RootfsSetupRecipe.DEFAULT_SOURCE);
+        result.add(RootfsSetupRecipe.IMAGE_COMPONENT);
         String wine = profile.getWinePackage();
         if (!wine.startsWith("rootfs_hangover_")) result.add(wine);
         RuntimeTranslator translator = GameContainerProfileResolver.resolveTranslator(wine, paths);

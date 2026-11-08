@@ -65,7 +65,7 @@ import sys
 Path(sys.argv[1]).write_text('#!'+sys.executable+'\n'+"import os,pathlib,socket,time\np=pathlib.Path(os.environ['PREFIX'])/'tmp/.X11-unix/X0'\np.parent.mkdir(parents=True,exist_ok=True)\np.unlink(missing_ok=True)\ns=socket.socket(socket.AF_UNIX); s.bind(str(p))\npathlib.Path(os.environ['FIXTURE_X11_PID']).write_text(str(os.getpid()))\nwhile True: time.sleep(.1)\n")
 PYX11
 
-printf '#!/bin/sh\n: > "$CAPTURE_FILE"\nfor value in "$@"; do printf "%%s" "$value" | base64 | tr -d "\\n" >> "$CAPTURE_FILE"; printf "\\n" >> "$CAPTURE_FILE"; done\nif [ "${FAKE_PROOT_WAIT:-0}" = 1 ]; then printf "%%s\\n" "$$" > "$FIXTURE_PROOT_PID"; trap "exit 0" TERM INT; while :; do sleep 1; done; fi\nexit 0\n' > "$TERMUX_ROOT/usr/bin/proot"
+printf '#!/bin/sh\n: > "$CAPTURE_FILE"\nprintf "%%s\\n" "${VK_ICD_FILENAMES:-}" > "$CAPTURE_FILE.vk-icd"\nfor value in "$@"; do printf "%%s" "$value" | base64 | tr -d "\\n" >> "$CAPTURE_FILE"; printf "\\n" >> "$CAPTURE_FILE"; done\nif [ "${FAKE_PROOT_WAIT:-0}" = 1 ]; then printf "%%s\\n" "$$" > "$FIXTURE_PROOT_PID"; trap "exit 0" TERM INT; while :; do sleep 1; done; fi\nexit 0\n' > "$TERMUX_ROOT/usr/bin/proot"
 printf '#!/bin/sh\nexit 0\n' > "$ROOTFS/usr/bin/env"
 printf '#!/bin/sh\nexit 0\n' > "$ROOTFS/usr/bin/wine"
 printf '#!/bin/sh\nexit 0\n' > "$ROOTFS/usr/bin/wineboot"
@@ -151,6 +151,28 @@ assert actual==expected, ('RootFS argv changed',actual,expected)
 PYARGV
 }
 assert_guest_argv /usr/bin/wine
+
+# Current Debian Mesa uses unqualified ICD filenames. Verify the actual launch
+# branch selects that file and still rejects a missing driver descriptor.
+cp "$SPEC" "$SPEC.llvmpipe"
+cp "$ROOTFS/etc/games-runtime.properties" "$TEST_ROOT/manifest.llvmpipe"
+sed 's/^graphicsDrivers=.*/graphicsDrivers=rootfs-virgl-mesa,rootfs-llvmpipe,rootfs-turnip/' \
+    "$TEST_ROOT/manifest.llvmpipe" > "$ROOTFS/etc/games-runtime.properties"
+sed "s/^graphicsDriver=.*/graphicsDriver=$(encode rootfs-turnip)/" "$SPEC.llvmpipe" > "$SPEC"
+mkdir -p "$ROOTFS/usr/share/vulkan/icd.d"
+printf '{}\n' > "$ROOTFS/usr/share/vulkan/icd.d/freedreno_icd.json"
+PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
+grep -qx '/usr/share/vulkan/icd.d/freedreno_icd.json' "$CAPTURE.vk-icd"
+rm "$ROOTFS/usr/share/vulkan/icd.d/freedreno_icd.json"
+set +e
+PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
+STATUS=$?
+set -e
+[ "$STATUS" -ne 0 ]
+grep -q '"errorCode":"rootfs_turnip_icd_missing"' "$EVENT"
+mv "$SPEC.llvmpipe" "$SPEC"
+mv "$TEST_ROOT/manifest.llvmpipe" "$ROOTFS/etc/games-runtime.properties"
+PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
 grep -qx "$(encode /mnt/games/game/bin\ folder/game.exe)" "$CAPTURE"
 grep -qx "$(encode 'hello world')" "$CAPTURE"
 grep -qx "$(encode '$HOME')" "$CAPTURE"

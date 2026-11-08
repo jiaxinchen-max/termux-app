@@ -38,6 +38,8 @@ locale-gen
 
 # v11 receives only the pinned Hangover source component. Optional portable runtimes
 # are private immutable versions bound at preparation/launch, never copied into this base.
+# The host trims this unpublished image with the source-bound minimization policy
+# after all package installation and link relocation, before shared publication.
 for component in "$COMPONENTS_ROOT"/*; do
     [ -d "$component" ] || continue
     [ "$(basename "$component")" = rootfs_hangover_11.16 ] || {

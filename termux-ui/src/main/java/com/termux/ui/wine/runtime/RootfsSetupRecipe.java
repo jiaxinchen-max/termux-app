@@ -7,7 +7,7 @@ import java.util.List;
 /** Versioned recipe identity; payload bytes are bundled as Games assets. */
 public final class RootfsSetupRecipe {
     public static final String DEFAULT_PACKAGE = "debian-13-games-rootfs";
-    /** Debian ImageFS source with Hangover; the id carries the pinned Hangover version. */
+    /** Stable game Wine selection; the preinstalled image has its own component identity. */
     public static final String DEFAULT_SOURCE = "rootfs_hangover_11.16";
     /** Kron4ek's vanilla Wine build, used by the standalone-Box64-translator path. */
     public static final String BOX64_WINE_COMPONENT = "rootfs_wine_10.0";
@@ -35,9 +35,10 @@ public final class RootfsSetupRecipe {
             "rootfs_dxvk_1.10.3",
             BOX64_WINE_COMPONENT,
             BOX64_PROTON_COMPONENT));
-    // New installations use the external-component layout. Legacy tasks retain their version.
-    public static final int DEFAULT_VERSION = 11;
-    public static final int EXTERNAL_COMPONENTS_VERSION = 11;
+    // New installations restore the preinstalled v12 image; old tasks are rejected by setup.
+    public static final int DEFAULT_VERSION = 12;
+    public static final int EXTERNAL_COMPONENTS_VERSION = 12;
+    public static final String IMAGE_COMPONENT = "rootfs_debian13_hangover_pdb2_minimal";
 
 
     private final String packageName;
@@ -61,11 +62,11 @@ public final class RootfsSetupRecipe {
         if (!DEFAULT_PACKAGE.equals(packageName)) {
             throw new IllegalArgumentException("rootfs_recipe_unknown:" + packageName);
         }
-        if (version != 10 && version != EXTERNAL_COMPONENTS_VERSION) {
+        if (version != 10 && version != 11 && version != EXTERNAL_COMPONENTS_VERSION) {
             throw new IllegalArgumentException("rootfs_recipe_version_unsupported:" + version);
         }
-        return new RootfsSetupRecipe(DEFAULT_PACKAGE, version, DEFAULT_SOURCE,
-            version == 10 ? DEFAULT_BASE_COMPONENTS : Collections.singletonList(DEFAULT_SOURCE));
+        return new RootfsSetupRecipe(DEFAULT_PACKAGE, version, version == 12 ? IMAGE_COMPONENT : DEFAULT_SOURCE,
+            version == 10 ? DEFAULT_BASE_COMPONENTS : Collections.singletonList(version == 12 ? IMAGE_COMPONENT : DEFAULT_SOURCE));
     }
 
     public String getPackageName() { return packageName; }
@@ -80,7 +81,7 @@ public final class RootfsSetupRecipe {
             "local-games/setup_rootfs_runtime.sh";
     }
     public String getAssetDirectory() {
-        return version == 10 ? "local-games/runtime-rootfs" : "local-games/runtime-rootfs-v11";
+        return version == 10 ? "local-games/runtime-rootfs" : (version == 11 ? "local-games/runtime-rootfs-v11" : "local-games/runtime-rootfs-v12");
     }
     public String getContainerPrefix() { return "games-debian13-hangover119-v" + version + "-"; }
 }

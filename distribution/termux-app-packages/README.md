@@ -244,3 +244,162 @@ APK 文件名保持 `termux-app_apt-android-7-debug_arm64-v8a.apk`，用户手�
 回滚时重新安装上一 APK，并显式准备与其匹配的新测试配置，不覆盖现有 C 盘。
 
 APK 内 gzip 子资产使用 `.tgz` 扩展名，避免 Android Gradle AssetMerger 自动解压 `.gz` 并去掉文件后缀。最终 APK 内容必须逐字节核对，不能仅凭构建成功判定打包正确。
+
+### 已安装 RootFS 的逐批精简实验
+
+`minimize-rootfs.py` 支持逐批实验：`development`（Wine头文件/静态归档）、
+`resources`（gettext及非许可文档）、`fonts`（未引用Serif与事务式缓存重建）、
+`build-tools`（安装结束后的包管理/i18n生成设施）、`gpu-drivers`（四种非目标Vulkan ICD）。
+实验批次必须依次通过真实运行验收；生产 `BUILD_BATCHES` 只纳入已通过的策略，
+不能以工具测试代替依赖审计或设备验收。工具不改写已发布Hangover运行包。
+
+输入须为停止写入、已安装 `11.16~trixie+idap.pdb2` 的基础环境，游戏挂载目标为空。
+先独立复制，比较输入与候选的文件摘要、模式、链接和时间；空间不够或输入变化会失败。
+候选有独立标记，实际共享环境路径不可作为删除目标。复制失败的候选保持 `Copying`
+状态，不可继续裁剪；人工确认后可仅清理该失败候选再重试。
+
+```sh
+python minimize-rootfs.py clone --source /path/to/installed/rootfs --candidate /path/to/trial/candidate
+python minimize-rootfs.py plan --root /path/to/trial/candidate \
+  --assets /path/to/prefix-hangover-pdb2 --batch development \
+  --output /path/to/trial/development-plan.json
+python minimize-rootfs.py apply --root /path/to/trial/candidate \
+  --assets /path/to/prefix-hangover-pdb2 --plan /path/to/trial/development-plan.json \
+  --journal /path/to/trial/development-journal.json
+```
+
+计划绑定全树摘要、运行身份、公共来源保护集与逐路径删除理由；应用时重新计算，
+计划过期、文件损坏、保护项相交或残留链接引用被删目标都会拒绝。
+链接检查按客体语义追踪目录别名和中间链接，不能用多级链接绕过删除保护；
+与本批无关的既有断链和循环不会被改写。
+所有报告置于原始树及候选树之外。成功状态仅为 `AppliedPendingRuntimeValidation`，
+必须另跑真实 locale、前缀、图形和32/64位程序验证，不代表可发布。
+
+移除的叶子实际保存在候选同级的 `candidate.removed-development/`，用于精确恢复：
+
+```sh
+python minimize-rootfs.py rollback --root /path/to/trial/candidate \
+  --journal /path/to/trial/development-journal.json
+PYTHONDONTWRITEBYTECODE=1 python test_minimize_rootfs.py
+```
+
+失败/取消自动恢复；进程被强杀时可依持久日志恢复已移动文件，隔离内容被改动则拒绝。
+原始输入一直保留；候选的减小不等于设备释放空间，隔离区和副本仍占空间。
+开发资料高度可压缩，不能把实体节省直接当作下载节省；压缩收益需另行实测。
+
+只读直接 ELF 依赖审计（在候选停止运行时执行）：
+
+```sh
+python audit-rootfs-elf.py --root /path/to/trial/candidate \
+  --output /path/to/trial/development-elf-audit.json
+PYTHONDONTWRITEBYTECODE=1 python test_rootfs_elf_audit.py
+```
+
+审计检查 ELF 解释器、DT_NEEDED、直接 RPATH/RUNPATH、客体绝对链接与目标架构；
+缺库或不支持的搜索路径会失败。它使用固定 Debian aarch64 搜索目录，不执行客体代码，
+不将直接依赖通过视为全部 dlopen、继承 RPATH、硬件或游戏功能通过。八项回归使用真实
+C 编译器生成的 DSO 验证缺库拒绝、私有 `$ORIGIN` 路径及客体链接不会读取宿主文件。
+
+回滚会校验被移除文件的字节、模式和mtime，仅清理已空的隔离目录；不删除意外出现的文件。再次尝试须使用新的计划/日志文件名，旧日志保留，应用摘要不冒充回滚后全树摘要。
+
+Wine ntdll/win32u及systemd私有库按显式owner预加载上下文解析，要求提供者的SONAME、架构和ELF类别匹配，报告会逐边标注；不是把所有相邻文件当全局搜索路径，未知路径仍失败。systemd实际执行不在游戏验证声明内。
+
+只有第一批运行验证通过，才在同一候选上为 `resources` 生成新计划和独立日志。
+第二批保留 copyright/COPYING/LICENSE/NOTICE/AUTHORS 路径、目录别名及任何存活链接的
+完整目标链，报告 `retainedByPolicy` 逐项说明原因。不删除 libc locale、GBK/gconv、
+Wine NLS、X11 locale 或字体；Wine PE 内嵌中文资源不变。第二批仍须独立运行验收。
+
+
+安装接入使用 `build --root <termux-files>/usr/var/lib/proot-distro/containers/tmpl-build/rootfs
+--termux-files <termux-files> --assets <prefix-assets> --recipe <sha256> --report <outside-path>`，
+只接受固定未发布scratch，合并已验证批次后执行ELF、locale、fontconfig和来源摘要检查。
+报告含逐路径原因及净逻辑/分配收益；成功才写 `etc/games-rootfs-trim.json`，绑定工具字节、
+批次、包身份和配方。`verify-build --root <root> --recipe <sha256>` 是只读凭据核验，
+不等同再次全量运行验收。失败/取消不发布，原共享树和旧凭证保留；下次显式重建会丢弃
+中断或已精简但策略/配方过期的scratch，从完整基础镜像重建。
+
+字体批保留前缀引用的NotoSansCJK。旧缓存同字体隔离；新缓存在候选外PRoot绑定目录
+生成、记录摘要后移入，回滚仅移除匹配本轮记录的新缓存，再还原旧文件；意外内容保留
+并阻断成功。最终净收益扣除新缓存，不能把隔离缓存的全部大小当节省。
+
+build-tools不会保留客体内通用包管理能力；dpkg status/updates仅用于来源/挂起事务
+校验。变更环境采用新配方重建，不能执行apt原地修复。Desktop/Native使用不同根且不受影响。
+保留Perl及扫描/相机/媒体动态链、libudev与hwdb/设备规则；这些存在嵌入或动态消费，
+没有穷尽证明就不能删。GPU实验保留freedreno/Turnip、lvp、gfxstream、virtio、Vulkan
+loader和LLVM/Gallium；软件探针不能作为硬件图形或物理输入/音频验证。
+
+## 预装精简游戏 RootFS（v12）
+
+`prebuilt_rootfs.py` 是完整预装镜像的生产/验证及设备还原工具。输入为已通过五批裁剪
+和真实运行验收的无人写入共享根；不能输入游戏前缀或实验候选树。正式版本使用独立
+镜像组件 `rootfs_debian13_hangover_pdb2_minimal`，Hangover运行选择值保持不变。
+
+```sh
+python3 prebuilt_rootfs.py pack --root /verified/rootfs \
+  --assets /matching/prefix-hangover-pdb2 \
+  --output rootfs-debian13-hangover-pdb2-minimal-v1.tar.zst \
+  --descriptor image.json --zstd /host/bin/zstd
+```
+
+导出固定机器ID/hostname/hosts/resolv.conf，排除安装日志、`/run`、`/tmp`、`/var/tmp`、
+随机种子和SSH主机密钥，拒绝用户home、非空游戏挂载目录和实验marker。运行文件清单、
+版权资料和`.l2s`实体保留；setuid/setgid权限在Rootless镜像中移除。输入不原地改写。
+输出含固定SHA、展开字节/成员预算、清单摘要及源Wine/裁剪记录。归档成员带固定时间戳。
+
+App用组件框架验证压缩载荷，作为raw文件缓存；专用还原器只展开到私有暂存，禁止经
+符号链接写文件，链接最后建立。逐文件流式核验后记录独立安装身份，关键运行入口在
+复用时复核，完整复核可用`verify --full`。符号链接按客体语义解析，不放宽通用组件
+解压器的规则。取消会终止解码进程并清理本任务目录；来源不明的旧scratch不自动删除。
+
+设备只准备Termux宿主PRoot、Python、zstd、dbus/PulseAudio等依赖；不运行客体apt、
+locale-gen、deb安装或再次裁剪，不回退到旧构建。基础环境就绪后仍需独立游戏前缀，
+沿用APK小模板直接还原；可选Wine/Box64/DXVK按选择独立下载。完整游戏/硬件兼容需另验。
+
+定向验证：`python3 termux-ui/scripts/test-prebuilt-rootfs.py`及
+`python3 termux-ui/scripts/test-rootfs-v12-staging.py`。新Release资产必须使用不可变新版本，
+核对实际URL/大小/SHA后才作为正式交付；本版本已于2026-11-08经用户授权发布并完成公开下载全文件校验。
+
+### 预装精简镜像（v12，已发布）
+
+`prebuilt_rootfs.py` 从已经完成五批裁剪和运行验收的发布根导出镜像，
+不接受实验候选根。客户端将 `.tar.zst` 作为已固定 SHA-256 的 raw 组件保存，
+只在任务私有暂存目录流式还原一次，再原子发布为共享 RootFS；不在设备执行
+客体 apt、Hangover deb 安装、locale-gen 或再次裁剪。宿主仍需 Python、PRoot、
+zstd、PulseAudio、dbus 和 libexpat。每个游戏继续从 APK 差量模板准备独立前缀。
+
+本轮正式镜像：`rootfs-debian13-hangover-pdb2-minimal-v1.tar.zst`，
+322915320 字节，展开普通文件 1526870401 字节，12698 个成员，SHA-256：
+`22734affd772ccfc99b99d850c6bdefa22683827c4a7b9204ca1a2595c03fbce`。
+正式目录项见 `prebuilt-rootfs-index-entry.json`，镜像描述见 APK 资产
+`local-games/runtime-rootfs-v12/image.json`。Wine 来源 SHA 与镜像 SHA 独立，
+前缀 manifest/delta/runtimeFiles 保持不变，仅重绑基础配方。
+
+工具用法（绝对路径，zstd 可指定宿主可执行文件）：
+
+```sh
+python prebuilt_rootfs.py pack --root /path/to/verified-rootfs \
+  --assets /path/to/verified-recipe/prefix-hangover-pdb2 \
+  --output /path/to/rootfs-debian13-hangover-pdb2-minimal-v1.tar.zst \
+  --descriptor /path/to/image.json --zstd zstd
+python prebuilt_rootfs.py restore --archive /path/to/rootfs-debian13-hangover-pdb2-minimal-v1.tar.zst \
+  --root /path/to/new-rootfs --descriptor /path/to/image.json \
+  --recipe CLIENT_RECIPE_SHA256 --zstd zstd
+python prebuilt_rootfs.py verify --root /path/to/new-rootfs \
+  --descriptor /path/to/image.json --recipe CLIENT_RECIPE_SHA256 --full
+```
+
+`restore --reserve-bytes` 可额外保留本次游戏前缀所需空间；既有根和压缩缓存已占用
+的空间自然从可用容量扣除。工具另计成员分配开销和余量。解压取消会等待解码器
+结束并清理本次新根；既有目标不覆盖。客户端只回收有准确所有权标记的中断目录，
+发布校验或 receipt 失败时恢复旧根和旧凭据，保留游戏 C 盘。
+
+正式Release已发布并启用到生产 `index-v1.json`：
+https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/rootfs-debian13-hangover-pdb2-minimal-v1
+
+三个公开下载资产均核对字节数和SHA；同名普通APK已重新编译，testOnly=false、
+签名/arm64/完整资产核验通过。用户手动安装后已验证实际App服务冷初始化99.054秒、两份前缀6.549/6.561秒、
+缓存重建13.710/14.720秒；两份前缀的PE32/PE64、中文界面/文件名、locale及软件图形/
+模拟音频探针通过。逐成员对照仅6份Fontconfig缓存头部时间戳变化，1594保护文件匹配、
+1401 ELF依赖检查通过；严格离线full快照比对不代表运行后缓存仍逐字节不变。
+真实游戏/硬件兼容与最终用户接受另计。
+不覆盖既有 Hangover v2 Release，不实施旧数据迁移；旧准备任务会明确拒绝并要求重建。

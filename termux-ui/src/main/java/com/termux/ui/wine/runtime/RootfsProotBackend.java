@@ -43,13 +43,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
                 throw new IllegalArgumentException(error.getMessage(), error);
             }
         }
-        if (profile.getWinePackage().startsWith("rootfs_hangover_")) {
-            // The one shared base image is built from this whole set (Hangover source, Box64,
-            // and every selectable DXVK), all delivered through the unified component framework.
-            // A game's dxWrapper only picks which baked DXVK to use at launch, so every rootfs
-            // profile requires the full set present before the base image can build.
-            result.addAll(RootfsSetupRecipe.DEFAULT_BASE_COMPONENTS);
-        }
+        result.addAll(new ProotDependencyResolver().requiredComponentIds(profile, paths));
         return result;
     }
 
@@ -64,7 +58,6 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
         Set<String> result = new LinkedHashSet<>();
         result.add(XServerBackendSelection.hostCapabilityId(paths));
         result.add("proot");
-        result.add("proot-distro");
         if ("rootfs-virgl-mesa".equals(profile.getGraphicsDriver())) {
             result.add("virgl-server");
         }

@@ -43,15 +43,16 @@ public class GameRuntimeBackendTest {
 
         Set<String> components = backend.requiredComponentIds(rootfsProfile());
 
-        // The shared base image is built from the whole framework-delivered component set.
-        assertTrue(components.contains("rootfs_hangover_11.16"));
-        assertTrue(components.contains("rootfs_box64_0.4.5"));
-        assertTrue(components.contains("rootfs_dxvk_2.7"));
+        // The default image and only the selected optional DXVK are required.
+        assertTrue(components.contains(RootfsSetupRecipe.IMAGE_COMPONENT));
+        assertFalse(components.contains("rootfs_hangover_11.16"));
+        assertFalse(components.contains("rootfs_box64_0.4.5"));
+        assertFalse(components.contains("rootfs_dxvk_2.7"));
         assertFalse(components.contains(GlibcTermuxBoxBackend.TERMUX_GLIBC_ID));
-        assertEquals(3, backend.requiredHostCapabilityIds(rootfsProfile()).size());
+        assertEquals(2, backend.requiredHostCapabilityIds(rootfsProfile()).size());
         assertTrue(backend.requiredHostCapabilityIds(rootfsProfile()).contains("termux-x11"));
         assertTrue(backend.requiredHostCapabilityIds(rootfsProfile()).contains("proot"));
-        assertTrue(backend.requiredHostCapabilityIds(rootfsProfile()).contains("proot-distro"));
+        assertFalse(backend.requiredHostCapabilityIds(rootfsProfile()).contains("proot-distro"));
     }
 
     @Test
@@ -63,14 +64,13 @@ public class GameRuntimeBackendTest {
             Collections.emptyMap(), GameRuntimeBackendType.ROOTFS_PROOT,
             "debian-13-games-rootfs", "container-game-1");
 
-        // Every base input (Box64 .deb + all DXVK builds) is a framework component now, so the
-        // whole set is required before the shared base image can build, regardless of dxWrapper.
+        // Optional components stay independent; an unrelated DXVK or translator is not pulled.
         Set<String> components = backend.requiredComponentIds(withDxvk);
 
-        assertTrue(components.contains("rootfs_box64_0.4.5"));
+        assertFalse(components.contains("rootfs_box64_0.4.5"));
         assertTrue(components.contains("rootfs_dxvk_2.7"));
-        assertTrue(components.contains("rootfs_dxvk_3.1"));
-        assertTrue(components.contains("rootfs_dxvk_1.10.3"));
+        assertFalse(components.contains("rootfs_dxvk_3.1"));
+        assertFalse(components.contains("rootfs_dxvk_1.10.3"));
     }
 
     @Test

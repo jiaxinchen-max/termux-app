@@ -21,10 +21,10 @@
     <string name="local_games_reset_status">%1$s · %2$s</string>
     <string name="local_games_install_confirm_title">Install this environment?</string>
     <string name="local_games_install_confirm_glibc">This downloads and installs the GLIBC runtime (Wine, X11, graphics drivers) needed to launch GLIBC games. It can take a few minutes.</string>
-    <string name="local_games_install_confirm_rootfs">This builds the shared RootFS base runtime (box64, Wine, and fonts) that new game containers are cloned from. It can take a few minutes.</string>
+    <string name="local_games_install_confirm_rootfs">Download and extract the preinstalled minimal RootFS with Hangover and fonts. Each game uses an independent Wine prefix.</string>
     <string name="local_games_install_action">Install</string>
     <string name="local_games_rootfs_rebuild_confirm_title">Rebuild base environment?</string>
-    <string name="local_games_rootfs_rebuild_confirm_message">This deletes the current shared RootFS base and rebuilds it from scratch. Already-installed games keep working; this can take a few minutes.</string>
+    <string name="local_games_rootfs_rebuild_confirm_message">Download or reuse the cached minimal RootFS, verify it, then replace the shared base environment. Existing game prefixes are kept. The current base is preserved if installation fails.</string>
     <string name="local_games_rootfs_rebuild_action">Rebuild</string>
     <string name="local_games_backup_create_console_title">Creating backup</string>
     <string name="local_games_backup_templates_title">Include Wine prefix templates?</string>
@@ -198,7 +198,7 @@
     <string name="local_games_component_badge_base">Base</string>
     <string name="local_games_component_badge_recommended">Recommended</string>
     <string name="local_games_component_badge_separator"> · </string>
-    <string name="local_games_component_summary_imagefs">Verified Debian source used to set up the optional RootFS firmware.</string>
+    <string name="local_games_component_summary_imagefs">Preinstalled minimal Debian RootFS with Hangover, ready to extract and use.</string>
     <string name="local_games_component_summary_wine">Wine compatibility container used to run Windows games.</string>
     <string name="local_games_component_summary_turnip">Vulkan driver for supported Qualcomm Adreno GPUs.</string>
     <string name="local_games_component_summary_virgl">OpenGL renderer for devices without a compatible Turnip path.</string>
@@ -261,7 +261,7 @@
     <string name="local_games_runtime_setup_in_progress">Installing runtime · %1$s</string>
     <string name="local_games_runtime_setup_failed">Runtime installation failed; retry is available.</string>
     <string name="local_games_runtime_setup_installed">Debian PRoot runtime installed</string>
-    <string name="local_games_runtime_setup_available">Source installed; Debian PRoot runtime is not installed</string>
+    <string name="local_games_runtime_setup_available">Image downloaded; PRoot base environment has not been prepared</string>
     <string name="local_games_runtime_setup_console_title">Runtime installation log</string>
     <string name="local_games_runtime_setup_console_close">Close</string>
     <string name="local_games_prefix_setup_channel">Game prefix initialization</string>

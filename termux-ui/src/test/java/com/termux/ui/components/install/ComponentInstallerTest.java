@@ -120,6 +120,30 @@ public class ComponentInstallerTest {
     }
 
     @Test
+    public void keepsZstdImageCompressedAndReusesItsImmutableVersion() throws Exception {
+        Fixture fixture = fixture();
+        File archive = temporaryFolder.newFile("rootfs.tar.zst");
+        byte[] payload = {0x28, (byte) 0xb5, 0x2f, (byte) 0xfd, 0x20, 0x00, 0x01, 0x00, 0x00};
+        Files.write(archive.toPath(), payload);
+        String image = com.termux.ui.wine.runtime.RootfsSetupRecipe.IMAGE_COMPONENT;
+        String name = "rootfs-debian13-hangover-pdb2-minimal-v1.tar.zst";
+        ComponentTask task = ComponentTask.queued("image-1", image, 1,
+                "https://example.invalid/" + name, archive.length(), sha256(archive))
+            .transition(ComponentTaskState.VERIFIED, archive.length(), "", "", "", "");
+        fixture.repository.save(task);
+        InstalledComponent first = fixture.installer.install(task, archive, ComponentInstallListener.NONE);
+        org.junit.Assert.assertArrayEquals(payload, Files.readAllBytes(new File(first.getDirectory(), name).toPath()));
+        assertFalse(new File(first.getDirectory(), "usr").exists());
+        ComponentTask retry = ComponentTask.queued("image-2", image, 1,
+                "https://example.invalid/" + name, archive.length(), sha256(archive))
+            .transition(ComponentTaskState.VERIFIED, archive.length(), "", "", "", "");
+        fixture.repository.save(retry);
+        InstalledComponent second = fixture.installer.install(retry, archive, ComponentInstallListener.NONE);
+        assertEquals(first.getDirectory(), second.getDirectory());
+        assertEquals(sha256(archive), second.getSha256());
+    }
+
+    @Test
     public void publishesRawPayloadWithPercentEncodedUrlBasenamePreservingExtension() throws Exception {
         Fixture fixture = fixture();
         // Regression test: a release asset basename containing a percent-encoded character (here

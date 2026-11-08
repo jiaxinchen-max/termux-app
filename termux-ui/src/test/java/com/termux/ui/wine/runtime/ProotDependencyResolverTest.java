@@ -11,10 +11,10 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ProotDependencyResolverTest {
-    @Test public void defaultRecipeOnlyEmbedsHangover() {
+    @Test public void defaultRecipeOnlyDownloadsPreinstalledImage() {
         RootfsSetupRecipe recipe = RootfsSetupRecipe.require(RootfsSetupRecipe.DEFAULT_PACKAGE);
-        assertEquals(11, recipe.getVersion());
-        assertEquals(Collections.singletonList("rootfs_hangover_11.16"), recipe.getBaseComponentIds());
+        assertEquals(12, recipe.getVersion());
+        assertEquals(Collections.singletonList(RootfsSetupRecipe.IMAGE_COMPONENT), recipe.getBaseComponentIds());
     }
     private Set<String> resolve(String wine, String graphics, String dx) {
         RuntimeProfile p = new RuntimeProfile("game", wine, graphics, dx, "pulseaudio",
@@ -24,16 +24,16 @@ public class ProotDependencyResolverTest {
         return new ProotDependencyResolver().requiredComponentIds(p, null);
     }
     @Test public void hangoverWined3dOnlyNeedsBaseSource() {
-        assertEquals(Collections.singleton("rootfs_hangover_11.16"),
+        assertEquals(Collections.singleton(RootfsSetupRecipe.IMAGE_COMPONENT),
             resolve("rootfs_hangover_11.16", "rootfs-llvmpipe", "rootfs-wined3d"));
     }
     @Test public void protonOnlyRequestsItsTranslatorAndSelectedDxvk() {
-        assertEquals(new LinkedHashSet<>(Arrays.asList("rootfs_hangover_11.16",
+        assertEquals(new LinkedHashSet<>(Arrays.asList(RootfsSetupRecipe.IMAGE_COMPONENT,
             "rootfs_proton_11.0", "rootfs_box64_0.4.5", "rootfs_dxvk_3.1")),
             resolve("rootfs_proton_11.0", "rootfs-llvmpipe", "rootfs_dxvk_3.1"));
     }
     @Test public void wineWined3dDoesNotPullProtonOrDxvk() {
-        assertEquals(new LinkedHashSet<>(Arrays.asList("rootfs_hangover_11.16",
+        assertEquals(new LinkedHashSet<>(Arrays.asList(RootfsSetupRecipe.IMAGE_COMPONENT,
             "rootfs_wine_10.0", "rootfs_box64_0.4.5")),
             resolve("rootfs_wine_10.0", "rootfs-llvmpipe", "rootfs-wined3d"));
     }

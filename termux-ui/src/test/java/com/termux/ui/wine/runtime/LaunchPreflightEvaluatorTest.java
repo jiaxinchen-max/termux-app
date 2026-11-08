@@ -90,8 +90,7 @@ public class LaunchPreflightEvaluatorTest {
 
     @Test
     public void rootfsBackendUsesVerifiedSourceAndTermuxBuilderCapabilities() throws Exception {
-        String[] ids = {"rootfs_hangover_11.16", "rootfs_box64_0.4.5", "rootfs_dxvk_2.7", "rootfs_dxvk_3.1",
-            "rootfs_dxvk_1.10.3", "rootfs_wine_10.0", "rootfs_proton_11.0"};
+        String[] ids = {RootfsSetupRecipe.IMAGE_COMPONENT};
         ComponentIndex index = index(ids);
         RuntimeProfile profile = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
@@ -101,7 +100,6 @@ public class LaunchPreflightEvaluatorTest {
         Map<String, InstalledComponentVersion> installed = installed(index);
         addHostCapability(installed, "termux-x11");
         addHostCapability(installed, "proot");
-        addHostCapability(installed, "proot-distro");
 
         LaunchPreflightResult result = new LaunchPreflightEvaluator(index,
             LaunchPreflightEvaluator.DEFAULT_PREFIX_RESERVE_BYTES,
@@ -109,13 +107,13 @@ public class LaunchPreflightEvaluatorTest {
             true, Long.MAX_VALUE, installed);
 
         assertTrue(result.isReady());
-        // The whole framework-delivered base set is required before the shared image can build.
-        assertEquals(7, result.getRequirements().size());
+        // Hangover and its base runtime arrive in one verified image.
+        assertEquals(1, result.getRequirements().size());
     }
 
     @Test
     public void rootfsBackendBlocksWhenHostProotIsMissing() throws Exception {
-        String[] ids = {"rootfs_hangover_11.16"};
+        String[] ids = {RootfsSetupRecipe.IMAGE_COMPONENT};
         ComponentIndex index = index(ids);
         RuntimeProfile profile = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
             "rootfs-virgl-mesa", "rootfs-wined3d", "pulseaudio", "1280x720",
@@ -134,7 +132,7 @@ public class LaunchPreflightEvaluatorTest {
 
     @Test
     public void rootfsVirglBlocksWhenHostServerIsMissing() throws Exception {
-        String[] ids = {"rootfs_hangover_11.16"};
+        String[] ids = {RootfsSetupRecipe.IMAGE_COMPONENT};
         ComponentIndex index = index(ids);
         RuntimeProfile profile = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
             "rootfs-virgl-mesa", "rootfs-wined3d", "pulseaudio", "1280x720",
@@ -159,8 +157,7 @@ public class LaunchPreflightEvaluatorTest {
 
     @Test
     public void rootfsRequiresExactVersionForEveryPinnedComponent() throws Exception {
-        for (String id : new String[] {"rootfs_dxvk_2.7", RootfsSetupRecipe.DEFAULT_SOURCE,
-            RootfsSetupRecipe.BOX64_WINE_COMPONENT, RootfsSetupRecipe.BOX64_PROTON_COMPONENT}) {
+        for (String id : new String[] {RootfsSetupRecipe.IMAGE_COMPONENT}) {
             ComponentIndex index = rootfsIndex();
             Map<String, InstalledComponentVersion> installed = rootfsInstalled(index);
             installed.put(id, new InstalledComponentVersion(1, OTHER_SHA));
@@ -176,24 +173,23 @@ public class LaunchPreflightEvaluatorTest {
     public void rootfsStillReportsMissingComponentsResolvedAtRebuild() throws Exception {
         ComponentIndex index = rootfsIndex();
         Map<String, InstalledComponentVersion> installed = rootfsInstalled(index);
-        installed.remove(RootfsSetupRecipe.DEFAULT_SOURCE);
+        installed.remove(RootfsSetupRecipe.IMAGE_COMPONENT);
 
         LaunchPreflightResult result = evaluateRootfs(index, installed);
 
         assertFalse(result.isReady());
         assertTrue(hasSubject(result, PreflightIssueCode.COMPONENT_MISSING,
-            RootfsSetupRecipe.DEFAULT_SOURCE));
+            RootfsSetupRecipe.IMAGE_COMPONENT));
     }
 
     private static ComponentIndex rootfsIndex() throws Exception {
-        return index(RootfsSetupRecipe.DEFAULT_BASE_COMPONENTS.toArray(new String[0]));
+        return index(new String[] {RootfsSetupRecipe.IMAGE_COMPONENT});
     }
 
     private static Map<String, InstalledComponentVersion> rootfsInstalled(ComponentIndex index) {
         Map<String, InstalledComponentVersion> installed = installed(index);
         addHostCapability(installed, "termux-x11");
         addHostCapability(installed, "proot");
-        addHostCapability(installed, "proot-distro");
         return installed;
     }
 
@@ -254,7 +250,7 @@ public class LaunchPreflightEvaluatorTest {
             boolean wine = ids[index].startsWith("wine-");
             String category = wine ? "wine" : "runtime";
             String type = wine ? "container" : "runtime_support";
-            String backend = "rootfs_hangover_11.16".equals(ids[index])
+            String backend = ids[index].startsWith("rootfs_")
                 ? "rootfs_proot" : "glibc_termux_box";
             json.append("{\"id\":\"").append(ids[index]).append("\",\"category\":\"")
                 .append(category).append("\",\"type\":\"").append(type)

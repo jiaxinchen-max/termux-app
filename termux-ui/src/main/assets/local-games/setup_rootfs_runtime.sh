@@ -25,6 +25,11 @@ PREFIX_WARMUP_SCRIPT=
 GAMES_RUNTIME_TRANSLATOR=
 GAMES_CUSTOM_BOX64_ID=
 COMPLETED=false
+IMAGE_PID=
+PUBLISHING=false
+NEW_PUBLISHED=false
+OLD_RECIPE_PRESENT=false
+OLD_RECIPE_VALUE=
 FAILURE_CODE=setup_script_failed
 WARMUP_DISPLAY_PID=
 SETUP_SCHEMA=
@@ -36,6 +41,24 @@ SETUP_PENDING_COMPONENT=
 
 on_exit() {
     status=$?
+    if [ -n "$IMAGE_PID" ]; then
+        kill -TERM "$IMAGE_PID" 2>/dev/null || true
+        wait "$IMAGE_PID" 2>/dev/null || true
+    fi
+    if [ "$PUBLISHING" = true ] && [ "$status" -ne 0 ]; then
+        if [ "$OLD_RECIPE_PRESENT" = true ]; then
+            printf '%s\n' "$OLD_RECIPE_VALUE" > "$TEMPLATE_RECIPE.rollback" &&
+                mv "$TEMPLATE_RECIPE.rollback" "$TEMPLATE_RECIPE" || true
+        else
+            rm -f "$TEMPLATE_RECIPE"
+        fi
+        if [ "$NEW_PUBLISHED" = true ] && [ -e "$SHARED_ROOTFS_CONTAINER_DIRECTORY" ] && [ ! -e "$BUILD_DIRECTORY" ]; then
+            mv "$SHARED_ROOTFS_CONTAINER_DIRECTORY" "$BUILD_DIRECTORY" || true
+        fi
+        if [ -e "$PREVIOUS_ROOTFS" ] && [ ! -e "$SHARED_ROOTFS_CONTAINER_DIRECTORY" ]; then
+            mv "$PREVIOUS_ROOTFS" "$SHARED_ROOTFS_CONTAINER_DIRECTORY" || true
+        fi
+    fi
     [ -z "${PROOT_PID:-}" ] || kill "$PROOT_PID" 2>/dev/null || true
     [ -z "$WARMUP_DISPLAY_PID" ] || kill "$WARMUP_DISPLAY_PID" 2>/dev/null || true
     if [ "$CONTROL_PATHS_VALIDATED" = true ] && [ "$status" -ne 0 ] && [ "$COMPLETED" = false ] && [ -n "$EVENTS_PATH" ]; then
@@ -54,6 +77,7 @@ on_exit() {
     # only needed while the guest setup runs. Drop it on every exit (success or failure) so
     # staging/ does not accumulate one dead copy per setup and fill the data partition.
     [ "$CONTROL_PATHS_VALIDATED" = true ] && [ -n "$BUILD_CONTEXT" ] && rm -rf "$BUILD_CONTEXT" 2>/dev/null || true
+
 }
 trap on_exit EXIT
 trap 'fail rootfs_setup_interrupted 130' INT TERM
@@ -150,7 +174,7 @@ case "$SETUP_SCHEMA" in
             [ -z "$SETUP_PENDING_COMPONENT" ] || fail invalid_setup_spec 64 ;;
     *) fail unsupported_setup_spec 64 ;;
 esac
-[ "$SETUP_SCHEMA" = 4 ] && [ "$VERSION" = 11 ] || fail unsupported_setup_spec 64
+[ "$SETUP_SCHEMA" = 4 ] && [ "$VERSION" = 12 ] || fail unsupported_setup_spec 64
 case "$BASE_ONLY" in true|false) ;; *) fail invalid_setup_spec 64 ;; esac
 # Required unconditionally, even for BASE_ONLY: that path also builds the shared template Wine
 # prefix (see below), sourcing the same rootfs_prefix_warmup.sh functions a per-container warmup
@@ -237,326 +261,135 @@ COMMON_SCRIPT="$(dirname "$PREFIX_WARMUP_SCRIPT")/rootfs_script_common.sh"
 . "$COMMON_SCRIPT"
 
 PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
-PROOT_DISTRO="$PREFIX/bin/proot-distro"
-CONTAINERS_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/containers"
-# Winlator-style: one shared, always-current RootFS every container's proot session mounts with
-# `-r` (see start_rootfs_game.sh) -- never a per-containerId copy. Beside containers/ (never
-# under it, and not itself a proot-distro-managed container) so it is never mistaken for one by
-# the reset/backup/asset-scanning code paths that key off containerIds, and so a plain
-# rm -rf + mv below (not `proot-distro remove`/`install`) is the right tool to replace it.
+export PATH="$PREFIX/bin:/system/bin:$PATH"
 SHARED_ROOTFS_CONTAINER_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-shared-rootfs"
 SHARED_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY/rootfs"
-BASE_IMAGE=debian:trixie-20260824
-# Every container built from the same recipe (same box64/Wine source component, same
-# setup-container.sh/games-runtime.properties, same version of this script) would otherwise
-# redo an identical multi-hundred-MB download+unpack+apt-install. Build that once into a fixed,
-# reserved "tmpl-build" scratch container, then publish it as the live shared RootFS (see the
-# runtime_complete/mv gate further down) instead of hardlink-cloning it into every real container.
-# "tmpl-build" is never a real containerId (those are generated, not user-chosen), so it never
-# collides with, and is invisible to, the reset/backup/asset-scanning code paths that key off real
-# containerIds. A single fixed name (not one per recipe hash) is safe because
-# RuntimeInstallationGate.requireRootfsSlot() guarantees only one instance of this script runs at a
-# time system-wide, and the scratch directory is consumed (mv'd away) at the end of every
-# successful build, so nothing lingers between builds anyway.
-BUILD_CONTAINER_NAME=tmpl-build
-BUILD_DIRECTORY="$CONTAINERS_DIRECTORY/$BUILD_CONTAINER_NAME"
+BUILD_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/containers/tmpl-build"
 BUILD_ROOTFS="$BUILD_DIRECTORY/rootfs"
-# Beside containers/ (never under it) so it is not mistaken for a container. Holds:
-#  - games-rootfs-base.recipe: the recipeSha256 that last successfully published the shared
-#    RootFS, used below to decide whether a rebuild is needed at all (no more archive-existence
-#    check -- see the runtime_complete/mv gate further down, which replaced the old
-#    build-archive-delete-extract round trip now that the build and the live shared RootFS can
-#    just be mv'd into place directly, same filesystem).
-#  - games-rootfs-base-prefix-<wine package>.tar.*: the per-package pre-booted Wine prefix
-#    templates (still genuinely archived -- cloned into many containers afterward, unlike the
-#    rootfs itself which only ever has the one live copy).
 TEMPLATE_CACHE_DIR="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-template-cache"
 TEMPLATE_RECIPE="$TEMPLATE_CACHE_DIR/games-rootfs-base.recipe"
-# The recipe record below is written before anything else creates this directory, so a fresh
-# install (no cache yet) would otherwise fail its first build at the very last step.
-mkdir -p "$TEMPLATE_CACHE_DIR" || fail template_cache_directory_failed 70
-if command -v zstd >/dev/null 2>&1; then
-    TEMPLATE_COMPRESSOR=zstd
-    TEMPLATE_PREFIX_EXT=zst
-else
-    TEMPLATE_COMPRESSOR=gzip
-    TEMPLATE_PREFIX_EXT=gz
-fi
-# One prefix template is pre-booted per wine package (see the BASE_ONLY loop below), not a single
-# fixed-name archive -- TEMPLATE_PREFIX_ARCHIVE itself is resolved per-container, per-package,
-# via rootfs_prefix_warmup.sh's resolve_template_prefix_archive() further down.
-TEMPLATE_PREFIX_ARCHIVE=
-# Sourced early (not just before the per-container warmup call further down) because BASE_ONLY
-# also builds the shared template Wine prefix below, using these same functions.
+PREVIOUS_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY.previous"
+IMAGE_HELPER="$RECIPE_DIRECTORY/prebuilt_rootfs.py"
+IMAGE_DESCRIPTOR="$RECIPE_DIRECTORY/image.json"
+IMAGE_OWNER="$BUILD_DIRECTORY/.idap-image-owner"
+IMAGE_COMPONENT=rootfs_debian13_hangover_pdb2_minimal
 warmup_fail() { fail "$1" 70; }
 . "$PREFIX_WARMUP_SCRIPT"
-supports_container_setup() {
-    [ -x "$PROOT_DISTRO" ] &&
-        "$PROOT_DISTRO" install --help 2>&1 | grep -q -- '--name' &&
-        "$PROOT_DISTRO" login --help 2>&1 | grep -q -- '--isolated' &&
-        "$PROOT_DISTRO" login --help 2>&1 | grep -q -- '--bind'
-}
-progress '==> [1/4] Checking Termux runtime dependencies'
+
+progress '==> Checking Termux host dependencies'
 host_runtime_ready() {
-    [ -x "$PREFIX/bin/proot" ] && [ -x "$PROOT_DISTRO" ] &&
-        "$PROOT_DISTRO" --help >/dev/null 2>&1 &&
-        [ -f "$PREFIX/lib/libexpat.so.1" ] &&
+    [ -x "$PREFIX/bin/python" ] && [ -x "$PREFIX/bin/proot" ] &&
+        [ -x "$PREFIX/bin/zstd" ] && [ -f "$PREFIX/lib/libexpat.so.1" ] &&
         "$PREFIX/bin/dbus-daemon" --version >/dev/null 2>&1 &&
         "$PREFIX/bin/pulseaudio" --version >/dev/null 2>&1
 }
 if ! host_runtime_ready; then
     [ -x "$PREFIX/bin/pkg" ] || fail termux_pkg_missing 69
     export DEBIAN_FRONTEND=noninteractive
-    # PRoot-Distro 5.x imports Python ssl before it can print help. Explicitly
-    # request OpenSSL so an older bootstrap prefix is upgraded atomically instead
-    # of leaving a runnable proot-distro launcher with a broken _ssl module.
-    # AppShell has no stdin/PTY. DEBIAN_FRONTEND alone does not suppress a
-    # dpkg conffile decision, so retain the existing file and accept defaults.
-    progress '==> Installing or repairing PRoot, PulseAudio, dbus, libexpat, Python and OpenSSL'
-    if ! run_logged "$PREFIX/bin/pkg" install -y \
-        -o Dpkg::Options::=--force-confdef \
-        -o Dpkg::Options::=--force-confold \
-        openssl python proot proot-distro pulseaudio dbus libexpat; then
-        fail proot_distro_package_install_failed 69
-    fi
+    run_logged "$PREFIX/bin/pkg" install -y -o Dpkg::Options::=--force-confdef \
+        -o Dpkg::Options::=--force-confold openssl python proot zstd pulseaudio dbus libexpat ||
+        fail termux_runtime_dependencies_invalid 69
 fi
 host_runtime_ready || fail termux_runtime_dependencies_invalid 69
-[ -x "$PROOT_DISTRO" ] || fail proot_distro_missing 69
-[ -x "$PREFIX/bin/proot" ] || fail proot_missing 69
-supports_container_setup || {
-    fail proot_distro_install_login_unsupported 69
+[ -f "$IMAGE_HELPER" ] && [ -f "$IMAGE_DESCRIPTOR" ] || fail rootfs_image_assets_missing 66
+[ ! -L "$BUILD_DIRECTORY" ] && [ ! -L "$SHARED_ROOTFS_CONTAINER_DIRECTORY" ] || fail rootfs_image_path_invalid 70
+mkdir -p "$TEMPLATE_CACHE_DIR" "${BUILD_DIRECTORY%/*}"
+
+run_image_restore() {
+    "$@" >> "$LOG_PATH" 2>&1 &
+    IMAGE_PID=$!
+    image_status=0
+    wait "$IMAGE_PID" || image_status=$?
+    IMAGE_PID=
+    return "$image_status"
 }
-[ -f "$RECIPE_DIRECTORY/setup-container.sh" ] || fail rootfs_recipe_script_missing 66
-[ -f "$RECIPE_DIRECTORY/games-runtime.properties" ] || fail rootfs_recipe_manifest_missing 66
+image_complete() {
+    [ -x "$1/usr/bin/wine" ] && [ -x "$1/usr/bin/env" ] &&
+        "$PREFIX/bin/python" "$IMAGE_HELPER" verify --root "$1" \
+            --descriptor "$IMAGE_DESCRIPTOR" --recipe "$RECIPE_SHA256" >> "$LOG_PATH" 2>&1
+}
+verify_rootfs_locales() {
+    run_logged "$PREFIX/bin/proot" --kill-on-exit --link2symlink -0 -r "$1" -b /dev -b /proc \
+        -w / /usr/bin/env -i PATH=/usr/bin:/bin /bin/sh -eu -c '
+        test "$(LC_ALL=zh_CN.UTF-8 locale charmap)" = UTF-8
+        test "$(LC_ALL=zh_CN.GBK locale charmap)" = GBK
+        fc-match "Noto Sans CJK SC"
+    '
+}
 
 printf '{"schemaVersion":1,"taskId":"%s","state":"BUILDING"}\n' "$TASK_ID" >> "$EVENTS_PATH"
-
-# Only a guest rebuild consumes component payloads. Prefix-only preparation must not
-# duplicate the installed Wine trees while creating a multi-GB prefix.
-prepare_build_context() {
-    progress '==> [2/4] Preparing runtime build context'
-    rm -rf "$BUILD_CONTEXT"
-    mkdir -p "$BUILD_CONTEXT/components"
-    cp "$RECIPE_DIRECTORY/setup-container.sh" "$BUILD_CONTEXT/setup-container.sh"
-    cp "$RECIPE_DIRECTORY/games-runtime.properties" "$BUILD_CONTEXT/games-runtime.properties"
-    # Create guest bind targets. Bind installed sources directly below; Android can deny hardlinks,
-    # and duplicating all Wine payloads here can exhaust storage before the guest installation.
-    OLD_IFS=$IFS
-    IFS='
-'
-    for entry in $COMPONENTS; do
-        [ -n "$entry" ] || continue
-        cid=${entry%%|*}
-        cdir=${entry#*|}
-        find "$cdir" -type f | grep -q . || fail rootfs_source_packages_missing 66
-        mkdir -p "$BUILD_CONTEXT/components/$cid"
-    done
-    IFS=$OLD_IFS
-}
-
-# $1 = rootfs path to check (either a real container's or the shared template's).
-runtime_complete() {
-    root=$1
-    [ -x "$root/usr/bin/env" ] &&
-        grep -Fqx 'layout=external-components-v1' "$root/etc/games-runtime.properties" &&
-        [ -x "$root/usr/bin/wine" ] &&
-        [ -x "$root/usr/bin/wineboot" ] &&
-        [ -f "$root/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" ] &&
-        [ -f "$root/etc/games-runtime.properties" ] &&
-        [ -d "$root/mnt/games/game" ] &&
-        [ -d "$root/mnt/games/prefix" ]
-}
-# $1 = container directory, $2 = its rootfs path.
-base_container_ready() {
-    directory=$1
-    root=$2
-    [ -x "$root/usr/bin/env" ] && [ -f "$directory/manifest.json" ]
-}
-
-# Ordinary configuration preparation may install a base for the first time, but must never
-# replace an existing or interrupted installation. Only the explicit base-build command owns
-# recovery. Check before deleting caches, staging sources or entering the guest.
-if [ "$BASE_ONLY" = false ]; then
-    if runtime_complete "$SHARED_ROOTFS"; then
-        [ "$(cat "$TEMPLATE_RECIPE" 2>/dev/null)" = "$RECIPE_SHA256" ] || {
-            progress 'The Proot base needs an explicit rebuild in Settings > Core components > Proot. Existing data was kept.'
-            fail rootfs_rebuild_required 70
-        }
-    elif [ -e "$SHARED_ROOTFS_CONTAINER_DIRECTORY" ] || [ -e "$TEMPLATE_RECIPE" ] || \
-        [ -e "$BUILD_DIRECTORY" ]; then
-        progress 'The Proot base is incomplete or missing. Rebuild it explicitly in Settings > Core components > Proot. Existing data was kept.'
+if [ "$BASE_ONLY" = false ] && { [ -e "$SHARED_ROOTFS_CONTAINER_DIRECTORY" ] || [ -e "$TEMPLATE_RECIPE" ]; }; then
+    image_complete "$SHARED_ROOTFS" && [ "$(cat "$TEMPLATE_RECIPE" 2>/dev/null)" = "$RECIPE_SHA256" ] ||
         fail rootfs_rebuild_required 70
-    fi
 fi
-# Budget the base image plus the transient prefix-template build. Source payloads are
-# bound directly, never copied. A resumable scratch image already occupies part of this budget.
-if [ "$BASE_ONLY" = true ] || ! runtime_complete "$SHARED_ROOTFS"; then
-    available_kb=$(df -Pk "$TERMUX_FILES_ROOT" | awk 'END {print $4}')
-    scratch_kb=0
-    if [ -d "$BUILD_DIRECTORY" ]; then
-        scratch_kb=$(du -sk "$BUILD_DIRECTORY" | awk '{print $1}')
+if [ "$BASE_ONLY" = true ] || ! image_complete "$SHARED_ROOTFS"; then
+    [ ! -e "$PREVIOUS_ROOTFS" ] || fail rootfs_publish_recovery_required 70
+    if [ -e "$BUILD_DIRECTORY" ]; then
+        [ -f "$IMAGE_OWNER" ] && [ ! -L "$IMAGE_OWNER" ] &&
+            [ "$(cat "$IMAGE_OWNER")" = prebuilt-image-v1 ] || fail rootfs_image_scratch_unowned 70
+        rm -rf "$BUILD_DIRECTORY" || fail rootfs_image_scratch_cleanup_failed 70
     fi
-    # Baseline measured 4.84 GiB includes ~1.39 GiB portable Wine copies plus Box64/DXVK.
-    # v11 budgets 5 GiB for Debian + Hangover and apt/unpack peak; source versions are bound.
-    # Prefix/template allocation has its own check after the base build is published.
-    required_kb=$((5 * 1024 * 1024 - scratch_kb))
-    [ "$required_kb" -ge 524288 ] || required_kb=524288
-    if [ "$available_kb" -lt "$required_kb" ]; then
-        progress "Not enough storage for the Proot base: need at least ${required_kb} KiB free, available ${available_kb} KiB. Existing data was kept."
-        fail rootfs_insufficient_storage 70
-    fi
-fi
-
-# Builds a fresh proot-distro container from the base image and runs the games
-# setup script inside it. $1 = container name, $2 = its directory, $3 = its rootfs.
-build_runtime_into() {
-    name=$1
-    directory=$2
-    root=$3
-    if ! base_container_ready "$directory" "$root"; then
-        progress '==> [3/4] Downloading and unpacking Debian ImageFS'
-        if [ -d "$directory" ]; then
-            if ! run_logged "$PROOT_DISTRO" remove --quiet "$name"; then
-                fail proot_distro_container_remove_failed 70
-            fi
-        fi
-        if ! run_logged "$PROOT_DISTRO" install --architecture aarch64 --name "$name" \
-            "$BASE_IMAGE"; then
-            fail proot_distro_container_install_failed 70
-        fi
-    fi
-    if ! base_container_ready "$directory" "$root"; then
-        fail proot_distro_base_container_invalid 70
-    fi
-    prepare_build_context
-    progress '==> [4/4] Installing game runtime packages in Debian'
-    set -- "$PROOT_DISTRO" login "$name" --isolated --bind "$BUILD_CONTEXT:/run/games-setup"
+    mkdir "$BUILD_DIRECTORY"
+    printf '%s\n' prebuilt-image-v1 > "$IMAGE_OWNER"
+    image_directory=
     OLD_IFS=$IFS
     IFS='
 '
     for entry in $COMPONENTS; do
         [ -n "$entry" ] || continue
-        cid=${entry%%|*}
-        cdir=${entry#*|}
-        set -- "$@" --bind "$cdir:/run/games-setup/components/$cid"
+        [ "${entry%%|*}" = "$IMAGE_COMPONENT" ] && [ -z "$image_directory" ] || fail rootfs_image_component_invalid 66
+        image_directory=${entry#*|}
     done
     IFS=$OLD_IFS
-    if ! run_logged "$@" -- /bin/sh /run/games-setup/setup-container.sh; then
-        fail rootfs_guest_setup_failed 70
+    [ -n "$image_directory" ] || fail rootfs_image_component_missing 66
+    image_name=$("$PREFIX/bin/python" -c 'import json,sys,re; d=json.load(open(sys.argv[1])); n=d["file"]; assert re.fullmatch(r"[A-Za-z0-9_.-]+\.tar\.zst",n); print(n)' "$IMAGE_DESCRIPTOR") || fail rootfs_image_metadata_invalid 66
+    prefix_reserve=0
+    if [ "$BASE_ONLY" = false ]; then
+        prefix_reserve=$("$PREFIX/bin/python" -c 'import json,sys; n=json.load(open(sys.argv[1]))["expandedBytes"]; assert type(n) is int and 0 < n <= 2*1024**3; print(n+256*1024**2)' "$RECIPE_DIRECTORY/prefix-hangover-pdb2/bundle.json") || fail rootfs_prefix_budget_invalid 66
     fi
-}
-
-# locale-gen can succeed in staging while its host-absolute .l2s links fail after mv.
-# Check the guest libc result at the published path, before recording the recipe.
-verify_rootfs_locales() {
-    run_logged "$PREFIX/bin/proot" --link2symlink -0 -r "$1" -b /dev -b /proc -w / \
-        /usr/bin/env -i PATH=/usr/bin:/bin /bin/sh -eu -c '
-            test "$(LC_ALL=zh_CN.UTF-8 locale charmap)" = UTF-8
-            test "$(LC_ALL=zh_CN.GBK locale charmap)" = GBK
-        '
-}
-
-# Reclaim stray build dirs left by an older version of this script or an interrupted BASE_ONLY
-# rebuild. No game ever reads any of these directly, so it is always safe to drop anything that
-# is not the current fixed-name artifact.
-if [ "$BASE_ONLY" = true ]; then
-    # The publish gate explicitly includes BASE_ONLY. Keep the old receipt until the new tree
-    # passes publication checks, so rollback also preserves the old ready identity.
-    # Every per-package prefix template (games-rootfs-base-prefix-<wine package>.tar.*, see the
-    # BASE_ONLY loop below) is rebuilt in lockstep with the rootfs for the same reason (the known
-    # hash-drift failure mode this session already fixed once for the rootfs side).
-    for stray_prefix in "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*; do
-        [ -e "$stray_prefix" ] || continue
-        rm -f "$stray_prefix"
-    done
-fi
-if [ -d "$CONTAINERS_DIRECTORY" ]; then
-    for stray_container in "$CONTAINERS_DIRECTORY"/tmpl-*; do
-        [ -d "$stray_container" ] || continue
-        case "$stray_container" in */"$BUILD_CONTAINER_NAME") continue ;; esac
-        run_logged rm -rf "$stray_container"
-    done
-fi
-if [ -d "$TEMPLATE_CACHE_DIR" ]; then
-    for stray_archive in "$TEMPLATE_CACHE_DIR"/*.tar.*; do
-        [ -f "$stray_archive" ] || continue
-        case "$stray_archive" in
-            # Every per-package prefix template is a live artifact, not just one fixed name.
-            "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*) continue ;;
-        esac
-        rm -f "$stray_archive"
-    done
-fi
-
-# Skip the expensive rebuild below unless the live shared RootFS is actually missing/broken, or
-# was last published from a different recipe (a base component or this script's own version
-# changed). An explicit BASE_ONLY rebuild always enters this gate; the old recipe receipt stays
-# intact until the replacement has passed its publication checks.
-if [ "$BASE_ONLY" = true ] || ! runtime_complete "$SHARED_ROOTFS" || \
-    [ "$(cat "$TEMPLATE_RECIPE" 2>/dev/null)" != "$RECIPE_SHA256" ]; then
-    if ! runtime_complete "$BUILD_ROOTFS" || ! grep -Fqx "recipeSha256=$RECIPE_SHA256" "$BUILD_ROOTFS/etc/games-runtime.properties"; then
-        build_runtime_into "$BUILD_CONTAINER_NAME" "$BUILD_DIRECTORY" "$BUILD_ROOTFS"
-        runtime_complete "$BUILD_ROOTFS" || fail rootfs_template_build_invalid 70
+    progress '==> Extracting and verifying the preinstalled minimal RootFS'
+    if ! run_image_restore "$PREFIX/bin/python" "$IMAGE_HELPER" restore --archive "$image_directory/$image_name" \
+        --root "$BUILD_ROOTFS" --descriptor "$IMAGE_DESCRIPTOR" --recipe "$RECIPE_SHA256" --zstd "$PREFIX/bin/zstd" --reserve-bytes "$prefix_reserve"; then
+        fail rootfs_image_restore_failed 70
     fi
-    sed -i '/^recipeSha256=/d' "$BUILD_ROOTFS/etc/games-runtime.properties"
-    printf 'recipeSha256=%s\n' "$RECIPE_SHA256" >> "$BUILD_ROOTFS/etc/games-runtime.properties"
     [ -f "$RECIPE_DIRECTORY/relocate_rootfs_links.py" ] || fail rootfs_link_helper_missing 66
-    run_logged "$PREFIX/bin/python" "$RECIPE_DIRECTORY/relocate_rootfs_links.py" "$BUILD_ROOTFS" || \
+    run_logged "$PREFIX/bin/python" "$RECIPE_DIRECTORY/relocate_rootfs_links.py" "$BUILD_ROOTFS" --verify ||
         fail rootfs_link_validation_failed 70
-    # Recording the recipe and publishing the one live, shared RootFS happen in the same task so
-    # the two can never disagree -- every container, old and new alike, mounts whatever this
-    # leaves behind (see GameStoragePaths.getSharedRootfsDirectory()). A rebuild therefore takes
-    # effect for already-created games immediately; there is no more per-container pinning to go
-    # stale. $BUILD_DIRECTORY and $SHARED_ROOTFS_CONTAINER_DIRECTORY are siblings under the same
-    # .../proot-distro/ directory (same filesystem), so publishing is a plain same-filesystem mv,
-    # not a tar/compress round trip through an intermediate archive: that archive used to exist
-    # only to survive the brief window between "scratch build done" and "live directory
-    # replaced" (so a build failure could never corrupt the directory every game mounts) -- a
-    # plain mv from a separate scratch directory gives the exact same safety without ever
-    # materializing compressed bytes nobody reads. Compression now exists only as the dedicated,
-    # explicitly user-triggered Backup feature (see backup_restore_rootfs.sh), not as a hidden
-    # cost of every build.
+    image_complete "$BUILD_ROOTFS" && verify_rootfs_locales "$BUILD_ROOTFS" || fail rootfs_image_verification_failed 70
     progress '==> Publishing the shared RootFS image'
-    PREVIOUS_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY.previous"
-    [ ! -e "$PREVIOUS_ROOTFS" ] || fail rootfs_publish_recovery_required 70
+    if [ -f "$TEMPLATE_RECIPE" ]; then
+        OLD_RECIPE_VALUE=$(cat "$TEMPLATE_RECIPE")
+        OLD_RECIPE_PRESENT=true
+    fi
+    PUBLISHING=true
     if [ -e "$SHARED_ROOTFS_CONTAINER_DIRECTORY" ]; then
         mv "$SHARED_ROOTFS_CONTAINER_DIRECTORY" "$PREVIOUS_ROOTFS" || fail rootfs_shared_image_publish_failed 70
     fi
+    NEW_PUBLISHED=true
     if ! mv "$BUILD_DIRECTORY" "$SHARED_ROOTFS_CONTAINER_DIRECTORY"; then
         [ ! -e "$PREVIOUS_ROOTFS" ] || mv "$PREVIOUS_ROOTFS" "$SHARED_ROOTFS_CONTAINER_DIRECTORY"
         fail rootfs_shared_image_publish_failed 70
     fi
-    if ! runtime_complete "$SHARED_ROOTFS" || \
-        ! run_logged "$PREFIX/bin/python" "$RECIPE_DIRECTORY/relocate_rootfs_links.py" "$SHARED_ROOTFS" --verify || \
-        ! verify_rootfs_locales "$SHARED_ROOTFS"; then
-        # Keep the rejected build for an explicit retry; restore the previous live tree.
+    if ! image_complete "$SHARED_ROOTFS" || ! verify_rootfs_locales "$SHARED_ROOTFS"; then
         mv "$SHARED_ROOTFS_CONTAINER_DIRECTORY" "$BUILD_DIRECTORY" || fail rootfs_publish_recovery_required 70
-        if [ -e "$PREVIOUS_ROOTFS" ]; then
-            mv "$PREVIOUS_ROOTFS" "$SHARED_ROOTFS_CONTAINER_DIRECTORY" || fail rootfs_publish_recovery_required 70
-        fi
+        [ ! -e "$PREVIOUS_ROOTFS" ] || mv "$PREVIOUS_ROOTFS" "$SHARED_ROOTFS_CONTAINER_DIRECTORY" || fail rootfs_publish_recovery_required 70
         fail rootfs_shared_image_invalid 70
     fi
-    printf '%s\n' "$RECIPE_SHA256" > "$TEMPLATE_RECIPE.tmp" &&
-        mv "$TEMPLATE_RECIPE.tmp" "$TEMPLATE_RECIPE" || fail rootfs_recipe_record_failed 70
+    if ! { printf '%s\n' "$RECIPE_SHA256" > "$TEMPLATE_RECIPE.tmp" && mv "$TEMPLATE_RECIPE.tmp" "$TEMPLATE_RECIPE"; }; then
+        mv "$SHARED_ROOTFS_CONTAINER_DIRECTORY" "$BUILD_DIRECTORY" || fail rootfs_publish_recovery_required 70
+        [ ! -e "$PREVIOUS_ROOTFS" ] || mv "$PREVIOUS_ROOTFS" "$SHARED_ROOTFS_CONTAINER_DIRECTORY" || fail rootfs_publish_recovery_required 70
+        fail rootfs_recipe_record_failed 70
+    fi
+    PUBLISHING=false
     rm -rf "$PREVIOUS_ROOTFS"
-
-    # v11 base construction never boots Wine or creates templates. Configuration preparation
-    # below builds only the selected identity, on demand.
-    rm -rf "$BUILD_CONTEXT"
 fi
-
 if [ "$BASE_ONLY" = true ]; then
     printf '{"schemaVersion":1,"taskId":"%s","state":"SUCCEEDED"}\n' "$TASK_ID" >> "$EVENTS_PATH"
-    progress '==> Base runtime build completed'
+    progress '==> Preinstalled minimal runtime ready (no guest package installation)'
     COMPLETED=true
     exit 0
 fi
-
-# Should be unreachable: GameImportReadinessGate/RuntimeEnvironmentStatus.rootfsState() already
-# gate game creation on the base archive existing, and the block above republishes the shared
-# rootfs every time that archive is (re)built -- the two can only disagree if something deleted
-# games-shared-rootfs/ directly without going through this script.
-runtime_complete "$SHARED_ROOTFS" || fail rootfs_shared_image_missing 70
+image_complete "$SHARED_ROOTFS" || fail rootfs_shared_image_missing 70
 
 # Prepares this container's Wine prefix right now, at
 # import/config-save time, instead of leaving it for the user's first Launch tap -- see

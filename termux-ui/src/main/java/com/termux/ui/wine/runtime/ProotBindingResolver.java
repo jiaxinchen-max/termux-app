@@ -25,7 +25,7 @@ public final class ProotBindingResolver {
         throws IOException {
         List<ProotComponentBinding> result = new ArrayList<>();
         for (String id : new ProotDependencyResolver().requiredComponentIds(profile, paths)) {
-            if (id.equals(RootfsSetupRecipe.DEFAULT_SOURCE)) continue; // installed in guest /usr
+            if (id.equals(RootfsSetupRecipe.IMAGE_COMPONENT)) continue; // installed in guest /usr
             InstalledComponent component = installations.read(id).getActive()
                 .orElseThrow(() -> new IOException("rootfs_component_prepare_required:" + id));
             if (id.startsWith("custom-wine-")) {

@@ -1,0 +1,20 @@
+{
+  "id": "rootfs_debian13_hangover_pdb2_minimal",
+  "category": "runtime",
+  "type": "image_fs",
+  "displayName": "Debian 13 + Hangover (minimal)",
+  "versionName": "pdb2 minimal v1",
+  "summary": "Preinstalled minimal Debian RootFS with Hangover; extracted and verified without guest package installation.",
+  "framework": "Debian PRoot",
+  "base": true,
+  "recommended": true,
+  "hidden": false,
+  "profileValue": "",
+  "runtimeBackends": [
+    "rootfs_proot"
+  ],
+  "version": 1,
+  "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-debian13-hangover-pdb2-minimal-v1/rootfs-debian13-hangover-pdb2-minimal-v1.tar.zst",
+  "size": 322915320,
+  "sha256": "22734affd772ccfc99b99d850c6bdefa22683827c4a7b9204ca1a2595c03fbce"
+}
