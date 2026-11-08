@@ -150,6 +150,10 @@ public final class PrefixSetupForegroundService extends Service {
                 submitted.remove(task.getTaskId());
                 return;
             }
+            String prefixComponent = com.termux.ui.wine.runtime.NativePrebuiltPrefixes
+                .componentId(profile.getWinePackage());
+            new RootfsRuntimeComponentPreparer(this, task.getTaskId())
+                .ensure(java.util.Collections.singleton(prefixComponent));
             new LaunchScriptInstaller(this, paths).install(new GlibcTermuxBoxBackend());
             File script = new File(paths.getRuntimeDirectory(), "setup_glibc_prefix.sh");
             File spec = new File(paths.getPrefixSetupSpecsDirectory(),
@@ -212,9 +216,14 @@ public final class PrefixSetupForegroundService extends Service {
     private boolean isReady(PrefixSetupTask task) throws IOException {
         RuntimeProfile profile = resolveContainer(profiles.find(task.getGameId())
             .orElseThrow(() -> new IOException("runtime_profile_missing")));
-        File prefix = paths.getContainerPrefixDirectory(profile.getContainerId());
+        File prefix = paths.getNativePrefixDirectory(profile.getContainerId(), profile.getWinePackage());
         if (!new File(prefix, ".termux-box-bootstrap-done").isFile() ||
             !new File(prefix, ".update-timestamp").exists()) return false;
+        File identity = new File(prefix, ".games-runtime/prepared-identity");
+        if (!identity.isFile() || identity.length() != 65) return false;
+        try (BufferedReader reader = new BufferedReader(new FileReader(identity))) {
+            if (!NativePrefixAssets.identity(this, profile.getWinePackage()).equals(reader.readLine())) return false;
+        }
         // The one-time game extras (CJK fonts + FontLink, zh_CN locales) are part of "ready": they are
         // done by the setup task, not at launch. Without these markers an already-bootstrapped prefix
         // would be reported ready and never get them.
@@ -231,7 +240,7 @@ public final class PrefixSetupForegroundService extends Service {
     private boolean hasLiveBootstrap(PrefixSetupTask task) throws IOException {
         RuntimeProfile profile = resolveContainer(profiles.find(task.getGameId())
             .orElseThrow(() -> new IOException("runtime_profile_missing")));
-        File pidFile = new File(paths.getContainerPrefixDirectory(profile.getContainerId()).getPath() +
+        File pidFile = new File(paths.getNativePrefixDirectory(profile.getContainerId(), profile.getWinePackage()).getPath() +
             ".bootstrap.lock/pid");
         if (!pidFile.isFile()) return false;
         try (BufferedReader reader = new BufferedReader(new FileReader(pidFile))) {
@@ -271,8 +280,13 @@ public final class PrefixSetupForegroundService extends Service {
             property(writer, "TERMUX_BOX_LOG_FILE", log.getCanonicalPath());
             property(writer, "TERMUX_BOX_CONTAINER_NAME", profile.getContainerId());
             property(writer, "TERMUX_BOX_CONTAINER_PREFIX",
-                paths.getContainerPrefixDirectory(profile.getContainerId()).getCanonicalPath());
+                paths.getNativePrefixDirectory(profile.getContainerId(), profile.getWinePackage()).getCanonicalPath());
             property(writer, "TERMUX_BOX_WINE_PACKAGE", profile.getWinePackage());
+            property(writer, "NATIVE_PREFIX_ASSETS", NativePrefixAssets.requireInstalled(this,
+                profile.getWinePackage()).getPath());
+            property(writer, "NATIVE_PREFIX_BUNDLE_SHA256", NativePrefixAssets.bundleSha256(this,
+                profile.getWinePackage()));
+            property(writer, "NATIVE_PREFIX_IDENTITY", NativePrefixAssets.identity(this, profile.getWinePackage()));
             property(writer, "GAMES_CUSTOM_BOX64_ID",
                 profile.getEnvironment().getOrDefault("GAMES_CUSTOM_BOX64_ID", ""));
             property(writer, "TERMUX_BOX_RESOLUTION", profile.getResolution());

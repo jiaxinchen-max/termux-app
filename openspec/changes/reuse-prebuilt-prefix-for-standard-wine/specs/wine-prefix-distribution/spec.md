@@ -135,3 +135,56 @@
 #### Scenario: 交付位置变化
 - **WHEN** prefix 从 APK 内置改为固定网络/缓存依赖
 - **THEN** 镜像身份继续独立，不能要求重建已有匹配镜像；准备与启动使用一致的来源身份，既有非空 prefix 不被覆盖。
+
+## ADDED Requirements
+
+### Requirement: Native 使用受版本约束的预生成前缀
+Native 目录中的 Wine 8.18/9.0 staging、9.3 vanilla、10.0 与 Proton 11.0 新建前缀必须从独立固定资产恢复，不能执行完整 wineboot；预生成注册表骨架可来自已验证的同架构 PRoot 资产，系统 DLL 必须对应所选 Native 组件。
+
+#### Scenario: 全新 Native 配置
+- **WHEN** 用户通过 App 导入并准备 Native 配置
+- **THEN** 自动从网络或缓存获取所选资产，校验并原子恢复独立可写前缀，显示准备结果，不要求用户操作技术组件。
+
+#### Scenario: 来源损坏或不受支持
+- **WHEN** 资产、组件、架构、用户名绑定、目标状态或准备收据校验失败，或自定义版本没有固定模板
+- **THEN** 立即失败并保留原数据，不执行 wineboot、重建、后端回退或不受约束的迁移。
+
+#### Scenario: Native 运行库隔离
+- **WHEN** 从已初始化 PRoot 骨架生成 Native 资产
+- **THEN** 重新绑定 Native Wine 的 DLL、用户及主机路径，使用 Native 加载器/glibc/Box64，不能复制 PRoot 的 Unix 运行库。
+
+#### Scenario: Native 切换固定 Wine 版本
+- **WHEN** 同一容器切换 Native Wine 版本或切回原版本
+- **THEN** 自动选择容器内对应版本的独立 Prefix；新版本从受验证资产准备，切回时复用原版本数据，不运行 wineboot 迁移、不覆盖其他版本。
+
+### Requirement: Native 准备必须先满足主机基础环境
+
+App 保存准备 Native 配置时，MUST 首先检查 termux-glibc 主机能力；缺失时 MUST 使用既有官方包安装流程，并在成功后重新核验，再准备所选组件和恢复prefix。MUST NOT 把主机依赖当作目录归档下载或激活。
+
+#### Scenario: 全新Native环境
+- **WHEN** 主机加载器、glibc、grun、Python或必要图形库不齐全
+- **THEN** 先执行既有基础安装流程，成功且探针通过后才能处理组件与prefix
+
+#### Scenario: 基础依赖失败
+- **WHEN** 安装失败、取消或任务成功后探针仍未通过
+- **THEN** 准备立即失败，不执行后续下载/恢复，不自动重试或回退
+
+#### Scenario: 基础环境已有
+- **WHEN** 主机探针已确认基础能力齐全
+- **THEN** 直接复用，不重复安装基础包
+
+### Requirement: Native 基础准备包含归档解压工具
+
+Native termux-glibc 基础依赖 MUST 包含官方7zip的7z可执行文件，脚本安装核验与主机就绪判断 MUST 一致。
+
+#### Scenario: 旧环境缺解压工具
+- **WHEN** glibc已安装但7z缺失或不可执行
+- **THEN** 基础环境判为未就绪，经既有包安装链路补齐并核验后才继续；不重建已恢复prefix
+
+#### Scenario: 工具安装不完整
+- **WHEN** 包管理任务返回成功但7z仍不可执行
+- **THEN** 安装验证失败并立即终止准备，不启动Wine或回退
+
+#### Scenario: 就绪展示与必需工具一致
+- **WHEN** glibc基础标记齐全但Python或7z不可执行
+- **THEN** 展示基础环境不完整；仅工具存在但glibc标记全无时仍显示未安装

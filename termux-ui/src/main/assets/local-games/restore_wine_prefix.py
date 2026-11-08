@@ -73,48 +73,70 @@ def copy_verified(source, target, record):
     os.utime(target, (record['mtime'], record['mtime']))
 
 
-def restore(rootfs, assets, destination, identity, runtime, package, wine_root=None):
+def restore(rootfs, assets, destination, identity, runtime, package, wine_root=None,
+            backend='rootfs_proot', bundle_sha256=None):
     rootfs = Path(rootfs).resolve(strict=True)
     assets = Path(assets)
     destination = Path(os.path.abspath(destination))
     require(destination.parent.resolve(strict=True) == destination.parent and
             not destination.is_symlink(), 'destination_invalid')
     require(len(identity) == 64 and all(c in '0123456789abcdef' for c in identity), 'identity_invalid')
+    native = backend == 'glibc_termux_box'
+    require(backend in ('rootfs_proot', 'glibc_termux_box'), 'identity_mismatch')
+    if native:
+        require(isinstance(bundle_sha256, str) and len(bundle_sha256) == 64 and
+                sha(assets / 'bundle.json') == bundle_sha256, 'bundle_digest_mismatch')
     metadata = json.loads((assets / 'bundle.json').read_text())
-    require(metadata['schemaVersion'] in (1, 2) and metadata['backend'] == 'rootfs_proot' and
+    require(metadata['schemaVersion'] in ((3,) if native else (1, 2)) and metadata['backend'] == backend and
             metadata['hostAbi'] == 'aarch64' and metadata['prefixArch'] == 'wow64' and
             package == metadata['winePackage'], 'identity_mismatch')
     roots = {'rootfs': rootfs}
     translator = 'hangover'
-    if metadata['schemaVersion'] == 2:
-        require(package in ('rootfs_wine_10.0', 'rootfs_proton_11.0') and
+    if metadata['schemaVersion'] in (2, 3):
+        packages = ('glibc_wine_8.18-staging', 'glibc_wine_9.0-staging',
+                    'glibc_wine_9.3-vanilla', 'glibc_wine_10.0', 'glibc_proton_11.0') if native else (
+                    'rootfs_wine_10.0', 'rootfs_proton_11.0')
+        require(package in packages and
                 metadata['translator'] == 'box64' and metadata['peMachine'] == 0x8664 and
                 wine_root is not None, 'identity_mismatch')
         wine_root = Path(wine_root).resolve(strict=True)
         # The caller resolves the frozen PRoot binding. Also pin its install receipt here;
         # an adjacent, similarly named Wine tree is not an interchangeable input.
         receipt = wine_root / '.games-component.properties'
-        if not receipt.is_file():
+        if native:
+            # Bind both the immutable installation and activated Native files. The latter
+            # are verified below, including every DLL copied into the new prefix.
+            receipt = assets / '.games-component.properties'
+        if not native and not receipt.is_file():
             receipt = wine_root.parent / '.games-component.properties'
+        if native:
+            require(receipt.is_file() and not receipt.is_symlink(), 'component_receipt_invalid')
         values = {}
         for line in receipt.read_text().splitlines():
             if '=' in line:
                 key, value = line.split('=', 1)
                 require(key not in values, 'component_receipt_invalid')
                 values[key] = value
-        require(values.get('schemaVersion') == '1' and values.get('packageName') == package and
-                values.get('version') == str(metadata['componentVersion']) and
-                values.get('sha256') == metadata['sourceComponentSha256'], 'component_mismatch')
+        if native:
+            require(values.get('schemaVersion') == '1' and
+                    values.get('packageName') == metadata['prefixComponentId'] and
+                    values.get('version') == '1', 'component_mismatch')
+            require(wine_root == rootfs / package, 'native_wine_root_mismatch')
+        else:
+            require(values.get('schemaVersion') == '1' and values.get('packageName') == package and
+                    values.get('version') == str(metadata['componentVersion']) and
+                    values.get('sha256') == metadata['sourceComponentSha256'], 'component_mismatch')
         roots['wine'] = wine_root
         translator = 'box64'
     else:
         require(wine_root is None, 'identity_mismatch')
     for name in ['manifest.json', 'delta.tgz']:
         require(sha(assets / name) == metadata['assets'][name], 'asset_digest_mismatch')
-    recipe = hashlib.sha256()
-    for name in ['setup-container.sh', 'games-runtime.properties']:
-        recipe.update((assets.parent / name).read_bytes())
-    require(recipe.hexdigest() == metadata['baseRecipeSha256'], 'recipe_mismatch')
+    if not native:
+        recipe = hashlib.sha256()
+        for name in ['setup-container.sh', 'games-runtime.properties']:
+            recipe.update((assets.parent / name).read_bytes())
+        require(recipe.hexdigest() == metadata['baseRecipeSha256'], 'recipe_mismatch')
     parents = {}
     source_parents = {'rootfs': parents, 'wine': {}}
     for relative, expected in metadata['runtimeFiles'].items():
@@ -141,7 +163,9 @@ def restore(rootfs, assets, destination, identity, runtime, package, wine_root=N
             relative = safe_name(record['source'])
             source_root = record.get('sourceRoot', 'rootfs')
             require(source_root in roots, 'source_invalid')
-            allowed = SOURCE_PREFIXES if source_root == 'rootfs' else ('lib/wine/', 'share/wine/')
+            allowed = (('share/fonts/', 'opt/prefix-expanded/drive_c/', 'opt/prefix-expanded/directx/',
+                        'opt/prefix/start/', 'opt/prefix/marlett.ttf') if native else SOURCE_PREFIXES
+                       ) if source_root == 'rootfs' else ('lib/wine/', 'share/wine/')
             require(relative.startswith(allowed), 'source_invalid')
         else:
             require('sourceRoot' not in record, 'source_invalid')
@@ -219,15 +243,35 @@ def restore(rootfs, assets, destination, identity, runtime, package, wine_root=N
                 require((stage / '.update-timestamp').read_text() == 'disable\n', 'timestamp_invalid')
                 require('pendingfilerenameoperations' not in (stage / 'system.reg').read_text().lower() and
                         not any(stage.rglob('*.tmp')), 'initialization_incomplete')
+                if native:
+                    for name in ('system.reg', 'user.reg', 'userdef.reg'):
+                        registry = stage / name
+                        registry.write_text(registry.read_text().replace('@NATIVE_PREFIX@', str(destination)))
                 for name, target in links.items():
                     (stage / name).parent.mkdir(parents=True, exist_ok=True)
                     (stage / name).symlink_to(target)
+                if native:
+                    # Absolute host paths are derived locally, never copied from a guest.
+                    (stage / 'dosdevices/z:').unlink()
+                    (stage / 'dosdevices/z:').symlink_to(rootfs.parent.parent)
+                    (stage / 'dosdevices/d:').symlink_to('/sdcard/Download')
+                    (stage / 'dosdevices/e:').symlink_to('/sdcard/Android/data/com.termux/files/Download')
                 markers = stage / '.games-runtime'
                 markers.mkdir()
                 for name, value in {'runtime': runtime + '|' + package, 'wine-dlls': package,
                                     'translator': translator, 'prepared-identity': identity,
                                     'cjk-fonts': runtime + '|' + package + '|Noto Sans CJK SC|v4'}.items():
                     (markers / name).write_text(value + '\n')
+                if native:
+                    user = metadata['windowsUser']
+                    require(user in ('root', 'steamuser'), 'native_user_invalid')
+                    (markers / 'native-user').write_text(user + '\n')
+                    # The font registry is already initialized in the build asset.
+                    require('"Tahoma"="Noto Sans CJK SC"' in (stage / 'system.reg').read_text() and
+                            '"Noto Sans CJK SC (TrueType)"="NotoSansCJK-Regular.ttc"' in
+                            (stage / 'system.reg').read_text(), 'native_fonts_invalid')
+                    (stage / 'termux-boxmeta').mkdir(exist_ok=True)
+                    (stage / 'termux-boxmeta/games-wine-fonts-v2').touch()
                 # rename replaces only an empty directory; an intervening nonempty target fails.
                 require(not destination.is_symlink(), 'destination_invalid')
                 os.rename(stage, destination)
@@ -242,13 +286,15 @@ def main():
     for name in ['rootfs', 'assets', 'destination', 'identity', 'runtime', 'package']:
         p.add_argument('--' + name, required=True)
     p.add_argument('--wine-root')
+    p.add_argument('--backend', choices=('rootfs_proot', 'glibc_termux_box'), default='rootfs_proot')
+    p.add_argument('--bundle-sha256')
     args = p.parse_args()
     def terminate(signum, frame):
         raise SystemExit(128 + signum)
     signal.signal(signal.SIGTERM, terminate)
     try:
         restore(args.rootfs, args.assets, args.destination, args.identity, args.runtime, args.package,
-                args.wine_root)
+                args.wine_root, args.backend, args.bundle_sha256)
     except (OSError, ValueError, KeyError, TypeError, tarfile.TarError) as error:
         p.exit(1, str(error) + '\n')
 

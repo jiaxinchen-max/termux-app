@@ -94,6 +94,8 @@ public final class LaunchScriptInstaller {
                 new File(runtimeDirectory, "glibc_prefix_extras.sh"));
             installAsset("local-games/native_runtime_components.sh",
                 new File(runtimeDirectory, "native_runtime_components.sh"));
+            installAsset("local-games/restore_wine_prefix.py",
+                new File(runtimeDirectory, "restore_wine_prefix.py"));
         } else if (backend instanceof RootfsProotBackend) {
             // Co-located with start_rootfs_game.sh itself (same runtimeDirectory), so that
             // script can source it via a path relative to its own install location with no new

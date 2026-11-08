@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 3,
+  "backend": "glibc_termux_box",
+  "hostAbi": "aarch64",
+  "prefixArch": "wow64",
+  "peMachine": 34404,
+  "translator": "box64",
+  "winePackage": "glibc_wine_10.0",
+  "windowsUser": "root",
+  "componentVersion": 1,
+  "sourceComponentSha256": "c1b9d8dfe6917dd1c50373cb1419533df59666497a2bfaa1d206a0ace5a41b00",
+  "prefixComponentId": "native_prefix_wine_10.0",
+  "runtimeFiles": {},
+  "wineRuntimeFiles": {
+    "bin/wine": "a94d20651fca0dc258810b83dc7cc75343f21e110f0a0c0dbeb688a65f579fa0",
+    "bin/wineserver": "023ece704418661c5b9a9511754ae8b9543834515fa9ec4fe3bb909512f4e72c",
+    "lib/wine/x86_64-windows/ntdll.dll": "758cc199dab85826a263ad3f5265a331096ffa42c8e5ac4115cc245559923645",
+    "lib/wine/i386-windows/ntdll.dll": "35cd249744d2174cbfb6fd2381d879a1fe645b728c8df1396cfc0ea6d0aaa993"
+  },
+  "expandedBytes": 856330933,
+  "assets": {
+    "manifest.json": "7178643c81b1d1dca7e251f337a0f4ade912e3d8485c1bba32dbac84d185c96f",
+    "delta.tgz": "e69fd5598d0e796fbd13cd561b94aa0408ca97546060c8b5f064ee49af4f8dfc"
+  },
+  "provenance": {
+    "skeletonBundleSha256": "2d61b35348b1428b02e3bb366d61f8e06413ec00738d870f2a8651bb5fe3090b",
+    "skeletonWinePackage": "rootfs_wine_10.0",
+    "fontsComponentSha256": "65667b32f649748c0aae129a6fedc9595389943c9926f03a955f4435276d982d",
+    "scriptsComponentSha256": "c6bd6c3a712f1657a7a0cdfac5af45cf7d7d0a1f042549ea05dfab69a62c26ef",
+    "appsComponentSha256": "248d960f54f292496ed1b2f48ead53a5b0db697f8fc08d42a5f86e8ce9f22775",
+    "omittedStartupEntries": [],
+    "nativeAcceptance": "Pending"
+  }
+}

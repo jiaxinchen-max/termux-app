@@ -16,9 +16,9 @@ public final class RuntimeEnvironmentStatus {
         this.paths = paths;
     }
 
-    /** Counts the exact marker files install_termux_glibc_runtime.sh verifies after install:
-     *  all present is READY, none present is NOT_READY, and a partial count is INCOMPLETE
-     *  (interrupted install, or one still in progress). */
+    /** Checks base markers and required tools verified by install_termux_glibc_runtime.sh.
+     *  No base markers is NOT_READY even if shared tools are preinstalled; READY also
+     *  requires executable Python and 7z. Partial or missing prerequisites are INCOMPLETE. */
     public RuntimeReadinessState glibcState() {
         File prefix = paths.getTermuxPrefixDirectory();
         File glibc = new File(prefix, "glibc");
@@ -33,7 +33,9 @@ public final class RuntimeEnvironmentStatus {
         int present = 0;
         for (boolean marker : markers) if (marker) present++;
         if (present == 0) return RuntimeReadinessState.NOT_READY;
-        if (present == markers.length) return RuntimeReadinessState.READY;
+        if (present == markers.length
+            && new File(prefix, "bin/python").canExecute()
+            && new File(prefix, "bin/7z").canExecute()) return RuntimeReadinessState.READY;
         return RuntimeReadinessState.INCOMPLETE;
     }
 

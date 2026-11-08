@@ -31,7 +31,7 @@ public final class GameContainerFactory {
             profile.getEnvironment());
     }
 
-    /** The default id is reserved for the one shared GLIBC prefix used by every game. */
+    /** The default id is reserved for shared GLIBC infrastructure; prefixes are separated by Wine. */
     public static GameContainer globalGlibcFromProfile(RuntimeProfile profile) {
         RuntimeProfile source = profile.getRuntimeBackendType() ==
             com.termux.ui.wine.domain.GameRuntimeBackendType.GLIBC_TERMUX_BOX

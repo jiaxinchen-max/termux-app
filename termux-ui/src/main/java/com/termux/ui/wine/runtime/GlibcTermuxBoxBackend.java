@@ -88,7 +88,7 @@ public final class GlibcTermuxBoxBackend implements GameRuntimeBackend {
     @Override
     public File resolvePrefix(GameStoragePaths paths, RuntimeProfile profile) throws IOException {
         requireProfile(profile);
-        return paths.getContainerPrefixDirectory(profile.getContainerId()).getCanonicalFile();
+        return paths.getNativePrefixDirectory(profile.getContainerId(), profile.getWinePackage()).getCanonicalFile();
     }
 
     @Override

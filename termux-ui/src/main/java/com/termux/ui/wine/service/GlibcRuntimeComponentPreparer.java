@@ -48,6 +48,11 @@ final class GlibcRuntimeComponentPreparer {
     }
 
     void ensure(RuntimeProfile profile) throws IOException {
+        // Host-managed packages are not in the downloadable component catalog.
+        // Install and verify them before activation can publish files into their tree.
+        com.termux.ui.wine.runtime.NativeBaseRuntimePrerequisite.ensure(
+            () -> host.isRuntimeComponentAvailable(GlibcTermuxBoxBackend.TERMUX_GLIBC_ID),
+            () -> ensure(GlibcTermuxBoxBackend.termuxGlibcDescriptor()));
         for (String componentId : new GlibcTermuxBoxBackend().requiredComponentIds(profile,
             new com.termux.ui.data.GameStoragePaths(context.getFilesDir()))) {
             ComponentDescriptor descriptor = index.find(componentId).orElseThrow(() ->
@@ -60,7 +65,10 @@ final class GlibcRuntimeComponentPreparer {
         console.append("Preparing component: " + descriptor.getDisplayName() + " (" + descriptor.getId() + ")");
         if (isAvailable(descriptor)) return;
 
-        InstalledComponent active = installations.read(descriptor.getId()).getActive().orElse(null);
+        // The host-managed runtime has no archive installation/activation receipt.
+        boolean hostManaged = GlibcTermuxBoxBackend.TERMUX_GLIBC_ID.equals(descriptor.getId());
+        InstalledComponent active = hostManaged ? null
+            : installations.read(descriptor.getId()).getActive().orElse(null);
         if (matches(active, descriptor)) {
             ComponentTasks.activate(context, descriptor.getId());
             waitForRuntime(descriptor, COMPONENT_TIMEOUT_MS);

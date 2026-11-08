@@ -58,6 +58,23 @@ public final class GameStoragePaths {
         return new File(getContainerDirectory(containerId), "prefix-" +
             backendType.getStorageValue());
     }
+
+    /** Native engines keep separate writable prefixes; changing Wine never migrates another engine's data. */
+    public File getNativePrefixDirectory(String containerId, String winePackage) {
+        if (".".equals(containerId) || "..".equals(containerId) || winePackage == null ||
+            !winePackage.matches("(?:glibc_(?:wine|proton)_|custom-wine-)[A-Za-z0-9._-]+")) {
+            throw new IllegalArgumentException("native_prefix_identity_invalid");
+        }
+        return new File(new File(getContainerDirectory(containerId), "native-prefixes"), requireId(winePackage));
+    }
+
+    public File getContainerPrefixDirectory(String containerId, GameRuntimeBackendType backendType,
+                                            String winePackage) {
+        if (backendType == GameRuntimeBackendType.GLIBC_TERMUX_BOX) {
+            return getNativePrefixDirectory(containerId, winePackage);
+        }
+        return getContainerPrefixDirectory(containerId, backendType);
+    }
     /** Root of the KWin desktop distributions managed by the Desktop feature. */
     public File getDesktopDirectory() { return new File(libraryDirectory.getParentFile(), "desktop"); }
     public File getDesktopDistrosDirectory() { return new File(getDesktopDirectory(), "distros"); }

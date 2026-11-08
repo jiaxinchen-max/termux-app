@@ -39,7 +39,7 @@ else
 fi
 run "$PACKAGE_MANAGER" install -y glibc-repo || { emit FAILED; exit 1; }
 run "$PACKAGE_MANAGER" update || { emit FAILED; exit 1; }
-run "$PACKAGE_MANAGER" install -y glibc glibc-runner || { emit FAILED; exit 1; }
+run "$PACKAGE_MANAGER" install -y glibc glibc-runner python 7zip || { emit FAILED; exit 1; }
 
 # Wine's X11 driver (winex11.drv) links these native libraries to talk to the Xlorie X
 # server; without them Wine can start but never render a visible window (it silently
@@ -53,6 +53,8 @@ run "$PACKAGE_MANAGER" install -y \
 if [ ! -f "$PREFIX/glibc/lib/ld-linux-aarch64.so.1" ] || \
    [ ! -f "$PREFIX/glibc/lib/libc.so.6" ] || \
    [ ! -x "$PREFIX/bin/grun" ] || \
+   [ ! -x "$PREFIX/bin/python" ] || \
+   [ ! -x "$PREFIX/bin/7z" ] || \
    [ ! -f "$PREFIX/glibc/lib/libX11.so.6" ] || \
    [ ! -f "$PREFIX/glibc/lib/libXrender.so.1" ] || \
    [ ! -f "$PREFIX/glibc/lib/libfreetype.so.6" ]; then

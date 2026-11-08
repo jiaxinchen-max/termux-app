@@ -1,25 +1,20 @@
-# One-time Wine prefix / GLIBC initialisation that every Native game needs: the Noto CJK fonts and their
-# FontLink registry entries, and the zh_CN locales. Sourced by bootstrap_termux_box.sh, which the prefix
+# Native prebuilt font verification and shared GLIBC locale preparation. Sourced by bootstrap_termux_box.sh, which the prefix
 # setup task runs when a game is imported or its runtime options are saved, and by
-# start_termux_box_game.sh, where it is only a safety net: each function returns at once when its marker
-# exists, so a launch never pays for it.
+# start_termux_box_game.sh. Font verification is read-only; no runtime registry repair.
 #
-# Callers provide: TERMUX_GLIBC_DIR, GLIBC_BIN, WINEPREFIX, TERMUX_BOX_RUN_DIR and a run_container_wine
-# function that runs the prefix's wine with the given arguments. GAMES_WINESERVER_BIN may name the wineserver
-# to use for flushing the registry; the runtime selector sets its exact version path.
+# Callers provide TERMUX_GLIBC_DIR, GLIBC_BIN, WINEPREFIX and TERMUX_BOX_RUN_DIR.
 
 ensure_games_wine_fonts() {
     _glibc_font_dir="$TERMUX_GLIBC_DIR/share/fonts"
     _font_source="$_glibc_font_dir/NotoSansCJK-Regular.ttc"
     _serif_source="$_glibc_font_dir/NotoSerifCJK-Regular.ttc"
-    _font_target="$WINEPREFIX/drive_c/windows/Fonts/NotoSansCJK-Regular.ttc"
     # The GLIBC Wine runtime resolves font fallback through FONTCONFIG_PATH, whose
     # configured source is $TERMUX_GLIBC_DIR/share/fonts.  Keeping a TTC only in
     # C:\\Windows\\Fonts leaves that source empty and produces tofu glyphs.
     _font_marker="$WINEPREFIX/termux-boxmeta/games-wine-fonts-v2"
-    _font_registry="$WINEPREFIX/termux-boxmeta/games-wine-fonts.reg"
-    _font_link='"Tahoma"=hex(7):4e,00,6f,00,74,00,6f,00,53,00,61,00,6e,00,73,00,43,00,4a,00,4b,00,2d,00,52,00,65,00,67,00,75,00,6c,00,61,00,72,00,2e,00,74,00,74,00,63,00,2c,00,4e,00,6f,00,74,00,6f,00,20,00,53,00,61,00,6e,00,73,00,20,00,43,00,4a,00,4b,00,20,00,53,00,43,00,00,00,00,00'
-    [ -f "$_font_source" ] && [ -f "$_serif_source" ] || {
+    [ -f "$_font_source" ] && [ -f "$_serif_source" ] &&
+    [ -f "$WINEPREFIX/drive_c/windows/Fonts/NotoSansCJK-Regular.ttc" ] &&
+    [ -f "$WINEPREFIX/drive_c/windows/Fonts/NotoSerifCJK-Regular.ttc" ] || {
         echo "ERROR: Required Wine fonts runtime component is not activated."
         return 1
     }
@@ -29,61 +24,8 @@ ensure_games_wine_fonts() {
                 "$WINEPREFIX/system.reg" >/dev/null 2>&1
     }
     [ -f "$_font_marker" ] && _font_registry_is_persisted && return 0
-    mkdir -p "$(dirname "$_font_target")" "$WINEPREFIX/termux-boxmeta" || return 1
-    cp "$_font_source" "$_font_target" || return 1
-    cp "$_serif_source" "$WINEPREFIX/drive_c/windows/Fonts/NotoSerifCJK-Regular.ttc" || return 1
-    # Wine rewrites system.reg from its in-memory registry on startup.  Appending
-    # keys directly therefore produces a marker without durable font fallbacks.
-    # Import after the prefix exists and wait for wineserver to flush the hives.
-    {
-        printf '%s\n' 'REGEDIT4'
-        printf '\n'
-        for _branch in \
-            'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Fonts' \
-            'HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Fonts'; do
-            printf '[%s]\n' "$_branch"
-            printf '%s\n' '"Noto Sans CJK SC (TrueType)"="NotoSansCJK-Regular.ttc"'
-            printf '%s\n' '"Noto Sans CJK SC Bold (TrueType)"="NotoSansCJK-Regular.ttc"'
-            printf '\n'
-        done
-        for _branch in \
-            'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\FontSubstitutes' \
-            'HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\FontSubstitutes'; do
-            printf '[%s]\n' "$_branch"
-            for _name in Tahoma 'Tahoma Bold' 'MS Shell Dlg' 'MS Shell Dlg 2' \
-                'Microsoft Sans Serif' 'MS Sans Serif' 'Lucida Sans Unicode' Arial \
-                'Arial Black' 'Segoe UI' 'Segoe UI Semibold' 'Segoe UI Symbol' \
-                SimSun NSimSun 'Microsoft YaHei' 'Microsoft YaHei UI' Meiryo; do
-                printf '"%s"="Noto Sans CJK SC"\n' "$_name"
-            done
-            printf '\n'
-        done
-        for _branch in \
-            'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\FontLink\SystemLink' \
-            'HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\FontLink\SystemLink'; do
-            printf '[%s]\n' "$_branch"
-            printf '%s\n' "$_font_link"
-            for _name in 'Tahoma Bold' 'MS Shell Dlg' 'MS Shell Dlg 2' \
-                'Microsoft Sans Serif' 'MS Sans Serif' 'Lucida Sans Unicode' Arial 'Arial Black'; do
-                printf '"%s"=%s\n' "$_name" "${_font_link#*=}"
-            done
-            printf '\n'
-        done
-    } > "$_font_registry" || return 1
-    if ! run_container_wine regedit "$_font_registry"; then
-        echo "ERROR: Wine CJK registry import failed."
-        return 1
-    fi
-    # regedit may return before its wineserver flushes the prefix hives.
-    native_run_box64 "${GAMES_WINESERVER_BIN:?selected_wineserver_required}" -w >/dev/null 2>&1 || true
-    native_run_box64 "${GAMES_WINESERVER_BIN:?selected_wineserver_required}" -k >/dev/null 2>&1 || true
-    if _font_registry_is_persisted; then
-        : > "$_font_marker"
-        echo "Configured CJK FontLink for the game prefix."
-    else
-        echo "ERROR: CJK FontLink was not persisted."
-        return 1
-    fi
+    echo "ERROR: Native prebuilt prefix font state is invalid."
+    return 1
 }
 
 ensure_games_cjk_locale() {

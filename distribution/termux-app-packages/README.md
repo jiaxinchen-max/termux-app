@@ -512,3 +512,33 @@ python3 distribution/termux-app-packages/package-prefix-assets.py \
 以上联合审计失败段落记录早期候选，不代表最终交付状态。最终采用已验证的精确 Proton + SUD 构建，并在原精简镜像仅补充 ARM64 客体 GstGL/GUdev；未引入 LLVM 或重建其他发行版。当前索引引用的五份资源已发布并完成公开下载字节数及 SHA-256 校验。
 
 用户安装当前 APK 后，通过实际 App 界面完成 Wine、Proton、Hangover 各 PE32/PE64 共六项测试：独立 prefix 自动下载恢复，配置准备 6.683–8.668 秒，无完整 wineboot 或游戏准备时镜像重建；动态 version.dll、中文文件写入和可见 Win32 窗口通过。通过 App 退出后无运行时进程或锁残留。此计时不含首次镜像下载及 Wine 服务启动；具体游戏、3D、音频和硬件兼容性未覆盖，用户最终接受仍待确认。
+
+
+## Native 预构建 prefix（本地候选，待 App 验收）
+
+Native 复用已验证 PRoot WoW64 的注册表和目录骨架，但逐文件重新绑定所选 Native Wine 的 PE DLL/NLS、字体及既有附加程序；不复制 PRoot 的 Unix 动态库。五个固定组件分别制备独立资源：Wine 8.18-staging、9.0-staging、9.3-vanilla、10.0 和 Proton 11.0。构建输入位于 `native-prefix-assets/<winePackage>/`；APK 仅保留对应 `bundle.json`，准备时按需使用现有下载/缓存/安全安装链路。资源为内部依赖，不激活到主机 GLIBC 目录，也不增加用户配置项。
+
+```sh
+python3 distribution/termux-app-packages/package-native-wine-prefix.py \
+  --skeleton distribution/termux-app-packages/prefix-assets/prefix-wine10-wow64 \
+  --wine-archive /build/glibc_wine_10.0.tar.xz \
+  --component glibc_wine_10.0 \
+  --fonts-archive /build/glibc_fonts_1.tar.xz \
+  --scripts-archive /build/glibc_scripts_29.tar.xz \
+  --apps-archive /build/glibc_prefix-apps_3.tar.xz \
+  --index termux-ui/src/main/assets/termux-app-packages/index-v1.json \
+  --output /build/native-prefix-glibc_wine_10.0
+python3 distribution/termux-app-packages/package-prefix-assets.py \
+  --source /build/native-prefix-glibc_wine_10.0 \
+  --output /build/native_prefix_wine_10.0-v1.tar.gz
+```
+
+Proton 使用独立的 `prefix-proton11-wow64` 骨架；未知或自定义 Wine 无已验证资产时明确失败。恢复器要求 APK 固定 bundle 摘要、所选组件凭据与每个来源文件摘要一致，检查空间、路径、非空目标和取消，再原子发布。Native Python 恢复工具由 Termux 工具链提供；GLIBC 自动准备包含此依赖。
+
+Native 可写路径为 `front/containers/<containerId>/native-prefixes/<winePackage>`，同容器同版本保留共享语义，切换 Wine 选择另一个独立 prefix。旧单 prefix 不迁移或删除；不通过 wineboot 升级，不覆盖非空数据。用户名、字体注册及默认注册表离线处理，盘符在恢复时绑定实际主机路径；图形/DirectX 仍按原选择应用。
+
+2026-11-08 本地候选完成 22 项 Native 恢复测试、33 项 PRoot 恢复回归、44 项定向 JVM 测试及 Native 启动脚本集成检查；五套实际归档均完成首次/第二配置恢复及逐文件 SHA-256 校验。这些验证没有运行 Native Wine，不能替代 Android App 的 PE32/PE64、中文、服务与退出验收。五份外部资源每份约 3.7–4.0 MiB，尚未发布；发布后才能验收在线首次准备。正常原名 arm64 APK 为 45647375 字节（43.53 MiB），签名有效且 testOnly=false，不含 prefix payload。严格 Harness 脚本在此 checkout 缺失，状态为 Unavailable。产品最终接受继续待确认。
+
+2026-11-08 发布状态更新：用户明确授权后，五份 Native prefix 资源已发布至 `jiaxinchen-max/termux-app-packages`；逐份匿名公开下载核验大小/SHA-256，与当前 APK 索引一致。APK 已提供原名下载，等待用户手动安装及真实 App 界面运行验收。上文“尚未发布”描述为发布前本地候选状态。
+
+2026-11-08 App 验证更新：Native 基础准备先核验主机 glibc、Python、7z 与必要图形库，缺失时走既有官方包安装链路，并重新核验后继续；7z 由官方 `7zip` 提供。用户手动安装最新正常 APK 后，经 App 保存准备自动补装 7zip 并复用已恢复 prefix，图形解压通过。首次准备含中文 locale 生成约85.075秒；同一 Wine10 的第二份配置直接复用，仅0.154秒。Native Wine10 PE64/PE32 图形测试均显示动态 version.dll、中文文件写入和中文 GUI PASS；通过 App 退出返回游戏库，最终无运行时进程和启动锁残留，无wineboot或prefix重建。日志保留 `libXrandr.so.2` 缺失警告，动态分辨率及相关扩展未验证；其余四个 Native 版本、具体游戏、3D、音频及硬件兼容性未由此覆盖。用户最终接受仍待确认。

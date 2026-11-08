@@ -76,7 +76,16 @@ public class TermuxRuntimeComponentProbeTest {
         write(new File(files, "usr/glibc/lib/libXrender.so.1"), "xrender");
         assertFalse(probe.isAvailable("termux-glibc"));
         write(new File(files, "usr/glibc/lib/libfreetype.so.6"), "freetype");
-
+        assertFalse(probe.isAvailable("termux-glibc"));
+        File python = new File(files, "usr/bin/python");
+        write(python, "python");
+        assertTrue(python.setExecutable(true, false));
+        assertFalse("Without 7z Native driver preparation cannot complete", probe.isAvailable("termux-glibc"));
+        File sevenZip = new File(files, "usr/bin/7z");
+        write(sevenZip, "sevenZip");
+        assertTrue(sevenZip.setExecutable(false, false));
+        assertFalse("A non-executable 7z cannot satisfy the prerequisite", probe.isAvailable("termux-glibc"));
+        assertTrue(sevenZip.setExecutable(true, false));
         assertTrue(probe.isAvailable("termux-glibc"));
         assertTrue(probe.isAvailable("termux-glibc", 1));
     }

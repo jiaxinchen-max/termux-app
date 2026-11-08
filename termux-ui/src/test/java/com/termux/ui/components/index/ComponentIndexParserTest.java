@@ -28,8 +28,8 @@ public class ComponentIndexParserTest {
         }
 
         assertEquals(2, index.getSchemaVersion());
-        assertEquals("2026-11-08T15:52:52Z", index.getGeneratedAt());
-        assertEquals(25, index.getComponents().size());
+        assertEquals("2026-11-08T23:50:00Z", index.getGeneratedAt());
+        assertEquals(30, index.getComponents().size());
         ComponentDescriptor image = index.find("rootfs_debian13_hangover_pdb2_minimal").get();
         assertEquals(ComponentType.IMAGE_FS, image.getType());
         assertTrue(image.isBase());

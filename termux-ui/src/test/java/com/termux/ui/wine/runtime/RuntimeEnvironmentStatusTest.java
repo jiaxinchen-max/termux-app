@@ -56,7 +56,35 @@ public class RuntimeEnvironmentStatusTest {
         assertTrue(grun.createNewFile());
         assertTrue(grun.setExecutable(true));
 
+        File python = new File(bin, "python");
+        assertTrue(python.createNewFile());
+        assertTrue(python.setExecutable(true));
+        assertEquals(RuntimeReadinessState.INCOMPLETE,
+            new RuntimeEnvironmentStatus(paths).glibcState());
+        File sevenzip = new File(bin, "7z");
+        assertTrue(sevenzip.createNewFile());
+        assertTrue(sevenzip.setExecutable(false));
+        assertEquals(RuntimeReadinessState.INCOMPLETE,
+            new RuntimeEnvironmentStatus(paths).glibcState());
+        assertTrue(sevenzip.setExecutable(true));
         assertEquals(RuntimeReadinessState.READY,
+            new RuntimeEnvironmentStatus(paths).glibcState());
+        assertTrue(python.setExecutable(false));
+        assertEquals(RuntimeReadinessState.INCOMPLETE,
+            new RuntimeEnvironmentStatus(paths).glibcState());
+    }
+
+    @Test
+    public void sharedToolsAloneDoNotMakeGlibcInstalled() throws Exception {
+        GameStoragePaths paths = new GameStoragePaths(temporary.newFolder("files-tools-only"));
+        File bin = new File(paths.getTermuxPrefixDirectory(), "bin");
+        assertTrue(bin.mkdirs());
+        for (String name : new String[] {"python", "7z"}) {
+            File tool = new File(bin, name);
+            assertTrue(tool.createNewFile());
+            assertTrue(tool.setExecutable(true));
+        }
+        assertEquals(RuntimeReadinessState.NOT_READY,
             new RuntimeEnvironmentStatus(paths).glibcState());
     }
 

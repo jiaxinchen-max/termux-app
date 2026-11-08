@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-08T15:52:52Z",
+  "generatedAt": "2026-11-08T23:50:00Z",
   "packages": [
     {
       "id": "glibc_box64_0.2.7",
@@ -501,6 +501,106 @@
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/prefix-proton11-wow64-v1/prefix-proton11-wow64-v1.tar.gz",
       "size": 772405,
       "sha256": "07235c1e47351a29dde91c9f2d27a0b34ddea3300a8829f551d49cd1aa9dbab8"
+    },
+    {
+      "id": "native_prefix_wine_9.0-staging",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Wine environment",
+      "versionName": "1",
+      "summary": "Automatically prepared Wine environment.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native_prefix_wine_9.0-staging-v1/native_prefix_wine_9.0-staging-v1.tar.gz",
+      "size": 3886319,
+      "sha256": "12bcad3590ed55e57b2c49a7c3af3702191ae15973e4db0e062822e393d6ee2f"
+    },
+    {
+      "id": "native_prefix_wine_8.18-staging",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Wine environment",
+      "versionName": "1",
+      "summary": "Automatically prepared Wine environment.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native_prefix_wine_8.18-staging-v1/native_prefix_wine_8.18-staging-v1.tar.gz",
+      "size": 3885945,
+      "sha256": "ce70ed57021c2a8e4464f13201165956cfdc9e98a4deac8f8eaaa2c0c957d645"
+    },
+    {
+      "id": "native_prefix_wine_9.3-vanilla",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Wine environment",
+      "versionName": "1",
+      "summary": "Automatically prepared Wine environment.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native_prefix_wine_9.3-vanilla-v1/native_prefix_wine_9.3-vanilla-v1.tar.gz",
+      "size": 3886132,
+      "sha256": "e36835941f1d41fee10e1a8ba71787c04f88b3693d466e52a4aae67008f37546"
+    },
+    {
+      "id": "native_prefix_wine_10.0",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Wine environment",
+      "versionName": "1",
+      "summary": "Automatically prepared Wine environment.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native_prefix_wine_10.0-v1/native_prefix_wine_10.0-v1.tar.gz",
+      "size": 3891955,
+      "sha256": "65e106e34eaf34dacccba8308d2020aa27715df4a7c72542d68cc51ba6c0ab55"
+    },
+    {
+      "id": "native_prefix_proton_11.0",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Wine environment",
+      "versionName": "1",
+      "summary": "Automatically prepared Wine environment.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native_prefix_proton_11.0-v1/native_prefix_proton_11.0-v1.tar.gz",
+      "size": 4187521,
+      "sha256": "0f556e7b966df2ce5fd5fcae284bec4d03bd3fae7cd59871c0d70189ff29c701"
     }
   ]
 }

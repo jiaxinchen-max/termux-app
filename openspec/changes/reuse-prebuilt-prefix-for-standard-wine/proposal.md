@@ -47,3 +47,15 @@
 用户要求将三套预生成 prefix 放入资产仓库，通过网络/缓存恢复。三套分别对应 Hangover 11.16、Wine 10.0、Proton 11.0。APK 只保留小型固定描述与摘要，不再内置三套 manifest/delta 数据。准备时只获取所选 Wine 的 prefix，优先复用通过校验的已安装资源或归档缓存，缺少有效缓存时使用现有组件下载流程。资源作为内部依赖，不增加用户技术选项。此项调整替代第8组“prefix 内置 APK”的交付方式，不改变 SUD 运行时和最小补库镜像。
 
 API 文档 N/A：复用已有静态资产下载接口，不改变 HTTP 契约。产品文档 Required/Pending，目标仍为 docs/product/runtime-components.md 与 docs/product/wine-library.md；当前 checkout 缺少这些产品文件，最终接受前不能冒称已同步。本增量业务修改等待规划确认；独立归档准备不改变产品行为。
+
+## Native 预生成 Prefix 增量（2026-11-08 已批准）
+
+用户批准 Native 复用已验证的同架构 PRoot 预生成骨架，按 Native 所选 Wine 重新绑定 DLL、字体和路径。覆盖目录中的五个 Native Wine/Proton；每个固定组件独立资产，网络/缓存自动恢复，APK 不嵌入 payload。禁止新建/切换时回退 wineboot，未知自定义版本缺少受验证资产时明确失败；不共享运行中的 PRoot 前缀或跨版本 Native 可写前缀。没有 HTTP 契约变更。产品文档 runtime-components/wine-library 一致性保持 Pending 至用户接受。
+
+## Native 基础依赖准备缺口修复（用户已确认）
+
+实际 App 验证确认设备缺少 Native glibc 基础环境，准备服务却先完成各组件下载，最后才报 glibc_loader_missing。用户要求“修复这个问题”，确认本增量：保存准备时先检查/安装既有 termux-glibc 主机依赖并重新验证，通过后才处理 Native 组件与 prefix。HTTP契约不变，api_docs为N/A；首次准备流程改变，product_docs为Required，最终一致性与用户接受保持Pending。
+
+## Native 解压工具遗漏修复（用户确认）
+
+App实测完成基础安装及免wineboot的prefix恢复后，因缺少7z在图形归档解压阶段失败。用户要求“修复”，确认将Termux官方7zip纳入基础依赖、安装完成检查及真实主机就绪探针。HTTP契约不变，api_docs=N/A；Native首次准备可用性变化，product_docs=Required且最终一致性保持Pending。

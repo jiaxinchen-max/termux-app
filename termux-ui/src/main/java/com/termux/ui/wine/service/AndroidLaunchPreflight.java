@@ -99,7 +99,7 @@ public final class AndroidLaunchPreflight {
                 result = result.withIssueFirst(new PreflightIssue(code, subject));
             }
         } else {
-            File prefix = paths.getContainerPrefixDirectory(profile.getContainerId());
+            File prefix = paths.getNativePrefixDirectory(profile.getContainerId(), profile.getWinePackage());
             if (!new File(prefix, ".termux-box-bootstrap-done").isFile()) {
                 result = result.withIssue(new PreflightIssue(
                     PreflightIssueCode.RUNTIME_SETUP_REQUIRED, "prefix_setup_required"));

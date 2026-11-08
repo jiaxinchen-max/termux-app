@@ -161,7 +161,7 @@ public final class ComponentTaskForegroundService extends Service {
                     "Queued component " + descriptor.getDisplayName());
                 if (isTermuxGlibcRuntime(descriptor)) {
                     ComponentTaskConsoleLog.append(getFilesDir(), taskId,
-                        "Starting Termux package installation: glibc-repo, glibc, glibc-runner.");
+                        "Starting Termux package installation: glibc-repo, glibc, glibc-runner, python, 7zip and graphics libraries.");
                 } else {
                     ComponentTaskConsoleLog.append(getFilesDir(), taskId,
                         "GET " + descriptor.getUrl() + " · expected " + descriptor.getSize() +
@@ -456,6 +456,7 @@ public final class ComponentTaskForegroundService extends Service {
 
     private void activateRuntimeComponent(ComponentDescriptor descriptor,
                                           File preparedDirectory) throws IOException {
+        if (com.termux.ui.wine.runtime.NativePrebuiltPrefixes.isComponentId(descriptor.getId())) return;
         if (!descriptor.supportsBackend(GameRuntimeBackendType.GLIBC_TERMUX_BOX)) return;
         LocalGamesHost host = LocalGames.requireHost(this);
         boolean activated = host.activateRuntimeComponent(new RuntimeComponentActivation(

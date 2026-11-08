@@ -51,7 +51,8 @@ public final class GameAssetInventoryScanner {
         ReadOnlyTreeMeasure measure = new ReadOnlyTreeMeasure();
         List<GameAssetUsage> usages = new ArrayList<>();
         ReadOnlyTreeMeasure.Stats prefix = new ReadOnlyTreeMeasure.Stats();
-        measure.add(paths.getContainerPrefixDirectory(profile.getContainerId(), profile.getRuntimeBackendType()), prefix);
+        measure.add(paths.getContainerPrefixDirectory(profile.getContainerId(), profile.getRuntimeBackendType(),
+            profile.getWinePackage()), prefix);
         usages.add(usage(GameAssetCategory.PREFIX, prefix, false, sharedContainer));
         ReadOnlyTreeMeasure.Stats container = new ReadOnlyTreeMeasure.Stats();
         // The prefix has already been counted, including hardlinks shared with the home tree.

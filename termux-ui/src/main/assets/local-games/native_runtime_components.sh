@@ -26,6 +26,16 @@ require_native_wine_runtime() {
     [ -x "$WINE_PATH/bin/wine" ] && [ -x "$WINE_PATH/bin/wineserver" ] || {
         native_component_error "wine_selected_binary_missing:$TERMUX_BOX_WINE_PACKAGE"; return 1;
     }
+    if [ -f "${WINEPREFIX:-/nonexistent}/.games-runtime/native-user" ]; then
+        [ ! -L "$WINEPREFIX/.games-runtime/native-user" ] || return 1
+        native_user=$(cat "$WINEPREFIX/.games-runtime/native-user") || return 1
+        case "$TERMUX_BOX_WINE_PACKAGE:$native_user" in
+            glibc_wine_*:root|glibc_proton_11.0:steamuser) ;;
+            *) native_component_error native_prefix_user_mismatch; return 1 ;;
+        esac
+        # Wine reads USER to select the Windows account. This does not change Android UID.
+        export USER="$native_user" LOGNAME="$native_user"
+    fi
 }
 
 resolve_native_box64() {

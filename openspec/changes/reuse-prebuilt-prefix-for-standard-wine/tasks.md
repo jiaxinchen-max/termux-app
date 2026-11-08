@@ -107,3 +107,45 @@ Proton11出现err:seh:install_bpf低地址映射导致未安装seccomp，按用�
 2026-11-08（设备显示11月9日）用户手动安装后要求“通过app界面验证”。已核对APK完整SHA256；所有安装、导入、Wine版本选择、准备、启动和退出均通过实际App界面触发，未直接调用后台验证服务、修改私有游戏元数据或shell启动Wine。精简镜像网络下载及安装通过；Wine、Proton、Hangover的三套独立prefix均由当前APK从已发布资产自动下载校验恢复。六份独立配置（各PE64/PE32）准备分别7.068/6.683、7.419/7.723、8.668/7.563秒，均无完整wineboot、无游戏准备时镜像重建。六个图形测试窗口均实际显示动态version.dll、中文文件名写入及中文GUI PASS；确认关闭后六次App内退出均返回游戏库，最终无Wine/Box64/PRoot进程及启动锁。证据：.harness/runs/reuse-prebuilt-prefix-for-standard-wine/evidence/prefix-network-app-ui-acceptance.json；截图和界面动作记录位于artifacts/proton-sud-apk/network-device-acceptance。此结果仅覆盖所列界面冒烟范围；具体游戏、3D/音频/硬件、故障注入及用户最终接受仍不据此标记完成，产品文档保持Pending。
 
 2026-11-08 用户明确要求“推送代码”，授权提交并推送本轮实现、构建来源、资产索引与 OpenSpec 记录至当前分支；不包含归档或产品文档最终接受。此前各阶段“未授权Git操作”为当时状态，由本次授权更新。
+
+## 第10组：Native 免完整初始化（已确认）
+
+2026-11-08 用户“批准执行”，批准前述 Native 预生成恢复设计及保护路径；不自动提交、推送、归档或安装设备 APK。
+
+- [x] 10.1 核对 Native 准备、激活、字体、盘符、Wine 版本与 PRoot 资产差异，记录增量规划及实施授权。
+- [x] 10.2 构建五个固定 Native 组件的独立模板，复用已验证骨架、重新绑定 DLL/用户/字体，记录来源与归档摘要。
+- [x] 10.3 接入自动网络/缓存获取、可信校验、Native 原子恢复和准备收据，移除完整 wineboot/隐式恢复兜底。
+- [x] 10.4 完成损坏/越界/错版本/非空/取消等安全回归、Native 身份/依赖定向测试及源码复核，保护 PRoot 既有路径。
+- [x] 10.5 正常构建原名 arm64 APK，核对签名、testOnly=false、无 prefix payload，准备明确新资源发布清单。
+- [x] 10.6 用户手动安装后通过 App 界面验证 Native Wine10 PE32/PE64、中文、首次/第二配置和退出；其余Native版本与最终接受/产品文档保持待确认。
+
+
+2026-11-08 第10组本地实施与交付准备完成：五套 Native 资产复用既有验证骨架，全部来源绑定所选 Native 组件，Native Unix 加载器/库与 PRoot 保持独立；沿用原附加程序/DirectX/字体与默认注册表，不在准备阶段执行 Wine。容器按 Wine 版本隔离可写 prefix，旧路径不迁移、不删除；缺失、错包、损坏、非空、取消等明确失败，不走 wineboot 或后端兜底。22项Native恢复、33项PRoot回归、44项JVM、Native启动脚本集成及五套真实归档各两次恢复/逐文件校验通过，直接源码复核完成。正常原名arm64 APK45647375字节（43.53MiB），SHA256 1c4555621b1ad140fa51716771be84b03d41ad5baafec7f635ce52bae12657b9，签名有效、testOnly=false、无prefix payload。五份外部资产各3.7–4.0MiB，等待本增量独立发布授权；当前尚不能完成在线首次准备。未安装/清理设备，未运行Native Wine，App实际功能验收与最终产品接受保持Pending；不将本地恢复计时当作设备性能。严格Harness脚本缺失记Unavailable。证据evidence/native-prefix-delivery.json，复核reviews/native-prefix-review.json。无Git操作或归档。
+
+2026-11-08 用户明确“发布,将apk给我下载手动安装”，授权发布五份 Native prefix 资产至 jiaxinchen-max/termux-app-packages。五个独立版本 Release 已发布，全部经无认证公开下载核对字节数和 SHA-256，与 APK 固定索引一致；未覆盖既有资产。原名 APK 下载服务实际 GET 完整摘要核对通过，仍为45647375字节、SHA256 1c4555621b1ad140fa51716771be84b03d41ad5baafec7f635ce52bae12657b9。用户手动安装及第10.6项 App 界面 Native 验收保持Pending；无Git操作、设备安装或归档。发布凭据evidence/native-prefix-publication.json。
+
+2026-11-08 用户安装后继续界面验收，完整APK SHA256一致。通过App切换Native库、导入PE64、选择安装Wine10并保存准备；编辑页显示Backend: Native，导入无后端选择。App自动下载/安装所需组件及新native_prefix_wine_10.0资源3891955字节，摘要校验通过。但准备脚本在恢复前因glibc_loader_missing失败；只读核查确认设备缺usr/glibc/lib/ld-linux-aarch64.so.1、libc.so.6及usr/bin/grun，Python已有。Native基础环境未安装，准备入口未预先检查/引导基础安装，是流程缺口；不能据此判定prefix内容不兼容。依用户严格规则立即停止，未重试、安装基础环境、切换后端或执行Wine。目标prefix未创建，无Wine/Box64/PRoot进程。10.6继续未完成，后续PE32/PE64、中文、第二配置及退出验收均未执行。证据evidence/native-prefix-app-ui-acceptance.json和artifacts/native-prefix/app-ui-acceptance。
+
+## 第11组：Native基础环境准备缺口修复（用户确认）
+
+2026-11-08 用户“修复这个问题”，确认修复已实测的Native基础环境遗漏及对应准备/安装保护路径；不包含Git操作、设备自动安装或外部资产修改。
+
+- [x] 11.1 将主机termux-glibc作为准备第一步，复用既有安装/状态/验证链路，安装前后都检查真实能力。
+- [x] 11.2 增加基础就绪/缺失/失败/错误成功/重复准备回归，核对失败不继续组件或prefix、没有自动重试。
+- [x] 11.3 完成源码复核和正常原名APK构建，核验签名/testOnly=false、资产不变及下载摘要；用户手动安装后的App验收保持Pending。
+
+2026-11-08 第11组本地修复完成：Native准备入口先检查主机termux-glibc，缺失时通过既有官方包任务安装并重新验证，之后才准备目录组件及恢复prefix；主机依赖不读取归档安装凭据、不触发归档激活。已有有效基础环境直接复用；安装失败/取消或错误成功立即传播，不执行后续步骤。Python同时纳入安装脚本最终校验。29项JVM、4项实际安装脚本隔离夹具回归及shell语法检查通过，直接源码复核完成。正常原名arm64 APK45647393字节（43.53MiB），SHA256 3c1f00d6722f8513cd8855f6f0dfbf8320dfcc0a30510bd2937e66842a35804f，签名有效、testOnly=false、无prefix payload；已发布Native/PRoot资产及配方描述保持不变。更新原下载文件供用户手动安装；未在设备替换脚本、安装包或运行后台验证。真实App缺失基础依赖安装、prefix恢复及PE32/PE64验收继续Pending，10.6未完成；严格Harness脚本缺失Unavailable。证据evidence/native-base-prerequisite-fix.json，复核reviews/native-base-prerequisite-review.json。无Git、发布新资产或归档。
+
+2026-11-08 用户安装并授权“清理历史游戏后验证”。核对APK完整SHA256为3c1f00d6…一致；清理7条历史游戏及对应配置/容器/启动数据，保留主机工具、共享RootFS、已安装组件与下载缓存，空Native游戏库截图确认。随后仅经App界面导入PE64、选择Wine10并保存准备。App首先自动安装官方termux-glibc，取得成功事件并通过真实主机探针，原glibc_loader_missing问题修复验证通过；随后Native prefix成功恢复2393个独立文件/856330933字节，无wineboot。后续图形归档解压因缺少7z报p7zip_missing，是新的基础工具遗漏；按严格规则立即停止，无重试/回退或Wine启动，准备锁清除，无Wine/Box64/PRoot进程。10.6的PE32/PE64、中文、第二配置和退出验收仍未执行，不标完成；需后续将7z纳入必需依赖。证据evidence/native-base-app-ui-acceptance.json和evidence/native-base-game-cleanup.json。未改设备脚本、后台启动验证、修改代码或Git操作。
+
+## 第12组：Native 7z依赖遗漏（用户确认修复）
+
+- [x] 12.1 在现有基础安装脚本、真实host探针及就绪展示加入7zip/7z，保证已装glibc但缺工具时重新准备而非假就绪。
+- [x] 12.2 回归缺失/不可执行工具、安装错误成功及旧工具依赖检查，源码复核。
+- [x] 12.3 正常构建原名arm64 APK，核验签名/testOnly=false及资产未变，提供下载；用户手动安装后的App验收待执行。
+
+2026-11-08 第12组本地修复交付：官方7zip加入基础安装，脚本最终核验、真实host探针及界面就绪展示均检查7z可执行；仅共享工具预装不误判glibc已装。40项JVM、6项实际安装脚本夹具、shell语法及源码复核通过。正常原名arm64 APK45647402字节（43.53MiB），SHA256 6ddb363d7a9d70efb78c1fd84c760b93af44fa83a5440084b3f7e7200ec3fef8，签名有效、testOnly=false、无prefix payload；除安装脚本外核对的资产字节不变，已发布prefix/镜像身份不变，无wineboot或后端兜底。原下载路径已更新并实际完整GET核验。设备未安装/运行重试，仍需用户手动安装后App界面验收，10.6不标完成，产品接受Pending。严格Harness脚本缺失记Unavailable；无Git操作或归档。证据evidence/native-sevenzip-fix.json，复核reviews/native-sevenzip-review.json。
+
+2026-11-08 用户安装第12组APK后，经完整SHA256核验。全程由真实App界面操作：Native Wine10保存准备自动补装官方7zip 26.06成功，原prefix收据复用；图形归档解压通过，首次中文locale生成后准备成功85.075秒，无wineboot/重建/后端兜底。PE64及新导入PE32均实际显示动态version.dll、中文文件写入及中文GUI PASS；第二配置准备0.154秒直接复用。两次确认OK后均通过App退出返回游戏库，任务按设计CANCELLED/COMPLETE，不冒称自然退出0；最终无Wine/Box64/PRoot/音频进程及启动锁。两次日志均有libXrandr.so.2缺失警告，未阻止本轮GUI/文件冒烟，动态分辨率与相关扩展未验证。10.6所列Wine10范围完成，其余Native Wine版本、具体游戏、3D/音频/硬件及用户最终接受不标完成；产品文档保持Pending。证据evidence/native-sevenzip-app-ui-acceptance.json，截图及动作日志artifacts/native-sevenzip-fix/app-ui-acceptance。无Git操作、设备脚本修改或后台测试。
+
+2026-11-08 用户明确“推送代码”，授权在当前分支提交并推送第10—12组 Native 预生成prefix及基础依赖修复、构建输入/固定描述、测试和本轮验证记录；不包含无关X11子模块修改、本地缓存、设备操作、产品归档或最终接受。

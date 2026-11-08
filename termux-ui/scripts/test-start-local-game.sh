@@ -74,6 +74,9 @@ touch "$TERMUX_ROOT/usr/glibc/opt/libs/mesa/turnip-v2.7z" \
     "$TERMUX_ROOT/usr/glibc/share/fonts/NotoSansCJK-Regular.ttc" \
     "$TERMUX_ROOT/usr/glibc/share/fonts/NotoSerifCJK-Regular.ttc" \
     "$PREFIX_PATH/termux-boxmeta/games-wine-fonts-v2"
+mkdir -p "$PREFIX_PATH/drive_c/windows/Fonts"
+touch "$PREFIX_PATH/drive_c/windows/Fonts/NotoSansCJK-Regular.ttc" \
+    "$PREFIX_PATH/drive_c/windows/Fonts/NotoSerifCJK-Regular.ttc"
 printf '%s\n' '"Tahoma"="Noto Sans CJK SC"' '"Noto Sans CJK SC (TrueType)"="NotoSansCJK-Regular.ttc"' > "$PREFIX_PATH/system.reg"
 printf '#!/bin/sh\n[ "$1" = --library-path ] || exit 64\nshift 2\nexec "$@"\n' > "$TERMUX_ROOT/usr/glibc/lib/ld-linux-aarch64.so.1"
 chmod 700 "$TERMUX_ROOT/usr/glibc/lib/ld-linux-aarch64.so.1"
