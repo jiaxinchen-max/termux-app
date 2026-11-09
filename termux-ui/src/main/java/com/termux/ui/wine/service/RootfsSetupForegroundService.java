@@ -1,5 +1,6 @@
 package com.termux.ui.wine.service;
 
+import com.termux.ui.wine.runtime.RuntimeEditingStop;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -122,6 +123,7 @@ public final class RootfsSetupForegroundService extends Service {
 
     private void enqueue(String taskId, String packageName, String containerId, boolean baseOnly)
         throws Exception {
+        RuntimeEditingStop.requireNotCancelled(getFilesDir(), taskId);
         if (tasks.find(taskId).isPresent()) return;
         if (com.termux.ui.wine.domain.GameContainer.DEFAULT_ID.equals(containerId)) {
             throw new IOException("rootfs_container_must_be_independent");
@@ -137,7 +139,7 @@ public final class RootfsSetupForegroundService extends Service {
         RuntimeSetupTask task = RuntimeSetupTask.queued(taskId, packageName,
             recipe.getVersion(), PENDING_RECIPE, recipe.getSourceComponentId(),
             containerId, containerId, baseOnly, System.currentTimeMillis());
-        tasks.save(task);
+        saveTask(task);
         prepareAndStart(task);
     }
 
@@ -166,6 +168,7 @@ public final class RootfsSetupForegroundService extends Service {
     }
 
     private void prepareAndStart(RuntimeSetupTask task) throws Exception {
+        RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
         RootfsSetupRecipe recipe = RootfsSetupRecipe.require(task.getPackageName(), task.getVersion());
         if (recipe.getVersion() != RootfsSetupRecipe.EXTERNAL_COMPONENTS_VERSION) {
             throw new IOException("rootfs_old_preparation_unsupported");
@@ -180,6 +183,7 @@ public final class RootfsSetupForegroundService extends Service {
         if (PENDING_RECIPE.equals(task.getRecipeSha256())) {
             new RootfsRuntimeComponentPreparer(this, task.getTaskId()).ensure(required);
         }
+        RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
         RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), task.getTaskId());
         java.util.LinkedHashMap<String, InstalledComponent> baseComponents = resolveBaseComponents(recipe);
         RootfsSetupAssetInstaller.Installed assets = new RootfsSetupAssetInstaller(this, paths)
@@ -202,9 +206,7 @@ public final class RootfsSetupForegroundService extends Service {
                         .getInstallDirectory()).freeze(p, paths)));
             }
             // Publish the replayable task identity only after its frozen dependency record.
-            tasks.save(task);
-        } else if (!task.getRecipeSha256().equals(assets.getRecipeSha256())) {
-            throw new IOException("rootfs_recipe_changed");
+            saveTask(task);
         }
         prepareAndStart(task, baseComponents, assets);
     }
@@ -280,10 +282,13 @@ public final class RootfsSetupForegroundService extends Service {
                     : taskBindings().read(task.getTaskId()).getBindings());
             new SetupPreparationLog(getFilesDir(), task.getTaskId()).append("Starting RootFS setup script.");
             com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(getFilesDir());
+            synchronized (RuntimeEditingStop.LOCK) {
+                RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
             host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 assets.script.getCanonicalPath(), spec.getCanonicalPath(),
                 paths.getRuntimeSetupDirectory().getCanonicalPath(),
                 SetupPreparationLog.file(getFilesDir(), task.getTaskId()).getCanonicalPath()));
+            }
             transition(preparing, RuntimeSetupTaskState.BUILDING, "");
         } catch (Exception error) {
             submitted.remove(task.getTaskId());
@@ -314,6 +319,7 @@ public final class RootfsSetupForegroundService extends Service {
     }
 
     private void reconcile(RuntimeSetupTask task) throws Exception {
+        RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
         SetupEvent event = readLastEvent(eventFile(task.getTaskId()));
         // The script's own emitted SUCCEEDED event is the only completion signal -- there is no
         // more per-container "activation" to cross-check against now that every container mounts
@@ -343,11 +349,20 @@ public final class RootfsSetupForegroundService extends Service {
         }
     }
 
+    private void saveTask(RuntimeSetupTask task) throws IOException {
+        synchronized (RuntimeEditingStop.LOCK) {
+            RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
+            RuntimeSetupTask current = tasks.find(task.getTaskId()).orElse(null);
+            if (current != null && current.getState().isTerminal()) throw new IOException("runtime_task_terminal");
+            tasks.save(task);
+        }
+    }
+
     private RuntimeSetupTask transition(RuntimeSetupTask task,
                                             RuntimeSetupTaskState state,
                                             String error) throws IOException {
         RuntimeSetupTask updated = task.transition(state, error, System.currentTimeMillis());
-        tasks.save(updated);
+        saveTask(updated);
         publish(updated);
         return updated;
     }

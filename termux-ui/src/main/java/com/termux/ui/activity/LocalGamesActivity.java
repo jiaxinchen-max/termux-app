@@ -12,7 +12,6 @@ import android.os.Looper;
 import android.os.StatFs;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
-import android.text.format.Formatter;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -39,14 +38,8 @@ import com.termux.ui.api.ComponentTasks;
 import com.termux.ui.api.LocalGames;
 import com.termux.ui.api.LocalGamesHost;
 import com.termux.ui.components.ComponentStoragePaths;
-import com.termux.ui.components.catalog.ComponentCatalogItem;
-import com.termux.ui.components.catalog.ComponentCatalogRepository;
-import com.termux.ui.components.catalog.ComponentCatalogState;
-import com.termux.ui.components.index.ComponentDescriptor;
 import com.termux.ui.components.index.ComponentIndex;
 import com.termux.ui.components.index.ComponentIndexParser;
-import com.termux.ui.components.index.ComponentType;
-import com.termux.ui.components.install.ComponentInstallationReader;
 import com.termux.ui.data.FileComponentTaskRepository;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.data.SettingsPage;
@@ -56,7 +49,6 @@ import com.termux.ui.databinding.DialogGameActionsBinding;
 import com.termux.ui.databinding.DialogGameLaunchBinding;
 import com.termux.ui.databinding.ItemLocalGameBinding;
 import com.termux.ui.databinding.ItemLocalGameImportBinding;
-import com.termux.ui.databinding.ItemLocalGamesComponentBinding;
 import com.termux.ui.domain.ComponentTask;
 import com.termux.ui.domain.CustomRuntimeComponent;
 import com.termux.ui.platform.OrientationPreference;
@@ -91,7 +83,6 @@ import com.termux.ui.wine.importer.SafGameAccessProbe;
 import com.termux.ui.wine.recovery.GameOrphanSweeper;
 import com.termux.ui.wine.recovery.GameUninstallPlan;
 import com.termux.ui.wine.recovery.GameUninstaller;
-import com.termux.ui.wine.runtime.RootfsSetupRecipe;
 import com.termux.ui.wine.runtime.RuntimeEnvironmentStatus;
 
 import java.io.File;
@@ -102,7 +93,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -114,18 +104,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Root Activity owned by the standalone games feature module. */
 public final class LocalGamesActivity extends AppUiActivity {
 
-    public static final String EXTRA_COMPONENT_GAME_ID =
-        "com.termux.ui.extra.COMPONENT_GAME_ID";
+    public static final String EXTRA_CORE_BACKEND = "com.termux.ui.extra.CORE_BACKEND";
     private static final String INDEX_ASSET = "termux-app-packages/index-v1.json";
     private static final String TERMUX_GLIBC_ID = "termux-glibc";
     private static final String STATE_SELECTED_TAB = "local_games.selected_tab";
     private static final String STATE_SETTINGS_PAGE = "local_games.settings_page";
-    private static final String STATE_COMPONENT_PAGE = "local_games.component_page";
     private boolean navigationUpdating;
     private UiNavigation navigation;
     private CollectionToolbar collectionToolbar;
     private static final int TAB_LIBRARY = 0;
-    private static final int TAB_COMPONENTS = 1;
     private static final int TAB_SETTINGS = 2;
     private static final int GAME_ACTION_ENGINE = 0;
     private static final int GAME_ACTION_EDIT = 1;
@@ -136,7 +123,6 @@ public final class LocalGamesActivity extends AppUiActivity {
     private static final int GAME_ACTION_REMOVE = 5;
     /** The launch sheet is a compact card; wider windows do not stretch it. */
     private static final int LAUNCH_SHEET_MAX_WIDTH_DP = 440;
-    private static final long REFRESH_INTERVAL_MILLIS = 1000;
     // External storage (MANAGE_EXTERNAL_STORAGE on API 30+) is requested lazily, only the first
     // time the user actually touches Backup/Restore -- not at app startup -- since nothing else
     // on this screen needs it. The request can route through a system Settings screen (API 30+)
@@ -145,27 +131,15 @@ public final class LocalGamesActivity extends AppUiActivity {
     private static final int REQUEST_BACKUP_STORAGE_PERMISSION = 8401;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final ExecutorService catalogExecutor = Executors.newSingleThreadExecutor(runnable ->
-        new Thread(runnable, "GamesComponentCatalog"));
     private final ExecutorService libraryExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "GamesLibrary"));
-    private final AtomicBoolean loadInFlight = new AtomicBoolean();
     private final AtomicBoolean libraryLoadInFlight = new AtomicBoolean();
-    private final Runnable catalogRefresh = this::loadCatalogAsync;
-    private final Map<String, ItemLocalGamesComponentBinding> componentRows =
-        new LinkedHashMap<>();
 
     private ActivityLocalGamesBinding binding;
-    private ComponentCatalogRepository catalogRepository;
-    @Nullable private ComponentType componentPage;
-    @Nullable private ComponentType renderedComponentPage;
-    @Nullable private List<String> renderedComponentIds;
-    private List<ComponentCatalogItem> componentCatalog = Collections.emptyList();
     private FileRuntimeSetupTaskRepository runtimeSetupTaskRepository;
     private GameLibraryRepository libraryRepository;
     private GameArtworkLoader artworkLoader;
     private LocalGamesHost appHost;
-    private String catalogInitializationError;
     private boolean started;
     private int selectedTab;
     private int libraryGeneration;
@@ -178,12 +152,11 @@ public final class LocalGamesActivity extends AppUiActivity {
     private Runnable pendingBackupStorageAction;
     private Map<String, BuildingTask> buildingGameTasks = Collections.emptyMap();
     private Map<String, GameRuntimeBackendType> libraryBackends = Collections.emptyMap();
+    private Map<String, String> libraryWines = Collections.emptyMap();
     private static final long BUILDING_POLL_MS = 2500L;
     private final Runnable buildingPoll = () -> loadLibraryAsync(true);
     private final List<android.animation.ObjectAnimator> libraryCardBreathAnimators =
         new ArrayList<>();
-    private RuntimeSetupTask latestRuntimeSetupTask;
-    private boolean rootfsRuntimeInstalled;
     /** Which menu level the Settings page shows, and the environment states its rows display
      *  (null until the first background check has finished). */
     private SettingsPage settingsPage = SettingsPage.ROOT;
@@ -192,10 +165,6 @@ public final class LocalGamesActivity extends AppUiActivity {
     private OnBackPressedCallback settingsBackCallback;
     private final BackExitConfirmation exitConfirmation = new BackExitConfirmation();
     @Nullable private Toast exitToast;
-    @Nullable private String componentGameId;
-    @Nullable private String componentContainerId;
-    @Nullable private GameRuntimeBackendType componentBackend;
-
     /** A game whose runtime container is actively being built by a non-terminal setup task --
      *  see {@code loadLibraryAsync()}'s background pass and {@code renderGameRow()}. */
     private static final class BuildingTask {
@@ -222,11 +191,7 @@ public final class LocalGamesActivity extends AppUiActivity {
         collectionToolbar.enableRuntimeSelector(() -> {
             if (renderedLibraryItems != null) populateLibraryGrid(renderedLibraryItems, libraryGeneration);
         });
-        componentGameId = getIntent().getStringExtra(EXTRA_COMPONENT_GAME_ID);
-
-        selectedTab = savedInstanceState == null
-            ? (!TextUtils.isEmpty(componentGameId)
-                ? TAB_COMPONENTS : TAB_LIBRARY)
+        selectedTab = savedInstanceState == null ? TAB_LIBRARY
             : savedInstanceState.getInt(STATE_SELECTED_TAB, TAB_LIBRARY);
         // Applied after the initial showPage() below: selecting the library item first runs
         // showPage(TAB_LIBRARY), which resets the Settings level.
@@ -237,10 +202,7 @@ public final class LocalGamesActivity extends AppUiActivity {
         });
         binding.localGamesToolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() != R.id.local_games_action_help) return false;
-            if (selectedTab == TAB_COMPONENTS) {
-                GamesHelpDialog.show(this, R.string.local_games_components_title,
-                    R.string.local_games_components_description);
-            } else if (selectedTab == TAB_SETTINGS) {
+            if (selectedTab == TAB_SETTINGS) {
                 GamesHelpDialog.show(this, R.string.local_games_settings_title,
                     R.string.local_games_settings_help);
             } else {
@@ -249,8 +211,6 @@ public final class LocalGamesActivity extends AppUiActivity {
             }
             return true;
         });
-        binding.localGamesComponentTaskConsole.setOnClickListener(view ->
-            showActiveInstallationConsole());
         // Sub-pages navigate upwards. The UI home requires two consecutive Back presses to exit.
         settingsBackCallback = new OnBackPressedCallback(false) {
             @Override
@@ -275,7 +235,8 @@ public final class LocalGamesActivity extends AppUiActivity {
         });
         initializeAppExperience();
 
-        initializeCatalog();
+        runtimeSetupTaskRepository = new FileRuntimeSetupTaskRepository(
+            new GameStoragePaths(getFilesDir()).getRuntimeSetupTasksDirectory());
         initializeLibrary();
         // The Import card is always the last grid item: it is there from the first frame, before
         // (and independent of) any library load.
@@ -294,12 +255,7 @@ public final class LocalGamesActivity extends AppUiActivity {
         if (initialPage == TAB_SETTINGS && !restoredSettingsPage.isRoot()) {
             openSettingsPage(restoredSettingsPage);
         }
-        if (initialPage == TAB_COMPONENTS && savedInstanceState != null) {
-            String restoredComponent = savedInstanceState.getString(STATE_COMPONENT_PAGE);
-            if (restoredComponent != null) componentPage = ComponentType.fromStorageValue(restoredComponent);
-            updateChrome();
-            updateSettingsBackCallback();
-        }
+        consumeCoreComponentsIntent();
         ResetTasks.reconcileAll(this);
         RootfsBackupTasks.reconcileAll(this);
         RuntimeBackupFlow.instance().attach(this, this::renderRuntimeStatus);
@@ -318,7 +274,18 @@ public final class LocalGamesActivity extends AppUiActivity {
             intent.removeExtra(UiNavigation.EXTRA_DESTINATION);
             showPage(destination == R.id.local_games_navigation_settings ? TAB_SETTINGS : TAB_LIBRARY);
         }
+        consumeCoreComponentsIntent();
         mainHandler.post(this::consumePendingSetupConsoleIntent);
+    }
+
+    /** Opens the environment actions without building or installing anything. */
+    private void consumeCoreComponentsIntent() {
+        String backend = getIntent().getStringExtra(EXTRA_CORE_BACKEND);
+        if (backend == null) return;
+        getIntent().removeExtra(EXTRA_CORE_BACKEND);
+        showPage(TAB_SETTINGS);
+        openSettingsPage(GameRuntimeBackendType.fromStorageValue(backend) == GameRuntimeBackendType.ROOTFS_PROOT
+            ? SettingsPage.PROOT : SettingsPage.NATIVE);
     }
 
     /** Surfaces the live console for a runtime warm-up task just enqueued by a runtime-options
@@ -340,8 +307,7 @@ public final class LocalGamesActivity extends AppUiActivity {
     protected void onStart() {
         super.onStart();
         started = true;
-        if (selectedTab == TAB_COMPONENTS) scheduleCatalogRefresh(0);
-        else if (selectedTab == TAB_LIBRARY) loadLibraryAsync();
+        if (selectedTab == TAB_LIBRARY) loadLibraryAsync();
         else renderAppExperience();
     }
 
@@ -357,7 +323,6 @@ public final class LocalGamesActivity extends AppUiActivity {
     protected void onStop() {
         resetExitConfirmation();
         started = false;
-        mainHandler.removeCallbacks(catalogRefresh);
         mainHandler.removeCallbacks(buildingPoll);
         dismissMoreMenu();
         super.onStop();
@@ -406,31 +371,7 @@ public final class LocalGamesActivity extends AppUiActivity {
     protected void onSaveInstanceState(Bundle outState) {
         outState.putInt(STATE_SELECTED_TAB, selectedTab);
         outState.putInt(STATE_SETTINGS_PAGE, settingsPage.ordinal());
-        outState.putString(STATE_COMPONENT_PAGE,
-            componentPage == null ? null : componentPage.getStorageValue());
         super.onSaveInstanceState(outState);
-    }
-
-    private void initializeCatalog() {
-        try (InputStream input = getAssets().open(INDEX_ASSET)) {
-            ComponentIndex index = new ComponentIndexParser().parse(input);
-            ComponentStoragePaths paths = new ComponentStoragePaths(getFilesDir());
-            catalogRepository = new ComponentCatalogRepository(index,
-                new FileComponentTaskRepository(paths.getTasksDirectory()),
-                new ComponentInstallationReader(paths.getInstallDirectory()));
-            GameStoragePaths gamePaths = new GameStoragePaths(getFilesDir());
-            runtimeSetupTaskRepository = new FileRuntimeSetupTaskRepository(
-                gamePaths.getRuntimeSetupTasksDirectory());
-            if (!TextUtils.isEmpty(componentGameId)) {
-                RuntimeProfile profile = new FileRuntimeProfileRepository(
-                    gamePaths.getProfilesDirectory()).find(componentGameId).orElseThrow(() ->
-                        new IOException("component_game_runtime_profile_missing"));
-                componentBackend = profile.getRuntimeBackendType();
-                componentContainerId = profile.getContainerId();
-            }
-        } catch (IOException error) {
-            catalogInitializationError = safeMessage(error);
-        }
     }
 
     private void initializeLibrary() {
@@ -443,36 +384,25 @@ public final class LocalGamesActivity extends AppUiActivity {
 
     private void showPage(int tab) {
         resetExitConfirmation();
-        if (tab == TAB_COMPONENTS && TextUtils.isEmpty(componentGameId)) tab = TAB_LIBRARY;
-        selectedTab = tab == TAB_COMPONENTS ? TAB_COMPONENTS :
-            (tab == TAB_SETTINGS ? TAB_SETTINGS : TAB_LIBRARY);
-        if (selectedTab != TAB_SETTINGS) settingsPage = SettingsPage.ROOT;
-        if (selectedTab != TAB_COMPONENTS) componentPage = null;
-        boolean showComponents = selectedTab == TAB_COMPONENTS;
+        selectedTab = tab == TAB_SETTINGS ? TAB_SETTINGS : TAB_LIBRARY;
+        if (selectedTab == TAB_LIBRARY) settingsPage = SettingsPage.ROOT;
         boolean showSettings = selectedTab == TAB_SETTINGS;
-        binding.localGamesLibraryPage.setVisibility(
-            !showComponents && !showSettings ? View.VISIBLE : View.GONE);
-        binding.localGamesComponentsPage.setVisibility(showComponents ? View.VISIBLE : View.GONE);
+        binding.localGamesLibraryPage.setVisibility(showSettings ? View.GONE : View.VISIBLE);
         binding.localGamesSettingsPage.setVisibility(showSettings ? View.VISIBLE : View.GONE);
         updateChrome();
         updateSettingsBackCallback();
-        if (showComponents && started) scheduleCatalogRefresh(0);
-        else if (showSettings) renderAppExperience();
+        if (showSettings) renderAppExperience();
         else if (started) loadLibraryAsync();
     }
 
     private void updateChrome() {
-        navigation.setVisible(selectedTab != TAB_COMPONENTS);
+        navigation.setVisible(true);
         navigation.setSelected(selectedTab == TAB_SETTINGS
             ? R.id.local_games_navigation_settings : R.id.local_games_navigation_library);
         navigation.updateConfiguration();
         binding.localGamesToolbar.setVisibility(selectedTab == TAB_LIBRARY ? View.GONE : View.VISIBLE);
         binding.localGamesLibraryToolbar.setVisibility(selectedTab == TAB_LIBRARY ? View.VISIBLE : View.GONE);
-        if (selectedTab == TAB_COMPONENTS) {
-            binding.localGamesToolbar.setNavigationIcon(R.drawable.local_games_ic_back);
-            binding.localGamesToolbar.setTitle(componentPage == null
-                ? R.string.local_games_tab_components : componentTypeLabel(componentPage));
-        } else if (selectedTab == TAB_SETTINGS) {
+        if (selectedTab == TAB_SETTINGS) {
             binding.localGamesToolbar.setNavigationIcon(null);
             binding.localGamesToolbar.setTitle(null);
         } else {
@@ -572,6 +502,7 @@ public final class LocalGamesActivity extends AppUiActivity {
             List<GameLibraryItem> items = null;
             Map<String, BuildingTask> building = new HashMap<>();
             Map<String, GameRuntimeBackendType> backends = new HashMap<>();
+            Map<String, String> wines = new HashMap<>();
             String error = null;
             try {
                 // Containers and profiles that removed games or abandoned edits left behind are reclaimed
@@ -601,9 +532,25 @@ public final class LocalGamesActivity extends AppUiActivity {
                         activePrefixSetupByGame.put(task.getGameId(), task.getTaskId());
                     }
                 }
+                ComponentIndex wineIndex;
+                try (InputStream input = getAssets().open(INDEX_ASSET)) {
+                    wineIndex = new ComponentIndexParser().parse(input);
+                }
+                List<CustomRuntimeComponent> customWines = new com.termux.ui.data.FileCustomRuntimeComponentRepository(
+                    gamePaths.getCustomRuntimeComponentsDirectory()).list();
+                List<com.termux.ui.api.RuntimeComponentVariant> installedWines = new ArrayList<>();
+                java.util.Set<GameRuntimeBackendType> loadedWineBackends = new java.util.HashSet<>();
                 for (GameLibraryItem item : items) {
-                    profiles.find(item.getGame().getId()).ifPresent(profile -> {
+                    RuntimeProfile savedProfile = profiles.find(item.getGame().getId()).orElse(null);
+                    if (savedProfile != null && loadedWineBackends.add(savedProfile.getRuntimeBackendType())) {
+                        installedWines.addAll(LocalGames.requireHost(this).listInstalledRuntimeComponentVariants(
+                            CustomRuntimeComponent.Kind.WINE, savedProfile.getRuntimeBackendType()));
+                    }
+                    if (savedProfile != null) {
+                        RuntimeProfile profile = savedProfile;
                         backends.put(item.getGame().getId(), profile.getRuntimeBackendType());
+                        wines.put(item.getGame().getId(), com.termux.ui.wine.runtime.WineDisplayNames.resolve(
+                            profile, customWines, installedWines, wineIndex));
                         if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
                             String taskId = activeRootfsSetupByContainer.get(
                                 profile.getContainerId());
@@ -617,7 +564,7 @@ public final class LocalGamesActivity extends AppUiActivity {
                                 building.put(item.getGame().getId(), new BuildingTask(taskId, false));
                             }
                         }
-                    });
+                    }
                     if (!backends.containsKey(item.getGame().getId())) {
                         throw new IOException("game_runtime_profile_missing:" + item.getGame().getId());
                     }
@@ -633,9 +580,11 @@ public final class LocalGamesActivity extends AppUiActivity {
                 if (!started || binding == null || selectedTab != TAB_LIBRARY ||
                     generation != libraryGeneration) return;
                 if (failure == null) {
-                    boolean unchanged = pollOnly && sameBuilding(buildingGameTasks, loadedBuilding);
+                    boolean unchanged = pollOnly && sameBuilding(buildingGameTasks, loadedBuilding)
+                        && libraryWines.equals(wines) && libraryBackends.equals(backends);
                     buildingGameTasks = loadedBuilding;
                     libraryBackends = backends;
+                    libraryWines = wines;
                     if (!unchanged) renderLibrary(loaded, generation);
                     else binding.localGamesLibraryLoading.hide();
                     if (!loadedBuilding.isEmpty()) {
@@ -746,6 +695,8 @@ public final class LocalGamesActivity extends AppUiActivity {
                 : R.string.local_game_runtime_profile_backend_glibc);
         row.localGameExecutable.setText(getString(R.string.local_game_configuration_executable,
             runtime, game.getExecutable()));
+        row.localGameWine.setText(getString(R.string.local_game_card_wine,
+            libraryWines.get(game.getId())));
         row.localGameAccessStatus.setText(accessLabel(item.getAccessState()));
         row.localGameAccessStatus.setTextColor(ContextCompat.getColor(this,
             item.getAccessState() == GameAccessState.ACCESSIBLE
@@ -879,7 +830,7 @@ public final class LocalGamesActivity extends AppUiActivity {
         scroll.setVerticalScrollBarEnabled(false);
         scroll.addView(content, new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        int width = textPopupWidth(item);
+        int width = textPopupWidth();
         // The popup is bounded to the window and scrolls, so a short (landscape) window never
         // pushes rows off screen; its position is clamped into the window as well.
         PopupWindow popup = new PopupWindow(scroll, width,
@@ -887,19 +838,8 @@ public final class LocalGamesActivity extends AppUiActivity {
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         popup.setOutsideTouchable(true);
         popup.setElevation(dp(3));
-        addTextPopupAction(content, popup, item, R.string.local_game_action_engine,
-            GAME_ACTION_ENGINE);
         addTextPopupAction(content, popup, item, R.string.local_game_action_edit,
             GAME_ACTION_EDIT);
-        if (libraryBackends.get(item.getGame().getId()) == GameRuntimeBackendType.ROOTFS_PROOT) {
-            addTextPopupAction(content, popup, item, R.string.wine_cdrive_title, GAME_ACTION_CDRIVE_BACKUP);
-        }
-        addTextPopupAction(content, popup, item, R.string.local_game_action_assets,
-            GAME_ACTION_STORAGE);
-        if (item.getAccessState() != GameAccessState.ACCESSIBLE) {
-            addTextPopupAction(content, popup, item, R.string.local_game_action_reauthorize,
-                GAME_ACTION_REAUTHORIZE);
-        }
         addTextPopupAction(content, popup, item, R.string.local_game_action_remove,
             GAME_ACTION_REMOVE);
         content.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
@@ -950,20 +890,12 @@ public final class LocalGamesActivity extends AppUiActivity {
             getResources().getDimensionPixelSize(R.dimen.local_games_menu_row_min_height)));
     }
 
-    private int textPopupWidth(GameLibraryItem item) {
-        int[] labels = item.getAccessState() == GameAccessState.ACCESSIBLE
-            ? new int[] { R.string.local_game_action_engine, R.string.local_game_action_edit,
-                R.string.local_game_action_assets,
-                R.string.local_game_action_remove }
-            : new int[] { R.string.local_game_action_engine, R.string.local_game_action_edit,
-                R.string.local_game_action_assets,
-                R.string.local_game_action_reauthorize, R.string.local_game_action_remove };
+    private int textPopupWidth() {
+        int[] labels = { R.string.local_game_action_edit, R.string.local_game_action_remove };
         android.text.TextPaint paint = new android.text.TextPaint();
         paint.setTextSize(getResources().getDisplayMetrics().scaledDensity * 16f);
         float widest = 0f;
         for (int label : labels) widest = Math.max(widest, paint.measureText(getString(label)));
-        if (libraryBackends.get(item.getGame().getId()) == GameRuntimeBackendType.ROOTFS_PROOT)
-            widest = Math.max(widest, paint.measureText(getString(R.string.wine_cdrive_title)));
         int wanted = Math.round(widest) + dp(48);
         // Never wider than the window (long labels, large font, split-screen).
         return Math.min(wanted, DialogSizing.maxWidthPx(
@@ -1064,7 +996,7 @@ public final class LocalGamesActivity extends AppUiActivity {
         libraryExecutor.execute(() -> {
             String error = null;
             try {
-                new GameUninstaller(getFilesDir()).execute(
+                new GameUninstaller(getFilesDir(), com.termux.ui.api.LocalGames.requireHost(this)).execute(
                     GameUninstallPlan.keepPrivateAssets(game.getId()));
             } catch (IOException | RuntimeException removeError) {
                 error = safeMessage(removeError);
@@ -1103,492 +1035,6 @@ public final class LocalGamesActivity extends AppUiActivity {
         populateLibraryGrid(Collections.emptyList(), libraryGeneration);
     }
 
-    private void scheduleCatalogRefresh(long delayMillis) {
-        mainHandler.removeCallbacks(catalogRefresh);
-        mainHandler.postDelayed(catalogRefresh, delayMillis);
-    }
-
-    private void loadCatalogAsync() {
-        if (!started || selectedTab != TAB_COMPONENTS || !loadInFlight.compareAndSet(false, true)) {
-            return;
-        }
-        if (componentBackend == null) {
-            loadInFlight.set(false);
-            renderComponentBackendChoices();
-            return;
-        }
-        if (catalogRepository == null) {
-            loadInFlight.set(false);
-            renderCatalogError(catalogInitializationError == null
-                ? getString(R.string.local_games_component_state_failed)
-                : catalogInitializationError);
-            return;
-        }
-        catalogExecutor.execute(() -> {
-            List<ComponentCatalogItem> items = null;
-            String error = null;
-            RuntimeSetupTask setupTask = null;
-            boolean runtimeInstalled = false;
-            try {
-                items = catalogRepository.load();
-                items = filterScopedComponents(items);
-            } catch (IOException loadError) {
-                error = safeMessage(loadError);
-            }
-            if (componentBackend == GameRuntimeBackendType.ROOTFS_PROOT) {
-                try {
-                    setupTask = latestRuntimeSetupTask();
-                } catch (IOException ignored) {
-                    // A damaged task record must not hide the component catalog or reinstall action.
-                }
-                if (componentContainerId != null) {
-                    GameStoragePaths gamePaths = new GameStoragePaths(getFilesDir());
-                    runtimeInstalled = gamePaths.getSharedRootfsDirectory().isDirectory() &&
-                        gamePaths.getContainerPrefixDirectory(componentContainerId,
-                            GameRuntimeBackendType.ROOTFS_PROOT).isDirectory() &&
-                        gamePaths.getContainerHomeDirectory(componentContainerId,
-                            GameRuntimeBackendType.ROOTFS_PROOT).isDirectory();
-                }
-            }
-            List<ComponentCatalogItem> loadedItems = items;
-            String loadedError = error;
-            RuntimeSetupTask loadedSetupTask = setupTask;
-            boolean loadedRuntimeInstalled = runtimeInstalled;
-            mainHandler.post(() -> {
-                loadInFlight.set(false);
-                if (!started || binding == null || selectedTab != TAB_COMPONENTS) return;
-                if (loadedError == null) {
-                    latestRuntimeSetupTask = loadedSetupTask;
-                    rootfsRuntimeInstalled = loadedRuntimeInstalled;
-                    renderCatalog(loadedItems);
-                }
-                else renderCatalogError(loadedError);
-                scheduleCatalogRefresh(REFRESH_INTERVAL_MILLIS);
-            });
-        });
-    }
-
-    @Nullable
-    private RuntimeSetupTask latestRuntimeSetupTask() throws IOException {
-        if (runtimeSetupTaskRepository == null) return null;
-        RuntimeSetupTask latest = null;
-        for (RuntimeSetupTask task : runtimeSetupTaskRepository.list()) {
-            if (!"debian-13-games-rootfs".equals(task.getPackageName())) continue;
-            if (!task.getContainerId().equals(componentContainerId)) continue;
-            if (latest == null || task.getCreatedAt() > latest.getCreatedAt()) latest = task;
-        }
-        return latest;
-    }
-
-    private List<ComponentCatalogItem> filterScopedComponents(List<ComponentCatalogItem> items)
-        throws IOException {
-        if (componentBackend == null) throw new IOException("component_runtime_scope_missing");
-        List<ComponentCatalogItem> result = new java.util.ArrayList<>();
-        for (ComponentCatalogItem item : items) {
-            if (item.getDescriptor().isHidden()) continue;
-            if (item.getDescriptor().supportsBackend(componentBackend)) result.add(item);
-        }
-        return result;
-    }
-
-    private void renderCatalog(List<ComponentCatalogItem> items) {
-        componentCatalog = items;
-        binding.localGamesComponentsLoading.setVisibility(View.GONE);
-        binding.localGamesComponentsError.setVisibility(View.GONE);
-        renderActiveInstallationConsoleAction();
-        ensureComponentRows(items);
-        for (ComponentCatalogItem item : items) {
-            ItemLocalGamesComponentBinding row = componentRows.get(item.getDescriptor().getId());
-            if (row != null) renderComponent(row, item);
-        }
-    }
-
-    private void ensureComponentRows(List<ComponentCatalogItem> items) {
-        List<ComponentCatalogItem> visible = new ArrayList<>();
-        for (ComponentCatalogItem item : items) {
-            if (componentPage == null || item.getDescriptor().getType() == componentPage) {
-                visible.add(item);
-            }
-        }
-        visible.sort((left, right) -> ComponentIndex.compareForPresentation(
-            left.getDescriptor(), right.getDescriptor()));
-        List<String> ids = new ArrayList<>();
-        for (ComponentCatalogItem item : visible) ids.add(item.getDescriptor().getId());
-        // Polling updates install actions in place, preserving focus and scroll in the sub-page.
-        if (renderedComponentPage == componentPage && ids.equals(renderedComponentIds)) return;
-        renderedComponentPage = componentPage;
-        renderedComponentIds = ids;
-        componentRows.clear();
-        binding.localGamesComponentSections.removeAllViews();
-        if (componentPage == null) {
-            SettingsMenuBuilder menu = new SettingsMenuBuilder(this, binding.localGamesComponentSections);
-            for (ComponentType type : ComponentType.values()) {
-                int count = 0;
-                for (ComponentCatalogItem item : items) {
-                    if (item.getDescriptor().getType() == type) count++;
-                }
-                if (count > 0) {
-                    menu.row(getString(componentTypeLabel(type)), null,
-                        view -> openComponentPage(type));
-                }
-            }
-        } else {
-            List<CustomRuntimeComponent.Kind> versionKinds = componentVersionKinds(componentPage);
-            if (!versionKinds.isEmpty()) {
-                SettingsMenuBuilder menu = new SettingsMenuBuilder(this,
-                    binding.localGamesComponentSections);
-                for (CustomRuntimeComponent.Kind kind : versionKinds) {
-                    menu.row(componentKindName(kind), null, view -> openComponentVersions(kind));
-                }
-            }
-            for (ComponentCatalogItem item : visible) {
-                if (managedVersionComponent(item.getDescriptor())) continue;
-                ItemLocalGamesComponentBinding row = ItemLocalGamesComponentBinding.inflate(
-                    getLayoutInflater(), binding.localGamesComponentSections, false);
-                binding.localGamesComponentSections.addView(row.getRoot());
-                componentRows.put(item.getDescriptor().getId(), row);
-            }
-        }
-    }
-
-    private void openComponentPage(@Nullable ComponentType type) {
-        resetExitConfirmation();
-        if (type != null) {
-            List<CustomRuntimeComponent.Kind> kinds = componentVersionKinds(type);
-            boolean hasBasicDependencies = false;
-            for (ComponentCatalogItem item : componentCatalog) {
-                if (item.getDescriptor().getType() == type &&
-                    !managedVersionComponent(item.getDescriptor())) {
-                    hasBasicDependencies = true;
-                    break;
-                }
-            }
-            if (kinds.size() == 1 && !hasBasicDependencies) {
-                openComponentVersions(kinds.get(0));
-                return;
-            }
-        }
-        componentPage = type;
-        renderCatalog(componentCatalog);
-        binding.localGamesComponentsPage.scrollTo(0, 0);
-        updateChrome();
-        updateSettingsBackCallback();
-    }
-
-    private void renderComponentBackendChoices() {
-        binding.localGamesComponentsLoading.setVisibility(View.GONE);
-        binding.localGamesComponentsError.setVisibility(View.GONE);
-        componentRows.clear();
-        renderedComponentIds = Collections.emptyList();
-        renderedComponentPage = null;
-        SettingsMenuBuilder menu = new SettingsMenuBuilder(this,
-            binding.localGamesComponentSections);
-        menu.heading(getString(R.string.component_management_environment));
-        menu.row(getString(R.string.local_game_runtime_profile_backend_glibc), null,
-            view -> chooseComponentBackend(GameRuntimeBackendType.GLIBC_TERMUX_BOX));
-        menu.row(getString(R.string.local_game_runtime_profile_backend_rootfs), null,
-            view -> chooseComponentBackend(GameRuntimeBackendType.ROOTFS_PROOT));
-    }
-
-    private void chooseComponentBackend(GameRuntimeBackendType backend) {
-        componentBackend = backend;
-        componentPage = null;
-        scheduleCatalogRefresh(0);
-    }
-
-    private void openComponentVersions(CustomRuntimeComponent.Kind kind) {
-        if (componentBackend == null) {
-            renderComponentBackendChoices();
-            return;
-        }
-        resetExitConfirmation();
-        startActivity(RuntimeComponentVersionsActivity.createManageIntent(this, kind,
-            componentBackend));
-    }
-
-    private List<CustomRuntimeComponent.Kind> componentVersionKinds(ComponentType type) {
-        if (componentBackend == null || type == null) return Collections.emptyList();
-        List<CustomRuntimeComponent.Kind> result = new ArrayList<>();
-        switch (type) {
-            case CONTAINER:
-                result.add(CustomRuntimeComponent.Kind.WINE);
-                break;
-            case GPU_DRIVER:
-                if (componentBackend == GameRuntimeBackendType.GLIBC_TERMUX_BOX)
-                    result.add(CustomRuntimeComponent.Kind.TURNIP);
-                break;
-            case DX_WRAPPER:
-                result.add(CustomRuntimeComponent.Kind.DXVK);
-                if (componentBackend == GameRuntimeBackendType.GLIBC_TERMUX_BOX)
-                    result.add(CustomRuntimeComponent.Kind.VKD3D);
-                break;
-            case TRANSLATOR:
-                if (componentBackend == GameRuntimeBackendType.ROOTFS_PROOT)
-                    result.add(CustomRuntimeComponent.Kind.WINE);
-                result.add(CustomRuntimeComponent.Kind.BOX64);
-                break;
-            default:
-                break;
-        }
-        return result;
-    }
-
-    private static boolean managedVersionComponent(ComponentDescriptor descriptor) {
-        switch (descriptor.getType()) {
-            case CONTAINER:
-            case TRANSLATOR:
-                return true;
-            case GPU_DRIVER:
-                return "turnip".equals(descriptor.getId());
-            case DX_WRAPPER:
-                return "dxvk".equals(descriptor.getId()) ||
-                    descriptor.getId().startsWith("rootfs_dxvk_");
-            default:
-                return false;
-        }
-    }
-
-    private static String componentKindName(CustomRuntimeComponent.Kind kind) {
-        switch (kind) {
-            case WINE: return "Wine";
-            case BOX64: return "Box64";
-            case DXVK: return "DXVK";
-            case VKD3D: return "VKD3D";
-            case TURNIP: return "Turnip";
-            default: throw new IllegalArgumentException("unsupported_component_kind:" + kind);
-        }
-    }
-
-    private void renderComponent(ItemLocalGamesComponentBinding row,
-                                 ComponentCatalogItem item) {
-        ComponentDescriptor descriptor = item.getDescriptor();
-        row.localGamesComponentName.setText(descriptor.getDisplayName());
-        row.localGamesComponentMetadata.setText(descriptor.getVersionName());
-        row.localGamesComponentHelp.setOnClickListener(view -> GamesHelpDialog.show(this,
-            descriptor.getDisplayName(), componentSummary(descriptor)));
-        boolean activationRequired = requiresRuntimeActivation(item);
-        boolean rootfsSource = isRootfsSource(item);
-        RuntimeSetupTask setupTask = rootfsSource ? latestRuntimeSetupTask : null;
-        ComponentTask task = item.getTask().orElse(null);
-        configurePrimaryAction(row, item, task, activationRequired, setupTask);
-    }
-
-    private static boolean isRootfsSource(ComponentCatalogItem item) {
-        return RootfsSetupRecipe.IMAGE_COMPONENT.equals(item.getDescriptor().getId());
-    }
-
-    private int componentTypeLabel(ComponentType type) {
-        switch (type) {
-            case IMAGE_FS: return R.string.local_games_components_image_fs;
-            case CONTAINER: return R.string.local_games_components_container;
-            case GPU_DRIVER: return R.string.local_games_components_gpu;
-            case DX_WRAPPER: return R.string.local_games_components_dx;
-            case TRANSLATOR: return R.string.local_games_components_translator;
-            case GENERAL_COMPONENT: return R.string.local_games_components_general;
-            default: return R.string.local_games_components_support;
-        }
-    }
-
-    private String componentBadges(ComponentDescriptor descriptor) {
-        StringBuilder result = new StringBuilder();
-        if (descriptor.isRecommended()) {
-            result.append(getString(R.string.local_games_component_badge_recommended));
-        }
-        if (descriptor.isBase()) {
-            if (result.length() > 0) {
-                result.append(getString(R.string.local_games_component_badge_separator));
-            }
-            result.append(getString(R.string.local_games_component_badge_base));
-        }
-        return result.toString();
-    }
-
-    private String componentSummary(ComponentDescriptor descriptor) {
-        switch (descriptor.getId()) {
-            case RootfsSetupRecipe.IMAGE_COMPONENT:
-                return getString(R.string.local_games_component_summary_imagefs);
-            case "turnip":
-                return getString(R.string.local_games_component_summary_turnip);
-            case "virgl-mesa":
-                return getString(R.string.local_games_component_summary_virgl);
-            case "dxvk":
-                return getString(R.string.local_games_component_summary_dxvk);
-            case "wined3d":
-                return getString(R.string.local_games_component_summary_wined3d);
-            case "glibc_box64_0.2.7":
-                return getString(R.string.local_games_component_summary_box64);
-            case "glibc_prefix-apps_3":
-                return getString(R.string.local_games_component_summary_prefix_apps);
-            case "libudev":
-                return getString(R.string.local_games_component_summary_libudev);
-            case "en-ru-locale":
-                return getString(R.string.local_games_component_summary_locale);
-            case "termux-glibc":
-                return getString(R.string.local_games_component_summary_glibc);
-            case "glibc_scripts_29":
-                return getString(R.string.local_games_component_summary_scripts);
-            default:
-                return descriptor.getType() == ComponentType.CONTAINER
-                    ? getString(R.string.local_games_component_summary_wine)
-                    : descriptor.getSummary();
-        }
-    }
-
-    private void configurePrimaryAction(ItemLocalGamesComponentBinding row,
-                                        ComponentCatalogItem item, ComponentTask task,
-                                        boolean activationRequired,
-                                        @Nullable RuntimeSetupTask setupTask) {
-        int title;
-        View.OnClickListener action;
-        if (task != null && task.getState().shouldRecoverAutomatically()) {
-            row.localGamesComponentPrimaryAction.setText(
-                R.string.local_games_component_view_process);
-            row.localGamesComponentPrimaryAction.setOnClickListener(view ->
-                showComponentInstallationConsole(task));
-            row.localGamesComponentPrimaryAction.setEnabled(true);
-            row.localGamesComponentPrimaryAction.setVisibility(View.VISIBLE);
-            return;
-        }
-        if (activationRequired) {
-            row.localGamesComponentPrimaryAction.setText(
-                R.string.local_games_component_activate);
-            row.localGamesComponentPrimaryAction.setOnClickListener(view -> {
-                disableActions(row);
-                ComponentTasks.activate(this, item.getDescriptor().getId());
-                scheduleCatalogRefresh(250);
-            });
-            row.localGamesComponentPrimaryAction.setEnabled(true);
-            row.localGamesComponentPrimaryAction.setVisibility(View.VISIBLE);
-            return;
-        }
-        if (item.getState() == ComponentCatalogState.INSTALLED &&
-            isRootfsSource(item)) {
-            if (setupTask != null && !setupTask.getState().isTerminal()) {
-                row.localGamesComponentPrimaryAction.setText(
-                    R.string.local_games_runtime_setup_view_log_action);
-                row.localGamesComponentPrimaryAction.setOnClickListener(view ->
-                    RuntimeSetupConsoleDialog.show(this, setupTask.getTaskId()));
-                row.localGamesComponentPrimaryAction.setEnabled(true);
-                row.localGamesComponentPrimaryAction.setVisibility(View.VISIBLE);
-                return;
-            }
-            if (rootfsRuntimeInstalled) {
-                row.localGamesComponentPrimaryAction.setText(
-                    R.string.local_games_runtime_setup_reinstall_action);
-                row.localGamesComponentPrimaryAction.setOnClickListener(view -> {
-                    if (showActiveInstallationConsole()) return;
-                    disableActions(row);
-                    String taskId = RuntimeSetupTasks.enqueue(this,
-                        "debian-13-games-rootfs", componentContainerId);
-                    RuntimeSetupConsoleDialog.show(this, taskId);
-                    scheduleCatalogRefresh(150);
-                });
-                row.localGamesComponentPrimaryAction.setEnabled(true);
-                row.localGamesComponentPrimaryAction.setVisibility(View.VISIBLE);
-                return;
-            }
-            row.localGamesComponentPrimaryAction.setText(
-                R.string.local_games_runtime_setup_action);
-            row.localGamesComponentPrimaryAction.setOnClickListener(view -> {
-                if (showActiveInstallationConsole()) return;
-                disableActions(row);
-                String taskId = RuntimeSetupTasks.enqueue(this,
-                    "debian-13-games-rootfs", componentContainerId);
-                RuntimeSetupConsoleDialog.show(this, taskId);
-                Toast.makeText(this, getString(R.string.local_games_runtime_setup_started,
-                    taskId), Toast.LENGTH_SHORT).show();
-                scheduleCatalogRefresh(150);
-            });
-            row.localGamesComponentPrimaryAction.setEnabled(true);
-            row.localGamesComponentPrimaryAction.setVisibility(View.VISIBLE);
-            return;
-        }
-        switch (item.getState()) {
-            case NOT_INSTALLED:
-            case UPDATE_AVAILABLE:
-                title = isTermuxGlibcRuntime(item.getDescriptor()) &&
-                    isRuntimeComponentAvailable(item.getDescriptor())
-                    ? R.string.local_games_component_reinstall
-                    : isTermuxGlibcRuntime(item.getDescriptor())
-                        ? R.string.local_games_component_install
-                        : R.string.local_games_component_download;
-                action = view -> {
-                    if (showActiveInstallationConsole()) return;
-                    disableActions(row);
-                    String taskId = ComponentTasks.enqueue(this, item.getDescriptor().getId());
-                    showComponentInstallationConsole(item.getDescriptor().getId(), taskId);
-                    scheduleCatalogRefresh(150);
-                };
-                break;
-            case INSTALLED:
-                title = R.string.local_games_component_reinstall;
-                action = view -> {
-                    if (showActiveInstallationConsole()) return;
-                    disableActions(row);
-                    String taskId = ComponentTasks.enqueue(this, item.getDescriptor().getId());
-                    showComponentInstallationConsole(item.getDescriptor().getId(), taskId);
-                    scheduleCatalogRefresh(150);
-                };
-                break;
-            case QUEUED:
-            case DOWNLOADING:
-            case VERIFYING:
-            case VERIFIED:
-            case INSTALLING:
-                if (task == null) {
-                    hidePrimaryAction(row);
-                    return;
-                }
-                title = R.string.local_games_component_pause;
-                action = view -> {
-                    disableActions(row);
-                    ComponentTasks.pause(this, task.getTaskId());
-                    scheduleCatalogRefresh(150);
-                };
-                break;
-            case PAUSED:
-                if (task == null) {
-                    hidePrimaryAction(row);
-                    return;
-                }
-                title = R.string.local_games_component_resume;
-                action = view -> {
-                    if (showActiveInstallationConsole()) return;
-                    disableActions(row);
-                    ComponentTasks.resume(this, task.getTaskId());
-                    showComponentInstallationConsole(task);
-                    scheduleCatalogRefresh(150);
-                };
-                break;
-            case FAILED:
-                if (task == null) {
-                    hidePrimaryAction(row);
-                    return;
-                }
-                title = R.string.local_games_component_retry;
-                action = view -> {
-                    if (showActiveInstallationConsole()) return;
-                    disableActions(row);
-                    ComponentTasks.retry(this, task.getTaskId());
-                    showComponentInstallationConsole(task);
-                    scheduleCatalogRefresh(150);
-                };
-                break;
-            default:
-                hidePrimaryAction(row);
-                return;
-        }
-        row.localGamesComponentPrimaryAction.setText(title);
-        row.localGamesComponentPrimaryAction.setOnClickListener(action);
-        row.localGamesComponentPrimaryAction.setEnabled(true);
-        row.localGamesComponentPrimaryAction.setVisibility(View.VISIBLE);
-    }
-
-    /** The top action remains available after a user hides the modal console. */
-    private void renderActiveInstallationConsoleAction() {
-        boolean active = findActiveComponentTask() != null || findActiveSetupTask() != null;
-        binding.localGamesComponentTaskConsole.setVisibility(active ? View.VISIBLE : View.GONE);
-    }
 
     /** @return true when another installation or reset owns the single execution slot. */
     private boolean showActiveInstallationConsole() {
@@ -1673,51 +1119,6 @@ public final class LocalGamesActivity extends AppUiActivity {
         return null;
     }
 
-    private boolean requiresRuntimeActivation(ComponentCatalogItem item) {
-        if (item.getState() != ComponentCatalogState.INSTALLED ||
-            !item.getDescriptor().supportsBackend(
-                com.termux.ui.wine.domain.GameRuntimeBackendType.GLIBC_TERMUX_BOX)) {
-            return false;
-        }
-        if (appHost == null) return true;
-        try {
-            return !appHost.isRuntimeComponentAvailable(item.getDescriptor().getId(),
-                item.getDescriptor().getVersion(), item.getDescriptor().getSha256());
-        } catch (RuntimeException error) {
-            return true;
-        }
-    }
-
-    private boolean isRuntimeComponentAvailable(ComponentDescriptor descriptor) {
-        if (appHost == null) return false;
-        try {
-            return appHost.isRuntimeComponentAvailable(descriptor.getId(),
-                descriptor.getVersion(), descriptor.getSha256());
-        } catch (RuntimeException ignored) {
-            return false;
-        }
-    }
-
-    private static boolean isTermuxGlibcRuntime(ComponentDescriptor descriptor) {
-        return descriptor != null && TERMUX_GLIBC_ID.equals(descriptor.getId());
-    }
-
-    private static void disableActions(ItemLocalGamesComponentBinding row) {
-        row.localGamesComponentPrimaryAction.setEnabled(false);
-    }
-
-    private static void hidePrimaryAction(ItemLocalGamesComponentBinding row) {
-        row.localGamesComponentPrimaryAction.setVisibility(View.GONE);
-        row.localGamesComponentPrimaryAction.setOnClickListener(null);
-    }
-
-    private void renderCatalogError(String message) {
-        binding.localGamesComponentsLoading.setVisibility(View.GONE);
-        binding.localGamesComponentsError.setText(
-            getString(R.string.local_games_components_load_failed, message));
-        binding.localGamesComponentsError.setVisibility(View.VISIBLE);
-    }
-
     /** The file picker imports into the explicitly selected Wine collection. */
     private void startImportFlow() {
         startActivity(UiNavigation.tabIntent(LocalGames.createFileManagerIntent(this))
@@ -1786,8 +1187,7 @@ public final class LocalGamesActivity extends AppUiActivity {
     private void updateSettingsBackCallback() {
         if (settingsBackCallback != null) {
             settingsBackCallback.setEnabled(selectedTab == TAB_LIBRARY || LocalGamesBackNavigation.interceptsSystemBack(
-                selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS, settingsPage.isRoot(),
-                selectedTab == TAB_COMPONENTS, componentPage == null));
+                selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS, settingsPage.isRoot()));
         }
     }
 
@@ -1815,11 +1215,7 @@ public final class LocalGamesActivity extends AppUiActivity {
     /** Performs one navigation step; false means the caller should confirm app exit. */
     private boolean navigateBackInLibraryScreen() {
         switch (LocalGamesBackNavigation.resolve(
-            selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS, settingsPage.isRoot(),
-            selectedTab == TAB_COMPONENTS, componentPage == null)) {
-            case GO_UP_IN_COMPONENTS:
-                openComponentPage(null);
-                return true;
+            selectedTab == TAB_LIBRARY, selectedTab == TAB_SETTINGS, settingsPage.isRoot())) {
             case GO_UP_IN_SETTINGS:
                 goBackInSettings();
                 return true;
@@ -1985,9 +1381,7 @@ public final class LocalGamesActivity extends AppUiActivity {
         }
     }
 
-    /** Triggers the same shared termux-glibc-runtime component install used by the per-game
-     *  Components list, without navigating there -- reasonable since the component itself is
-     *  not game-specific. */
+    /** Installs the shared Native glibc runtime. */
     private void confirmGlibcInstall() {
         if (showActiveInstallationConsole()) return;
         new FrostedDialogBuilder(this)
@@ -2006,9 +1400,7 @@ public final class LocalGamesActivity extends AppUiActivity {
         mainHandler.postDelayed(this::renderRuntimeStatus, 400);
     }
 
-    /** Builds the shared RootFS base runtime (box64, Wine, fonts) that new game containers are
-     *  extracted from -- the same setup triggered from the per-game Components
-     *  list when no such container exists yet, without navigating there. */
+    /** Builds the shared RootFS base runtime used by new game containers. */
     private void confirmRootfsInstall() {
         if (showActiveInstallationConsole()) return;
         new FrostedDialogBuilder(this)
@@ -2122,8 +1514,7 @@ public final class LocalGamesActivity extends AppUiActivity {
     }
 
     private void installRootfsRuntime() {
-        // This blade is reachable with no specific game in context (componentContainerId may be
-        // unset), but RuntimeSetupTasks.enqueueBaseOnly requires a real, non-DEFAULT_ID
+        // Shared environment setup has no game context. enqueueBaseOnly requires a real, non-DEFAULT_ID
         // containerId even though a BASE_ONLY build never creates a container under it. Use a
         // disposable id instead of forcing a game context here.
         String taskId = RuntimeSetupTasks.enqueueBaseOnly(this, "debian-13-games-rootfs",
@@ -2193,7 +1584,6 @@ public final class LocalGamesActivity extends AppUiActivity {
     protected void onDestroy() {
         if (cdriveBackupFlow != null) cdriveBackupFlow.release();
         RuntimeBackupFlow.instance().detach(this);
-        catalogExecutor.shutdownNow();
         libraryExecutor.shutdownNow();
         binding = null;
         super.onDestroy();

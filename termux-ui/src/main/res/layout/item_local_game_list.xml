@@ -28,7 +28,17 @@
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:maxLines="1" android:ellipsize="end" android:textSize="11sp"
             android:textColor="@color/local_games_on_surface_secondary" />
-        <TextView android:id="@+id/local_game_access_status"
+        <TextView
+                android:id="@+id/local_game_wine"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="@color/local_games_on_surface_secondary"
+                android:textSize="10sp" />
+
+            <TextView android:id="@+id/local_game_access_status"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:maxLines="1" android:ellipsize="end" android:textSize="11sp"
             android:textColor="@color/local_games_on_surface_secondary" />

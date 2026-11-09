@@ -1,0 +1,21 @@
+# 设计
+
+## 已确认原因
+RuntimeComponentVersionsActivity.reload对rootfs_hangover_11.16仅在共享RootFS usr/bin/wine存在时加入installed，render对找不到的selected统一显示未安装，缺少预装来源和镜像准备状态。手动安装入口实际是整个Wine分类的入口，并非必须安装Hangover；需避免对此产生误导。
+GameSessionActivity.stopGameAfterDrawerHidden调用orchestrator.cancel(taskId,false)。宿主只向启动Shell发送SIGTERM，start_rootfs_game.sh的stop_owned_session先向PRoot发TERM并最多等待25秒，然后另有多轮3秒清理。guest包装脚本还会等待wineserver最多15秒。设备日志确认25轮等待真实发生，不能把运行总时长当退出耗时。
+
+## 规划实现
+抽取版本展示策略，区分镜像提供与独立安装。预装Hangover有稳定选择ID，标注来源，缺基础镜像时标注随保存准备；准备、失败状态真实呈现，不使用独立组件安装收据要求Hangover再次安装。若镜像声明完成却缺关键文件，明确报环境不完整，不伪装可运行。
+为用户主动退出采用独立的快速停止路径；不能只将cancel参数改为true后仅杀启动Shell并留下PRoot/Wine子进程。按任务标记和明确私有路径终止本次会话及必要关联子进程，避免误杀其他游戏、无关容器和App主进程。使用有界短确认处理进程清理，清理完才持久化终态，异常解除转圈并展示失败。保留游戏正常退出时的注册表落盘，清理幂等且避免重复等待。Native同样检查退出入口和进程范围。
+
+## 影响与回滚
+保护路径涉及运行时准备、会话取消和启动Shell清理。主动强制退出可能丢失游戏尚未写入磁盘的配置，退出确认文案应反映终止行为；正常游戏退出仍落盘。通过恢复上一APK回滚，不删除设备数据。用户已明确批准执行本方案，当前业务代码已实现，设备最终验收Pending。
+
+## 验证
+覆盖基础镜像未准备/准备中/就绪/损坏下Hangover的预装展示、可选择与可启动区别，普通Wine/Proton安装与选择不受影响。构造真实子进程测试主动退出耗时、无25秒等待、子树清理、任务隔离、失败显式反馈和重复退出；保留自然退出落盘回归。构建原名arm64 APK，testOnly=false，用户手动验收。Harness脚本、OpenSpec CLI和产品基线缺失，记录Unavailable/Pending，不声称严格门禁通过。
+
+## 已实现的退出路径
+主动退出调用force取消：宿主复用RuntimeProcessKiller按启动spec规范路径冻结并强杀本次进程树；两后端启动脚本导出内部GAMES_SESSION_SPEC，使脱离父进程的Wine、音频和显示子进程仍能匹配。未收到PID时同样执行按任务范围的清理，清理成功后写取消标记并持久化终态；TermuxService已有取消检查和两个脚本的早期检查共同阻止迟到宿主命令启动游戏。取消标记随任务保留；失败走明确提示，不误报成功。释放Native任务配置锁文件。原Shell正常结束时的wineserver落盘保持，原有优雅清理不作为主动退出路径。
+
+## 本地验证结果
+51项JVM测试、Native与PRoot真实启动脚本夹具以及自然退出包装脚本专项测试通过。真实Unix进程树的强制停止测试包含忽略TERM的父进程、子进程及另一独立会话，设3秒上限并确认另一会话存活；这不是设备端耗时承诺。原名APK正常构建，约45.7MB，testOnly=false。设备安装后手动验收Pending。

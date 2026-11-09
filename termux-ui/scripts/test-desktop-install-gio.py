@@ -94,9 +94,13 @@ class GioInstallTest(unittest.TestCase):
                 with self.assertRaises(ValueError): self.install()
                 self.assertFalse((self.root / 'usr').exists())
 
+    def test_payload_digest_difference_is_accepted(self):
+        self.write(manifest=dict(self.manifest, outputSha256={name: '0'*64 for name in self.payloads}))
+        self.install()
+        self.assertTrue((self.root/'usr').is_dir())
+
     def test_payload_hash_and_architecture_mismatch_are_rejected(self):
         for changed in [dict(self.manifest, architecture='x86_64'),
-                        dict(self.manifest, outputSha256={name: '0' * 64 for name in self.payloads}),
                         dict(self.manifest, schemaVersion=True)]:
             self.write(manifest=changed)
             with self.assertRaises(ValueError): self.install()

@@ -382,6 +382,7 @@ restore_user_env
 # Selected profile fields are authoritative over arbitrary environment overrides.
 . "$CONTAINER_CONF"
 ensure_launch_log || exit 1
+resolve_resolution
 acquire_single_instance_lock
 ensure_runtime_packages
 apply_native_graphics_component || exit 1
@@ -398,11 +399,10 @@ if command -v pulseaudio >/dev/null 2>&1; then
     pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1 || true
 fi
 start_x11_when_ready || exit 1
+x_server_log_dimensions :0 "$RESOLUTION" "$TERMUX_BOX_WINE_PACKAGE" "${TERMUX_BOX_LAUNCH_LOG:-/dev/null}"
 if [ "$NATIVE_VIRGL" = 1 ]; then
     chmod 777 "$PREFIX/tmp/.virgl_test" >/dev/null 2>&1 || true
 fi
-
-resolve_resolution
 
 # Setup Wine binaries
 chmod +x "$WINE_PATH/bin/wine" "$WINE_PATH/bin/wineserver" >/dev/null 2>&1 || true

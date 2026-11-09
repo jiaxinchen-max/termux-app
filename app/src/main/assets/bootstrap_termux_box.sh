@@ -25,7 +25,9 @@ require_native_wine_runtime || exit 1
 ensure_games_cjk_locale || exit 1
 BOOTSTRAP_LOCK="${WINEPREFIX}.bootstrap.lock"
 RESTORE_PID=
+PREPARATION_MARKER_TMP=
 cleanup_bootstrap() {
+    [ -z "$PREPARATION_MARKER_TMP" ] || rm -f "$PREPARATION_MARKER_TMP"
     if [ -n "$RESTORE_PID" ]; then
         kill "$RESTORE_PID" 2>/dev/null || true
         wait "$RESTORE_PID" 2>/dev/null || true
@@ -60,10 +62,11 @@ fi
 : "${NATIVE_PREFIX_IDENTITY:?native_prefix_identity_required}"
 : "${NATIVE_PREFIX_BUNDLE_SHA256:?native_prefix_bundle_required}"
 : "${NATIVE_PREFIX_ASSETS:?native_prefix_resource_required}"
+: "${NATIVE_PREFIX_PREPARATION_IDENTITY:?native_prefix_preparation_identity_required}"
 if [ -f "$WINEPREFIX/.games-runtime/prepared-identity" ]; then
-    [ "$(cat "$WINEPREFIX/.games-runtime/wine-dlls")" = "$TERMUX_BOX_WINE_PACKAGE" ] &&
-    [ "$(cat "$WINEPREFIX/.games-runtime/prepared-identity")" = "$NATIVE_PREFIX_IDENTITY" ] || {
-        echo 'ERROR: native_prefix_identity_mismatch'; exit 1;
+    [ "$(cat "$WINEPREFIX/.games-runtime/wine-dlls")" = "$TERMUX_BOX_WINE_PACKAGE" ] ||
+    {
+        echo 'ERROR: native_prefix_wine_package_mismatch'; exit 1;
     }
 else
     [ -x "$PREFIX/bin/python" ] || { echo 'ERROR: native_prefix_restore_runtime_missing'; exit 1; }
@@ -86,4 +89,9 @@ apply_native_dx_component || exit 1
 ensure_games_wine_fonts || exit 1
 printf '%s\n' "$TERMUX_BOX_WINE_PACKAGE" > "$WINEPREFIX/.termux-box-wine-package"
 touch "$WINEPREFIX/.termux-box-bootstrap-done"
+# Data identity is immutable. Only the independent script completion receipt changes.
+PREPARATION_MARKER_TMP="$WINEPREFIX/.games-runtime/preparation-script-identity.tmp.$$"
+printf '%s\n' "$NATIVE_PREFIX_PREPARATION_IDENTITY" > "$PREPARATION_MARKER_TMP"
+mv -f "$PREPARATION_MARKER_TMP" "$WINEPREFIX/.games-runtime/preparation-script-identity"
+PREPARATION_MARKER_TMP=
 echo '[bootstrap] Native prebuilt Wine prefix ready without wineboot.'

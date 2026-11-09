@@ -93,9 +93,9 @@ public final class CustomComponentSelectionTest {
         expect("dxWrapper:native-dxvk-invented", () -> new GlibcTermuxBoxBackend()
             .requiredComponentIds(profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX,
                 "native-turnip-v6.5", "native-dxvk-invented", "")));
-        expect("box64_selection_unsupported:glibc_box64_0.4.4", () ->
+        expect("box64_selection_unsupported:glibc_box64_99.0", () ->
             CustomComponentSelection.validate(profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX,
-                "native-turnip-v6.5", "wined3d", "glibc_box64_0.4.4"), null));
+                "native-turnip-v6.5", "wined3d", "glibc_box64_99.0"), null));
     }
 
     @Test public void explicitBox64CannotOverrideHangover() {
@@ -106,6 +106,21 @@ public final class CustomComponentSelectionTest {
             base.getBox64Preset(), base.getEnvironment(), "xinput", LaunchExecutionMode.APP_SHELL,
             Collections.emptyMap(), base.getRuntimeBackendType(), base.getRootfsPackage(), base.getContainerId());
         expect("box64_translator_mismatch:custom-box64-test", () -> CustomComponentSelection.validate(hangover, null));
+    }
+
+    @Test public void builtInVersionsPrepareOnlyTheSelectedNativeBuild() {
+        for (String id : new String[] {"glibc_box64_0.2.7", "glibc_box64_0.4.4"}) {
+            java.util.Set<String> ids = new GlibcTermuxBoxBackend().requiredComponentIds(
+                profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX, "native-turnip-v6.5", "wined3d", id));
+            assertTrue(ids.contains(id));
+            assertEquals(1, ids.stream().filter(NativeBox64Versions::isBuiltIn).count());
+            expect("box64_selection_unsupported:" + id, () -> CustomComponentSelection.validate(
+                profile(GameRuntimeBackendType.ROOTFS_PROOT, "rootfs-llvmpipe", "rootfs-wined3d", id), null));
+        }
+        java.util.Set<String> defaults = new GlibcTermuxBoxBackend().requiredComponentIds(
+            profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX, "native-turnip-v6.5", "wined3d", ""));
+        assertTrue(defaults.contains("glibc_box64_0.2.7"));
+        assertFalse(defaults.contains("glibc_box64_0.4.4"));
     }
 
     private GameStoragePaths paths() throws Exception { return new GameStoragePaths(temporary.newFolder()); }

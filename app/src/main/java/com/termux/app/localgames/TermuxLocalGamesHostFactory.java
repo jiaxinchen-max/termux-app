@@ -127,8 +127,8 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
             if (activation == null) return false;
             // Reuse the app-owned installer so the on-disk layout and the
             // package-manager metadata the runtime probe reads stay produced by one
-            // implementation: extract, require a top-level glibc/, copy into
-            // $PREFIX/glibc, then write installed/{name,name_lists,name_md5}.
+            // implementation: require top-level glibc/, publish Native Box64 under its
+            // version directory (other components retain their layout), then write metadata.
             TermuxBoxPackageSpec spec = new TermuxBoxPackageSpec(
                 activation.getComponentId(), activation.getVersion(), activation.getCategory(),
                 activation.getUrl(), activation.getSize(), activation.getSha256());
@@ -251,6 +251,12 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
 
         @Override
         public void startLaunch(LaunchRequest request) throws LaunchHostException {
+            File requestedSpec = new File(request.getSpecPath());
+            if (requestedSpec.getParentFile().equals(new GameStoragePaths(applicationContext.getFilesDir()).getDesktopSpecsDirectory())) {
+                String filename = requestedSpec.getName();
+                com.termux.ui.wine.runtime.RuntimeEditingStop.register(request.getTaskId(),
+                    "desktop:" + filename.substring(0, filename.length() - ".spec".length()));
+            }
             try {
                 requirePrivatePath(request.getScriptPath());
                 requirePrivatePath(request.getSpecPath());
@@ -332,6 +338,22 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
                 if (error.errno != OsConstants.ESRCH) {
                     throw new LaunchHostException("launch_host_stop_failed", true, error);
                 }
+            }
+        }
+
+        @Override
+        public void forceStopRuntimeProcesses(java.util.List<String> paths) throws LaunchHostException {
+            try {
+                for (String path : paths) requirePrivatePath(path);
+                new RuntimeProcessKiller(new File("/proc"), android.os.Process.myPid(),
+                    android.os.Process.myUid(), (pid, freeze) -> {
+                        try { Os.kill(pid, freeze ? OsConstants.SIGSTOP : OsConstants.SIGKILL); }
+                        catch (ErrnoException error) {
+                            if (error.errno != OsConstants.ESRCH) throw new IOException("runtime_force_stop_failed", error);
+                        }
+                    }).kill(paths);
+            } catch (IOException error) {
+                throw new LaunchHostException("runtime_force_stop_failed", true, error);
             }
         }
 

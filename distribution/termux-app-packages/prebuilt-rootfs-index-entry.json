@@ -8,7 +8,7 @@
   "framework": "Debian PRoot",
   "base": true,
   "recommended": true,
-  "hidden": false,
+  "hidden": true,
   "profileValue": "",
   "runtimeBackends": [
     "rootfs_proot"

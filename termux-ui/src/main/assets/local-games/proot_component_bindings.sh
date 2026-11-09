@@ -89,7 +89,6 @@ proot_binding_validate() {
     grep -Fqx 'schemaVersion=1' "$pb_receipt" &&
         grep -Fqx "packageName=$PB_ID" "$pb_receipt" &&
         grep -Fqx "version=$PB_VERSION" "$pb_receipt" &&
-        grep -Fqx "sha256=$PB_SHA" "$pb_receipt" || return 2
     case "$PB_ROLE" in
         WINE)
             case "$PB_ID" in

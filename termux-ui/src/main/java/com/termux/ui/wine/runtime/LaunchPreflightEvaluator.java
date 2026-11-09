@@ -104,8 +104,7 @@ public final class LaunchPreflightEvaluator {
                 issues.add(new PreflightIssue(PreflightIssueCode.COMPONENT_MISSING, componentId));
                 requiredBytes = addSaturated(requiredBytes,
                     multiplySaturated(descriptor.getSize(), COMPONENT_PEAK_MULTIPLIER));
-            } else if (active.getVersion() != expectedVersion ||
-                !active.getSha256().equals(descriptor.getSha256())) {
+            } else if (active.getVersion() != expectedVersion ) {
                 issues.add(new PreflightIssue(
                     PreflightIssueCode.COMPONENT_VERSION_MISMATCH, componentId));
                 requiredBytes = addSaturated(requiredBytes,

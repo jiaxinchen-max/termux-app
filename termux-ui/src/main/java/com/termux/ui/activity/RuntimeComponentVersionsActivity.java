@@ -10,8 +10,6 @@ import android.os.Looper;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.Toast;
 
@@ -135,6 +133,9 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
             return;
         }
         selected = getIntent().getStringExtra(EXTRA_SELECTION_ID);
+        if (kind == CustomRuntimeComponent.Kind.BOX64) {
+            selected = RuntimeComponentVersions.selectedBox64Id(backend, selected);
+        }
         paths = new GameStoragePaths(getFilesDir());
         customComponents = new FileCustomRuntimeComponentRepository(paths.getCustomRuntimeComponentsDirectory());
         LinearLayout root = new LinearLayout(this);
@@ -188,6 +189,7 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
         final ComponentDescriptor descriptor;
         final ComponentTask task;
         final boolean available;
+        int description;
         Row(String id, String name, ComponentDescriptor descriptor, ComponentTask task, boolean available) {
             this.id = id; this.name = name; this.descriptor = descriptor; this.task = task; this.available = available;
         }
@@ -211,15 +213,23 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
                         unique.put(entry.getId(), new Row(entry.getId(), entry.getDisplayName(), null, null, true));
                     }
                 }
-                if (kind == CustomRuntimeComponent.Kind.BOX64 && new File(paths.getSharedRootfsDirectory(), "opt/box64/rootfs_box64_0.4.5/bin/box64").isFile()
-                    && backend == GameRuntimeBackendType.ROOTFS_PROOT) {
-                    unique.put("", new Row("", getString(R.string.component_versions_runtime_box64), null, null, true));
-                }
                 ComponentStoragePaths storage = new ComponentStoragePaths(getFilesDir());
                 ComponentInstallationReader receipts = new ComponentInstallationReader(storage.getInstallDirectory());
                 ComponentIndex index;
                 try (InputStream stream = getAssets().open("termux-app-packages/index-v1.json")) {
                     index = new ComponentIndexParser().parse(stream);
+                }
+                // Hangover belongs to the base image, not to the downloadable component catalog.
+                if (kind == CustomRuntimeComponent.Kind.WINE && backend == GameRuntimeBackendType.ROOTFS_PROOT
+                    && (locked == null || locked == RuntimeTranslator.HANGOVER)) {
+                    boolean ready = new com.termux.ui.wine.runtime.RuntimeEnvironmentStatus(paths).rootfsState()
+                        == com.termux.ui.wine.domain.RuntimeReadinessState.READY;
+                    Row bundled = new Row(RuntimeComponentVersions.PREINSTALLED_HANGOVER, "Hangover 11.16", null, null, ready);
+                    bundled.description = ready ? R.string.component_versions_preinstalled_ready
+                        : paths.getSharedRootfsContainerDirectory().exists()
+                            ? R.string.component_versions_preinstalled_incomplete
+                            : R.string.component_versions_preinstalled_pending;
+                    unique.put(bundled.id, bundled);
                 }
                 for (ComponentCatalogItem item : new ComponentCatalogRepository(index,
                     new FileComponentTaskRepository(storage.getTasksDirectory()), receipts).load()) {
@@ -227,24 +237,16 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
                     if (!RuntimeComponentVersions.accepts(descriptor, kind, backend, locked)) continue;
                     InstalledComponent receipt = receipts.read(descriptor.getId()).getActive().orElse(null);
                     boolean available = receipt != null && receipt.getVersion() == descriptor.getVersion() &&
-                        (descriptor.getSha256().isEmpty() || descriptor.getSha256().equals(receipt.getSha256())) &&
                         receipt.getDirectory().isDirectory();
                     if (available && backend == GameRuntimeBackendType.GLIBC_TERMUX_BOX) {
                         available = LocalGames.requireHost(this).isRuntimeComponentAvailable(descriptor.getId(),
                             descriptor.getVersion(), descriptor.getSha256());
                     }
-                    if (descriptor.getId().equals("rootfs_hangover_11.16")) {
-                        available = new File(paths.getSharedRootfsDirectory(), "usr/bin/wine").isFile();
-                    }
                     String selectionId = RuntimeComponentVersions.catalogSelectionId(descriptor, kind, backend);
                     ComponentTask task = item.getTask().orElse(null);
                     Row row = new Row(selectionId, descriptor.getDisplayName(), descriptor, task, available);
                     if (selectionId != null && available) unique.put(selectionId, row);
-                    else if (!available && !descriptor.getId().equals("rootfs_hangover_11.16")) online.add(row);
-                }
-                if (kind == CustomRuntimeComponent.Kind.BOX64 && backend == GameRuntimeBackendType.GLIBC_TERMUX_BOX
-                    && new File(paths.getTermuxPrefixDirectory(), "glibc/bin/box64").canExecute()) {
-                    unique.put("", new Row("", getString(R.string.component_versions_runtime_box64), null, null, true));
+                    else if (!available) online.add(row);
                 }
                 installed.addAll(unique.values());
                 runOnUiThread(() -> {
@@ -267,7 +269,7 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
 
     private void render(List<Row> installed, List<Row> online) {
         StringBuilder next = new StringBuilder();
-        for (Row row : installed) next.append(row.id).append(row.name);
+        for (Row row : installed) next.append(row.id).append(row.name).append(row.description);
         for (Row row : online) next.append(row.descriptor.getId()).append(row.available)
             .append(row.task == null ? "" : row.task.getState().name());
         next.append(selected).append(mode);
@@ -275,21 +277,46 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
         signature = next.toString();
         int scrollY = scroll.getScrollY();
         SettingsMenuBuilder menu = new SettingsMenuBuilder(this, content);
-        menu.heading(getString(R.string.component_versions_installed));
-        if (installed.isEmpty()) menu.row(getString(R.string.component_versions_empty), null, null);
+        List<Row> preinstalled = new ArrayList<>();
+        List<Row> separate = new ArrayList<>();
+        for (Row row : installed) (row.description != 0 ? preinstalled : separate).add(row);
         boolean currentFound = false;
+        if (!preinstalled.isEmpty()) {
+            menu.heading(getString(R.string.component_versions_preinstalled));
+            for (Row row : preinstalled) {
+                boolean current = row.id.equals(selected);
+                currentFound |= current;
+                String description = getString(row.description);
+                if (current) description += " · " + getString(R.string.component_versions_current);
+                if (mode == Mode.SELECT) FrostedMenuRow.addChoice(this, content, row.name, description,
+                    current, view -> choose(row.id));
+                else menu.row(row.name, description, null);
+            }
+        }
+        installed = separate;
+        if (!installed.isEmpty() || preinstalled.isEmpty()) {
+            menu.heading(getString(R.string.component_versions_installed));
+            if (installed.isEmpty()) menu.row(getString(R.string.component_versions_empty), null, null);
+        }
         for (Row row : installed) {
             boolean current = row.id.equals(selected);
             currentFound |= current;
-            menu.row(row.name, getString(current && mode == Mode.SELECT ? R.string.component_versions_current : R.string.component_versions_installed),
-                mode == Mode.SELECT ? view -> choose(row.id) : null);
+            if (mode == Mode.SELECT) {
+                FrostedMenuRow.addChoice(this, content, row.name,
+                    getString(current ? R.string.component_versions_current : R.string.component_versions_installed),
+                    current, view -> choose(row.id));
+            } else {
+                menu.row(row.name, getString(R.string.component_versions_installed), null);
+            }
         }
         if (mode == Mode.SELECT && selected != null && !selected.isEmpty() && !currentFound) {
             menu.row(getString(R.string.component_versions_missing, selected), null, null);
         }
-        menu.row(getString(R.string.component_versions_manual), null, view ->
-            filePicker.launch(new String[] {"application/x-xz", "application/zstd", "application/gzip",
-                "application/x-tar", "application/octet-stream"}));
+        if (RuntimeComponentVersions.allowsManualInstall(kind, backend, locked)) {
+            menu.row(getString(R.string.component_versions_manual), null, view ->
+                filePicker.launch(new String[] {"application/x-xz", "application/zstd", "application/gzip",
+                    "application/x-tar", "application/octet-stream"}));
+        }
         if (!online.isEmpty()) {
             menu.heading(getString(R.string.component_versions_online));
             for (Row row : online) {
@@ -341,29 +368,6 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
         name.setTextColor(color(R.color.local_games_on_surface));
         name.setHintTextColor(color(R.color.local_games_on_surface_secondary));
         form.addView(name);
-        RadioGroup translatorGroup = null;
-        // GLIBC_TERMUX_BOX has exactly one translation path (box64) -- nothing to ask about, so
-        // this picker only appears for a ROOTFS WINE add (see GlibcTermuxBoxBackend/
-        // CustomRuntimeComponent's own doc comments on why translator stays null there).
-        if (kind == CustomRuntimeComponent.Kind.WINE && forRootfs && locked == null) {
-            translatorGroup = new RadioGroup(this);
-            translatorGroup.setOrientation(RadioGroup.VERTICAL);
-            RadioButton hangover = new RadioButton(this);
-            hangover.setId(View.generateViewId());
-            hangover.setText(R.string.local_games_custom_component_translator_hangover);
-            hangover.setTextColor(color(R.color.local_games_on_surface));
-            hangover.setMinHeight(dp(48));
-            RadioButton box64 = new RadioButton(this);
-            box64.setId(View.generateViewId());
-            box64.setText(R.string.local_games_custom_component_translator_box64);
-            box64.setTextColor(color(R.color.local_games_on_surface));
-            box64.setMinHeight(dp(48));
-            translatorGroup.addView(hangover);
-            translatorGroup.addView(box64);
-            translatorGroup.check(box64.getId());
-            form.addView(translatorGroup);
-        }
-        RadioGroup finalTranslatorGroup = translatorGroup;
         new FrostedDialogBuilder(this, R.style.ThemeOverlay_TermuxLocalGames_Dialog)
             .setTitle(getString(R.string.component_versions_title, RuntimeComponentVersions.displayName(kind)))
             .setView(scrollable(form))
@@ -375,14 +379,8 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
                         R.string.local_games_custom_component_name_required, Toast.LENGTH_LONG).show();
                     return;
                 }
-                RuntimeTranslator translator = kind == CustomRuntimeComponent.Kind.WINE ? locked : null;
-                if (kind == CustomRuntimeComponent.Kind.WINE && forRootfs && locked == null) {
-                    RadioButton checked = finalTranslatorGroup.findViewById(
-                        finalTranslatorGroup.getCheckedRadioButtonId());
-                    translator = checked != null && checked.getText().toString().equals(
-                        this.getString(R.string.local_games_custom_component_translator_hangover))
-                        ? RuntimeTranslator.HANGOVER : RuntimeTranslator.BOX64;
-                }
+                RuntimeTranslator translator = kind == CustomRuntimeComponent.Kind.WINE && forRootfs
+                    ? RuntimeTranslator.BOX64 : null;
                 startCustomComponentInstall(kind, translator, displayName, uri);
             })
             .show();

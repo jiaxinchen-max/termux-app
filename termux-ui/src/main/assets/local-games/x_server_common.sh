@@ -66,3 +66,15 @@ x_server_wait_ready() { # display
     done
     return 1
 }
+
+# Read-only diagnostics through the X11 socket: no guest libraries or tools are loaded.
+x_server_log_dimensions() { # display target-resolution wine log
+    printf 'X11 display: server=%s wine=%s target=%s\n' "$(x_server_backend)" "$3" "$2" >> "$4"
+    if command -v python >/dev/null 2>&1 && [ -f "$X_SERVER_DIR/x_server_dimensions.py" ]; then
+        python "$X_SERVER_DIR/x_server_dimensions.py" \
+            "${X_SERVER_PREFIX:-${PREFIX:-/data/data/com.termux/files/usr}}/tmp/.X11-unix/X${1#:}" \
+            "$2" >> "$4" 2>&1 || true
+    else
+        printf '%s\n' 'X11 dimensions: diagnostic unavailable (Python or helper missing)' >> "$4"
+    fi
+}

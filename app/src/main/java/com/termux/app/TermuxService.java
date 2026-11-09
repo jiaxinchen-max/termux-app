@@ -358,6 +358,12 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     /** Process {@link TERMUX_SERVICE#ACTION_SERVICE_EXECUTE} intent to execute a shell command in
      * a foreground TermuxSession or in a background TermuxTask. */
     private void actionServiceExecute(Intent intent) {
+        synchronized (com.termux.ui.wine.runtime.RuntimeEditingStop.LOCK) {
+            actionServiceExecuteLocked(intent);
+        }
+    }
+
+    private void actionServiceExecuteLocked(Intent intent) {
         if (intent == null) {
             Logger.logError(LOG_TAG, "Ignoring null intent to actionServiceExecute");
             return;
@@ -413,6 +419,8 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
 
         if (executionCommand.shellCreateMode == null)
             executionCommand.shellCreateMode = ShellCreateMode.ALWAYS.getMode();
+
+        if (com.termux.ui.wine.runtime.RuntimeEditingStop.shellCancelled(getFilesDir(), executionCommand.shellName)) return;
 
         // Add the execution command to pending plugin execution commands list
         mShellManager.mPendingPluginExecutionCommands.add(executionCommand);

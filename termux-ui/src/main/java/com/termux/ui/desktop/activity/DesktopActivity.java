@@ -337,8 +337,7 @@ public final class DesktopActivity extends AppUiActivity {
         }
         if (active && state != DesktopSessionState.STOPPING)
             items.add(Menu.NONE, MENU_STOP, Menu.NONE, R.string.desktop_action_stop);
-        items.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.desktop_action_settings)
-            .setEnabled(state != DesktopSessionState.STOPPING);
+        items.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.desktop_action_settings);
         if (DesktopArchiveFlow.instance().hasProgressFor(distro.getId())) {
             items.add(Menu.NONE, MENU_ARCHIVE_PROGRESS, Menu.NONE, R.string.desktop_archive_view_progress);
         }
@@ -352,14 +351,18 @@ public final class DesktopActivity extends AppUiActivity {
                     .setEnabled(!anyDesktopActive() && !DesktopArchiveFlow.instance().isBusy());
             }
         }
-        if (!active) items.add(Menu.NONE, MENU_DELETE, Menu.NONE, R.string.desktop_action_delete);
+        items.add(Menu.NONE, MENU_DELETE, Menu.NONE, R.string.desktop_action_delete);
         items.add(Menu.NONE, MENU_LOGS, Menu.NONE, R.string.desktop_action_logs);
         menu.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
                 case MENU_INSTALL: confirmInstall(distro); return true;
                 case MENU_STOP: stop(distro); return true;
                 case MENU_SETTINGS:
-                    DesktopSettingsDialog.show(this, tasks, distro, this::refresh);
+                    runHostAction(() -> {
+                        try { tasks.forceStop(distro); }
+                        catch (IOException error) { toastOnUi(getString(R.string.desktop_error, error.getMessage())); return; }
+                        runOnUiThread(() -> DesktopSettingsDialog.show(this, tasks, distro, this::refresh));
+                    });
                     return true;
                 case MENU_LOGS: showLogs(distro); return true;
                 case MENU_ARCHIVE_PROGRESS:
@@ -459,9 +462,7 @@ public final class DesktopActivity extends AppUiActivity {
                         if (check.isChecked()) tasks.deleteAndRemoveContainer(distro);
                         else tasks.delete(distro);
                     } catch (IOException error) {
-                        toastOnUi("desktop_running".equals(error.getMessage())
-                            ? getString(R.string.desktop_delete_running)
-                            : getString(R.string.desktop_error, "desktop_delete_failed"));
+                        toastOnUi(getString(R.string.desktop_error, "desktop_delete_failed"));
                     } catch (LaunchHostException error) {
                         toastOnUi(getString(R.string.desktop_error, error.getErrorCode()));
                     }
@@ -473,9 +474,7 @@ public final class DesktopActivity extends AppUiActivity {
                     try {
                         tasks.delete(distro);
                     } catch (IOException error) {
-                        toastOnUi("desktop_running".equals(error.getMessage())
-                            ? getString(R.string.desktop_delete_running)
-                            : getString(R.string.desktop_error, "desktop_delete_failed"));
+                        toastOnUi(getString(R.string.desktop_error, "desktop_delete_failed"));
                     }
                     runOnUiThread(this::refresh);
                 }));

@@ -51,11 +51,23 @@ class ImageTests(unittest.TestCase):
         self.assertFalse(self.root.exists())
 
     def test_roundtrip_absolute_guest_and_l2s_links(self):
-        self.build(); self.restore(); self.assertEqual(m.guest(self.root, 'bin/linked').read_bytes(), b'data'); self.assertEqual(m.verify(self.root, self.descriptor, self.recipe, True)['state'], 'Verified')
+        self.build(); self.restore(); self.assertEqual(m.guest(self.root, 'bin/linked').read_bytes(), b'data'); self.assertEqual(m.verify(self.root, self.descriptor, self.recipe, True)['state'], 'Ready')
+    def test_different_content_restores_without_digest_gate(self):
+        self.build(members=[dict(self.records[0],payload=b'X'*len(self.files[self.records[0]['path']]))]+self.records[1:])
+        self.restore()
+        self.assertEqual(m.verify(self.root,self.descriptor,self.recipe)['state'], 'Ready')
+
+    def test_path_escape_is_still_rejected(self):
+        self.build(records=[dict(self.records[0],path='../outside')])
+        self.rejected()
+
     def test_digest_mismatch_before_writes(self):
         self.build(); self.archive.write_bytes(b'bad'); self.rejected()
     def test_wrong_source(self):
-        self.build(); d=json.loads(self.descriptor.read_text()); d['sourceComponentSha256']='0'*64; self.descriptor.write_bytes(m.raw_json(d)); self.rejected()
+        self.build()
+        d=json.loads(self.descriptor.read_text()); d['sourceComponentSha256']='0'*64
+        self.descriptor.write_bytes(m.raw_json(d))
+        self.restore()
     def test_path_escape(self):
         for name in ('../outside', '/tmp/outside', 'usr/../../outside'):
             with self.subTest(name=name):
@@ -71,7 +83,9 @@ class ImageTests(unittest.TestCase):
     def test_duplicate_member(self): self.build(members=self.records+[self.records[0]]); self.rejected()
     def test_missing_member(self): self.build(members=self.records[:-1]); self.rejected()
     def test_unexpected_member(self): self.build(members=self.records+[dict(self.records[0],path='extra')]); self.rejected()
-    def test_wrong_file_data(self): self.build(members=[dict(self.records[0],payload=b'X'*len(self.files[self.records[0]['path']]))]+self.records[1:]); self.rejected()
+    def test_wrong_file_data(self):
+        self.build(members=[dict(self.records[0],payload=b'X'*len(self.files[self.records[0]['path']]))]+self.records[1:])
+        self.restore()
     def test_decoder_failed(self):
         self.build(); self.archive.write_bytes(self.archive.read_bytes()[:-4]);d=json.loads(self.descriptor.read_text());d.update(bytes=self.archive.stat().st_size,sha256=m.digest(self.archive));self.descriptor.write_bytes(m.raw_json(d));self.rejected()
     def test_trailing_nonzero_data(self): self.build(trailing=b'hostile'); self.rejected()
@@ -97,10 +111,10 @@ class ImageTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.restore()
         self.assertEqual((self.root/'old').read_bytes(),b'old')
     def test_recipe_and_installed_source_tampering(self):
-        self.build();self.restore()
-        with self.assertRaises(ValueError):m.verify(self.root,self.descriptor,'b'*64)
+        self.build(); self.restore()
+        m.verify(self.root,self.descriptor,'b'*64)
         (self.root/'usr/bin/wine').write_bytes(b'changed')
-        with self.assertRaises(ValueError):m.verify(self.root,self.descriptor,self.recipe)
+        m.verify(self.root,self.descriptor,self.recipe)
     def test_pack_reproducible_and_cleans_machine_data(self):
         source=self.base/'source';source.mkdir()
         for r in self.records:

@@ -49,8 +49,9 @@ public class ComponentCatalogProjectionTest {
         assertEquals("box64_0.2.7", index.find("glibc_box64_0.2.7").get().getDisplayName());
         assertEquals("box64_0.4.4",
             index.find("glibc_box64_0.4.4").get().getDisplayName());
-        assertEquals(ComponentType.RUNTIME_SUPPORT,
-            index.find("rootfs_hangover_11.16").get().getType());
+        assertFalse(index.find("rootfs_hangover_11.16").isPresent());
+        assertEquals(ComponentType.IMAGE_FS,
+            index.find("rootfs_debian13_hangover_pdb2_minimal").get().getType());
         assertEquals(ComponentType.RUNTIME_SUPPORT,
             index.find("glibc_scripts_29").get().getType());
         assertFalse(index.find("termux-glibc").isPresent());
@@ -58,10 +59,10 @@ public class ComponentCatalogProjectionTest {
 
     @Test
     public void displayNamesFollowComponentUnderscoreVersion() throws Exception {
-        // Ids are <env>_<component>_<version>; the user-facing name drops the env and keeps
-        // <component>_<version>. Components whose id predates the scheme (dxvk, turnip, ...) are
-        // profile enum values, so they only gain the version suffix.
+        // Selectable runtimes retain the component/version label. Internal images and
+        // prefix assets use descriptive names and are covered by readable-identity checks.
         for (ComponentDescriptor descriptor : bundledIndex().getComponents()) {
+            if (descriptor.isHidden()) continue;
             String id = descriptor.getId();
             String expectedPrefix = id.replaceFirst("^(glibc|rootfs)_", "");
             String name = descriptor.getDisplayName();

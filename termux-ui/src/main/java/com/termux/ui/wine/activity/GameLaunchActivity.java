@@ -201,7 +201,7 @@ public final class GameLaunchActivity extends AppUiActivity {
                 binding.gameLaunchAction.setText(R.string.local_game_launch_repair_components);
                 binding.gameLaunchAction.setVisibility(View.VISIBLE);
                 binding.gameLaunchAction.setOnClickListener(view ->
-                    startActivity(LocalGames.createComponentsIntent(this, gameId)));
+                    openComponents());
                 break;
             case RETRY:
                 binding.gameLaunchAction.setText(R.string.local_game_launch_retry);
@@ -211,6 +211,26 @@ public final class GameLaunchActivity extends AppUiActivity {
             default:
                 binding.gameLaunchAction.setVisibility(View.GONE);
         }
+    }
+
+    private void openComponents() {
+        ioExecutor.execute(() -> {
+            try {
+                com.termux.ui.wine.domain.RuntimeProfile profile =
+                    new com.termux.ui.wine.data.FileRuntimeProfileRepository(
+                        new GameStoragePaths(getFilesDir()).getProfilesDirectory())
+                        .find(gameId).orElseThrow(() -> new IOException("runtime_profile_missing"));
+                runOnUiThread(() -> {
+                    if (!destroyed) startActivity(LocalGames.createCoreComponentsIntent(this,
+                        profile.getRuntimeBackendType()));
+                });
+            } catch (IOException error) {
+                runOnUiThread(() -> {
+                    if (!destroyed) Toast.makeText(this, R.string.local_game_runtime_load_failed,
+                        Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     private void reauthorize() {

@@ -34,6 +34,17 @@ public class ComponentInstallerTest {
     @Rule
     public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+    @Test public void contentDigestDifferenceDoesNotBlockInstallation() throws Exception {
+        Fixture fixture = fixture();
+        File archive = archive("different-digest.tar.xz", "bin/runtime", "runtime");
+        ComponentTask task = fixture.verified("different-digest", 1, archive).withVerifiedSha256(
+            "0000000000000000000000000000000000000000000000000000000000000000");
+        fixture.repository.save(task);
+        InstalledComponent installed = fixture.installer.install(task, archive, ComponentInstallListener.NONE);
+        assertEquals("runtime", text(new File(installed.getDirectory(), "bin/runtime")));
+        assertEquals(sha256(archive), installed.getSha256());
+    }
+
     @Test
     public void stagesTwoImmutableVersionsAndRollsBackPointer() throws Exception {
         Fixture fixture = fixture();

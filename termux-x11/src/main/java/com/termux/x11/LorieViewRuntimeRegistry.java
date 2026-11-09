@@ -29,6 +29,10 @@ public final class LorieViewRuntimeRegistry {
 
     public static synchronized boolean hasLiveInstance() { return currentLocked() != null; }
 
+    static synchronized boolean isCurrent(LorieViewRuntimeController controller) {
+        return currentLocked() == controller;
+    }
+
     @Keep
     @Nullable
     public static synchronized LorieViewRuntimeRegistry getInstance() {

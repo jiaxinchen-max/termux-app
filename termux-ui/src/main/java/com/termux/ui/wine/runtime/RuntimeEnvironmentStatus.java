@@ -18,24 +18,30 @@ public final class RuntimeEnvironmentStatus {
 
     /** Checks base markers and required tools verified by install_termux_glibc_runtime.sh.
      *  No base markers is NOT_READY even if shared tools are preinstalled; READY also
-     *  requires executable Python/7z and verified shared Chinese locale data. Partial or missing prerequisites are INCOMPLETE. */
+     *  requires nonempty XRandR, executable Python/archive tools and verified shared Chinese locale data.
+     *  Partial or missing prerequisites are INCOMPLETE. */
     public RuntimeReadinessState glibcState() {
         File prefix = paths.getTermuxPrefixDirectory();
         File glibc = new File(prefix, "glibc");
+        File xrandr = new File(glibc, "lib/libXrandr.so.2");
         boolean[] markers = {
             new File(glibc, "lib/ld-linux-aarch64.so.1").isFile(),
             new File(glibc, "lib/libc.so.6").isFile(),
             new File(prefix, "bin/grun").canExecute(),
             new File(glibc, "lib/libX11.so.6").isFile(),
             new File(glibc, "lib/libXrender.so.1").isFile(),
+            xrandr.isFile() && xrandr.length() > 0,
             new File(glibc, "lib/libfreetype.so.6").isFile(),
         };
         int present = 0;
         for (boolean marker : markers) if (marker) present++;
         if (present == 0) return RuntimeReadinessState.NOT_READY;
+        for (String tool : new String[] {"7z", "zip", "unzip", "tar", "gzip", "bzip2", "xz", "zstd"}) {
+            File command = new File(prefix, "bin/" + tool);
+            if (!command.isFile() || command.length() == 0 || !command.canExecute()) return RuntimeReadinessState.INCOMPLETE;
+        }
         if (present == markers.length
             && new File(prefix, "bin/python").canExecute()
-            && new File(prefix, "bin/7z").canExecute()
             && NativeGlibcLocale.isReady(glibc)) return RuntimeReadinessState.READY;
         return RuntimeReadinessState.INCOMPLETE;
     }

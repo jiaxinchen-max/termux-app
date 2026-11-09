@@ -64,8 +64,12 @@ public final class TermuxBoxRepository {
     private volatile List<TermuxBoxPackageSpec> packages;
 
     public TermuxBoxRepository(Context context) {
+        this(context, new File(TermuxConstants.TERMUX_FILES_DIR_PATH));
+    }
+
+    TermuxBoxRepository(Context context, File filesDirectory) {
         this.context = context.getApplicationContext();
-        this.filesDir = new File(TermuxConstants.TERMUX_FILES_DIR_PATH);
+        this.filesDir = filesDirectory;
         this.prefixDir = new File(filesDir, "usr");
         this.glibcDir = new File(prefixDir, "glibc");
         this.optDir = new File(glibcDir, "opt");
@@ -265,6 +269,10 @@ public final class TermuxBoxRepository {
         if (!glibcSource.isDirectory()) {
             throw new IOException("Invalid package archive: missing glibc directory");
         }
+        if (com.termux.ui.wine.runtime.NativeBox64Versions.isBuiltIn(spec.name)) {
+            installBox64Version(spec, glibcSource, listener);
+            return;
+        }
         removePackage(spec);
         if (listener != null) {
             listener.onMessage("Installing " + spec.name);
@@ -273,6 +281,31 @@ public final class TermuxBoxRepository {
         // $PREFIX, so its contents must land under $PREFIX/glibc.
         copyDirectory(glibcSource, glibcDir, listener);
         writeInstalledMetadata(spec, glibcSource);
+    }
+
+    private void installBox64Version(TermuxBoxPackageSpec spec, File source,
+                                     ProgressListener listener) throws IOException {
+        File binary = new File(source, "bin/box64");
+        if (!binary.isFile() || binary.length() == 0 || !binary.canExecute() || isSymlinkCompat(binary)) {
+            throw new IOException("box64_package_binary_missing:" + spec.name);
+        }
+        String relative = com.termux.ui.wine.runtime.NativeBox64Versions.relativeDirectory(spec.name);
+        File destination = new File(glibcDir, relative);
+        ensureDir(destination.getParentFile());
+        File stage = new File(destination.getParentFile(), spec.name + ".stage." + java.util.UUID.randomUUID());
+        try {
+            copyDirectory(source, stage, listener);
+            File stagedBinary = new File(stage, "bin/box64");
+            if (!stagedBinary.isFile() || stagedBinary.length() != binary.length() || !stagedBinary.canExecute()) {
+                throw new IOException("box64_package_copy_failed:" + spec.name);
+            }
+            // Never remove files listed by old shared-bin receipts or another build.
+            deleteRecursively(destination);
+            if (!stage.renameTo(destination)) throw new IOException("box64_package_publish_failed:" + spec.name);
+            writeInstalledMetadata(spec, source, "glibc/" + relative);
+        } finally {
+            deleteRecursively(stage);
+        }
     }
 
     private void removePackage(TermuxBoxPackageSpec spec) throws IOException {
@@ -408,6 +441,11 @@ public final class TermuxBoxRepository {
 
     private void writeInstalledMetadata(TermuxBoxPackageSpec spec, File glibcSource)
         throws IOException {
+        writeInstalledMetadata(spec, glibcSource, "glibc");
+    }
+
+    private void writeInstalledMetadata(TermuxBoxPackageSpec spec, File glibcSource,
+                                        String installedRoot) throws IOException {
         ensureDirs();
         File listFile = new File(installedDir, spec.name + "_lists");
         File md5File = new File(installedDir, spec.name + "_md5");
@@ -416,7 +454,7 @@ public final class TermuxBoxRepository {
              OutputStreamWriter md5Writer = new OutputStreamWriter(new FileOutputStream(md5File, false), StandardCharsets.UTF_8)) {
             for (File file : files) {
                 String child = relativizePath(glibcSource, file);
-                String relative = child.isEmpty() ? "glibc" : "glibc/" + child;
+                String relative = child.isEmpty() ? installedRoot : installedRoot + "/" + child;
                 if (relative.isEmpty()) {
                     continue;
                 }

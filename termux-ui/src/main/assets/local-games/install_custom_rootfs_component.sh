@@ -87,9 +87,6 @@ esac
 [ -f "$PAYLOAD_PATH" ] || fail custom_component_payload_missing 70
 case "$PAYLOAD_SHA256" in ''|*[!a-f0-9]*) fail custom_component_hash_invalid 64 ;; esac
 [ "${#PAYLOAD_SHA256}" = 64 ] || fail custom_component_hash_invalid 64
-actual_sha256=$(sha256sum "$PAYLOAD_PATH")
-actual_sha256=${actual_sha256%% *}
-[ "$actual_sha256" = "$PAYLOAD_SHA256" ] || fail custom_component_hash_mismatch 64
 
 TERMUX_GLIBC_DIR="$TERMUX_FILES_ROOT/usr/glibc"
 SHARED_CONTAINER="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-shared-rootfs"

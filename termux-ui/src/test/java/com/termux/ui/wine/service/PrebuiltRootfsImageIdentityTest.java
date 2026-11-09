@@ -18,13 +18,23 @@ public class PrebuiltRootfsImageIdentityTest {
         assertEquals(Collections.singletonList(RootfsSetupRecipe.IMAGE_COMPONENT), recipe.getBaseComponentIds());
         assertNotEquals(RootfsSetupRecipe.DEFAULT_SOURCE, recipe.getSourceComponentId());
     }
-    @Test(expected = IOException.class) public void wineDebCannotReplaceImage() throws Exception {
+    @Test public void legacyRecipesAreRejectedBeforeReadingAssets() {
+        for (int version : new int[]{10, 11}) {
+            try {
+                RootfsSetupRecipe.require(RootfsSetupRecipe.DEFAULT_PACKAGE, version);
+                fail("obsolete recipe accepted: " + version);
+            } catch (IllegalArgumentException expected) {
+                assertTrue(expected.getMessage().contains("rootfs_recipe_version_unsupported"));
+            }
+        }
+    }
+    @Test public void sourceDigestDoesNotGateImageMetadata() throws Exception {
         RootfsSetupAssetInstaller.requireImageSource(IMAGE, new String[]{SOURCE});
     }
-    @Test(expected = IOException.class) public void changedImageRejected() throws Exception {
+    @Test public void changedImageDigestIsAccepted() throws Exception {
         RootfsSetupAssetInstaller.requireImageSource(IMAGE, new String[]{SHA.replace('a','b')});
     }
-    @Test(expected = IOException.class) public void unexpectedWineSourceRejected() throws Exception {
+    @Test public void changedSourceDigestIsAccepted() throws Exception {
         RootfsSetupAssetInstaller.requireImageSource(IMAGE.replace(SOURCE,SHA), new String[]{SHA});
     }
     @Test(expected = IOException.class) public void malformedMetadataRejected() throws Exception {

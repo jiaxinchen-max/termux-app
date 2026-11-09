@@ -12,7 +12,7 @@
       "framework": "Termux GLIBC",
       "base": true,
       "recommended": true,
-      "hidden": false,
+      "hidden": true,
       "profileValue": "",
       "runtimeBackends": [
         "glibc_termux_box"
@@ -52,7 +52,7 @@
       "framework": "Termux GLIBC",
       "base": true,
       "recommended": false,
-      "hidden": false,
+      "hidden": true,
       "profileValue": "",
       "runtimeBackends": [
         "glibc_termux_box"
@@ -72,7 +72,7 @@
       "framework": "Wine Prefix",
       "base": true,
       "recommended": false,
-      "hidden": false,
+      "hidden": true,
       "profileValue": "",
       "runtimeBackends": [
         "glibc_termux_box"
@@ -92,7 +92,7 @@
       "framework": "Termux GLIBC",
       "base": true,
       "recommended": false,
-      "hidden": false,
+      "hidden": true,
       "profileValue": "",
       "runtimeBackends": [
         "glibc_termux_box"
@@ -283,26 +283,6 @@
       "sha256": "b34fdcd433620966c86b6c11231ddb2649b853281be837ede7c99407d3d61bc8"
     },
     {
-      "id": "rootfs_hangover_11.16",
-      "category": "runtime",
-      "type": "runtime_support",
-      "displayName": "hangover_11.16",
-      "versionName": "11.16 (IDAP pdb2)",
-      "summary": "Source-built Hangover 11.16 for Debian 13; separate PDB/ELF symbols, scoped device-tested.",
-      "framework": "ROOTFS",
-      "base": false,
-      "recommended": false,
-      "hidden": true,
-      "profileValue": "",
-      "runtimeBackends": [
-        "rootfs_proot"
-      ],
-      "version": 2,
-      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_hangover_11.16-v2/rootfs_hangover_11.16.tar",
-      "size": 100485120,
-      "sha256": "ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1"
-    },
-    {
       "id": "rootfs_box64_0.4.5",
       "category": "runtime",
       "type": "translator",
@@ -432,7 +412,7 @@
       "framework": "Debian PRoot",
       "base": true,
       "recommended": true,
-      "hidden": false,
+      "hidden": true,
       "profileValue": "",
       "runtimeBackends": [
         "rootfs_proot"
@@ -587,7 +567,7 @@
       "category": "runtime",
       "type": "runtime_support",
       "displayName": "Wine environment",
-      "versionName": "1",
+      "versionName": "2",
       "summary": "Automatically prepared Wine environment.",
       "framework": "Termux GLIBC",
       "base": false,
@@ -597,10 +577,10 @@
       "runtimeBackends": [
         "glibc_termux_box"
       ],
-      "version": 1,
+      "version": 2,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native_prefix_proton_11.0-v1/native_prefix_proton_11.0-v1.tar.gz",
-      "size": 4187521,
-      "sha256": "0f556e7b966df2ce5fd5fcae284bec4d03bd3fae7cd59871c0d70189ff29c701"
+      "size": 4185376,
+      "sha256": "83a696d24b261444f03184b65fb28f9b75ea6a094e2b942677c8a8c099f4560f"
     }
   ]
 }

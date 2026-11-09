@@ -59,28 +59,12 @@ public final class DesktopTasks {
     }
 
     public void save(@NonNull DesktopDistro distro) throws IOException {
+        if (repository.find(distro.getId()).isPresent()) forceStop(distro);
         synchronized (DesktopOperationGate.LOCK) {
-            DesktopOperationGate.requireAvailable();
             try { DesktopRendererPolicy.requireSupported(distro); }
             catch (IllegalArgumentException invalid) { throw new IOException(invalid.getMessage(), invalid); }
-            Optional<DesktopDistro> previous = repository.find(distro.getId());
-            if (previous.isPresent()) {
-                DesktopDistro old = previous.get();
-                requireEditableSettings(old, distro, state(old));
-            }
             repository.save(distro);
 
-        }
-    }
-
-    static void requireEditableSettings(DesktopDistro old, DesktopDistro updated,
-                                        DesktopSessionState state) throws IOException {
-        boolean changesRuntime = old.getGlMode() != updated.getGlMode()
-            || old.getUsbStorage() != updated.getUsbStorage()
-            || !old.getResolution().equals(updated.getResolution())
-            || old.getRefreshRate() != updated.getRefreshRate();
-        if (state == DesktopSessionState.STOPPING || (changesRuntime && state.isActive())) {
-            throw new IOException("desktop_settings_stop_required");
         }
     }
 
@@ -101,10 +85,6 @@ public final class DesktopTasks {
      */
     public void removeContainer(@NonNull DesktopDistro distro) throws LaunchHostException {
         synchronized (DesktopOperationGate.LOCK) {
-            try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
-                throw new LaunchHostException("desktop_archive_busy", true, busy);
-            }
-            requireNotStoppingForLaunch(distro);
             // delete() removes the old spec before this call; deploy a fresh explicit removal spec.
             LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
             commandStatus(distro, "removing");
@@ -121,15 +101,11 @@ public final class DesktopTasks {
         }
     }
 
-    /** Removes the record and its state; a running or starting desktop must be stopped first. */
+    /** Force-stops related work, then removes the container and its inventory record. */
     public void deleteAndRemoveContainer(@NonNull DesktopDistro distro)
         throws IOException, LaunchHostException {
+        forceStop(distro);
         synchronized (DesktopOperationGate.LOCK) {
-            DesktopOperationGate.requireAvailable();
-            DesktopSessionState state = state(distro);
-            if (state.isActive()) {
-                throw new IOException("desktop_running");
-            }
             // Submit removal before deleting inventory. Failed submission preserves the record.
             removeContainer(distro);
             new com.termux.ui.platform.X11SessionOverrides(context).restore(distro.getId(), null, null);
@@ -138,12 +114,8 @@ public final class DesktopTasks {
     }
 
     public void delete(@NonNull DesktopDistro distro) throws IOException {
+        forceStop(distro);
         synchronized (DesktopOperationGate.LOCK) {
-            DesktopOperationGate.requireAvailable();
-            DesktopSessionState state = state(distro);
-            if (state.isActive()) {
-                throw new IOException("desktop_running");
-            }
             new com.termux.ui.platform.X11SessionOverrides(context).restore(distro.getId(), null, null);
             repository.delete(distro.getId());
             paths.getDesktopSpecFile(distro.getId()).delete();
@@ -252,6 +224,35 @@ public final class DesktopTasks {
                 throw error;
             }
 
+        }
+    }
+
+    /** Editing and deletion use immediate termination, with no state-based refusal. */
+    public void forceStop(@NonNull DesktopDistro distro) throws IOException {
+        new DesktopArchiveTasks(context).stopForMutation(distro);
+        synchronized (DesktopOperationGate.LOCK) {
+            synchronized (com.termux.ui.wine.runtime.RuntimeEditingStop.LOCK) {
+                com.termux.ui.wine.runtime.RuntimeEditingStop.cancelOwner(context.getFilesDir(), "desktop:" + distro.getId());
+                java.util.List<String> scopes = new java.util.ArrayList<>();
+                scopes.add(paths.getDesktopSpecFile(distro.getId()).getAbsolutePath());
+                scopes.add(paths.getDesktopPidFile(distro.getId()).getAbsolutePath());
+                scopes.add(paths.getDesktopPidFile(distro.getId()).getAbsolutePath() + ".gnome-ready");
+                scopes.add(paths.getDesktopLogFile(distro.getId()).getAbsolutePath());
+                if (distro.getRunMode() == DesktopRunMode.PROOT) {
+                    scopes.add(new File(paths.getTermuxPrefixDirectory(), "var/lib/proot-distro/installed-rootfs/" + distro.getProotDistro()).getAbsolutePath());
+                    scopes.add(new File(paths.getTermuxPrefixDirectory(), "var/lib/proot-distro/containers/" + distro.getProotDistro()).getAbsolutePath());
+                }
+                try { LocalGames.requireHost(context).forceStopRuntimeProcesses(scopes); }
+                catch (LaunchHostException error) { throw new IOException(error.getErrorCode(), error); }
+                File pid = paths.getDesktopPidFile(distro.getId());
+                for (File file : new File[] {pid, new File(pid + ".container"), new File(pid + ".gnome-ready"), new File(pid + ".owned-session")})
+                    if (file.exists() && !file.delete()) throw new IOException("desktop_force_stop_cleanup_failed");
+                File status = paths.getDesktopStatusFile(distro.getId());
+                if (!status.getParentFile().isDirectory() && !status.getParentFile().mkdirs()) throw new IOException("desktop_state_directory_failed");
+                try (FileOutputStream output = new FileOutputStream(status)) {
+                    output.write("stopped\n".getBytes(StandardCharsets.US_ASCII));
+                }
+            }
         }
     }
 

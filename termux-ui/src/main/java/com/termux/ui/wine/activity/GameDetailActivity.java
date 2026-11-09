@@ -6,6 +6,9 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.FileObserver;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.text.TextUtils;
 import android.text.format.Formatter;
 import android.view.View;
@@ -39,6 +42,7 @@ import com.termux.ui.wine.data.GameRepository;
 import com.termux.ui.wine.domain.Game;
 import com.termux.ui.wine.domain.GameRuntimeBackendType;
 import com.termux.ui.wine.domain.RuntimeProfile;
+import com.termux.ui.wine.runtime.GameEditorReadiness;
 import com.termux.ui.wine.importer.LaunchArguments;
 import com.termux.ui.wine.importer.SafGameAccessProbe;
 import com.termux.ui.wine.recovery.GameAssetCategory;
@@ -81,6 +85,7 @@ public final class GameDetailActivity extends AppUiActivity {
         });
     private Consumer<String> pendingComponentSelection;
     private Intent restoredComponentSelection;
+    private Bundle restoredRuntimeDraft;
     private final ActivityResultLauncher<Intent> componentSelector = registerForActivityResult(
         new ActivityResultContracts.StartActivityForResult(), result -> {
             Consumer<String> callback = pendingComponentSelection;
@@ -115,19 +120,28 @@ public final class GameDetailActivity extends AppUiActivity {
     private boolean progressShown;
     private boolean storageLoading;
     @Nullable private String errorMessage;
+    private boolean runtimeReady;
+    private boolean resumed;
+    private boolean saveFailed;
+    private String savedWorkingDirectoryDisplay = "";
+    private int readinessGeneration;
+    private final List<FileObserver> readinessObservers = new ArrayList<>();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         gameId = getIntent().getStringExtra(EXTRA_GAME_ID);
         GameStoragePaths paths = new GameStoragePaths(getFilesDir());
-        gameRepository = new FileGameRepository(paths.getLibraryDirectory());
+        gameRepository = TextUtils.isEmpty(gameId) ? new FileGameRepository(paths.getLibraryDirectory())
+            : new com.termux.ui.wine.importer.GameImportDrafts(getFilesDir()).editingGames(gameId);
         appHost = LocalGames.requireHost(this);
         accessProbe = new SafGameAccessProbe(getContentResolver());
         artworkStore = new GameArtworkStore(getFilesDir());
         artworkLoader = new GameArtworkLoader(artworkStore);
         bindContent();
         if (savedInstanceState != null) {
+            saveFailed = savedInstanceState.getBoolean("game_detail.save_failed");
+            restoredRuntimeDraft = savedInstanceState.getBundle("game_detail.runtime_draft");
             restoredName = savedInstanceState.getString(STATE_NAME);
             restoredWorkingDirectory = savedInstanceState.getString(STATE_WORKING_DIRECTORY);
             restoredArguments = savedInstanceState.getString(STATE_ARGUMENTS);
@@ -156,9 +170,20 @@ public final class GameDetailActivity extends AppUiActivity {
         binding.gameDetailRuntimeProfile.setOnClickListener(view -> openRuntime());
         binding.gameDetailAssets.setOnClickListener(view -> openStorage());
         binding.gameDetailLaunch.setOnClickListener(view -> {
-            if (game != null) startActivity(LocalGames.createGameLaunchIntent(this, game.getId()));
+            runPreparedAction(() -> startActivity(LocalGames.createGameLaunchIntent(this, game.getId())));
         });
         binding.gameDetailDelete.setOnClickListener(view -> confirmDelete());
+        TextWatcher edits = new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                updatePreparedActions();
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        };
+        binding.gameDetailName.addTextChangedListener(edits);
+        binding.gameDetailWorkingDirectory.addTextChangedListener(edits);
+        binding.gameDetailArguments.addTextChangedListener(edits);
+        updatePreparedActions();
         if (!hasEmbeddedSidePanels()) {
             int maxWidth = getResources().getDimensionPixelSize(
                 R.dimen.local_game_detail_content_max_width);
@@ -240,6 +265,9 @@ public final class GameDetailActivity extends AppUiActivity {
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
+        outState.putBoolean("game_detail.save_failed", saveFailed);
+        outState.putBundle("game_detail.runtime_draft", runtimeOptionsView == null
+            ? restoredRuntimeDraft : runtimeOptionsView.saveDraftState());
         if (game != null && binding != null) {
             outState.putString(STATE_NAME, textOf(binding.gameDetailName));
             outState.putString(STATE_WORKING_DIRECTORY,
@@ -251,6 +279,8 @@ public final class GameDetailActivity extends AppUiActivity {
     }
 
     private void loadGame(boolean applyRestoredForm) {
+        runtimeReady = false;
+        ++readinessGeneration;
         int generation = ++operationGeneration;
         setProgressVisible(true);
         binding.gameDetailContent.setVisibility(View.GONE);
@@ -261,11 +291,11 @@ public final class GameDetailActivity extends AppUiActivity {
             String error = null;
             GameRuntimeBackendType loadedBackend = null;
             try {
+                com.termux.ui.wine.runtime.RuntimeEditingStop.game(getFilesDir(), appHost, gameId);
                 found = gameRepository.find(gameId);
                 if (found.isPresent()) {
                     try {
-                        loadedBackend = new FileRuntimeProfileRepository(
-                            new GameStoragePaths(getFilesDir()).getProfilesDirectory())
+                        loadedBackend = new com.termux.ui.wine.importer.GameImportDrafts(getFilesDir()).editingProfiles(gameId)
                             .find(gameId).map(RuntimeProfile::getRuntimeBackendType).orElse(null);
                     } catch (IOException | RuntimeException profileError) {
                         android.util.Log.w("GameDetail", "Unable to read runtime backend", profileError);
@@ -322,9 +352,10 @@ public final class GameDetailActivity extends AppUiActivity {
             R.string.local_game_detail_root, game.getRootUri()));
         binding.gameDetailName.setText(applyRestoredForm && restoredName != null
             ? restoredName : game.getName());
+        savedWorkingDirectoryDisplay = workingDirectoryDisplay();
         binding.gameDetailWorkingDirectory.setText(
             applyRestoredForm && restoredWorkingDirectory != null
-                ? restoredWorkingDirectory : workingDirectoryDisplay());
+                ? restoredWorkingDirectory : savedWorkingDirectoryDisplay);
         binding.gameDetailArguments.setText(applyRestoredForm && restoredArguments != null
             ? restoredArguments : LaunchArguments.format(game.getArguments()));
         restoredName = null;
@@ -333,12 +364,12 @@ public final class GameDetailActivity extends AppUiActivity {
         renderCover(cover);
         binding.gameDetailRemoveCover.setVisibility(
             game.getArtworkUri().isEmpty() ? View.GONE : View.VISIBLE);
-        binding.gameDetailLaunch.setEnabled(accessState == GameAccessState.ACCESSIBLE);
         setFormEnabled(formEnabled);
         if (!hasEmbeddedSidePanels() && runtimeOptionsView == null) sidePanel = SIDE_PANEL_EDITOR;
         if (SIDE_PANEL_STORAGE.equals(sidePanel)) showStoragePanel();
         else if (SIDE_PANEL_RUNTIME.equals(sidePanel)) showRuntimePanel();
         else showEditorPanel();
+        refreshReadiness(null);
     }
 
     private void openRuntime() {
@@ -353,11 +384,8 @@ public final class GameDetailActivity extends AppUiActivity {
 
     private void openStorage() {
         if (game == null) return;
-        if (hasEmbeddedSidePanels()) {
-            showStoragePanel();
-        } else {
-            startActivity(LocalGames.createGameAssetsIntent(this, game.getId()));
-        }
+        if (hasEmbeddedSidePanels()) showStoragePanel();
+        else startActivity(LocalGames.createGameAssetsIntent(this, game.getId()));
     }
 
     private boolean hasEmbeddedSidePanels() {
@@ -448,7 +476,9 @@ public final class GameDetailActivity extends AppUiActivity {
         FrameLayout panel = binding.getRoot().findViewById(R.id.game_detail_runtime_panel);
         runtimeOptionsView = new GameRuntimeOptionsView(this, game.getId(),
             new GameRuntimeOptionsView.Listener() {
+                @Override public void onRuntimeOptionsChanged() { updatePreparedActions(); }
                 @Override public void onRuntimeOptionsClosed() { closeRuntimePanel(); }
+                @Override public void onImportDiscarded() { finish(); }
 
                 @Override public void onRuntimeOptionsSaved(@Nullable String warmupTaskId,
                                                              boolean rootfs) {
@@ -463,6 +493,8 @@ public final class GameDetailActivity extends AppUiActivity {
                 }
             });
         runtimeOptionsView.setShowHeader(false);
+        runtimeOptionsView.restoreDraftState(restoredRuntimeDraft);
+        restoredRuntimeDraft = null;
         if (restoredComponentSelection != null) {
             runtimeOptionsView.restoreComponentSelection(restoredComponentSelection);
             restoredComponentSelection = null;
@@ -488,6 +520,7 @@ public final class GameDetailActivity extends AppUiActivity {
         }
         view.release();
         if (destroyed || binding == null) return;
+        updatePreparedActions();
         if (hasEmbeddedSidePanels()) {
             showEditorPanel();
         } else {
@@ -577,7 +610,11 @@ public final class GameDetailActivity extends AppUiActivity {
     }
 
     private void persistGame(Game updated) {
+        saveFailed = false;
+        runtimeReady = false;
+        ++readinessGeneration;
         int generation = ++operationGeneration;
+        RuntimeProfile selectedProfile = runtimeOptionsView == null ? null : runtimeOptionsView.getProfileForSave();
         setFormEnabled(false);
         setProgressVisible(true);
         ioExecutor.execute(() -> {
@@ -585,11 +622,14 @@ public final class GameDetailActivity extends AppUiActivity {
             String preparationTaskId = null;
             boolean rootfs = false;
             try {
-                gameRepository.save(updated);
-                com.termux.ui.wine.domain.RuntimeProfile profile =
-                    new com.termux.ui.wine.data.FileRuntimeProfileRepository(
-                        new GameStoragePaths(getFilesDir()).getProfilesDirectory())
-                        .find(updated.getId()).orElseThrow(() -> new IOException("runtime_profile_missing"));
+                com.termux.ui.wine.importer.GameImportDrafts drafts =
+                    new com.termux.ui.wine.importer.GameImportDrafts(getFilesDir());
+                RuntimeProfile profile = selectedProfile != null ? selectedProfile
+                    : drafts.editingProfiles(updated.getId()).find(updated.getId())
+                        .orElseThrow(() -> new IOException("runtime_profile_missing"));
+                com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(getFilesDir());
+                drafts.commit(updated, profile);
+                gameRepository = drafts.editingGames(updated.getId());
                 rootfs = profile.getRuntimeBackendType() ==
                     com.termux.ui.wine.domain.GameRuntimeBackendType.ROOTFS_PROOT;
                 preparationTaskId = com.termux.ui.wine.api.RuntimeWarmup.warm(this, profile);
@@ -604,6 +644,8 @@ public final class GameDetailActivity extends AppUiActivity {
                 setProgressVisible(false);
                 setFormEnabled(true);
                 if (failure != null) {
+                    saveFailed = true;
+                    updatePreparedActions();
                     showError(getString(R.string.local_game_detail_save_failed, failure));
                 } else {
                     game = updated;
@@ -691,6 +733,7 @@ public final class GameDetailActivity extends AppUiActivity {
     }
 
     private void confirmDelete() {
+        if (isImportDraft()) { discardImport(); return; }
         if (game == null) return;
         String[] options = {
             getString(R.string.local_game_detail_uninstall_prefix),
@@ -719,7 +762,7 @@ public final class GameDetailActivity extends AppUiActivity {
         ioExecutor.execute(() -> {
             String error = null;
             try {
-                new GameUninstaller(getFilesDir()).execute(plan);
+                new GameUninstaller(getFilesDir(), com.termux.ui.api.LocalGames.requireHost(this)).execute(plan);
             } catch (IOException | RuntimeException deleteError) {
                 error = safeMessage(deleteError);
             }
@@ -757,10 +800,100 @@ public final class GameDetailActivity extends AppUiActivity {
         binding.gameDetailChangeCover.setEnabled(enabled);
         binding.gameDetailRemoveCover.setEnabled(enabled);
         binding.gameDetailSave.setEnabled(enabled);
-        binding.gameDetailLaunch.setEnabled(enabled && accessState == GameAccessState.ACCESSIBLE);
+        updatePreparedActions();
         binding.gameDetailRuntimeProfile.setEnabled(enabled);
-        binding.gameDetailAssets.setEnabled(enabled);
         binding.gameDetailDelete.setEnabled(enabled);
+    }
+
+    private boolean preparedActionsAllowed() {
+        if (destroyed || !resumed || binding == null || game == null || !formEnabled
+            || saveFailed || !runtimeReady || accessState != GameAccessState.ACCESSIBLE) return false;
+        return game.getName().equals(textOf(binding.gameDetailName).trim())
+            && savedWorkingDirectoryDisplay.equals(textOf(binding.gameDetailWorkingDirectory))
+            && LaunchArguments.format(game.getArguments()).equals(textOf(binding.gameDetailArguments))
+            && (runtimeOptionsView == null || !runtimeOptionsView.hasUnsavedChanges());
+    }
+
+    private void updatePreparedActions() {
+        if (binding == null) return;
+        boolean enabled = preparedActionsAllowed();
+        binding.gameDetailLaunch.setEnabled(enabled);
+        binding.gameDetailAssets.setEnabled(formEnabled && !isImportDraft());
+    }
+
+    private void runPreparedAction(Runnable action) {
+        if (!preparedActionsAllowed()) return;
+        // Re-read before executing: the visible state may predate a preparation failure.
+        refreshReadiness(action);
+    }
+
+    private void refreshReadiness(@Nullable Runnable action) {
+        int generation = ++readinessGeneration;
+        runtimeReady = false;
+        updatePreparedActions();
+        if (!resumed || destroyed || game == null) return;
+        String id = game.getId();
+        ioExecutor.execute(() -> {
+            boolean ready = false;
+            GameAccessState checkedAccess = null;
+            try {
+                GameStoragePaths paths = new GameStoragePaths(getFilesDir());
+                RuntimeProfile profile = new FileRuntimeProfileRepository(paths.getProfilesDirectory())
+                    .find(id).orElse(null);
+                ready = new GameEditorReadiness(paths).isReady(profile);
+                Optional<Game> persisted = gameRepository.find(id);
+                if (persisted.isPresent()) checkedAccess = accessProbe.check(persisted.get());
+            } catch (IOException | RuntimeException error) {
+                android.util.Log.w("GameDetail", "Unable to read preparation status", error);
+            }
+            boolean result = ready;
+            GameAccessState access = checkedAccess;
+            runOnUiThread(() -> {
+                if (destroyed || !resumed || generation != readinessGeneration) return;
+                runtimeReady = result;
+                accessState = access;
+                updatePreparedActions();
+                if (game != null && !new com.termux.ui.wine.importer.GameImportDrafts(getFilesDir()).isDraft(id)
+                        && !new File(new GameStoragePaths(getFilesDir()).getLibraryDirectory(), id + ".properties").isFile()) {
+                    finish();
+                    return;
+                }
+                if (action != null && preparedActionsAllowed()) action.run();
+            });
+        });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        resumed = true;
+        GameStoragePaths paths = new GameStoragePaths(getFilesDir());
+        for (File directory : new File[] {paths.getPrefixSetupTasksDirectory(),
+                paths.getRuntimeSetupTasksDirectory(), paths.getProfilesDirectory()}) {
+            if (!directory.isDirectory()) continue;
+            FileObserver observer = new FileObserver(directory.getAbsolutePath(),
+                FileObserver.CLOSE_WRITE | FileObserver.MOVED_TO | FileObserver.DELETE | FileObserver.DELETE_SELF) {
+                @Override public void onEvent(int event, @Nullable String path) {
+                    if (path == null || path.endsWith(".properties")) runOnUiThread(() -> {
+                        if (resumed && !destroyed) refreshReadiness(null);
+                    });
+                }
+            };
+            observer.startWatching();
+            readinessObservers.add(observer);
+        }
+        refreshReadiness(null);
+    }
+
+    @Override
+    protected void onPause() {
+        resumed = false;
+        ++readinessGeneration;
+        runtimeReady = false;
+        updatePreparedActions();
+        for (FileObserver observer : readinessObservers) observer.stopWatching();
+        readinessObservers.clear();
+        super.onPause();
     }
 
     private void clearErrors() {
@@ -815,7 +948,41 @@ public final class GameDetailActivity extends AppUiActivity {
             showEditorPanel();
             return;
         }
+        if (isImportDraft()) {
+            if (game == null) { discardImport(); return; }
+            new FrostedDialogBuilder(this)
+                .setTitle(R.string.local_game_runtime_save_dialog_title)
+                .setMessage(getString(R.string.local_game_runtime_save_dialog_message, game.getName()))
+                .setNegativeButton(R.string.local_game_runtime_save_dialog_discard,
+                    (dialog, which) -> discardImport())
+                .setNeutralButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.local_game_runtime_save, (dialog, which) -> saveDetails())
+                .show();
+            return;
+        }
         super.onBackPressed();
+    }
+
+    private boolean isImportDraft() {
+        return !TextUtils.isEmpty(gameId)
+            && new com.termux.ui.wine.importer.GameImportDrafts(getFilesDir()).isDraft(gameId);
+    }
+
+    private void discardImport() {
+        setFormEnabled(false);
+        ioExecutor.execute(() -> {
+            try {
+                new com.termux.ui.wine.importer.GameImportDrafts(getFilesDir()).discard(gameId);
+                runOnUiThread(() -> { if (!destroyed) finish(); });
+            } catch (IOException | RuntimeException error) {
+                runOnUiThread(() -> {
+                    if (!destroyed) {
+                        setFormEnabled(true);
+                        showError(safeMessage(error));
+                    }
+                });
+            }
+        });
     }
 
     @Override

@@ -204,3 +204,46 @@ Native基础安装MUST生成并验证zh_CN UTF-8/GBK locale后才报告成功。
 #### Scenario: 游戏脚本发现locale不完整
 - **WHEN** prefix准备或启动检查locale失败
 - **THEN** 明确失败，不补装、不生成、不执行Wine或隐式回退
+
+
+#### Scenario: 官方locale配置使用空白分隔
+- **WHEN** 基础安装读取的中文locale配置包含行首、行尾空白或字段间制表符
+- **THEN** 按精确locale名与字符集字段识别和启用，执行官方生成并核验；其他配置保留，缺项或错误字段仍立即失败
+
+### Requirement: Native prefix数据身份独立于准备脚本
+
+Native的prepared-identity MUST为受固定目录校验的bundle.json摘要，MUST NOT包含准备脚本摘要。准备脚本版本MUST独立记录并参与就绪判断。MUST NOT识别、迁移或改写历史数据身份；不匹配必须立即失败且保留目标。
+
+#### Scenario: 仅准备脚本更新
+- **WHEN** bundle、Wine及prefix数据身份相同，但准备脚本摘要改变
+- **THEN** 原prefix数据身份保持不变，执行现有准备检查并在成功后原子更新独立脚本标记，不运行Wine或恢复/重建prefix
+
+#### Scenario: 数据配方或运行时元数据改变
+- **WHEN** bundle内容变化或目标仍带历史/错误数据身份
+- **THEN** 拒绝复用并明确失败，不迁移标记、不自动重建
+
+#### Scenario: 准备检查失败
+- **WHEN** locale、字体、图形组件或目标身份检查失败
+- **THEN** 立即终止，不发布本次脚本完成标记，不启动游戏
+
+### Requirement: Native基础安装包含XRandR运行库
+Native glibc基础安装必须通过官方libxrandr-glibc补齐XRandR，安装后、host能力探针和界面Ready判断均必须要求glibc/lib/libXrandr.so.2为非空普通文件。
+
+#### Scenario: 安装成功且XRandR可用
+- **WHEN** 基础安装所有包成功且必需文件、工具和中文locale均有效
+- **THEN** 才报告成功和Ready；XRandR随基础环境自动提供，不要求用户手动补库。
+
+#### Scenario: 包失败或XRandR产物无效
+- **WHEN** libxrandr-glibc安装命令失败，或libXrandr.so.2缺失、为空或是目录
+- **THEN** 立即终止且不发布成功；host探针不可用，部分环境界面为INCOMPLETE；不得通过wineboot、重建prefix或后端回退继续。
+
+### Requirement: 基础安装预装常用压缩工具
+Native glibc安装必须一并安装官方7zip、zip、unzip、tar、gzip、bzip2、xz-utils及zstd，并校验7z、zip、unzip、tar、gzip、bzip2、xz、zstd命令为非空普通且可执行文件。host和界面就绪必须包含这些工具。
+
+#### Scenario: 工具预装成功
+- **WHEN** 所有包命令成功且工具及原有基础依赖均有效
+- **THEN** 才报告成功和Ready，用户无需另行补装。
+
+#### Scenario: 工具缺失或不可执行
+- **WHEN** 包命令失败，或成功后任一必需工具缺失或不可执行
+- **THEN** 安装立即失败，host不可用，已有部分环境显示INCOMPLETE，不通过其他工具或后端兜底。

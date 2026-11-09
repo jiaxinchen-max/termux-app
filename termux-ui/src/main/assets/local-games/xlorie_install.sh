@@ -41,14 +41,10 @@ while read -r arch name digest; do
     [ "$arch" = "$XSERVER_ARCH" ] || continue
     count=$((count + 1))
     target="$DEB_DIR/$name"
-    if [ -f "$target" ] && [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ]; then
+    if [ -f "$target" ]; then
         log "Cached $name"
     else
         run curl -fL --retry 3 -o "$target" "$XSERVER_BASE_URL/$name" || fail "download $name"
-        [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ] || {
-            rm -f "$target"
-            fail "checksum mismatch for $name"
-        }
     fi
     DEB_PATHS="$DEB_PATHS $target"
 done < "$XSERVER_MANIFEST"

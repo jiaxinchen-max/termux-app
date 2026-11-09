@@ -170,6 +170,10 @@ def build(skeleton, wine_archive, descriptor, fonts_archive, fonts_descriptor, o
             require(member.isfile() and member.name.startswith('Fonts/') and
                     '..' not in PurePosixPath(member.name).parts, 'font_overlay_invalid')
             add('drive_c/windows/' + member.name, archive.extractfile(member).read())
+    if package == 'glibc_proton_11.0':
+        font_defaults = module('proton_prefix_fonts')
+        for hive in ('system.reg', 'user.reg'):
+            add(hive, font_defaults.normalize(delta[hive].decode(), hive, records).encode())
     for name in ('system.reg', 'user.reg', 'userdef.reg', '.update-timestamp',
                  'drive_c/windows/system32/ntdll.dll', 'drive_c/windows/syswow64/ntdll.dll'):
         require(name in records, 'native_core_file_missing')
@@ -206,6 +210,9 @@ def build(skeleton, wine_archive, descriptor, fonts_archive, fonts_descriptor, o
                                     scriptsComponentSha256=scripts_descriptor['sha256'],
                                     appsComponentSha256=apps_descriptor['sha256'],
                                     omittedStartupEntries=omitted, nativeAcceptance='Pending'))
+    if package == 'glibc_proton_11.0':
+        metadata['prefixComponentVersion'] = 2
+        metadata['provenance']['fontConfigurationVersion'] = 2
     (output / 'bundle.json').write_text(json.dumps(metadata, indent=2) + '\n')
     return metadata
 

@@ -201,8 +201,8 @@
     <string name="local_games_component_state_queued">等待中</string>
     <string name="local_games_component_state_downloading">下载中</string>
     <string name="local_games_component_state_paused">已暂停</string>
-    <string name="local_games_component_state_verifying">校验中</string>
-    <string name="local_games_component_state_verified">校验完成</string>
+    <string name="local_games_component_state_verifying">检查文件</string>
+    <string name="local_games_component_state_verified">下载完成</string>
     <string name="local_games_component_state_installing">安装中</string>
     <string name="local_games_component_state_installed">安装完成</string>
     <string name="local_games_component_state_failed">失败</string>
@@ -266,7 +266,7 @@
     <string name="local_game_session_keyboard">键盘</string>
     <string name="local_game_session_exit">退出</string>
     <string name="local_game_session_exit_title">退出游戏？</string>
-    <string name="local_game_session_exit_message">将安全停止游戏、Wine、音频和显示进程。</string>
+    <string name="local_game_session_exit_message">将终止游戏、Wine、音频和显示进程，未保存的进度可能丢失。</string>
     <string name="local_game_session_exit_confirm">退出游戏</string>
     <string name="local_game_session_input_unavailable">冻结的触控配置不可用；X11 基础输入仍可使用。</string>
     <string name="local_game_session_task_missing">游戏会话已不存在。</string>
@@ -334,7 +334,6 @@
     <string name="local_game_launch_repair_components">修复运行组件</string>
     <string name="local_game_launch_diagnostics">查看诊断信息</string>
     <string name="local_game_launch_hide_diagnostics">收起诊断信息</string>
-    <string name="local_game_session_menu">控制中心</string>
     <string name="local_game_session_controls_title">会话控制中心</string>
     <string name="local_game_session_operation">操作</string>
     <string name="local_game_session_performance">性能</string>
@@ -474,6 +473,8 @@
     <string name="local_game_runtime_env_invalid">变量名或值无效</string>
     <string name="local_game_runtime_advanced_box64_preset">Box64 预设</string>
     <string name="local_game_runtime_advanced_box64_build">Box64 版本</string>
+    <string name="local_game_runtime_hangover_emulator">Hangover 翻译模式（32 位）</string>
+    <string name="local_game_runtime_hangover_64bit">64 位翻译模式</string>
     <string name="local_game_runtime_advanced_startup">启动方式</string>
     <string name="local_game_runtime_advanced_app_shell">应用 Shell</string>
     <string name="local_game_runtime_advanced_terminal">终端会话</string>
@@ -671,4 +672,33 @@
     <string name="local_game_runtime_backend_subtitle">后端：%1$s</string>
     <string name="local_game_runtime_backend_unavailable">后端信息不可用</string>
     <string name="local_games_install_confirm_rootfs">下载并解压已预装 Hangover 和字体的精简 RootFS。每个游戏使用独立的 Wine 前缀。</string>
+    <string name="local_game_card_wine">Wine：%1$s</string>
+    <string name="component_versions_preinstalled">容器预装</string>
+    <string name="component_versions_preinstalled_ready">已随容器预装</string>
+    <string name="component_versions_preinstalled_pending">随容器预装，保存时准备容器</string>
+    <string name="component_versions_preinstalled_incomplete">容器预装，容器环境尚未就绪</string>
+    <string name="local_game_session_exit_failed">未能停止游戏</string>
+    <string name="local_game_session_exit_failed_message">游戏可能仍在运行。请进入游戏编辑页终止关联进程后再试。</string>
+
+    <!-- Embedded browser operations. -->
+    <string name="browser_open">打开</string>
+    <string name="browser_copy">复制</string>
+    <string name="browser_cut">剪切</string>
+    <string name="browser_delete">删除</string>
+    <string name="browser_paste">粘贴到此目录</string>
+    <string name="browser_paste_named">将“%1$s”粘贴到此目录</string>
+    <string name="browser_cancel_clipboard">取消复制 / 剪切</string>
+    <string name="browser_show_hidden">显示隐藏文件</string>
+    <string name="browser_working">正在处理…</string>
+    <string name="browser_cut_pending">已剪切“%1$s”，在目标目录粘贴后才会移动。</string>
+    <string name="browser_copy_pending">已复制“%1$s”，请选择目标目录并粘贴。</string>
+    <string name="browser_no_open_app">没有应用可以打开此文件类型或目录。</string>
+    <string name="browser_delete_confirm">永久删除“%1$s”？若为目录，将删除其中所有内容。</string>
+    <string name="browser_operation_failed">文件操作失败。</string>
+    <string name="browser_conflict">目标目录已有同名项目，没有覆盖原有内容。</string>
+    <string name="browser_inside_source">请选择其他目标，不能将目录粘贴到自身或其子目录。</string>
+    <string name="browser_protected_root">此根目录不能执行该操作。</string>
+    <string name="browser_move_partial">目标已复制完成，但来源删除失败或仅完成了一部分，请检查两处内容。</string>
+    <string name="local_game_file_manager_help">浏览私有文件或共享存储。长按文件或目录可打开、复制、剪切或删除，长按空白处操作当前目录。工具栏菜单提供粘贴和显示隐藏文件。三个根目录不能作为操作对象。</string>
+    <string name="browser_delete_partial">删除失败或仅完成了一部分，重试前请检查目录内容。</string>
 </resources>

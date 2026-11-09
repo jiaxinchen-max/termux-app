@@ -158,13 +158,13 @@
                 android:layout_marginTop="8dp"
                 android:text="@string/local_game_detail_launch"
                 android:textAllCaps="false"
-                android:textColor="@color/local_games_on_primary"
+                android:textColor="@color/game_detail_launch_foreground"
                 android:textSize="13sp"
-                app:backgroundTint="@color/local_games_primary"
+                app:backgroundTint="@color/game_detail_launch_background"
                 app:cornerRadius="6dp"
                 app:icon="@drawable/local_games_ic_play"
                 app:iconGravity="textStart"
-                app:iconTint="@color/local_games_on_primary" />
+                app:iconTint="@color/game_detail_launch_foreground" />
         </LinearLayout>
         </ScrollView>
 

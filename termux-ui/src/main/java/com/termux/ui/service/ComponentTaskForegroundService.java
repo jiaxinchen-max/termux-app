@@ -249,7 +249,7 @@ public final class ComponentTaskForegroundService extends Service {
                 executeTermuxGlibcRuntimeTask(current, taskId);
             } else {
                 ComponentTaskConsoleLog.append(getFilesDir(), taskId,
-                    "Starting download, verification, extraction and activation pipeline.");
+                    "Starting download, extraction and activation pipeline.");
                 current.execute(taskId, this::publishTask);
             }
         } catch (Exception error) {
@@ -443,9 +443,8 @@ public final class ComponentTaskForegroundService extends Service {
         InstalledComponent active = new ComponentInstallationReader(paths.getInstallDirectory())
             .read(componentId).getActive().orElseThrow(
                 () -> new ComponentInstallException("runtime_activation_source_missing",
-                    "No verified local component is available for activation"));
-        if (active.getVersion() != descriptor.getVersion() ||
-            !active.getSha256().equals(descriptor.getSha256())) {
+                    "No local component is available for activation"));
+        if (active.getVersion() != descriptor.getVersion()) {
             throw new ComponentInstallException("runtime_activation_source_mismatch",
                 "Verified local component does not match the current catalog");
         }

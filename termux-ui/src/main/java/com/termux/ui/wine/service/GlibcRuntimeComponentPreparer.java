@@ -29,6 +29,7 @@ final class GlibcRuntimeComponentPreparer {
     private static final long POLL_INTERVAL_MS = 250L;
 
     private final SetupPreparationLog console;
+    private final String parentTaskId;
     private final Context context;
     private final LocalGamesHost host;
     private final ComponentIndex index;
@@ -36,6 +37,7 @@ final class GlibcRuntimeComponentPreparer {
     private final ComponentInstallationReader installations;
 
     GlibcRuntimeComponentPreparer(Context context, LocalGamesHost host, String parentTaskId) throws IOException {
+        this.parentTaskId = parentTaskId;
         this.context = context.getApplicationContext();
         console = new SetupPreparationLog(context.getFilesDir(), parentTaskId);
         this.host = host;
@@ -62,6 +64,7 @@ final class GlibcRuntimeComponentPreparer {
     }
 
     private void ensure(ComponentDescriptor descriptor) throws IOException {
+        com.termux.ui.wine.runtime.RuntimeEditingStop.requireNotCancelled(context.getFilesDir(), parentTaskId);
         console.append("Preparing component: " + descriptor.getDisplayName() + " (" + descriptor.getId() + ")");
         if (isAvailable(descriptor)) return;
 
@@ -99,7 +102,6 @@ final class GlibcRuntimeComponentPreparer {
         for (ComponentTask task : candidates) {
             if (!task.getPackageName().equals(descriptor.getId()) ||
                 task.getVersion() != descriptor.getVersion() ||
-                !task.getSha256().equals(descriptor.getSha256()) ||
                 task.getState() == ComponentTaskState.CANCELLED ||
                 task.getState() == ComponentTaskState.INSTALLED) {
                 continue;
@@ -112,6 +114,7 @@ final class GlibcRuntimeComponentPreparer {
     private void waitForTask(ComponentDescriptor descriptor, String taskId) throws IOException {
         long deadline = System.currentTimeMillis() + COMPONENT_TIMEOUT_MS;
         while (System.currentTimeMillis() < deadline) {
+            com.termux.ui.wine.runtime.RuntimeEditingStop.requireNotCancelled(context.getFilesDir(), parentTaskId);
             console.component(descriptor.getId(), taskId);
             String rejected = ComponentTaskConsoleLog.commandFailure(context.getFilesDir(), taskId);
             if (!rejected.isEmpty()) throw new IOException("component_prepare_failed:" + descriptor.getId() + ":" + rejected);
@@ -141,6 +144,7 @@ final class GlibcRuntimeComponentPreparer {
         console.append("Activating component: " + descriptor.getDisplayName());
         long deadline = System.currentTimeMillis() + timeoutMs;
         while (System.currentTimeMillis() < deadline) {
+            com.termux.ui.wine.runtime.RuntimeEditingStop.requireNotCancelled(context.getFilesDir(), parentTaskId);
             if (isAvailable(descriptor)) return;
             sleep();
         }
@@ -157,8 +161,7 @@ final class GlibcRuntimeComponentPreparer {
     }
 
     private static boolean matches(InstalledComponent installed, ComponentDescriptor descriptor) {
-        return installed != null && installed.getVersion() == descriptor.getVersion() &&
-            installed.getSha256().equals(descriptor.getSha256());
+        return installed != null && installed.getVersion() == descriptor.getVersion() ;
     }
 
     private static void sleep() throws IOException {

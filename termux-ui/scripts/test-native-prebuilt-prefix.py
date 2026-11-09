@@ -80,11 +80,11 @@ class NativeRestoreTests(unittest.TestCase):
         (self.resource / 'bundle.json').write_text(json.dumps(self.meta))
         self.bundle_sha = m.sha(self.resource / 'bundle.json')
 
-    def restore(self, **kwargs):
+    def restore(self, identity=None, **kwargs):
         args = dict(wine_root=self.wine, backend='glibc_termux_box', bundle_sha256=self.bundle_sha)
         args.update(kwargs)
         with contextlib.redirect_stdout(io.StringIO()):
-            m.restore(self.glibc, self.resource, self.target, 'a' * 64,
+            m.restore(self.glibc, self.resource, self.target, identity if identity is not None else self.bundle_sha,
                       str(self.glibc), 'glibc_wine_10.0', **args)
 
     def reject(self, message, **kwargs):
@@ -105,8 +105,10 @@ class NativeRestoreTests(unittest.TestCase):
         target.write_bytes(b'game override')
         self.assertEqual(source.read_bytes(), b'pe64')
 
-    def test_bundle_must_match_apk(self): self.reject('bundle_digest_mismatch', bundle_sha256='f' * 64)
-    def test_bundle_cannot_be_omitted(self): self.reject('bundle_digest_mismatch', bundle_sha256=None)
+    def test_bundle_digest_difference_is_accepted(self):
+        self.restore(bundle_sha256='f'*64)
+        self.assertTrue((self.target/'system.reg').is_file())
+    def test_bundle_cannot_be_omitted(self): self.reject('bundle_identity_invalid', bundle_sha256=None)
     def test_proot_bundle_cannot_cross_backend(self):
         self.meta['backend'] = 'rootfs_proot'; self.pin(); self.reject('identity_mismatch')
     def test_native_bundle_cannot_enter_proot(self): self.reject('identity_mismatch', backend='rootfs_proot')
@@ -114,12 +116,39 @@ class NativeRestoreTests(unittest.TestCase):
     def test_wrong_prefix_resource_receipt_rejected(self):
         (self.resource / '.games-component.properties').write_text('schemaVersion=1\npackageName=wrong\nversion=1\n')
         self.reject('component_mismatch')
+    def test_prefix_resource_version_independent_of_wine_version(self):
+        self.meta['prefixComponentVersion'] = 2
+        self.pin()
+        receipt = self.resource / '.games-component.properties'
+        receipt.write_text(receipt.read_text().replace('version=1', 'version=2'))
+        self.restore()
+        self.assertTrue((self.target/'system.reg').is_file())
+    def test_old_prefix_resource_cannot_satisfy_new_version(self):
+        self.meta['prefixComponentVersion'] = 2
+        self.pin()
+        self.reject('component_mismatch')
     def test_native_runtime_guard_checked(self):
-        self.meta['wineRuntimeFiles'] = {'lib/wine/x86_64-windows/ntdll.dll': 'd' * 64}
-        self.pin(); self.reject('runtime_mismatch')
-    def test_changed_dll_rejected(self):
-        (self.wine / 'lib/wine/x86_64-windows/ntdll.dll').write_bytes(b'changed')
-        self.reject('source_size_mismatch')
+        self.meta['wineRuntimeFiles'] = {'lib/wine/x86_64-windows/ntdll.dll': 'd'*64}
+        self.pin(); self.restore()
+    def test_changed_dll_sizes_restore_current_content_for_both_architectures(self):
+        changed = {'x86_64-windows': b'larger controller replacement', 'i386-windows': b'x'}
+        for arch, data in changed.items():
+            (self.wine / ('lib/wine/' + arch + '/ntdll.dll')).write_bytes(data)
+        self.restore()
+        for arch, directory in [('x86_64-windows', 'system32'), ('i386-windows', 'syswow64')]:
+            self.assertEqual((self.target / ('drive_c/windows/' + directory + '/ntdll.dll')).read_bytes(),
+                             changed[arch])
+
+    def test_archive_lengths_and_expanded_estimate_do_not_gate_content(self):
+        self.data['user.reg'] += b'updated registry data'
+        self.data['userdef.reg'] = b'reg'
+        self.pack()
+        self.meta['expandedBytes'] = 1
+        (self.resource / 'bundle.json').write_text(json.dumps(self.meta))
+        self.restore()
+        for name in ('user.reg', 'userdef.reg'):
+            self.assertEqual((self.target / name).read_bytes(), self.data[name].replace(
+                b'@NATIVE_PREFIX@', str(self.target).encode()))
     def test_wrong_pe_architecture_metadata_rejected(self):
         self.meta['peMachine'] = 0xaa64; self.pin(); self.reject('identity_mismatch')
     def test_unsafe_source_rejected(self):
@@ -150,7 +179,7 @@ class NativeRestoreTests(unittest.TestCase):
     def test_user_cannot_inject_account(self):
         self.meta['windowsUser'] = '../bad'; self.pin(); self.reject('native_user_invalid')
 
-    def bootstrap(self, asynchronous=False, locale_ready=True):
+    def bootstrap(self, asynchronous=False, locale_ready=True, preparation_identity='b' * 64):
         runtime = self.base / 'runtime'
         runtime.mkdir(exist_ok=True)
         root = ASSETS.parents[4]
@@ -163,9 +192,9 @@ class NativeRestoreTests(unittest.TestCase):
         if asynchronous:
             helper = runtime / 'restore_wine_prefix.py'
             # Hold inside the real restoration transaction so SIGTERM exercises cleanup.
-            helper.write_text(helper.read_text().replace('    count = 0\n',
-                '    import time\n    time.sleep(30)\n    count = 0\n', 1))
-        for path in ('lib/ld-linux-aarch64.so.1', 'bin/box64', 'opt/virgl/libvirgl_test_server.so',
+            helper.write_text(helper.read_text().replace('def copy_entry(source, target, record):\n',
+                'def copy_entry(source, target, record):\n    import time\n    time.sleep(30)\n', 1))
+        for path in ('lib/ld-linux-aarch64.so.1', 'components/glibc_box64_0.2.7/bin/box64', 'opt/virgl/libvirgl_test_server.so',
                      'glibc_wine_10.0/bin/wine', 'glibc_wine_10.0/bin/wineserver'):
             p = self.glibc / path; p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text('#!/bin/sh\necho forbidden-wine-execution >&2\nexit 99\n'); p.chmod(0o700)
@@ -178,6 +207,7 @@ class NativeRestoreTests(unittest.TestCase):
                 data=self.glibc/'lib/locale'/name/'LC_CTYPE'
                 data.parent.mkdir(parents=True,exist_ok=True);data.write_bytes(b'locale')
         generator=self.glibc/'bin/locale-gen'
+        generator.parent.mkdir(parents=True,exist_ok=True)
         generator.write_text('#!/bin/sh\necho forbidden-locale-generation >&2\nexit 99\n')
         generator.chmod(0o700)
         config = self.base / 'native.conf'
@@ -185,7 +215,8 @@ class NativeRestoreTests(unittest.TestCase):
                           "TERMUX_BOX_WINE_PACKAGE=glibc_wine_10.0\n"
                           "TERMUX_BOX_GRAPHICS_DRIVER=virgl\nTERMUX_BOX_DXWRAPPER=wined3d\n"
                           "NATIVE_PREFIX_ASSETS='" + str(self.resource) + "'\n"
-                          "NATIVE_PREFIX_IDENTITY=" + 'a' * 64 + '\n'
+                          "NATIVE_PREFIX_IDENTITY=" + self.bundle_sha + '\n'
+                          "NATIVE_PREFIX_PREPARATION_IDENTITY=" + preparation_identity + '\n'
                           "NATIVE_PREFIX_BUNDLE_SHA256=" + self.bundle_sha + '\n')
         if asynchronous:
             return subprocess.Popen(['sh', str(runtime / script.name), str(config)],
@@ -201,6 +232,61 @@ class NativeRestoreTests(unittest.TestCase):
         result = self.bootstrap()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.target / 'save.dat').read_text(), 'keep')
+        self.assertNotIn('forbidden-wine-execution', result.stderr)
+
+    def test_preparation_script_update_reuses_data_without_rewriting_identity(self):
+        first = self.bootstrap()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        marker = self.target / '.games-runtime/prepared-identity'
+        original = marker.stat()
+        self.assertEqual(marker.read_text(), self.bundle_sha + '\n')
+        (self.target / 'save.dat').write_text('keep')
+        registry = (self.target / 'user.reg').read_bytes()
+        # Removing the payload ensures an attempted restore cannot succeed unnoticed.
+        (self.resource / 'delta.tgz').unlink()
+        result = self.bootstrap(preparation_identity='c' * 64)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(marker.stat().st_mtime_ns, original.st_mtime_ns)
+        self.assertEqual(marker.stat().st_ino, original.st_ino)
+        self.assertEqual(marker.read_text(), self.bundle_sha + '\n')
+        self.assertEqual((self.target / '.games-runtime/preparation-script-identity').read_text(), 'c' * 64 + '\n')
+        self.assertEqual((self.target / 'save.dat').read_text(), 'keep')
+        self.assertEqual((self.target / 'user.reg').read_bytes(), registry)
+        self.assertNotIn('forbidden-wine-execution', result.stderr)
+
+    def test_changed_bundle_rejects_existing_prefix_without_rebuild(self):
+        self.assertEqual(self.bootstrap().returncode, 0)
+        marker = self.target / '.games-runtime/prepared-identity'
+        old = marker.read_bytes()
+        (self.target / 'save.dat').write_text('keep')
+        self.meta['sourceComponentSha256'] = 'd' * 64
+        self.pin()
+        result = self.bootstrap()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(marker.read_bytes(), old)
+        self.assertEqual((self.target / 'save.dat').read_text(), 'keep')
+
+    def test_historical_data_identity_is_rejected_and_never_migrated(self):
+        self.assertEqual(self.bootstrap().returncode, 0)
+        marker = self.target / '.games-runtime/prepared-identity'
+        marker.write_text('a' * 64 + '\n')
+        result = self.bootstrap(preparation_identity='c' * 64)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(marker.read_text(), 'a' * 64 + '\n')
+        self.assertEqual((self.target / '.games-runtime/preparation-script-identity').read_text(), 'c' * 64 + '\n')
+
+    def test_data_identity_is_not_a_content_gate(self):
+        self.restore(identity='a'*64)
+        self.assertEqual((self.target/'.games-runtime/prepared-identity').read_text(),'a'*64+'\n')
+
+    def test_failed_checks_do_not_publish_new_preparation_receipt(self):
+        self.assertEqual(self.bootstrap().returncode, 0)
+        (self.target / 'termux-boxmeta/games-wine-fonts-v2').unlink()
+        result = self.bootstrap(preparation_identity='c' * 64)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('font state is invalid', result.stdout)
+        self.assertEqual((self.target / '.games-runtime/preparation-script-identity').read_text(), 'b' * 64 + '\n')
+        self.assertFalse(list(self.target.glob('.games-runtime/*.tmp.*')))
         self.assertNotIn('forbidden-wine-execution', result.stderr)
 
     def test_bootstrap_missing_locale_stops_without_generation_or_prefix_write(self):

@@ -63,3 +63,15 @@ App实测完成基础安装及免wineboot的prefix恢复后，因缺少7z在图�
 ## 中文locale归属基础安装（2026-11-09用户批准）
 
 中文locale为Native主机glibc的公共资源，移至官方基础环境安装阶段生成并核验；游戏prefix准备及启动只读检查并设置LANG/LC_ALL，不得调用locale-gen/localedef。基础安装失败必须终止，不隐式回退。无HTTP契约变更，api_docs=N/A；首次安装及就绪规则变化，product_docs=Required，docs/product/runtime-components.md和wine-library.md最终一致性与用户接受保持Pending。
+
+## Native prefix身份解耦修复（2026-11-09已批准）
+用户要求“修复并继续”并明确“不用考虑向前兼容”。修复当前脚本更新使既有数据身份变化的问题：prefix数据身份只取固定bundle摘要（该bundle已绑定Wine版本、架构、运行时文件及恢复资产），脚本摘要单独表示准备过程完成版本。不做任何旧身份迁移或白名单，不改写prepared-identity，不通过删除/重建处理运行时错误；验收按全新测试prefix执行。API无变更，产品接受及界面验收Pending。
+
+## 已批准locale安装范围内的空白格式缺陷修正
+2026-11-09 全新App界面安装首次失败：官方locale.gen目标行尾有两个空格，安装器整行精确匹配在locale-gen执行前误拒绝。沿用已批准的基础安装生成中文locale要求，仅修正配置字段空白识别，保留缺项、错字符集、生成错误或无有效输出时的失败终止。无新HTTP契约、用户选项、兼容迁移或回退，产品接受及App验收保持Pending。
+
+## Native libXrandr基础依赖补齐（用户要求执行）
+2026-11-09 用户指出“APK 的glibc安装脚本尚未加入此依赖”，要求将已由App界面验证有效的官方libxrandr-glibc纳入Native基础安装。与既有X11依赖批次安装，同步安装后核验、host探针和界面就绪，避免缺库误报Ready。不改变PRoot、prefix资产及身份，不引入重建、兼容或回退。沿用先前缺库补齐授权；不授权Git操作或设备自动安装。HTTP契约不变，api_docs=N/A；product_docs=Required，docs/product/runtime-components.md及docs/product/wine-library.md一致性保持Pending至最终接受。
+
+## glibc基础安装包含常用压缩工具（用户直接要求）
+用户要求“安装glibc时，将7zip/zip等常用解压缩工具一并装上”。延续已批准的基础工具预装范围，保留已有7zip，明确补齐zip、unzip、tar、gzip、bzip2、xz-utils、zstd。工具由Termux官方包提供，运行在Termux宿主，不向glibc或PRoot混入其他ABI库。用户无需自行安装。HTTP契约不变，api_docs=N/A；product_docs=Required，runtime-components及wine-library一致性保持Pending。后续设备验收由用户手动执行，不操作ADB。

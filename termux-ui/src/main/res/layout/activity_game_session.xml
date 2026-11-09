@@ -34,19 +34,6 @@
             android:textSize="16sp" />
     </LinearLayout>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/game_session_menu"
-        android:layout_width="64dp"
-        android:layout_height="48dp"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="18dp"
-        android:contentDescription="@string/local_game_session_menu"
-        android:text="☰"
-        android:textColor="@color/local_games_on_surface"
-        android:textSize="20sp"
-        app:backgroundTint="@color/local_games_overlay"
-        app:cornerRadius="6dp" />
-
     <TextView
         android:id="@+id/game_session_input_warning"
         android:layout_width="wrap_content"
@@ -63,7 +50,7 @@
         android:id="@+id/game_session_drawer_layer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/local_games_scrim"
+        android:background="@android:color/transparent"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone">

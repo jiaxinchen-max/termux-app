@@ -97,7 +97,8 @@ public class XServerBackendSelectionTest {
         assertTrue(xlorieRootfs.contains("xlorie") && !xlorieRootfs.contains("termux-x11"));
         // Everything else a launch needs is unchanged by the choice.
         assertTrue(xlorieGlibc.contains("termux-glibc"));
-        assertTrue(xlorieRootfs.contains("proot") && xlorieRootfs.contains("proot-distro"));
+        assertTrue(xlorieRootfs.contains("proot"));
+        assertFalse(xlorieRootfs.contains("proot-distro"));
         // The path-less overloads keep describing the legacy server.
         assertTrue(new GlibcTermuxBoxBackend().requiredHostCapabilityIds(glibc).contains("termux-x11"));
         assertTrue(new RootfsProotBackend().requiredHostCapabilityIds(rootfs).contains("termux-x11"));

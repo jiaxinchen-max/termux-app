@@ -162,3 +162,55 @@ Proton11出现err:seh:install_bpf低地址映射导致未安装seccomp，按用�
 2026-11-09 第13组本地交付：中文UTF-8/GBK locale已归入Native glibc基础安装，命令自然结束且文件校验通过才发布成功；host/界面/prefix均检查标记和两份非空文件，游戏准备及启动只读检查，缺失立即失败，无wineboot/重建/后端回退。11项实际安装器夹具（含5种错误产物子场景）、23项实际bootstrap夹具、完整启动脚本集成及29项定向JVM测试通过，源码复核无未解决发现。正常原名arm64 APK45647842字节（43.53MiB），SHA256 f63f06341f3f6e9f2d96dafc8267965f078abda6644d5655b8f65cdf26048619；签名有效、testOnly=false、包内4个脚本与源码一致、无prefix压缩包/Python缓存，外部资产描述与HEAD一致。下载目录实际完整GET校验通过。初次Maven镜像502导致构建依赖失败，改用本地init移除不可用镜像后成功，未改项目仓库配置。X11构建自动应用7个子模块补丁，gitlink未变，不属本增量业务修改。证据evidence/native-glibc-locale.json，复核reviews/native-glibc-locale-review.json；严格Harness脚本缺失记Unavailable，实际App手动安装验收及产品接受Pending，无提交/推送/设备部署或归档。
 
 2026-11-09 用户明确“推送代码”，授权在当前分支提交并推送第13组locale安装阶段调整、回归测试及规划记录；不包含X11构建自动生成的7个子模块工作树修改，不包含APK/缓存，不代表App验收、产品最终接受或归档。
+
+2026-11-09 用户安装后要求验证。实际APK完整SHA256与交付一致；仅通过App界面进入Native组件页显示Ready，UI-PE64 Runtime保存配置触发prefix-e5514d69-5177-4647-b7af-e677187217f4，1.517秒后FAILED/prefix_bootstrap_failed。脚本日志显示中文locale标记及UTF-8/GBK非空文件全部通过，失败为native_prefix_identity_mismatch；旧prefix身份77900a0b…与新预期d44d228e…不符。本地按NativePrefixAssets.identity分别复算上版与本版，完整匹配实际两值，根因为将bootstrap/helpers脚本哈希绑定到prefix身份，此次locale修改改变脚本但未改变bundle及镜像。发现首次应用失败立即停止，未重试/启动Wine/清理/重建/更改标记；旧locale数据未写，bootstrap锁已释放。首次基础安装生成路径及游戏GUI未验证，产品接受仍Pending；详细证据artifacts/native-glibc-locale/app-ui-acceptance/acceptance-result.json及run evidence/native-glibc-locale-app-ui.json。本轮未修改业务代码或提交推送。
+
+- [x] 13.5 已批准修复：分离prefix数据身份与运行脚本版本，覆盖脚本更新且prefix内容未变的身份稳定性；禁止通过忽略错误、重建或改写旧标记伪造通过。
+
+2026-11-09 用户授权“修复并继续”，并明确“不用考虑向前兼容”。按新prefix格式实施，不加入旧版本身份迁移、忽略或重建兜底。
+
+- [x] 13.6 分离bundle数据身份和准备脚本摘要，统一bootstrap/恢复器/服务的身份及完成标记校验；不写旧数据身份。
+- [x] 13.7 验证仅脚本更新可复用、bundle变更拒绝、历史身份拒绝且数据保留、失败不发布脚本完成标记；完成JVM/恢复器回归及源码复核。
+- [x] 13.8 编译并核验原名正常arm64 APK，提供手动安装包；实际验收单列13.9。
+
+- [x] 13.9 用户安装本次修复APK后，仅经App清理旧测试prefix或选择全新测试容器，验证固定资产恢复、保存复用及PE32/PE64界面；首次应用失败立即停止，不迁移或改写旧身份。
+
+2026-11-09 身份解耦修复本地交付：prepared-identity仅为受校验bundle摘要，准备脚本摘要单独记录；Native恢复器与bootstrap强制数据身份等于bundle。无历史身份迁移、改写或自动重建。35项JVM、28项Native恢复/实际bootstrap和33项PRoot恢复、shell语法及源码复核通过。测试证明脚本变化不改变数据身份mtime/inode、注册表或存档，bundle变化和历史身份仍拒绝，检查失败不发布新脚本标记。正常原名arm64 APK45648044字节（43.53MiB），SHA256 a3e11429f3ba3f61217c2512e68daf3c9244c07a00bddcecc35feb6bd5f80d89；签名有效、testOnly=false、5个包内脚本与源码一致，无prefix压缩包/Python缓存，外部资产描述与HEAD一致。清除增量打包空洞后重新打包；下载路径实际完整GET摘要一致。证据evidence/native-prefix-identity-fix.json，复核reviews/native-prefix-identity-fix-review.json。实际App须装新包后全新测试prefix验证，13.9及产品接受Pending；严格Harness脚本缺失为Unavailable。未提交/推送/设备部署，未改设备脚本或旧prefix标记。
+
+2026-11-09 用户安装后，设备端完整APK SHA256与第13.8组交付一致。实际UI抓取仅取得Android桌面XML；截图/后续shell超时，两次重启本地ADB及断开重连后最终offline，TCP8057可连接但ADB握手无响应。未触发prefix准备、游戏启动、旧数据清理或身份写入，未发生可判定的应用失败；13.9保持未完成，产品接受Pending。证据artifacts/native-prefix-identity-fix/app-ui-acceptance/acceptance-result.json及run evidence/native-prefix-identity-app-ui.json。无业务代码修改或Git提交推送。
+
+2026-11-09 用户恢复连接后，经App界面打开Wine库和终端尝试清理旧测试prefix；快速注入文本截断，截图仅显示rm -rf /data/da，随后回到提示符，目标完整prefix及历史身份只读复查仍在。随后分段输入未执行Enter，未宣称完成清理。系统设置导航后，Android焦点已为Settings但截图仍停在旧终端，uiautomator返回null root；共享旧XML误读风险已在本地采集器修复为每次唯一文件并验证dump成功，此前失败dump读取的旧XML不作新界面证据。可用内存约4GiB、/data剩余26GiB；远程重启请求超时且后续ADB offline，重启完成不可确认。本轮未点击清空数据，未触发prefix准备或游戏，未发生可判定的运行应用失败，无兼容迁移、重建、后台Wine测试或设备脚本/身份编辑。13.9及产品接受继续Pending，证据evidence/native-prefix-identity-app-ui-resumed.json及artifacts/native-prefix-identity-fix/app-ui-acceptance/resumed-acceptance-result.json。无业务源码修改或Git提交推送。
+
+2026-11-09 用户清空模拟器后要求串行继续验证。原APK摘要一致，Native/Proot均未安装且旧prefix目录不存在；仅App界面启动Native安装任务68e77b58-2778-42f9-9ace-7843880b4f8a。基础包与X11依赖安装后首次失败于locale配置检查，已立即停止测试。官方目标行尾两个空格，原grep -Fx误判，locale-gen尚未执行；非空输出及完成标记均不存在。未重试、未准备prefix或启动游戏。13.9继续未完成，产品接受Pending，证据artifacts/native-prefix-identity-fix/app-ui-serial-acceptance。
+
+- [x] 13.10 在已批准13.1范围修正官方locale配置的空白字段识别；保留精确目标、生成输出门禁及失败终止，不兼容迁移或回退。
+- [x] 13.11 用实际官方尾随空格复现并验证修复，覆盖字段制表符、已启用配置、缺项/近似名称/错字符集拒绝；复核并构建原名正常APK。
+- [x] 13.12 用户安装修复包后再经App串行验证；本轮失败现场不重试，不冒称13.9通过。
+
+2026-11-09 locale空白修复交付：用官方尾随空格配置复现修复前失败，修复前新增有效配置子场景3个失败且近似名称错误放行1个；修复后14项实际安装器夹具通过，包含有效空白/已启用配置、无关配置保留、缺项/错字符集/近似名称拒绝及原有生成失败/错误成功保护。shell语法、diff检查及直接源码复核通过。正常原名arm64 APK45648141字节（43.53MiB），SHA256 a3c99a056fde612e9e390aef385b917015ab63a784be49e4dca878f77d0637f8；签名有效、testOnly=false，5个脚本与源码一致，外部资产描述及prefix身份未变，无内置prefix payload。原下载路径已更新并完整HTTP GET核验。设备保留首次FAILED现场，未重试/准备prefix/启动游戏；13.9和13.12及产品接受Pending，严格Harness缺脚本为Unavailable。无设备脚本编辑、Git提交推送或归档。
+
+2026-11-09 用户安装修复包后，完整APK SHA256与交付一致。全程串行，仅通过真实App界面导入Native PE64、安装并选择Wine10、保存准备、重复保存、导入PE32及启动/退出；ADB仅用于界面操作和只读取证。新一次保存准备复用先前安装的官方包并重新请求基础安装任务，日志保留历史失败；本次locale-gen成功生成GBK及UTF-8，非空LC_CTYPE分别327888及369952字节，完成标记先于prefix恢复发布。本次无应用失败，无失败后的自动重试或兜底。
+
+首次准备任务prefix-f24a0bb8-dd68-47af-a4db-eaf24ee3eb19成功，总476627毫秒（包括首次组件安装）；固定资产恢复及bootstrap阶段75250毫秒，恢复2393个独立文件、856330933字节，无wineboot。数据身份7313cc05…及独立脚本标记4dfda1e0…均为65字节。重复保存任务prefix-e676f963-5809-4eee-8534-de3f5f966976仅35毫秒成功，没有新增bootstrap日志；数据身份、脚本标记、注册表和locale的大小/mtime/inode完全不变。第二个PE32配置任务prefix-f30e1c26-ca73-441a-8709-3ecc47d89fde仅201毫秒成功。
+
+PE64、PE32均真实显示PASS窗口，覆盖动态version.dll、中文文件写入和中文GUI；截图32-pe64-gui-check.png及45-pe32-gui-check.png。两次均经App退出确认返回Native游戏库，任务为CANCELLED/COMPLETE、displayConnected=false，不冒称自然退出0。最终无Wine/Box64/PRoot/PulseAudio进程及bootstrap/启动锁目录；恢复器保留的.prebuilt-lock文件为正常flock载体，进程退出已释放。locale文件及完成标记在重复保存和两次游戏后均未变化。两次仍有既知libXrandr.so.2缺失警告，本轮DLL/文件/GUI不受阻；动态分辨率、3D/音频/硬件、真实游戏及其他Wine/Proton版本未验证，不扩展通过范围。13.9与13.12按本轮实际覆盖完成，用户最终接受及产品一致性仍Pending，严格Harness脚本缺失Unavailable。证据evidence/native-locale-whitespace-app-ui.json及artifacts/native-locale-whitespace-fix/app-ui-acceptance/acceptance-result.json。无业务源码修改、兼容迁移、设备脚本编辑、后台Wine测试、Git操作或归档。
+
+2026-11-09 用户要求检查libXrandr能否安装。本轮仅现场补包验证，不改业务实现：官方libxrandr-glibc 1.5.4，aarch64，下载25140字节，安装236KiB；通过App终端执行pkg install -y libxrandr-glibc成功，库位于Native usr/glibc/lib，ELF头确认AArch64。通过App再次启动既有Native Wine10 PE64配置，进程maps确认实际加载libXrandr.so.2.2.0，完整启动日志缺库警告消失，DLL/中文文件/中文GUI窗口显示PASS。App退出确认后任务CANCELLED/COMPLETE、返回游戏库，无运行进程残留。全程串行，无后台Wine测试；未修改源码/APK/外部资产，基础安装脚本尚未纳入此包，动态分辨率及本次补包后的PE32/PRoot未验证。证据evidence/native-libxrandr-device-install.json及artifacts/native-libxrandr/app-ui-install/result.json；用户最终接受仍Pending，无Git操作。
+
+## 第14组：Native libXrandr基础安装依赖（用户要求补齐）
+2026-11-09 用户指出APK尚未加入该依赖，延续已批准的基础依赖补齐。范围为安装/核验/host与界面就绪及定向回归；不自动安装设备，不进行Git操作。
+
+- [x] 14.1 在现有官方图形包安装中加入libxrandr-glibc，安装后、host及界面统一核验非空普通libXrandr.so.2。
+- [x] 14.2 验证包失败和错误成功的缺失/空文件/目录拒绝，以及正常host/界面Ready；完成源码复核并记录实际证据。
+- [x] 14.3 编译原名正常arm64 APK，验签/testOnly=false/脚本一致/资产不变/完整下载核验，提供手动下载。
+- [ ] 14.4 用户安装后通过App界面验证基础安装自动补库及游戏运行；本次设备早前补装不替代该验收。
+
+2026-11-09 第14组本地交付：官方libxrandr-glibc加入现有图形包批次；生产安装器、真实host探针及界面Ready统一要求非空普通libXrandr.so.2。包失败及缺失/空/目录产物立即失败，不继续locale生成，无自动回退或prefix重建。安装脚本新增回归在修复前实际出现5项失败，修复后16项通过；21项JVM通过（host 10项、界面11项），原有工具和locale检查均保持独立有效覆盖。shell语法、diff检查及直接源码复核通过。正常原名arm64 APK45648092字节（43.53MiB），SHA256 1e9fe418f5d485cbb4ae85ed990277d2f8ab6faa54301cedb40994242707812f；签名有效、testOnly=false、5个脚本与源码一致，无内置prefix payload或Python缓存。除本安装器外4个准备/启动脚本摘要、已发布外部资产描述及prefix身份均未变。固定下载路径已更新且完整HTTP GET核验一致；设备未安装或修改脚本，14.4保留Pending。此前App补装与PE64通过证据仍有效，但不替代新APK基础自动安装验收。证据evidence/native-libxrandr-apk.json，复核reviews/native-libxrandr-apk-review.json；严格Harness脚本缺失Unavailable，产品一致性和用户最终接受Pending，无Git操作或归档。
+
+## 第15组：常用压缩工具预装（用户直接指定）
+- [x] 15.1 基础安装显式请求7zip、zip、unzip、tar、gzip、bzip2、xz-utils、zstd，安装后/host/界面同步核验对应命令。
+- [x] 15.2 完成包失败及逐工具缺失/不可执行回归、JVM和源码复核，记录真实证据。
+- [x] 15.3 构建核验原名正常arm64 APK，保持资产身份不变并验证完整下载。
+- [ ] 15.4 用户手动安装及设备验收；代理不连接设备。
+
+第15组本地交付：基础包批次显式安装7zip、zip、unzip、tar、gzip、bzip2、xz-utils、zstd；生产安装器、host及界面检查全部8个对应命令为非空普通且可执行文件。安装命令失败、任一工具缺失/空/不可执行均立即失败，不进入locale生成或误报Ready。18项安装器回归（含24个逐工具无效产物子场景）、21项JVM、shell语法及源码复核通过。正常原名arm64 APK45648193字节（43.53MiB），SHA256 97be8d48aa54d0d5499ff19d524302b17c73549f82e2cf0751b28489bf9b6bf4；签名有效、testOnly=false、包内5个脚本与源码一致，4个prefix准备/启动脚本、外部资产及身份未变，无prefix payload。固定下载文件完整HTTP GET核验通过。后续设备测试全部由用户手动执行，代理无设备操作；15.4及产品一致性/最终接受Pending。严格Harness脚本缺失Unavailable。证据evidence/native-archive-tools.json，复核reviews/native-archive-tools-review.json。Wine选择问题仍是独立待确认规划，本轮未修改选择逻辑；无Git操作或归档。

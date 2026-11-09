@@ -14,7 +14,6 @@ import com.termux.ui.domain.ComponentTask;
 import com.termux.ui.domain.ComponentTaskState;
 import com.termux.ui.service.ComponentTaskConsoleLog;
 import com.termux.ui.service.SetupPreparationLog;
-import com.termux.ui.wine.runtime.RootfsSetupRecipe;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -74,6 +73,7 @@ final class RootfsRuntimeComponentPreparer {
     }
 
     private void ensure(ComponentDescriptor descriptor) throws IOException {
+        com.termux.ui.wine.runtime.RuntimeEditingStop.requireNotCancelled(context.getFilesDir(), parentTaskId);
         console.append("Preparing component: " + descriptor.getDisplayName() + " (" + descriptor.getId() + ")");
         if (isInstalled(descriptor)) return;
 
@@ -102,7 +102,6 @@ final class RootfsRuntimeComponentPreparer {
         for (ComponentTask task : candidates) {
             if (!task.getPackageName().equals(descriptor.getId()) ||
                 task.getVersion() != descriptor.getVersion() ||
-                !task.getSha256().equals(descriptor.getSha256()) ||
                 task.getState() == ComponentTaskState.CANCELLED ||
                 task.getState() == ComponentTaskState.INSTALLED) {
                 continue;
@@ -115,6 +114,7 @@ final class RootfsRuntimeComponentPreparer {
     private void waitForTask(ComponentDescriptor descriptor, String taskId) throws IOException {
         long deadline = System.currentTimeMillis() + COMPONENT_TIMEOUT_MS;
         while (System.currentTimeMillis() < deadline) {
+            com.termux.ui.wine.runtime.RuntimeEditingStop.requireNotCancelled(context.getFilesDir(), parentTaskId);
             console.component(descriptor.getId(), taskId);
             String rejected = ComponentTaskConsoleLog.commandFailure(context.getFilesDir(), taskId);
             if (!rejected.isEmpty()) throw new IOException("component_prepare_failed:" + descriptor.getId() + ":" + rejected);
@@ -147,7 +147,7 @@ final class RootfsRuntimeComponentPreparer {
     private boolean isInstalled(ComponentDescriptor descriptor) throws IOException {
         InstalledComponent active = installations.read(descriptor.getId()).getActive().orElse(null);
         if (active == null || active.getVersion() != descriptor.getVersion()) return false;
-        return descriptor.getSha256().isEmpty() || active.getSha256().equals(descriptor.getSha256());
+        return true;
     }
 
     private static void sleep() throws IOException {

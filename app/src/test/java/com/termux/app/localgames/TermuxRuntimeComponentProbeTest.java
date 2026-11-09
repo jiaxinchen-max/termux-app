@@ -17,7 +17,7 @@ public class TermuxRuntimeComponentProbeTest {
     @Rule public final TemporaryFolder temporary = new TemporaryFolder();
 
     @Test
-    public void recognizesLegacyMetadataOnlyWhenRuntimeCapabilityExists() throws Exception {
+    public void box64MetadataRequiresItsExactExecutableAndNeverTheSharedBinary() throws Exception {
         File files = temporary.newFolder("files");
         installMetadata(files, "opt/package-manager/installed", "glibc_box64_0.2.7", "10");
         installMetadata(files, "opt/package-manager/installed", "glibc_box64_0.4.4", "1");
@@ -26,12 +26,24 @@ public class TermuxRuntimeComponentProbeTest {
         assertFalse(probe.isAvailable("glibc_box64_0.2.7"));
         assertFalse(probe.isAvailable("glibc_box64_0.4.4"));
 
-        write(new File(files, "usr/glibc/bin/box64"), "binary");
+        write(new File(files, "usr/glibc/bin/box64"), "shared-binary");
+        assertFalse(probe.isAvailable("glibc_box64_0.2.7"));
+        assertFalse(probe.isAvailable("glibc_box64_0.4.4"));
+        File old = new File(files, "usr/glibc/components/glibc_box64_0.2.7/bin/box64");
+        write(old, "old");
+        assertFalse(probe.isAvailable("glibc_box64_0.2.7"));
+        assertTrue(old.setExecutable(true, false));
         assertTrue(probe.isAvailable("glibc_box64_0.2.7"));
         assertTrue(probe.isAvailable("glibc_box64_0.2.7", 10));
         assertFalse(probe.isAvailable("glibc_box64_0.2.7", 9));
-        assertTrue(probe.isAvailable("glibc_box64_0.4.4"));
+        assertFalse(probe.isAvailable("glibc_box64_0.4.4"));
+        File newer = new File(files, "usr/glibc/components/glibc_box64_0.4.4/bin/box64");
+        write(newer, "new");
+        assertTrue(newer.setExecutable(true, false));
         assertTrue(probe.isAvailable("glibc_box64_0.4.4", 1));
+        assertTrue(newer.delete());
+        assertFalse(probe.isAvailable("glibc_box64_0.4.4"));
+        assertTrue(probe.isAvailable("glibc_box64_0.2.7"));
     }
 
     @Test
@@ -68,6 +80,14 @@ public class TermuxRuntimeComponentProbeTest {
         File runner = new File(files, "usr/bin/grun");
         write(runner, "runner");
         assertTrue(runner.setExecutable(true, false));
+        File xrandr = new File(files, "usr/glibc/lib/libXrandr.so.2");
+        write(xrandr, "xrandr");
+
+        for (String tool : new String[] {"zip", "unzip", "tar", "gzip", "bzip2", "xz", "zstd"}) {
+            File command = new File(files, "usr/bin/" + tool);
+            write(command, "tool");
+            assertTrue(command.setExecutable(true, false));
+        }
 
         // Wine's X11 driver also needs libX11/libXrender/FreeType to render a visible
         // window; the base loader alone is not a ready runtime.
@@ -94,7 +114,29 @@ public class TermuxRuntimeComponentProbeTest {
         assertFalse("A stale marker with empty GBK data is not ready", probe.isAvailable("termux-glibc"));
         write(gbk, "gbk");
         assertTrue(probe.isAvailable("termux-glibc"));
+        assertTrue(xrandr.delete());
+        assertFalse("Without XRandR the base runtime is incomplete", probe.isAvailable("termux-glibc"));
+        assertTrue(xrandr.mkdir());
+        assertFalse("A directory cannot satisfy XRandR", probe.isAvailable("termux-glibc"));
+        assertTrue(xrandr.delete());
+        write(xrandr, "");
+        assertFalse("An empty XRandR file is not ready", probe.isAvailable("termux-glibc"));
+        write(xrandr, "xrandr");
+        assertTrue(probe.isAvailable("termux-glibc"));
         assertTrue(probe.isAvailable("termux-glibc", 1));
+        for (String tool : new String[] {"7z", "zip", "unzip", "tar", "gzip", "bzip2", "xz", "zstd"}) {
+            File command = new File(files, "usr/bin/" + tool);
+            assertTrue(command.delete());
+            assertFalse(tool, probe.isAvailable("termux-glibc"));
+            write(command, "");
+            assertTrue(command.setExecutable(true, false));
+            assertFalse(tool, probe.isAvailable("termux-glibc"));
+            write(command, "tool");
+            assertTrue(command.setExecutable(false, false));
+            assertFalse(tool, probe.isAvailable("termux-glibc"));
+            assertTrue(command.setExecutable(true, false));
+            assertTrue(tool, probe.isAvailable("termux-glibc"));
+        }
     }
 
     @Test

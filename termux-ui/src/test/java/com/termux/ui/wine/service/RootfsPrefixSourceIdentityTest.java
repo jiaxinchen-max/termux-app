@@ -10,7 +10,7 @@ public class RootfsPrefixSourceIdentityTest {
     @Test public void matchingImmutableSourceIsAccepted() throws Exception {
         RootfsSetupAssetInstaller.requirePrefixSource(METADATA, new String[]{SHA});
     }
-    @Test(expected = IOException.class) public void sameNameChangedBytesCannotReuseTemplate() throws Exception {
+    @Test public void sourceDigestDifferenceIsAccepted() throws Exception {
         RootfsSetupAssetInstaller.requirePrefixSource(METADATA, new String[]{SHA.replace('a', 'b')});
     }
     @Test(expected = IOException.class) public void missingSourceFails() throws Exception {

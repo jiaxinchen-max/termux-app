@@ -1,6 +1,7 @@
 package com.termux.ui.activity;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.net.Uri;
@@ -27,13 +28,10 @@ import androidx.core.content.ContextCompat;
 import com.termux.shared.android.PermissionUtils;
 import com.termux.ui.R;
 import com.termux.ui.api.LocalGames;
+import com.termux.ui.files.BrowserFileOperations;
+import com.termux.ui.files.BrowserDocumentsProvider;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.databinding.ActivityLocalGameFileManagerBinding;
-import com.termux.ui.wine.data.FileGameRepository;
-import com.termux.ui.wine.data.FileGameContainerRepository;
-import com.termux.ui.wine.data.FileRuntimeProfileRepository;
-import com.termux.ui.wine.data.GameRepository;
-import com.termux.ui.wine.data.RuntimeProfileRepository;
 import com.termux.ui.wine.domain.GameRuntimeBackendType;
 import com.termux.ui.wine.importer.PeExecutableInspector;
 import com.termux.ui.wine.importer.QuickGameImport;
@@ -49,10 +47,7 @@ import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Browser for private game files and the mounted shared storage tree. It never mutates file
- *  content on its own -- tapping a file shows read-only details, long-pressing one offers to
- *  import it as a game. Whole-folder import (the old "⋯" menu) is gone: a game is always a
- *  specific picked file, never an unscanned directory. */
+/** Browser with explicit file operations and temporary read-only system-open grants. */
 public final class GameFileManagerActivity extends AppUiActivity {
     public static final String EXTRA_IMPORT_BACKEND = "com.termux.ui.extra.IMPORT_BACKEND";
     @Nullable private GameRuntimeBackendType importBackend;
@@ -79,8 +74,6 @@ public final class GameFileManagerActivity extends AppUiActivity {
     private ActivityLocalGameFileManagerBinding binding;
     private UiNavigation navigation;
     private CollectionToolbar collectionToolbar;
-    private GameRepository gameRepository;
-    private RuntimeProfileRepository profileRepository;
     private File filesRoot;
     private File gameFilesRoot;
     private File sharedStorageRoot;
@@ -92,6 +85,14 @@ public final class GameFileManagerActivity extends AppUiActivity {
     private boolean resumed;
     private boolean destroyed;
     private boolean importing;
+    private boolean operating;
+    private boolean showHidden;
+    private BrowserFileOperations fileOperations;
+    @Nullable private File clipboardSource;
+    private boolean clipboardCut;
+    @Nullable private PopupMenu activeFileMenu;
+    private static final int OPEN = 101, COPY = 102, CUT = 103, DELETE = 104, PASTE = 105, IMPORT = 106;
+
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -100,14 +101,20 @@ public final class GameFileManagerActivity extends AppUiActivity {
         binding = ActivityLocalGameFileManagerBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         GameStoragePaths paths = new GameStoragePaths(getFilesDir());
-        gameRepository = new FileGameRepository(paths.getLibraryDirectory());
-        profileRepository = new FileRuntimeProfileRepository(paths.getProfilesDirectory());
         filesRoot = getFilesDir();
         gameFilesRoot = paths.getImportedGamesDirectory();
         if (!gameFilesRoot.exists() && !gameFilesRoot.mkdirs()) {
             Toast.makeText(this, R.string.local_game_file_manager_empty, Toast.LENGTH_SHORT).show();
         }
         sharedStorageRoot = Environment.getExternalStorageDirectory();
+        fileOperations = new BrowserFileOperations(filesRoot, gameFilesRoot, sharedStorageRoot);
+        showHidden = getSharedPreferences("local_games_settings", MODE_PRIVATE)
+            .getBoolean("file_manager_show_hidden", false);
+        if (savedInstanceState != null) {
+            String source = savedInstanceState.getString("clipboard_source");
+            if (source != null) clipboardSource = new File(source);
+            clipboardCut = savedInstanceState.getBoolean("clipboard_cut");
+        }
         collectionToolbar = new CollectionToolbar(this, binding.localGameFileManagerToolbar,
             "file_manager", R.string.local_game_file_manager_title,
             R.string.local_game_file_manager_help, this::refreshDirectory, () -> {
@@ -116,6 +123,13 @@ public final class GameFileManagerActivity extends AppUiActivity {
                 if (current != null) showLocal(current); else showHome();
             });
         viewMode = collectionToolbar.getMode();
+        configureFileActions();
+        View.OnLongClickListener blankMenu = view -> {
+            if (localCurrent == null || operating || importing) return false;
+            return showFileMenu(view, localCurrent, true);
+        };
+        binding.localGameFileManagerItems.setOnLongClickListener(blankMenu);
+        binding.localGameFileManagerScroll.setOnLongClickListener(blankMenu);
         navigation = UiNavigation.install(this, R.id.local_games_navigation_file_manager, null);
         File restored = restoreBrowsedDirectory(savedInstanceState);
         if (restored != null) showLocal(restored);
@@ -151,6 +165,10 @@ public final class GameFileManagerActivity extends AppUiActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
+        if (clipboardSource != null) {
+            outState.putString("clipboard_source", clipboardSource.getPath());
+            outState.putBoolean("clipboard_cut", clipboardCut);
+        }
         if (localCurrent != null) {
             outState.putString(STATE_BROWSED_DIRECTORY, localCurrent.getPath());
         }
@@ -206,6 +224,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
     @Override
     protected void onDestroy() {
         destroyed = true;
+        if (activeFileMenu != null) activeFileMenu.dismiss();
         stopWatchingDirectory();
         directoryHandler.removeCallbacksAndMessages(null);
         ioExecutor.shutdownNow();
@@ -245,6 +264,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
     private void showHome() {
         stopWatchingDirectory();
         localCurrent = null;
+        updateFileActions();
         binding.localGameFileManagerLocation.setText(
             R.string.local_game_file_manager_internal_storage);
         clearRows();
@@ -291,6 +311,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
                 return;
             }
             localCurrent = canonical;
+            updateFileActions();
             watchDirectory(canonical);
             binding.localGameFileManagerLocation.setText(canonical.getPath());
             clearRows();
@@ -305,26 +326,28 @@ public final class GameFileManagerActivity extends AppUiActivity {
             }
             Arrays.sort(entries, Comparator.comparing(File::isFile).thenComparing(File::getName,
                 String.CASE_INSENSITIVE_ORDER));
+            int visible = 0;
             for (File entry : entries) {
+                if (!showHidden && entry.getName().startsWith(".")) continue;
                 if (!isWithin(root, entry)) continue;
+                visible++;
                 if (entry.isDirectory()) {
-                    // Folders are purely navigable now -- no "⋯"/import-as-folder action. A game
-                    // is always a specific file the user picked (see request #1).
                     addEntry(entry.getName(), entrySubtitle(entry), true, view -> showLocal(entry),
-                        null);
+                        view -> showFileMenu(view, entry, false));
                 } else {
                     addEntry(entry.getName(), entrySubtitle(entry), false,
                         view -> showFileDetails(entry),
-                        view -> showFileImportMenu(view, entry));
+                        view -> showFileMenu(view, entry, false));
                 }
             }
+            if (visible == 0) addEmpty(getString(R.string.local_game_file_manager_empty));
         } catch (IOException error) {
             showHome();
         }
     }
 
     private void refreshDirectory() {
-        if (destroyed || binding == null || localCurrent == null) return;
+        if (destroyed || operating || binding == null || localCurrent == null) return;
         int scrollY = binding.localGameFileManagerScroll.getScrollY();
         File directory = localCurrent;
         showLocal(directory);
@@ -338,7 +361,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
     private void watchDirectory(File directory) {
         if (directoryObserver != null && directory.equals(watchedDirectory)) return;
         stopWatchingDirectory();
-        if (!resumed) return;
+        if (!resumed || operating) return;
         watchedDirectory = directory;
         directoryObserver = new FileObserver(directory.getPath(), DIRECTORY_CHANGE_EVENTS) {
             @Override
@@ -390,16 +413,145 @@ public final class GameFileManagerActivity extends AppUiActivity {
         }
     }
 
-    /** Request #2: long-pressing a file offers to import it directly (no whole-folder scan). */
-    private void showFileImportMenu(View anchor, File file) {
+    private void configureFileActions() {
+        binding.localGameFileManagerToolbar.inflateMenu(R.menu.local_game_browser_actions);
+        binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_show_hidden)
+            .setOnMenuItemClickListener(item -> {
+                showHidden = !showHidden;
+                getSharedPreferences("local_games_settings", MODE_PRIVATE).edit()
+                    .putBoolean("file_manager_show_hidden", showHidden).apply();
+                updateFileActions();
+                refreshDirectory();
+                return true;
+            });
+        binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_paste)
+            .setOnMenuItemClickListener(item -> { pasteIntoCurrent(); return true; });
+        binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_cancel_clipboard)
+            .setOnMenuItemClickListener(item -> {
+                clipboardSource = null; updateFileActions(); return true;
+            });
+        updateFileActions();
+    }
+
+    private void updateFileActions() {
+        if (binding == null) return;
+        android.view.Menu menu = binding.localGameFileManagerToolbar.getMenu();
+        if (menu.findItem(R.id.browser_paste) == null) return;
+        boolean pending = clipboardSource != null;
+        boolean ready = !operating && !importing;
+        menu.findItem(R.id.browser_paste).setVisible(pending).setEnabled(ready && localCurrent != null)
+            .setTitle(pending ? getString(R.string.browser_paste_named, clipboardSource.getName()) : getString(R.string.browser_paste));
+        menu.findItem(R.id.browser_cancel_clipboard).setVisible(pending).setEnabled(ready);
+        menu.findItem(R.id.browser_show_hidden).setChecked(showHidden).setEnabled(ready);
+    }
+
+    private boolean showFileMenu(View anchor, File target, boolean blank) {
+        if (operating || importing || destroyed) return false;
+        boolean allowed = fileOperations.canOperate(target);
+        boolean paste = blank && clipboardSource != null;
+        if (!allowed && !paste) return false;
         PopupMenu menu = new PopupMenu(this, anchor);
-        GameRuntimeBackendType backend = selectedImportBackend();
-        menu.getMenu().add(importLabel(backend));
+        menu.getMenu().add(target.getName()).setEnabled(false);
+        if (allowed) {
+            menu.getMenu().add(0, OPEN, 1, R.string.browser_open);
+            menu.getMenu().add(0, COPY, 2, R.string.browser_copy);
+            menu.getMenu().add(0, CUT, 3, R.string.browser_cut);
+            menu.getMenu().add(0, DELETE, 4, R.string.browser_delete);
+            if (!target.isDirectory()) menu.getMenu().add(0, IMPORT, 5, importLabel(selectedImportBackend()));
+        }
+        if (paste) menu.getMenu().add(0, PASTE, 6, R.string.browser_paste);
         menu.setOnMenuItemClickListener(item -> {
-            importConfiguration(file, backend);
+            if (operating || importing) return true;
+            switch (item.getItemId()) {
+                case OPEN: openExternally(target); break;
+                case COPY: case CUT:
+                    clipboardSource = target; clipboardCut = item.getItemId() == CUT;
+                    updateFileActions();
+                    Toast.makeText(this, getString(clipboardCut ? R.string.browser_cut_pending : R.string.browser_copy_pending,
+                        target.getName()), Toast.LENGTH_SHORT).show();
+                    break;
+                case DELETE: confirmDelete(target); break;
+                case PASTE: pasteIntoCurrent(); break;
+                case IMPORT: importConfiguration(target, selectedImportBackend()); break;
+            }
             return true;
         });
+        if (activeFileMenu != null) activeFileMenu.dismiss();
+        activeFileMenu = menu;
+        menu.setOnDismissListener(dismissed -> { if (activeFileMenu == dismissed) activeFileMenu = null; });
         menu.show();
+        return true;
+    }
+
+    private void openExternally(File target) {
+        try {
+            startActivity(BrowserDocumentsProvider.openIntent(this, target));
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.browser_no_open_app, Toast.LENGTH_LONG).show();
+        } catch (IOException | SecurityException e) {
+            showOperationFailure(e);
+        }
+    }
+
+    private void confirmDelete(File target) {
+        new FrostedDialogBuilder(this).setTitle(R.string.browser_delete)
+            .setMessage(getString(R.string.browser_delete_confirm, target.getName()))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.browser_delete, (dialog, which) -> runFileOperation(() -> {
+                fileOperations.delete(target);
+                return target;
+            }, () -> {
+                if (clipboardSource != null && BrowserFileOperations.contains(target.getAbsoluteFile(), clipboardSource.getAbsoluteFile())) {
+                    clipboardSource = null;
+                }
+            })).show();
+    }
+
+    private void pasteIntoCurrent() {
+        if (clipboardSource == null || localCurrent == null || operating || importing) return;
+        File source = clipboardSource, destination = localCurrent;
+        boolean cut = clipboardCut;
+        runFileOperation(() -> fileOperations.paste(source, destination, cut), () -> {
+            if (cut && source.equals(clipboardSource)) clipboardSource = null;
+        });
+    }
+
+    private interface FileOperation { File run() throws IOException; }
+
+    private void runFileOperation(FileOperation operation, Runnable success) {
+        if (operating || importing || destroyed) return;
+        operating = true;
+        stopWatchingDirectory();
+        updateFileActions();
+        binding.localGameFileManagerProgress.setVisibility(View.VISIBLE);
+        ioExecutor.execute(() -> {
+            Exception failure = null;
+            try { operation.run(); } catch (IOException | RuntimeException e) { failure = e; }
+            Exception result = failure;
+            runOnUiThread(() -> {
+                operating = false;
+                if (destroyed || binding == null) return;
+                binding.localGameFileManagerProgress.setVisibility(View.GONE);
+                if (result == null) success.run(); else showOperationFailure(result);
+                File current = localCurrent;
+                // Deleting the current directory returns to the nearest accessible parent.
+                while (current != null && rootFor(current) != null && !current.isDirectory()) current = current.getParentFile();
+                if (current != null && rootFor(current) != null) showLocal(current); else showHome();
+                updateFileActions();
+            });
+        });
+    }
+
+    private void showOperationFailure(Exception failure) {
+        String detail = failure.getMessage() == null ? failure.getClass().getSimpleName() : failure.getMessage();
+        int message = detail.startsWith("destination_exists") ? R.string.browser_conflict
+            : detail.startsWith("destination_inside_source") ? R.string.browser_inside_source
+            : detail.startsWith("protected_root") ? R.string.browser_protected_root
+            : detail.startsWith("move_source_delete_failed") ? R.string.browser_move_partial
+            : detail.startsWith("delete_failed_may_be_partial") ? R.string.browser_delete_partial
+            : R.string.browser_operation_failed;
+        new FrostedDialogBuilder(this).setTitle(R.string.browser_operation_failed)
+            .setMessage(getString(message) + "\n" + detail).setPositiveButton(android.R.string.ok, null).show();
     }
 
     private GameRuntimeBackendType selectedImportBackend() {
@@ -414,15 +566,14 @@ public final class GameFileManagerActivity extends AppUiActivity {
     }
 
     private void importConfiguration(File file, GameRuntimeBackendType backend) {
-        if (destroyed || importing) return;
+        if (destroyed || importing || operating) return;
         importing = true;
+        updateFileActions();
         ioExecutor.execute(() -> {
             String gameId;
             String error = null;
             try {
-                gameId = QuickGameImport.importGame(gameRepository, profileRepository,
-                    new FileGameContainerRepository(new GameStoragePaths(getFilesDir())
-                        .getContainersDirectory()), file, backend);
+                gameId = QuickGameImport.importGame(getFilesDir(), file, backend);
             } catch (IOException | RuntimeException importError) {
                 gameId = null;
                 error = importError.getMessage() == null
@@ -433,6 +584,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
             runOnUiThread(() -> {
                 importing = false;
                 if (destroyed) return;
+                updateFileActions();
                 if (failure != null) {
                     Toast.makeText(this, getString(R.string.local_game_import_save_failed, failure),
                         Toast.LENGTH_LONG).show();

@@ -81,6 +81,7 @@ public final class GameSessionActivity extends AppCompatActivity {
     private String taskId;
     private boolean destroyed;
     private boolean exitRequested;
+    private boolean exitStopFailed;
     private boolean exitWaitingForDrawer;
     private boolean exitConfirmationVisible;
     private volatile boolean exitConfirmationPending;
@@ -210,7 +211,6 @@ public final class GameSessionActivity extends AppCompatActivity {
     private void configureControlCenter() {
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         binding.gameSessionKeyboard.setOnClickListener(view -> binding.gameSessionX11.toggleKeyboard());
-        binding.gameSessionMenu.setOnClickListener(view -> showControlDrawer());
         binding.gameSessionCloseDrawer.setOnClickListener(view -> hideControlDrawer());
         binding.gameSessionDrawerLayer.setOnClickListener(view -> hideControlDrawer());
         binding.gameSessionDrawer.setOnClickListener(view -> { });
@@ -345,6 +345,10 @@ public final class GameSessionActivity extends AppCompatActivity {
         currentTask = task;
         if (logPanel != null) logPanel.setLogRef(task.getLogRef());
         if (task.getState().isTerminal()) {
+            if ((exitRequested || exitStopFailed) && task.getState() == com.termux.ui.wine.domain.LaunchTaskState.FAILED) {
+                showExitFailure();
+                return;
+            }
             if (!exitWaitingForDrawer
                 && ((!exitConfirmationVisible && !exitConfirmationPending) || exitRequested))
                 returnToGameLibrary();
@@ -514,7 +518,6 @@ public final class GameSessionActivity extends AppCompatActivity {
             return;
         }
         cancelDrawerAnimation();
-        binding.gameSessionMenu.setVisibility(View.GONE);
         binding.gameSessionDrawerLayer.setVisibility(View.VISIBLE);
         updateProcessRefresh();
         updateLogPage();
@@ -555,7 +558,6 @@ public final class GameSessionActivity extends AppCompatActivity {
         if (binding == null) return;
         stopProcessRefresh();
         binding.gameSessionDrawerLayer.setVisibility(View.GONE);
-        binding.gameSessionMenu.setVisibility(View.VISIBLE);
         if (exitWaitingForDrawer) stopGameAfterDrawerHidden();
     }
 
@@ -603,11 +605,25 @@ public final class GameSessionActivity extends AppCompatActivity {
         binding.gameSessionWaiting.setVisibility(View.VISIBLE);
         binding.gameSessionStatus.setText(R.string.local_game_launch_cancel);
         ioExecutor.execute(() -> {
-            try { orchestrator.cancel(taskId, false); }
+            try { orchestrator.cancel(taskId, true); }
             catch (OrchestrationException error) {
-                runOnUiThread(() -> exitRequested = false);
+                runOnUiThread(this::showExitFailure);
             }
         });
+    }
+
+    private void showExitFailure() {
+        if (destroyed || binding == null || isFinishing() || exitStopFailed) return;
+        exitStopFailed = true;
+        exitRequested = false;
+        exitWaitingForDrawer = false;
+        binding.gameSessionWaiting.setVisibility(View.GONE);
+        binding.gameSessionStatus.setText(R.string.local_game_session_exit_failed);
+        new FrostedDialogBuilder(this, R.style.ThemeOverlay_TermuxLocalGames_Dialog)
+            .setTitle(R.string.local_game_session_exit_failed)
+            .setMessage(R.string.local_game_session_exit_failed_message)
+            .setPositiveButton(android.R.string.ok, (dialog, which) -> returnToGameLibrary())
+            .show();
     }
 
     /**

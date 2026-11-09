@@ -87,15 +87,12 @@ esac
 [ -f "$PAYLOAD_PATH" ] || fail custom_component_payload_missing 70
 case "$PAYLOAD_SHA256" in ''|*[!a-f0-9]*) fail custom_component_hash_invalid 64 ;; esac
 [ "${#PAYLOAD_SHA256}" = 64 ] || fail custom_component_hash_invalid 64
-actual_sha256=$(sha256sum "$PAYLOAD_PATH")
-actual_sha256=${actual_sha256%% *}
-[ "$actual_sha256" = "$PAYLOAD_SHA256" ] || fail custom_component_hash_mismatch 64
 
 TERMUX_GLIBC_DIR="$TERMUX_FILES_ROOT/usr/glibc"
 SHARED_CONTAINER="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-shared-rootfs"
 SHARED_ROOTFS="$SHARED_CONTAINER/rootfs"
 if [ "$RUNTIME_BACKEND" = glibc_termux_box ]; then
-    [ -x "$TERMUX_GLIBC_DIR/bin/box64" ] && [ -f "$TERMUX_GLIBC_DIR/lib/ld-linux-aarch64.so.1" ] || fail glibc_runtime_not_installed 70
+    [ -x "$TERMUX_GLIBC_DIR/lib/ld-linux-aarch64.so.1" ] || fail glibc_runtime_not_installed 70
     case "$KIND" in
         wine) DEST="$TERMUX_GLIBC_DIR/$COMPONENT_ID" ;;
         *) DEST="$TERMUX_GLIBC_DIR/components/$COMPONENT_ID" ;;

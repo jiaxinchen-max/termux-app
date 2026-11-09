@@ -50,8 +50,15 @@ public class RuntimeEnvironmentStatusTest {
             "libXrender.so.1", "libfreetype.so.6"}) {
             assertTrue(new File(glibc, name).createNewFile());
         }
+        File xrandr = new File(glibc, "libXrandr.so.2");
+        java.nio.file.Files.write(xrandr.toPath(), new byte[] {1});
         File bin = new File(paths.getTermuxPrefixDirectory(), "bin");
         assertTrue(bin.mkdirs());
+        for (String tool : new String[] {"zip", "unzip", "tar", "gzip", "bzip2", "xz", "zstd"}) {
+            File command = new File(bin, tool);
+            java.nio.file.Files.write(command.toPath(), new byte[] {1});
+            assertTrue(command.setExecutable(true));
+        }
         File grun = new File(bin, "grun");
         assertTrue(grun.createNewFile());
         assertTrue(grun.setExecutable(true));
@@ -62,7 +69,7 @@ public class RuntimeEnvironmentStatusTest {
         assertEquals(RuntimeReadinessState.INCOMPLETE,
             new RuntimeEnvironmentStatus(paths).glibcState());
         File sevenzip = new File(bin, "7z");
-        assertTrue(sevenzip.createNewFile());
+        java.nio.file.Files.write(sevenzip.toPath(), new byte[] {1});
         assertTrue(sevenzip.setExecutable(false));
         assertEquals(RuntimeReadinessState.INCOMPLETE,
             new RuntimeEnvironmentStatus(paths).glibcState());
@@ -77,9 +84,40 @@ public class RuntimeEnvironmentStatusTest {
         }
         assertEquals(RuntimeReadinessState.READY,
             new RuntimeEnvironmentStatus(paths).glibcState());
+        assertTrue(xrandr.delete());
+        assertEquals(RuntimeReadinessState.INCOMPLETE,
+            new RuntimeEnvironmentStatus(paths).glibcState());
+        assertTrue(xrandr.mkdir());
+        assertEquals(RuntimeReadinessState.INCOMPLETE,
+            new RuntimeEnvironmentStatus(paths).glibcState());
+        assertTrue(xrandr.delete());
+        assertTrue(xrandr.createNewFile());
+        assertEquals(RuntimeReadinessState.INCOMPLETE,
+            new RuntimeEnvironmentStatus(paths).glibcState());
+        java.nio.file.Files.write(xrandr.toPath(), new byte[] {1});
+        assertEquals(RuntimeReadinessState.READY,
+            new RuntimeEnvironmentStatus(paths).glibcState());
         assertTrue(python.setExecutable(false));
         assertEquals(RuntimeReadinessState.INCOMPLETE,
             new RuntimeEnvironmentStatus(paths).glibcState());
+        assertTrue(python.setExecutable(true));
+        for (String tool : new String[] {"7z", "zip", "unzip", "tar", "gzip", "bzip2", "xz", "zstd"}) {
+            File command = new File(bin, tool);
+            assertTrue(command.delete());
+            assertEquals(tool, RuntimeReadinessState.INCOMPLETE,
+                new RuntimeEnvironmentStatus(paths).glibcState());
+            java.nio.file.Files.write(command.toPath(), new byte[0]);
+            assertTrue(command.setExecutable(true));
+            assertEquals(tool, RuntimeReadinessState.INCOMPLETE,
+                new RuntimeEnvironmentStatus(paths).glibcState());
+            java.nio.file.Files.write(command.toPath(), new byte[] {1});
+            assertTrue(command.setExecutable(false));
+            assertEquals(tool, RuntimeReadinessState.INCOMPLETE,
+                new RuntimeEnvironmentStatus(paths).glibcState());
+            assertTrue(command.setExecutable(true));
+            assertEquals(tool, RuntimeReadinessState.READY,
+                new RuntimeEnvironmentStatus(paths).glibcState());
+        }
     }
 
     @Test

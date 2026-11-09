@@ -64,7 +64,7 @@ public class ProotPreparedRuntimeTest {
         GameStoragePaths paths = paths(); prepare(paths, SHA);
         ProotPreparedRuntime.require(paths, profile("rootfs_dxvk_3.1"));
     }
-    @Test(expected = IOException.class) public void baseRecipeChangeCannotReuseOldBindings() throws Exception {
+    @Test public void recipeDigestDifferenceDoesNotBlockBindings() throws Exception {
         GameStoragePaths paths = paths(); prepare(paths, SHA.replace('a', 'b'));
         ProotPreparedRuntime.require(paths, profile("rootfs-wined3d"));
     }
@@ -83,12 +83,12 @@ public class ProotPreparedRuntimeTest {
         assertTrue(new String(Files.readAllBytes(new File(paths.getSharedRootfsDirectory(),
             "etc/games-runtime.properties").toPath()), StandardCharsets.US_ASCII).contains("recipeSha256=" + SHA));
     }
-    @Test(expected = IOException.class) public void anotherPreparationReceiptCannotAdmitBindings() throws Exception {
+    @Test public void preparationDigestDifferenceDoesNotBlockBindings() throws Exception {
         GameStoragePaths paths = paths(); prepare(paths, SHA);
         preparationRecord(paths, SHA.replace('a', 'b') + "\n");
         ProotPreparedRuntime.require(paths, profile("rootfs-wined3d"));
     }
-    @Test(expected = IOException.class) public void emptyPreparationReceiptCannotFallBackToImageRecipe() throws Exception {
+    @Test(expected = IOException.class) public void emptyPreparationReceiptIsInvalid() throws Exception {
         GameStoragePaths paths = paths(); prepare(paths, SHA); preparationRecord(paths, "");
         ProotPreparedRuntime.require(paths, profile("rootfs-wined3d"));
     }

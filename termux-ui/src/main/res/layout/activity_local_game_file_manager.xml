@@ -25,6 +25,15 @@
         android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
         android:textColor="@color/local_games_on_surface_secondary" />
 
+    <ProgressBar
+        android:id="@+id/local_game_file_manager_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:contentDescription="@string/browser_working"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
     <ScrollView
         android:id="@+id/local_game_file_manager_scroll"
         android:layout_width="match_parent"

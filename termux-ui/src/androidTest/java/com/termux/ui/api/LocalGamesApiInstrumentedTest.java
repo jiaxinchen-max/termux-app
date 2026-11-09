@@ -437,7 +437,7 @@ public class LocalGamesApiInstrumentedTest {
         } finally {
             repository.delete(gameId);
             marker.delete();
-            new GameUninstaller(context.getFilesDir()).execute(
+            new GameUninstaller(context.getFilesDir(), LocalGames.requireHost(context)).execute(
                 GameUninstallPlan.keepPrivateAssets(gameId)
                     .withSelections(true, true, true, true));
         }
@@ -465,7 +465,7 @@ public class LocalGamesApiInstrumentedTest {
                 ((android.widget.TextView) activity.findViewById(
                     com.termux.ui.R.id.game_assets_game_name)).getText().toString()));
         } finally {
-            new GameUninstaller(context.getFilesDir()).execute(
+            new GameUninstaller(context.getFilesDir(), LocalGames.requireHost(context)).execute(
                 GameUninstallPlan.keepPrivateAssets(gameId)
                     .withSelections(true, true, true, true));
         }
@@ -486,24 +486,14 @@ public class LocalGamesApiInstrumentedTest {
     }
 
     @Test
-    public void componentsIntentCarriesGameScope() throws Exception {
+    public void coreComponentsIntentCarriesBackendScope() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
-        Intent intent = LocalGames.createComponentsIntent(context, "game-1");
+        Intent intent = LocalGames.createCoreComponentsIntent(context,
+            com.termux.ui.wine.domain.GameRuntimeBackendType.ROOTFS_PROOT);
 
-        assertEquals("game-1", intent.getStringExtra(
-            LocalGamesActivity.EXTRA_COMPONENT_GAME_ID));
-    }
-
-    private static int waitForComponentRows(ActivityScenario<LocalGamesActivity> scenario)
-        throws InterruptedException {
-        AtomicInteger count = new AtomicInteger();
-        for (int attempt = 0; attempt < 50; attempt++) {
-            scenario.onActivity(activity -> count.set(componentRowCount(activity)));
-            if (count.get() == 17) return count.get();
-            Thread.sleep(50);
-        }
-        return count.get();
+        assertEquals(com.termux.ui.wine.domain.GameRuntimeBackendType.ROOTFS_PROOT.getStorageValue(),
+            intent.getStringExtra(LocalGamesActivity.EXTRA_CORE_BACKEND));
     }
 
     private static boolean waitForLaunchState(ActivityScenario<GameLaunchActivity> scenario,
@@ -517,40 +507,6 @@ public class LocalGamesApiInstrumentedTest {
             Thread.sleep(50);
         }
         return false;
-    }
-
-    private static void assertCategoryCounts(ActivityScenario<LocalGamesActivity> scenario) {
-        AtomicInteger sections = new AtomicInteger();
-        AtomicInteger rows = new AtomicInteger();
-        scenario.onActivity(activity -> {
-            android.widget.LinearLayout container = activity.findViewById(
-                com.termux.ui.R.id.local_games_component_sections);
-            sections.set(container.getChildCount());
-            rows.set(componentRowCount(activity));
-            android.widget.LinearLayout containers = container.getChildAt(1).findViewById(
-                com.termux.ui.R.id.local_games_component_section_items);
-            View firstWine = containers.getChildAt(0);
-            assertEquals("Wine 9.3 Vanilla", ((android.widget.TextView) firstWine.findViewById(
-                com.termux.ui.R.id.local_games_component_name)).getText().toString());
-            assertTrue(((android.widget.TextView) firstWine.findViewById(
-                com.termux.ui.R.id.local_games_component_metadata)).getText().toString()
-                .contains("glibc_wine_9.3-vanilla"));
-        });
-        assertEquals(7, sections.get());
-        assertEquals(17, rows.get());
-    }
-
-    private static int componentRowCount(android.app.Activity activity) {
-        android.widget.LinearLayout sections = activity.findViewById(
-            com.termux.ui.R.id.local_games_component_sections);
-        int rows = 0;
-        for (int index = 0; index < sections.getChildCount(); index++) {
-            View section = sections.getChildAt(index);
-            android.widget.LinearLayout items = section.findViewById(
-                com.termux.ui.R.id.local_games_component_section_items);
-            rows += items.getChildCount();
-        }
-        return rows;
     }
 
     private static FileGameRepository repository(Context context) {

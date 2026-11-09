@@ -264,6 +264,7 @@ final class X11ServerConnector {
         if (LorieView.xConnected()) {
             // The native connection is process-wide while more than one embedded host may have
             // a registered receiver. Every host still needs to reconcile its own view state.
+            mHost.getLorieView().refreshViewport();
             mHost.onX11ServerConnectionChanged();
             return false;
         }

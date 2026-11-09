@@ -51,17 +51,20 @@ final class TermuxRuntimeComponentProbe {
                 "opt/virgl/libvirgl_test_server.so"));
         }
         if ("termux-glibc".equals(componentId)) {
-            // Wine's X11 driver needs libX11/libXrender/FreeType beyond the base glibc
+            for (String tool : new String[] {"7z", "zip", "unzip", "tar", "gzip", "bzip2", "xz", "zstd"}) {
+                if (!executable(new File(termuxFilesDirectory, "usr/bin/" + tool))) return false;
+            }
+            // Wine's X11 driver needs libX11/libXrender/XRandR/FreeType beyond the base glibc
             // loader to render a visible window against Xlorie; require them here so an
             // incomplete runtime is reported as not-ready instead of appearing available.
             return com.termux.ui.wine.runtime.NativeGlibcLocale.isReady(glibcDirectory) &&
                 executable(new File(termuxFilesDirectory, "usr/bin/python")) &&
-                executable(new File(termuxFilesDirectory, "usr/bin/7z")) &&
                 nonEmpty(new File(glibcDirectory, "lib/ld-linux-aarch64.so.1")) &&
                 nonEmpty(new File(glibcDirectory, "lib/libc.so.6")) &&
                 executable(new File(termuxFilesDirectory, "usr/bin/grun")) &&
                 nonEmpty(new File(glibcDirectory, "lib/libX11.so.6")) &&
                 nonEmpty(new File(glibcDirectory, "lib/libXrender.so.1")) &&
+                nonEmpty(new File(glibcDirectory, "lib/libXrandr.so.2")) &&
                 nonEmpty(new File(glibcDirectory, "lib/libfreetype.so.6"));
         }
         return hasInstallMetadata(componentId, expectedVersion) &&
@@ -89,7 +92,8 @@ final class TermuxRuntimeComponentProbe {
                 return new File(glibcDirectory, "opt/scripts").isDirectory();
             case "glibc_box64_0.2.7":
             case "glibc_box64_0.4.4":
-                return nonEmpty(new File(glibcDirectory, "bin/box64"));
+                return executable(new File(glibcDirectory,
+                    com.termux.ui.wine.runtime.NativeBox64Versions.relativeDirectory(componentId) + "/bin/box64"));
             case "glibc_prefix-apps_3":
                 return new File(glibcDirectory, "opt/prefix").isDirectory();
             case "libudev":

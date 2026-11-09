@@ -208,6 +208,9 @@ public final class LorieViewRuntimeApi {
     }
 
     public interface LorieHost extends InputHost {
+        /** Only the foreground display may change the process-wide native Surface/viewport. */
+        default boolean isActiveX11Display() { return true; }
+
         @NonNull
         Prefs getX11Prefs();
 

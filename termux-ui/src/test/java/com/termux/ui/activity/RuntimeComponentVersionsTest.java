@@ -43,11 +43,63 @@ public class RuntimeComponentVersionsTest {
         for (CustomRuntimeComponent.Kind kind : CustomRuntimeComponent.Kind.values()) {
             assertFalse(RuntimeComponentVersions.accepts(index.find("glibc_scripts_29").get(), kind, nativeBackend, null));
         }
-        ComponentDescriptor hangover = index.find("rootfs_hangover_11.16").get();
-        assertFalse(RuntimeComponentVersions.accepts(hangover, CustomRuntimeComponent.Kind.WINE, prootBackend, RuntimeTranslator.BOX64));
-        assertTrue(RuntimeComponentVersions.accepts(hangover, CustomRuntimeComponent.Kind.WINE, prootBackend, RuntimeTranslator.HANGOVER));
+        assertFalse(index.find(RuntimeComponentVersions.PREINSTALLED_HANGOVER).isPresent());
+        ComponentDescriptor wine = index.find("rootfs_wine_10.0").get();
+        assertTrue(RuntimeComponentVersions.accepts(wine, CustomRuntimeComponent.Kind.WINE, prootBackend, RuntimeTranslator.BOX64));
+        assertFalse(RuntimeComponentVersions.accepts(wine, CustomRuntimeComponent.Kind.WINE, prootBackend, RuntimeTranslator.HANGOVER));
+        for (String id : new String[] {"glibc_scripts_29", "glibc_fonts_1", "glibc_prefix-apps_3",
+                "rootfs_debian13_hangover_pdb2_minimal"}) {
+            for (CustomRuntimeComponent.Kind kind : CustomRuntimeComponent.Kind.values()) {
+                assertFalse(RuntimeComponentVersions.accepts(index.find(id).get(), kind, nativeBackend, null));
+                assertFalse(RuntimeComponentVersions.accepts(index.find(id).get(), kind, prootBackend, null));
+            }
+        }
         assertFalse(RuntimeComponentVersions.supports(CustomRuntimeComponent.Kind.TURNIP, prootBackend));
         assertFalse(RuntimeComponentVersions.supports(CustomRuntimeComponent.Kind.VKD3D, prootBackend));
+    }
+
+    @Test public void hangoverIsContainerProvidedAndCannotBeManuallyInstalled() {
+        assertTrue(RuntimeComponentVersions.isPreinstalled("rootfs_hangover_11.16", prootBackend));
+        assertFalse(RuntimeComponentVersions.isPreinstalled("rootfs_hangover_11.16", nativeBackend));
+        assertFalse(RuntimeComponentVersions.isPreinstalled("rootfs_wine_10.0", prootBackend));
+        assertFalse(RuntimeComponentVersions.allowsManualInstall(CustomRuntimeComponent.Kind.WINE,
+            prootBackend, RuntimeTranslator.HANGOVER));
+        assertTrue(RuntimeComponentVersions.allowsManualInstall(CustomRuntimeComponent.Kind.WINE,
+            prootBackend, RuntimeTranslator.BOX64));
+        assertTrue(RuntimeComponentVersions.allowsManualInstall(CustomRuntimeComponent.Kind.WINE, nativeBackend, null));
+        CustomRuntimeComponent customHangover = new CustomRuntimeComponent("custom-wine-proot-hangover",
+            CustomRuntimeComponent.Kind.WINE, RuntimeTranslator.HANGOVER, "custom", 1, repeat('a'), prootBackend);
+        assertFalse(RuntimeComponentVersions.accepts(customHangover, CustomRuntimeComponent.Kind.WINE, prootBackend, null));
+    }
+
+    @Test public void eachNativeBox64BuildHasAnExactSelectableIdIncludingTheAutomaticDefault() throws Exception {
+        ComponentIndex index = index();
+        for (String id : new String[] {"glibc_box64_0.2.7", "glibc_box64_0.4.4"}) {
+            ComponentDescriptor build = index.find(id).get();
+            assertTrue(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, nativeBackend, null));
+            assertFalse(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, prootBackend, null));
+            assertEquals(id, RuntimeComponentVersions.catalogSelectionId(build, CustomRuntimeComponent.Kind.BOX64, nativeBackend));
+        }
+    }
+
+    @Test public void prebuiltProotBox64IsSelectableWithoutExposingOtherHiddenDependencies() throws Exception {
+        ComponentDescriptor build = index().find("rootfs_box64_0.4.5").get();
+        assertTrue("Keep the general component catalog clean", build.isHidden());
+        assertTrue(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, prootBackend, null));
+        assertTrue(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, prootBackend, RuntimeTranslator.BOX64));
+        assertFalse(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, prootBackend, RuntimeTranslator.HANGOVER));
+        assertFalse(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, nativeBackend, null));
+        assertFalse(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.WINE, prootBackend, null));
+        assertEquals("rootfs_box64_0.4.5", RuntimeComponentVersions.catalogSelectionId(build,
+            CustomRuntimeComponent.Kind.BOX64, prootBackend));
+    }
+
+    @Test public void box64DefaultsMatchEachRuntimeAndExplicitSelectionsRemainExact() {
+        assertEquals("rootfs_box64_0.4.5", RuntimeComponentVersions.selectedBox64Id(prootBackend, ""));
+        assertEquals("rootfs_box64_0.4.5", RuntimeComponentVersions.selectedBox64Id(prootBackend, null));
+        assertEquals("glibc_box64_0.2.7", RuntimeComponentVersions.selectedBox64Id(nativeBackend, ""));
+        assertEquals("glibc_box64_0.4.4", RuntimeComponentVersions.selectedBox64Id(nativeBackend, "glibc_box64_0.4.4"));
+        assertEquals("custom-box64-test", RuntimeComponentVersions.selectedBox64Id(prootBackend, "custom-box64-test"));
     }
 
     private ComponentIndex index() throws Exception {

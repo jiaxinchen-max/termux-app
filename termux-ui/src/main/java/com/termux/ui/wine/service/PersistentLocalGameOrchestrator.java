@@ -80,13 +80,17 @@ public final class PersistentLocalGameOrchestrator implements LocalGameOrchestra
         try {
             Optional<LaunchTask> task = repository.find(taskId);
             if (!task.isPresent() || task.get().getState().isTerminal()) return;
-            File marker = new File(paths.getLaunchCancelDirectory(), taskId + ".cancel");
-            File parent = marker.getParentFile();
-            if (!parent.isDirectory() && !parent.mkdirs()) throw new IOException("cancel_directory_failed");
-            try (FileOutputStream output = new FileOutputStream(marker)) {
-                output.write(taskId.getBytes(StandardCharsets.US_ASCII));
-                output.flush();
-                output.getFD().sync();
+            // Forced cancellation is owned by the service: do not race its process-tree stop
+            // with a shell entering the graceful cancellation/registry-flush path.
+            if (!force) {
+                File marker = new File(paths.getLaunchCancelDirectory(), taskId + ".cancel");
+                File parent = marker.getParentFile();
+                if (!parent.isDirectory() && !parent.mkdirs()) throw new IOException("cancel_directory_failed");
+                try (FileOutputStream output = new FileOutputStream(marker)) {
+                    output.write(taskId.getBytes(StandardCharsets.US_ASCII));
+                    output.flush();
+                    output.getFD().sync();
+                }
             }
             android.content.Intent intent = LaunchTasks.command(context, LaunchTasks.ACTION_CANCEL, taskId)
                 .putExtra(LaunchTasks.EXTRA_FORCE, force);

@@ -18,6 +18,7 @@ import java.util.Optional;
 /** Deletes only proven app-private assets and publishes library removal last. */
 public final class GameUninstaller {
 
+    private final com.termux.ui.api.LocalGamesHost host;
     private final GameStoragePaths paths;
     private final FileLaunchTaskRepository tasks;
     private final FileGameRepository games;
@@ -25,7 +26,8 @@ public final class GameUninstaller {
     private final FileGameContainerRepository containers;
     private final GameArtworkStore artwork;
 
-    public GameUninstaller(File filesDirectory) {
+    public GameUninstaller(File filesDirectory, com.termux.ui.api.LocalGamesHost host) {
+        this.host = host;
         paths = new GameStoragePaths(filesDirectory);
         tasks = new FileLaunchTaskRepository(paths.getLaunchTasksDirectory());
         games = new FileGameRepository(paths.getLibraryDirectory());
@@ -35,6 +37,9 @@ public final class GameUninstaller {
     }
 
     public void execute(GameUninstallPlan plan) throws IOException {
+        if (plan == null) throw new IllegalArgumentException("uninstall plan required");
+        com.termux.ui.wine.runtime.RuntimeEditingStop.game(
+            paths.getTermuxPrefixDirectory().getParentFile(), host, plan.getGameId());
         GameAssetMutationLock.call(() -> {
             executeLocked(plan);
             return null;
@@ -43,11 +48,7 @@ public final class GameUninstaller {
 
     private void executeLocked(GameUninstallPlan plan) throws IOException {
         if (plan == null) throw new IllegalArgumentException("uninstall plan required");
-        com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(paths.getTermuxPrefixDirectory().getParentFile());
         String gameId = plan.getGameId();
-        if (tasks.findActiveForGame(gameId).isPresent()) {
-            throw new IOException("game_asset_task_active");
-        }
         if (!plan.keepsExternalContent()) throw new IOException("external_content_delete_forbidden");
 
         if (plan.removesPrefix()) deleteOwnedDirectory(paths.getPrefixesDirectory(),

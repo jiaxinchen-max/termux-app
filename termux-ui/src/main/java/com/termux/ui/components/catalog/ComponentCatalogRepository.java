@@ -50,8 +50,7 @@ public final class ComponentCatalogRepository {
         int selectedRank = Integer.MIN_VALUE;
         for (ComponentTask candidate : tasks) {
             if (!descriptor.getId().equals(candidate.getPackageName()) ||
-                descriptor.getVersion() != candidate.getVersion() ||
-                !descriptor.getSha256().equals(candidate.getSha256())) {
+                descriptor.getVersion() != candidate.getVersion()) {
                 continue;
             }
             int rank = rank(candidate.getState());
@@ -85,8 +84,7 @@ public final class ComponentCatalogRepository {
                 default: break;
             }
         }
-        if (active != null && active.getVersion() == descriptor.getVersion() &&
-            active.getSha256().equals(descriptor.getSha256())) {
+        if (active != null && active.getVersion() == descriptor.getVersion()) {
             return ComponentCatalogState.INSTALLED;
         }
         if (task != null) {

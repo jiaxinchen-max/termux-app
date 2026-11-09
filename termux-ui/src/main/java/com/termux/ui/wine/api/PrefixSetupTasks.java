@@ -44,6 +44,7 @@ public final class PrefixSetupTasks {
             // The foreground owner will persist a stable failure if storage is unavailable.
         }
         String taskId = "prefix-" + UUID.randomUUID().toString();
+        com.termux.ui.wine.runtime.RuntimeEditingStop.register(taskId, "game:" + gameId);
         start(context, new Intent(context, PrefixSetupForegroundService.class)
             .setAction(ACTION_ENQUEUE)
             .putExtra(EXTRA_TASK_ID, taskId)

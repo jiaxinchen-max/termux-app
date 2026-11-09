@@ -30,7 +30,7 @@ public final class GlibcTermuxBoxBackend implements GameRuntimeBackend {
     }
 
     private static final Set<String> BASE_COMPONENTS = new LinkedHashSet<>(Arrays.asList(
-        "glibc_box64_0.2.7", "glibc_scripts_29", "glibc_prefix-apps_3", "glibc_fonts_1"));
+        "glibc_scripts_29", "glibc_prefix-apps_3", "glibc_fonts_1"));
 
     @Override
     public GameRuntimeBackendType getType() {
@@ -52,9 +52,8 @@ public final class GlibcTermuxBoxBackend implements GameRuntimeBackend {
             throw new IllegalArgumentException("runtime_combination_unsupported:virgl_vulkan");
         }
         Set<String> result = new LinkedHashSet<>(BASE_COMPONENTS);
-        if (!profile.getEnvironment().getOrDefault("GAMES_CUSTOM_BOX64_ID", "").isEmpty()) {
-            result.remove("glibc_box64_0.2.7");
-        }
+        String box64 = NativeBox64Versions.selectedId(profile.getEnvironment().get("GAMES_CUSTOM_BOX64_ID"));
+        if (NativeBox64Versions.isBuiltIn(box64)) result.add(box64);
         if (!profile.getGraphicsDriver().startsWith("custom-")) {
             result.add(graphicsComponent(profile.getGraphicsDriver()));
         }

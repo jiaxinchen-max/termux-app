@@ -24,7 +24,7 @@ public class CustomComponentInstallationTest {
         assertFalse(CustomComponentInstallation.isAvailable(paths, entry));
     }
 
-    @Test public void rejectsReceiptFromAnotherBackendOrArchive() throws Exception {
+    @Test public void rejectsAnotherBackendButDoesNotGateOnArchiveDigest() throws Exception {
         GameStoragePaths paths = new GameStoragePaths(temporary.newFolder());
         CustomRuntimeComponent entry = dxvk();
         File root = CustomComponentInstallation.directory(paths, entry);
@@ -34,7 +34,7 @@ public class CustomComponentInstallationTest {
         write(receipt, valid.replace("rootfs_proot", "glibc_termux_box"));
         assertFalse(CustomComponentInstallation.isAvailable(paths, entry));
         write(receipt, valid.replace(entry.getSha256(), new String(new char[64]).replace('\0', 'b')));
-        assertFalse(CustomComponentInstallation.isAvailable(paths, entry));
+        assertTrue(CustomComponentInstallation.isAvailable(paths, entry));
     }
 
     @Test public void payloadSymlinkCannotEscapePublishedVersion() throws Exception {

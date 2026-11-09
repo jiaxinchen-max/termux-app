@@ -17,10 +17,10 @@
     "lib/wine/x86_64-windows/ntdll.dll": "0d7ac430129e7787a935f0d3f1c1e0f88547792b05103a727bd8bd87c9d62fab",
     "lib/wine/i386-windows/ntdll.dll": "9d302e81ea7ad9e6316cd471a40579ba0906174b56e393a46f877bbeb62e1a39"
   },
-  "expandedBytes": 894231764,
+  "expandedBytes": 894209427,
   "assets": {
-    "manifest.json": "ae93142cbbb1720385406303ec84e8a8163d5db38ca6247c16919beafdbe57cc",
-    "delta.tgz": "99780c76c4e97c1fca0ccb351c5d0e320f94963cb73444ff0309668d17b9b453"
+    "manifest.json": "e615fda0007c8d4377d13ed505308096112e63752c6332121565676176543f1b",
+    "delta.tgz": "aabf0d5c64c34738d6cafeb9a1f78e8e11ca8a6a081bfb53c6acb5e9e0188898"
   },
   "provenance": {
     "skeletonBundleSha256": "767d649e866b730396b0ca300f37806084f886cc0e2d84f7901a8a1886c02d7f",
@@ -29,6 +29,8 @@
     "scriptsComponentSha256": "c6bd6c3a712f1657a7a0cdfac5af45cf7d7d0a1f042549ea05dfab69a62c26ef",
     "appsComponentSha256": "248d960f54f292496ed1b2f48ead53a5b0db697f8fc08d42a5f86e8ce9f22775",
     "omittedStartupEntries": [],
-    "nativeAcceptance": "Pending"
-  }
+    "nativeAcceptance": "Pending",
+    "fontConfigurationVersion": 2
+  },
+  "prefixComponentVersion": 2
 }

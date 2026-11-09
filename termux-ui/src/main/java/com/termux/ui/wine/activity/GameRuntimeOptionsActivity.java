@@ -53,6 +53,13 @@ public final class GameRuntimeOptionsActivity extends AppUiActivity {
                 }
             });
         setContentView(optionsView);
+        if (savedInstanceState != null) optionsView.restoreDraftState(
+            savedInstanceState.getBundle("runtime_options.draft"));
+    }
+
+    @Override protected void onSaveInstanceState(Bundle outState) {
+        outState.putBundle("runtime_options.draft", optionsView.saveDraftState());
+        super.onSaveInstanceState(outState);
     }
 
     @Override

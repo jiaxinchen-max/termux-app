@@ -9,7 +9,6 @@ import com.termux.ui.wine.domain.GameRuntimeBackendType;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.Properties;
 
@@ -43,29 +42,11 @@ public final class ProotPreparedRuntime {
             GameContainerProfileResolver.resolveTranslator(profile.getWinePackage(), paths) != snapshot.getTranslator()) {
             throw new IOException("rootfs_configuration_prepare_required");
         }
-        // A prefix recipe includes scripts/assets that may change without changing the
-        // prebuilt image. Compare it to its own successful preparation receipt.
         File preparation = new File(paths.getContainerPrefixDirectory(profile.getContainerId(),
             GameRuntimeBackendType.ROOTFS_PROOT), ".games-runtime/preparation-recipe");
-        String preparationRecipe = manifest.getProperty("recipeSha256");
-        if (!preparation.getCanonicalFile().equals(new File(
-            preparation.getParentFile().getCanonicalFile(), preparation.getName()))) {
-            throw new IOException("rootfs_configuration_recipe_mismatch");
-        }
-        if (preparation.exists()) {
-            if (!preparation.isFile() || preparation.length() != 65)
-                throw new IOException("rootfs_configuration_recipe_mismatch");
-            byte[] data = new byte[65];
-            try (DataInputStream input = new DataInputStream(new FileInputStream(preparation))) {
-                input.readFully(data);
-                if (input.read() != -1) throw new IOException("rootfs_configuration_recipe_mismatch");
-            }
-            String record = new String(data, java.nio.charset.StandardCharsets.US_ASCII);
-            if (!record.matches("[0-9a-f]{64}\\n")) throw new IOException("rootfs_configuration_recipe_mismatch");
-            preparationRecipe = record.substring(0, 64);
-        }
-        if (!snapshot.getRecipeSha256().equals(preparationRecipe)) {
-            throw new IOException("rootfs_configuration_recipe_mismatch");
+        if (!preparation.getCanonicalFile().equals(new File(preparation.getParentFile().getCanonicalFile(),
+                preparation.getName())) || (preparation.exists() && (!preparation.isFile() || preparation.length() == 0))) {
+            throw new IOException("rootfs_configuration_recipe_invalid");
         }
         new ProotBindingResolver(new ComponentStoragePaths(paths.getTermuxPrefixDirectory().getParentFile()).getInstallDirectory())
             .validate(snapshot.getBindings());

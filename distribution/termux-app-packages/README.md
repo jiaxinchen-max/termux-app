@@ -4,6 +4,22 @@ Publishing and migration tooling for `jiaxinchen-max/termux-app-packages`.
 Package archives are GitHub Release assets and are not committed to Git.
 The App bundles `termux-ui/src/main/assets/termux-app-packages/index-v1.json`.
 
+`proton_prefix_fonts.py` applies Proton-only CJK font defaults at asset build time.
+The Native prefix packager invokes the same transform after collecting font files.
+To regenerate the registries of an existing build artifact without executing Wine:
+
+```sh
+python3 distribution/termux-app-packages/proton_prefix_fonts.py \
+  --source /path/to/proton-prefix-build --output /path/to/new-proton-prefix-build
+```
+
+The tool preserves DLLs, user account data and non-registry resources, relocates
+font registrations to packaged files, maps missing Segoe UI families to the
+existing Noto Sans CJK collection and adds CJK links for Latin fonts. It marks the
+prefix resource version separately from the Wine runtime version. It neither
+migrates installed prefixes nor publishes assets. Font rendering requires manual
+App verification; build checks alone do not establish game compatibility.
+
 `migrate-app-release-assets.py` copies historical runtime assets using explicit `--source`, `--target`, and `--work-dir` arguments. It preserves names and contents, verifies uploaded SHA-256 values, and retains source assets.
 
 `verify-catalog.py --catalog catalog-v1.json --output repository/index-v1.json` verifies every exact payload URL, size, and SHA-256 before publishing an unchanged catalog. The matching manually dispatched workflow is deployed in the package repository alongside `tools/verify-catalog.py`.
@@ -180,70 +196,41 @@ It reads notes directly because GNU readelf can diagnose a missing interpreter
 on a valid only-keep-debug file. A successful mapping does not test ABI or
 runtime loading. Bind the report to both input Debian package SHA-256 values.
 
-## Published pdb2 test component
+## 运行目录与镜像构建输入
 
-The bundled catalog now selects component `rootfs_hangover_11.16`, version 2,
-from [the independent v2 release](https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/rootfs_hangover_11.16-v2).
-The runtime asset keeps the name `rootfs_hangover_11.16.tar`: 100,485,120 bytes,
-SHA-256 `ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1`.
-The original v1 release remains available. This is the source-built pdb2
-version, not the experimental post-build strip candidate. PDB and ELF symbols
-remain separate from the runtime and APK. Source/build identity and subsequent
-device results are attached as `candidate-manifest.json` and
-`runtime-validation.json`; the former retains its historical build-time status.
+App 的 PRoot「Build from network」恢复预装 Debian 13 + Hangover 镜像；
+Hangover 是预装 Wine 选项，不再提供独立下载/手动安装条目。
+`hangover-runtime-build-input.json` 单独记录镜像构建使用的
+`rootfs_hangover_11.16-v2` 运行归档（100,485,120 bytes）。其 SHA-256 为
+`ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1`。
+v1 仍是源码锁定文件所引用的翻译器输入，v1/v2、独立 PDB/ELF 符号及构建证据均保留。
+这些资源不是用户需要逐一安装的组件。
 
-Actual App preparation, a Chinese Winfile window, 32/64-bit smoke programs
-with dynamic DLL loading, and safe exit passed on the test device. Full
-ARM64X ABI/unwind/hybrid exports, physical controllers, full games and hardware
-matrices remain pending. Fresh network preparation using the integrated APK
-still requires manual APK installation and validation. Offline external-layout
-backup/restore v2 is not implemented and remains explicitly blocked.
+Native 环境构建负责 glibc、基础图形库、中文 locale 与解压工具；保存游戏时自动
+准备所选 Wine、字体、脚本、prefix-apps 和预构建 prefix。基础 Box64、字体、脚本、
+prefix-apps 与 PRoot 基础镜像在目录中标记 hidden，仍供自动依赖解析使用。
+Wine、可选图形组件和自定义组件管理继续保留。自编译 Native Box64 0.4.4
+继续保留在可选组件目录。Native 的 0.2.7、0.4.4 分别激活到
+`glibc/components/<component-id>/bin/box64`，游戏保存具体版本 ID，自动准备所选
+组件，启动经 Native glibc loader 调用准确路径。未指定时使用独立的 0.2.7，
+缺失则失败；不再使用或覆盖共享 `glibc/bin/box64`。自定义版本继续独立保存。
 
-Changing the catalog version and digest causes the existing component preparer
-to fetch the exact new source. `RootfsSetupAssetInstaller` hashes that digest
-into the recipe; template identity then follows the new recipe automatically.
-Do not relabel old receipts or templates. This testing-stage switch adds no
-old-data migration. To roll back the source selection, restore the complete v1
-descriptor and rebuild the APK; never replace v2 release bytes in place.
+### 预构建 prefix 与当前镜像配方
 
-### 本地 APK 的预初始化前缀试用
-
-当前 PRoot/aarch64/WoW64 Hangover pdb2 使用 APK 内的
-`local-games/runtime-rootfs-v11/prefix-hangover-pdb2/`。`bundle.json` 绑定基础配方、
-Wine loader/server、FEX/Box64 翻译 DLL 和子文件摘要；`manifest.json` 列出每个文件的
-长度、权限、时间及 SHA256。带 `source` 的 DLL/字体从匹配 RootFS 独立复制，其余在
-`delta.tgz`。不使用硬链接，不在准备阶段执行 Wine，不为文件还原启动 X server。
-
-这份资产来自已经完成收尾的独立设备实验前缀，移除了 App 的运行就绪标记。
-控制台 i386/x86_64 已验证；中文和图形仍须通过新 APK 的实际显示链路验收。
-它是本地试用输入，不代表编译机可复现参考构建或新的组件 Release 已完成。
-现有 v2 组件字节和下载 URL 不变。容器设施裁剪不在本次范围。
-
-可从已校验的独立实验产物重新生成 APK 资产（输出目录必须不存在）：
+APK 只携带 `local-games/runtime-rootfs-v12/` 的配方与小型 bundle 描述，
+prefix 归档从资产仓库/缓存恢复；不在设备上运行 wineboot 或失败后重新初始化。
+旧 v10/v11 配方不再打入 APK，其参数明确拒绝执行，不做迁移或回退。
+`distribution/termux-app-packages/legacy-prefix-assets/` 是现有恢复回归测试的输入，
+保留在构建仓库中，不打入 APK。
 
 ```sh
-python3 distribution/termux-app-packages/package-prefix-delta.py \
-  --delta /path/to/clean-delta.tgz \
-  --manifest /path/to/manifest.json \
-  --runtime-guards /path/to/runtime-guards.json \
-  --recipe termux-ui/src/main/assets/local-games/runtime-rootfs-v11 \
-  --evidence /path/to/results.json \
-  --output /path/to/prefix-hangover-pdb2
+python3 termux-ui/scripts/test-native-prebuilt-prefix.py
 python3 termux-ui/scripts/test-prebuilt-prefix.py
+python3 termux-ui/scripts/test-prebuilt-rootfs.py
 ```
 
-打包命令只整理已有完成凭据，不执行 wineboot，也不能替代独立图形验收。禁止将用户
-游戏 C 盘作为通用模板来源。新的正式初始化入口、编译机执行方案及组件版本发布仍
-由 `prebuild-wine-prefix-archives` 未完成任务追踪。
-
-准备时在目标的专用暂存目录还原，逐文件流式复制并核对 SHA，再原子发布。
-危险路径/链接、损坏资产、运行库不匹配、空间不足和非空目标均失败；不回退到
-设备全量初始化。SIGTERM 清理暂存，进程死亡后重试仅回收专用暂存，不删除游戏目录。
-全局准备任务所有权及目标文件锁串行化发布。每游戏仍需约824 MiB独立可写空间。
-APK 文件名保持 `termux-app_apt-android-7-debug_arm64-v8a.apk`，用户手动安装；
-回滚时重新安装上一 APK，并显式准备与其匹配的新测试配置，不覆盖现有 C 盘。
-
-APK 内 gzip 子资产使用 `.tgz` 扩展名，避免 Android Gradle AssetMerger 自动解压 `.gz` 并去掉文件后缀。最终 APK 内容必须逐字节核对，不能仅凭构建成功判定打包正确。
+设备图形与完整游戏验收仍需通过实际 APK 界面完成。APK 文件名保持
+`termux-app_apt-android-7-debug_arm64-v8a.apk`，用户手动安装。
 
 ### 已安装 RootFS 的逐批精简实验
 

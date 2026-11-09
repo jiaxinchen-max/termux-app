@@ -1,0 +1,19 @@
+# 安装完成与游戏Wine选择保持一致
+
+## 已核实的链路
+1. QuickGameImport使用RECOMMENDED预设，Native初始Wine为glibc_wine_9.3-vanilla。
+2. RuntimeComponentVersionsActivity选择模式的已安装行调用choose，返回组件ID、种类及后端。
+3. startCustomComponentInstall启动安装任务，showCustomComponentConsole关闭时只重新加载列表；install在线入口也只打开安装日志，无成功后应用本次目标的处理。
+4. GameRuntimeOptionsView只有收到返回回调才替换Wine字段；saveAndFinish直接保存当前profile。FileRuntimeProfileRepository原样写winePackage，LaunchSpecFactory原样读取所存Wine；本次未发现这些位置主动降级9.3。
+上述为静态源码确认，未声称复现用户设备上的所有点击和状态。
+
+## 拟实施方案
+在版本选择模式保留本次安装的目标组件ID、任务ID及类型，在线和本地安装共用完成选择的约束。仅在对应任务成功、组件属于请求种类/后端/既有translator约束且真实可用时，返回该确切ID。失败、取消、任务丢失或成功但不可用应明确提示，不能产生成功结果；不得扫描其他历史成功任务来决定当前选择。安装中允许隐藏日志但不把隐藏视作完成。选定目标后清除本次待完成状态，避免刷新重复返回；以savedInstanceState保留待完成上下文，重建只读取同一任务，不重启安装。管理模式不返回游戏选择。直接点击已安装行仍返回指定ID。
+
+编辑器收到结果后展示所选Wine，保存时使用原有repository与RuntimeWarmup链路；验证实际存储和LaunchSpec都保留该ID。若核查发现额外的结果丢失问题，仅在本选择结果链路内修复并补生命周期回归；改变prefix资产策略、默认预设或其他产品规则须单独明确。
+
+## 保护路径、风险及回滚
+拟修改版本选择Activity和必要的选择状态逻辑；若测试证明宿主结果链路丢失，则涉及GameRuntimeOptionsView及其Activity宿主。风险是管理页误应用版本、刷新选择到历史任务或跨后端组件。以模式/任务/ID/种类/后端精确绑定及真实可用核验防止。回滚恢复上一APK，不改已安装Wine、游戏数据、prefix或外部资产；不做数据迁移。上述保护路径待本方案用户确认，不含Git操作或设备部署授权。
+
+## 验证与交付
+本地回归覆盖本地/在线安装成功自动应用Wine 10、安装中/失败/取消/错误成功不发布选择、管理模式不改变游戏、刷新只完成一次、页面重建保持同一目标、已安装行选择，以及Native/PRoot范围拒绝。定向验证游戏配置持久化和LaunchSpec使用所选Wine而非默认9.3。通过后构建原名termux-app_apt-android-7-debug_arm64-v8a.apk，核验arm64、签名、非testOnly、包内源码及资产摘要，供用户手动安装测试。Harness脚本与OpenSpec CLI当前缺失，严格门禁Unavailable，不冒称通过；实际设备验收完全由用户执行。

@@ -42,10 +42,14 @@ mkdir -p "$RUNTIME_DIR" "$FAKE_BIN" "$WORK_DIR" "$ROOTFS/usr/bin" "$PREFIX" \
     "$ROOTFS/mnt/games/prefix" "$TERMUX_ROOT/usr/bin" \
     "$TERMUX_ROOT/usr/tmp" "$TERMUX_ROOT/usr/glibc/opt/virgl"
 touch "$WORK_DIR/game.exe"
+mkdir -p "$ROOTFS/usr/lib/wine/aarch64-windows"
+for dll in wowbox64.dll libwow64fex.dll libarm64ecfex.dll; do
+    printf 'emulator fixture\n' > "$ROOTFS/usr/lib/wine/aarch64-windows/$dll"
+done
 touch "$ROOTFS/opt/games-runtime/dxvk/system32/dxgi.dll" \
     "$ROOTFS/opt/games-runtime/dxvk/syswow64/dxgi.dll"
 ln -s "$TERMUX_ROOT" "$TERMUX_ALIAS"
-for asset in start_rootfs_game.sh proot_component_bindings.sh rootfs_prefix_warmup.sh controller_runtime.sh x_server_common.sh x_server_legacy.sh x_server_xlorie.sh; do
+for asset in start_rootfs_game.sh proot_component_bindings.sh rootfs_prefix_warmup.sh controller_runtime.sh x_server_common.sh x_server_legacy.sh x_server_xlorie.sh x_server_dimensions.py; do
     cp "$PROJECT_ROOT/termux-ui/src/main/assets/local-games/$asset" "$RUNTIME_DIR/$asset"
 done
 [ -z "${ROOTFS_LAUNCHER_UNDER_TEST:-}" ] || cp "$ROOTFS_LAUNCHER_UNDER_TEST" "$RUNTIME_DIR/start_rootfs_game.sh"
@@ -69,7 +73,9 @@ PYX11
 cat > "$TERMUX_ROOT/usr/bin/proot" <<'FAKEPROOT'
 #!/bin/sh
 : > "$CAPTURE_FILE"
+[ "$GAMES_SESSION_SPEC" = "$FIXTURE_SESSION_SPEC" ] || exit 89
 printf '%s\n' "${VK_ICD_FILENAMES:-}" > "$CAPTURE_FILE.vk-icd"
+printf '%s\n' "${HODLL:-}" "${HODLL64:-}" > "$CAPTURE_FILE.emulators"
 for value in "$@"; do
     printf '%s' "$value" | base64 | tr -d '\n' >> "$CAPTURE_FILE"
     printf '\n' >> "$CAPTURE_FILE"
@@ -121,6 +127,7 @@ chmod 700 "$RUNTIME_DIR/start_rootfs_game.sh" "$TERMUX_ROOT/usr/bin/proot" \
     "$FAKE_BIN/pulseaudio" "$FAKE_BIN/uname"
 
 cp "$FAKE_BIN/pulseaudio" "$TERMUX_ROOT/usr/bin/pulseaudio"
+export FIXTURE_SESSION_SPEC="$SPEC"
 export FIXTURE_PROOT_PID="$TEST_ROOT/proot.pid"
 export FIXTURE_ORPHAN_PID="$TEST_ROOT/orphan.pid"
 export PULSE_FAKE_STATE="$TEST_ROOT/pulse-state"
@@ -186,6 +193,49 @@ assert actual==expected, ('RootFS argv changed',actual,expected)
 PYARGV
 }
 assert_guest_argv /usr/bin/wine
+# Capture the actual PRoot launch environment; switching never writes the prepared prefix.
+printf 'wowbox64.dll\nlibarm64ecfex.dll\n' > "$TEST_ROOT/expected-emulators"
+cmp "$TEST_ROOT/expected-emulators" "$CAPTURE.emulators"
+cp "$SPEC" "$SPEC.hangover-default"
+cp "$WINE_PREFIX/system.reg" "$TEST_ROOT/system.reg.before-mode-switch"
+for mode in fex wowbox64; do
+    sed 's/^environmentCount=1$/environmentCount=2/' "$SPEC.hangover-default" > "$SPEC"
+    printf 'environment.1.key=%s\nenvironment.1.value=%s\n' \
+        "$(encode GAMES_HANGOVER_EMULATOR)" "$(encode "$mode")" >> "$SPEC"
+    PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
+    assert_guest_argv /usr/bin/wine
+    case "$mode" in fex) dll=libwow64fex.dll ;; *) dll=wowbox64.dll ;; esac
+    printf '%s\nlibarm64ecfex.dll\n' "$dll" > "$TEST_ROOT/expected-emulators"
+    cmp "$TEST_ROOT/expected-emulators" "$CAPTURE.emulators"
+    cmp "$WINE_PREFIX/system.reg" "$TEST_ROOT/system.reg.before-mode-switch"
+done
+# Selected DLLs must be present; no implicit change of mode or translator.
+for mode_and_dll in fex:libwow64fex.dll wowbox64:wowbox64.dll fex:libarm64ecfex.dll; do
+    mode=${mode_and_dll%%:*}; dll=${mode_and_dll#*:}
+    sed 's/^environmentCount=1$/environmentCount=2/' "$SPEC.hangover-default" > "$SPEC"
+    printf 'environment.1.key=%s\nenvironment.1.value=%s\n' \
+        "$(encode GAMES_HANGOVER_EMULATOR)" "$(encode "$mode")" >> "$SPEC"
+    mv "$ROOTFS/usr/lib/wine/aarch64-windows/$dll" "$TEST_ROOT/$dll"
+    rm -f "$CAPTURE"
+    if PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"; then
+        printf 'Missing Hangover emulator was accepted\n' >&2; exit 1
+    fi
+    grep -q "hangover_emulator_dll_missing:$dll" "$EVENT"
+    [ ! -e "$CAPTURE" ]
+    mv "$TEST_ROOT/$dll" "$ROOTFS/usr/lib/wine/aarch64-windows/$dll"
+done
+sed 's/^environmentCount=1$/environmentCount=2/' "$SPEC.hangover-default" > "$SPEC"
+printf 'environment.1.key=%s\nenvironment.1.value=%s\n' \
+    "$(encode GAMES_HANGOVER_EMULATOR)" "$(encode invented)" >> "$SPEC"
+rm -f "$CAPTURE"
+if PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"; then
+    printf 'Invalid Hangover mode was accepted\n' >&2; exit 1
+fi
+grep -q hangover_emulator_invalid "$EVENT"
+[ ! -e "$CAPTURE" ]
+mv "$SPEC.hangover-default" "$SPEC"
+PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
+grep -q 'X11 display: .* wine=rootfs_hangover_11.16 target=1280x720' "$LOG"
 
 # Current Debian Mesa uses unqualified ICD filenames. Verify the actual launch
 # branch selects that file and still rejects a missing driver descriptor.
@@ -336,7 +386,9 @@ printf '\nwarmup_rootfs_prefix() { warmup_fail forbidden_launch_wineboot; }\n' >
 PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
 assert_frozen_bind_argv
 assert_guest_argv /opt/box64/rootfs_box64_0.4.5/bin/box64 /opt/box64-wine/bin/wine64
-mv "$BOX_PREFIX/.games-runtime/prepared-identity" "$BOX_PREFIX/.games-runtime/prepared-identity-kept"
+# Readiness is structural after digest checks were removed. A missing registry
+# must still stop launch without wineboot; a missing digest marker is not a gate.
+mv "$BOX_PREFIX/user.reg" "$BOX_PREFIX/user.reg-kept"
 set +e
 PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
 STATUS=$?
@@ -344,7 +396,7 @@ set -e
 [ "$STATUS" -ne 0 ]
 grep -q '"errorCode":"rootfs_configuration_prepare_required"' "$EVENT"
 grep -qx registry "$BOX_PREFIX/system.reg"
-mv "$BOX_PREFIX/.games-runtime/prepared-identity-kept" "$BOX_PREFIX/.games-runtime/prepared-identity"
+mv "$BOX_PREFIX/user.reg-kept" "$BOX_PREFIX/user.reg"
 # Missing host dependencies require explicit preparation; launch must never run pkg.
 mv "$TERMUX_ROOT/usr/bin/pulseaudio" "$TERMUX_ROOT/usr/bin/pulseaudio.disabled"
 printf '#!/bin/sh\n: > "$FIXTURE_PKG_MARKER"\nexit 1\n' > "$TERMUX_ROOT/usr/bin/pkg"

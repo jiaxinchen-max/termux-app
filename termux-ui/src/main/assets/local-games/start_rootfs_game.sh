@@ -123,7 +123,7 @@ while IFS= read -r line || [ -n "$line" ]; do
             PENDING_ENV_KEY=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64
             case "$PENDING_ENV_KEY" in ''|[0-9]*|*[!A-Za-z0-9_]*) fail_before_events invalid_launch_environment_key ;; esac
             case "$PENDING_ENV_KEY" in
-                PATH|HOME|USER|LOGNAME|TMPDIR|LD_*|PROOT_*|TERMUX_*|WINEPREFIX|DISPLAY|PULSE_SERVER|SCRIPT_PATH|SPEC_PATH|GAMES_LAUNCH_TOKEN|PB_*|pb_*|pbf_*|pbd_*)
+                PATH|HOME|USER|LOGNAME|TMPDIR|LD_*|PROOT_*|TERMUX_*|WINEPREFIX|DISPLAY|PULSE_SERVER|SCRIPT_PATH|SPEC_PATH|GAMES_SESSION_SPEC|GAMES_LAUNCH_TOKEN|PB_*|pb_*|pbf_*|pbd_*)
                     fail_before_events reserved_launch_environment_key
                     ;;
             esac
@@ -188,10 +188,26 @@ validate_private_path "$CANCEL_PATH"
 # path pattern to validate against (see SHARED_ROOTFS above).
 [ "$RUNTIME_ROOT_PATH" = "$SHARED_ROOTFS" ] || fail_before_events rootfs_path_outside_termux_runtime
 
+emit() {
+    SEQUENCE=$((SEQUENCE + 1))
+    now=$(date +%s)
+    printf '{"schemaVersion":1,"taskId":"%s","sequence":%s,"state":"%s","stage":"%s","progress":%s,"timestamp":%s000,"pid":%s,"exitCode":%s,"errorCode":"%s","recoverable":%s,"message":"%s","logRef":"%s"}\n' \
+        "$TASK_ID" "$SEQUENCE" "$1" "$2" "$3" "$now" "$$" "$4" "$5" "$6" "$7" "$LOG_PATH" >> "$EVENT_PATH"
+}
+
+# Internal ownership marker inherited by every child, even after reparenting.
+GAMES_SESSION_SPEC=$(realpath "$SPEC_PATH") || fail_before_events launch_spec_missing
+export GAMES_SESSION_SPEC
+
 mkdir -p "$(dirname "$EVENT_PATH")" "$(dirname "$LOG_PATH")" \
     "$(dirname "$LOCK_PATH")" "$(dirname "$CANCEL_PATH")" "$PREFIX_PATH" "$HOME_PATH"
 : > "$EVENT_PATH"
 : > "$LOG_PATH"
+# Late host commands must not create display/audio/Wine after cancellation.
+if [ -e "$CANCEL_PATH" ]; then
+    emit CANCELLED COMPLETE 100 null cancelled false cancelled_before_host_start
+    exit 0
+fi
 if [ "$LAUNCH_EXECUTION_MODE" = terminal_session ]; then
     printf 'Local Games RootFS task: %s\nLog: %s\n\n' "$TASK_ID" "$LOG_PATH"
     tail -n +1 -f "$LOG_PATH" &
@@ -201,13 +217,6 @@ exec >> "$LOG_PATH" 2>&1
 PS4='+ '
 set -x
 printf '%s\n' 'Verbose command tracing enabled.'
-
-emit() {
-    SEQUENCE=$((SEQUENCE + 1))
-    now=$(date +%s)
-    printf '{"schemaVersion":1,"taskId":"%s","sequence":%s,"state":"%s","stage":"%s","progress":%s,"timestamp":%s000,"pid":%s,"exitCode":%s,"errorCode":"%s","recoverable":%s,"message":"%s","logRef":"%s"}\n' \
-        "$TASK_ID" "$SEQUENCE" "$1" "$2" "$3" "$now" "$$" "$4" "$5" "$6" "$7" "$LOG_PATH" >> "$EVENT_PATH"
-}
 
 # Wine services can daemonize and outlive PRoot. Never use their names or their
 # current parent PID as ownership: only this launch's inherited, exact marker.
@@ -358,7 +367,28 @@ warmup_fail() { terminal_failure "$1" null true; }
 # x_server_require / x_server_start / x_server_kill_all: legacy termux-x11 or the Xlorie package
 X_SERVER_DIR="$(dirname "$SCRIPT_PATH")"
 . "$X_SERVER_DIR/x_server_common.sh"
+# Launch-only: switching the built-in i386 DLL does not change or rebuild the prefix.
+configure_hangover_emulator() {
+    [ "$RUNTIME_TRANSLATOR" = hangover ] || return 0
+    case "${GAMES_HANGOVER_EMULATOR:-wowbox64}" in
+        ''|wowbox64) HODLL=wowbox64.dll ;;
+        fex) HODLL=libwow64fex.dll ;;
+        *) warmup_fail hangover_emulator_invalid; return 1 ;;
+    esac
+    HODLL64=libarm64ecfex.dll
+    hangover_dll_root="${SELECTED_CUSTOM_WINE_ROOT:-/usr}/lib/wine/aarch64-windows"
+    for hangover_dll in "$HODLL" "$HODLL64"; do
+        hangover_dll_host=$(rootfs_component_host "$hangover_dll_root/$hangover_dll") || return 1
+        [ -s "$hangover_dll_host" ] || {
+            warmup_fail "hangover_emulator_dll_missing:$hangover_dll"
+            return 1
+        }
+    done
+    export HODLL HODLL64
+}
+
 resolve_rootfs_translator
+configure_hangover_emulator
 
 ROOT_CANONICAL=$(realpath "$GAME_ROOT" 2>/dev/null) || terminal_failure game_root_unreadable null true
 EXE_CANONICAL=$(realpath "$GAME_ROOT/$EXECUTABLE" 2>/dev/null) || terminal_failure game_executable_unreadable null true
@@ -397,10 +427,8 @@ export TERMUX_VULKAN_BROKER_SOCKET="$TERMUX_FILES_DIR/usr/tmp/.vortek/V0"
 export RESOLUTION
 export GAMES_RUNTIME_PACKAGE="$WINE_PACKAGE"
 export GAMES_DX_WRAPPER="$DX_WRAPPER"
-# Both translator paths are box64-derived (Hangover's bundled WowBox64 is box64's own dynarec
-# compiled in -- see the "[BOX64] WowBox64 ..." banner either path prints at startup), so
-# BOX64_PROFILE applies regardless of which one is active. box64 interprets this itself; we only
-# need to translate our own STABILITY/INTERMEDIATE/PERFORMANCE preset into its vocabulary.
+# Standalone Box64 and Hangover's WowBox64 consume this preset. Hangover's FEX DLLs
+# use their own configuration and ignore it.
 case "$BOX64_PRESET" in
     STABILITY) export BOX64_PROFILE=safest ;;
     PERFORMANCE) export BOX64_PROFILE=fastest ;;
@@ -556,6 +584,7 @@ X_SERVER_SCREEN="${RESOLUTION}x24"
 x_server_start :0 "$LOG_PATH"
 DISPLAY_PID=$X_SERVER_PID
 x_server_wait_ready :0 || terminal_failure x_server_not_ready null true
+x_server_log_dimensions :0 "$RESOLUTION" "$WINE_PACKAGE" "$LOG_PATH"
 
 emit RUNNING STARTING_AUDIO 60 null '' false starting_audio
 GUEST_PULSE_SERVER=0

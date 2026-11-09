@@ -45,6 +45,7 @@ public final class DesktopArchiveTasks {
     }
     public interface Progress { void changed(Snapshot snapshot); }
     private static String activeTask;
+    private static volatile Thread worker;
     private final Context context;
     private final GameStoragePaths paths;
     private final File journal, containers;
@@ -54,6 +55,36 @@ public final class DesktopArchiveTasks {
         paths = new GameStoragePaths(this.context.getFilesDir());
         journal = new File(paths.getDesktopDirectory(), "archive-task.properties");
         containers = new File(this.context.getFilesDir(), "usr/var/lib/proot-distro/containers");
+    }
+
+    /** Cancels a related archive worker explicitly before editing or deleting its container. */
+    public void stopForMutation(DesktopDistro distro) throws IOException {
+        Thread running;
+        synchronized (DesktopOperationGate.LOCK) {
+            Properties job = load();
+            if (!distro.getId().equals(job.getProperty("desktopId"))
+                && !distro.getId().equals(job.getProperty("newId"))) return;
+            if (!Status.RUNNING.name().equals(job.getProperty("status"))
+                && !"true".equals(job.getProperty("cleanupPending"))) return;
+            running = worker;
+            if (running != null) running.interrupt();
+            else {
+                activeTask = null;
+                if ("true".equals(job.getProperty("cleanupPending"))) {
+                    cleanupInterrupted(job);
+                    job.remove("cleanupPending");
+                }
+                job.setProperty("status", Status.FAILED.name());
+                job.setProperty("message", "runtime_edit_cancelled");
+                save(job);
+                DesktopOperationGate.releaseArchive();
+            }
+        }
+        if (running != null && running != Thread.currentThread()) {
+            try { running.join(2000); }
+            catch (InterruptedException error) { Thread.currentThread().interrupt(); throw new IOException("runtime_force_stop_interrupted", error); }
+            if (running.isAlive()) throw new IOException("runtime_force_stop_failed");
+        }
     }
 
     public static boolean isBusy() { return DesktopOperationGate.isArchiveActive(); }
@@ -162,6 +193,7 @@ public final class DesktopArchiveTasks {
             try {
                 job = load();
                 if (!taskId.equals(activeTask) || !taskId.equals(job.getProperty("taskId"))) return;
+                worker = Thread.currentThread();
             } catch (IOException error) { activeTask = null; DesktopOperationGate.releaseArchive(); return; }
         }
         DesktopArchiveEngine engine = new DesktopArchiveEngine(new AndroidDesktopArchiveFileSystem(),
@@ -271,6 +303,7 @@ public final class DesktopArchiveTasks {
             job.setProperty("status", Status.SUCCEEDED.name());
             update(job, "desktop_archive_succeeded", "", progress);
         } catch (Exception error) {
+            Thread.interrupted(); // Allow transactional cleanup after explicit worker cancellation.
             String details = error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
             if (imported != null || "true".equals(job.getProperty("cleanupPending"))) {
                 job.setProperty("cleanupPending", "true");
@@ -286,6 +319,7 @@ public final class DesktopArchiveTasks {
         } finally {
             synchronized (DesktopOperationGate.LOCK) {
                 activeTask = null;
+                worker = null;
                 DesktopOperationGate.releaseArchive();
             }
         }

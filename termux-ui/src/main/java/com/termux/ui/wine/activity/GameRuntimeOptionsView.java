@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Typeface;
+import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -48,6 +49,7 @@ import com.termux.ui.wine.domain.RuntimeProfileDiff;
 import com.termux.ui.wine.domain.RuntimeTranslator;
 import com.termux.ui.wine.importer.LaunchArguments;
 import com.termux.ui.wine.runtime.GameContainerProfileResolver;
+import com.termux.ui.wine.runtime.HangoverEmulationMode;
 
 import java.io.File;
 import java.io.IOException;
@@ -99,6 +101,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private boolean destroyed;
     private boolean saving;
     private Intent restoredComponentSelection;
+    private Bundle restoredDraft;
 
     private enum Page {
         ROOT, GENERAL, BASE, WINE, LIBRARIES, ENVIRONMENT, FOLDERS, ADVANCED
@@ -106,12 +109,15 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     public interface Listener {
         void onRuntimeOptionsClosed();
+        default void onImportDiscarded() { onRuntimeOptionsClosed(); }
         /** Called instead of {@link #onRuntimeOptionsClosed()} after a successful Save --
          *  hosts should navigate to the Library tab and, if {@code warmupTaskId} is non-null,
          *  surface that task's live setup console there. */
         void onRuntimeOptionsSaved(@Nullable String warmupTaskId, boolean rootfs);
         /** Both hosts launch the shared version page and return its exact selected id. */
         void onSelectRuntimeComponent(Intent intent, Consumer<String> onSelected);
+        /** Embedded hosts disable actions while runtime settings contain unsaved changes. */
+        default void onRuntimeOptionsChanged() {}
     }
 
     public GameRuntimeOptionsView(Context context, String gameId, Listener listener) {
@@ -119,8 +125,10 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         this.gameId = gameId;
         this.listener = listener;
         this.paths = new GameStoragePaths(getContext().getFilesDir());
-        gameRepository = new FileGameRepository(paths.getLibraryDirectory());
-        profileRepository = new FileRuntimeProfileRepository(paths.getProfilesDirectory());
+        com.termux.ui.wine.importer.GameImportDrafts drafts =
+            new com.termux.ui.wine.importer.GameImportDrafts(getContext().getFilesDir());
+        gameRepository = gameId == null || gameId.trim().isEmpty() ? new FileGameRepository(paths.getLibraryDirectory()) : drafts.editingGames(gameId);
+        profileRepository = gameId == null || gameId.trim().isEmpty() ? new FileRuntimeProfileRepository(paths.getProfilesDirectory()) : drafts.editingProfiles(gameId);
         customComponents = new FileCustomRuntimeComponentRepository(
             paths.getCustomRuntimeComponentsDirectory());
         addView(createContent(), new LinearLayout.LayoutParams(
@@ -246,6 +254,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private void load() {
         ioExecutor.execute(() -> {
             try {
+                com.termux.ui.wine.runtime.RuntimeEditingStop.game(getContext().getFilesDir(),
+                    LocalGames.requireHost(getContext()), gameId);
                 try (InputStream input = getContext().getAssets().open("termux-app-packages/index-v1.json")) {
                     componentIndex = new ComponentIndexParser().parse(input);
                 }
@@ -263,6 +273,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                     gameBaseline = game;
                     baseline = loaded;
                     profile = loaded;
+                    applyRestoredDraft();
                     customEntries = entries;
                     installedVariants = variants;
                     progressHost.setVisibility(View.GONE);
@@ -307,9 +318,23 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private void renderRoot() {
         pageTitle(getContext().getString(R.string.local_game_runtime_title_root, game.getName()));
         addMenu(s(R.string.local_game_runtime_menu_general), workingDirectoryDisplay() + " · " + game.getExecutable(), Page.GENERAL);
-        addRow(s(R.string.local_game_runtime_backend_components),
-            s(R.string.local_game_runtime_backend_components_summary), true, view ->
-            getContext().startActivity(LocalGames.createComponentsIntent(getContext(), game.getId())));
+        addComponentVersionRow(s(R.string.local_game_runtime_common_wine_package), CustomRuntimeComponent.Kind.WINE,
+            profile.getWinePackage(), lockedRootfsTranslator(),
+            value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),
+                profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(), profile.getEnvironment(),
+                profile.getInputProfileId(), profile.getLaunchExecutionMode()));
+        if (HangoverEmulationMode.appliesTo(profile)) {
+            HangoverEmulationMode[] modes = HangoverEmulationMode.values();
+            int selectedMode = -1;
+            try { selectedMode = HangoverEmulationMode.selected(profile).ordinal(); }
+            catch (IllegalArgumentException invalidMode) {
+                // Show no selection so a manually edited invalid value can be corrected here.
+            }
+            addChoice(s(R.string.local_game_runtime_hangover_emulator), labels("WowBox64", "FEX"),
+                selectedMode, which ->
+                    setOption(HangoverEmulationMode.ENVIRONMENT_KEY, modes[which].getStorageValue()));
+            addReadOnly(s(R.string.local_game_runtime_hangover_64bit), "FEX (ARM64EC)");
+        }
         addMenu(s(R.string.local_game_runtime_menu_common), profile.getResolution() + " · "
             + componentLabel(profile.getGraphicsDriver()) + " · " + componentLabel(profile.getDxWrapper()), Page.BASE);
         addMenu(s(R.string.local_game_runtime_menu_wine), s(R.string.local_game_runtime_menu_wine_summary), Page.WINE);
@@ -329,11 +354,13 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             String trimmed = value.trim();
             if (!trimmed.isEmpty()) game = game.withLaunchDetails(trimmed,
                 game.getWorkingDirectory(), game.getArguments());
+            listener.onRuntimeOptionsChanged();
         });
         addEdit(s(R.string.local_game_runtime_general_working_dir), workingDirectoryDisplay(), false, value -> {
             try {
                 String relative = com.termux.ui.wine.importer.GameWorkingDirectory.relative(resolvedGameRoot(), value);
                 game = game.withLaunchDetails(game.getName(), relative, game.getArguments());
+                listener.onRuntimeOptionsChanged();
             } catch (IOException error) {
                 Toast.makeText(getContext(), R.string.local_game_import_invalid_working_directory,
                     Toast.LENGTH_LONG).show();
@@ -343,6 +370,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             try {
                 game = game.withLaunchDetails(game.getName(), game.getWorkingDirectory(),
                     LaunchArguments.parse(value));
+                listener.onRuntimeOptionsChanged();
             } catch (IllegalArgumentException error) {
                 Toast.makeText(getContext(), R.string.local_game_runtime_general_launch_args_invalid,
                     Toast.LENGTH_LONG).show();
@@ -534,6 +562,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                         profile.getResolution(), profile.getBox64Preset(), profile.getEnvironment(), profile.getInputProfileId(), profile.getLaunchExecutionMode()); break;
                 case BOX64: setOption("GAMES_CUSTOM_BOX64_ID", id); break;
             }
+            refreshComponentLabels(kind);
             render();
         } catch (RuntimeException error) {
             Toast.makeText(getContext(), getContext().getString(R.string.component_versions_failed,
@@ -546,27 +575,83 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         listener.onSelectRuntimeComponent(RuntimeComponentVersionsActivity.createSelectIntent(
             getContext(), kind, profile.getRuntimeBackendType(), current, locked), value -> {
                 callback.choose(value);
-                ioExecutor.execute(() -> {
-                    try {
-                        List<CustomRuntimeComponent> entries = customComponents.list();
-                        List<RuntimeComponentVariant> variants = LocalGames.requireHost(getContext())
-                            .listInstalledRuntimeComponentVariants(kind, profile.getRuntimeBackendType());
-                        post(() -> {
-                            if (destroyed) return;
-                            customEntries = entries;
-                            List<RuntimeComponentVariant> next = new ArrayList<>(installedVariants);
-                            next.removeIf(entry -> entry.getKind() == kind);
-                            next.addAll(variants);
-                            installedVariants = next;
-                            render();
-                        });
-                    } catch (IOException error) {
-                        post(() -> Toast.makeText(getContext(), getContext().getString(
-                            R.string.component_versions_failed, error.getMessage()), Toast.LENGTH_LONG).show());
-                    }
-                });
+                refreshComponentLabels(kind);
                 render();
             });
+    }
+
+    private void refreshComponentLabels(CustomRuntimeComponent.Kind kind) {
+        ioExecutor.execute(() -> {
+            try {
+                List<CustomRuntimeComponent> entries = customComponents.list();
+                List<RuntimeComponentVariant> variants = LocalGames.requireHost(getContext())
+                    .listInstalledRuntimeComponentVariants(kind, profile.getRuntimeBackendType());
+                post(() -> {
+                    if (destroyed) return;
+                    customEntries = entries;
+                    List<RuntimeComponentVariant> next = new ArrayList<>(installedVariants);
+                    next.removeIf(entry -> entry.getKind() == kind);
+                    next.addAll(variants);
+                    installedVariants = next;
+                    render();
+                });
+            } catch (IOException error) {
+                post(() -> Toast.makeText(getContext(), getContext().getString(
+                    R.string.component_versions_failed, error.getMessage()), Toast.LENGTH_LONG).show());
+            }
+        });
+    }
+
+    /** Keep editor changes in Activity state, never in the saved runtime configuration. */
+    @Nullable public Bundle saveDraftState() {
+        if (profile == null || game == null) return restoredDraft;
+        Bundle state = new Bundle();
+        state.putString("game", gameId);
+        state.putString("backend", profile.getRuntimeBackendType().getStorageValue());
+        state.putString("container", profile.getContainerId());
+        state.putString("wine", profile.getWinePackage());
+        state.putString("graphics", profile.getGraphicsDriver());
+        state.putString("dx", profile.getDxWrapper());
+        state.putString("audio", profile.getAudioDriver());
+        state.putString("resolution", profile.getResolution());
+        state.putString("box64", profile.getBox64Preset());
+        state.putString("input", profile.getInputProfileId());
+        state.putString("execution", profile.getLaunchExecutionMode().name());
+        state.putBundle("environment", mapBundle(profile.getEnvironment()));
+        state.putString("name", game.getName());
+        state.putString("directory", game.getWorkingDirectory());
+        state.putString("arguments", LaunchArguments.format(game.getArguments()));
+        state.putString("page", page.name());
+        return state;
+    }
+
+    public void restoreDraftState(@Nullable Bundle state) {
+        restoredDraft = state;
+        if (profile != null && game != null) { applyRestoredDraft(); render(); }
+    }
+
+    private void applyRestoredDraft() {
+        Bundle state = restoredDraft;
+        restoredDraft = null;
+        if (state == null || !gameId.equals(state.getString("game"))
+            || !profile.getRuntimeBackendType().getStorageValue().equals(state.getString("backend"))
+            || !profile.getContainerId().equals(state.getString("container"))) return;
+        Map<String, String> environment = new java.util.LinkedHashMap<>();
+        Bundle savedEnvironment = state.getBundle("environment");
+        if (savedEnvironment != null) for (String key : savedEnvironment.keySet())
+            environment.put(key, savedEnvironment.getString(key));
+        replace(state.getString("wine"), state.getString("graphics"), state.getString("dx"),
+            state.getString("audio"), state.getString("resolution"), state.getString("box64"),
+            environment, state.getString("input"), LaunchExecutionMode.valueOf(state.getString("execution")));
+        game = game.withLaunchDetails(state.getString("name"), state.getString("directory"),
+            LaunchArguments.parse(state.getString("arguments")));
+        page = Page.valueOf(state.getString("page"));
+    }
+
+    private static Bundle mapBundle(Map<String, String> map) {
+        Bundle result = new Bundle();
+        for (Map.Entry<String, String> entry : map.entrySet()) result.putString(entry.getKey(), entry.getValue());
+        return result;
     }
 
     private String componentLabel(String value) {
@@ -668,8 +753,11 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         RuntimeTranslator translator = profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT
             ? lockedRootfsTranslator() : RuntimeTranslator.BOX64;
         if (translator == RuntimeTranslator.BOX64 || translator == null) {
+            String box64 = option("GAMES_CUSTOM_BOX64_ID");
+            box64 = com.termux.ui.activity.RuntimeComponentVersions.selectedBox64Id(
+                profile.getRuntimeBackendType(), box64);
             addComponentVersionRow(s(R.string.local_game_runtime_advanced_box64_build), CustomRuntimeComponent.Kind.BOX64,
-                option("GAMES_CUSTOM_BOX64_ID"), null, value -> setOption("GAMES_CUSTOM_BOX64_ID", value));
+                box64, null, value -> setOption("GAMES_CUSTOM_BOX64_ID", value));
         }
         addChoice(s(R.string.local_game_runtime_advanced_startup),
             labels(s(R.string.local_game_runtime_advanced_app_shell),
@@ -878,9 +966,16 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         profile = new RuntimeProfile(profile.getId(), wine, graphics, dx, audio, resolution, box64,
             environment, input, mode, profile.getComponentVersions(), profile.getRuntimeBackendType(),
             profile.getRootfsPackage(), profile.getContainerId());
+        listener.onRuntimeOptionsChanged();
+    }
+
+    public boolean hasUnsavedChanges() {
+        return saving || (baseline != null && profile != null
+            && !RuntimeProfileDiff.between(baseline, profile).isEmpty()) || gameChanged();
     }
 
     public void navigateBack() {
+        if (saving) return;
         if (page != Page.ROOT) {
             page = Page.ROOT;
             render();
@@ -897,13 +992,13 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 .setMessage(getContext().getString(R.string.local_game_runtime_save_dialog_message,
                     game.getName()))
                 .setNegativeButton(R.string.local_game_runtime_save_dialog_discard,
-                    (dialog, which) -> close())
+                    (dialog, which) -> discardAndClose())
                 .setNeutralButton(android.R.string.cancel, null)
                 .setPositiveButton(R.string.local_game_runtime_save, (dialog, which) -> saveAndFinish())
                 .show();
             return;
         }
-        close();
+        discardAndClose();
     }
 
     private boolean gameChanged() {
@@ -915,10 +1010,10 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private void saveAndFinish() {
         if (saving || profile == null || game == null) return;
         saving = true;
+        listener.onRuntimeOptionsChanged();
         saveFab.setEnabled(false);
         RuntimeProfile toSave = profile;
         Game gameToSave = game;
-        boolean saveGame = gameChanged();
         boolean rootfs = toSave.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT;
         android.util.Log.d("GameRuntimeOptionsDebug", "saveAndFinish toSave.backend="
             + toSave.getRuntimeBackendType() + " containerId=" + toSave.getContainerId());
@@ -927,8 +1022,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 com.termux.ui.wine.importer.GameWorkingDirectory.relative(resolvedGameRoot(),
                     com.termux.ui.wine.importer.GameWorkingDirectory.display(resolvedGameRoot(), gameToSave.getWorkingDirectory()));
                 com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(getContext().getFilesDir());
-                profileRepository.save(toSave);
-                if (saveGame) gameRepository.save(gameToSave);
+                new com.termux.ui.wine.importer.GameImportDrafts(getContext().getFilesDir()).commit(gameToSave, toSave);
                 String warmupTaskId = RuntimeWarmup.warm(getContext(), toSave);
                 post(() -> {
                     if (!destroyed) listener.onRuntimeOptionsSaved(warmupTaskId, rootfs);
@@ -938,6 +1032,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 post(() -> {
                     if (destroyed) return;
                     saving = false;
+                    listener.onRuntimeOptionsChanged();
                     saveFab.setEnabled(true);
                     Toast.makeText(getContext(), getContext().getString(R.string.local_game_detail_save_failed,
                         error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage()),
@@ -962,6 +1057,30 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             render();
             optionsScroll.post(() -> optionsScroll.scrollTo(0, scrollY));
         }
+    }
+
+    @Nullable public RuntimeProfile getProfileForSave() { return profile; }
+
+    private void discardAndClose() {
+        if (saving) return;
+        com.termux.ui.wine.importer.GameImportDrafts drafts =
+            new com.termux.ui.wine.importer.GameImportDrafts(getContext().getFilesDir());
+        if (!drafts.isDraft(gameId)) { close(); return; }
+        saving = true;
+        saveFab.setEnabled(false);
+        ioExecutor.execute(() -> {
+            try {
+                drafts.discard(gameId);
+                post(() -> { if (!destroyed) listener.onImportDiscarded(); });
+            } catch (IOException | RuntimeException error) {
+                post(() -> {
+                    if (destroyed) return;
+                    saving = false;
+                    saveFab.setEnabled(true);
+                    Toast.makeText(getContext(), error.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     private void close() {

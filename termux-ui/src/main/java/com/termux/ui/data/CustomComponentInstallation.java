@@ -21,7 +21,6 @@ public final class CustomComponentInstallation {
             paths.getTermuxPrefixDirectory().getParentFile()).getInstallDirectory(), component.getId()),
             "versions/1-" + component.getSha256());
         return version;
-
     }
 
     public static boolean isAvailable(GameStoragePaths paths, CustomRuntimeComponent component) throws IOException {
@@ -34,7 +33,6 @@ public final class CustomComponentInstallation {
             !component.getId().equals(value.getProperty("componentId")) ||
             !component.getBackendType().getStorageValue().equals(value.getProperty("runtimeBackend")) ||
             !component.getKind().name().toLowerCase(Locale.ROOT).equals(value.getProperty("kind")) ||
-            !component.getSha256().equals(value.getProperty("sha256")) ||
             !(component.getTranslator() == null ? "none" : component.getTranslator().getStorageValue())
                 .equals(value.getProperty("runtimeTranslator"))) return false;
         switch (component.getKind()) {

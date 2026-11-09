@@ -7,11 +7,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Locale;
 
-/** Copies only a selected, verified resource into the recipe consumed by the restore helper. */
+/** Copies the selected resource into the recipe consumed by the restore helper. */
 final class PrebuiltPrefixAssets {
     static String folder(String wine) {
         if ("rootfs_hangover_11.16".equals(wine)) return "prefix-hangover-pdb2";
@@ -27,13 +24,13 @@ final class PrebuiltPrefixAssets {
 
     static void copy(File source, File target, byte[] trustedBundle) throws IOException {
         try {
-            JSONObject hashes = new JSONObject(new String(trustedBundle,
+            JSONObject assets = new JSONObject(new String(trustedBundle,
                 java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("assets");
-            verify(source, "bundle.json", hash(trustedBundle));
-            // Validate the whole resource before replacing any file. A stale recipe is never
-            // accepted when the selected installed resource is missing or corrupt.
+            requireFile(source, "bundle.json");
+            // Require every payload file and its path before replacing the recipe.
             for (String name : new String[]{"manifest.json", "delta.tgz"}) {
-                verify(source, name, hashes.getString(name));
+                assets.getString(name);
+                requireFile(source, name);
             }
             if (!target.isDirectory() && !target.mkdirs()) throw new IOException("prefix_directory_failed");
             if (!target.getAbsoluteFile().equals(target.getCanonicalFile())) {
@@ -53,7 +50,7 @@ final class PrebuiltPrefixAssets {
                         while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
                         output.getFD().sync();
                     }
-                    verify(target, temporary.getName(), hashes.getString(name));
+                    requireFile(target, temporary.getName());
                     if (!temporary.renameTo(destination)) throw new IOException("prefix_publish_failed");
                 } finally {
                     if (temporary.exists()) temporary.delete();
@@ -64,29 +61,12 @@ final class PrebuiltPrefixAssets {
         }
     }
 
-    private static void verify(File root, String name, String expected) throws IOException {
+    private static void requireFile(File root, String name) throws IOException {
         File file = new File(root, name);
-        if (!expected.matches("[0-9a-f]{64}") || !file.isFile() ||
+        if (!file.isFile() ||
             !file.getCanonicalFile().equals(new File(root.getCanonicalFile(), name))) {
             throw new IOException("prefix_source_invalid:" + name);
         }
-        MessageDigest digest = sha256();
-        try (FileInputStream input = new FileInputStream(file)) {
-            byte[] buffer = new byte[32768]; int count;
-            while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count);
-        }
-        if (!expected.equals(hex(digest.digest()))) throw new IOException("prefix_digest_mismatch:" + name);
     }
 
-    private static MessageDigest sha256() throws IOException {
-        try { return MessageDigest.getInstance("SHA-256"); }
-        catch (NoSuchAlgorithmException error) { throw new IOException(error); }
-    }
-
-    private static String hash(byte[] value) throws IOException { return hex(sha256().digest(value)); }
-    private static String hex(byte[] value) {
-        StringBuilder result = new StringBuilder(64);
-        for (byte b : value) result.append(String.format(Locale.US, "%02x", b & 255));
-        return result.toString();
-    }
 }

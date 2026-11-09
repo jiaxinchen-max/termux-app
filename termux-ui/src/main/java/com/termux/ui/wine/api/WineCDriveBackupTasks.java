@@ -27,6 +27,7 @@ public final class WineCDriveBackupTasks {
     }
     private static String active;
     private static boolean executing;
+    private static volatile Thread worker;
     private final Context context;
     private final GameStoragePaths paths;
     public WineCDriveBackupTasks(Context context) {
@@ -38,13 +39,47 @@ public final class WineCDriveBackupTasks {
         if (journal.isFile()) try (InputStream input = new FileInputStream(journal)) { job.load(input); }
         return job;
     }
-    private void save(Properties job) throws IOException {
-        File file = journal(context.getFilesDir());
+    private void save(Properties job) throws IOException { saveJournal(context.getFilesDir(), job); }
+    private static void saveJournal(File files, Properties job) throws IOException {
+        File file = journal(files);
         if (!file.getParentFile().isDirectory() && !file.getParentFile().mkdirs()) throw new IOException("cdrive_journal_failed");
         File temporary = new File(file + ".tmp");
         try (FileOutputStream output = new FileOutputStream(temporary)) { job.store(output, null); output.getFD().sync(); }
         if (!temporary.renameTo(file)) throw new IOException("cdrive_journal_failed");
     }
+    public static void stopForMutation(File files, String gameId) throws IOException {
+        Thread running;
+        synchronized (WineCDriveBackupTasks.class) {
+            Properties job = load(files);
+            RuntimeProfile profile = new FileRuntimeProfileRepository(new GameStoragePaths(files).getProfilesDirectory())
+                .find(gameId).orElse(null);
+            if (!gameId.equals(job.getProperty("gameId")) && (profile == null
+                || !profile.getContainerId().equals(job.getProperty("containerId")))) return;
+            if (!"RUNNING".equals(job.getProperty("status"))
+                && !"true".equals(job.getProperty("cleanupPending"))) return;
+            running = worker;
+            if (running != null) running.interrupt();
+            else {
+                active = null;
+                if ("true".equals(job.getProperty("cleanupPending"))) {
+                    new WineCDriveArchive(new AndroidWineCDriveFileSystem()).recover(
+                        new GameStoragePaths(files).getContainerPrefixDirectory(job.getProperty("containerId"), GameRuntimeBackendType.ROOTFS_PROOT),
+                        new File(job.getProperty("archive")), job.getProperty("taskId"), operation(job) == Operation.RESTORE,
+                        "true".equals(job.getProperty("committed")), job.getProperty("outputIdentity", ""));
+                    job.remove("cleanupPending");
+                }
+                job.setProperty("status", "FAILED");
+                job.setProperty("error", "runtime_edit_cancelled");
+                saveJournal(files, job);
+            }
+        }
+        if (running != null && running != Thread.currentThread()) {
+            try { running.join(2000); }
+            catch (InterruptedException error) { Thread.currentThread().interrupt(); throw new IOException("runtime_force_stop_interrupted", error); }
+            if (running.isAlive()) throw new IOException("runtime_force_stop_failed");
+        }
+    }
+
     public static void requireAvailable(File files) throws IOException {
         Properties job = load(files);
         if ("RUNNING".equals(job.getProperty("status")) || "true".equals(job.getProperty("cleanupPending")))
@@ -117,14 +152,16 @@ public final class WineCDriveBackupTasks {
         Properties[] selected = {null}; boolean[] interrupted = {false};
         try {
             GameAssetMutationLock.call(() -> {
-                Properties job = load(context.getFilesDir());
-                if (executing || !task.equals(job.getProperty("taskId"))
-                    || (!"RUNNING".equals(job.getProperty("status")) && !"true".equals(job.getProperty("cleanupPending")))) return null;
-                interrupted[0] = !task.equals(active);
-                // snapshot() can schedule cleanup after process restart, so distinguish ownership
-                // by a process-local reservation made only by enqueue().
-                interrupted[0] |= !reservedTasks.remove(task);
-                executing = true; selected[0] = job; return null;
+                synchronized (WineCDriveBackupTasks.class) {
+                    Properties job = load(context.getFilesDir());
+                    if (executing || !task.equals(job.getProperty("taskId"))
+                        || (!"RUNNING".equals(job.getProperty("status")) && !"true".equals(job.getProperty("cleanupPending")))) return null;
+                    interrupted[0] = !task.equals(active);
+                    // snapshot() can schedule cleanup after process restart, so distinguish ownership
+                    // by a process-local reservation made only by enqueue().
+                    interrupted[0] |= !reservedTasks.remove(task);
+                    executing = true; worker = Thread.currentThread(); selected[0] = job; return null;
+                }
             });
             if (selected[0] == null) return;
             Properties job = selected[0];
@@ -158,6 +195,7 @@ public final class WineCDriveBackupTasks {
             finish(job, "SUCCEEDED", "");
         } catch (Exception error) {
             if (selected[0] != null) {
+                Thread.interrupted(); // Complete rollback before the mutation proceeds.
                 Properties job = selected[0];
                 String message = error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
                 try {
@@ -172,7 +210,7 @@ public final class WineCDriveBackupTasks {
         } finally {
             if (selected[0] != null) try { GameAssetMutationLock.call(() -> {
                 if (task.equals(active)) active = null;
-                executing = false;
+                executing = false; worker = null;
                 return null;
             }); } catch (IOException ignored) { }
         }

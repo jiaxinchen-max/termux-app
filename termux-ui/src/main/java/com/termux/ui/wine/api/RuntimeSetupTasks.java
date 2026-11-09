@@ -61,6 +61,7 @@ public final class RuntimeSetupTasks {
             // The foreground owner will persist a stable failure if storage is unavailable.
         }
         String taskId = "setup-" + UUID.randomUUID().toString();
+        if (!baseOnly) com.termux.ui.wine.runtime.RuntimeEditingStop.register(taskId, "container:" + containerId);
         Intent intent = new Intent(context, RootfsSetupForegroundService.class)
             .setAction(ACTION_ENQUEUE)
             .putExtra(EXTRA_TASK_ID, taskId)

@@ -14,6 +14,7 @@ import java.io.IOException;
 /** Validates the exact registered component selected by one game, independently of catalog state. */
 final class CustomComponentSelection {
     static void validate(RuntimeProfile profile, @Nullable GameStoragePaths paths) {
+        if (HangoverEmulationMode.appliesTo(profile)) HangoverEmulationMode.selected(profile);
         require(profile.getWinePackage(), CustomRuntimeComponent.Kind.WINE, profile, paths);
         require(profile.getGraphicsDriver(), CustomRuntimeComponent.Kind.TURNIP, profile, paths);
         String dx = profile.getDxWrapper();
@@ -24,6 +25,8 @@ final class CustomComponentSelection {
         String box64 = profile.getEnvironment().getOrDefault("GAMES_CUSTOM_BOX64_ID", "");
         if (!box64.isEmpty()) {
             if (!(box64.matches("custom-box64-[A-Za-z0-9._-]+") ||
+                (profile.getRuntimeBackendType() == GameRuntimeBackendType.GLIBC_TERMUX_BOX &&
+                    NativeBox64Versions.isBuiltIn(box64)) ||
                 (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT &&
                     "rootfs_box64_0.4.5".equals(box64)))) {
                 throw new IllegalArgumentException("box64_selection_unsupported:" + box64);

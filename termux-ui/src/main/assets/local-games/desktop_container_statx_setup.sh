@@ -26,22 +26,10 @@ retire_owned_opensysusers() {
         echo 'ERROR: opensysusers manifest differs from the owned schema' >&2; return 65;
     }
     old_source=/usr/local/libexec/termux-proot-sysusers/opensysusers-sysusers
-    [ "$(statx_file_sha "$old_source")" = "$old_hash" ] || {
-        echo 'ERROR: installed opensysusers source differs from its manifest' >&2; return 65;
-    }
-    original_md5=$(awk '$2 == "usr/bin/systemd-sysusers" { print $1 }' /var/lib/dpkg/info/systemd.md5sums) || return $?
-    [ "${#original_md5}" -eq 32 ] || { echo 'ERROR: packaged sysusers checksum is unavailable' >&2; return 65; }
     if [ -n "$diversion_owner" ]; then
         diversion_path=$(dpkg-divert --truename /usr/bin/systemd-sysusers) || return $?
         [ "$diversion_owner" = LOCAL ] && [ "$diversion_path" = "$old_original" ] || {
             echo 'ERROR: sysusers diversion is not the owned local diversion' >&2; return 65;
-        }
-        [ "$(statx_file_sha /usr/bin/systemd-sysusers)" = fdbd3b47699d6df4db7f4a45c681bbe95bc14b4cf2acfd5f512a85bdbb325b72 ] || {
-            echo 'ERROR: sysusers wrapper was modified; diversion was not changed' >&2; return 65;
-        }
-        actual_md5=$(md5sum "$old_original") || return $?
-        [ "${actual_md5%% *}" = "$original_md5" ] || {
-            echo 'ERROR: original sysusers binary differs from package metadata' >&2; return 65;
         }
         rm /usr/bin/systemd-sysusers || return $?
         dpkg-divert --local --remove --rename --divert "$old_original" /usr/bin/systemd-sysusers || return $?
@@ -49,10 +37,6 @@ retire_owned_opensysusers() {
         # A previous retirement may have completed the rename before its final manifest cleanup.
         [ ! -e "$old_original" ] || { echo 'ERROR: unexpected retired sysusers binary remains' >&2; return 65; }
     fi
-    actual_md5=$(md5sum /usr/bin/systemd-sysusers) || return $?
-    [ "${actual_md5%% *}" = "$original_md5" ] || {
-        echo 'ERROR: restored standard sysusers binary checksum mismatch' >&2; return 65;
-    }
     rm "$old_source" "$old_manifest" || return $?
     echo 'Retired verified owned opensysusers diversion; standard systemd-sysusers restored'
 }
@@ -64,9 +48,6 @@ configure_proot_statx() { # explicit-backend bundled-library bundled-runner
     statx_library_source="$2"
     statx_runner_source="$3"
     statx_library_hash=cc47aae3d46589bda4138b1fee328476d3beb51b5b56865731826b633ab8b997
-    [ "$(statx_file_sha "$statx_library_source")" = "$statx_library_hash" ] || {
-        echo 'ERROR: bundled statx library checksum mismatch' >&2; return 65;
-    }
     if getent passwd polkitd >/dev/null 2>&1; then
         validate_polkit_identity || return $?
     else

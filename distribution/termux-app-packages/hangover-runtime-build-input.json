@@ -1,0 +1,20 @@
+{
+  "id": "rootfs_hangover_11.16",
+  "category": "runtime",
+  "type": "runtime_support",
+  "displayName": "hangover_11.16",
+  "versionName": "11.16 (IDAP pdb2)",
+  "summary": "Source-built Hangover 11.16 for Debian 13; separate PDB/ELF symbols, scoped device-tested.",
+  "framework": "ROOTFS",
+  "base": false,
+  "recommended": false,
+  "hidden": true,
+  "profileValue": "",
+  "runtimeBackends": [
+    "rootfs_proot"
+  ],
+  "version": 2,
+  "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_hangover_11.16-v2/rootfs_hangover_11.16.tar",
+  "size": 100485120,
+  "sha256": "ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1"
+}

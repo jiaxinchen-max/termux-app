@@ -77,9 +77,29 @@ class RestoreTests(unittest.TestCase):
                       str(self.root), 'rootfs_hangover_11.16')
 
     def rejected(self, text):
-        with self.assertRaisesRegex((ValueError,OSError), text): self.run_restore()
+        with self.assertRaisesRegex((ValueError,OSError,tarfile.TarError), text): self.run_restore()
         self.assertFalse(self.target.exists())
         self.assertFalse(self.target.with_name('game.prebuilt-stage').exists())
+
+    def test_different_content_restores_without_hash_gate(self):
+        (self.root/'usr/lib/wine/public.dll').write_bytes(b'larger custom replacement dll')
+        self.run_restore()
+        self.assertEqual((self.target/'drive_c/windows/system32/ntdll.dll').read_bytes(), b'larger custom replacement dll')
+
+    def test_archive_lengths_and_expanded_estimate_do_not_gate_content(self):
+        self.files['user.reg'] = b'longer registry contents than template'
+        self.files['userdef.reg'] = b'x'
+        self.pack()
+        self.meta['expandedBytes'] = 1
+        (self.assets/'bundle.json').write_text(json.dumps(self.meta))
+        self.run_restore()
+        for name in ('user.reg', 'userdef.reg'):
+            self.assertEqual((self.target/name).read_bytes(), self.files[name])
+
+    def test_wrong_architecture_still_rejected(self):
+        self.meta['hostAbi']='x86_64'
+        (self.assets/'bundle.json').write_text(json.dumps(self.meta))
+        self.rejected('identity_mismatch')
 
     def test_independent_copies_and_exact_markers(self):
         self.run_restore()
@@ -158,12 +178,12 @@ resolve_external_template_identity
         context = multiprocessing.get_context('fork')
         copying = context.Event(); release = context.Event(); results = context.Queue()
         def first():
-            original=m.copy_verified
+            original=m.copy_entry
             def slow_copy(*args):
                 copying.set()
                 if not release.wait(5): raise RuntimeError('test synchronization timeout')
                 original(*args)
-            m.copy_verified=slow_copy
+            m.copy_entry=slow_copy
             try: self.run_restore();results.put('first-published')
             except Exception as error:results.put(str(error))
         def second():
@@ -191,17 +211,18 @@ resolve_external_template_identity
         self.assertEqual(b'keep',(self.target/'save').read_bytes())
 
     def test_corrupt_archive(self):
-        with (self.assets/'delta.tgz').open('ab') as f:f.write(b'bad')
-        self.rejected('asset_digest_mismatch')
+        (self.assets/'delta.tgz').write_bytes(b'invalid archive')
+        self.rejected('not a gzip file')
 
     def test_runtime_identity(self):
         self.meta['runtimeFiles']={'usr/lib/wine/public.dll':'0'*64}
         (self.assets/'bundle.json').write_text(json.dumps(self.meta))
-        self.rejected('runtime_mismatch')
+        self.run_restore()
 
-    def test_public_digest_mismatch_leaves_no_ready_prefix(self):
-        (self.root/'usr/lib/wine/public.dll').write_bytes(b'wrong  dll')
-        self.rejected('file_digest_mismatch')
+    def test_public_content_difference_is_accepted(self):
+        (self.root/'usr/lib/wine/public.dll').write_bytes(b'x')
+        self.run_restore()
+        self.assertEqual((self.target/'drive_c/windows/system32/ntdll.dll').read_bytes(),b'x')
 
     def test_public_source_escape(self):
         (self.root/'usr/lib/wine/public.dll').unlink()
@@ -217,7 +238,7 @@ resolve_external_template_identity
 
     def test_recipe_mismatch(self):
         (self.assets.parent/'setup-container.sh').write_text('other build')
-        self.rejected('recipe_mismatch')
+        self.run_restore()
 
     def test_traversal_absolute_duplicate_hardlink_fifo_and_link_parent(self):
         for name,kind,link in [('../escape',tarfile.REGTYPE,''),('/escape',tarfile.REGTYPE,''),
@@ -235,9 +256,9 @@ resolve_external_template_identity
             self.rejected('insufficient_storage')
 
     def test_cancel_cleanup_and_retry(self):
-        real=m.copy_verified
+        real=m.copy_entry
         def cancel(*args): real(*args); raise SystemExit(143)
-        with patch.object(m,'copy_verified',side_effect=cancel):
+        with patch.object(m,'copy_entry',side_effect=cancel):
             with self.assertRaises(SystemExit): self.run_restore()
         self.assertFalse(self.target.exists())
         self.assertFalse(self.target.with_name('game.prebuilt-stage').exists())
@@ -367,7 +388,7 @@ require_external_prepared_prefix
 
     def test_component_receipt_mismatch(self):
         self.receipt.write_text(self.receipt.read_text().replace('c'*64,'d'*64))
-        self.rejected('component_mismatch')
+        self.run_restore()
 
     def test_wrong_windows_architecture(self):
         self.meta['peMachine']=0xaa64

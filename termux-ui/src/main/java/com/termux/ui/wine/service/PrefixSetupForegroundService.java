@@ -1,5 +1,6 @@
 package com.termux.ui.wine.service;
 
+import com.termux.ui.wine.runtime.RuntimeEditingStop;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -42,7 +43,6 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -114,6 +114,7 @@ public final class PrefixSetupForegroundService extends Service {
     }
 
     private void enqueue(String taskId, String gameId) throws Exception {
+        RuntimeEditingStop.requireNotCancelled(getFilesDir(), taskId);
         RuntimeProfile profile = resolveContainer(profiles.find(gameId)
             .orElseThrow(() -> new IOException("runtime_profile_missing")));
         if (profile.getRuntimeBackendType() != GameRuntimeBackendType.GLIBC_TERMUX_BOX) return;
@@ -122,7 +123,7 @@ public final class PrefixSetupForegroundService extends Service {
         }
         PrefixSetupTask task = PrefixSetupTask.queued(taskId, gameId,
             profile.getWinePackage(), System.currentTimeMillis());
-        tasks.save(task);
+        saveTask(task);
         prepareAndStart(task, profile);
     }
 
@@ -137,6 +138,7 @@ public final class PrefixSetupForegroundService extends Service {
     }
 
     private void prepareAndStart(PrefixSetupTask task, RuntimeProfile profile) throws Exception {
+        RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
         if (!submitted.add(task.getTaskId())) return;
         try {
             PrefixSetupTask preparing = task.getState() == RuntimeSetupTaskState.QUEUED
@@ -162,10 +164,13 @@ public final class PrefixSetupForegroundService extends Service {
             File log = new File(paths.getPrefixSetupLogsDirectory(),
                 task.getTaskId() + ".log");
             writeSpec(spec, preparing, profile, event, log);
+            synchronized (RuntimeEditingStop.LOCK) {
+                RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
             host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 script.getCanonicalPath(), spec.getCanonicalPath(),
                 paths.getPrefixSetupDirectory().getCanonicalPath(),
                 SetupPreparationLog.file(getFilesDir(), task.getTaskId()).getCanonicalPath()));
+            }
             transition(preparing, RuntimeSetupTaskState.BUILDING, "");
         } catch (Exception error) {
             submitted.remove(task.getTaskId());
@@ -195,6 +200,7 @@ public final class PrefixSetupForegroundService extends Service {
     }
 
     private void reconcile(PrefixSetupTask task) throws Exception {
+        RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
         Event event = readLastEvent(eventFile(task.getTaskId()));
         if (event == Event.SUCCEEDED || isReady(task)) {
             PrefixSetupTask current = requiredTask(task.getTaskId());
@@ -219,11 +225,7 @@ public final class PrefixSetupForegroundService extends Service {
         File prefix = paths.getNativePrefixDirectory(profile.getContainerId(), profile.getWinePackage());
         if (!new File(prefix, ".termux-box-bootstrap-done").isFile() ||
             !new File(prefix, ".update-timestamp").exists()) return false;
-        File identity = new File(prefix, ".games-runtime/prepared-identity");
-        if (!identity.isFile() || identity.length() != 65) return false;
-        try (BufferedReader reader = new BufferedReader(new FileReader(identity))) {
-            if (!NativePrefixAssets.identity(this, profile.getWinePackage()).equals(reader.readLine())) return false;
-        }
+        if (!NativePrefixAssets.isPrepared(this, profile.getWinePackage(), prefix)) return false;
         // Fonts are prefix assets; locale readiness is owned by the host glibc installer.
         if (!new File(prefix, "termux-boxmeta/games-wine-fonts-v2").isFile() ||
             !com.termux.ui.wine.runtime.NativeGlibcLocale.isReady(
@@ -285,6 +287,7 @@ public final class PrefixSetupForegroundService extends Service {
             property(writer, "NATIVE_PREFIX_BUNDLE_SHA256", NativePrefixAssets.bundleSha256(this,
                 profile.getWinePackage()));
             property(writer, "NATIVE_PREFIX_IDENTITY", NativePrefixAssets.identity(this, profile.getWinePackage()));
+            property(writer, "NATIVE_PREFIX_PREPARATION_IDENTITY", NativePrefixAssets.preparationIdentity(this));
             property(writer, "GAMES_CUSTOM_BOX64_ID",
                 profile.getEnvironment().getOrDefault("GAMES_CUSTOM_BOX64_ID", ""));
             property(writer, "TERMUX_BOX_RESOLUTION", profile.getResolution());
@@ -307,11 +310,20 @@ public final class PrefixSetupForegroundService extends Service {
         writer.write("'\n");
     }
 
+    private void saveTask(PrefixSetupTask task) throws IOException {
+        synchronized (RuntimeEditingStop.LOCK) {
+            RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
+            PrefixSetupTask current = tasks.find(task.getTaskId()).orElse(null);
+            if (current != null && current.getState().isTerminal()) throw new IOException("runtime_task_terminal");
+            tasks.save(task);
+        }
+    }
+
     private PrefixSetupTask transition(PrefixSetupTask task,
                                             RuntimeSetupTaskState state,
                                             String error) throws IOException {
         PrefixSetupTask updated = task.transition(state, error, System.currentTimeMillis());
-        tasks.save(updated);
+        saveTask(updated);
         publish(updated);
         return updated;
     }

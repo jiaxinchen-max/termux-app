@@ -7,6 +7,16 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application>
+        <provider
+            android:name="com.termux.ui.files.BrowserDocumentsProvider"
+            android:authorities="${applicationId}.game-browser.documents"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
         <service android:name="com.termux.ui.wine.service.WineCDriveBackupService" android:exported="false" />
         <service
             android:name="com.termux.ui.desktop.service.DesktopArchiveForegroundService"

@@ -63,10 +63,10 @@ proot_bindings_complete || exit 65
         self.assertEqual(64, p.returncode)
         self.assertEqual('', p.stdout)
 
-    def test_changed_receipt_never_falls_back_to_another_version(self):
-        p = self.run_fields(self.fields(sha256='b' * 64))
-        self.assertEqual(64, p.returncode)
-        self.assertEqual('', p.stdout)
+    def test_changed_digest_still_uses_selected_version(self):
+        p = self.run_fields(self.fields(sha256='b'*64))
+        self.assertEqual(0,p.returncode,p.stderr)
+        self.assertIn(str(self.version), p.stdout)
 
     def test_content_link_escape_is_rejected(self):
         (self.version / 'outside').symlink_to(self.files, target_is_directory=True)

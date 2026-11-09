@@ -111,4 +111,9 @@ public interface LocalGamesHost {
     default void stopLaunch(long pid, boolean force) throws LaunchHostException {
         throw new UnsupportedOperationException("launch_host_stop_not_supported");
     }
+
+    /** Immediately SIGKILL runtime process trees bound to the supplied private paths. */
+    default void forceStopRuntimeProcesses(List<String> paths) throws LaunchHostException {
+        throw new UnsupportedOperationException("runtime_force_stop_not_supported");
+    }
 }

@@ -29,7 +29,7 @@ public class ComponentIndexParserTest {
 
         assertEquals(2, index.getSchemaVersion());
         assertEquals("2026-11-08T23:50:00Z", index.getGeneratedAt());
-        assertEquals(30, index.getComponents().size());
+        assertEquals(29, index.getComponents().size());
         ComponentDescriptor image = index.find("rootfs_debian13_hangover_pdb2_minimal").get();
         assertEquals(ComponentType.IMAGE_FS, image.getType());
         assertTrue(image.isBase());
@@ -44,15 +44,13 @@ public class ComponentIndexParserTest {
         assertEquals("01b6fe94fc711db2e80ea69518e4ebfd613881dbed4d52bdd900b159221784b7",
             image.getSha256());
         assertFalse(index.find("termux-glibc").isPresent());
-        ComponentDescriptor source = index.find("rootfs_hangover_11.16").get();
-        assertEquals(ComponentType.RUNTIME_SUPPORT, source.getType());
-        assertTrue(source.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
-        assertEquals(2, source.getVersion());
-        assertEquals("https://github.com/jiaxinchen-max/termux-app-packages/releases/download/"
-            + "rootfs_hangover_11.16-v2/rootfs_hangover_11.16.tar", source.getUrl());
-        assertEquals(100485120L, source.getSize());
-        assertEquals("ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1",
-            source.getSha256());
+        assertFalse(index.find("rootfs_hangover_11.16").isPresent());
+        assertTrue(index.find("glibc_box64_0.4.4").isPresent());
+        for (String automatic : new String[]{"glibc_scripts_29", "glibc_fonts_1", "glibc_prefix-apps_3",
+                "glibc_box64_0.2.7", "rootfs_debian13_hangover_pdb2_minimal"}) {
+            assertTrue("automatic component must remain available internally but hidden: " + automatic,
+                index.find(automatic).get().isHidden());
+        }
         ComponentDescriptor box64Rootfs = index.find("rootfs_box64_0.4.5").get();
         assertTrue(box64Rootfs.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
         assertEquals(ComponentType.TRANSLATOR, box64Rootfs.getType());
@@ -60,7 +58,6 @@ public class ComponentIndexParserTest {
         // representative selectable one is not.
         assertTrue(box64Rootfs.isHidden());
         assertTrue(index.find("rootfs_box64_0.4.5").get().isHidden());
-        assertTrue(source.isHidden());
         assertFalse(index.find("rootfs_wine_10.0").get().isHidden());
         ComponentDescriptor rootfsDxvk = index.find("rootfs_dxvk_2.7").get();
         assertEquals(ComponentType.DX_WRAPPER, rootfsDxvk.getType());

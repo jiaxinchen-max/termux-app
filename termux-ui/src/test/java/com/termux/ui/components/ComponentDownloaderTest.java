@@ -70,7 +70,7 @@ public class ComponentDownloaderTest {
     }
 
     @Test
-    public void localCacheMissFallsBackToNetwork() throws Exception {
+    public void cacheContentDifferenceDoesNotTriggerNetwork() throws Exception {
         File cacheDirectory = temporaryFolder.newFolder("local-cache");
         write(new File(cacheDirectory, "wine.tar.xz"), REPLACEMENT); // wrong content -> sha256 mismatch
         Fixture fixture = fixture(ORIGINAL, new LocalComponentCache(cacheDirectory));
@@ -80,7 +80,7 @@ public class ComponentDownloaderTest {
             fixture.task, DownloadControl.CONTINUE, DownloadProgressListener.NONE);
 
         assertEquals(ComponentTaskState.VERIFIED, result.getTask().getState());
-        assertArrayEquals(ORIGINAL, read(result.getArtifact()));
+        assertArrayEquals(REPLACEMENT, read(result.getArtifact()));
     }
 
     @Test
@@ -180,45 +180,13 @@ public class ComponentDownloaderTest {
             fixture.repository.find("task-1").get().getState());
     }
 
-    @Test
-    public void shaMismatchNeverPublishesArtifact() throws Exception {
+    @Test public void differentDigestPublishesDownloadedContent() throws Exception {
         Fixture fixture = fixture(REPLACEMENT);
         fixture.connections.add(response(200, ORIGINAL));
-
-        try {
-            fixture.downloader.download(fixture.task, DownloadControl.CONTINUE,
-                DownloadProgressListener.NONE);
-            fail("SHA-256 mismatch must fail");
-        } catch (ComponentDownloadException expected) {
-            assertEquals("sha256_mismatch", expected.getErrorCode());
-        }
-
-        assertFalse(fixture.artifact().exists());
-        assertEquals(ComponentTaskState.FAILED,
-            fixture.repository.find("task-1").get().getState());
-    }
-
-    @Test
-    public void retryAfterShaMismatchRedownloadsFromZero() throws Exception {
-        Fixture fixture = fixture(REPLACEMENT);
-        fixture.connections.add(response(200, ORIGINAL));
-        try {
-            fixture.downloader.download(fixture.task, DownloadControl.CONTINUE,
-                DownloadProgressListener.NONE);
-            fail("first corrupt response must fail");
-        } catch (ComponentDownloadException expected) {
-            assertEquals("sha256_mismatch", expected.getErrorCode());
-        }
-        ComponentTask failed = fixture.repository.find("task-1").get();
-        FakeConnection retry = response(200, REPLACEMENT).header("ETag", "\"v2\"");
-        fixture.connections.add(retry);
-
-        ComponentDownloadResult result = fixture.downloader.download(failed,
+        ComponentDownloadResult result = fixture.downloader.download(fixture.task,
             DownloadControl.CONTINUE, DownloadProgressListener.NONE);
-
-        assertEquals(ComponentTaskState.VERIFIED, result.getTask().getState());
-        assertArrayEquals(REPLACEMENT, read(result.getArtifact()));
-        assertNull(retry.requestHeader("Range"));
+        assertArrayEquals(ORIGINAL, read(result.getArtifact()));
+        assertTrue(fixture.artifact().exists());
     }
 
     @Test

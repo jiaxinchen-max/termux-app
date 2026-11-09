@@ -156,17 +156,25 @@ public class LaunchPreflightEvaluatorTest {
     }
 
     @Test
-    public void rootfsRequiresExactVersionForEveryPinnedComponent() throws Exception {
+    public void rootfsRequiresExactNumericVersionForEveryPinnedComponent() throws Exception {
         for (String id : new String[] {RootfsSetupRecipe.IMAGE_COMPONENT}) {
             ComponentIndex index = rootfsIndex();
             Map<String, InstalledComponentVersion> installed = rootfsInstalled(index);
-            installed.put(id, new InstalledComponentVersion(1, OTHER_SHA));
+            installed.put(id, new InstalledComponentVersion(2, SHA));
 
             LaunchPreflightResult result = evaluateRootfs(index, installed);
 
             assertFalse(id, result.isReady());
             assertTrue(id, hasSubject(result, PreflightIssueCode.COMPONENT_VERSION_MISMATCH, id));
         }
+    }
+
+    @Test
+    public void rootfsDoesNotGateLaunchOnDigestDifferences() throws Exception {
+        ComponentIndex index = rootfsIndex();
+        Map<String, InstalledComponentVersion> installed = rootfsInstalled(index);
+        installed.put(RootfsSetupRecipe.IMAGE_COMPONENT, new InstalledComponentVersion(1, OTHER_SHA));
+        assertTrue(evaluateRootfs(index, installed).isReady());
     }
 
     @Test

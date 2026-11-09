@@ -30,6 +30,10 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class GameUninstallerTest {
+    private final com.termux.ui.api.LocalGamesHost stoppingHost = new com.termux.ui.api.LocalGamesHost() {
+        public boolean isRuntimeAvailable() { return true; }
+        public void forceStopRuntimeProcesses(java.util.List<String> paths) {}
+    };
 
     @Rule public final TemporaryFolder temporary = new TemporaryFolder();
 
@@ -37,7 +41,7 @@ public class GameUninstallerTest {
     public void defaultUninstallKeepsAllOptionalPrivateAndExternalContent() throws Exception {
         Fixture fixture = fixture("default-files", "game-1");
 
-        new GameUninstaller(fixture.files).execute(
+        new GameUninstaller(fixture.files, stoppingHost).execute(
             GameUninstallPlan.keepPrivateAssets(fixture.gameId));
 
         assertFalse(fixture.games.find(fixture.gameId).isPresent());
@@ -48,21 +52,26 @@ public class GameUninstallerTest {
     }
 
     @Test
-    public void activeTaskBlocksUninstallBeforeAnyMutation() throws Exception {
+    public void activeTaskIsCancelledBeforeUninstall() throws Exception {
         File files = temporary.newFolder("active-uninstall-files");
         GameStoragePaths paths = new GameStoragePaths(files);
         FileGameRepository games = new FileGameRepository(paths.getLibraryDirectory());
         games.save(game("game-3", "content://external/game-3"));
-        new FileLaunchTaskRepository(paths.getLaunchTasksDirectory()).save(
-            LaunchTask.queued("active-task", "game-3", 1));
-
-        try {
-            new GameUninstaller(files).execute(GameUninstallPlan.keepPrivateAssets("game-3"));
-            fail("active task must block uninstall");
-        } catch (IOException expected) {
-            assertEquals("game_asset_task_active", expected.getMessage());
-        }
-        assertTrue(games.find("game-3").isPresent());
+        FileLaunchTaskRepository tasks = new FileLaunchTaskRepository(paths.getLaunchTasksDirectory());
+        tasks.save(LaunchTask.queued("active-task", "game-3", 1));
+        final boolean[] killed = {false};
+        com.termux.ui.api.LocalGamesHost host = new com.termux.ui.api.LocalGamesHost() {
+            public boolean isRuntimeAvailable() { return true; }
+            public void forceStopRuntimeProcesses(java.util.List<String> scopes) {
+                try {
+                    assertTrue(games.find("game-3").isPresent());
+                    assertEquals(LaunchTaskState.CANCELLED, tasks.find("active-task").get().getState());
+                } catch (IOException error) { throw new AssertionError(error); }
+                killed[0] = true;
+            }
+        };
+        new GameUninstaller(files, host).execute(GameUninstallPlan.keepPrivateAssets("game-3"));
+        assertTrue(killed[0]); assertFalse(games.find("game-3").isPresent());
     }
 
     @Test
@@ -80,7 +89,7 @@ public class GameUninstallerTest {
             .save(rootfsProfile("game-indep", containerId));
         write(new File(paths.getContainersDirectory(), containerId + ".properties"), "id");
 
-        new GameUninstaller(files).execute(GameUninstallPlan.keepPrivateAssets("game-indep"));
+        new GameUninstaller(files, stoppingHost).execute(GameUninstallPlan.keepPrivateAssets("game-indep"));
 
         assertFalse(games.find("game-indep").isPresent());
         assertFalse(new File(paths.getContainersDirectory(), containerId + ".properties").exists());
@@ -100,7 +109,7 @@ public class GameUninstallerTest {
         profiles.save(rootfsProfile("game-b", containerId));
         write(new File(paths.getContainersDirectory(), containerId + ".properties"), "id");
 
-        new GameUninstaller(files).execute(GameUninstallPlan.keepPrivateAssets("game-a"));
+        new GameUninstaller(files, stoppingHost).execute(GameUninstallPlan.keepPrivateAssets("game-a"));
 
         assertFalse(games.find("game-a").isPresent());
         // game-b still uses it, so the shared container record must survive.
@@ -120,7 +129,7 @@ public class GameUninstallerTest {
         write(new File(paths.getContainersDirectory(),
             com.termux.ui.wine.domain.GameContainer.DEFAULT_ID + ".properties"), "id");
 
-        new GameUninstaller(files).execute(GameUninstallPlan.keepPrivateAssets("game-glibc"));
+        new GameUninstaller(files, stoppingHost).execute(GameUninstallPlan.keepPrivateAssets("game-glibc"));
 
         assertFalse(games.find("game-glibc").isPresent());
         assertTrue(new File(paths.getContainersDirectory(),

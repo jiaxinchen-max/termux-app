@@ -318,6 +318,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
 
         LorieView previousLorieView = mX11DisplayController.getLorieView();
         if (previousLorieView != null) {
+            previousLorieView.releaseDisplaySurface();
             previousLorieView.clearCallback();
             previousLorieView.setLorieHost(null);
         }
@@ -442,6 +443,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         mX11ServerConnector.detach();
         LorieView lorieView = mX11DisplayController.getLorieView();
         if (lorieView != null) {
+            lorieView.releaseDisplaySurface();
             lorieView.clearCallback();
             lorieView.setLorieHost(null);
         }
@@ -902,10 +904,19 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     }
 
     public void onResume() {
+        LorieViewRuntimeRegistry.register(this);
+        LoriePreferences.prefs = prefs;
+        KeyInterceptor.setActivity(this);
         if (mX11DisplayController.getLorieView() != null) {
             setTerminalToolbarView();
+            getLorieView().refreshDisplaySurface();
             getLorieView().requestFocus();
         }
+    }
+
+    @Override
+    public boolean isActiveX11Display() {
+        return LorieViewRuntimeRegistry.isCurrent(this);
     }
 
     public void onPause() {
@@ -1189,6 +1200,12 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
             if (!connected && reconnectIfDisconnected) {
                 mX11ServerConnector.tryConnect();
             } else if (connected) {
+                // Surface/layout callbacks may run before the connection exists. Re-send the
+                // selected logical size for both legacy X11 and the external render bridge.
+                getLorieView().refreshViewport();
+                if (isActiveX11Display())
+                    Log.i("X11DisplayGeometry", "connected mode=" + prefs.displayResolutionMode.get()
+                        + " target=" + prefs.displayResolutionCustom.get());
                 getLorieView().setPointerIcon(PointerIcon.getSystemIcon(mActivity, PointerIcon.TYPE_NULL));
                 openPreference(false);
             }

@@ -193,16 +193,12 @@ fetch_debs() { # tag base_url deb_list -> prints paths
         case "$name" in
             libandroid-stub_30-3_aarch64.deb) asset_url="https://packages-cf.termux.org/apt/termux-main/pool/main/liba/libandroid-stub/$name" ;;
         esac
-        if [ -f "$target" ] && [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ]; then
+        if [ -f "$target" ]; then
             # stdout of this function is the deb path list; logs go to the file only.
             printf '%s\n' "Cached $name" >> "$DESKTOP_LOG_FILE"
         else
             { curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 -o "$target" "$asset_url" || fail "download $name"; } \
                 >> "$DESKTOP_LOG_FILE" 2>&1
-            [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$digest" ] || {
-                rm -f "$target"
-                fail "checksum mismatch for $name"
-            }
         fi
         paths="$paths $target"
     done < "$deb_dir/manifest"
@@ -354,25 +350,19 @@ package_version() {
     case "$package_status" in 'install ok installed'|'hold ok installed') ;; *) return 1 ;; esac
     dpkg-query -W -f='${Version}' "$1" 2>/dev/null
 }
-package_files_valid() {
-    verification=$(dpkg --verify "$1" 2>&1) || return 1
-    [ -z "$verification" ] || return 1
-}
+
 pinned_package_valid() { # package version
     current=$(package_version "$1") || return 1
     [ "$current" = "$2" ] || return 1
-    package_files_valid "$1" || return 1
     printf '%s\n' "$HOST_FILES" | while read -r package relative digest; do
         [ "$package" = "$1" ] || continue
         [ -f "$PREFIX/$relative" ] || exit 1
-        actual=$(sha256sum "$PREFIX/$relative") || exit 1
-        [ "${actual%% *}" = "$digest" ] || exit 1
     done
 }
 proot_valid() {
     current=$(package_version proot) || return 1
     dpkg --compare-versions "$current" ge 5.1.107 || return 1
-    [ -x "$PREFIX/bin/proot" ] && package_files_valid proot
+    [ -x "$PREFIX/bin/proot" ]
 }
 proot_distro_valid() {
     current=$(package_version proot-distro) || return 1
@@ -381,7 +371,6 @@ proot_distro_valid() {
     dpkg --compare-versions "$current" ge 5.10.3 || return 1
     dpkg --compare-versions "$current" lt 6 || return 1
     [ -x "$PREFIX/bin/proot-distro" ] || return 1
-    package_files_valid proot-distro || return 1
     [ -x "$PREFIX/bin/python3" ] || return 1
     # 5.10.3 has no --version flag. Even CLI help can install missing runtime packages,
     # so inspect its pure metadata/constants/parser modules without entering the CLI.

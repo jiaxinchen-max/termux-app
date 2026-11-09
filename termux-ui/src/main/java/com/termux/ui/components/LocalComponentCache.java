@@ -1,21 +1,14 @@
 package com.termux.ui.components;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Locale;
 
 /**
  * Best-effort local recovery for component downloads: a fixed, user-writable directory (see
  * {@code ComponentTaskForegroundService.requireCoordinator()}) that a user can manually drop
  * previously-downloaded component archives into, keyed by the archive's own filename (the last
  * path segment of the component's download URL) so no internal componentId/version naming
- * convention needs to be known. A hit still requires a SHA-256 match against the component's
- * expected digest -- an unverifiable file is never trusted.
+ * convention needs to be known. Cache hits use the archive basename and directory confinement.
  */
 public final class LocalComponentCache {
 
@@ -28,17 +21,17 @@ public final class LocalComponentCache {
         this.directory = directory;
     }
 
-    /** Returns the matching local file, or null if the directory/file/digest doesn't check out.
-     *  Never recurses into subdirectories and never trusts an empty or malformed digest. */
+    /** Returns the matching local file, or null if the directory/file does not exist.
+     *  Never recurses into subdirectories or follows a file outside the cache. */
     public File find(String url, String expectedSha256) {
-        if (expectedSha256 == null || !expectedSha256.matches("[0-9a-f]{64}")) return null;
         String filename = basename(url);
         if (filename.isEmpty()) return null;
         if (!directory.isDirectory()) return null;
         File candidate = new File(directory, filename);
         if (!candidate.isFile()) return null;
         try {
-            return expectedSha256.equals(sha256(candidate)) ? candidate : null;
+            if (!candidate.getCanonicalFile().equals(new File(directory.getCanonicalFile(), filename))) return null;
+            return candidate;
         } catch (IOException error) {
             return null;
         }
@@ -54,24 +47,4 @@ public final class LocalComponentCache {
         return name.contains("..") ? "" : name;
     }
 
-    private static String sha256(File file) throws IOException {
-        MessageDigest digest;
-        try {
-            digest = MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException error) {
-            throw new IOException("SHA-256 is unavailable", error);
-        }
-        try (InputStream input = new BufferedInputStream(new FileInputStream(file))) {
-            byte[] buffer = new byte[BUFFER_SIZE];
-            int read;
-            while ((read = input.read(buffer)) != -1) {
-                digest.update(buffer, 0, read);
-            }
-        }
-        StringBuilder value = new StringBuilder(64);
-        for (byte item : digest.digest()) {
-            value.append(String.format(Locale.US, "%02x", item & 0xff));
-        }
-        return value.toString();
-    }
 }

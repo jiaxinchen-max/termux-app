@@ -61,11 +61,12 @@ public final class LocalGames {
         return intent;
     }
 
-    /** Opens the component view scoped to one game's selected runtime backend. */
+    /** Opens core environment settings for an explicit runtime backend. */
     @NonNull
-    public static Intent createComponentsIntent(@NonNull Context context, @NonNull String gameId) {
+    public static Intent createCoreComponentsIntent(@NonNull Context context,
+            @NonNull com.termux.ui.wine.domain.GameRuntimeBackendType backend) {
         return new Intent(context, LocalGamesActivity.class)
-            .putExtra(LocalGamesActivity.EXTRA_COMPONENT_GAME_ID, gameId);
+            .putExtra(LocalGamesActivity.EXTRA_CORE_BACKEND, backend.getStorageValue());
     }
 
     /** Opens the file manager used to browse private games and the mounted shared storage tree,

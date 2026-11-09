@@ -41,7 +41,10 @@ require_native_wine_runtime() {
 resolve_native_box64() {
     NATIVE_GLIBC_LOADER="$TERMUX_GLIBC_DIR/lib/ld-linux-aarch64.so.1"
     case "${GAMES_CUSTOM_BOX64_ID:-}" in
-        '') NATIVE_BOX64_BIN="$TERMUX_GLIBC_DIR/bin/box64" ;;
+        '') NATIVE_BOX64_BIN="$TERMUX_GLIBC_DIR/components/glibc_box64_0.2.7/bin/box64" ;;
+        glibc_box64_0.2.7|glibc_box64_0.4.4)
+            NATIVE_BOX64_BIN="$TERMUX_GLIBC_DIR/components/$GAMES_CUSTOM_BOX64_ID/bin/box64"
+            ;;
         custom-box64-?*)
             case "$GAMES_CUSTOM_BOX64_ID" in *[!A-Za-z0-9._-]*) native_component_error box64_selection_invalid; return 1 ;; esac
             NATIVE_BOX64_BIN="$TERMUX_GLIBC_DIR/components/$GAMES_CUSTOM_BOX64_ID/bin/box64"

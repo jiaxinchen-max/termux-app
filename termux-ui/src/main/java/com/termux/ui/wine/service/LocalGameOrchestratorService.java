@@ -1,5 +1,6 @@
 package com.termux.ui.wine.service;
 
+import com.termux.ui.wine.runtime.RuntimeEditingStop;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -146,7 +147,15 @@ public final class LocalGameOrchestratorService extends Service {
         super.onDestroy();
     }
 
+    private void saveTask(LaunchTask task) throws IOException {
+        synchronized (RuntimeEditingStop.LOCK) {
+            RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
+            tasks.save(task);
+        }
+    }
+
     private void prepareAndStart(String taskId) throws Exception {
+        RuntimeEditingStop.requireNotCancelled(getFilesDir(), taskId);
         if (submitted.contains(taskId)) return;
         if (!preparing.add(taskId)) return;
         try {
@@ -196,17 +205,20 @@ public final class LocalGameOrchestratorService extends Service {
                 codec.write(specFile, spec);
                 task = task.withEnvironmentFingerprint(codec.fingerprint(spec),
                     System.currentTimeMillis());
-                tasks.save(task);
+                saveTask(task);
             } else {
                 spec = codec.read(specFile);
             }
             GameRuntimeBackend backend = backendRegistry.require(spec.getRuntimeBackendType());
             File script = new LaunchScriptInstaller(this, paths).install(backend);
             task = task.touch(Math.max(task.getUpdatedAt(), System.currentTimeMillis()));
-            tasks.save(task);
+            saveTask(task);
+            synchronized (RuntimeEditingStop.LOCK) {
+                RuntimeEditingStop.requireNotCancelled(getFilesDir(), taskId);
             host.startLaunch(new LaunchRequest(taskId, script.getCanonicalPath(),
                 specFile.getCanonicalPath(), paths.getRuntimeDirectory().getCanonicalPath(),
                 spec.getLaunchExecutionMode()));
+            }
             submitted.add(taskId);
             publish(task);
         } finally {
@@ -217,15 +229,19 @@ public final class LocalGameOrchestratorService extends Service {
     private void cancel(String taskId, boolean force) throws Exception {
         LaunchTask task = requiredTask(taskId);
         if (task.getState().isTerminal()) return;
-        if (task.getPid() <= 0) {
-            cancelTask(task, "cancelled_before_host_start");
-            return;
-        }
         if (force) {
-            host.stopLaunch(task.getPid(), true);
-            waitForHostExit(task.getPid(), 500);
+            // The spec path matches the launcher command and the inherited session marker.
+            // Freeze/kill its entire tree and detached children before publishing a terminal state.
+            host.forceStopRuntimeProcesses(Collections.singletonList(specFile(taskId).getCanonicalPath()));
+            // Suppress an Android host command that was submitted but has not spawned yet.
+            File marker = cancelFile(taskId);
+            if (!marker.getParentFile().isDirectory() && !marker.getParentFile().mkdirs())
+                throw new IOException("cancel_directory_failed");
+            if (!marker.createNewFile() && !marker.isFile()) throw new IOException("cancel_record_failed");
             cancelTask(task, "force_cancelled");
             cleanupKnownLock(taskId, task.getPid());
+        } else if (task.getPid() <= 0) {
+            cancelTask(task, "cancelled_before_host_start");
         } else {
             host.stopLaunch(task.getPid(), false);
         }
@@ -236,7 +252,7 @@ public final class LocalGameOrchestratorService extends Service {
         LaunchTask updated = stateMachine.observeDisplayConnection(current, connected,
             System.currentTimeMillis());
         if (updated != current) {
-            tasks.save(updated);
+            saveTask(updated);
             publish(updated);
         }
     }
@@ -245,7 +261,7 @@ public final class LocalGameOrchestratorService extends Service {
         LaunchTask current = requiredTask(taskId);
         LaunchTask updated = stateMachine.confirmFirstFrame(current, System.currentTimeMillis());
         if (updated != current) {
-            tasks.save(updated);
+            saveTask(updated);
             publish(updated);
         }
     }
@@ -282,7 +298,7 @@ public final class LocalGameOrchestratorService extends Service {
         File eventFile = eventFile(current.getTaskId());
         for (LaunchEvent event : eventReader.readAfter(eventFile, current.getLastEventSequence())) {
             current = stateMachine.apply(current, event);
-            tasks.save(current);
+            saveTask(current);
             publish(current);
             if (current.getState().isTerminal()) {
                 onTerminal(current);
@@ -319,7 +335,9 @@ public final class LocalGameOrchestratorService extends Service {
             }
         }
         File marker = cancelFile(task.getTaskId());
-        if (marker.isFile() && !marker.delete()) Log.w(TAG, "Unable to remove cancel marker");
+        // Cancelled tasks retain their marker so a delayed Android command cannot restart them.
+        if (task.getState() != LaunchTaskState.CANCELLED && marker.isFile() && !marker.delete())
+            Log.w(TAG, "Unable to remove cancel marker");
     }
 
     private void failTask(String taskId, String errorCode, boolean recoverable) {
@@ -331,7 +349,7 @@ public final class LocalGameOrchestratorService extends Service {
                 Math.max(System.currentTimeMillis(), task.getUpdatedAt()), task.getPid(), null,
                 errorCode, recoverable, errorCode, task.getLogRef());
             LaunchTask failed = stateMachine.apply(task, event);
-            tasks.save(failed);
+            saveTask(failed);
             publish(failed);
             onTerminal(failed);
         } catch (Exception persistenceError) {
@@ -345,7 +363,7 @@ public final class LocalGameOrchestratorService extends Service {
             Math.max(System.currentTimeMillis(), task.getUpdatedAt()), task.getPid(), null,
             "", false, message, task.getLogRef());
         LaunchTask cancelled = stateMachine.apply(task, event);
-        tasks.save(cancelled);
+        saveTask(cancelled);
         publish(cancelled);
         onTerminal(cancelled);
     }
@@ -353,9 +371,11 @@ public final class LocalGameOrchestratorService extends Service {
     private void cleanupKnownLock(String taskId, long expectedPid) {
         File lock = new File(paths.getLaunchLocksDirectory(), taskId);
         File pid = new File(lock, "pid");
-        File config = new File(lock, "bootstrap.conf");
         if (pid.isFile() && !pid.delete()) Log.w(TAG, "Unable to remove task lock pid");
-        if (config.isFile() && !config.delete()) Log.w(TAG, "Unable to remove bootstrap config");
+        for (String name : new String[] {"bootstrap.conf", "termux-box-game.conf"}) {
+            File config = new File(lock, name);
+            if (config.isFile() && !config.delete()) Log.w(TAG, "Unable to remove task config");
+        }
         if (lock.isDirectory() && !lock.delete()) Log.w(TAG, "Unable to remove task lock");
         File global = new File(getFilesDir(), "usr/glibc/termux-box/run/glibc-wine.lock");
         File globalPid = new File(global, "pid");
@@ -371,24 +391,18 @@ public final class LocalGameOrchestratorService extends Service {
         }
     }
 
-    private void waitForHostExit(long pid, long timeoutMillis) {
-        long deadline = System.currentTimeMillis() + timeoutMillis;
-        while (host.isProcessAlive(pid) && System.currentTimeMillis() < deadline) {
-            try { Thread.sleep(25); }
-            catch (InterruptedException error) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-        }
-    }
-
     private boolean ensureGlibcPrefix(String launchTaskId, Game game, RuntimeProfile profile)
         throws Exception {
         FilePrefixSetupTaskRepository prefixTasks = new FilePrefixSetupTaskRepository(
             paths.getPrefixSetupTasksDirectory());
-        String setupTaskId = PrefixSetupTasks.enqueue(this, game.getId());
+        String setupTaskId;
+        synchronized (RuntimeEditingStop.LOCK) {
+            RuntimeEditingStop.requireNotCancelled(getFilesDir(), launchTaskId);
+            setupTaskId = PrefixSetupTasks.enqueue(this, game.getId());
+        }
         long deadline = System.currentTimeMillis() + PREFIX_PREPARE_TIMEOUT_MS;
         while (System.currentTimeMillis() < deadline) {
+            RuntimeEditingStop.requireNotCancelled(getFilesDir(), launchTaskId);
             if (cancelFile(launchTaskId).isFile()) {
                 cancelTask(requiredTask(launchTaskId), "cancelled_during_runtime_prepare");
                 return false;

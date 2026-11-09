@@ -12,13 +12,10 @@ import com.termux.ui.wine.service.RootfsBackupForegroundService;
 import com.termux.ui.wine.service.RootfsSetupForegroundService;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 /** Atomically deploys versioned module scripts into private executable storage. */
 public final class LaunchScriptInstaller {
@@ -50,7 +47,8 @@ public final class LaunchScriptInstaller {
     private static final String CUSTOM_GLIBC_WINE_INSTALL_ASSET =
         "local-games/install_custom_glibc_wine_component.sh";
     private static final String[] X_SERVER_ASSETS = {
-        "x_server_common.sh", "x_server_legacy.sh", "x_server_xlorie.sh"};
+        "x_server_common.sh", "x_server_legacy.sh", "x_server_xlorie.sh",
+        "x_server_dimensions.py"};
     private static final String XLORIE_INSTALL_ASSET = "local-games/xlorie_install.sh";
     private static final String X_SERVER_MANIFEST_ASSET = "local-games/x-server-packages.txt";
     private static final String DESKTOP_COMMON_ASSET = "local-games/desktop_common.sh";
@@ -266,18 +264,6 @@ public final class LaunchScriptInstaller {
         if (!runtimeDirectory.isDirectory() && !runtimeDirectory.mkdirs()) {
             throw new IOException("launch_runtime_directory_failed");
         }
-        byte[] expected;
-        try (InputStream input = context.getAssets().open(asset)) {
-            expected = digest(input);
-        }
-        if (target.isFile()) {
-            try (InputStream input = new FileInputStream(target)) {
-                if (MessageDigest.isEqual(expected, digest(input))) {
-                    chmod(target);
-                    return;
-                }
-            }
-        }
         File temporary = new File(runtimeDirectory, target.getName() + ".tmp");
         try (InputStream input = context.getAssets().open(asset);
              FileOutputStream output = new FileOutputStream(temporary)) {
@@ -311,17 +297,6 @@ public final class LaunchScriptInstaller {
         }
     }
 
-    private static byte[] digest(InputStream input) throws IOException {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] buffer = new byte[16384];
-            int count;
-            while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count);
-            return digest.digest();
-        } catch (NoSuchAlgorithmException impossible) {
-            throw new IllegalStateException("SHA-256 unavailable", impossible);
-        }
-    }
 
     private static void chmod(File file) throws IOException {
         try { Os.chmod(file.getPath(), 0700); }

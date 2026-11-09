@@ -35,23 +35,23 @@ public class LocalComponentCacheTest {
     }
 
     @Test
-    public void rejectsShaMismatch() throws Exception {
+    public void acceptsDifferentDigest() throws Exception {
         File directory = temporaryFolder.newFolder();
         write(new File(directory, "wine.tar.xz"), CONTENT);
         LocalComponentCache cache = new LocalComponentCache(directory);
 
-        assertNull(cache.find("https://example.invalid/wine.tar.xz",
+        assertEquals(new File(directory, "wine.tar.xz"), cache.find("https://example.invalid/wine.tar.xz",
             sha256("different".getBytes(StandardCharsets.UTF_8))));
     }
 
     @Test
-    public void rejectsEmptyOrMalformedDigest() throws Exception {
+    public void doesNotRequireDigestForCacheRecovery() throws Exception {
         File directory = temporaryFolder.newFolder();
         write(new File(directory, "wine.tar.xz"), CONTENT);
         LocalComponentCache cache = new LocalComponentCache(directory);
 
-        assertNull(cache.find("https://example.invalid/wine.tar.xz", ""));
-        assertNull(cache.find("https://example.invalid/wine.tar.xz", "not-a-hash"));
+        assertEquals(new File(directory, "wine.tar.xz"), cache.find("https://example.invalid/wine.tar.xz", ""));
+        assertEquals(new File(directory, "wine.tar.xz"), cache.find("https://example.invalid/wine.tar.xz", "not-a-hash"));
     }
 
     @Test

@@ -593,6 +593,7 @@ public class LorieView extends SurfaceView implements InputStub {
         }
 
         @Override public void surfaceChanged(@NonNull SurfaceHolder holder, int f, int width, int height) {
+            if (!isActiveDisplay()) return;
             LorieView.this.surfaceChanged(holder.getSurface());
             width = getMeasuredWidth();
             height = getMeasuredHeight();
@@ -602,7 +603,7 @@ public class LorieView extends SurfaceView implements InputStub {
         }
 
         @Override public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
-            LorieView.this.surfaceChanged(null);
+            if (isActiveDisplay()) LorieView.this.surfaceChanged(null);
         }
     };
 
@@ -707,6 +708,10 @@ public class LorieView extends SurfaceView implements InputStub {
         }
     }
 
+    private boolean isActiveDisplay() {
+        return hasLorieHost() && getLorieHost().isActiveX11Display();
+    }
+
     void getDimensionsFromSettings(int width, int height) {
         Prefs prefs = getLorieHost().getX11Prefs();
         int w = width;
@@ -758,7 +763,7 @@ public class LorieView extends SurfaceView implements InputStub {
     }
 
     private void updateViewport() {
-        if (mCallback == null || !hasLorieHost())
+        if (mCallback == null || !isActiveDisplay())
             return;
 
         Prefs prefs = getLorieHost().getX11Prefs();
@@ -813,6 +818,12 @@ public class LorieView extends SurfaceView implements InputStub {
         int top = baseTop + panY;
 
         viewport.set(left, top, left + drawW, top + drawH);
+        String geometry = "surface=" + surfaceW + "x" + surfaceH
+            + " source=" + p.x + "x" + p.y + " viewport=" + viewport.toShortString();
+        if (!geometry.equals(lastLoggedGeometry)) {
+            Log.i("X11DisplayGeometry", geometry);
+            lastLoggedGeometry = geometry;
+        }
         screenInfo.handleViewportChanged(viewport.left, viewport.top, viewport.width(), viewport.height(), p.x, p.y);
         setViewport(viewport.left, viewport.top, viewport.width(), viewport.height(), p.x, p.y);
         if (cursorLocker != null && cursorLocker.isEnabled())
@@ -822,6 +833,20 @@ public class LorieView extends SurfaceView implements InputStub {
 
     public void refreshViewport() {
         updateViewport();
+    }
+
+    private String lastLoggedGeometry;
+
+    /** Reclaim an existing Surface after returning from another embedded X11 host. */
+    public void refreshDisplaySurface() {
+        if (!isActiveDisplay()) return;
+        Surface surface = getHolder().getSurface();
+        if (surface != null && surface.isValid()) surfaceChanged(surface);
+        updateViewport();
+    }
+
+    void releaseDisplaySurface() {
+        if (isActiveDisplay()) surfaceChanged(null);
     }
 
     private void movePointerToVisibleCenter() {

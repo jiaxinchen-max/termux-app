@@ -17,19 +17,47 @@ import java.util.Locale;
 
 /** Keeps Native prefix resources in the verified component store, outside the GLIBC runtime. */
 final class NativePrefixAssets {
+    interface AssetReader { InputStream open(String path) throws IOException; }
+
     static String bundleSha256(Context context, String wine) throws IOException {
-        NativePrebuiltPrefixes.componentId(wine);
-        return assetHash(context, "local-games/native-prefix/" + wine + "/bundle.json");
+        return identity(context, wine);
     }
 
     static String identity(Context context, String wine) throws IOException {
+        return identity(path -> context.getAssets().open(path), wine);
+    }
+
+    /** The bundle binds Wine, architecture, runtime files and restoration assets, not scripts. */
+    static String identity(AssetReader assets, String wine) throws IOException {
+        NativePrebuiltPrefixes.componentId(wine);
+        return assetHash(assets, "local-games/native-prefix/" + wine + "/bundle.json");
+    }
+
+    static String preparationIdentity(Context context) throws IOException {
+        return preparationIdentity(path -> context.getAssets().open(path));
+    }
+
+    static String preparationIdentity(AssetReader assets) throws IOException {
         MessageDigest digest = sha256();
-        digest.update(bundleSha256(context, wine).getBytes(java.nio.charset.StandardCharsets.US_ASCII));
         for (String asset : new String[]{"bootstrap_termux_box.sh", "local-games/restore_wine_prefix.py",
                 "local-games/glibc_prefix_extras.sh", "local-games/native_runtime_components.sh"}) {
-            digest.update(assetHash(context, asset).getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+            digest.update(assetHash(assets, asset).getBytes(java.nio.charset.StandardCharsets.US_ASCII));
         }
         return hex(digest.digest());
+    }
+
+    static boolean isPrepared(Context context, String wine, File prefix) throws IOException {
+        return isPrepared(path -> context.getAssets().open(path), wine, prefix);
+    }
+
+    static boolean isPrepared(AssetReader assets, String wine, File prefix) throws IOException {
+        return hasMarker(new File(prefix, ".games-runtime/prepared-identity"))
+            && hasMarker(new File(prefix, ".games-runtime/preparation-script-identity"));
+    }
+
+    private static boolean hasMarker(File file) {
+        if (!file.isFile() || file.length() != 65) return false;
+        return true;
     }
 
     static File requireInstalled(Context context, String wine) throws IOException {
@@ -51,8 +79,7 @@ final class NativePrefixAssets {
             if (!wine.equals(metadata.getString("winePackage")) ||
                 !id.equals(metadata.getString("prefixComponentId")) ||
                 !"glibc_termux_box".equals(metadata.getString("backend")) ||
-                metadata.getInt("componentVersion") != selected.getVersion() ||
-                !metadata.getString("sourceComponentSha256").equals(selected.getSha256())) {
+                metadata.getInt("componentVersion") != selected.getVersion()) {
                 throw new IOException("native_prefix_metadata_mismatch");
             }
         } catch (org.json.JSONException error) {
@@ -65,17 +92,16 @@ final class NativePrefixAssets {
                 .orElseThrow(() -> new IOException("native_prefix_component_unknown"));
             InstalledComponent installed = reader.read(component).getActive()
                 .orElseThrow(() -> new IOException("native_prefix_component_missing"));
-            if (installed.getVersion() != descriptor.getVersion() ||
-                !installed.getSha256().equals(descriptor.getSha256())) {
+            if (installed.getVersion() != descriptor.getVersion()) {
                 throw new IOException("native_prefix_component_mismatch");
             }
         }
         return reader.read(id).getActive().get().getDirectory().getCanonicalFile();
     }
 
-    private static String assetHash(Context context, String path) throws IOException {
+    private static String assetHash(AssetReader assets, String path) throws IOException {
         MessageDigest digest = sha256();
-        try (InputStream input = context.getAssets().open(path)) {
+        try (InputStream input = assets.open(path)) {
             byte[] buffer = new byte[32768]; int count;
             while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count);
         }

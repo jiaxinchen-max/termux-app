@@ -128,3 +128,18 @@ GlibcRuntimeComponentPreparer 的计划首先包含 GlibcTermuxBoxBackend.termux
 安装器在官方包及必要库安装并验证后，检查glibc下zh_CN.utf8和zh_CN.gbk的非空LC_CTYPE数据；缺失则清除旧完成标记、启用locale.gen对应项，使用glibc/bin优先PATH执行一次locale-gen并等待自然结束。命令失败或任何数据缺失立即发布FAILED，不写就绪标记；数据齐全后原子发布原有games-zh-cn-locale-v1标记，再报告基础环境成功。已有有效数据直接复用。host探针、环境展示及prefix就绪检查统一要求标记和两种locale数据有效；仅有工具仍不认为glibc已装。旧环境缺locale通过已有基础安装链路补齐，不在游戏脚本生成，不增技术选项。字体仍由prefix资产提供，PRoot不变。
 
 用户2026-11-09“批准执行”确认本增量规划与保护路径：基础安装脚本、host及界面就绪、prefix准备与启动的locale检查。回滚用上一APK，保留已生成locale与prefix，不修改外部资产身份。测试实际安装脚本夹具覆盖首次生成/复用/命令失败/错误成功/旧标记损坏；实际bootstrap及启动夹具证明缺失立即失败且未运行locale-gen，定向JVM就绪及正常原名arm64 APK检查。用户手动安装后通过App验收，不自动部署、Git操作或归档。
+
+## Native prefix数据与准备过程身份分离（已批准，无兼容）
+NativePrefixAssets的数据身份直接返回所选bundle.json的SHA256，继续由bundle绑定Wine、架构、组件和资产摘要；四个准备脚本的摘要独立计算为preparation-script-identity。新建prefix的prepared-identity必须等于bundle摘要；Python恢复器和bootstrap均拒绝不一致输入。prefix服务只有两种身份及现有locale/字体/完成状态均有效才直接就绪。脚本摘要变化只触发现有bootstrap：验证数据身份，运行既有图形/字体检查，然后原子发布新的准备脚本标记，不运行Wine、wineboot或覆盖prefix数据身份。数据身份不一致立即失败，不迁移任何旧标记，不重建。
+用户“修复并继续”及“不用考虑向前兼容”为本修复及保护路径授权：NativePrefixAssets、prefix服务、bootstrap和Native恢复器。风险为数据配方若发生语义变化必须更新bundle；脚本更新不得隐含改变数据格式。回滚恢复上版APK并按全新prefix验证，不迁移新旧身份。测试覆盖脚本变更不改变数据身份但触发准备、bundle/运行时元数据变化改变数据身份、旧/错身份拒绝且保留目标、新建与复用、准备失败不发布新脚本标记。修复后提供同名正常arm64 APK，由用户安装；仅经App清理测试prefix并重新准备验证，不覆盖设备脚本。
+
+## 首次安装locale配置空白修正（属于已批准13.1）
+实际官方locale.gen含zh_CN.GBK GBK及zh_CN.UTF-8 UTF-8行尾空格，原grep -Fx误判缺项。仅对两个精确locale/字符集的整行配置启用注释，并按空白分隔字段验证；接受行首/行尾空格及制表符，不匹配近似locale名、其他字符集或缺失项。保留其他locale配置，仍执行官方locale-gen自然结束并校验两份非空LC_CTYPE后才原子发布成功标记。保护路径仍为已批准的基础安装脚本；回滚恢复上一APK，保留已安装包，不改设备脚本或失败标记。测试以本次官方尾随空格复现，覆盖制表符/已启用行及缺项/错字段拒绝；设备失败后不重试，只交付正常同名APK供手动安装。
+
+## Native libXrandr安装闭环（2026-11-09已批准）
+在install_termux_glibc_runtime.sh现有图形依赖批次增加libxrandr-glibc，要求glibc/lib/libXrandr.so.2为非空普通文件；包命令失败或缺失/空文件/目录立即FAILED，不继续locale生成或发布成功。TermuxRuntimeComponentProbe真实能力及RuntimeEnvironmentStatus就绪展示同步要求该非空文件。使用官方AArch64 glibc包，不链接Bionic或PRoot路径。已通过App实测的设备补装只作为依赖选择证据，不冒充新APK首次安装验收。
+保护路径为Native基础安装、host探针及界面就绪；用户当前要求及原缺库补齐授权覆盖此范围。影响是缺库环境不能误报Ready，需经既有基础准备安装。回滚恢复上一APK，保留已安装包和prefix；不改外部资产、prefix数据/脚本身份。验证生产安装器隔离夹具的成功安装、包失败及缺失/空/目录产物，JVM验证host和界面一致拒绝假就绪，源码复核后编译原名正常arm64 APK；验签、testOnly=false、包内脚本一致、外部资产不变及完整下载校验。用户手动安装后的App验收单列Pending。Harness严格门禁因脚本缺失记Unavailable。
+
+## 常用压缩工具随基础环境安装
+在现有官方基础包命令中显式加入zip、unzip、tar、gzip、bzip2、xz-utils、zstd，保留7zip；对应命令是7z、zip、unzip、tar、gzip、bzip2、xz、zstd。包命令失败立即终止，安装后逐项校验命令可执行，缺失不能报告成功；host探针和界面就绪同步要求这些工具，避免已装glibc跳过补齐。全部位于PREFIX/bin，PRoot及Wine资产不变；不改变prefix或locale生成职责，不做回退、重建或兼容迁移。
+本增量属于用户直接指定安装行为及此前基础依赖补齐授权，保护路径仍为Native基础安装、host和界面就绪。回滚上一APK，保留已安装包及游戏数据。验证正确包名请求、包失败、安装错误成功后逐工具缺失/不可执行拒绝；JVM覆盖其余前提齐全时逐工具缺失的host/界面结果。构建原名正常arm64 APK并核验来源、签名、非testOnly及下载摘要；设备验收由用户手动执行，严格Harness脚本缺失记Unavailable。Wine选择缺口是独立待确认变更，本增量不擅自实施。

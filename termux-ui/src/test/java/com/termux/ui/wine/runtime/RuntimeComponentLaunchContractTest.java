@@ -38,6 +38,32 @@ public final class RuntimeComponentLaunchContractTest {
         assertFalse(result.output.contains("wrong-loader-executed"));
     }
 
+    @Test public void twoGamesExecuteDifferentInstalledBox64BuildsAndKeepTheirSelection() throws Exception {
+        File root = temporary.newFolder();
+        executable(root, "glibc/lib/ld-linux-aarch64.so.1", "#!/bin/sh\nshift 2\nexec \"$@\"\n");
+        executable(root, "glibc/components/glibc_box64_0.2.7/bin/box64", "#!/bin/sh\nprintf '0.2.7|%s\\n' \"$1\"\n");
+        executable(root, "glibc/components/glibc_box64_0.4.4/bin/box64", "#!/bin/sh\nprintf '0.4.4|%s\\n' \"$1\"\n");
+        executable(root, "glibc/bin/box64", "#!/bin/sh\necho wrong-global\n");
+        Result result = run(root, false,
+            "GAMES_CUSTOM_BOX64_ID=glibc_box64_0.2.7; resolve_native_box64; native_run_box64 game-a.exe; " +
+            "GAMES_CUSTOM_BOX64_ID=glibc_box64_0.4.4; resolve_native_box64; native_run_box64 game-b.exe; " +
+            "GAMES_CUSTOM_BOX64_ID=glibc_box64_0.2.7; resolve_native_box64; native_run_box64 game-a.exe; " +
+            "GAMES_CUSTOM_BOX64_ID=; resolve_native_box64; native_run_box64 default-game.exe");
+        assertEquals(result.output, 0, result.code);
+        assertEquals("0.2.7|game-a.exe\n0.4.4|game-b.exe\n0.2.7|game-a.exe\n0.2.7|default-game.exe\n", result.output);
+    }
+
+    @Test public void missingBuiltInVersionNeverUsesTheOtherVersionOrSharedBinary() throws Exception {
+        File root = temporary.newFolder();
+        executable(root, "glibc/lib/ld-linux-aarch64.so.1", "#!/bin/sh\necho wrong-loader-executed\n");
+        executable(root, "glibc/components/glibc_box64_0.2.7/bin/box64", "#!/bin/sh\necho wrong-default-executed\n");
+        executable(root, "glibc/bin/box64", "#!/bin/sh\necho wrong-shared-executed\n");
+        Result result = run(root, false, "GAMES_CUSTOM_BOX64_ID=glibc_box64_0.4.4; resolve_native_box64; native_run_box64 game.exe");
+        assertNotEquals(0, result.code);
+        assertTrue(result.output.contains("box64_selected_binary_missing:glibc_box64_0.4.4"));
+        assertFalse(result.output.contains("executed"));
+    }
+
     @Test public void nativeDirect3dVersionsStayInTheirOwnProfileAndNeverFollowGlobalDllLinks() throws Exception {
         File root = temporary.newFolder();
         dxvk(root, "custom-dxvk-a", "version-a");

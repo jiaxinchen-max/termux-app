@@ -259,7 +259,10 @@ public final class WineCDriveArchive {
         else if (kind == 3) fs.link(fs.readLink(source), target);
         else if (kind == 1) {
             try (InputStream input = fs.read(source); OutputStream output = fs.create(target)) {
-                byte[] bytes = new byte[65536]; int n; while ((n = input.read(bytes)) != -1) output.write(bytes, 0, n);
+                byte[] bytes = new byte[65536]; int n;
+                while ((n = input.read(bytes)) != -1) {
+                    checkInterrupt(); output.write(bytes, 0, n);
+                }
             }
         } else throw fail("cdrive_file_type");
         if (kind != 3) {

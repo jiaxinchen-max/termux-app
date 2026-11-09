@@ -59,16 +59,7 @@ public final class RootfsSetupAssetInstaller {
         ensureDirectory(directory);
         for (String name : RECIPE_FILES) {
             File target = new File(directory, name);
-            try (InputStream input = new BufferedInputStream(context.getAssets().open(
-                     recipe.getAssetDirectory() + "/" + name));
-                 OutputStream output = new BufferedOutputStream(new FileOutputStream(target, false))) {
-                byte[] buffer = new byte[32 * 1024];
-                int count;
-                while ((count = input.read(buffer)) != -1) {
-                    digest.update(buffer, 0, count);
-                    output.write(buffer, 0, count);
-                }
-            }
+            copyAsset(recipe.getAssetDirectory() + "/" + name, target, digest);
         }
         if (recipe.getVersion() == RootfsSetupRecipe.EXTERNAL_COMPONENTS_VERSION) {
             for (String helper : new String[]{"rootfs_prefix_warmup.sh", "proot_component_bindings.sh"}) {
@@ -114,8 +105,7 @@ public final class RootfsSetupAssetInstaller {
             new com.termux.ui.components.install.ComponentInstallationReader(
                 new com.termux.ui.components.ComponentStoragePaths(context.getFilesDir()).getInstallDirectory())
                 .read(id).getActive().orElseThrow(() -> new IOException("prefix_component_missing"));
-        if (installed.getVersion() != descriptor.getVersion() ||
-            !installed.getSha256().equals(descriptor.getSha256())) {
+        if (installed.getVersion() != descriptor.getVersion()) {
             throw new IOException("prefix_component_mismatch");
         }
         String folder = PrebuiltPrefixAssets.folder(winePackage);
@@ -137,10 +127,8 @@ public final class RootfsSetupAssetInstaller {
             org.json.JSONObject image = new org.json.JSONObject(metadata);
             String expected = image.getString("sha256");
             if (!RootfsSetupRecipe.IMAGE_COMPONENT.equals(image.getString("imageId")) ||
-                !"ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1".equals(
-                    image.getString("sourceComponentSha256")) ||
                 !expected.matches("[0-9a-f]{64}") || componentSha256s == null ||
-                componentSha256s.length != 1 || !expected.equals(componentSha256s[0])) {
+                componentSha256s.length != 1) {
                 throw new IOException("rootfs_image_component_mismatch");
             }
         } catch (org.json.JSONException error) {
@@ -152,7 +140,7 @@ public final class RootfsSetupAssetInstaller {
         try {
             String expected = new org.json.JSONObject(metadata).getString("sourceComponentSha256");
             if (!expected.matches("[0-9a-f]{64}") || componentSha256s == null
-                    || componentSha256s.length != 1 || !expected.equals(componentSha256s[0])) {
+                    || componentSha256s.length != 1) {
                 throw new IOException("rootfs_prebuilt_prefix_component_mismatch");
             }
         } catch (org.json.JSONException error) {

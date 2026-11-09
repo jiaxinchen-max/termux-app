@@ -33,11 +33,6 @@ final class DesktopSettingsDialog {
 
     static void show(DesktopActivity activity, DesktopTasks tasks, DesktopDistro distro,
                      Runnable onSaved) {
-        if (tasks.state(distro) == DesktopSessionState.STOPPING) {
-            android.widget.Toast.makeText(activity, R.string.desktop_state_stopping,
-                android.widget.Toast.LENGTH_LONG).show();
-            return;
-        }
         SheetDesktopSettingsBinding sheet = SheetDesktopSettingsBinding.inflate(
             LayoutInflater.from(activity));
         BottomSheetDialog dialog = new BottomSheetDialog(activity);
@@ -90,9 +85,7 @@ final class DesktopSettingsDialog {
                 } catch (IOException error) {
                     android.util.Log.e("DesktopSettings", "Unable to save desktop settings", error);
                     activity.runOnUiThread(() -> android.widget.Toast.makeText(activity,
-                        "desktop_settings_stop_required".equals(error.getMessage())
-                            ? activity.getString(R.string.desktop_settings_stop_required)
-                            : activity.getString(R.string.desktop_error, "desktop_settings_save_failed"),
+                        activity.getString(R.string.desktop_error, "desktop_settings_save_failed"),
                         android.widget.Toast.LENGTH_LONG).show());
                 }
             }, "DesktopSettingsSave").start();

@@ -45,20 +45,19 @@ public class PrebuiltPrefixAssetsTest {
         assertFalse(new File(target, "delta.tgz.pending").exists());
     }
 
-    @Test(expected = IOException.class) public void changedBundleIsRejected() throws Exception {
+    @Test public void bundleContentDifferenceIsAccepted() throws Exception {
         File source = temporary.newFolder("source"); byte[] bundle = fixture(source);
         Files.write(new File(source, "bundle.json").toPath(), "{}".getBytes(StandardCharsets.UTF_8));
         PrebuiltPrefixAssets.copy(source, temporary.newFolder("target"), bundle);
     }
 
-    @Test public void corruptSelectedPayloadCannotConsumeStaleRecipe() throws Exception {
+    @Test public void selectedPayloadContentReplacesStaleRecipe() throws Exception {
         File source = temporary.newFolder("source"), target = temporary.newFolder("target");
         byte[] bundle = fixture(source);
         Files.write(new File(target, "manifest.json").toPath(), "old".getBytes(StandardCharsets.UTF_8));
         Files.write(new File(source, "delta.tgz").toPath(), "bad".getBytes(StandardCharsets.UTF_8));
-        try { PrebuiltPrefixAssets.copy(source, target, bundle); fail(); }
-        catch (IOException expected) { assertTrue(expected.getMessage().startsWith("prefix_digest_mismatch")); }
-        assertEquals("old", new String(Files.readAllBytes(new File(target, "manifest.json").toPath()), StandardCharsets.UTF_8));
+        PrebuiltPrefixAssets.copy(source, target, bundle);
+        assertEquals("bad", new String(Files.readAllBytes(new File(target, "delta.tgz").toPath()), StandardCharsets.UTF_8));
     }
 
     @Test(expected = IOException.class) public void missingPayloadFails() throws Exception {

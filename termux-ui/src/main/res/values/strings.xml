@@ -149,7 +149,7 @@
     <string name="local_game_detail_delete_failed">Unable to remove this game: %1$s</string>
     <string name="local_game_detail_edit_help">Working directory shows its actual path. Choose the game folder or an existing subfolder. Saving prepares the selected runtime and Wine prefix; launch arguments are saved separately.</string>
     <string name="local_game_file_manager_title">Game files</string>
-    <string name="local_game_file_manager_help">Browse the app\'s own private storage or the mounted shared storage tree. Tap a file to see its details; long-press a file to import it as a game.</string>
+    <string name="local_game_file_manager_help">Browse private or shared storage. Long-press a file or folder to open, copy, cut or delete it. Long-press blank space to act on the current folder. Paste and Show hidden files are in the toolbar menu. The three root folders cannot be operated on.</string>
     <string name="local_game_file_manager_import_as_game">Import as game</string>
     <string name="local_game_import_configuration_title">New game configuration · runtime</string>
     <string name="local_game_configuration_executable">%1$s · %2$s</string>
@@ -243,8 +243,8 @@
     <string name="local_games_component_state_queued">Queued</string>
     <string name="local_games_component_state_downloading">Downloading</string>
     <string name="local_games_component_state_paused">Paused</string>
-    <string name="local_games_component_state_verifying">Verifying</string>
-    <string name="local_games_component_state_verified">Verified</string>
+    <string name="local_games_component_state_verifying">Checking files</string>
+    <string name="local_games_component_state_verified">Downloaded</string>
     <string name="local_games_component_state_installing">Installing</string>
     <string name="local_games_component_state_installed">Installed</string>
     <string name="local_games_component_state_failed">Failed</string>
@@ -309,7 +309,7 @@
     <string name="local_game_session_keyboard">Keyboard</string>
     <string name="local_game_session_exit">Exit</string>
     <string name="local_game_session_exit_title">Exit the game?</string>
-    <string name="local_game_session_exit_message">The game, Wine, audio and display processes will be stopped safely.</string>
+    <string name="local_game_session_exit_message">This will terminate the game, Wine, audio and display processes. Unsaved progress may be lost.</string>
     <string name="local_game_session_exit_confirm">Exit game</string>
     <string name="local_game_session_input_unavailable">The frozen touch profile is unavailable; X11 input remains active.</string>
     <string name="local_game_session_task_missing">This game session no longer exists.</string>
@@ -377,7 +377,6 @@
     <string name="local_game_launch_repair_components">Repair runtime components</string>
     <string name="local_game_launch_diagnostics">View diagnostics</string>
     <string name="local_game_launch_hide_diagnostics">Hide diagnostics</string>
-    <string name="local_game_session_menu">Control center</string>
     <string name="local_game_session_controls_title">Session control center</string>
     <string name="local_game_session_operation">Operation</string>
     <string name="local_game_session_performance">Performance</string>
@@ -491,6 +490,8 @@
     <string name="local_game_runtime_env_invalid">Variable name or value is invalid</string>
     <string name="local_game_runtime_advanced_box64_preset">Box64 preset</string>
     <string name="local_game_runtime_advanced_box64_build">Box64 build</string>
+    <string name="local_game_runtime_hangover_emulator">Hangover translation mode (32-bit)</string>
+    <string name="local_game_runtime_hangover_64bit">64-bit translation</string>
     <string name="local_game_runtime_advanced_startup">Startup option</string>
     <string name="local_game_runtime_advanced_app_shell">App shell</string>
     <string name="local_game_runtime_advanced_terminal">Terminal session</string>
@@ -688,4 +689,32 @@
     <string name="local_game_assets_build_cache">Runtime build cache</string>
     <string name="local_game_runtime_backend_subtitle">Backend: %1$s</string>
     <string name="local_game_runtime_backend_unavailable">Backend unavailable</string>
+    <string name="local_game_card_wine">Wine: %1$s</string>
+    <string name="component_versions_preinstalled">Included with container</string>
+    <string name="component_versions_preinstalled_ready">Preinstalled in the container</string>
+    <string name="component_versions_preinstalled_pending">Included with container; saving prepares the container</string>
+    <string name="component_versions_preinstalled_incomplete">Preinstalled; container is not ready</string>
+    <string name="local_game_session_exit_failed">Could not stop the game</string>
+    <string name="local_game_session_exit_failed_message">The game may still be running. Open the game editor to stop its processes before trying again.</string>
+
+    <!-- Embedded browser operations. -->
+    <string name="browser_open">Open</string>
+    <string name="browser_copy">Copy</string>
+    <string name="browser_cut">Cut</string>
+    <string name="browser_delete">Delete</string>
+    <string name="browser_paste">Paste here</string>
+    <string name="browser_paste_named">Paste “%1$s” here</string>
+    <string name="browser_cancel_clipboard">Cancel copy / cut</string>
+    <string name="browser_show_hidden">Show hidden files</string>
+    <string name="browser_working">Working…</string>
+    <string name="browser_cut_pending">Cut “%1$s”; paste in the destination folder to move it.</string>
+    <string name="browser_copy_pending">Copied “%1$s”; choose a destination folder and paste.</string>
+    <string name="browser_no_open_app">No application can open this file type or folder.</string>
+    <string name="browser_delete_confirm">Permanently delete “%1$s”? A folder and everything inside it will be deleted.</string>
+    <string name="browser_operation_failed">The file operation failed.</string>
+    <string name="browser_conflict">The destination already contains an item with this name. Nothing was overwritten.</string>
+    <string name="browser_inside_source">Choose another destination. A folder cannot be pasted into itself or its subfolders.</string>
+    <string name="browser_protected_root">This root directory cannot be used for this operation.</string>
+    <string name="browser_move_partial">The destination was copied, but removing the source failed or stopped partway through. Check both locations.</string>
+    <string name="browser_delete_partial">Deletion failed or stopped partway through. Check the folder before retrying.</string>
 </resources>

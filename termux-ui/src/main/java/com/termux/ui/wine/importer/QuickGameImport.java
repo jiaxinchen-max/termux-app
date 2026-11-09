@@ -18,19 +18,19 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.UUID;
 
-/** Creates an independent configuration for each import, even when the EXE is already in the library.
+/** Stages an independent draft for each import, even when the EXE is already in the library.
  * The chosen file supplies the root and executable; it never identifies an existing configuration.
  * Runtime preparation starts when the user saves the imported configuration. */
 public final class QuickGameImport {
 
     private QuickGameImport() {}
 
-    public static String importGame(GameRepository games, RuntimeProfileRepository profiles,
-            GameContainerRepository containers, File pickedFile, GameRuntimeBackendType backend)
+    public static String importGame(File filesDirectory, File pickedFile, GameRuntimeBackendType backend)
             throws IOException {
+        GameImportDrafts drafts = new GameImportDrafts(filesDirectory);
         File parent = pickedFile.getParentFile();
         if (parent == null) throw new IOException("game_root_missing");
-        return createConfiguration(games, profiles, containers, Uri.fromFile(parent).toString(),
+        return createConfiguration(drafts.games(), drafts.profiles(), drafts.containers(), Uri.fromFile(parent).toString(),
             pickedFile.getName(), backend);
     }
 
@@ -60,7 +60,7 @@ public final class QuickGameImport {
             default:
                 throw new IllegalArgumentException("unsupported_runtime_backend:" + backend);
         }
-        // Publish the library record only after its runtime settings and container are durable.
+        // These repositories belong to the draft store; Save publishes to the actual library.
         profiles.save(profile);
         games.save(game);
         return id;

@@ -165,20 +165,6 @@ validate_private_path "$LOG_PATH"
 validate_private_path "$LOCK_PATH"
 validate_private_path "$CANCEL_PATH"
 
-mkdir -p "$(dirname "$EVENT_PATH")" "$(dirname "$LOG_PATH")" \
-    "$(dirname "$LOCK_PATH")" "$(dirname "$CANCEL_PATH")"
-: > "$EVENT_PATH"
-: > "$LOG_PATH"
-if [ "$LAUNCH_EXECUTION_MODE" = terminal_session ]; then
-    printf 'Local Games task: %s\nLog: %s\n\n' "$TASK_ID" "$LOG_PATH"
-    tail -n +1 -f "$LOG_PATH" &
-    LOG_TAIL_PID=$!
-fi
-exec >> "$LOG_PATH" 2>&1
-PS4='+ '
-set -x
-printf '%s\n' 'Verbose command tracing enabled.'
-
 emit() {
     SEQUENCE=$((SEQUENCE + 1))
     state=$1
@@ -193,6 +179,29 @@ emit() {
         "$TASK_ID" "$SEQUENCE" "$state" "$stage" "$progress" "$now" "$$" \
         "$exit_code" "$error_code" "$recoverable" "$message" "$LOG_PATH" >> "$EVENT_PATH"
 }
+
+# Internal ownership marker inherited by every child, even after reparenting.
+GAMES_SESSION_SPEC=$(realpath "$SPEC_PATH") || fail_before_events launch_spec_missing
+export GAMES_SESSION_SPEC
+
+mkdir -p "$(dirname "$EVENT_PATH")" "$(dirname "$LOG_PATH")" \
+    "$(dirname "$LOCK_PATH")" "$(dirname "$CANCEL_PATH")"
+: > "$EVENT_PATH"
+: > "$LOG_PATH"
+# Late host commands must not create display/audio/Wine after cancellation.
+if [ -e "$CANCEL_PATH" ]; then
+    emit CANCELLED COMPLETE 100 null cancelled false cancelled_before_host_start
+    exit 0
+fi
+if [ "$LAUNCH_EXECUTION_MODE" = terminal_session ]; then
+    printf 'Local Games task: %s\nLog: %s\n\n' "$TASK_ID" "$LOG_PATH"
+    tail -n +1 -f "$LOG_PATH" &
+    LOG_TAIL_PID=$!
+fi
+exec >> "$LOG_PATH" 2>&1
+PS4='+ '
+set -x
+printf '%s\n' 'Verbose command tracing enabled.'
 
 terminal_failure() {
     emit FAILED COMPLETE 100 "${2:-null}" "$1" "${3:-false}" "$1"

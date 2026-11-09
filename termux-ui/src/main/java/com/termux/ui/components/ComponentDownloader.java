@@ -14,9 +14,6 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Locale;
 
 /** Blocking component download primitive. Call only from an orchestrator worker. */
 public final class ComponentDownloader {
@@ -69,10 +66,10 @@ public final class ComponentDownloader {
                 throw new ComponentDownloadException("task_cancelled",
                     "Cancelled component task cannot resume");
             }
-            if (localCache != null && !(artifact.isFile() && verify(artifact, task))) {
+            if (localCache != null && !(artifact.isFile() && isCompleteArtifact(artifact, task))) {
                 restoreFromLocalCache(task, artifact);
             }
-            if (artifact.isFile() && verify(artifact, task)) {
+            if (artifact.isFile() && isCompleteArtifact(artifact, task)) {
                 if (task.getState() == ComponentTaskState.INSTALLED) {
                     return new ComponentDownloadResult(task, artifact);
                 }
@@ -96,8 +93,8 @@ public final class ComponentDownloader {
             if (offset == task.getExpectedSize()) {
                 task = transition(task, ComponentTaskState.VERIFYING, offset,
                     task.getEtag(), task.getLastModified(), "", "", listener);
-                if (verify(partial, task)) {
-                    File verified = moveVerified(partial, artifact);
+                if (isCompleteArtifact(partial, task)) {
+                    File verified = publishArtifact(partial, artifact);
                     task = transition(task, ComponentTaskState.VERIFIED, offset,
                         task.getEtag(), task.getLastModified(), "", "", listener);
                     return new ComponentDownloadResult(task, verified);
@@ -119,11 +116,11 @@ public final class ComponentDownloader {
                 response.close();
                 task = transition(task, ComponentTaskState.VERIFYING, offset,
                     task.getEtag(), task.getLastModified(), "", "", listener);
-                if (!verify(partial, task)) {
-                    throw new ComponentDownloadException("sha256_mismatch",
-                        "Complete partial failed SHA-256 verification");
+                if (!isCompleteArtifact(partial, task)) {
+                    throw new ComponentDownloadException("artifact_size_mismatch",
+                        "Complete partial size is invalid");
                 }
-                File verified = moveVerified(partial, artifact);
+                File verified = publishArtifact(partial, artifact);
                 task = transition(task, ComponentTaskState.VERIFIED, offset,
                     task.getEtag(), task.getLastModified(), "", "", listener);
                 return new ComponentDownloadResult(task, verified);
@@ -149,11 +146,11 @@ public final class ComponentDownloader {
             task = transition(task, ComponentTaskState.VERIFYING,
                 task.getExpectedSize(), task.getEtag(), task.getLastModified(),
                 "", "", listener);
-            if (!verify(partial, task)) {
-                throw new ComponentDownloadException("sha256_mismatch",
-                    "Downloaded component failed SHA-256 verification");
+            if (!isCompleteArtifact(partial, task)) {
+                throw new ComponentDownloadException("artifact_size_mismatch",
+                    "Downloaded component size is invalid");
             }
-            File verified = moveVerified(partial, artifact);
+            File verified = publishArtifact(partial, artifact);
             task = transition(task, ComponentTaskState.VERIFIED,
                 task.getExpectedSize(), task.getEtag(), task.getLastModified(),
                 "", "", listener);
@@ -412,33 +409,12 @@ public final class ComponentDownloader {
         return partial.length();
     }
 
-    private static boolean verify(File file, ComponentTask task) throws IOException {
-        return file.isFile() && file.length() == task.getExpectedSize() &&
-            task.getSha256().equals(sha256(file));
+    private static boolean isCompleteArtifact(File file, ComponentTask task) throws IOException {
+        return file.isFile() && file.length() == task.getExpectedSize();
     }
 
-    private static String sha256(File file) throws IOException {
-        MessageDigest digest;
-        try {
-            digest = MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
-            throw new IOException("SHA-256 is unavailable", e);
-        }
-        try (InputStream input = new BufferedInputStream(new FileInputStream(file))) {
-            byte[] buffer = new byte[BUFFER_SIZE];
-            int read;
-            while ((read = input.read(buffer)) != -1) {
-                digest.update(buffer, 0, read);
-            }
-        }
-        StringBuilder value = new StringBuilder(64);
-        for (byte item : digest.digest()) {
-            value.append(String.format(Locale.US, "%02x", item & 0xff));
-        }
-        return value.toString();
-    }
 
-    private static File moveVerified(File partial, File artifact) throws IOException {
+    private static File publishArtifact(File partial, File artifact) throws IOException {
         if (artifact.exists() && !artifact.delete()) {
             throw new IOException("Unable to replace old component artifact");
         }

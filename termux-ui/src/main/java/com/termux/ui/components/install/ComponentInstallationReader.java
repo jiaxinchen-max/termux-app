@@ -56,8 +56,7 @@ public final class ComponentInstallationReader {
         }
         InstalledComponent component = readVersion(packageRoot, packageName,
             safeDirectory(canonical.getName()));
-        if (component == null || component.getVersion() != version ||
-            !component.getSha256().equals(sha256)) {
+        if (component == null || component.getVersion() != version ) {
             throw invalid("Frozen component identity mismatch");
         }
         return component;
