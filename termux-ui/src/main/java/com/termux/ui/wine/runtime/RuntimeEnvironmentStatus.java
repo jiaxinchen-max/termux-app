@@ -18,7 +18,7 @@ public final class RuntimeEnvironmentStatus {
 
     /** Checks base markers and required tools verified by install_termux_glibc_runtime.sh.
      *  No base markers is NOT_READY even if shared tools are preinstalled; READY also
-     *  requires executable Python and 7z. Partial or missing prerequisites are INCOMPLETE. */
+     *  requires executable Python/7z and verified shared Chinese locale data. Partial or missing prerequisites are INCOMPLETE. */
     public RuntimeReadinessState glibcState() {
         File prefix = paths.getTermuxPrefixDirectory();
         File glibc = new File(prefix, "glibc");
@@ -35,7 +35,8 @@ public final class RuntimeEnvironmentStatus {
         if (present == 0) return RuntimeReadinessState.NOT_READY;
         if (present == markers.length
             && new File(prefix, "bin/python").canExecute()
-            && new File(prefix, "bin/7z").canExecute()) return RuntimeReadinessState.READY;
+            && new File(prefix, "bin/7z").canExecute()
+            && NativeGlibcLocale.isReady(glibc)) return RuntimeReadinessState.READY;
         return RuntimeReadinessState.INCOMPLETE;
     }
 

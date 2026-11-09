@@ -59,3 +59,7 @@ API 文档 N/A：复用已有静态资产下载接口，不改变 HTTP 契约。
 ## Native 解压工具遗漏修复（用户确认）
 
 App实测完成基础安装及免wineboot的prefix恢复后，因缺少7z在图形归档解压阶段失败。用户要求“修复”，确认将Termux官方7zip纳入基础依赖、安装完成检查及真实主机就绪探针。HTTP契约不变，api_docs=N/A；Native首次准备可用性变化，product_docs=Required且最终一致性保持Pending。
+
+## 中文locale归属基础安装（2026-11-09用户批准）
+
+中文locale为Native主机glibc的公共资源，移至官方基础环境安装阶段生成并核验；游戏prefix准备及启动只读检查并设置LANG/LC_ALL，不得调用locale-gen/localedef。基础安装失败必须终止，不隐式回退。无HTTP契约变更，api_docs=N/A；首次安装及就绪规则变化，product_docs=Required，docs/product/runtime-components.md和wine-library.md最终一致性与用户接受保持Pending。

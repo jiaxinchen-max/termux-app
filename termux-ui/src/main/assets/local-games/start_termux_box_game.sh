@@ -40,8 +40,8 @@ mkdir -p "$TERMUX_BOX_TRACE_DIR"
 mkdir -p "$TERMUX_BOX_ROOT" "$TERMUX_BOX_RUN_DIR"
 
 # ---- Helpers ----
-# ensure_games_wine_fonts / ensure_games_cjk_locale: done when the game is imported or saved (by the prefix
-# setup task); here they are only a marker check, kept as a safety net for prefixes that predate that step.
+# Fonts come from the prebuilt prefix; shared locales are prepared during glibc installation.
+# These helpers only verify readiness and select the locale; they never generate or repair it.
 GAMES_RUNTIME_SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$GAMES_RUNTIME_SCRIPT_DIR/glibc_prefix_extras.sh"
 . "$GAMES_RUNTIME_SCRIPT_DIR/native_runtime_components.sh"
@@ -494,7 +494,7 @@ if [ ! -e "$WINEPREFIX/.termux-box-bootstrap-done" ]; then
     exit 1
 fi
 ensure_games_wine_fonts || exit 1
-ensure_games_cjk_locale
+ensure_games_cjk_locale || exit 1
 apply_native_dx_component || exit 1
 apply_game_options
 

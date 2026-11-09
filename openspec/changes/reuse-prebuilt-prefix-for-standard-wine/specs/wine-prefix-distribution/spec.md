@@ -188,3 +188,19 @@ Native termux-glibc 基础依赖 MUST 包含官方7zip的7z可执行文件，脚
 #### Scenario: 就绪展示与必需工具一致
 - **WHEN** glibc基础标记齐全但Python或7z不可执行
 - **THEN** 展示基础环境不完整；仅工具存在但glibc标记全无时仍显示未安装
+
+### Requirement: 中文locale在Native基础安装阶段完成
+
+Native基础安装MUST生成并验证zh_CN UTF-8/GBK locale后才报告成功。host、环境展示及prefix就绪MUST检查完成标记与两种locale的非空LC_CTYPE。prefix准备和游戏启动MUST只检查并消费，不执行locale-gen/localedef。
+
+#### Scenario: 首次安装或locale数据损坏
+- **WHEN** 基础包已安装但任一必需locale数据缺失
+- **THEN** 基础安装流程生成locale并核验，通过后才能准备prefix；命令或核验失败立即终止，不写成功标记
+
+#### Scenario: 已有有效locale
+- **WHEN** UTF-8/GBK数据及完成状态有效
+- **THEN** 基础环境及游戏流程直接复用，不重新生成
+
+#### Scenario: 游戏脚本发现locale不完整
+- **WHEN** prefix准备或启动检查locale失败
+- **THEN** 明确失败，不补装、不生成、不执行Wine或隐式回退

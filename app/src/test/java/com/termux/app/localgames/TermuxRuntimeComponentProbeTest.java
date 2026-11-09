@@ -86,6 +86,13 @@ public class TermuxRuntimeComponentProbeTest {
         assertTrue(sevenZip.setExecutable(false, false));
         assertFalse("A non-executable 7z cannot satisfy the prerequisite", probe.isAvailable("termux-glibc"));
         assertTrue(sevenZip.setExecutable(true, false));
+        assertFalse(probe.isAvailable("termux-glibc"));
+        write(new File(files, "usr/glibc/termux-box/run/games-zh-cn-locale-v1"), "ready");
+        write(new File(files, "usr/glibc/lib/locale/zh_CN.utf8/LC_CTYPE"), "utf8");
+        File gbk = new File(files, "usr/glibc/lib/locale/zh_CN.gbk/LC_CTYPE");
+        write(gbk, "");
+        assertFalse("A stale marker with empty GBK data is not ready", probe.isAvailable("termux-glibc"));
+        write(gbk, "gbk");
         assertTrue(probe.isAvailable("termux-glibc"));
         assertTrue(probe.isAvailable("termux-glibc", 1));
     }

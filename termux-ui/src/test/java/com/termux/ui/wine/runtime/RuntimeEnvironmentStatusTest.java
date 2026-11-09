@@ -67,6 +67,14 @@ public class RuntimeEnvironmentStatusTest {
         assertEquals(RuntimeReadinessState.INCOMPLETE,
             new RuntimeEnvironmentStatus(paths).glibcState());
         assertTrue(sevenzip.setExecutable(true));
+        assertEquals(RuntimeReadinessState.INCOMPLETE,
+            new RuntimeEnvironmentStatus(paths).glibcState());
+        for (String name : new String[] {"termux-box/run/games-zh-cn-locale-v1",
+            "lib/locale/zh_CN.utf8/LC_CTYPE", "lib/locale/zh_CN.gbk/LC_CTYPE"}) {
+            File data = new File(paths.getTermuxPrefixDirectory(), "glibc/" + name);
+            assertTrue(data.getParentFile().isDirectory() || data.getParentFile().mkdirs());
+            java.nio.file.Files.write(data.toPath(), new byte[] {1});
+        }
         assertEquals(RuntimeReadinessState.READY,
             new RuntimeEnvironmentStatus(paths).glibcState());
         assertTrue(python.setExecutable(false));

@@ -150,7 +150,7 @@ class NativeRestoreTests(unittest.TestCase):
     def test_user_cannot_inject_account(self):
         self.meta['windowsUser'] = '../bad'; self.pin(); self.reject('native_user_invalid')
 
-    def bootstrap(self, asynchronous=False):
+    def bootstrap(self, asynchronous=False, locale_ready=True):
         runtime = self.base / 'runtime'
         runtime.mkdir(exist_ok=True)
         root = ASSETS.parents[4]
@@ -172,7 +172,14 @@ class NativeRestoreTests(unittest.TestCase):
         python = self.glibc.parent / 'bin/python'
         python.parent.mkdir(exist_ok=True); python.symlink_to(sys.executable) if not python.exists() else None
         locale = self.glibc / 'termux-box/run/games-zh-cn-locale-v1'
-        locale.parent.mkdir(parents=True, exist_ok=True); locale.touch()
+        if locale_ready:
+            locale.parent.mkdir(parents=True, exist_ok=True); locale.touch()
+            for name in ('zh_CN.utf8', 'zh_CN.gbk'):
+                data=self.glibc/'lib/locale'/name/'LC_CTYPE'
+                data.parent.mkdir(parents=True,exist_ok=True);data.write_bytes(b'locale')
+        generator=self.glibc/'bin/locale-gen'
+        generator.write_text('#!/bin/sh\necho forbidden-locale-generation >&2\nexit 99\n')
+        generator.chmod(0o700)
         config = self.base / 'native.conf'
         config.write_text("TERMUX_BOX_CONTAINER_PREFIX='" + str(self.target) + "'\n"
                           "TERMUX_BOX_WINE_PACKAGE=glibc_wine_10.0\n"
@@ -195,6 +202,13 @@ class NativeRestoreTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.target / 'save.dat').read_text(), 'keep')
         self.assertNotIn('forbidden-wine-execution', result.stderr)
+
+    def test_bootstrap_missing_locale_stops_without_generation_or_prefix_write(self):
+        result=self.bootstrap(locale_ready=False)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('glibc_cjk_locale_missing',result.stdout)
+        self.assertNotIn('forbidden-locale-generation',result.stderr)
+        self.assertFalse(self.target.exists())
 
     def test_real_bootstrap_stops_on_asset_failure_without_recovery(self):
         (self.resource / 'delta.tgz').write_bytes(b'corrupt')

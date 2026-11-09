@@ -54,7 +54,8 @@ final class TermuxRuntimeComponentProbe {
             // Wine's X11 driver needs libX11/libXrender/FreeType beyond the base glibc
             // loader to render a visible window against Xlorie; require them here so an
             // incomplete runtime is reported as not-ready instead of appearing available.
-            return executable(new File(termuxFilesDirectory, "usr/bin/python")) &&
+            return com.termux.ui.wine.runtime.NativeGlibcLocale.isReady(glibcDirectory) &&
+                executable(new File(termuxFilesDirectory, "usr/bin/python")) &&
                 executable(new File(termuxFilesDirectory, "usr/bin/7z")) &&
                 nonEmpty(new File(glibcDirectory, "lib/ld-linux-aarch64.so.1")) &&
                 nonEmpty(new File(glibcDirectory, "lib/libc.so.6")) &&

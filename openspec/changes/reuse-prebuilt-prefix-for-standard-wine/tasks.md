@@ -149,3 +149,16 @@ Proton11出现err:seh:install_bpf低地址映射导致未安装seccomp，按用�
 2026-11-08 用户安装第12组APK后，经完整SHA256核验。全程由真实App界面操作：Native Wine10保存准备自动补装官方7zip 26.06成功，原prefix收据复用；图形归档解压通过，首次中文locale生成后准备成功85.075秒，无wineboot/重建/后端兜底。PE64及新导入PE32均实际显示动态version.dll、中文文件写入及中文GUI PASS；第二配置准备0.154秒直接复用。两次确认OK后均通过App退出返回游戏库，任务按设计CANCELLED/COMPLETE，不冒称自然退出0；最终无Wine/Box64/PRoot/音频进程及启动锁。两次日志均有libXrandr.so.2缺失警告，未阻止本轮GUI/文件冒烟，动态分辨率与相关扩展未验证。10.6所列Wine10范围完成，其余Native Wine版本、具体游戏、3D/音频/硬件及用户最终接受不标完成；产品文档保持Pending。证据evidence/native-sevenzip-app-ui-acceptance.json，截图及动作日志artifacts/native-sevenzip-fix/app-ui-acceptance。无Git操作、设备脚本修改或后台测试。
 
 2026-11-08 用户明确“推送代码”，授权在当前分支提交并推送第10—12组 Native 预生成prefix及基础依赖修复、构建输入/固定描述、测试和本轮验证记录；不包含无关X11子模块修改、本地缓存、设备操作、产品归档或最终接受。
+
+## 第13组：中文locale移至glibc基础安装（已确认）
+
+2026-11-09 用户“批准执行”，确认前述阶段归属及设计，授权安装/准备/启动保护路径调整；不自动提交推送或部署。
+
+- [x] 13.1 将locale生成、输出验证及成功标记发布移入基础安装，缺失/失败立即终止；旧有效数据直接复用。
+- [x] 13.2 同步host、界面及prefix就绪判断，游戏准备和启动只检查并使用locale。
+- [x] 13.3 完成安装失败/错误成功/损坏/复用及游戏无生成回归、JVM验证和源码复核。
+- [x] 13.4 正常构建原名arm64 APK，验证签名/testOnly=false及外部资产身份不变，供手动安装；实际App验收独立Pending。
+
+2026-11-09 第13组本地交付：中文UTF-8/GBK locale已归入Native glibc基础安装，命令自然结束且文件校验通过才发布成功；host/界面/prefix均检查标记和两份非空文件，游戏准备及启动只读检查，缺失立即失败，无wineboot/重建/后端回退。11项实际安装器夹具（含5种错误产物子场景）、23项实际bootstrap夹具、完整启动脚本集成及29项定向JVM测试通过，源码复核无未解决发现。正常原名arm64 APK45647842字节（43.53MiB），SHA256 f63f06341f3f6e9f2d96dafc8267965f078abda6644d5655b8f65cdf26048619；签名有效、testOnly=false、包内4个脚本与源码一致、无prefix压缩包/Python缓存，外部资产描述与HEAD一致。下载目录实际完整GET校验通过。初次Maven镜像502导致构建依赖失败，改用本地init移除不可用镜像后成功，未改项目仓库配置。X11构建自动应用7个子模块补丁，gitlink未变，不属本增量业务修改。证据evidence/native-glibc-locale.json，复核reviews/native-glibc-locale-review.json；严格Harness脚本缺失记Unavailable，实际App手动安装验收及产品接受Pending，无提交/推送/设备部署或归档。
+
+2026-11-09 用户明确“推送代码”，授权在当前分支提交并推送第13组locale安装阶段调整、回归测试及规划记录；不包含X11构建自动生成的7个子模块工作树修改，不包含APK/缓存，不代表App验收、产品最终接受或归档。

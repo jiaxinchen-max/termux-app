@@ -1,4 +1,4 @@
-# Native prebuilt font verification and shared GLIBC locale preparation. Sourced by bootstrap_termux_box.sh, which the prefix
+# Native prebuilt font verification and read-only shared GLIBC locale checks. Sourced by bootstrap_termux_box.sh, which the prefix
 # setup task runs when a game is imported or its runtime options are saved, and by
 # start_termux_box_game.sh. Font verification is read-only; no runtime registry repair.
 #
@@ -28,21 +28,13 @@ ensure_games_wine_fonts() {
     return 1
 }
 
+# Generated and verified by install_termux_glibc_runtime.sh. Never repair at game time.
 ensure_games_cjk_locale() {
-    _locale_marker="$TERMUX_BOX_RUN_DIR/games-zh-cn-locale-v1"
-    if [ ! -f "$_locale_marker" ]; then
-        if [ -x "$GLIBC_BIN/locale-gen" ] && [ -f "$TERMUX_GLIBC_DIR/etc/locale.gen" ]; then
-            echo "Preparing zh_CN UTF-8 and GBK locales"
-            (
-                export PATH="$GLIBC_BIN:$PATH"
-                sed -i 's/^# *zh_CN.GBK GBK/zh_CN.GBK GBK/' "$TERMUX_GLIBC_DIR/etc/locale.gen"
-                sed -i 's/^# *zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' "$TERMUX_GLIBC_DIR/etc/locale.gen"
-                "$GLIBC_BIN/locale-gen"
-            ) || return 0
-            [ -d "$TERMUX_GLIBC_DIR/lib/locale/zh_CN.utf8" ] && : > "$_locale_marker"
-        fi
-    fi
-    if [ -f "$_locale_marker" ]; then
-        export LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8
-    fi
+    [ -f "$TERMUX_BOX_RUN_DIR/games-zh-cn-locale-v1" ] &&
+    [ -f "$TERMUX_GLIBC_DIR/lib/locale/zh_CN.utf8/LC_CTYPE" ] && [ -s "$TERMUX_GLIBC_DIR/lib/locale/zh_CN.utf8/LC_CTYPE" ] &&
+    [ -f "$TERMUX_GLIBC_DIR/lib/locale/zh_CN.gbk/LC_CTYPE" ] && [ -s "$TERMUX_GLIBC_DIR/lib/locale/zh_CN.gbk/LC_CTYPE" ] || {
+        echo "ERROR: glibc_cjk_locale_missing"
+        return 1
+    }
+    export LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8
 }

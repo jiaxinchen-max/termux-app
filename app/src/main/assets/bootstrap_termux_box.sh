@@ -22,6 +22,7 @@ export WINEPREFIX="${TERMUX_BOX_CONTAINER_PREFIX:?native_prefix_path_required}"
 export WINE_PATH="$TERMUX_GLIBC_DIR/${TERMUX_BOX_WINE_PACKAGE:?wine_package_required}"
 resolve_native_box64 || exit 1
 require_native_wine_runtime || exit 1
+ensure_games_cjk_locale || exit 1
 BOOTSTRAP_LOCK="${WINEPREFIX}.bootstrap.lock"
 RESTORE_PID=
 cleanup_bootstrap() {
@@ -83,7 +84,6 @@ fi
 apply_native_graphics_component || exit 1
 apply_native_dx_component || exit 1
 ensure_games_wine_fonts || exit 1
-ensure_games_cjk_locale
 printf '%s\n' "$TERMUX_BOX_WINE_PACKAGE" > "$WINEPREFIX/.termux-box-wine-package"
 touch "$WINEPREFIX/.termux-box-bootstrap-done"
 echo '[bootstrap] Native prebuilt Wine prefix ready without wineboot.'

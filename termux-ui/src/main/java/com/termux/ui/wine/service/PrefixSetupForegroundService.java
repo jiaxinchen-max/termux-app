@@ -224,12 +224,10 @@ public final class PrefixSetupForegroundService extends Service {
         try (BufferedReader reader = new BufferedReader(new FileReader(identity))) {
             if (!NativePrefixAssets.identity(this, profile.getWinePackage()).equals(reader.readLine())) return false;
         }
-        // The one-time game extras (CJK fonts + FontLink, zh_CN locales) are part of "ready": they are
-        // done by the setup task, not at launch. Without these markers an already-bootstrapped prefix
-        // would be reported ready and never get them.
+        // Fonts are prefix assets; locale readiness is owned by the host glibc installer.
         if (!new File(prefix, "termux-boxmeta/games-wine-fonts-v2").isFile() ||
-            !new File(getFilesDir(),
-                "usr/glibc/termux-box/run/games-zh-cn-locale-v1").isFile()) return false;
+            !com.termux.ui.wine.runtime.NativeGlibcLocale.isReady(
+                new File(paths.getTermuxPrefixDirectory(), "glibc"))) return false;
         File runtime = new File(prefix, ".termux-box-wine-package");
         if (!runtime.isFile()) return false;
         try (BufferedReader reader = new BufferedReader(new FileReader(runtime))) {

@@ -63,5 +63,43 @@ if [ ! -f "$PREFIX/glibc/lib/ld-linux-aarch64.so.1" ] || \
     exit 1
 fi
 
+# Locales belong to the shared host runtime, not to a game prefix. Publish readiness
+# only after both required data sets exist; an old marker alone proves nothing.
+prepare_cjk_locale() {
+    locale_root="$PREFIX/glibc/lib/locale"
+    locale_marker="$PREFIX/glibc/termux-box/run/games-zh-cn-locale-v1"
+    locale_data_ready() {
+        [ -f "$locale_root/zh_CN.utf8/LC_CTYPE" ] && [ -s "$locale_root/zh_CN.utf8/LC_CTYPE" ] &&
+        [ -f "$locale_root/zh_CN.gbk/LC_CTYPE" ] && [ -s "$locale_root/zh_CN.gbk/LC_CTYPE" ]
+    }
+    if ! locale_data_ready; then
+        rm -f "$locale_marker" || return 1
+        [ -x "$PREFIX/glibc/bin/locale-gen" ] &&
+        [ -f "$PREFIX/glibc/etc/locale.gen" ] || return 1
+        printf '%s\n' 'Preparing shared glibc zh_CN UTF-8 and GBK locales.'
+        (
+            export PATH="$PREFIX/glibc/bin:$PATH"
+            sed -i 's/^# *zh_CN.GBK GBK/zh_CN.GBK GBK/' "$PREFIX/glibc/etc/locale.gen" || exit 1
+            sed -i 's/^# *zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' "$PREFIX/glibc/etc/locale.gen" || exit 1
+            grep -Fx 'zh_CN.GBK GBK' "$PREFIX/glibc/etc/locale.gen" >/dev/null || exit 1
+            grep -Fx 'zh_CN.UTF-8 UTF-8' "$PREFIX/glibc/etc/locale.gen" >/dev/null || exit 1
+            "$PREFIX/glibc/bin/locale-gen"
+        ) || return 1
+    fi
+    locale_data_ready || return 1
+    mkdir -p "$(dirname "$locale_marker")" || return 1
+    # Keep the existing marker valid for already prepared prefixes.
+    printf '%s\n' 'zh_CN.UTF-8 zh_CN.GBK' > "$locale_marker.tmp.$$" || return 1
+    if ! mv -f "$locale_marker.tmp.$$" "$locale_marker"; then
+        rm -f "$locale_marker.tmp.$$"
+        return 1
+    fi
+}
+if ! run prepare_cjk_locale; then
+    printf '%s\n' 'Termux GLIBC locale preparation or verification failed.' | tee -a "$TERMUX_GLIBC_LOG_FILE"
+    emit FAILED
+    exit 1
+fi
+
 printf '%s\n' 'Official Termux GLIBC runtime is ready.' | tee -a "$TERMUX_GLIBC_LOG_FILE"
 emit SUCCEEDED

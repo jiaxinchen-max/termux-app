@@ -122,3 +122,9 @@ GlibcRuntimeComponentPreparer 的计划首先包含 GlibcTermuxBoxBackend.termux
 官方Termux当前包名7zip（提供/替换p7zip），安装7z可执行文件。沿用现有基础安装任务，将7zip与glibc/glibc-runner/Python一起安装；脚本最终校验及主机termux-glibc探针均要求usr/bin/7z可执行。已有glibc但缺工具的环境因此不再误判就绪，用户再次通过App保存准备时会进入既有基础安装链路；安装或验证失败立即终止，不进入prefix/图形准备。保持原prefix身份和有效恢复收据，不重建、不wineboot、不改已发布资产或设备脚本。修改保护路径为基础安装脚本与主机探针，本轮用户修复授权覆盖该已确认缺陷。回滚恢复前APK，保留组件/用户prefix及已安装包。测试覆盖缺失/不可执行7z、包安装声明及错误成功阻止；正常原名APK构建与资产校验，设备运行须手动安装后经App界面另验。
 
 就绪展示同步核对同一组必需工具：仅基础glibc标记决定是否从未安装；全部基础标记存在且Python/7z均可执行才显示就绪。仅预装Python/7z而无glibc仍为未安装，避免工具误判基础安装状态。不改变既有设置操作或失败恢复策略。
+
+## 中文locale在glibc安装内完成（已批准）
+
+安装器在官方包及必要库安装并验证后，检查glibc下zh_CN.utf8和zh_CN.gbk的非空LC_CTYPE数据；缺失则清除旧完成标记、启用locale.gen对应项，使用glibc/bin优先PATH执行一次locale-gen并等待自然结束。命令失败或任何数据缺失立即发布FAILED，不写就绪标记；数据齐全后原子发布原有games-zh-cn-locale-v1标记，再报告基础环境成功。已有有效数据直接复用。host探针、环境展示及prefix就绪检查统一要求标记和两种locale数据有效；仅有工具仍不认为glibc已装。旧环境缺locale通过已有基础安装链路补齐，不在游戏脚本生成，不增技术选项。字体仍由prefix资产提供，PRoot不变。
+
+用户2026-11-09“批准执行”确认本增量规划与保护路径：基础安装脚本、host及界面就绪、prefix准备与启动的locale检查。回滚用上一APK，保留已生成locale与prefix，不修改外部资产身份。测试实际安装脚本夹具覆盖首次生成/复用/命令失败/错误成功/旧标记损坏；实际bootstrap及启动夹具证明缺失立即失败且未运行locale-gen，定向JVM就绪及正常原名arm64 APK检查。用户手动安装后通过App验收，不自动部署、Git操作或归档。

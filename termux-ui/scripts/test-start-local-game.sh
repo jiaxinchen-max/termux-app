@@ -74,6 +74,11 @@ touch "$TERMUX_ROOT/usr/glibc/opt/libs/mesa/turnip-v2.7z" \
     "$TERMUX_ROOT/usr/glibc/share/fonts/NotoSansCJK-Regular.ttc" \
     "$TERMUX_ROOT/usr/glibc/share/fonts/NotoSerifCJK-Regular.ttc" \
     "$PREFIX_PATH/termux-boxmeta/games-wine-fonts-v2"
+for locale_name in zh_CN.utf8 zh_CN.gbk; do
+    mkdir -p "$TERMUX_ROOT/usr/glibc/lib/locale/$locale_name"
+    printf locale > "$TERMUX_ROOT/usr/glibc/lib/locale/$locale_name/LC_CTYPE"
+done
+touch "$TERMUX_ROOT/usr/glibc/termux-box/run/games-zh-cn-locale-v1"
 mkdir -p "$PREFIX_PATH/drive_c/windows/Fonts"
 touch "$PREFIX_PATH/drive_c/windows/Fonts/NotoSansCJK-Regular.ttc" \
     "$PREFIX_PATH/drive_c/windows/Fonts/NotoSerifCJK-Regular.ttc"
@@ -200,7 +205,8 @@ grep -Fqx "DXVK_CONFIG_FILE=$TERMUX_ROOT/usr/glibc/opt/dxvk.conf" "$ENV_CAPTURE_
 grep -Fqx "FONTCONFIG_PATH=$TERMUX_ROOT/usr/glibc/etc/fonts" "$ENV_CAPTURE_FILE"
 grep -qx 'DXVK_ASYNC=7' "$ENV_CAPTURE_FILE"
 grep -qx 'WINEESYNC=1' "$ENV_CAPTURE_FILE"
-grep -qx 'LC_ALL=en_US.utf8' "$ENV_CAPTURE_FILE"
+# Installed shared Chinese locale selects the existing default for games.
+grep -qx 'LC_ALL=zh_CN.UTF-8' "$ENV_CAPTURE_FILE"
 grep -qx 'MESA_VK_WSI_PRESENT_MODE=mailbox' "$ENV_CAPTURE_FILE"
 grep -qx '2-3' "$AFFINITY_CAPTURE_FILE"
 grep -q '"stage":"WAITING_FIRST_FRAME"' "$EVENT_FILE"
@@ -240,6 +246,20 @@ set -e
 [ "$MISMATCH_STATUS" -ne 0 ]
 grep -q '"errorCode":"prefix_runtime_mismatch"' "$EVENT_FILE"
 printf '%s\n' "$WINE_PACKAGE" > "$PREFIX_PATH/.termux-box-wine-package"
+
+# A missing shared locale must fail without executing Wine or generating locale data.
+rm -f "$CAPTURE_FILE" "$TERMUX_ROOT/usr/glibc/lib/locale/zh_CN.gbk/LC_CTYPE"
+printf '#!/bin/sh\necho forbidden-locale-generation >&2\nexit 99\n' > "$TERMUX_ROOT/usr/glibc/bin/locale-gen"
+chmod 700 "$TERMUX_ROOT/usr/glibc/bin/locale-gen"
+set +e
+PATH="$FAKE_BIN:$PATH" "$LAUNCH_SCRIPT" "$SPEC_FILE"
+LOCALE_STATUS=$?
+set -e
+[ "$LOCALE_STATUS" -ne 0 ]
+grep -q 'glibc_cjk_locale_missing' "$LOG_FILE"
+! grep -q 'forbidden-locale-generation' "$LOG_FILE"
+[ ! -e "$CAPTURE_FILE" ]
+printf locale > "$TERMUX_ROOT/usr/glibc/lib/locale/zh_CN.gbk/LC_CTYPE"
 
 sed 's/^timeoutSeconds=600$/timeoutSeconds=30/' "$SPEC_FILE" > "$SPEC_FILE.tmp"
 mv "$SPEC_FILE.tmp" "$SPEC_FILE"
