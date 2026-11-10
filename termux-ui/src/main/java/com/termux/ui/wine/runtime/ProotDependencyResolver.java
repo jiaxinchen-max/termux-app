@@ -1,5 +1,6 @@
 package com.termux.ui.wine.runtime;
 
+import com.termux.ui.wine.domain.ProotBox64Versions;
 import com.termux.ui.wine.domain.GameRuntimeBackendType;
 import com.termux.ui.wine.domain.RuntimeProfile;
 import com.termux.ui.wine.domain.RuntimeTranslator;
@@ -24,7 +25,7 @@ public final class ProotDependencyResolver {
         RuntimeTranslator translator = GameContainerProfileResolver.resolveTranslator(wine, paths);
         if (translator == RuntimeTranslator.BOX64) {
             String selected = profile.getEnvironment().getOrDefault("GAMES_CUSTOM_BOX64_ID", "");
-            result.add(selected.isEmpty() ? "rootfs_box64_0.4.5" : selected);
+            result.add(ProotBox64Versions.selectedId(selected));
         }
         String dx = profile.getDxWrapper();
         if (!"rootfs-wined3d".equals(dx)) result.add(dx);

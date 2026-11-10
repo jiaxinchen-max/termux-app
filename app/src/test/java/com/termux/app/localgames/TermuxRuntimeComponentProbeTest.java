@@ -19,23 +19,23 @@ public class TermuxRuntimeComponentProbeTest {
     @Test
     public void box64MetadataRequiresItsExactExecutableAndNeverTheSharedBinary() throws Exception {
         File files = temporary.newFolder("files");
-        installMetadata(files, "opt/package-manager/installed", "glibc_box64_0.2.7", "10");
+        installMetadata(files, "opt/package-manager/installed", "glibc_box64_0.2.8", "10");
         installMetadata(files, "opt/package-manager/installed", "glibc_box64_0.4.4", "1");
         TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);
 
-        assertFalse(probe.isAvailable("glibc_box64_0.2.7"));
+        assertFalse(probe.isAvailable("glibc_box64_0.2.8"));
         assertFalse(probe.isAvailable("glibc_box64_0.4.4"));
 
         write(new File(files, "usr/glibc/bin/box64"), "shared-binary");
-        assertFalse(probe.isAvailable("glibc_box64_0.2.7"));
+        assertFalse(probe.isAvailable("glibc_box64_0.2.8"));
         assertFalse(probe.isAvailable("glibc_box64_0.4.4"));
-        File old = new File(files, "usr/glibc/components/glibc_box64_0.2.7/bin/box64");
+        File old = new File(files, "usr/glibc/components/glibc_box64_0.2.8/bin/box64");
         write(old, "old");
-        assertFalse(probe.isAvailable("glibc_box64_0.2.7"));
+        assertFalse(probe.isAvailable("glibc_box64_0.2.8"));
         assertTrue(old.setExecutable(true, false));
-        assertTrue(probe.isAvailable("glibc_box64_0.2.7"));
-        assertTrue(probe.isAvailable("glibc_box64_0.2.7", 10));
-        assertFalse(probe.isAvailable("glibc_box64_0.2.7", 9));
+        assertTrue(probe.isAvailable("glibc_box64_0.2.8"));
+        assertTrue(probe.isAvailable("glibc_box64_0.2.8", 10));
+        assertTrue(probe.isAvailable("glibc_box64_0.2.8", 9));
         assertFalse(probe.isAvailable("glibc_box64_0.4.4"));
         File newer = new File(files, "usr/glibc/components/glibc_box64_0.4.4/bin/box64");
         write(newer, "new");
@@ -43,7 +43,21 @@ public class TermuxRuntimeComponentProbeTest {
         assertTrue(probe.isAvailable("glibc_box64_0.4.4", 1));
         assertTrue(newer.delete());
         assertFalse(probe.isAvailable("glibc_box64_0.4.4"));
-        assertTrue(probe.isAvailable("glibc_box64_0.2.7"));
+        assertTrue(probe.isAvailable("glibc_box64_0.2.8"));
+    }
+
+    @Test public void box64038RequiresItsOwnInstalledExecutable() throws Exception {
+        File files = temporary.newFolder("box64038");
+        installMetadata(files, "termux-box/package-manager/installed", "glibc_box64_0.3.8", "1");
+        TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);
+        File other = new File(files, "usr/glibc/components/glibc_box64_0.4.4/bin/box64");
+        write(other, "other"); assertTrue(other.setExecutable(true, false));
+        assertFalse(probe.isAvailable("glibc_box64_0.3.8"));
+        File selected = new File(files, "usr/glibc/components/glibc_box64_0.3.8/bin/box64");
+        write(selected, "0.3.8"); assertTrue(selected.setExecutable(true, false));
+        assertTrue(probe.isAvailable("glibc_box64_0.3.8"));
+        assertTrue(selected.delete());
+        assertFalse(probe.isAvailable("glibc_box64_0.3.8"));
     }
 
     @Test
@@ -107,7 +121,7 @@ public class TermuxRuntimeComponentProbeTest {
         assertFalse("A non-executable 7z cannot satisfy the prerequisite", probe.isAvailable("termux-glibc"));
         assertTrue(sevenZip.setExecutable(true, false));
         assertFalse(probe.isAvailable("termux-glibc"));
-        write(new File(files, "usr/glibc/termux-box/run/games-zh-cn-locale-v1"), "ready");
+        write(new File(files, "usr/glibc/termux-box/run/wine-zh-cn-locale-v1"), "ready");
         write(new File(files, "usr/glibc/lib/locale/zh_CN.utf8/LC_CTYPE"), "utf8");
         File gbk = new File(files, "usr/glibc/lib/locale/zh_CN.gbk/LC_CTYPE");
         write(gbk, "");
@@ -177,18 +191,19 @@ public class TermuxRuntimeComponentProbeTest {
     }
 
     @Test
-    public void turnipActivatesOnceTheBundledDriverArchiveIsPresent() throws Exception {
+    public void onlyTheInstalledTurnipVariantIsAvailableWithoutRevisionMatching() throws Exception {
         File files = temporary.newFolder("turnip-files");
         installMetadata(files, "termux-box/package-manager/installed", "turnip", "8");
         TermuxRuntimeComponentProbe probe = new TermuxRuntimeComponentProbe(files);
 
-        assertFalse(probe.isAvailable("turnip", 8));
+        assertFalse(probe.isAvailable("native-turnip-v6.5", 99));
 
         // The catalog release only contains .7z-bundled driver builds; extraction happens later
         // in bootstrap_termux_box.sh with the real `7z` binary, so activation only requires the
         // bundle directory to be published, not an already-extracted driver.
         write(new File(files, "usr/glibc/opt/libs/mesa/turnip-v6.5.7z"), "bundle");
-        assertTrue(probe.isAvailable("turnip", 8));
+        assertTrue(probe.isAvailable("native-turnip-v6.5", 99));
+        assertFalse(probe.isAvailable("native-turnip-v4"));
     }
 
     @Test

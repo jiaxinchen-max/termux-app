@@ -33,8 +33,9 @@ public final class GameStoragePaths {
     public File getLaunchLocksDirectory() { return new File(launchesDirectory, "locks"); }
     public File getLaunchCancelDirectory() { return new File(launchesDirectory, "cancel"); }
     public File getPrefixesDirectory() { return new File(libraryDirectory.getParentFile(), "prefixes"); }
-    public File getContainersDirectory() { return new File(libraryDirectory.getParentFile(), "containers"); }
+    public File getContainersDirectory() { return new File(libraryDirectory.getParentFile(), "wine"); }
     public File getContainerDirectory(String containerId) {
+        if ("templates".equals(containerId)) throw new IllegalArgumentException("reserved_wine_directory");
         return new File(getContainersDirectory(), requireId(containerId));
     }
     /** The container owns one Wine prefix/C drive shared only by its bound games. */
@@ -145,7 +146,7 @@ public final class GameStoragePaths {
     }
     /** The one shared RootFS every ROOTFS_PROOT container's proot session mounts with `-r`
      *  (Winlator-style: extracted once from the base archive, never per-container). Beside
-     *  containers/ (never under it, and never containing a containerId) so it is never mistaken
+     *  front/wine/ (never under it, and never containing a containerId) so it is never mistaken
      *  for a per-container directory by reset/backup/asset-scanning code that keys off those. */
     public File getSharedRootfsContainerDirectory() {
         return new File(getTermuxPrefixDirectory(), "var/lib/proot-distro/games-shared-rootfs");
@@ -162,15 +163,9 @@ public final class GameStoragePaths {
         return new File(getContainerDirectory(containerId), "home-" +
             backendType.getStorageValue());
     }
-    /** Beside containers/ (never under it), mirroring setup_rootfs_runtime.sh's
-     *  TEMPLATE_CACHE_DIR, so it is never mistaken for a container. Holds the per-package
-     *  pre-booted Wine prefix templates (games-rootfs-base-prefix-&lt;wine package&gt;.tar.*) and the
-     *  recorded recipeSha256 (games-rootfs-base.recipe) -- there is no RootFS base archive here
-     *  any more: building/rebuilding the shared RootFS publishes it directly (a same-filesystem
-     *  mv, see setup_rootfs_runtime.sh), and compressing it is now the dedicated, explicitly
-     *  user-triggered Backup feature below, not a hidden step of every build. */
+    /** Shared prebuilt Proot prefix archives and their recipe/state, never a container. */
     public File getTemplateArchiveCacheDirectory() {
-        return new File(getTermuxPrefixDirectory(), "var/lib/proot-distro/games-template-cache");
+        return new File(getContainersDirectory(), "templates");
     }
     public File getResetDirectory() {
         return new File(libraryDirectory.getParentFile(), "runtime/reset");

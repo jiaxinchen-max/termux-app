@@ -3,9 +3,7 @@ package com.termux.ui.wine.api;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
-import android.os.Environment;
 import com.termux.ui.data.GameStoragePaths;
-import com.termux.ui.runtime.RuntimeBackupSharedStorage;
 import com.termux.ui.service.RuntimeInstallationGate;
 import com.termux.ui.service.SetupPreparationLog;
 import com.termux.ui.wine.data.*;
@@ -140,8 +138,8 @@ public final class WineCDriveBackupTasks {
         return profile;
     }
     private static void requireArchive(File archive) throws IOException {
-        if (!archive.getName().endsWith(WineCDriveArchive.EXTENSION)
-            || !RuntimeBackupSharedStorage.isWithin(Environment.getExternalStorageDirectory(), archive))
+        com.termux.ui.platform.ExternalBackupLocation.requireArchive(archive);
+        if (!archive.getName().endsWith(WineCDriveArchive.EXTENSION))
             throw new IOException("cdrive_archive_path_invalid");
     }
     private void start(String task) {

@@ -76,7 +76,7 @@ public class RuntimeEnvironmentStatusTest {
         assertTrue(sevenzip.setExecutable(true));
         assertEquals(RuntimeReadinessState.INCOMPLETE,
             new RuntimeEnvironmentStatus(paths).glibcState());
-        for (String name : new String[] {"termux-box/run/games-zh-cn-locale-v1",
+        for (String name : new String[] {"termux-box/run/wine-zh-cn-locale-v1",
             "lib/locale/zh_CN.utf8/LC_CTYPE", "lib/locale/zh_CN.gbk/LC_CTYPE"}) {
             File data = new File(paths.getTermuxPrefixDirectory(), "glibc/" + name);
             assertTrue(data.getParentFile().isDirectory() || data.getParentFile().mkdirs());
@@ -175,7 +175,7 @@ public class RuntimeEnvironmentStatusTest {
         GameStoragePaths paths = new GameStoragePaths(temporary.newFolder("files-external"));
         File root = createCompleteSharedRootfs(paths);
         assertTrue(new File(root, "opt/box64/rootfs_box64_0.4.5/bin/box64").delete());
-        File manifest = new File(root, "etc/games-runtime.properties");
+        File manifest = new File(root, "etc/wine-runtime.properties");
         java.nio.file.Files.write(manifest.toPath(),
             "schemaVersion=3\nlayout=external-components-v1\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         assertEquals(RuntimeReadinessState.READY, new RuntimeEnvironmentStatus(paths).rootfsState());
@@ -198,7 +198,7 @@ public class RuntimeEnvironmentStatusTest {
     @Test
     public void rootfsIncompleteAfterImageWasRemoved() throws Exception {
         GameStoragePaths paths = new GameStoragePaths(temporary.newFolder("files-removed"));
-        File receipt = new File(paths.getTemplateArchiveCacheDirectory(), "games-rootfs-base.recipe");
+        File receipt = new File(paths.getTemplateArchiveCacheDirectory(), "wine-rootfs-base.recipe");
         assertTrue(receipt.getParentFile().mkdirs());
         assertTrue(receipt.createNewFile());
         assertEquals(RuntimeReadinessState.INCOMPLETE,
@@ -224,7 +224,7 @@ public class RuntimeEnvironmentStatusTest {
         File font = new File(root, "usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc");
         assertTrue(font.getParentFile().mkdirs());
         assertTrue(font.createNewFile());
-        File manifest = new File(root, "etc/games-runtime.properties");
+        File manifest = new File(root, "etc/wine-runtime.properties");
         assertTrue(manifest.getParentFile().mkdirs());
         assertTrue(manifest.createNewFile());
         assertTrue(new File(root, "mnt/games/game").mkdirs());

@@ -32,7 +32,7 @@ public final class ProotBindingSnapshot {
         this.translator = translator;
         this.box64ComponentId = box64ComponentId;
         this.recipeSha256 = recipeSha256;
-        String expectedBox64 = box64ComponentId.isEmpty() ? "rootfs_box64_0.4.5" : box64ComponentId;
+        String expectedBox64 = ProotBox64Versions.selectedId(box64ComponentId);
         boolean wine = winePackage.equals("rootfs_hangover_11.16");
         boolean dx = dxWrapper.equals("rootfs-wined3d");
         boolean box64 = translator != RuntimeTranslator.BOX64;

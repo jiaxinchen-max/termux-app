@@ -1,11 +1,11 @@
 package com.termux.ui.wine.activity;
 
 import android.app.Activity;
-import android.os.Environment;
 import com.termux.ui.R;
 import com.termux.ui.activity.FrostedDialogBuilder;
 import com.termux.ui.activity.RuntimeSetupConsoleDialog;
-import com.termux.ui.activity.SharedStorageChooserDialog;
+import com.termux.ui.activity.FixedBackupChooser;
+import com.termux.ui.platform.ExternalBackupLocation;
 import com.termux.ui.wine.api.WineCDriveBackupTasks;
 import com.termux.ui.wine.domain.Game;
 import com.termux.ui.wine.recovery.WineCDriveArchive;
@@ -21,7 +21,7 @@ public final class WineCDriveBackupFlow {
     private final WineCDriveBackupTasks tasks;
     private final ExecutorService reader = Executors.newSingleThreadExecutor();
     private RuntimeSetupConsoleDialog console;
-    private SharedStorageChooserDialog chooser;
+    private androidx.appcompat.app.AlertDialog chooser;
     private boolean destroyed;
     public WineCDriveBackupFlow(Activity activity) { this.activity = activity; tasks = new WineCDriveBackupTasks(activity); }
     public void resume() {
@@ -38,19 +38,20 @@ public final class WineCDriveBackupFlow {
                 (dialog, which) -> choose(configuration, which == 0)).show();
     }
     private void choose(Game configuration, boolean backup) {
-        File root = Environment.getExternalStorageDirectory();
-        if (backup) {
-            String name = "cdrive-" + configuration.getName().replaceAll("[^A-Za-z0-9._-]", "_") + "-"
-                + new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(new Date()) + WineCDriveArchive.EXTENSION;
-            chooser = SharedStorageChooserDialog.chooseNewSaveFile(activity, root, name, WineCDriveArchive.EXTENSION,
-                archive -> enqueue(configuration.getId(), WineCDriveBackupTasks.Operation.BACKUP, archive));
-        } else {
-            chooser = SharedStorageChooserDialog.chooseArchive(activity, root, WineCDriveArchive.EXTENSION,
-                archive -> new FrostedDialogBuilder(activity).setTitle(R.string.wine_cdrive_restore)
-                    .setMessage(R.string.wine_cdrive_restore_confirm).setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.wine_cdrive_restore, (dialog, which) ->
-                        enqueue(configuration.getId(), WineCDriveBackupTasks.Operation.RESTORE, archive)).show());
-        }
+        try {
+            if (backup) {
+                String name = "cdrive-" + configuration.getName().replaceAll("[^A-Za-z0-9._-]", "_") + "-"
+                    + new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(new Date()) + WineCDriveArchive.EXTENSION;
+                enqueue(configuration.getId(), WineCDriveBackupTasks.Operation.BACKUP,
+                    ExternalBackupLocation.newArchive(activity, name));
+            } else {
+                chooser = FixedBackupChooser.show(activity, WineCDriveArchive.EXTENSION,
+                    archive -> new FrostedDialogBuilder(activity).setTitle(R.string.wine_cdrive_restore)
+                        .setMessage(R.string.wine_cdrive_restore_confirm).setNegativeButton(android.R.string.cancel, null)
+                        .setPositiveButton(R.string.wine_cdrive_restore, (dialog, which) ->
+                            enqueue(configuration.getId(), WineCDriveBackupTasks.Operation.RESTORE, archive)).show());
+            }
+        } catch (IOException error) { failure(error); }
     }
     private void enqueue(String configurationId, WineCDriveBackupTasks.Operation operation, File archive) {
         reader.execute(() -> {

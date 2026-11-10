@@ -22,7 +22,7 @@ import java.util.Locale;
  *  recipeSha256 (to know which shared rootfs template a "reset RootFS" action should target). */
 public final class RootfsSetupAssetInstaller {
     private static final String[] RECIPE_FILES = {
-        "setup-container.sh", "games-runtime.properties"
+        "setup-container.sh", "wine-runtime.properties"
     };
     private final Context context;
     private final GameStoragePaths paths;
@@ -105,9 +105,6 @@ public final class RootfsSetupAssetInstaller {
             new com.termux.ui.components.install.ComponentInstallationReader(
                 new com.termux.ui.components.ComponentStoragePaths(context.getFilesDir()).getInstallDirectory())
                 .read(id).getActive().orElseThrow(() -> new IOException("prefix_component_missing"));
-        if (installed.getVersion() != descriptor.getVersion()) {
-            throw new IOException("prefix_component_mismatch");
-        }
         String folder = PrebuiltPrefixAssets.folder(winePackage);
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (InputStream input = context.getAssets().open(recipe.getAssetDirectory() + "/" + folder + "/bundle.json")) {

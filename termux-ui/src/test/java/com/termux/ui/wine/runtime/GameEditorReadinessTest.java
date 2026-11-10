@@ -165,11 +165,11 @@ public class GameEditorReadinessTest {
         for (String name : new String[] {"grun", "python", "7z", "zip", "unzip", "tar", "gzip", "bzip2", "xz", "zstd"}) {
             File command = new File(usr, "bin/" + name); write(command, "x"); assertTrue(command.setExecutable(true));
         }
-        for (String name : new String[] {"termux-box/run/games-zh-cn-locale-v1", "lib/locale/zh_CN.utf8/LC_CTYPE",
+        for (String name : new String[] {"termux-box/run/wine-zh-cn-locale-v1", "lib/locale/zh_CN.utf8/LC_CTYPE",
                 "lib/locale/zh_CN.gbk/LC_CTYPE"}) write(new File(usr, "glibc/" + name), "x");
         File prefix = paths.getNativePrefixDirectory(p.getContainerId(), p.getWinePackage());
         prefix(prefix);
-        for (String name : new String[] {".termux-box-bootstrap-done", ".update-timestamp", "termux-boxmeta/games-wine-fonts-v2"}) write(new File(prefix, name), "x");
+        for (String name : new String[] {".termux-box-bootstrap-done", ".update-timestamp", "termux-boxmeta/wine-fonts-v2"}) write(new File(prefix, name), "x");
         write(new File(prefix, ".games-runtime/prepared-identity"), SHA + "\n");
         write(new File(prefix, ".games-runtime/preparation-script-identity"), SHA + "\n");
         File runtime = new File(prefix, ".termux-box-wine-package"); write(runtime, p.getWinePackage() + "\n");
@@ -184,7 +184,7 @@ public class GameEditorReadinessTest {
         GameStoragePaths paths = paths(); RuntimeProfile p = profile(GameRuntimeBackendType.ROOTFS_PROOT);
         task(paths, p, "success", RuntimeSetupTaskState.SUCCEEDED, 1);
         File root = paths.getSharedRootfsDirectory();
-        write(new File(root, "etc/games-runtime.properties"), "schemaVersion=3\nlayout=external-components-v1\n");
+        write(new File(root, "etc/wine-runtime.properties"), "schemaVersion=3\nlayout=external-components-v1\n");
         for (String name : new String[] {"env", "wine", "wineboot"}) {
             File command = new File(root, "usr/bin/" + name); write(command, "x"); assertTrue(command.setExecutable(true));
         }

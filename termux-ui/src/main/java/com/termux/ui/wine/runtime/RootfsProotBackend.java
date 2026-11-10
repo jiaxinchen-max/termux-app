@@ -154,7 +154,7 @@ public final class RootfsProotBackend implements GameRuntimeBackend {
     }
 
     private static void verifyManifest(File rootfs, RuntimeProfile profile) throws IOException {
-        File file = new File(rootfs, "etc/games-runtime.properties");
+        File file = new File(rootfs, "etc/wine-runtime.properties");
         if (!file.isFile()) throw new IOException("rootfs_runtime_manifest_missing");
         Properties properties = new Properties();
         try (FileInputStream input = new FileInputStream(file)) {

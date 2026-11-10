@@ -58,7 +58,7 @@ class NativeRestoreTests(unittest.TestCase):
                          winePackage='glibc_wine_10.0', componentVersion=1,
                          sourceComponentSha256='b' * 64, prefixComponentId='native_prefix_wine_10.0',
                          windowsUser='root', runtimeFiles={}, wineRuntimeFiles={})
-        (self.resource / '.games-component.properties').write_text(
+        (self.resource / '.wine-component.properties').write_text(
             'schemaVersion=1\npackageName=native_prefix_wine_10.0\nversion=1\nsha256=' + 'c' * 64 + '\n')
         self.pack()
 
@@ -97,7 +97,7 @@ class NativeRestoreTests(unittest.TestCase):
         self.assertEqual(os.readlink(self.target / 'dosdevices/z:'), str(self.base / 'files'))
         self.assertEqual(os.readlink(self.target / 'dosdevices/d:'), '/sdcard/Download')
         self.assertEqual((self.target / '.games-runtime/native-user').read_text(), 'root\n')
-        self.assertTrue((self.target / 'termux-boxmeta/games-wine-fonts-v2').is_file())
+        self.assertTrue((self.target / 'termux-boxmeta/wine-fonts-v2').is_file())
         self.assertNotIn('@NATIVE_PREFIX@', (self.target / 'user.reg').read_text())
         source = self.wine / 'lib/wine/x86_64-windows/ntdll.dll'
         target = self.target / 'drive_c/windows/system32/ntdll.dll'
@@ -114,12 +114,12 @@ class NativeRestoreTests(unittest.TestCase):
     def test_native_bundle_cannot_enter_proot(self): self.reject('identity_mismatch', backend='rootfs_proot')
     def test_adjacent_wine_root_rejected(self): self.reject('native_wine_root_mismatch', wine_root=self.glibc)
     def test_wrong_prefix_resource_receipt_rejected(self):
-        (self.resource / '.games-component.properties').write_text('schemaVersion=1\npackageName=wrong\nversion=1\n')
+        (self.resource / '.wine-component.properties').write_text('schemaVersion=1\npackageName=wrong\nversion=1\n')
         self.reject('component_mismatch')
     def test_prefix_resource_version_independent_of_wine_version(self):
         self.meta['prefixComponentVersion'] = 2
         self.pin()
-        receipt = self.resource / '.games-component.properties'
+        receipt = self.resource / '.wine-component.properties'
         receipt.write_text(receipt.read_text().replace('version=1', 'version=2'))
         self.restore()
         self.assertTrue((self.target/'system.reg').is_file())
@@ -194,13 +194,13 @@ class NativeRestoreTests(unittest.TestCase):
             # Hold inside the real restoration transaction so SIGTERM exercises cleanup.
             helper.write_text(helper.read_text().replace('def copy_entry(source, target, record):\n',
                 'def copy_entry(source, target, record):\n    import time\n    time.sleep(30)\n', 1))
-        for path in ('lib/ld-linux-aarch64.so.1', 'components/glibc_box64_0.2.7/bin/box64', 'opt/virgl/libvirgl_test_server.so',
+        for path in ('lib/ld-linux-aarch64.so.1', 'components/glibc_box64_0.2.8/bin/box64', 'opt/virgl/libvirgl_test_server.so',
                      'glibc_wine_10.0/bin/wine', 'glibc_wine_10.0/bin/wineserver'):
             p = self.glibc / path; p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text('#!/bin/sh\necho forbidden-wine-execution >&2\nexit 99\n'); p.chmod(0o700)
         python = self.glibc.parent / 'bin/python'
         python.parent.mkdir(exist_ok=True); python.symlink_to(sys.executable) if not python.exists() else None
-        locale = self.glibc / 'termux-box/run/games-zh-cn-locale-v1'
+        locale = self.glibc / 'termux-box/run/wine-zh-cn-locale-v1'
         if locale_ready:
             locale.parent.mkdir(parents=True, exist_ok=True); locale.touch()
             for name in ('zh_CN.utf8', 'zh_CN.gbk'):
@@ -281,7 +281,7 @@ class NativeRestoreTests(unittest.TestCase):
 
     def test_failed_checks_do_not_publish_new_preparation_receipt(self):
         self.assertEqual(self.bootstrap().returncode, 0)
-        (self.target / 'termux-boxmeta/games-wine-fonts-v2').unlink()
+        (self.target / 'termux-boxmeta/wine-fonts-v2').unlink()
         result = self.bootstrap(preparation_identity='c' * 64)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('font state is invalid', result.stdout)

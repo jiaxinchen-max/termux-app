@@ -5,7 +5,7 @@
     <string name="wine_cdrive_failed">C drive operation failed</string>
     <string name="wine_cdrive_backup">Back up C drive</string>
     <string name="wine_cdrive_restore">Restore C drive</string>
-    <string name="wine_cdrive_restore_confirm">Replace this configuration’s C drive and Wine registry with the selected backup? The shared runtime, application configuration and drive mappings will be kept. The backup must use the same Wine version.</string>
+    <string name="wine_cdrive_restore_confirm">The selected backup will replace this configuration’s C drive and registry; use a backup from the same Wine version.</string>
     <string name="local_games_collection_refresh">Refresh</string>
     <string name="local_games_back_again_exit">Press back again to exit and stop all sessions</string>
     <string name="local_games_title">Wine</string>
@@ -20,21 +20,21 @@
     <string name="local_games_reset_in_progress">Reset in progress…</string>
     <string name="local_games_reset_status">%1$s · %2$s</string>
     <string name="local_games_install_confirm_title">Install this environment?</string>
-    <string name="local_games_install_confirm_glibc">This downloads and installs the GLIBC runtime (Wine, X11, graphics drivers) needed to launch GLIBC games. It can take a few minutes.</string>
-    <string name="local_games_install_confirm_rootfs">Download and extract the preinstalled minimal RootFS with Hangover and fonts. Each game uses an independent Wine prefix.</string>
+    <string name="local_games_install_confirm_glibc">The Native game runtime will be downloaded and installed.</string>
+    <string name="local_games_install_confirm_rootfs">The container runtime with Hangover included will be downloaded and installed.</string>
     <string name="local_games_install_action">Install</string>
     <string name="local_games_rootfs_rebuild_confirm_title">Rebuild base environment?</string>
-    <string name="local_games_rootfs_rebuild_confirm_message">Download or reuse the cached minimal RootFS, verify it, then replace the shared base environment. Existing game prefixes are kept. The current base is preserved if installation fails.</string>
+    <string name="local_games_rootfs_rebuild_confirm_message">The container base environment will be replaced; existing game data will be kept.</string>
     <string name="local_games_rootfs_rebuild_action">Rebuild</string>
     <string name="local_games_backup_create_console_title">Creating backup</string>
     <string name="local_games_backup_templates_title">Include Wine prefix templates?</string>
-    <string name="local_games_backup_templates_message">The templates are ready-made Wine prefixes that new games clone. They can be rebuilt, so leaving them out makes the backup smaller; a restore then rebuilds them, which takes a few extra minutes.</string>
+    <string name="local_games_backup_templates_message">Including runtime templates will increase the backup size.</string>
     <string name="local_games_backup_templates_include">Include</string>
     <string name="local_games_backup_templates_exclude">Leave out</string>
     <string name="local_games_backup_requires_base">Build the base environment before backing it up.</string>
     <string name="local_games_backup_restore_action">Restore from backup</string>
     <string name="local_games_backup_restore_confirm_title">Restore from backup?</string>
-    <string name="local_games_backup_restore_confirm_message">This replaces the current shared RootFS base and Wine prefix templates with your saved backup. Already-installed games keep working; this can take a few minutes.</string>
+    <string name="local_games_backup_restore_confirm_message">The selected backup will replace the current container base environment and runtime templates.</string>
     <string name="local_games_backup_restore_console_title">Restoring backup</string>
     <string name="local_games_backup_insufficient_space">Not enough free space. About %1$s is needed but only %2$s is available.</string>
     <string name="local_games_backup_destination_not_shared">Choose a location inside shared storage.</string>
@@ -49,7 +49,7 @@
     <string name="local_games_chooser_empty">No %1$s files here</string>
     <string name="local_games_chooser_invalid_name">Use only English letters, digits and . _ - + = ( ) , or space.</string>
     <string name="local_games_chooser_overwrite_title">Replace existing file?</string>
-    <string name="local_games_chooser_overwrite_message">A file with this name already exists and will be replaced.</string>
+    <string name="local_games_chooser_overwrite_message">The existing file with the same name will be overwritten.</string>
     <string name="local_games_backup_title">Base environment backup</string>
     <string name="local_games_backup_channel">Base environment backup</string>
     <string name="local_games_custom_component_install_title">Installing custom component</string>
@@ -144,12 +144,12 @@
     <string name="local_game_detail_cover_failed">Unable to use this cover: %1$s</string>
     <string name="local_game_detail_delete">Remove from library</string>
     <string name="local_game_detail_delete_title">Remove %1$s from the library?</string>
-    <string name="local_game_detail_delete_message">This configuration, its private cover and any unshared container data will be removed. Shared runtimes and the original game folder will be retained.</string>
+    <string name="local_game_detail_delete_message">This game entry and its unshared container data will be deleted; the original game files will be kept.</string>
     <string name="local_game_detail_delete_confirm">Remove</string>
     <string name="local_game_detail_delete_failed">Unable to remove this game: %1$s</string>
     <string name="local_game_detail_edit_help">Working directory shows its actual path. Choose the game folder or an existing subfolder. Saving prepares the selected runtime and Wine prefix; launch arguments are saved separately.</string>
     <string name="local_game_file_manager_title">Game files</string>
-    <string name="local_game_file_manager_help">Browse private or shared storage. Long-press a file or folder to open, copy, cut or delete it. Long-press blank space to act on the current folder. Paste and Show hidden files are in the toolbar menu. The three root folders cannot be operated on.</string>
+    <string name="local_game_file_manager_help">Browse private or shared storage. Long-press a file or folder to open, copy, cut or delete it. Paste and Show hidden files are in the toolbar menu. The three root folders cannot be operated on.</string>
     <string name="local_game_file_manager_import_as_game">Import as game</string>
     <string name="local_game_import_configuration_title">New game configuration · runtime</string>
     <string name="local_game_configuration_executable">%1$s · %2$s</string>
@@ -212,7 +212,6 @@
     <string name="local_games_component_summary_scripts">Launcher and environment scripts used by the GLIBC backend.</string>
     <string name="local_games_component_active_version">Installed version %1$d</string>
     <string name="local_games_component_not_installed">Not installed</string>
-    <string name="local_games_component_update_available">Update available · installed version %1$d</string>
     <string name="local_games_component_progress_value">%1$s · %2$d%%</string>
     <string name="local_games_component_download">Download</string>
     <string name="local_games_component_install">Install</string>
@@ -309,7 +308,7 @@
     <string name="local_game_session_keyboard">Keyboard</string>
     <string name="local_game_session_exit">Exit</string>
     <string name="local_game_session_exit_title">Exit the game?</string>
-    <string name="local_game_session_exit_message">This will terminate the game, Wine, audio and display processes. Unsaved progress may be lost.</string>
+    <string name="local_game_session_exit_message">The game will be forcibly stopped; unsaved progress may be lost.</string>
     <string name="local_game_session_exit_confirm">Exit game</string>
     <string name="local_game_session_input_unavailable">The frozen touch profile is unavailable; X11 input remains active.</string>
     <string name="local_game_session_task_missing">This game session no longer exists.</string>
@@ -324,7 +323,7 @@
     <string name="local_games_app_mode_terminal_summary">Terminal is the main interface and keeps the integrated X11 surface.</string>
     <string name="local_games_app_mode_games_summary">The graphical interface manages games, desktops and files. Terminal only manages processes and sessions.</string>
     <string name="local_games_app_mode_restart_title">Restart in another mode?</string>
-    <string name="local_games_app_mode_restart_message">The app process will restart. Exit active games and terminal sessions first.</string>
+    <string name="local_games_app_mode_restart_message">The app will restart; exit running games and terminal sessions first.</string>
     <string name="local_games_app_mode_restart_confirm">Restart</string>
     <string name="local_games_app_mode_restart_failed">Unable to save the mode or restart the app.</string>
     <string name="local_games_navigation_files">Files</string>
@@ -418,7 +417,7 @@
     <string name="local_games_environment_restore_from_file">Restore from file</string>
     <string name="local_games_environment_backup_to_file">Backup to file</string>
     <string name="local_games_native_rebuild_confirm_title">Rebuild Native environment?</string>
-    <string name="local_games_native_rebuild_confirm_message">This removes the Native (GLIBC) runtime and its downloaded components with the package manager, then downloads and installs them again. It can take several minutes.</string>
+    <string name="local_games_native_rebuild_confirm_message">The Native runtime and its downloaded components will be removed and reinstalled.</string>
     <string name="local_games_native_rebuild_action">Rebuild</string>
     <string name="local_games_orientation_vertical">Vertical</string>
     <string name="local_games_orientation_horizontal">Horizontal</string>
@@ -502,7 +501,7 @@
     <string name="local_game_runtime_advanced_all_cores">All available</string>
     <string name="local_game_runtime_not_selected">Not selected</string>
     <string name="local_game_runtime_save_dialog_title">Save runtime parameters?</string>
-    <string name="local_game_runtime_save_dialog_message">Changes apply only to %1$s.</string>
+    <string name="local_game_runtime_save_dialog_message">Saving applies these changes to “%1$s”; discarding loses these changes.</string>
     <string name="local_game_runtime_save_dialog_discard">Discard</string>
     <string name="local_game_runtime_save_failed">Unable to save runtime parameters</string>
     <plurals name="local_game_runtime_env_count">
@@ -583,7 +582,7 @@
     <string name="desktop_settings_save">Save</string>
     <string name="desktop_settings_cancel">Cancel</string>
     <string name="desktop_delete_title">Delete “%1$s”?</string>
-    <string name="desktop_delete_message">The desktop entry and its session state are removed. Running processes are stopped first.</string>
+    <string name="desktop_delete_message">This desktop will be stopped and its entry and session state deleted.</string>
     <string name="desktop_delete_container_check">Also delete the container instance %1$s and all data inside it</string>
     <string name="desktop_action_settings">Settings</string>
     <string name="desktop_mode_container_badge">Container · %1$s</string>
@@ -616,7 +615,7 @@
     <string name="desktop_create_action">Create</string>
     <string name="desktop_create_invalid">Check the name, resolution and refresh rate.</string>
     <string name="desktop_install_started">Install started in a Termux session.</string>
-    <string name="desktop_install_hint">This downloads the desktop packages (and the container rootfs on first use) and may take several minutes. Continue?</string>
+    <string name="desktop_install_hint">The runtime required by this desktop will be downloaded and installed.</string>
     <string name="desktop_stop_requested">Stopping the desktop…</string>
     <string name="desktop_error">Could not complete the request (%1$s).</string>
     <string name="desktop_delete_running">Stop the desktop before deleting it.</string>
@@ -637,7 +636,7 @@
     <string name="local_games_settings_x_server">X server</string>
     <string name="local_games_x_server_legacy">Termux-X11 (built in)</string>
     <string name="local_games_x_server_xlorie">Xlorie (experimental)</string>
-    <string name="local_games_x_server_install_message">Xlorie is an independent X server package. It is not installed yet. Install it now? Vortek Vulkan (glibc games) is not supported by Xlorie yet.</string>
+    <string name="local_games_x_server_install_message">The Xlorie display service will be installed; it does not yet support Vortek Vulkan.</string>
     <string name="local_games_x_server_abi_unsupported">No Xlorie package is published for this device\'s architecture yet.</string>
     <string name="desktop_session_touch_mode_title">Touch mode</string>
     <string name="desktop_session_orientation_title">Orientation</string>
@@ -672,8 +671,8 @@
     <string name="desktop_archive_background">Run in background</string>
     <string name="desktop_archive_busy">A container archive operation is already running.</string>
     <string name="desktop_archive_running_forbidden">Stop the container before exporting it.</string>
-    <string name="desktop_archive_export_scope">Export this container and its desktop settings. Choose a new filename; existing files will not be overwritten.</string>
-    <string name="desktop_archive_import_scope">Import the container and desktop settings. Required host components will be checked and installed first; import stops if this fails. The archived renderer setting will be preserved.</string>
+    <string name="desktop_archive_export_scope">This container and its desktop settings will be backed up to Download/Termux/backups/.</string>
+    <string name="desktop_archive_import_scope">The desktop container and settings will be imported from the selected file.</string>
     <string name="desktop_archive_destination_exists">This file already exists. Choose a new filename.</string>
     <string name="desktop_archive_cleaning_interrupted">Cleaning up the interrupted container archive…</string>
     <string name="desktop_archive_service_start_failed">Could not start the container archive task.</string>
@@ -710,11 +709,19 @@
     <string name="browser_cut_pending">Cut “%1$s”; paste in the destination folder to move it.</string>
     <string name="browser_copy_pending">Copied “%1$s”; choose a destination folder and paste.</string>
     <string name="browser_no_open_app">No application can open this file type or folder.</string>
-    <string name="browser_delete_confirm">Permanently delete “%1$s”? A folder and everything inside it will be deleted.</string>
+    <string name="browser_delete_confirm">“%1$s” and all its contents will be permanently deleted; this cannot be undone.</string>
     <string name="browser_operation_failed">The file operation failed.</string>
     <string name="browser_conflict">The destination already contains an item with this name. Nothing was overwritten.</string>
     <string name="browser_inside_source">Choose another destination. A folder cannot be pasted into itself or its subfolders.</string>
     <string name="browser_protected_root">This root directory cannot be used for this operation.</string>
     <string name="browser_move_partial">The destination was copied, but removing the source failed or stopped partway through. Check both locations.</string>
     <string name="browser_delete_partial">Deletion failed or stopped partway through. Check the folder before retrying.</string>
+    <string name="external_storage_permission_required">Cannot write to %1$s. Grant this app storage access in Android settings, then retry.</string>
+    <string name="backup_select_archive">Restore backup</string>
+    <string name="backup_no_archives">No matching backups in %1$s.</string>
+    <string name="component_actions_menu">Actions for %1$s</string>
+    <string name="component_actions_uninstall">Uninstall</string>
+    <string name="component_actions_removing">Uninstalling component…</string>
+    <string name="component_actions_removed">Component uninstalled</string>
+    <string name="component_actions_available">Available to install</string>
 </resources>

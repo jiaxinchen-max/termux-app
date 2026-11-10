@@ -16,7 +16,7 @@ GAMES_PRIVATE_ROOT="$TERMUX_FILES_DIR/front"
 # from below).
 SHARED_ROOTFS_CONTAINER_DIRECTORY="$TERMUX_FILES_DIR/usr/var/lib/proot-distro/games-shared-rootfs"
 SHARED_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY/rootfs"
-TEMPLATE_CACHE_DIR="$TERMUX_FILES_DIR/usr/var/lib/proot-distro/games-template-cache"
+TEMPLATE_CACHE_DIR="$TERMUX_FILES_DIR/front/wine/templates"
 # TEMPLATE_PREFIX_ARCHIVE itself is resolved later, once WINE_PACKAGE is known (decoded from the
 # launch spec below) -- see rootfs_prefix_warmup.sh's resolve_template_prefix_archive(), called
 # right before this file's own (fallback) warmup_rootfs_prefix call further down.
@@ -317,7 +317,7 @@ SHARED_ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS" 2>/dev/null) || terminal_fai
     terminal_failure rootfs_path_outside_termux_runtime
 [ -d "$ROOTFS_CANONICAL" ] || terminal_failure rootfs_unreadable null true
 [ -x "$ROOTFS_CANONICAL/usr/bin/env" ] || terminal_failure rootfs_env_missing null true
-RUNTIME_MANIFEST="$ROOTFS_CANONICAL/etc/games-runtime.properties"
+RUNTIME_MANIFEST="$ROOTFS_CANONICAL/etc/wine-runtime.properties"
 [ -f "$RUNTIME_MANIFEST" ] || terminal_failure rootfs_runtime_manifest_missing null true
 
 manifest_value() {
@@ -463,7 +463,7 @@ run_rootfs_command() {
             FONTCONFIG_PATH=/etc/fonts FONTCONFIG_FILE=/etc/fonts/fonts.conf \
             XDG_DATA_DIRS=/usr/local/share:/usr/share DISPLAY=:0 PULSE_SERVER=127.0.0.1 \
             WINEPREFIX="$GUEST_PREFIX" \
-            BOX64_LD_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu \
+            BOX64_LD_LIBRARY_PATH="$GUEST_BOX64_LIBRARY_PATH" \
             "$@"
     else
         proot_exec_bound --kill-on-exit --link2symlink --sysvipc -0 \
@@ -480,7 +480,7 @@ run_rootfs_command() {
             PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
             FONTCONFIG_PATH=/etc/fonts FONTCONFIG_FILE=/etc/fonts/fonts.conf \
             XDG_DATA_DIRS=/usr/local/share:/usr/share DISPLAY=:0 WINEPREFIX="$GUEST_PREFIX" \
-            BOX64_LD_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu \
+            BOX64_LD_LIBRARY_PATH="$GUEST_BOX64_LIBRARY_PATH" \
             "$@"
     fi
 }

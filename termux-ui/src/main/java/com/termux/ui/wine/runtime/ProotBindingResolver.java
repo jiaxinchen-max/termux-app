@@ -1,5 +1,6 @@
 package com.termux.ui.wine.runtime;
 
+import com.termux.ui.wine.domain.ProotBox64Versions;
 import com.termux.ui.components.install.ComponentInstallationReader;
 import com.termux.ui.components.install.InstalledComponent;
 import com.termux.ui.wine.domain.ProotComponentBinding;
@@ -28,6 +29,15 @@ public final class ProotBindingResolver {
             if (id.equals(RootfsSetupRecipe.IMAGE_COMPONENT)) continue; // installed in guest /usr
             InstalledComponent component = installations.read(id).getActive()
                 .orElseThrow(() -> new IOException("rootfs_component_prepare_required:" + id));
+            result.addAll(bind(component));
+        }
+        return ProotComponentBinding.immutableBindings(result);
+    }
+
+    /** Resolve only the explicitly replaced component; other frozen identities stay unchanged. */
+    public List<ProotComponentBinding> bind(InstalledComponent component) throws IOException {
+        List<ProotComponentBinding> result = new ArrayList<>();
+        String id = component.getPackageName();
             if (id.startsWith("custom-wine-")) {
                 add(result, component, component.getDirectory(), "/opt/custom-wine/" + id,
                     ProotComponentBinding.Role.WINE);
@@ -45,7 +55,7 @@ public final class ProotBindingResolver {
             } else if (id.equals(RootfsSetupRecipe.BOX64_PROTON_COMPONENT)) {
                 add(result, component, contentRoot(component, "bin/wine"),
                     "/opt/box64-proton", ProotComponentBinding.Role.WINE);
-            } else if (id.equals("rootfs_box64_0.4.5")) {
+            } else if (ProotBox64Versions.isBuiltIn(id)) {
                 add(result, component, contentRoot(component, "bin/box64"),
                     "/opt/box64/" + id, ProotComponentBinding.Role.BOX64);
             } else if (id.startsWith("rootfs_dxvk_")) {
@@ -60,7 +70,6 @@ public final class ProotBindingResolver {
                 add(result, component, bits32,
                     "/opt/games-runtime/" + id + "/syswow64", ProotComponentBinding.Role.DXVK32);
             } else throw new IOException("rootfs_binding_component_unsupported:" + id);
-        }
         return ProotComponentBinding.immutableBindings(result);
     }
 

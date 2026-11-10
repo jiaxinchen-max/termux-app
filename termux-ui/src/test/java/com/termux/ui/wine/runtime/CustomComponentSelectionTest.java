@@ -29,7 +29,7 @@ public final class CustomComponentSelectionTest {
         java.util.Set<String> ids = new GlibcTermuxBoxBackend().requiredComponentIds(profile);
         assertFalse(ids.contains("turnip"));
         assertFalse(ids.contains("dxvk"));
-        assertFalse(ids.contains("glibc_box64_0.2.7"));
+        assertFalse(ids.contains("glibc_box64_0.2.8"));
         assertTrue(ids.contains("glibc_scripts_29"));
     }
 
@@ -72,7 +72,7 @@ public final class CustomComponentSelectionTest {
         File rootfs = paths.getSharedRootfsDirectory();
         assertTrue(new File(rootfs, "mnt/games/game").mkdirs());
         assertTrue(new File(rootfs, "mnt/games/prefix").mkdirs());
-        write(new File(rootfs, "etc/games-runtime.properties"), "schemaVersion=2\nruntimeBackend=rootfs_proot\narchitecture=aarch64\nruntimePackages=rootfs_wine_10.0\ngraphicsDrivers=rootfs-llvmpipe\ndxWrappers=rootfs-wined3d\naudioDrivers=pulseaudio\n");
+        write(new File(rootfs, "etc/wine-runtime.properties"), "schemaVersion=2\nruntimeBackend=rootfs_proot\narchitecture=aarch64\nruntimePackages=rootfs_wine_10.0\ngraphicsDrivers=rootfs-llvmpipe\ndxWrappers=rootfs-wined3d\naudioDrivers=pulseaudio\n");
         assertEquals(rootfs.getCanonicalPath(), new RootfsProotBackend().resolveRuntimeRoot(paths,
             new com.termux.ui.components.ComponentStoragePaths(rootfs),
             profile(GameRuntimeBackendType.ROOTFS_PROOT, "rootfs-llvmpipe", "custom-dxvk-test", "")));
@@ -109,7 +109,7 @@ public final class CustomComponentSelectionTest {
     }
 
     @Test public void builtInVersionsPrepareOnlyTheSelectedNativeBuild() {
-        for (String id : new String[] {"glibc_box64_0.2.7", "glibc_box64_0.4.4"}) {
+        for (String id : new String[] {"glibc_box64_0.2.8", "glibc_box64_0.3.8", "glibc_box64_0.4.4"}) {
             java.util.Set<String> ids = new GlibcTermuxBoxBackend().requiredComponentIds(
                 profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX, "native-turnip-v6.5", "wined3d", id));
             assertTrue(ids.contains(id));
@@ -119,8 +119,24 @@ public final class CustomComponentSelectionTest {
         }
         java.util.Set<String> defaults = new GlibcTermuxBoxBackend().requiredComponentIds(
             profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX, "native-turnip-v6.5", "wined3d", ""));
-        assertTrue(defaults.contains("glibc_box64_0.2.7"));
+        assertTrue(defaults.contains("glibc_box64_0.2.8"));
         assertFalse(defaults.contains("glibc_box64_0.4.4"));
+    }
+
+    @Test public void prootBuiltInsUseOnlySelectedDependencyAndRejectNativeScope() {
+        for (String boxId : new String[]{"rootfs_box64_0.2.8", "rootfs_box64_0.3.8"}) {
+            RuntimeProfile selected = profile(GameRuntimeBackendType.ROOTFS_PROOT,
+                "rootfs-llvmpipe", "rootfs-wined3d", boxId);
+            java.util.Set<String> ids = new ProotDependencyResolver().requiredComponentIds(selected, null);
+            assertTrue(ids.contains(boxId));
+            assertFalse(ids.contains("rootfs_box64_0.4.5"));
+            expect("box64_selection_unsupported:" + boxId, () ->
+                CustomComponentSelection.validate(profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX,
+                    "native-turnip-v6.5", "wined3d", boxId), null));
+        }
+        expect("box64_selection_unsupported:rootfs_box64_99.0", () ->
+            CustomComponentSelection.validate(profile(GameRuntimeBackendType.ROOTFS_PROOT,
+                "rootfs-llvmpipe", "rootfs-wined3d", "rootfs_box64_99.0"), null));
     }
 
     private GameStoragePaths paths() throws Exception { return new GameStoragePaths(temporary.newFolder()); }

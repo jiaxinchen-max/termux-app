@@ -90,26 +90,16 @@ public final class LaunchPreflightEvaluator {
                 issues.add(new PreflightIssue(PreflightIssueCode.COMPONENT_UNKNOWN, componentId));
                 continue;
             }
-            String pinned = profile.getComponentVersions().get(componentId);
-            int expectedVersion = pinned == null ? descriptor.getVersion() : Integer.parseInt(pinned);
-            requirements.add(new ComponentRequirement(componentId, expectedVersion,
-                descriptor.getSha256(), descriptor.getSize()));
-            if (expectedVersion != descriptor.getVersion()) {
-                issues.add(new PreflightIssue(
-                    PreflightIssueCode.COMPONENT_VERSION_UNAVAILABLE, componentId));
-                continue;
-            }
             InstalledComponentVersion active = installed.get(componentId);
+            requirements.add(new ComponentRequirement(componentId,
+                active == null ? descriptor.getVersion() : active.getVersion(),
+                active == null ? descriptor.getSha256() : active.getSha256(), descriptor.getSize()));
             if (active == null) {
                 issues.add(new PreflightIssue(PreflightIssueCode.COMPONENT_MISSING, componentId));
                 requiredBytes = addSaturated(requiredBytes,
                     multiplySaturated(descriptor.getSize(), COMPONENT_PEAK_MULTIPLIER));
-            } else if (active.getVersion() != expectedVersion ) {
-                issues.add(new PreflightIssue(
-                    PreflightIssueCode.COMPONENT_VERSION_MISMATCH, componentId));
-                requiredBytes = addSaturated(requiredBytes,
-                    multiplySaturated(descriptor.getSize(), COMPONENT_PEAK_MULTIPLIER));
             }
+
         }
         StorageBudget budget = new StorageBudget(requiredBytes, availableBytes);
         if (!budget.isSufficient()) {

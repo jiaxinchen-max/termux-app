@@ -85,6 +85,8 @@ public class GameUninstallerTest {
         FileGameRepository games = new FileGameRepository(paths.getLibraryDirectory());
         games.save(game("game-indep", "content://external/game-indep"));
         String containerId = "container-indep01";
+        File template = new File(paths.getTemplateArchiveCacheDirectory(), "prefix.tar.gz");
+        write(template, "shared template");
         new FileRuntimeProfileRepository(paths.getProfilesDirectory())
             .save(rootfsProfile("game-indep", containerId));
         write(new File(paths.getContainersDirectory(), containerId + ".properties"), "id");
@@ -93,6 +95,7 @@ public class GameUninstallerTest {
 
         assertFalse(games.find("game-indep").isPresent());
         assertFalse(new File(paths.getContainersDirectory(), containerId + ".properties").exists());
+        assertTrue(template.isFile());
     }
 
     @Test

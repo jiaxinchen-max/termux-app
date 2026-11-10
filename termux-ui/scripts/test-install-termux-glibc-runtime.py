@@ -72,7 +72,7 @@ for name in ['zh_CN.utf8','zh_CN.gbk']:
             }
             if mode!='missing-config':
                 config.write_text(configurations.get(mode, '# zh_CN.GBK GBK\n# zh_CN.UTF-8 UTF-8\n'))
-            marker=prefix/'glibc/termux-box/run/games-zh-cn-locale-v1'
+            marker=prefix/'glibc/termux-box/run/wine-zh-cn-locale-v1'
             if mode in ['reuse','stale-marker-failure']:
                 marker.parent.mkdir(parents=True,exist_ok=True);marker.touch()
                 for name in ['zh_CN.utf8','zh_CN.gbk']:

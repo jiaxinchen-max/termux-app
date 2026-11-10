@@ -75,7 +75,7 @@ public final class GameEditorReadiness {
                 && prefixComplete(prefix)
                 && new File(prefix, ".termux-box-bootstrap-done").isFile()
                 && new File(prefix, ".update-timestamp").exists()
-                && new File(prefix, "termux-boxmeta/games-wine-fonts-v2").isFile()
+                && new File(prefix, "termux-boxmeta/wine-fonts-v2").isFile()
                 && marker(new File(prefix, ".games-runtime/prepared-identity"))
                 && marker(new File(prefix, ".games-runtime/preparation-script-identity"))
                 && profile.getWinePackage().equals(firstLine(new File(prefix, ".termux-box-wine-package")));

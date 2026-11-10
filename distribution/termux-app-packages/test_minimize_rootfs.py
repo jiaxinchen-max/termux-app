@@ -23,7 +23,7 @@ class Minimize(unittest.TestCase):
         self.root = self.base / 'candidate'
         self.assets = self.base / 'assets'
         self.assets.mkdir()
-        self.put('etc/games-runtime.properties', 'runtimeBackend=rootfs_proot\narchitecture=aarch64\n')
+        self.put('etc/wine-runtime.properties', 'runtimeBackend=rootfs_proot\narchitecture=aarch64\n')
         self.put('var/lib/dpkg/status', 'Package: hangover-wine\nVersion: ' + m.PACKAGE +
                  '\nStatus: install ok installed\n')
         self.put('usr/bin/wine', 'ELF-Wine-runtime')
@@ -303,7 +303,7 @@ class Minimize(unittest.TestCase):
         owner = self.base / 'termux-files'
         root = owner / 'usr/var/lib/proot-distro/containers/tmpl-build/rootfs'
         shutil.copytree(self.source, root, symlinks=True)
-        with (root / 'etc/games-runtime.properties').open('a') as stream:
+        with (root / 'etc/wine-runtime.properties').open('a') as stream:
             stream.write('recipeSha256=' + 'a' * 64 + '\n')
         return owner, root, self.base / 'build-report.json'
 

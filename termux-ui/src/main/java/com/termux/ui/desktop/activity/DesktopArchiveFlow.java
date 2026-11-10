@@ -122,8 +122,7 @@ final class DesktopArchiveFlow {
                 if (host != activity) return;
                 confirmation = new FrostedDialogBuilder(activity)
                     .setTitle(R.string.desktop_archive_import)
-                    .setMessage(activity.getString(R.string.desktop_archive_import_scope)
-                        + "\n\n" + file.getAbsolutePath())
+                    .setMessage(R.string.desktop_archive_import_scope)
                     .setNegativeButton(android.R.string.cancel, null)
                     .setPositiveButton(R.string.desktop_archive_import,
                         (dialog, which) -> begin(current -> current.importDesktop(file)))
@@ -146,18 +145,10 @@ final class DesktopArchiveFlow {
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.desktop_archive_export, (dialog, which) -> {
                 String date = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(new Date());
-                chooser = SharedStorageChooserDialog.chooseNewSaveFile(activity,
-                    Environment.getExternalStorageDirectory(),
-                    distro.getId() + "-" + date + EXTENSION, EXTENSION, target -> {
-                        chooser = null;
-                        if (host != activity) return;
-                        // Recheck after the chooser closes; the worker also refuses races.
-                        if (target.exists()) {
-                            toast(R.string.desktop_archive_destination_exists);
-                            return;
-                        }
-                        begin(current -> current.exportDesktop(distro.getId(), target));
-                    });
+                begin(current -> current.exportDesktop(distro.getId(),
+                    com.termux.ui.platform.ExternalBackupLocation.newArchive(activity,
+                        distro.getId() + "-" + date + EXTENSION)));
+
             })
             .setOnDismissListener(dialog -> confirmation = null)
             .show();

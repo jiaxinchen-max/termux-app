@@ -41,8 +41,8 @@ require_native_wine_runtime() {
 resolve_native_box64() {
     NATIVE_GLIBC_LOADER="$TERMUX_GLIBC_DIR/lib/ld-linux-aarch64.so.1"
     case "${GAMES_CUSTOM_BOX64_ID:-}" in
-        '') NATIVE_BOX64_BIN="$TERMUX_GLIBC_DIR/components/glibc_box64_0.2.7/bin/box64" ;;
-        glibc_box64_0.2.7|glibc_box64_0.4.4)
+        '') NATIVE_BOX64_BIN="$TERMUX_GLIBC_DIR/components/glibc_box64_0.2.8/bin/box64" ;;
+        glibc_box64_0.2.8|glibc_box64_0.3.8|glibc_box64_0.4.4)
             NATIVE_BOX64_BIN="$TERMUX_GLIBC_DIR/components/$GAMES_CUSTOM_BOX64_ID/bin/box64"
             ;;
         custom-box64-?*)
@@ -54,7 +54,22 @@ resolve_native_box64() {
     esac
     [ -x "$NATIVE_GLIBC_LOADER" ] || { native_component_error glibc_loader_missing; return 1; }
     [ -x "$NATIVE_BOX64_BIN" ] || { native_component_error "box64_selected_binary_missing:${GAMES_CUSTOM_BOX64_ID:-runtime}"; return 1; }
-    export NATIVE_GLIBC_LOADER NATIVE_BOX64_BIN
+    # Remove only the path added by the previous resolution; preserve Wine/user paths.
+    if [ -n "${NATIVE_BOX64_LIBRARY_DIR:-}" ]; then
+        case "${BOX64_LD_LIBRARY_PATH:-}" in
+            "$NATIVE_BOX64_LIBRARY_DIR") BOX64_LD_LIBRARY_PATH= ;;
+            "$NATIVE_BOX64_LIBRARY_DIR":*) BOX64_LD_LIBRARY_PATH=${BOX64_LD_LIBRARY_PATH#*:} ;;
+        esac
+    fi
+    if [ -z "${BOX64_LD_LIBRARY_PATH:-}" ]; then
+        BOX64_LD_LIBRARY_PATH="$TERMUX_GLIBC_DIR/lib/x86_64-linux-gnu"
+        if [ -n "${WINE_PATH:-}" ]; then
+            BOX64_LD_LIBRARY_PATH="$WINE_PATH/lib64:$WINE_PATH/lib64/wine/x86_64-unix:$WINE_PATH/lib:$WINE_PATH/lib/wine/x86_64-unix:$BOX64_LD_LIBRARY_PATH"
+        fi
+    fi
+    NATIVE_BOX64_LIBRARY_DIR="${NATIVE_BOX64_BIN%/bin/box64}/lib/x86_64-linux-gnu"
+    BOX64_LD_LIBRARY_PATH="$NATIVE_BOX64_LIBRARY_DIR:$BOX64_LD_LIBRARY_PATH"
+    export NATIVE_GLIBC_LOADER NATIVE_BOX64_BIN NATIVE_BOX64_LIBRARY_DIR BOX64_LD_LIBRARY_PATH
 }
 
 native_run_box64() {

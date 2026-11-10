@@ -80,7 +80,7 @@ final class SafeTarXzExtractor {
                     throw failure("duplicate_entry", "Duplicate archive entry");
                 }
                 if (output.getCanonicalPath().equals(new File(destination,
-                    ".games-component.properties").getCanonicalPath())) {
+                    ".wine-component.properties").getCanonicalPath())) {
                     throw failure("reserved_entry", "Archive uses reserved receipt path");
                 }
                 if (entry.isDirectory()) {

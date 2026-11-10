@@ -12,7 +12,7 @@ import static org.junit.Assert.*;
 
 public class RuntimeProcessKillerTest {
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
-    private static final String PREFIX = "/data/data/com.termux/files/front/containers/a/prefix";
+    private static final String PREFIX = "/data/data/com.termux/files/front/wine/a/prefix";
 
     @Test public void killsMatchingTreeAndDetachedWineButPreservesOtherContainersAndApp() throws Exception {
         File proc = temporary.newFolder();

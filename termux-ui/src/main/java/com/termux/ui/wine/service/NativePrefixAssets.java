@@ -78,8 +78,7 @@ final class NativePrefixAssets {
                 .orElseThrow(() -> new IOException("native_prefix_wine_unknown"));
             if (!wine.equals(metadata.getString("winePackage")) ||
                 !id.equals(metadata.getString("prefixComponentId")) ||
-                !"glibc_termux_box".equals(metadata.getString("backend")) ||
-                metadata.getInt("componentVersion") != selected.getVersion()) {
+                !"glibc_termux_box".equals(metadata.getString("backend"))) {
                 throw new IOException("native_prefix_metadata_mismatch");
             }
         } catch (org.json.JSONException error) {
@@ -92,9 +91,6 @@ final class NativePrefixAssets {
                 .orElseThrow(() -> new IOException("native_prefix_component_unknown"));
             InstalledComponent installed = reader.read(component).getActive()
                 .orElseThrow(() -> new IOException("native_prefix_component_missing"));
-            if (installed.getVersion() != descriptor.getVersion()) {
-                throw new IOException("native_prefix_component_mismatch");
-            }
         }
         return reader.read(id).getActive().get().getDirectory().getCanonicalFile();
     }

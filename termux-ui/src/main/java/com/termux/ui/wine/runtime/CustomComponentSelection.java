@@ -1,5 +1,6 @@
 package com.termux.ui.wine.runtime;
 
+import com.termux.ui.wine.domain.ProotBox64Versions;
 import androidx.annotation.Nullable;
 
 import com.termux.ui.data.FileCustomRuntimeComponentRepository;
@@ -28,7 +29,7 @@ final class CustomComponentSelection {
                 (profile.getRuntimeBackendType() == GameRuntimeBackendType.GLIBC_TERMUX_BOX &&
                     NativeBox64Versions.isBuiltIn(box64)) ||
                 (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT &&
-                    "rootfs_box64_0.4.5".equals(box64)))) {
+                    ProotBox64Versions.isBuiltIn(box64)))) {
                 throw new IllegalArgumentException("box64_selection_unsupported:" + box64);
             }
             require(box64, CustomRuntimeComponent.Kind.BOX64, profile, paths);

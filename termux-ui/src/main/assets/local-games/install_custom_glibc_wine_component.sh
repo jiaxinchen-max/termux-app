@@ -100,7 +100,7 @@ if [ "$RUNTIME_BACKEND" = glibc_termux_box ]; then
     STAGE_BASE="$TERMUX_GLIBC_DIR/.custom-install-stage"
 else
     [ -x "$SHARED_ROOTFS/usr/bin/env" ] && [ -x "$SHARED_ROOTFS/usr/bin/wine" ] &&
-        [ -f "$SHARED_ROOTFS/etc/games-runtime.properties" ] || fail rootfs_not_built_yet 70
+        [ -f "$SHARED_ROOTFS/etc/wine-runtime.properties" ] || fail rootfs_not_built_yet 70
     case "$KIND" in
         wine) DEST="$SHARED_ROOTFS/opt/custom-wine/$COMPONENT_ID" ;;
         box64) DEST="$SHARED_ROOTFS/opt/box64/$COMPONENT_ID" ;;

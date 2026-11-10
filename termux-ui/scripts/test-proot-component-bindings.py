@@ -19,7 +19,7 @@ class BindingsTest(unittest.TestCase):
         self.content = self.version / "wine $' = 目录"
         (self.content / 'bin').mkdir(parents=True)
         (self.content / 'bin/wine64').write_bytes(b'executable')
-        (self.version / '.games-component.properties').write_text(
+        (self.version / '.wine-component.properties').write_text(
             'schemaVersion=1\npackageName=rootfs_wine_10.0\nversion=1\nsha256=' + SHA + '\n')
         self.mock = self.files / 'mock-proot'
         self.mock.write_text('#!/bin/sh\nfor arg do printf "<%s>\\n" "$arg"; done\n')
@@ -88,6 +88,21 @@ proot_bindings_complete || exit 65
         for value in ['WINE\n', 'WI\x00NE', 'WI\rNE']:
             self.assertEqual(64, self.run_fields(self.fields(role=value)).returncode)
 
+    def test_box64038_binding_uses_its_own_version_and_guest_target(self):
+        for component in ['rootfs_box64_0.2.8', 'rootfs_box64_0.3.8', 'rootfs_box64_0.4.5']:
+            version = self.files / 'front/components/install' / component / 'versions/one'
+            version.mkdir(parents=True)
+            (version / '.wine-component.properties').write_text(
+                f'schemaVersion=1\npackageName={component}\nversion=1\n')
+            fields = self.fields(componentId=component, versionDirectory=str(version),
+                contentRelativePath='', role='BOX64', guestTarget='/opt/box64/' + component)
+            p = self.run_fields(fields)
+            self.assertEqual(p.returncode, 0, p.stderr)
+            self.assertIn('<' + str(version) + ':/opt/box64/' + component + '>', p.stdout)
+            wrong = fields.replace(base64.b64encode(('/opt/box64/' + component).encode()).decode(),
+                base64.b64encode(b'/opt/box64/another-version').decode())
+            self.assertEqual(self.run_fields(wrong).returncode, 64)
+
     def test_no_bindings_for_hangover_remains_valid(self):
         p = self.run_fields('bindingCount=0\n')
         self.assertEqual(0, p.returncode)
@@ -114,7 +129,7 @@ class SetupInputsTest(unittest.TestCase):
         self.recipe = self.runtime / 'recipes/base'
         self.component = self.private / 'components/install/rootfs_hangover_11.16/versions/v1-aaaa'
         self.component.mkdir(parents=True)
-        self.values = dict(taskId='task', packageName='debian-13-games-rootfs', version='11',
+        self.values = dict(taskId='task', packageName='debian-13-games-rootfs', version='12',
             recipeSha256=SHA, containerId='container', containerName='container', baseOnly='true',
             buildContext=str(self.context), recipeDirectory=str(self.recipe),
             eventsPath=str(self.events), logPath=str(self.log), winePackage='',
@@ -145,7 +160,7 @@ class SetupInputsTest(unittest.TestCase):
         self.assertIn('termux_pkg_missing', self.events.read_text())
         self.assertFalse(self.context.exists())
 
-    def test_v11_rejects_legacy_v3_before_mutation(self):
+    def test_v12_rejects_legacy_v3_before_mutation(self):
         p = self.run_setup(schema=3)
         self.assertEqual(64, p.returncode, p.stderr)
         self.assertIn('unsupported_setup_spec', p.stderr)

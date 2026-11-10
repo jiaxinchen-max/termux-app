@@ -32,7 +32,7 @@ class RestoreTests(unittest.TestCase):
         (self.root/'usr/lib/wine').mkdir(parents=True)
         (self.root/'usr/lib/wine/public.dll').write_bytes(b'public dll')
         self.target = self.base/'game'
-        for name in ['setup-container.sh', 'games-runtime.properties']:
+        for name in ['setup-container.sh', 'wine-runtime.properties']:
             (self.assets.parent/name).write_text(name)
         self.files = {'system.reg': b'WINE REGISTRY Version 2', 'user.reg': b'registry',
                       'userdef.reg': b'registry', '.update-timestamp': b'disable\n',
@@ -62,7 +62,7 @@ class RestoreTests(unittest.TestCase):
 
     def pin(self):
         h = hashlib.sha256()
-        for name in ['setup-container.sh', 'games-runtime.properties']:
+        for name in ['setup-container.sh', 'wine-runtime.properties']:
             h.update((self.assets.parent/name).read_bytes())
         self.meta = {'schemaVersion':1, 'backend':'rootfs_proot','hostAbi':'aarch64',
                      'prefixArch':'wow64','winePackage':'rootfs_hangover_11.16',
@@ -116,7 +116,7 @@ class RestoreTests(unittest.TestCase):
 
     def test_real_shell_dispatch_restores_and_reuses_without_wine(self):
         (self.root/'etc').mkdir()
-        (self.root/'etc/games-runtime.properties').write_text('recipeSha256='+'b'*64+'\n')
+        (self.root/'etc/wine-runtime.properties').write_text('recipeSha256='+'b'*64+'\n')
         self.target.mkdir()
         (self.base/'usr/bin').mkdir(parents=True)
         (self.base/'usr/bin/python').symlink_to(sys.executable)
@@ -146,7 +146,7 @@ require_external_prepared_prefix
     def test_preparation_and_launch_share_key_without_rewriting_image(self):
         (self.root/'etc').mkdir()
         image_recipe='recipeSha256='+'a'*64+'\n'
-        (self.root/'etc/games-runtime.properties').write_text(image_recipe)
+        (self.root/'etc/wine-runtime.properties').write_text(image_recipe)
         marker=self.target/'.games-runtime/preparation-recipe'
         script='''set -eu
 . "$HELPER"
@@ -168,7 +168,7 @@ resolve_external_template_identity
             WINE_PACKAGE='rootfs_hangover_11.16',RUNTIME_TRANSLATOR='hangover')
         result=subprocess.run(['sh','-c',script],env=env,capture_output=True,text=True,timeout=10)
         self.assertEqual(0,result.returncode,result.stderr)
-        self.assertEqual(image_recipe,(self.root/'etc/games-runtime.properties').read_text())
+        self.assertEqual(image_recipe,(self.root/'etc/wine-runtime.properties').read_text())
         marker.write_text('')
         result=subprocess.run(['sh','-c','. "$HELPER"; warmup_fail() { exit 70; }; resolve_external_template_identity'],
             env=env,capture_output=True,text=True,timeout=10)
@@ -326,7 +326,7 @@ class StandardWineRestoreTests(unittest.TestCase):
         self.wine = self.base/'components/versions/1/wine'
         (self.wine/'lib/wine/x86_64-windows').mkdir(parents=True)
         (self.wine/'lib/wine/x86_64-windows/ntdll.dll').write_bytes(b'ordinary wine dll')
-        self.receipt = self.wine.parent/'.games-component.properties'
+        self.receipt = self.wine.parent/'.wine-component.properties'
         self.receipt.write_text('schemaVersion=1\npackageName=rootfs_wine_10.0\nversion=1\nsha256='+'c'*64+'\n')
         self.records[-2].update(source='lib/wine/x86_64-windows/ntdll.dll', sourceRoot='wine',
                                bytes=len(b'ordinary wine dll'), sha256=hashlib.sha256(b'ordinary wine dll').hexdigest())
@@ -358,7 +358,7 @@ class StandardWineRestoreTests(unittest.TestCase):
     def test_real_shell_dispatch_restores_and_reuses_without_wine(self):
         import shutil
         (self.root/'etc').mkdir()
-        (self.root/'etc/games-runtime.properties').write_text('recipeSha256='+'b'*64+'\n')
+        (self.root/'etc/wine-runtime.properties').write_text('recipeSha256='+'b'*64+'\n')
         (self.base/'usr/bin').mkdir(parents=True)
         (self.base/'usr/bin/python').symlink_to(sys.executable)
         shutil.copyfile(ASSETS/'restore_wine_prefix.py',self.assets.parent/'restore_wine_prefix.py')
@@ -406,7 +406,7 @@ require_external_prepared_prefix
 
     def test_missing_template_never_falls_back_to_initialization(self):
         (self.root/'etc').mkdir()
-        (self.root/'etc/games-runtime.properties').write_text('recipeSha256='+'b'*64+'\n')
+        (self.root/'etc/wine-runtime.properties').write_text('recipeSha256='+'b'*64+'\n')
         script='''set -eu
 . "$HELPER"
 warmup_fail() { echo "$1" >&2; exit 70; }

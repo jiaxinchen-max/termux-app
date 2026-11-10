@@ -1,7 +1,6 @@
 package com.termux.ui.wine.activity;
 
 import android.app.Activity;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.format.Formatter;
@@ -12,7 +11,7 @@ import androidx.appcompat.app.AlertDialog;
 import com.termux.ui.R;
 import com.termux.ui.activity.FrostedDialogBuilder;
 import com.termux.ui.activity.RuntimeSetupConsoleDialog;
-import com.termux.ui.activity.SharedStorageChooserDialog;
+import com.termux.ui.activity.FixedBackupChooser;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.platform.ExternalBackupLocation;
 import com.termux.ui.runtime.RuntimeBackupSharedStorage;
@@ -25,7 +24,7 @@ import java.io.IOException;
 
 /**
  * Drives backup and restore from the PRoot environment settings rows: an in-app
- * chooser rooted at shared storage, then a visible Termux session that reads or writes the chosen
+ * backup list from the fixed external directory, then a visible Termux session that reads or writes the selected
  * file directly. One instance lives for the process so a running job survives the host activity
  * being recreated; it owns every dialog of the flow, closes them when the host goes away and
  * shows its console and any unacknowledged result again on the new activity.
@@ -40,7 +39,7 @@ public final class RuntimeBackupFlow {
     /** Finished while detached; shown on the next attach. */
     @Nullable private Runnable pendingReport;
     /** Dialogs currently on screen; all are closed when the host activity goes away. */
-    @Nullable private SharedStorageChooserDialog chooser;
+    @Nullable private AlertDialog chooser;
     @Nullable private AlertDialog resultDialog;
     /** The report behind {@link #resultDialog} until the user acknowledges it. */
     @Nullable private Runnable shownReport;
@@ -85,31 +84,19 @@ public final class RuntimeBackupFlow {
         statusRefresh = null;
     }
 
-    /**
-     * Opens the in-app save chooser (shared storage only) for any kind of backup. The chooser is
-     * tracked here so it is closed together with the other dialogs when the host activity goes.
-     */
-    public void pickSaveFile(String extension, String defaultName, SharedStorageChooserDialog.OnChosen onChosen) {
+    public void createArchive(String defaultName, java.util.function.Consumer<File> onChosen) {
         Activity activity = host;
         if (activity == null) return;
-        if (chooser != null) chooser.dismiss();
-        chooser = SharedStorageChooserDialog.chooseSaveFile(activity,
-            Environment.getExternalStorageDirectory(), defaultName, extension, file -> {
-                chooser = null;
-                onChosen.onChosen(file);
-            });
+        try { onChosen.accept(ExternalBackupLocation.newArchive(activity, defaultName)); }
+        catch (IOException error) { showFailure(error); }
     }
 
-    /** Opens the in-app chooser listing only files ending in {@code extension}; see pickSaveFile. */
-    public void pickArchive(String extension, SharedStorageChooserDialog.OnChosen onChosen) {
+    public void pickArchive(String extension, java.util.function.Consumer<File> onChosen) {
         Activity activity = host;
         if (activity == null) return;
         if (chooser != null) chooser.dismiss();
-        chooser = SharedStorageChooserDialog.chooseArchive(activity,
-            Environment.getExternalStorageDirectory(), extension, file -> {
-                chooser = null;
-                onChosen.onChosen(file);
-            });
+        try { chooser = FixedBackupChooser.show(activity, extension, onChosen); }
+        catch (IOException error) { showFailure(error); }
     }
 
     /** A failure raised outside a running job, for example a refused free-space preflight. */
@@ -176,7 +163,7 @@ public final class RuntimeBackupFlow {
         Activity activity = host;
         if (activity == null) { pendingReport = () -> showRootfsResult(task); return; }
         String archive = task.getArchivePath().isEmpty()
-            ? ExternalBackupLocation.file().getPath()
+            ? ExternalBackupLocation.directory().getPath()
             : task.getArchivePath();
         String message;
         if (task.getState() == RootfsBackupTaskState.SUCCEEDED) {

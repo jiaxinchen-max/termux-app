@@ -21,7 +21,7 @@ class ImageTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name); self.root = self.base / 'restored'; self.archive = self.base / 'test.tar.zst'; self.descriptor = self.base / 'image.json'; self.recipe = 'a' * 64
-        self.files = {'etc/games-runtime.properties': b'layout=external-components-v1\n', 'usr/bin/wine': b'wine', '.l2s/one': b'data'}
+        self.files = {'etc/wine-runtime.properties': b'layout=external-components-v1\n', 'usr/bin/wine': b'wine', '.l2s/one': b'data'}
         self.records = [{'path': n, 'type': 'file', 'mode': 0o644, 'bytes': len(v), 'sha256': m.sha_bytes(v)} for n, v in self.files.items()]
         self.links = {'bin': '/usr/bin', 'usr/bin/linked': '../../.l2s/one'}
         self.records += [{'path': n, 'type': 'symlink', 'mode': 0o777, 'link': v} for n, v in self.links.items()]
@@ -52,6 +52,17 @@ class ImageTests(unittest.TestCase):
 
     def test_roundtrip_absolute_guest_and_l2s_links(self):
         self.build(); self.restore(); self.assertEqual(m.guest(self.root, 'bin/linked').read_bytes(), b'data'); self.assertEqual(m.verify(self.root, self.descriptor, self.recipe, True)['state'], 'Ready')
+    def test_pinned_source_names_publish_only_wine_names(self):
+        old = 'etc/games-runtime.properties'
+        current = 'etc/wine-runtime.properties'
+        self.files[old] = self.files.pop(current)
+        self.records[0]['path'] = old
+        self.build(); self.restore()
+        self.assertFalse((self.root / old).exists())
+        self.assertTrue((self.root / current).is_file())
+        self.assertTrue((self.root / 'etc/wine-image-install.json').is_file())
+        self.assertEqual(m.verify(self.root, self.descriptor, self.recipe, True)['state'], 'Ready')
+
     def test_different_content_restores_without_digest_gate(self):
         self.build(members=[dict(self.records[0],payload=b'X'*len(self.files[self.records[0]['path']]))]+self.records[1:])
         self.restore()
@@ -123,7 +134,7 @@ class ImageTests(unittest.TestCase):
             else:p.symlink_to(r['link'])
         (source/'etc/machine-id').write_bytes(b'secret-machine-id')
         (source/'root/.ssh').mkdir(parents=True);(source/'var/log').mkdir(parents=True);(source/'var/log/private').write_bytes(b'log')
-        (source/'etc/games-rootfs-trim.json').write_text(json.dumps({'state':'Verified','batches':[1,2,3,4,5]}))
+        (source/'etc/wine-rootfs-trim.json').write_text(json.dumps({'state':'Verified','batches':[1,2,3,4,5]}))
         assets=self.base/'assets';assets.mkdir();(assets/'manifest.json').write_bytes(b'[]');(assets/'bundle.json').write_bytes(m.raw_json({'sourceComponentSha256':m.SOURCE_SHA,'assets':{'manifest.json':m.sha_bytes(b'[]')},'runtimeFiles':{'usr/bin/wine':m.sha_bytes(b'wine')}}))
         out=self.base/'one.tar.zst';desc=self.base/'one.json';d=m.pack(source,out,desc,assets,'zstd');out2=self.base/'two.tar.zst';desc2=self.base/'two.json';d2=m.pack(source,out2,desc2,assets,'zstd');self.assertEqual(d['sha256'],d2['sha256'])
         m.restore(out,self.root,desc,self.recipe,'zstd');self.assertEqual((self.root/'etc/machine-id').read_bytes(),b'');self.assertFalse((self.root/'var/log/private').exists());self.assertEqual((source/'etc/machine-id').read_bytes(),b'secret-machine-id')

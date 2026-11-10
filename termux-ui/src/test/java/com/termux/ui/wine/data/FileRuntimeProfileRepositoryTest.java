@@ -93,6 +93,23 @@ public class FileRuntimeProfileRepositoryTest {
         assertEquals("debian-13-games-rootfs", restored.getRootfsPackage());
     }
 
+    @Test public void eachBackendPersistsItsExactBox64038Selection() throws Exception {
+        FileRuntimeProfileRepository repository = repository();
+        for (GameRuntimeBackendType backend : GameRuntimeBackendType.values()) {
+            boolean proot = backend == GameRuntimeBackendType.ROOTFS_PROOT;
+            String id = (proot ? "rootfs" : "glibc") + "_box64_0.3.8";
+            RuntimeProfile base = RuntimeProfilePresets.create("game-" + backend.name(), RuntimeProfilePreset.RECOMMENDED);
+            RuntimeProfile profile = new RuntimeProfile(base.getId(), proot ? "rootfs_wine_10.0" : base.getWinePackage(),
+                proot ? "rootfs-llvmpipe" : base.getGraphicsDriver(), proot ? "rootfs-wined3d" : base.getDxWrapper(),
+                base.getAudioDriver(), base.getResolution(), base.getBox64Preset(),
+                java.util.Collections.singletonMap("GAMES_CUSTOM_BOX64_ID", id), base.getInputProfileId(),
+                base.getLaunchExecutionMode(), base.getComponentVersions(), backend,
+                proot ? "debian-13-games-rootfs" : "");
+            repository.save(profile);
+            assertEquals(id, repository.find(profile.getId()).get().getEnvironment().get("GAMES_CUSTOM_BOX64_ID"));
+        }
+    }
+
     private FileRuntimeProfileRepository repository() throws IOException {
         return new FileRuntimeProfileRepository(temporaryFolder.newFolder("profiles"));
     }

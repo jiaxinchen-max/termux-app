@@ -92,6 +92,7 @@ public final class GameOrphanSweeper {
         Set<String> handled = new HashSet<>();
         int removed = 0;
         for (File entry : entries) {
+            if (entry.equals(paths.getTemplateArchiveCacheDirectory())) continue;
             String name = entry.getName();
             String id = name.endsWith(SUFFIX) ? name.substring(0, name.length() - SUFFIX.length()) : name;
             if (!id.startsWith(CONTAINER_PREFIX) || GameContainer.DEFAULT_ID.equals(id)

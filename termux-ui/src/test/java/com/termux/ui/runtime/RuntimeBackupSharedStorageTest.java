@@ -74,7 +74,7 @@ public final class RuntimeBackupSharedStorageTest {
     public void exportNamesAreEnglishAndTimestamped() {
         Date now = new Date(0L);
         assertTrue(RuntimeBackupSharedStorage.rootfsExportFileName(now)
-            .matches("games-base-backup-\\d{8}-\\d{6}\\.tar\\.zst"));
+            .matches("wine-base-backup-\\d{8}-\\d{6}\\.tar\\.zst"));
     }
 
     @Test
@@ -95,8 +95,8 @@ public final class RuntimeBackupSharedStorageTest {
         File container = temp.newFolder("container-templates");
         write(new File(container, "x"), 512);
         File cache = temp.newFolder("cache-templates");
-        write(new File(cache, "games-rootfs-base-prefix-rootfs_hangover_11.16.tar.zst"), 100000);
-        write(new File(cache, "games-rootfs-base.recipe"), 1);
+        write(new File(cache, "wine-rootfs-base-prefix-rootfs_hangover_11.16.tar.zst"), 100000);
+        write(new File(cache, "wine-rootfs-base.recipe"), 1);
         long with = RuntimeBackupSharedStorage.estimateRootfsBackupBytes(container, cache, true);
         long without = RuntimeBackupSharedStorage.estimateRootfsBackupBytes(container, cache, false);
         assertEquals(with, RuntimeBackupSharedStorage.estimateRootfsBackupBytes(container, cache));

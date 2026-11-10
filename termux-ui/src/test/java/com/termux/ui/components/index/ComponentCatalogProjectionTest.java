@@ -38,15 +38,15 @@ public class ComponentCatalogProjectionTest {
         ComponentIndex index = bundledIndex();
         assertEquals(ComponentType.CONTAINER,
             index.find("glibc_wine_9.3-vanilla").get().getType());
-        assertEquals(ComponentType.GPU_DRIVER, index.find("turnip").get().getType());
+        assertEquals(ComponentType.GPU_DRIVER, index.find("native-turnip-v4").get().getType());
         assertEquals(ComponentType.GPU_DRIVER, index.find("virgl-mesa").get().getType());
-        assertEquals(ComponentType.DX_WRAPPER, index.find("dxvk").get().getType());
+        assertEquals(ComponentType.DX_WRAPPER, index.find("native-dxvk-gplasync-2.3").get().getType());
         assertEquals(ComponentType.DX_WRAPPER, index.find("wined3d").get().getType());
-        assertEquals(ComponentType.TRANSLATOR, index.find("glibc_box64_0.2.7").get().getType());
+        assertEquals(ComponentType.TRANSLATOR, index.find("glibc_box64_0.2.8").get().getType());
         assertEquals(ComponentType.TRANSLATOR,
             index.find("glibc_box64_0.4.4").get().getType());
         assertFalse(index.find("glibc_box64_0.4.4").get().isBase());
-        assertEquals("box64_0.2.7", index.find("glibc_box64_0.2.7").get().getDisplayName());
+        assertEquals("box64_0.2.8", index.find("glibc_box64_0.2.8").get().getDisplayName());
         assertEquals("box64_0.4.4",
             index.find("glibc_box64_0.4.4").get().getDisplayName());
         assertFalse(index.find("rootfs_hangover_11.16").isPresent());
@@ -64,6 +64,11 @@ public class ComponentCatalogProjectionTest {
         for (ComponentDescriptor descriptor : bundledIndex().getComponents()) {
             if (descriptor.isHidden()) continue;
             String id = descriptor.getId();
+            if (id.startsWith("native-")) {
+                assertEquals(id, descriptor.getProfileValue());
+                assertFalse(indexHasFamily(descriptor));
+                continue;
+            }
             String expectedPrefix = id.replaceFirst("^(glibc|rootfs)_", "");
             String name = descriptor.getDisplayName();
             assertTrue(id + " -> " + name, name.matches("[a-z0-9-]+_[0-9][0-9A-Za-z.-]*"));
@@ -122,11 +127,13 @@ public class ComponentCatalogProjectionTest {
     public void unavailableGameHubSlotsHaveNoDownloadableEntry() throws Exception {
         for (ComponentDescriptor descriptor : bundledIndex().getComponents()) {
             String id = descriptor.getId().toLowerCase();
-            assertFalse("VKD3D has no verified delivery yet", id.contains("vkd3d"));
+            if (id.contains("vkd3d")) assertEquals("native-vkd3d", id);
             assertFalse("FEX has no verified delivery yet", id.contains("fex"));
             assertFalse("Steam client has no verified delivery yet", id.contains("steam"));
         }
     }
+
+    private static boolean indexHasFamily(ComponentDescriptor d) { return d.getId().equals("turnip") || d.getId().equals("dxvk"); }
 
     @Test
     public void prefixAppsStaysOneArchiveInsteadOfFakeMembers() throws Exception {

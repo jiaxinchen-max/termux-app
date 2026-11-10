@@ -17,7 +17,7 @@ spec = importlib.util.spec_from_file_location('rootfs_audit', Path(__file__).wit
 a = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(a)
 m = a.m
-RECEIPT = 'etc/games-external-wine-dependencies.json'
+RECEIPT = 'etc/wine-external-wine-dependencies.json'
 EMULATED_DIRS = ('lib/x86_64-linux-gnu', 'usr/lib/x86_64-linux-gnu',
                  'usr/x86_64-linux-gnu/lib', 'usr/lib/box64-x86_64-linux-gnu')
 NATIVE_DIRS = ('usr/local/lib/aarch64-linux-gnu', 'usr/local/lib',

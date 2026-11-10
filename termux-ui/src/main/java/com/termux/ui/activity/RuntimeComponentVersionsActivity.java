@@ -78,7 +78,16 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
     private final Runnable refresh = () -> reload();
     private final ActivityResultLauncher<String[]> filePicker = registerForActivityResult(
         new ActivityResultContracts.OpenDocument(), uri -> {
-            if (uri != null) showCustomComponentMetadataDialog(this.kind,
+            String reinstallId = this.pendingCustomId;
+            pendingCustomId = null;
+            if (uri == null) return;
+            if (reinstallId != null) {
+                try {
+                    CustomRuntimeComponent component = this.customComponents.find(reinstallId)
+                        .orElseThrow(() -> new IOException("custom_component_unknown"));
+                    enqueueCustom(component.getId(), component.getKind(), component.getTranslator(), component.getDisplayName(), uri);
+                } catch (IOException error) { fail(error); }
+            } else showCustomComponentMetadataDialog(this.kind,
                 this.backend == GameRuntimeBackendType.ROOTFS_PROOT, uri);
         });
     private CustomRuntimeComponent.Kind kind;
@@ -86,6 +95,7 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
     private RuntimeTranslator locked;
     private Mode mode;
     private String selected;
+    private String pendingCustomId;
     private GameStoragePaths paths;
     private FileCustomRuntimeComponentRepository customComponents;
     private LinearLayout content;
@@ -133,6 +143,7 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
             return;
         }
         selected = getIntent().getStringExtra(EXTRA_SELECTION_ID);
+        pendingCustomId = state == null ? null : state.getString("pendingCustomId");
         if (kind == CustomRuntimeComponent.Kind.BOX64) {
             selected = RuntimeComponentVersions.selectedBox64Id(backend, selected);
         }
@@ -166,6 +177,11 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
         ViewCompat.requestApplyInsets(root);
     }
 
+    @Override protected void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+        state.putString("pendingCustomId", pendingCustomId);
+    }
+
     @Override protected void onResume() {
         super.onResume();
         resumed = true;
@@ -190,6 +206,7 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
         final ComponentTask task;
         final boolean available;
         int description;
+        CustomRuntimeComponent custom;
         Row(String id, String name, ComponentDescriptor descriptor, ComponentTask task, boolean available) {
             this.id = id; this.name = name; this.descriptor = descriptor; this.task = task; this.available = available;
         }
@@ -209,9 +226,12 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
                     unique.put(entry.getId(), new Row(entry.getId(), entry.getDisplayName(), null, null, true));
                 }
                 for (CustomRuntimeComponent entry : customComponents.list()) {
-                    if (RuntimeComponentVersions.accepts(entry, kind, backend, locked) && CustomComponentInstallation.isAvailable(paths, entry)) {
-                        unique.put(entry.getId(), new Row(entry.getId(), entry.getDisplayName(), null, null, true));
-                    }
+                    if (!RuntimeComponentVersions.accepts(entry, kind, backend, locked)) continue;
+                    boolean available = CustomComponentInstallation.isAvailable(paths, entry);
+                    Row row = new Row(entry.getId(), entry.getDisplayName(), null, null, available);
+                    row.custom = entry;
+                    if (available) unique.put(entry.getId(), row);
+                    else online.add(row);
                 }
                 ComponentStoragePaths storage = new ComponentStoragePaths(getFilesDir());
                 ComponentInstallationReader receipts = new ComponentInstallationReader(storage.getInstallDirectory());
@@ -236,9 +256,9 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
                     ComponentDescriptor descriptor = item.getDescriptor();
                     if (!RuntimeComponentVersions.accepts(descriptor, kind, backend, locked)) continue;
                     InstalledComponent receipt = receipts.read(descriptor.getId()).getActive().orElse(null);
-                    boolean available = receipt != null && receipt.getVersion() == descriptor.getVersion() &&
+                    boolean available = receipt != null &&
                         receipt.getDirectory().isDirectory();
-                    if (available && backend == GameRuntimeBackendType.GLIBC_TERMUX_BOX) {
+                    if (backend == GameRuntimeBackendType.GLIBC_TERMUX_BOX) {
                         available = LocalGames.requireHost(this).isRuntimeComponentAvailable(descriptor.getId(),
                             descriptor.getVersion(), descriptor.getSha256());
                     }
@@ -269,8 +289,8 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
 
     private void render(List<Row> installed, List<Row> online) {
         StringBuilder next = new StringBuilder();
-        for (Row row : installed) next.append(row.id).append(row.name).append(row.description);
-        for (Row row : online) next.append(row.descriptor.getId()).append(row.available)
+        for (Row row : installed) next.append(row.id).append(row.name).append(row.description).append(row.task == null ? "" : row.task.getState());
+        for (Row row : online) next.append(row.id).append(row.available)
             .append(row.task == null ? "" : row.task.getState().name());
         next.append(selected).append(mode);
         if (next.toString().equals(signature)) return;
@@ -301,13 +321,14 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
         for (Row row : installed) {
             boolean current = row.id.equals(selected);
             currentFound |= current;
+            LinearLayout item;
             if (mode == Mode.SELECT) {
-                FrostedMenuRow.addChoice(this, content, row.name,
+                item = FrostedMenuRow.addChoice(this, content, row.name,
                     getString(current ? R.string.component_versions_current : R.string.component_versions_installed),
                     current, view -> choose(row.id));
-            } else {
-                menu.row(row.name, getString(R.string.component_versions_installed), null);
-            }
+            } else item = FrostedMenuRow.add(this, content, row.name,
+                getString(R.string.component_versions_installed), 1, false, null);
+            addActions(item, row);
         }
         if (mode == Mode.SELECT && selected != null && !selected.isEmpty() && !currentFound) {
             menu.row(getString(R.string.component_versions_missing, selected), null, null);
@@ -318,13 +339,59 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
                     "application/x-tar", "application/octet-stream"}));
         }
         if (!online.isEmpty()) {
-            menu.heading(getString(R.string.component_versions_online));
+            menu.heading(getString(R.string.component_actions_available));
             for (Row row : online) {
-                menu.row(row.name, getString(row.task != null && row.task.getState().shouldRecoverAutomatically()
-                    ? R.string.component_versions_in_progress : R.string.component_versions_download), view -> install(row));
+                LinearLayout item = FrostedMenuRow.add(this, content, row.name,
+                    getString(row.task != null && row.task.getState().shouldRecoverAutomatically()
+                        ? R.string.component_versions_in_progress : R.string.component_versions_download),
+                    1, true, view -> showActions(view, row));
+                addActions(item, row);
             }
         }
         scroll.post(() -> scroll.scrollTo(0, scrollY));
+    }
+
+    private void addActions(LinearLayout item, Row row) {
+        if (row.descriptor == null && row.custom == null) return;
+        android.widget.ImageButton button = new android.widget.ImageButton(this);
+        button.setImageResource(R.drawable.local_games_ic_overflow);
+        button.setImageTintList(android.content.res.ColorStateList.valueOf(color(R.color.local_games_on_surface)));
+        button.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        button.setContentDescription(getString(R.string.component_actions_menu, row.name));
+        button.setOnClickListener(view -> showActions(view, row));
+        item.addView(button, new LinearLayout.LayoutParams(dp(48), dp(48)));
+    }
+
+    private void showActions(View anchor, Row row) {
+        android.widget.PopupMenu popup = new android.widget.PopupMenu(this, anchor);
+        if (row.available) {
+            popup.getMenu().add(0, 1, 0, R.string.component_actions_uninstall);
+            popup.getMenu().add(0, 2, 1, R.string.local_games_component_reinstall);
+        } else popup.getMenu().add(0, 3, 0, R.string.local_games_component_install);
+        popup.setOnMenuItemClickListener(action -> {
+            if (action.getItemId() == 1) uninstall(row);
+            else if (row.custom != null) {
+                pendingCustomId = row.custom.getId();
+                filePicker.launch(new String[]{"application/octet-stream", "application/x-xz", "application/x-tar", "application/zstd", "application/gzip"});
+            } else if (action.getItemId() == 2) {
+                ComponentTaskConsoleDialog.show(this, ComponentTasks.install(this, row.descriptor.getId(), true));
+            } else install(row);
+            return true;
+        });
+        popup.show();
+    }
+
+    private void uninstall(Row row) {
+        Toast.makeText(this, R.string.component_actions_removing, Toast.LENGTH_SHORT).show();
+        ComponentTasks.uninstall(this, row.id, new android.os.ResultReceiver(handler) {
+            @Override protected void onReceiveResult(int result, Bundle data) {
+                if (isDestroyed() || isFinishing()) return;
+                if (result != 0) fail(new IOException(data == null ? "component_uninstall_failed" : data.getString(ComponentTasks.EXTRA_COMMAND_ERROR)));
+                else Toast.makeText(RuntimeComponentVersionsActivity.this, R.string.component_actions_removed, Toast.LENGTH_SHORT).show();
+                signature = null;
+                reload();
+            }
+        });
     }
 
     private void choose(String id) {
@@ -340,7 +407,7 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
             else if (row.task != null && row.task.getState() == ComponentTaskState.PAUSED) {
                 ComponentTasks.resume(this, row.task.getTaskId()); taskId = row.task.getTaskId();
             } else {
-                taskId = ComponentTasks.enqueue(this, row.descriptor.getId());
+                taskId = ComponentTasks.install(this, row.descriptor.getId(), false);
             }
             if (taskId == null) { signature = null; reload(); }
             else ComponentTaskConsoleDialog.show(this, taskId);
@@ -404,6 +471,11 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
             fail(error);
             return;
         }
+        enqueueCustom(componentId, kind, translator, displayName, uri);
+    }
+
+    private void enqueueCustom(String componentId, CustomRuntimeComponent.Kind kind,
+            @Nullable RuntimeTranslator translator, String displayName, Uri uri) {
         String finalComponentId = componentId;
         RuntimeTranslator finalTranslator = translator;
         Toast.makeText(this, R.string.local_games_custom_component_installing,

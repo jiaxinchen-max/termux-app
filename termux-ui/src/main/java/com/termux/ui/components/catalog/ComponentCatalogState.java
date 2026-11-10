@@ -9,6 +9,5 @@ public enum ComponentCatalogState {
     VERIFIED,
     INSTALLING,
     INSTALLED,
-    UPDATE_AVAILABLE,
     FAILED
 }

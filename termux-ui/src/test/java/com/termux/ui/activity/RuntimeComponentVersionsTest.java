@@ -29,11 +29,11 @@ public class RuntimeComponentVersionsTest {
         assertFalse(RuntimeComponentVersions.accepts(component, CustomRuntimeComponent.Kind.WINE, prootBackend, RuntimeTranslator.HANGOVER));
     }
 
-    @Test public void nativeBundlesCannotBeSavedAsVersionSelections() throws Exception {
+    @Test public void nativeGraphicsVersionsAreIndividuallySelectable() throws Exception {
         ComponentIndex index = index();
-        ComponentDescriptor dxvk = index.find("dxvk").get();
+        ComponentDescriptor dxvk = index.find("native-dxvk-gplasync-2.3").get();
         assertTrue(RuntimeComponentVersions.accepts(dxvk, CustomRuntimeComponent.Kind.DXVK, nativeBackend, null));
-        assertNull(RuntimeComponentVersions.catalogSelectionId(dxvk, CustomRuntimeComponent.Kind.DXVK, nativeBackend));
+        assertEquals(dxvk.getId(), RuntimeComponentVersions.catalogSelectionId(dxvk, CustomRuntimeComponent.Kind.DXVK, nativeBackend));
         ComponentDescriptor wine = index.find("glibc_wine_9.3-vanilla").get();
         assertEquals(wine.getId(), RuntimeComponentVersions.catalogSelectionId(wine, CustomRuntimeComponent.Kind.WINE, nativeBackend));
     }
@@ -74,7 +74,9 @@ public class RuntimeComponentVersionsTest {
 
     @Test public void eachNativeBox64BuildHasAnExactSelectableIdIncludingTheAutomaticDefault() throws Exception {
         ComponentIndex index = index();
-        for (String id : new String[] {"glibc_box64_0.2.7", "glibc_box64_0.4.4"}) {
+        assertFalse(index.find("glibc_box64_0.2.7").isPresent());
+        assertFalse(com.termux.ui.wine.runtime.NativeBox64Versions.isBuiltIn("glibc_box64_0.2.7"));
+        for (String id : new String[] {"glibc_box64_0.2.8", "glibc_box64_0.3.8", "glibc_box64_0.4.4"}) {
             ComponentDescriptor build = index.find(id).get();
             assertTrue(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, nativeBackend, null));
             assertFalse(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, prootBackend, null));
@@ -83,21 +85,23 @@ public class RuntimeComponentVersionsTest {
     }
 
     @Test public void prebuiltProotBox64IsSelectableWithoutExposingOtherHiddenDependencies() throws Exception {
-        ComponentDescriptor build = index().find("rootfs_box64_0.4.5").get();
+        for (String id : new String[]{"rootfs_box64_0.2.8", "rootfs_box64_0.3.8", "rootfs_box64_0.4.5"}) {
+        ComponentDescriptor build = index().find(id).get();
         assertTrue("Keep the general component catalog clean", build.isHidden());
         assertTrue(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, prootBackend, null));
         assertTrue(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, prootBackend, RuntimeTranslator.BOX64));
         assertFalse(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, prootBackend, RuntimeTranslator.HANGOVER));
         assertFalse(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, nativeBackend, null));
         assertFalse(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.WINE, prootBackend, null));
-        assertEquals("rootfs_box64_0.4.5", RuntimeComponentVersions.catalogSelectionId(build,
+        assertEquals(id, RuntimeComponentVersions.catalogSelectionId(build,
             CustomRuntimeComponent.Kind.BOX64, prootBackend));
+        }
     }
 
     @Test public void box64DefaultsMatchEachRuntimeAndExplicitSelectionsRemainExact() {
         assertEquals("rootfs_box64_0.4.5", RuntimeComponentVersions.selectedBox64Id(prootBackend, ""));
         assertEquals("rootfs_box64_0.4.5", RuntimeComponentVersions.selectedBox64Id(prootBackend, null));
-        assertEquals("glibc_box64_0.2.7", RuntimeComponentVersions.selectedBox64Id(nativeBackend, ""));
+        assertEquals("glibc_box64_0.2.8", RuntimeComponentVersions.selectedBox64Id(nativeBackend, ""));
         assertEquals("glibc_box64_0.4.4", RuntimeComponentVersions.selectedBox64Id(nativeBackend, "glibc_box64_0.4.4"));
         assertEquals("custom-box64-test", RuntimeComponentVersions.selectedBox64Id(prootBackend, "custom-box64-test"));
     }

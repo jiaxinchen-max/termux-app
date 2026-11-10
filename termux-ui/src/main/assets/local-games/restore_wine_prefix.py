@@ -94,12 +94,12 @@ def restore(rootfs, assets, destination, identity, runtime, package, wine_root=N
         wine_root = Path(wine_root).resolve(strict=True)
         # The caller resolves the frozen PRoot binding. Also pin its install receipt here;
         # an adjacent, similarly named Wine tree is not an interchangeable input.
-        receipt = wine_root / '.games-component.properties'
+        receipt = wine_root / '.wine-component.properties'
         if native:
             # Bind the prefix component receipt; copy current activated Wine files as-is.
-            receipt = assets / '.games-component.properties'
+            receipt = assets / '.wine-component.properties'
         if not native and not receipt.is_file():
-            receipt = wine_root.parent / '.games-component.properties'
+            receipt = wine_root.parent / '.wine-component.properties'
         if native:
             require(receipt.is_file() and not receipt.is_symlink(), 'component_receipt_invalid')
         values = {}
@@ -253,7 +253,7 @@ def restore(rootfs, assets, destination, identity, runtime, package, wine_root=N
                             '"Noto Sans CJK SC (TrueType)"="NotoSansCJK-Regular.ttc"' in
                             (stage / 'system.reg').read_text(), 'native_fonts_invalid')
                     (stage / 'termux-boxmeta').mkdir(exist_ok=True)
-                    (stage / 'termux-boxmeta/games-wine-fonts-v2').touch()
+                    (stage / 'termux-boxmeta/wine-fonts-v2').touch()
                 # rename replaces only an empty directory; an intervening nonempty target fails.
                 require(not destination.is_symlink(), 'destination_invalid')
                 os.rename(stage, destination)

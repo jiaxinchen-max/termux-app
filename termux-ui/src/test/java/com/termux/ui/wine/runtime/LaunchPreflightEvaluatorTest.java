@@ -67,25 +67,25 @@ public class LaunchPreflightEvaluatorTest {
     }
 
     @Test
-    public void reportsReceiptMismatchAndUnavailablePinnedVersion() throws Exception {
+    public void installedRevisionsIgnoreCatalogAndProfilePins() throws Exception {
         ComponentIndex index = index();
         RuntimeProfile base = RuntimeProfilePresets.create("game-1",
             RuntimeProfilePreset.RECOMMENDED);
         Map<String, String> pins = new LinkedHashMap<>();
-        pins.put("dxvk", "99");
+        pins.put("native-dxvk-gplasync-2.3", "99");
         RuntimeProfile pinned = new RuntimeProfile(base.getId(), base.getWinePackage(),
             base.getGraphicsDriver(), base.getDxWrapper(), base.getAudioDriver(),
             base.getResolution(), base.getBox64Preset(), base.getEnvironment(),
             base.getInputProfileId(), pins);
         Map<String, InstalledComponentVersion> installed = installed(index);
-        installed.put("turnip", new InstalledComponentVersion(2,
+        installed.put("native-turnip-v6.5", new InstalledComponentVersion(2,
             "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
 
         LaunchPreflightResult result = new LaunchPreflightEvaluator(index).evaluate(pinned,
             GameAccessState.ACCESSIBLE, true, Long.MAX_VALUE, installed);
 
-        assertTrue(has(result, PreflightIssueCode.COMPONENT_VERSION_UNAVAILABLE));
-        assertTrue(has(result, PreflightIssueCode.COMPONENT_VERSION_MISMATCH));
+        assertFalse(has(result, PreflightIssueCode.COMPONENT_VERSION_UNAVAILABLE));
+        assertFalse(has(result, PreflightIssueCode.COMPONENT_VERSION_MISMATCH));
     }
 
     @Test
@@ -156,7 +156,7 @@ public class LaunchPreflightEvaluatorTest {
     }
 
     @Test
-    public void rootfsRequiresExactNumericVersionForEveryPinnedComponent() throws Exception {
+    public void rootfsAllowsInstalledRevisionRegardlessOfCatalog() throws Exception {
         for (String id : new String[] {RootfsSetupRecipe.IMAGE_COMPONENT}) {
             ComponentIndex index = rootfsIndex();
             Map<String, InstalledComponentVersion> installed = rootfsInstalled(index);
@@ -164,8 +164,7 @@ public class LaunchPreflightEvaluatorTest {
 
             LaunchPreflightResult result = evaluateRootfs(index, installed);
 
-            assertFalse(id, result.isReady());
-            assertTrue(id, hasSubject(result, PreflightIssueCode.COMPONENT_VERSION_MISMATCH, id));
+            assertTrue(id, result.isReady());
         }
     }
 
@@ -245,7 +244,7 @@ public class LaunchPreflightEvaluatorTest {
     }
 
     private static ComponentIndex index() throws Exception {
-        String[] ids = {"glibc_box64_0.2.7", "glibc_scripts_29", "glibc_prefix-apps_3", "glibc_fonts_1", "turnip", "dxvk",
+        String[] ids = {"glibc_box64_0.2.8", "glibc_scripts_29", "glibc_prefix-apps_3", "glibc_fonts_1", "native-turnip-v6.5", "native-dxvk-gplasync-2.3",
             "glibc_wine_9.3-vanilla"};
         return index(ids);
     }

@@ -101,7 +101,7 @@ public class GameRuntimeBackendTest {
         assertTrue(rootfs.mkdirs());
         assertTrue(new File(rootfs, "mnt/games/game").mkdirs());
         assertTrue(new File(rootfs, "mnt/games/prefix").mkdirs());
-        write(new File(rootfs, "etc/games-runtime.properties"), properties(
+        write(new File(rootfs, "etc/wine-runtime.properties"), properties(
             "schemaVersion", "2", "runtimeBackend", "rootfs_proot",
             "architecture", "aarch64",
             "runtimePackages", "rootfs_hangover_11.16,box64-wine-stable",

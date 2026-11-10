@@ -84,7 +84,7 @@ public final class ComponentCatalogRepository {
                 default: break;
             }
         }
-        if (active != null && active.getVersion() == descriptor.getVersion()) {
+        if (active != null) {
             return ComponentCatalogState.INSTALLED;
         }
         if (task != null) {
@@ -96,7 +96,6 @@ public final class ComponentCatalogRepository {
             }
         }
         if (active == null) return ComponentCatalogState.NOT_INSTALLED;
-        return descriptor.getVersion() > active.getVersion()
-            ? ComponentCatalogState.UPDATE_AVAILABLE : ComponentCatalogState.INSTALLED;
+        return ComponentCatalogState.INSTALLED;
     }
 }

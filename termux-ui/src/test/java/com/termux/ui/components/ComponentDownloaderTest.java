@@ -54,33 +54,15 @@ public class ComponentDownloaderTest {
         assertNull(response.requestHeader("Range"));
     }
 
-    @Test
-    public void localCacheHitSkipsNetworkEntirely() throws Exception {
-        File cacheDirectory = temporaryFolder.newFolder("local-cache");
-        write(new File(cacheDirectory, "wine.tar.xz"), ORIGINAL);
-        Fixture fixture = fixture(ORIGINAL, new LocalComponentCache(cacheDirectory));
-        // No fake connection is queued -- any network attempt would throw immediately.
-
-        ComponentDownloadResult result = fixture.downloader.download(
-            fixture.task, DownloadControl.CONTINUE, DownloadProgressListener.NONE);
-
-        assertEquals(ComponentTaskState.VERIFIED, result.getTask().getState());
-        assertArrayEquals(ORIGINAL, read(result.getArtifact()));
-        assertTrue(fixture.connections.responses.isEmpty());
-    }
-
-    @Test
-    public void cacheContentDifferenceDoesNotTriggerNetwork() throws Exception {
-        File cacheDirectory = temporaryFolder.newFolder("local-cache");
-        write(new File(cacheDirectory, "wine.tar.xz"), REPLACEMENT); // wrong content -> sha256 mismatch
-        Fixture fixture = fixture(ORIGINAL, new LocalComponentCache(cacheDirectory));
-        fixture.connections.add(response(200, ORIGINAL).header("ETag", "\"v1\""));
-
-        ComponentDownloadResult result = fixture.downloader.download(
-            fixture.task, DownloadControl.CONTINUE, DownloadProgressListener.NONE);
-
-        assertEquals(ComponentTaskState.VERIFIED, result.getTask().getState());
-        assertArrayEquals(REPLACEMENT, read(result.getArtifact()));
+    @Test public void completedArchiveIsReusedWithoutNetwork() throws Exception {
+        Fixture fixture = fixture(ORIGINAL);
+        ComponentDownloadResult first = null;
+        fixture.connections.add(response(200, ORIGINAL));
+        first = fixture.downloader.download(fixture.task, DownloadControl.CONTINUE, DownloadProgressListener.NONE);
+        // No response is queued: any second network request would fail this test.
+        ComponentDownloadResult reused = fixture.downloader.download(first.getTask(), DownloadControl.CONTINUE, DownloadProgressListener.NONE);
+        assertEquals(first.getArtifact(), reused.getArtifact());
+        assertArrayEquals(ORIGINAL, read(reused.getArtifact()));
     }
 
     @Test
@@ -226,18 +208,12 @@ public class ComponentDownloaderTest {
     }
 
     private Fixture fixture(byte[] expectedBytes) throws Exception {
-        return fixture(expectedBytes, null);
-    }
-
-    private Fixture fixture(byte[] expectedBytes, LocalComponentCache localCache) throws Exception {
         File root = temporaryFolder.newFolder();
         File tasks = new File(root, "tasks");
         File downloads = new File(root, "downloads");
         FileComponentTaskRepository repository = new FileComponentTaskRepository(tasks);
         QueueFactory connections = new QueueFactory();
-        ComponentDownloader downloader = localCache == null
-            ? new ComponentDownloader(repository, downloads, connections)
-            : new ComponentDownloader(repository, downloads, connections, localCache);
+        ComponentDownloader downloader = new ComponentDownloader(repository, downloads, connections);
         ComponentTask task = ComponentTask.queued("task-1", "wine", 1,
             "https://example.invalid/wine.tar.xz", expectedBytes.length,
             sha256(expectedBytes));

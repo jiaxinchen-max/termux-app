@@ -100,7 +100,7 @@ if [ "$RUNTIME_BACKEND" = glibc_termux_box ]; then
     STAGE_BASE="$TERMUX_GLIBC_DIR/.custom-install-stage"
 else
     [ -x "$SHARED_ROOTFS/usr/bin/env" ] && [ -x "$SHARED_ROOTFS/usr/bin/wine" ] &&
-        [ -f "$SHARED_ROOTFS/etc/games-runtime.properties" ] || fail rootfs_not_built_yet 70
+        [ -f "$SHARED_ROOTFS/etc/wine-runtime.properties" ] || fail rootfs_not_built_yet 70
     COMPONENT_PACKAGE_ROOT="$PRIVATE_ROOT/components/install/$COMPONENT_ID"
     COMPONENT_VERSION_NAME="1-$PAYLOAD_SHA256"
     DEST="$COMPONENT_PACKAGE_ROOT/versions/$COMPONENT_VERSION_NAME"
@@ -255,7 +255,7 @@ printf 'schemaVersion=1\nruntimeBackend=%s\nruntimeTranslator=%s\nkind=%s\ncompo
     "$RUNTIME_BACKEND" "$RUNTIME_TRANSLATOR" "$KIND" "$COMPONENT_ID" "$PAYLOAD_SHA256" > "$PUBLISH/.custom-component.properties"
 if [ "$RUNTIME_BACKEND" = rootfs_proot ]; then
     printf 'schemaVersion=1\npackageName=%s\nversion=1\nsha256=%s\n' \
-        "$COMPONENT_ID" "$PAYLOAD_SHA256" > "$PUBLISH/.games-component.properties"
+        "$COMPONENT_ID" "$PAYLOAD_SHA256" > "$PUBLISH/.wine-component.properties"
 fi
 progress "==> Publishing $COMPONENT_ID"
 # Same filesystem rename; -n preserves an existing version even if an outside writer raced us.

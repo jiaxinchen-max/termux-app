@@ -77,7 +77,7 @@ public class GameFileManagerOperationsTest {
         }
     }
 
-    @Test public void itemAndBothBlankAreasUseTheRightDirectoryAndKeepImport() throws Exception {
+    @Test public void itemsKeepTheirMenusAndImportWhileBlankAreasHaveNoMenu() throws Exception {
         write("file.txt", "one"); File child = new File(folder, "child"); assertTrue(child.mkdir());
         try (ActivityController<GameFileManagerActivity> c = open()) {
             GameFileManagerActivity a=c.get();
@@ -89,9 +89,8 @@ public class GameFileManagerOperationsTest {
             assertEquals("child",popup(a).getMenu().getItem(0).getTitle());
             assertNull(popup(a).getMenu().findItem(106)); popup(a).dismiss();
             for (int id : new int[]{R.id.local_game_file_manager_items,R.id.local_game_file_manager_scroll}) {
-                assertTrue(a.findViewById(id).performLongClick());
-                assertEquals(folder.getName(),popup(a).getMenu().getItem(0).getTitle());
-                popup(a).dismiss();
+                assertFalse(a.findViewById(id).performLongClick());
+                assertNull(popup(a));
             }
         }
     }
@@ -119,7 +118,7 @@ public class GameFileManagerOperationsTest {
             assertEquals("payload",new String(Files.readAllBytes(new File(target,"one.txt").toPath()),"UTF-8"));assertTrue(source.exists());
             entry(a,"one.txt").performLongClick();popup(a).getMenu().performIdentifierAction(103,0);
             File source2=new File(target,"one.txt");assertTrue(source2.exists());File other=new File(folder,"other");assertTrue(other.mkdir());browse(a,other);
-            a.findViewById(R.id.local_game_file_manager_scroll).performLongClick();popup(a).getMenu().performIdentifierAction(105,0);flush(a);
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_paste,0);flush(a);
             assertTrue(new File(other,"one.txt").isFile());assertFalse(source2.exists());assertNull(field(a,"clipboardSource"));
         }
     }
@@ -132,13 +131,13 @@ public class GameFileManagerOperationsTest {
             assertNull(field(a,"clipboardSource"));assertFalse(toolbar(a).getMenu().findItem(R.id.browser_paste).isVisible());assertTrue(source.exists());
         }
     }
-    @Test public void deleteCancelPreservesContentsAndConfirmDeletesCurrentDirectory() throws Exception {
+    @Test public void deleteCancelPreservesContentsAndConfirmDeletesSelectedDirectory() throws Exception {
         File child=write("child/file.txt","one").getParentFile();
         try(ActivityController<GameFileManagerActivity> c=open()) {
             GameFileManagerActivity a=c.get();entry(a,"child").performLongClick();popup(a).getMenu().performIdentifierAction(104,0);
             AlertDialog dialog=(AlertDialog)ShadowDialog.getLatestDialog();dialog.getButton(DialogInterface.BUTTON_NEGATIVE).performClick();flush(a);
-            assertTrue(new File(child,"file.txt").isFile());browse(a,child);
-            a.findViewById(R.id.local_game_file_manager_scroll).performLongClick();popup(a).getMenu().performIdentifierAction(104,0);
+            assertTrue(new File(child,"file.txt").isFile());
+            entry(a,"child").performLongClick();popup(a).getMenu().performIdentifierAction(104,0);
             dialog=(AlertDialog)ShadowDialog.getLatestDialog();dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();flush(a);
             assertFalse(child.exists());assertEquals(folder.getCanonicalFile(),field(a,"localCurrent"));
         }
@@ -169,14 +168,15 @@ public class GameFileManagerOperationsTest {
             assertEquals(Intent.FLAG_GRANT_READ_URI_PERMISSION,started.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION));
         }
     }
-    @Test public void rootBlankMenuOffersPasteWithoutRootOperations() throws Exception {
+    @Test public void rootOffersToolbarPasteWithoutBlankMenu() throws Exception {
         write("one.txt", "one");
         try (ActivityController<GameFileManagerActivity> c = open()) {
             GameFileManagerActivity a = c.get(); entry(a, "one.txt").performLongClick();
             popup(a).getMenu().performIdentifierAction(102, 0); browse(a, a.getFilesDir());
-            assertTrue(a.findViewById(R.id.local_game_file_manager_scroll).performLongClick());
-            assertNotNull(popup(a).getMenu().findItem(105));
-            for (int id : new int[]{101,102,103,104,106}) assertNull(popup(a).getMenu().findItem(id));
+            assertFalse(a.findViewById(R.id.local_game_file_manager_scroll).performLongClick());
+            assertNull(popup(a));
+            assertTrue(toolbar(a).getMenu().findItem(R.id.browser_paste).isVisible());
+            assertTrue(toolbar(a).getMenu().findItem(R.id.browser_paste).isEnabled());
         }
     }
     @Test public void missingSystemOpenHandlerShowsAnExplicitMessage() throws Exception {

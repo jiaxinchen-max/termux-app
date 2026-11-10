@@ -36,10 +36,10 @@ EVENT_FILE="$TERMUX_ROOT/front/launches/events/task events.jsonl"
 LOG_FILE="$TERMUX_ROOT/front/launches/logs/task log.txt"
 LOCK_PATH="$TERMUX_ROOT/front/launches/locks/task lock"
 CANCEL_PATH="$TERMUX_ROOT/front/launches/cancel/task cancel"
-PREFIX_PATH="$TERMUX_ROOT/front/containers/native/prefix"
+PREFIX_PATH="$TERMUX_ROOT/front/wine/native/prefix"
 WINE_PACKAGE="glibc_wine_fixture"
 
-mkdir -p "$TERMUX_ROOT/usr/glibc/bin" "$TERMUX_ROOT/usr/glibc/components/glibc_box64_0.2.7/bin" "$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/bin" \
+mkdir -p "$TERMUX_ROOT/usr/glibc/bin" "$TERMUX_ROOT/usr/glibc/components/glibc_box64_0.2.8/bin" "$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/bin" \
     "$TERMUX_ROOT/usr/glibc/opt/conf/dynarec" \
     "$TERMUX_ROOT/usr/glibc/termux-box/run" "$RUNTIME_DIR" "$FAKE_BIN" "$WORK_DIR" \
     "$PREFIX_PATH"
@@ -77,19 +77,19 @@ touch "$TERMUX_ROOT/usr/glibc/opt/libs/mesa/turnip-v2.7z" \
     "$TERMUX_ROOT/usr/glibc/components/native-dxvk-1.6.1/syswow64/dxgi.dll" \
     "$TERMUX_ROOT/usr/glibc/share/fonts/NotoSansCJK-Regular.ttc" \
     "$TERMUX_ROOT/usr/glibc/share/fonts/NotoSerifCJK-Regular.ttc" \
-    "$PREFIX_PATH/termux-boxmeta/games-wine-fonts-v2"
+    "$PREFIX_PATH/termux-boxmeta/wine-fonts-v2"
 for locale_name in zh_CN.utf8 zh_CN.gbk; do
     mkdir -p "$TERMUX_ROOT/usr/glibc/lib/locale/$locale_name"
     printf locale > "$TERMUX_ROOT/usr/glibc/lib/locale/$locale_name/LC_CTYPE"
 done
-touch "$TERMUX_ROOT/usr/glibc/termux-box/run/games-zh-cn-locale-v1"
+touch "$TERMUX_ROOT/usr/glibc/termux-box/run/wine-zh-cn-locale-v1"
 mkdir -p "$PREFIX_PATH/drive_c/windows/Fonts"
 touch "$PREFIX_PATH/drive_c/windows/Fonts/NotoSansCJK-Regular.ttc" \
     "$PREFIX_PATH/drive_c/windows/Fonts/NotoSerifCJK-Regular.ttc"
 printf '%s\n' '"Tahoma"="Noto Sans CJK SC"' '"Noto Sans CJK SC (TrueType)"="NotoSansCJK-Regular.ttc"' > "$PREFIX_PATH/system.reg"
 printf '#!/bin/sh\n[ "$1" = --library-path ] || exit 64\nshift 2\nexec "$@"\n' > "$TERMUX_ROOT/usr/glibc/lib/ld-linux-aarch64.so.1"
 chmod 700 "$TERMUX_ROOT/usr/glibc/lib/ld-linux-aarch64.so.1"
-printf '#!/bin/sh\nexec "$@"\n' > "$TERMUX_ROOT/usr/glibc/components/glibc_box64_0.2.7/bin/box64"
+printf '#!/bin/sh\nexec "$@"\n' > "$TERMUX_ROOT/usr/glibc/components/glibc_box64_0.2.8/bin/box64"
 printf '#!/bin/sh\n[ "$GAMES_SESSION_SPEC" = "$FIXTURE_SESSION_SPEC" ] || exit 89\nprintf "%%s\\n" "$$" > "$FIXTURE_WINE_PID"; if [ "${FAKE_WINE_WAIT:-0}" = 1 ]; then trap "exit 0" TERM INT; while :; do sleep 1; done; fi\n: > "$CAPTURE_FILE"\nfor value in "$@"; do printf "%%s" "$value" | base64 | tr -d "\\n" >> "$CAPTURE_FILE"; printf "\\n" >> "$CAPTURE_FILE"; done\nprintf "BOX64_LD_LIBRARY_PATH=%%s\\nDXVK_CONFIG_FILE=%%s\\nFONTCONFIG_PATH=%%s\\nDXVK_ASYNC=%%s\\nWINEESYNC=%%s\\nLC_ALL=%%s\\nMESA_VK_WSI_PRESENT_MODE=%%s\\n" "$BOX64_LD_LIBRARY_PATH" "$DXVK_CONFIG_FILE" "$FONTCONFIG_PATH" "$DXVK_ASYNC" "$WINEESYNC" "$LC_ALL" "$MESA_VK_WSI_PRESENT_MODE" > "$ENV_CAPTURE_FILE"\n' \
     > "$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/bin/wine"
 printf '#!/bin/sh\n[ "$1" != -k ] || { [ ! -f "$FIXTURE_WINE_PID" ] || kill "$(cat "$FIXTURE_WINE_PID")" 2>/dev/null || true; }\nexit 0\n' > "$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/bin/wineserver"
@@ -118,7 +118,7 @@ printf '#!/bin/sh\n[ "$1" = _NPROCESSORS_ONLN ] || exit 64\nprintf "4\\n"\n' > "
 printf '#!/bin/sh\n[ "$1" = -c ] || exit 64\ncores=$2\nshift 2\n[ "$cores" = 2-3 ] || exit 64\n[ "$1" = true ] && exit 0\nprintf "%%s\\n" "$cores" > "$AFFINITY_CAPTURE_FILE"\nexec "$@"\n' > "$FAKE_BIN/taskset"
 printf '#!/bin/sh\n[ "$1" = -k ] || [ -z "${PULSE_SERVER+x}" ] || exit 64\nprintf "%%s\\n" "$*" >> "$PULSE_FAKE_CALLS"\ncase "$1" in\n  --check) [ -e "$PULSE_FAKE_STATE" ] ;;\n  --start) : > "$PULSE_FAKE_STATE" ;;\n  --kill|-k) rm -f "$PULSE_FAKE_STATE" ;;\nesac\n' > "$FAKE_BIN/pulseaudio"
 chmod 700 "$RUNTIME_DIR/start_local_game.sh" \
-    "$TERMUX_ROOT/usr/glibc/components/glibc_box64_0.2.7/bin/box64" "$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/bin/wine" \
+    "$TERMUX_ROOT/usr/glibc/components/glibc_box64_0.2.8/bin/box64" "$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/bin/wine" \
     "$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/bin/wineserver" "$FAKE_BIN/termux-x11" \
     "$FAKE_BIN/getconf" "$FAKE_BIN/taskset" "$FAKE_BIN/pulseaudio" "$FAKE_BIN/ps" "$FAKE_BIN/pkill"
 
@@ -160,7 +160,7 @@ encode() {
     printf 'box64Preset=%s\n' "$(encode INTERMEDIATE)"
     printf 'inputProfileId=%s\n' "$(encode dinput:3)"
     printf 'launchExecutionMode=%s\n' "$(encode terminal_session)"
-    printf 'homeDirectory=%s\n' "$(encode "$TERMUX_ROOT/front/containers/native/home")"
+    printf 'homeDirectory=%s\n' "$(encode "$TERMUX_ROOT/front/wine/native/home")"
     printf 'desktopOnly=0\n'
     printf 'eventPath=%s\n' "$(encode "$EVENT_FILE")"
     printf 'logPath=%s\n' "$(encode "$LOG_FILE")"
@@ -231,7 +231,7 @@ if ! cmp "$EXPECTED_FILE" "$CAPTURE_FILE"; then
     exit 1
 fi
 [ "${TEST_DISPLAY_ONLY:-0}" != 1 ] || { printf 'Native display startup integration test passed.\n'; exit 0; }
-grep -Fqx "BOX64_LD_LIBRARY_PATH=$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/lib64:$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/lib64/wine/x86_64-unix:$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/lib:$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/lib/wine/x86_64-unix:$TERMUX_ROOT/usr/glibc/lib/x86_64-linux-gnu" "$ENV_CAPTURE_FILE"
+grep -Fqx "BOX64_LD_LIBRARY_PATH=$TERMUX_ROOT/usr/glibc/components/glibc_box64_0.2.8/lib/x86_64-linux-gnu:$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/lib64:$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/lib64/wine/x86_64-unix:$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/lib:$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/lib/wine/x86_64-unix:$TERMUX_ROOT/usr/glibc/lib/x86_64-linux-gnu" "$ENV_CAPTURE_FILE"
 grep -Fqx "DXVK_CONFIG_FILE=$TERMUX_ROOT/usr/glibc/opt/dxvk.conf" "$ENV_CAPTURE_FILE"
 grep -Fqx "FONTCONFIG_PATH=$TERMUX_ROOT/usr/glibc/etc/fonts" "$ENV_CAPTURE_FILE"
 grep -qx 'DXVK_ASYNC=7' "$ENV_CAPTURE_FILE"

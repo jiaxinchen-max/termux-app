@@ -8,7 +8,6 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
-import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -47,7 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /** Persistent owner for the base-environment Backup/Restore feature -- mirrors
  *  RootfsSetupForegroundService's reconcile-loop shape, but with a much simpler enqueue: no
  *  recipe/component resolution, no per-container prefix, just "run backup_restore_rootfs.sh
- *  against the one external backup file and the one shared RootFS". */
+ *  against a fixed-directory backup file and the one shared RootFS". */
 public final class RootfsBackupForegroundService extends Service {
     private static final String TAG = "GamesRootfsBackup";
     private static final String CHANNEL_ID = "games_runtime_backup";
@@ -115,15 +114,16 @@ public final class RootfsBackupForegroundService extends Service {
     private void enqueue(String taskId, RootfsBackupTask.Kind kind, @Nullable String archive,
                          boolean includePrefixTemplates) throws Exception {
         if (tasks.find(taskId).isPresent()) return;
-        boolean outside = archive != null && !RuntimeBackupSharedStorage.isWithin(
-            Environment.getExternalStorageDirectory(), new File(archive));
         RootfsBackupTask task = RootfsBackupTask.queued(taskId, kind,
-            archive == null || outside ? "" : archive, includePrefixTemplates,
-            System.currentTimeMillis());
-        if (outside) {
-            // Persist the refusal so the watching UI sees a terminal task instead of waiting.
+            archive == null ? "" : archive, includePrefixTemplates, System.currentTimeMillis());
+        try {
+            if (archive == null) throw new IOException("backup_path_invalid");
+            ExternalBackupLocation.requireArchive(new File(archive));
+            if (!archive.endsWith(RuntimeBackupSharedStorage.ROOTFS_ARCHIVE_EXTENSION))
+                throw new IOException("backup_path_invalid");
+        } catch (IOException error) {
             tasks.save(task);
-            transition(task, RootfsBackupTaskState.FAILED, "backup_destination_not_shared_storage");
+            transition(task, RootfsBackupTaskState.FAILED, "backup_path_invalid");
             return;
         }
         tasks.save(task);
@@ -131,6 +131,7 @@ public final class RootfsBackupForegroundService extends Service {
     }
 
     private void prepareAndStart(RootfsBackupTask task) throws Exception {
+        ExternalBackupLocation.requireArchive(new File(task.getArchivePath()));
         com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(getFilesDir());
         if (!submitted.add(task.getTaskId())) return;
         try {
@@ -138,8 +139,7 @@ public final class RootfsBackupForegroundService extends Service {
             File spec = new File(paths.getBackupSpecsDirectory(), task.getTaskId() + ".backupspec");
             File events = eventFile(task.getTaskId());
             File log = new File(paths.getBackupLogsDirectory(), task.getTaskId() + ".log");
-            new RootfsBackupSpecCodec().write(spec, task, task.getArchivePath().isEmpty()
-                ? ExternalBackupLocation.file() : new File(task.getArchivePath()), events, log);
+            new RootfsBackupSpecCodec().write(spec, task, new File(task.getArchivePath()), events, log);
             host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
                 script.getCanonicalPath(), spec.getCanonicalPath(),
                 paths.getBackupDirectory().getCanonicalPath()));

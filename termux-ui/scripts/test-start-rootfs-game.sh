@@ -27,8 +27,8 @@ FAKE_BIN="$TEST_ROOT/fake-bin"
 GAME_ROOT="$TEST_ROOT/Game Root"
 WORK_DIR="$GAME_ROOT/bin folder"
 ROOTFS="$TERMUX_ROOT/usr/var/lib/proot-distro/games-shared-rootfs/rootfs"
-PREFIX="$TERMUX_ROOT/front/containers/hangover/prefix"
-HOME_PATH="$TERMUX_ROOT/front/containers/hangover/home"
+PREFIX="$TERMUX_ROOT/front/wine/hangover/prefix"
+HOME_PATH="$TERMUX_ROOT/front/wine/hangover/home"
 EVENT="$TERMUX_ROOT/front/launches/events/rootfs.jsonl"
 LOG="$TERMUX_ROOT/front/launches/logs/rootfs.log"
 LOCK="$TERMUX_ROOT/front/launches/locks/rootfs"
@@ -112,7 +112,7 @@ printf '#!/bin/sh\nexit 0\n' > "$ROOTFS/usr/bin/wineboot"
 printf '#!/bin/sh\ntrap "exit 0" TERM INT\nwhile :; do sleep 1; done\n' > "$TERMUX_ROOT/usr/glibc/opt/virgl/libvirgl_test_server.so"
 printf '#!/bin/sh\n[ -z "${PULSE_SERVER+x}" ] || exit 64\nprintf "%%s\\n" "$*" >> "$PULSE_FAKE_CALLS"\ncase "$1" in\n  --check) [ -e "$PULSE_FAKE_STATE" ] ;;\n  --start) : > "$PULSE_FAKE_STATE" ;;\n  --kill) rm -f "$PULSE_FAKE_STATE" ;;\nesac\n' > "$FAKE_BIN/pulseaudio"
 printf '#!/bin/sh\nprintf "aarch64\\n"\n' > "$FAKE_BIN/uname"
-cat > "$ROOTFS/etc/games-runtime.properties" <<'EOF'
+cat > "$ROOTFS/etc/wine-runtime.properties" <<'EOF'
 schemaVersion=2
 runtimeBackend=rootfs_proot
 architecture=aarch64
@@ -240,9 +240,9 @@ grep -q 'X11 display: .* wine=rootfs_hangover_11.16 target=1280x720' "$LOG"
 # Current Debian Mesa uses unqualified ICD filenames. Verify the actual launch
 # branch selects that file and still rejects a missing driver descriptor.
 cp "$SPEC" "$SPEC.llvmpipe"
-cp "$ROOTFS/etc/games-runtime.properties" "$TEST_ROOT/manifest.llvmpipe"
+cp "$ROOTFS/etc/wine-runtime.properties" "$TEST_ROOT/manifest.llvmpipe"
 sed 's/^graphicsDrivers=.*/graphicsDrivers=rootfs-virgl-mesa,rootfs-llvmpipe,rootfs-turnip/' \
-    "$TEST_ROOT/manifest.llvmpipe" > "$ROOTFS/etc/games-runtime.properties"
+    "$TEST_ROOT/manifest.llvmpipe" > "$ROOTFS/etc/wine-runtime.properties"
 sed "s/^graphicsDriver=.*/graphicsDriver=$(encode rootfs-turnip)/" "$SPEC.llvmpipe" > "$SPEC"
 mkdir -p "$ROOTFS/usr/share/vulkan/icd.d"
 printf '{}\n' > "$ROOTFS/usr/share/vulkan/icd.d/freedreno_icd.json"
@@ -256,7 +256,7 @@ set -e
 [ "$STATUS" -ne 0 ]
 grep -q '"errorCode":"rootfs_turnip_icd_missing"' "$EVENT"
 mv "$SPEC.llvmpipe" "$SPEC"
-mv "$TEST_ROOT/manifest.llvmpipe" "$ROOTFS/etc/games-runtime.properties"
+mv "$TEST_ROOT/manifest.llvmpipe" "$ROOTFS/etc/wine-runtime.properties"
 PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
 grep -qx "$(encode /mnt/games/game/bin\ folder/game.exe)" "$CAPTURE"
 grep -qx "$(encode 'hello world')" "$CAPTURE"
@@ -301,7 +301,7 @@ set -e
 [ "$STATUS" -ne 0 ]
 grep -q '"errorCode":"rootfs_prefix_translator_mismatch"' "$EVENT"
 grep -qx registry "$WINE_PREFIX/system.reg"
-BOX_PREFIX="$TERMUX_ROOT/front/containers/box64/prefix"
+BOX_PREFIX="$TERMUX_ROOT/front/wine/box64/prefix"
 seed_prefix "$BOX_PREFIX" rootfs_wine_10.0
 sed "s|^prefixPath=.*$|prefixPath=$(encode "$BOX_PREFIX")|" "$SPEC" > "$SPEC.tmp"
 mv "$SPEC.tmp" "$SPEC"
@@ -325,7 +325,7 @@ for cid, guest, role in [('rootfs_wine_10.0','/opt/box64-wine','WINE'),
     source = version / "payload $' ="
     shutil.move(str(rootfs / guest.lstrip('/')), source)
     (rootfs / guest.lstrip('/')).mkdir()
-    (version / '.games-component.properties').write_text(
+    (version / '.wine-component.properties').write_text(
         'schemaVersion=1\npackageName='+cid+'\nversion=1\nsha256='+'a'*64+'\n')
     bindings.append(dict(componentId=cid,version='1',sha256='a'*64,
         versionDirectory=str(version),contentRelativePath=source.name,
@@ -353,7 +353,7 @@ PYBINDARGV
 assert_frozen_bind_argv
 # Activate the real v11 admission branch with frozen portable Wine/Box64 and no embedded
 # optional capabilities. Ordinary launch must consume the prepared identity and never wineboot.
-cat > "$ROOTFS/etc/games-runtime.properties" <<'V11MANIFEST'
+cat > "$ROOTFS/etc/wine-runtime.properties" <<'V11MANIFEST'
 schemaVersion=3
 layout=external-components-v1
 recipeSha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -372,7 +372,7 @@ V11MANIFEST
     done < "$SPEC"
     ROOTFS_CANONICAL=$ROOTFS
     PREFIX_PATH=$BOX_PREFIX
-    TEMPLATE_CACHE_DIR="$TERMUX_ROOT/usr/var/lib/proot-distro/games-template-cache"
+    TEMPLATE_CACHE_DIR="$TERMUX_ROOT/front/wine/templates"
     WINE_PACKAGE=rootfs_wine_10.0
     RUNTIME_TRANSLATOR=box64
     . "$RUNTIME_DIR/rootfs_prefix_warmup.sh"

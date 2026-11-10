@@ -50,6 +50,10 @@ public final class ComponentDeliveryCoordinator {
     }
 
     public ComponentTask execute(String taskId, ComponentTaskListener listener) throws IOException {
+        return execute(taskId, listener, false);
+    }
+
+    public ComponentTask execute(String taskId, ComponentTaskListener listener, boolean fresh) throws IOException {
         ComponentTask task = requiredTask(taskId);
         if (task.getState() == ComponentTaskState.INSTALLED ||
             task.getState() == ComponentTaskState.CANCELLED) {
@@ -72,7 +76,7 @@ public final class ComponentDeliveryCoordinator {
                 }
                 artifact = result.getArtifact();
             }
-            installer.install(task, artifact, control::get, listener::onTaskUpdated);
+            installer.install(task, artifact, control::get, listener::onTaskUpdated, fresh);
             return requiredTask(taskId);
         } finally {
             controls.remove(taskId, control);

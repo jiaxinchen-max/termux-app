@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-08T23:50:00Z",
+  "generatedAt": "2026-11-10T10:32:17Z",
   "packages": [
     {
-      "id": "glibc_box64_0.2.7",
+      "id": "glibc_box64_0.2.8",
       "category": "runtime",
       "type": "translator",
-      "displayName": "box64_0.2.7",
-      "versionName": "0.2.7",
-      "summary": "x86-64 to ARM64 instruction translator used by the GLIBC runtime.",
+      "displayName": "box64_0.2.8",
+      "versionName": "0.2.8",
+      "summary": "Box64 0.2.8 with Native glibc loader and x86_64 support libraries.",
       "framework": "Termux GLIBC",
       "base": true,
       "recommended": true,
@@ -17,10 +17,30 @@
       "runtimeBackends": [
         "glibc_termux_box"
       ],
-      "version": 10,
-      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/box64-binaries-v10/box64-binaries.tar.xz",
-      "size": 22582612,
-      "sha256": "0cd90bbedd0a166e8800ab0cb6d1ece0f9a8346f8603cef608f7bdae85f905d6"
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_box64_0.2.8/glibc_box64_0.2.8.tar.xz",
+      "size": 4352376,
+      "sha256": "8a7b66812af95c1393f1bd534ab7fbcc1f21e53ce9651b008a42fbfa0707ba4d"
+    },
+    {
+      "id": "glibc_box64_0.3.8",
+      "category": "runtime",
+      "type": "translator",
+      "displayName": "box64_0.3.8",
+      "versionName": "0.3.8",
+      "summary": "Box64 0.3.8 with target-specific x86_64 support libraries.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_box64_0.3.8/glibc_box64_0.3.8.tar.xz",
+      "size": 5196672,
+      "sha256": "d2444162e2b47b0829413663a29eaddcb00e0848900cbbd582b95518a424da3d"
     },
     {
       "id": "glibc_box64_0.4.4",
@@ -38,9 +58,9 @@
         "glibc_termux_box"
       ],
       "version": 1,
-      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/box64-proot-v0.4.4-v1/box64-proot-v0.4.4.tar.xz",
-      "size": 10639328,
-      "sha256": "bef12ae640dde59f1c34c145a55e2ca11c29b273c24429cc7ed6ca654a288bf0"
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_box64_0.4.4/glibc_box64_0.4.4.tar.xz",
+      "size": 12846180,
+      "sha256": "e7f054c193f63102864222b51763eb7bee5171240e4c3400d1e6d25939fe9921"
     },
     {
       "id": "glibc_scripts_29",
@@ -103,44 +123,264 @@
       "sha256": "65667b32f649748c0aae129a6fedc9595389943c9926f03a955f4435276d982d"
     },
     {
-      "id": "dxvk",
-      "category": "runtime",
-      "type": "dx_wrapper",
-      "displayName": "dxvk_2",
-      "versionName": "v2",
-      "summary": "Vulkan-based Direct3D 8, 9, 10 and 11 translation layer.",
-      "framework": "Termux GLIBC",
-      "base": false,
-      "recommended": true,
-      "hidden": false,
-      "profileValue": "dxvk",
-      "runtimeBackends": [
-        "glibc_termux_box"
-      ],
-      "version": 2,
-      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/dxvk-v2/dxvk.tar.xz",
-      "size": 21541060,
-      "sha256": "317ef13acdd7cec7af7af22f0772b4dcff919f9c8fd00402766d4625f5dfb080"
-    },
-    {
-      "id": "turnip",
+      "id": "native-turnip-v2",
       "category": "runtime",
       "type": "gpu_driver",
-      "displayName": "turnip_8",
-      "versionName": "v8",
+      "displayName": "turnip-v2",
+      "versionName": "turnip-v2",
       "summary": "Vulkan driver for supported Qualcomm Adreno GPUs.",
       "framework": "Termux GLIBC",
       "base": false,
-      "recommended": true,
+      "recommended": false,
       "hidden": false,
-      "profileValue": "turnip",
+      "profileValue": "native-turnip-v2",
       "runtimeBackends": [
         "glibc_termux_box"
       ],
-      "version": 8,
-      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/turnip-v8/turnip.tar.xz",
-      "size": 9494276,
-      "sha256": "31c5ee4eb2c7c5ee4abb95524c36bc707da092ee49200806efda06361f809d60"
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-turnip-v2.tar.xz",
+      "size": 1304032,
+      "sha256": "39df23c40273eb868f930ecc2d5584ffd7c864289acd9a6cd8854597d44d792b"
+    },
+    {
+      "id": "native-turnip-v3.5",
+      "category": "runtime",
+      "type": "gpu_driver",
+      "displayName": "turnip-v3.5",
+      "versionName": "turnip-v3.5",
+      "summary": "Vulkan driver for supported Qualcomm Adreno GPUs.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-turnip-v3.5",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-turnip-v3.5.tar.xz",
+      "size": 1318164,
+      "sha256": "b7c53e508bc8dfe11087fe97fdf3c6e78ca286bf665e534517bca7cdf80c5186"
+    },
+    {
+      "id": "native-turnip-v4",
+      "category": "runtime",
+      "type": "gpu_driver",
+      "displayName": "turnip-v4",
+      "versionName": "turnip-v4",
+      "summary": "Vulkan driver for supported Qualcomm Adreno GPUs.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-turnip-v4",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-turnip-v4.tar.xz",
+      "size": 1329228,
+      "sha256": "00ceb4bc7c3f194ba9c48488b61d67f6a4699d3b2fa02280aae9a257627a764e"
+    },
+    {
+      "id": "native-turnip-v5",
+      "category": "runtime",
+      "type": "gpu_driver",
+      "displayName": "turnip-v5",
+      "versionName": "turnip-v5",
+      "summary": "Vulkan driver for supported Qualcomm Adreno GPUs.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-turnip-v5",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-turnip-v5.tar.xz",
+      "size": 1340040,
+      "sha256": "827b7fdeaacafbf193a85a744068527256ab11cfc9b15de1f2ce17118cc3de9c"
+    },
+    {
+      "id": "native-turnip-v6.5",
+      "category": "runtime",
+      "type": "gpu_driver",
+      "displayName": "turnip-v6.5",
+      "versionName": "turnip-v6.5",
+      "summary": "Vulkan driver for supported Qualcomm Adreno GPUs.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-turnip-v6.5",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-turnip-v6.5.tar.xz",
+      "size": 1168224,
+      "sha256": "98a67cc229eabb89a14b81e2d966f930c6a9c15a38b6690515df239193f87291"
+    },
+    {
+      "id": "native-dxvk-0.96",
+      "category": "runtime",
+      "type": "dx_wrapper",
+      "displayName": "dxvk-0.96",
+      "versionName": "dxvk-0.96",
+      "summary": "Vulkan-based Direct3D 8, 9, 10 and 11 translation layer.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-dxvk-0.96",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-dxvk-0.96.tar.xz",
+      "size": 1606668,
+      "sha256": "bb6d6dd01fdb156dce275adbf3c0c81b9f9128e78b0a95945f19efe0c6f1dd7b"
+    },
+    {
+      "id": "native-dxvk-1.6.1",
+      "category": "runtime",
+      "type": "dx_wrapper",
+      "displayName": "dxvk-1.6.1",
+      "versionName": "dxvk-1.6.1",
+      "summary": "Vulkan-based Direct3D 8, 9, 10 and 11 translation layer.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-dxvk-1.6.1",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-dxvk-1.6.1.tar.xz",
+      "size": 2575776,
+      "sha256": "f8b1e384b209c50a40b08d998b28213fb6d12d8658135fb15e5a2c6538593c8b"
+    },
+    {
+      "id": "native-dxvk-async-1.10.3",
+      "category": "runtime",
+      "type": "dx_wrapper",
+      "displayName": "dxvk-async-1.10.3",
+      "versionName": "dxvk-async-1.10.3",
+      "summary": "Vulkan-based Direct3D 8, 9, 10 and 11 translation layer.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-dxvk-async-1.10.3",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-dxvk-async-1.10.3.tar.xz",
+      "size": 2865492,
+      "sha256": "e1d36a062ff49e51ad333df7bab7b3e7dd305a8604b93c873cf2c7682e070171"
+    },
+    {
+      "id": "native-dxvk-async-2.0",
+      "category": "runtime",
+      "type": "dx_wrapper",
+      "displayName": "dxvk-async-2.0",
+      "versionName": "dxvk-async-2.0",
+      "summary": "Vulkan-based Direct3D 8, 9, 10 and 11 translation layer.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-dxvk-async-2.0",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-dxvk-async-2.0.tar.xz",
+      "size": 2844552,
+      "sha256": "702c6a5631c939a458aab422c9ee2031403bc495ac9e509a7def3dbc0a0653ff"
+    },
+    {
+      "id": "native-dxvk-dev",
+      "category": "runtime",
+      "type": "dx_wrapper",
+      "displayName": "dxvk-dev",
+      "versionName": "dxvk-dev",
+      "summary": "Vulkan-based Direct3D 8, 9, 10 and 11 translation layer.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-dxvk-dev",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-dxvk-dev.tar.xz",
+      "size": 2982120,
+      "sha256": "f758cae94c7bd6b2e73c56d986cea9f15ef820abddf198ae39a1eb891920170d"
+    },
+    {
+      "id": "native-dxvk-gplasync-2.2",
+      "category": "runtime",
+      "type": "dx_wrapper",
+      "displayName": "dxvk-gplasync-2.2",
+      "versionName": "dxvk-gplasync-2.2",
+      "summary": "Vulkan-based Direct3D 8, 9, 10 and 11 translation layer.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-dxvk-gplasync-2.2",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-dxvk-gplasync-2.2.tar.xz",
+      "size": 2973708,
+      "sha256": "223daf88d4dfee059e897bd098129a2f573c727bc840c5d7790e094d7d2c4796"
+    },
+    {
+      "id": "native-dxvk-gplasync-2.3",
+      "category": "runtime",
+      "type": "dx_wrapper",
+      "displayName": "dxvk-gplasync-2.3",
+      "versionName": "dxvk-gplasync-2.3",
+      "summary": "Vulkan-based Direct3D 8, 9, 10 and 11 translation layer.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-dxvk-gplasync-2.3",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-dxvk-gplasync-2.3.tar.xz",
+      "size": 3088100,
+      "sha256": "ee2cab8b6af33ba7762f249b696a6d35d7cd587c26480cc2e4afa9f212d6ce1f"
+    },
+    {
+      "id": "native-vkd3d",
+      "category": "runtime",
+      "type": "dx_wrapper",
+      "displayName": "vkd3d",
+      "versionName": "vkd3d",
+      "summary": "Vulkan-based Direct3D 8, 9, 10 and 11 translation layer.",
+      "framework": "Termux GLIBC",
+      "base": false,
+      "recommended": false,
+      "hidden": false,
+      "profileValue": "native-vkd3d",
+      "runtimeBackends": [
+        "glibc_termux_box"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-graphics-components/native-vkd3d.tar.xz",
+      "size": 1695420,
+      "sha256": "d0bd6a465e8d8c4e8c199a3e393a4fe42dda8ed754f23e02895d6f28ec6eb6a6"
     },
     {
       "id": "virgl-mesa",
@@ -281,6 +521,46 @@
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_proton_11.0-v1/glibc_proton_11.0.tar.xz",
       "size": 91599396,
       "sha256": "b34fdcd433620966c86b6c11231ddb2649b853281be837ede7c99407d3d61bc8"
+    },
+    {
+      "id": "rootfs_box64_0.2.8",
+      "category": "runtime",
+      "type": "translator",
+      "displayName": "box64_0.2.8",
+      "versionName": "0.2.8",
+      "summary": "Box64 0.2.8 with PRoot loader and x86_64 support libraries.",
+      "framework": "ROOTFS",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "rootfs_proot"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.2.8/rootfs_box64_0.2.8.tar.xz",
+      "size": 5352260,
+      "sha256": "870f46487e11e7acbb5f72e6684be29d844f91b64668cb234f9638dd3e621d16"
+    },
+    {
+      "id": "rootfs_box64_0.3.8",
+      "category": "runtime",
+      "type": "translator",
+      "displayName": "box64_0.3.8",
+      "versionName": "0.3.8",
+      "summary": "Box64 0.3.8 with target-specific x86_64 support libraries.",
+      "framework": "ROOTFS",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "rootfs_proot"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.3.8/rootfs_box64_0.3.8.tar.xz",
+      "size": 6185748,
+      "sha256": "939c3e738da05301ef1343af404404fdc7fa461f2a83ac84c36b3e7b0fa66508"
     },
     {
       "id": "rootfs_box64_0.4.5",

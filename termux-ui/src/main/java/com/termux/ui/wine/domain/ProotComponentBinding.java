@@ -55,7 +55,7 @@ public final class ProotComponentBinding {
                 else throw new IllegalArgumentException("invalid_proot_binding_role");
                 break;
             case BOX64:
-                if (!(componentId.equals("rootfs_box64_0.4.5") || componentId.matches("custom-box64-[A-Za-z0-9._-]+"))) {
+                if (!(ProotBox64Versions.isBuiltIn(componentId) || componentId.matches("custom-box64-[A-Za-z0-9._-]+"))) {
                     throw new IllegalArgumentException("invalid_proot_binding_role");
                 }
                 expected = "/opt/box64/" + componentId;

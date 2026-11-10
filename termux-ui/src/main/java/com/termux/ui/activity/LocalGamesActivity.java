@@ -1449,8 +1449,8 @@ public final class LocalGamesActivity extends AppUiActivity {
             R.string.local_games_backup_restore_console_title);
     }
 
-    /** Proot Environment > Backup to file -- checks that the base is built, lets the user choose a
-     *  file inside shared storage, checks free space, then archives the shared RootFS there. */
+    /** Proot Environment > Backup to file -- checks that the base is built, automatically names a
+     *  file in the fixed backup directory, checks free space, then archives the shared RootFS there. */
     private void confirmBackupCreate() {
         if (showActiveInstallationConsole()) return;
         GameStoragePaths paths = new GameStoragePaths(getFilesDir());
@@ -1464,8 +1464,7 @@ public final class LocalGamesActivity extends AppUiActivity {
                     return;
                 }
                 if (showActiveInstallationConsole()) return;
-                ensureBackupStoragePermission(() -> RuntimeBackupFlow.instance().pickSaveFile(
-                    RuntimeBackupSharedStorage.ROOTFS_ARCHIVE_EXTENSION,
+                ensureBackupStoragePermission(() -> RuntimeBackupFlow.instance().createArchive(
                     RuntimeBackupSharedStorage.rootfsExportFileName(new Date()),
                     this::askIncludePrefixTemplates));
             });

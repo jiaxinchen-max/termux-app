@@ -45,6 +45,19 @@ public class ComponentInstallerTest {
         assertEquals(sha256(archive), installed.getSha256());
     }
 
+    @Test public void explicitSameRevisionReinstallExtractsFreshBytesEvenWhenOldTreeIsDamaged() throws Exception {
+        Fixture fixture = fixture();
+        File archive = archive("same-version.tar.xz", "bin/runtime", "original");
+        InstalledComponent first = fixture.installer.install(fixture.verified("first", 1, archive), archive,
+            ComponentInstallListener.NONE);
+        Files.write(new File(first.getDirectory(), "bin/runtime").toPath(), "damaged".getBytes(StandardCharsets.UTF_8));
+        InstalledComponent second = fixture.installer.install(fixture.verified("explicit", 1, archive), archive,
+            DownloadControl.CONTINUE, ComponentInstallListener.NONE, true);
+        assertFalse(first.getDirectory().equals(second.getDirectory()));
+        assertEquals("original", text(new File(second.getDirectory(), "bin/runtime")));
+        assertEquals(second.getDirectory(), fixture.installer.findActive("runtime").get().getDirectory());
+    }
+
     @Test
     public void stagesTwoImmutableVersionsAndRollsBackPointer() throws Exception {
         Fixture fixture = fixture();

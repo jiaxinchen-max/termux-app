@@ -61,7 +61,7 @@ public class ComponentCatalogRepositoryTest {
     }
 
     @Test
-    public void failedTaskWinsOverOldInstallationAndKeepsErrorEvidence() throws Exception {
+    public void installedComponentStaysInstalledDespiteFailedReplacement() throws Exception {
         Fixture fixture = fixture();
         fixture.install("runtime", "v1-aaaaaaaaaaaa", 1, OLD_SHA, "");
         ComponentTask failed = ComponentTask.queued("task-2", "runtime", 2,
@@ -71,13 +71,13 @@ public class ComponentCatalogRepositoryTest {
 
         ComponentCatalogItem item = fixture.catalog.load().get(0);
 
-        assertEquals(ComponentCatalogState.FAILED, item.getState());
+        assertEquals(ComponentCatalogState.INSTALLED, item.getState());
         assertEquals(1, item.getActive().get().getVersion());
         assertEquals("offline", item.getTask().get().getErrorMessage());
     }
 
     @Test
-    public void activeOldVersionShowsUpdateAndPreviousEnablesRollback() throws Exception {
+    public void activeDifferentRevisionIsInstalledAndPreviousIsPreserved() throws Exception {
         Fixture fixture = fixture();
         fixture.install("runtime", "v1-aaaaaaaaaaaa", 1, OLD_SHA,
             "v0-bbbbbbbbbbbb");
@@ -86,7 +86,7 @@ public class ComponentCatalogRepositoryTest {
 
         ComponentCatalogItem item = fixture.catalog.load().get(0);
 
-        assertEquals(ComponentCatalogState.UPDATE_AVAILABLE, item.getState());
+        assertEquals(ComponentCatalogState.INSTALLED, item.getState());
         assertTrue(item.getPrevious().isPresent());
         assertFalse(item.getTask().isPresent());
     }
@@ -158,7 +158,7 @@ public class ComponentCatalogRepositoryTest {
             receipt.setProperty("version", String.valueOf(version));
             receipt.setProperty("sha256", sha);
             write(new File(new File(new File(new File(installRoot, packageName), "versions"),
-                directory), ".games-component.properties"), receipt);
+                directory), ".wine-component.properties"), receipt);
         }
 
         private static void write(File file, Properties value) throws Exception {

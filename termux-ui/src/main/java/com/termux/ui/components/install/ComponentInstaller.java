@@ -20,7 +20,7 @@ import java.util.Properties;
 /** Transactional installer for verified component archives. */
 public final class ComponentInstaller {
 
-    private static final String RECEIPT = ".games-component.properties";
+    private static final String RECEIPT = ".wine-component.properties";
     private static final int DEFAULT_MAX_ENTRIES = 100_000;
     private static final long DEFAULT_MAX_EXPANDED_BYTES = 8L * 1024 * 1024 * 1024;
 
@@ -29,6 +29,12 @@ public final class ComponentInstaller {
     private final ArchiveFileOperations fileOperations;
     private final SafeTarXzExtractor extractor;
     private RuntimeComponentActivator activator = RuntimeComponentActivator.NONE;
+    private RuntimeComponentActivator publisher = RuntimeComponentActivator.NONE;
+
+    /** Runs after publishing the active pointer, before reporting installation complete. */
+    public void setInstallationPublisher(RuntimeComponentActivator value) {
+        publisher = value == null ? RuntimeComponentActivator.NONE : value;
+    }
 
     /** Installs components into the launcher-visible runtime after each version is published. */
     public void setRuntimeComponentActivator(RuntimeComponentActivator value) {
@@ -87,6 +93,11 @@ public final class ComponentInstaller {
                                                    DownloadControl control,
                                                    ComponentInstallListener listener)
         throws IOException {
+        return install(initialTask, archive, control, listener, false);
+    }
+
+    public synchronized InstalledComponent install(ComponentTask initialTask, File archive,
+            DownloadControl control, ComponentInstallListener listener, boolean fresh) throws IOException {
         if (initialTask == null || archive == null || control == null || listener == null) {
             throw new IllegalArgumentException("install arguments must not be null");
         }
@@ -114,7 +125,7 @@ public final class ComponentInstaller {
             File packageRoot = packageRoot(task.getPackageName());
             File versions = new File(packageRoot, "versions");
             ensureDirectory(versions);
-            String versionDirectoryName = versionDirectoryName(task);
+            String versionDirectoryName = versionDirectoryName(task) + (fresh ? "-" + task.getTaskId() : "");
             File versionDirectory = new File(versions, versionDirectoryName);
             if (versionDirectory.exists()) {
                 if (!validReceipt(versionDirectory, task)) {
@@ -153,6 +164,7 @@ public final class ComponentInstaller {
                 writePointer(packageRoot, new ActivePointer(versionDirectoryName,
                     pointer.activeDirectory));
             }
+            publisher.activate(task, versionDirectory);
             activated = true;
             task = transition(task, ComponentTaskState.INSTALLED, "", "", listener);
             return installed(versionDirectory, task);

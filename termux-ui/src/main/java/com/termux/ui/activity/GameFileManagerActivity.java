@@ -91,7 +91,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
     @Nullable private File clipboardSource;
     private boolean clipboardCut;
     @Nullable private PopupMenu activeFileMenu;
-    private static final int OPEN = 101, COPY = 102, CUT = 103, DELETE = 104, PASTE = 105, IMPORT = 106;
+    private static final int OPEN = 101, COPY = 102, CUT = 103, DELETE = 104, IMPORT = 106;
 
 
     @Override
@@ -124,12 +124,6 @@ public final class GameFileManagerActivity extends AppUiActivity {
             });
         viewMode = collectionToolbar.getMode();
         configureFileActions();
-        View.OnLongClickListener blankMenu = view -> {
-            if (localCurrent == null || operating || importing) return false;
-            return showFileMenu(view, localCurrent, true);
-        };
-        binding.localGameFileManagerItems.setOnLongClickListener(blankMenu);
-        binding.localGameFileManagerScroll.setOnLongClickListener(blankMenu);
         navigation = UiNavigation.install(this, R.id.local_games_navigation_file_manager, null);
         File restored = restoreBrowsedDirectory(savedInstanceState);
         if (restored != null) showLocal(restored);
@@ -333,11 +327,11 @@ public final class GameFileManagerActivity extends AppUiActivity {
                 visible++;
                 if (entry.isDirectory()) {
                     addEntry(entry.getName(), entrySubtitle(entry), true, view -> showLocal(entry),
-                        view -> showFileMenu(view, entry, false));
+                        view -> showFileMenu(view, entry));
                 } else {
                     addEntry(entry.getName(), entrySubtitle(entry), false,
                         view -> showFileDetails(entry),
-                        view -> showFileMenu(view, entry, false));
+                        view -> showFileMenu(view, entry));
                 }
             }
             if (visible == 0) addEmpty(getString(R.string.local_game_file_manager_empty));
@@ -445,21 +439,16 @@ public final class GameFileManagerActivity extends AppUiActivity {
         menu.findItem(R.id.browser_show_hidden).setChecked(showHidden).setEnabled(ready);
     }
 
-    private boolean showFileMenu(View anchor, File target, boolean blank) {
+    private boolean showFileMenu(View anchor, File target) {
         if (operating || importing || destroyed) return false;
-        boolean allowed = fileOperations.canOperate(target);
-        boolean paste = blank && clipboardSource != null;
-        if (!allowed && !paste) return false;
+        if (!fileOperations.canOperate(target)) return false;
         PopupMenu menu = new PopupMenu(this, anchor);
         menu.getMenu().add(target.getName()).setEnabled(false);
-        if (allowed) {
-            menu.getMenu().add(0, OPEN, 1, R.string.browser_open);
-            menu.getMenu().add(0, COPY, 2, R.string.browser_copy);
-            menu.getMenu().add(0, CUT, 3, R.string.browser_cut);
-            menu.getMenu().add(0, DELETE, 4, R.string.browser_delete);
-            if (!target.isDirectory()) menu.getMenu().add(0, IMPORT, 5, importLabel(selectedImportBackend()));
-        }
-        if (paste) menu.getMenu().add(0, PASTE, 6, R.string.browser_paste);
+        menu.getMenu().add(0, OPEN, 1, R.string.browser_open);
+        menu.getMenu().add(0, COPY, 2, R.string.browser_copy);
+        menu.getMenu().add(0, CUT, 3, R.string.browser_cut);
+        menu.getMenu().add(0, DELETE, 4, R.string.browser_delete);
+        if (!target.isDirectory()) menu.getMenu().add(0, IMPORT, 5, importLabel(selectedImportBackend()));
         menu.setOnMenuItemClickListener(item -> {
             if (operating || importing) return true;
             switch (item.getItemId()) {
@@ -471,7 +460,6 @@ public final class GameFileManagerActivity extends AppUiActivity {
                         target.getName()), Toast.LENGTH_SHORT).show();
                     break;
                 case DELETE: confirmDelete(target); break;
-                case PASTE: pasteIntoCurrent(); break;
                 case IMPORT: importConfiguration(target, selectedImportBackend()); break;
             }
             return true;

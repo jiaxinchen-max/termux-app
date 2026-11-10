@@ -72,10 +72,10 @@
 # warmup_rootfs_prefix() below falls back to a real wineboot in that case).
 resolve_template_prefix_archive() {
     template_key=$WINE_PACKAGE
-    if [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_key.tar.zst" ]; then
-        TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_key.tar.zst"
-    elif [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_key.tar.gz" ]; then
-        TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_key.tar.gz"
+    if [ -f "$TEMPLATE_CACHE_DIR/wine-rootfs-base-prefix-$template_key.tar.zst" ]; then
+        TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/wine-rootfs-base-prefix-$template_key.tar.zst"
+    elif [ -f "$TEMPLATE_CACHE_DIR/wine-rootfs-base-prefix-$template_key.tar.gz" ]; then
+        TEMPLATE_PREFIX_ARCHIVE="$TEMPLATE_CACHE_DIR/wine-rootfs-base-prefix-$template_key.tar.gz"
     else
         TEMPLATE_PREFIX_ARCHIVE=
     fi
@@ -180,19 +180,11 @@ resolve_rootfs_translator() {
             ;;
         *) warmup_fail runtime_translator_unsupported ;;
     esac
-    # Box64 build choice is orthogonal to the Wine package/translator choice above (see
-    # GameRuntimeOptionsView's "Box64 build" row) -- it only ever overrides GUEST_COMMAND, never
-    # the wine/wineboot paths resolved above. Every box64 build (the catalog's rootfs_box64_0.4.5,
-    # rootfs_box64_0.4.5, or any custom-box64-* sideload) lives at its own
-    # /opt/box64/<id>/bin/box64 (see setup-container.sh's box64 layout step), so selection is just
-    # picking which id's directory to point GUEST_COMMAND at -- defaults to the mprotect-patched
-    # build above if this is unset. Fails loudly (not a silent fallback) if the requested id's
-    # build isn't actually installed, so a typo'd/missing id is caught here rather than silently
-    # running whatever the default happened to be.
+    # Select Box64 independently of Wine, without falling back to an installed alternative.
     if [ -n "${GAMES_CUSTOM_BOX64_ID:-}" ]; then
         [ "$RUNTIME_TRANSLATOR" = box64 ] || warmup_fail box64_translator_mismatch
         case "$GAMES_CUSTOM_BOX64_ID" in
-            custom-box64-?*|rootfs_box64_0.4.5) ;;
+            custom-box64-?*|rootfs_box64_0.2.8|rootfs_box64_0.3.8|rootfs_box64_0.4.5) ;;
             *) warmup_fail custom_box64_id_invalid ;;
         esac
         case "$GAMES_CUSTOM_BOX64_ID" in *[!A-Za-z0-9._-]*) warmup_fail custom_box64_id_invalid ;; esac
@@ -202,6 +194,10 @@ resolve_rootfs_translator() {
         esac
         [ -x "$(rootfs_component_host "$custom_box64_bin")" ] || warmup_fail custom_box64_id_invalid
         GUEST_COMMAND=$custom_box64_bin
+    fi
+    GUEST_BOX64_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu
+    if [ "$RUNTIME_TRANSLATOR" = box64 ]; then
+        GUEST_BOX64_LIBRARY_PATH="${GUEST_COMMAND%/bin/box64}/lib/x86_64-linux-gnu"
     fi
     # The wineserver that belongs to the selected Wine, run the same way as Wine itself. The game launcher uses
     # it to let wineserver shut down cleanly: proot's --kill-on-exit SIGKILLs a wineserver that is still alive
@@ -248,11 +244,7 @@ resolve_rootfs_translator() {
 # whose --kill-on-exit then tears down the whole wine tree. Consequence: every caller MUST invoke
 # this in a subshell context -- either backgrounded (`... &`, already its own subshell) or wrapped
 # in `( ... )` -- NEVER as a bare foreground call, which would exec-replace the whole setup script.
-# BOX64_LD_LIBRARY_PATH: box64 only searches the paths it is given, and no box64 build finds a "lib"
-# directory next to its own binary. The x86_64 runtime libraries (libgcc_s.so.1 and friends, which a
-# box64-translated Wine's ntdll.so needs) live in the stock build's lib dir, and the mprotect-patch
-# build ships no lib dir at all. Without this, wineboot dies with "could not load ntdll.so" and the
-# whole RootFS rebuild fails with rootfs_prefix_initialization_failed.
+# Use the selected Box64 component's x86_64 libraries for maintenance and game execution.
 # Prefix maintenance always uses CPU rendering on its private display; the game renderer
 # is applied separately by start_rootfs_game.sh. Never inherit host Zink/driver paths here.
 run_rootfs_maintenance_command() {
@@ -271,7 +263,7 @@ run_rootfs_maintenance_command() {
         XDG_DATA_DIRS=/usr/local/share:/usr/share DISPLAY="${MAINTENANCE_DISPLAY:-:0}" \
         GALLIUM_DRIVER=llvmpipe MESA_LOADER_DRIVER_OVERRIDE=swrast LIBGL_ALWAYS_SOFTWARE=1 \
         WINEPREFIX=/mnt/games/prefix WINEDLLOVERRIDES=mscoree,mshtml=d WINEDEBUG=+wineboot \
-        BOX64_LD_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu \
+        BOX64_LD_LIBRARY_PATH="$GUEST_BOX64_LIBRARY_PATH" \
         "$@"
 }
 
@@ -503,7 +495,7 @@ warmup_rootfs_prefix() {
             fi
         fi
         # One template prefix is pre-booted per wine *package* (see setup_rootfs_runtime.sh's
-        # BASE_ONLY path, which loops over every package games-runtime.properties's
+        # BASE_ONLY path, which loops over every package wine-runtime.properties's
         # runtimePackages lists). Cloning another translator's template produced
         # `wine: could not load kernel32.dll, status c000007b`, and another build's template of
         # the same translator lacks PE stubs this build needs, hence the per-package key.
@@ -751,8 +743,8 @@ build_prefix_templates() {
     for template_wine_package in $templates_packages; do
         [ -n "$template_wine_package" ] || continue
         if [ "$templates_only_missing" = true ] &&
-            { [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.zst" ] ||
-              [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.gz" ]; }; then
+            { [ -f "$TEMPLATE_CACHE_DIR/wine-rootfs-base-prefix-$template_wine_package.tar.zst" ] ||
+              [ -f "$TEMPLATE_CACHE_DIR/wine-rootfs-base-prefix-$template_wine_package.tar.gz" ]; }; then
             continue
         fi
         templates_pending=true
@@ -775,8 +767,8 @@ build_prefix_templates() {
         IFS=$templates_old_ifs
         [ -n "$template_wine_package" ] || continue
         if [ "$templates_only_missing" = true ] &&
-            { [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.zst" ] ||
-              [ -f "$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.gz" ]; }; then
+            { [ -f "$TEMPLATE_CACHE_DIR/wine-rootfs-base-prefix-$template_wine_package.tar.zst" ] ||
+              [ -f "$TEMPLATE_CACHE_DIR/wine-rootfs-base-prefix-$template_wine_package.tar.gz" ]; }; then
             IFS=','
             continue
         fi
@@ -784,7 +776,7 @@ build_prefix_templates() {
         ROOTFS_CANONICAL=$(realpath "$SHARED_ROOTFS") || warmup_fail rootfs_unreadable
         resolve_rootfs_translator
         progress "==> Pre-warming the Wine prefix template for $template_wine_package"
-        TEMPLATE_PREFIX_ARCHIVE_DESTINATION="$TEMPLATE_CACHE_DIR/games-rootfs-base-prefix-$template_wine_package.tar.$TEMPLATE_PREFIX_EXT"
+        TEMPLATE_PREFIX_ARCHIVE_DESTINATION="$TEMPLATE_CACHE_DIR/wine-rootfs-base-prefix-$template_wine_package.tar.$TEMPLATE_PREFIX_EXT"
         TEMPLATE_PREFIX_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/prefix-build"
         TEMPLATE_HOME_BUILD_DIRECTORY="$TEMPLATE_CACHE_DIR/home-build"
         rm -rf "$TEMPLATE_PREFIX_BUILD_DIRECTORY" "$TEMPLATE_HOME_BUILD_DIRECTORY"
@@ -826,7 +818,7 @@ build_prefix_templates() {
 # v11 caches are keyed by the recipe (including Hangover input digest), selected Wine,
 # translator and exact immutable component identities. Host absolute paths never enter the key.
 resolve_external_template_identity() {
-    external_recipe=$(sed -n 's/^recipeSha256=//p' "$ROOTFS_CANONICAL/etc/games-runtime.properties")
+    external_recipe=$(sed -n 's/^recipeSha256=//p' "$ROOTFS_CANONICAL/etc/wine-runtime.properties")
     case "$external_recipe" in ''|*[!0-9a-f]*) warmup_fail rootfs_recipe_identity_missing ;; esac
     [ "${#external_recipe}" = 64 ] || warmup_fail rootfs_recipe_identity_missing
     # The image's installation recipe stays immutable. New preparations bind the current

@@ -210,9 +210,9 @@ Native 环境构建负责 glibc、基础图形库、中文 locale 与解压工�
 准备所选 Wine、字体、脚本、prefix-apps 和预构建 prefix。基础 Box64、字体、脚本、
 prefix-apps 与 PRoot 基础镜像在目录中标记 hidden，仍供自动依赖解析使用。
 Wine、可选图形组件和自定义组件管理继续保留。自编译 Native Box64 0.4.4
-继续保留在可选组件目录。Native 的 0.2.7、0.4.4 分别激活到
+继续保留在可选组件目录。Native 的 0.2.8、0.3.8、0.4.4 分别激活到
 `glibc/components/<component-id>/bin/box64`，游戏保存具体版本 ID，自动准备所选
-组件，启动经 Native glibc loader 调用准确路径。未指定时使用独立的 0.2.7，
+组件，启动经 Native glibc loader 调用准确路径。未指定时使用独立的 0.2.8，
 缺失则失败；不再使用或覆盖共享 `glibc/bin/box64`。自定义版本继续独立保存。
 
 ### 预构建 prefix 与当前镜像配方
@@ -300,7 +300,7 @@ Wine NLS、X11 locale 或字体；Wine PE 内嵌中文资源不变。第二批�
 安装接入使用 `build --root <termux-files>/usr/var/lib/proot-distro/containers/tmpl-build/rootfs
 --termux-files <termux-files> --assets <prefix-assets> --recipe <sha256> --report <outside-path>`，
 只接受固定未发布scratch，合并已验证批次后执行ELF、locale、fontconfig和来源摘要检查。
-报告含逐路径原因及净逻辑/分配收益；成功才写 `etc/games-rootfs-trim.json`，绑定工具字节、
+报告含逐路径原因及净逻辑/分配收益；成功才写 `etc/wine-rootfs-trim.json`，绑定工具字节、
 批次、包身份和配方。`verify-build --root <root> --recipe <sha256>` 是只读凭据核验，
 不等同再次全量运行验收。失败/取消不发布，原共享树和旧凭证保留；下次显式重建会丢弃
 中断或已精简但策略/配方过期的scratch，从完整基础镜像重建。
@@ -464,7 +464,7 @@ python3 distribution/termux-app-packages/audit-external-wine.py \
 门禁失败不写保留凭据，也不允许继续设备运行验收或交付可用包。
 
 仅在闭包检查与能力对比均通过后，`--seal` 为独立构建树写入
-`etc/games-external-wine-dependencies.json`。精简工具会保留其中每个原生文件和
+`etc/wine-external-wine-dependencies.json`。精简工具会保留其中每个原生文件和
 客体链接，重检内容摘要及链接目标；打包工具也会将这些文件纳入保护清单。
 分发目录与 APK 内的精简工具副本保持一致，设备仍只消费固定预构建镜像。
 这项检查覆盖 ELF 直接依赖，符号版本、实际媒体加载、驱动和 syscall 语义须另验；
@@ -522,10 +522,84 @@ python3 distribution/termux-app-packages/package-prefix-assets.py \
 
 Proton 使用独立的 `prefix-proton11-wow64` 骨架；未知或自定义 Wine 无已验证资产时明确失败。恢复器要求 APK 固定 bundle 摘要、所选组件凭据与每个来源文件摘要一致，检查空间、路径、非空目标和取消，再原子发布。Native Python 恢复工具由 Termux 工具链提供；GLIBC 自动准备包含此依赖。
 
-Native 可写路径为 `front/containers/<containerId>/native-prefixes/<winePackage>`，同容器同版本保留共享语义，切换 Wine 选择另一个独立 prefix。旧单 prefix 不迁移或删除；不通过 wineboot 升级，不覆盖非空数据。用户名、字体注册及默认注册表离线处理，盘符在恢复时绑定实际主机路径；图形/DirectX 仍按原选择应用。
+Native 可写路径为 `front/wine/<containerId>/native-prefixes/<winePackage>`，同容器同版本保留共享语义，切换 Wine 选择另一个独立 prefix。旧单 prefix 不迁移或删除；不通过 wineboot 升级，不覆盖非空数据。用户名、字体注册及默认注册表离线处理，盘符在恢复时绑定实际主机路径；图形/DirectX 仍按原选择应用。
 
 2026-11-08 本地候选完成 22 项 Native 恢复测试、33 项 PRoot 恢复回归、44 项定向 JVM 测试及 Native 启动脚本集成检查；五套实际归档均完成首次/第二配置恢复及逐文件 SHA-256 校验。这些验证没有运行 Native Wine，不能替代 Android App 的 PE32/PE64、中文、服务与退出验收。五份外部资源每份约 3.7–4.0 MiB，尚未发布；发布后才能验收在线首次准备。正常原名 arm64 APK 为 45647375 字节（43.53 MiB），签名有效且 testOnly=false，不含 prefix payload。严格 Harness 脚本在此 checkout 缺失，状态为 Unavailable。产品最终接受继续待确认。
 
 2026-11-08 发布状态更新：用户明确授权后，五份 Native prefix 资源已发布至 `jiaxinchen-max/termux-app-packages`；逐份匿名公开下载核验大小/SHA-256，与当前 APK 索引一致。APK 已提供原名下载，等待用户手动安装及真实 App 界面运行验收。上文“尚未发布”描述为发布前本地候选状态。
 
 2026-11-08 App 验证更新：Native 基础准备先核验主机 glibc、Python、7z 与必要图形库，缺失时走既有官方包安装链路，并重新核验后继续；7z 由官方 `7zip` 提供。用户手动安装最新正常 APK 后，经 App 保存准备自动补装 7zip 并复用已恢复 prefix，图形解压通过。首次准备含中文 locale 生成约85.075秒；同一 Wine10 的第二份配置直接复用，仅0.154秒。Native Wine10 PE64/PE32 图形测试均显示动态 version.dll、中文文件写入和中文 GUI PASS；通过 App 退出返回游戏库，最终无运行时进程和启动锁残留，无wineboot或prefix重建。日志保留 `libXrandr.so.2` 缺失警告，动态分辨率及相关扩展未验证；其余四个 Native 版本、具体游戏、3D、音频及硬件兼容性未由此覆盖。用户最终接受仍待确认。
+
+
+### Native Box64 0.4.4 配套库修复包
+
+`package-native-box64.py` 使用原 `box64-proot-v0.4.4-v1` 资产中的 AArch64
+Box64 和 `box64-binaries-v10` 中既有的 7 个 x86-64 配套库生成补齐库的 Native 包。
+构建输入保留历史资产名；当前分发名为 `glibc_box64_0.4.4.tar.xz`，加载器为 Termux GLIBC Native 路径。
+不会引入旧翻译器、嵌套历史归档或 macOS 元数据；不修改原二进制。
+
+```sh
+python3 distribution/termux-app-packages/package-native-box64.py \
+  --binary-archive /path/to/box64-proot-v0.4.4.tar.xz \
+  --libraries-archive /path/to/box64-binaries.tar.xz \
+  --output /path/to/output/glibc_box64_0.4.4.tar.xz
+```
+
+输出旁的 `.json` 记录输入与输出摘要、文件架构和清单，仅用于构建审计。
+安装后库位于 `usr/glibc/components/glibc_box64_0.4.4/lib/x86_64-linux-gnu/`，
+启动脚本优先搜索所选版本的目录，不要求另一个 Box64 版本已安装。
+
+
+### Native 图形组件按候选版本拆分
+
+`split-native-graphics.py` 将原 Turnip/DXVK 归档拆成 5 个 Turnip、7 个 DXVK、1 个 VKD3D
+独立包。每包只包装一个原始 7z，保留内部字节及原运行路径；不包含没有菜单入口的 Zink、D8VK
+或桌面快捷方式。输出清单记录真实大小及构建审计摘要，不增加运行时摘要/签名拒绝。
+
+```sh
+python3 distribution/termux-app-packages/split-native-graphics.py \
+  --turnip /path/to/turnip.tar.xz \
+  --dxvk /path/to/dxvk.tar.xz \
+  --output /path/to/native-graphics
+```
+
+独立组件 ID 等于游戏选择值 `native-turnip-*`、`native-dxvk-*`、`native-vkd3d`。
+只准备选中的版本，仍由 `native_runtime_components.sh` 解压所选 7z，并设置 Turnip ICD、
+复制对应位数的 Direct3D DLL 与设置 Wine overrides。版本列表提供显式安装、卸载、重装；
+在线重装清除该组件的下载缓存再下载，卸载只清除所选版本，不删除游戏/prefix/其他版本。
+PRoot 显式重装后刷新引用该组件的已准备绑定，不重建 prefix。
+已安装组件不会因目录修订号不同而自动更新。程序版本、组件 ID 不用于触发自动升级。
+
+2026-11-10：13 个拆分资产已在本地生成并验证，发布标签计划为 `native-graphics-components`，
+用户明确授权后已发布至原资产仓库，13个公开下载大小及摘要均与APK索引一致。
+发布地址：https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/native-graphics-components
+设备验证由用户手动执行。
+
+
+### Box64 资产命名
+
+当前分发文件名采用 `<组件ID>.tar.xz`，Native 使用 `glibc_box64_<版本>`，PRoot 使用
+`rootfs_box64_<版本>`。Native 0.2.7、0.4.4 已以规范名称发布至原资产仓库的同名组件标签，
+当前 APK 索引使用新地址；PRoot 0.4.5 原文件名已符合规范。历史输入仍按真实来源记录。
+本次只调整分发名称和 URL，归档字节、组件 ID、程序版本、索引修订和安装目录均保持。
+
+- Native 0.2.7：`glibc_box64_0.2.7.tar.xz`（22,582,612 字节）
+- Native 0.4.4：`glibc_box64_0.4.4.tar.xz`（12,846,180 字节）
+- PRoot 0.4.5：`rootfs_box64_0.4.5.tar.xz`（6,429,892 字节）
+
+
+### Native Box64 0.2.8 构建替换
+
+当前目录以 `glibc_box64_0.2.8` 替换原 0.2.7 基础项，真实版本0.2.8、修订号1；不迁移旧选择或自动升级旧安装。0.3.8和0.4.4候选保留，PRoot目录不变。历史0.2.7 Release不删除，但已不在当前目录中提供。
+
+上游v0.2.8提交 `8545d0505f274554561ca30e1839027dd7be783a`，使用现有GCC14.2 AArch64 glibc环境构建Release、ARM64 dynarec并strip。解释器为 `/data/data/com.termux/files/usr/glibc/lib/ld-linux-aarch64.so.1`，RUNPATH为同目录，LOAD对齐64KiB。支持库沿用Native0.4.4包中的七个x86_64库，包含真正的 `libunwind.so.8`。
+
+资产：[glibc_box64_0.2.8.tar.xz](https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_box64_0.2.8/glibc_box64_0.2.8.tar.xz)，4,352,376字节；SHA-256为 `8a7b66812af95c1393f1bd534ab7fbcc1f21e53ce9651b008a42fbfa0707ba4d`。构建证据记录该摘要用于来源核对，不增加运行时摘要或签名校验。
+
+ELF、4K/16K布局、QEMU AArch64版本及静态/动态x86_64程序验证通过；Android Wine和实际游戏由用户手动验证。
+
+### PRoot Box64 0.2.8候选
+
+新增 `rootfs_box64_0.2.8` 独立候选；PRoot默认0.4.5及原有0.3.8保留。固定上游v0.2.8提交8545d0505f274554561ca30e1839027dd7be783a，Release ARM64 dynarec构建并strip；解释器为 `/lib/ld-linux-aarch64.so.1`，无Native RUNPATH，配套库沿用PRoot0.4.5包。
+
+资产：[rootfs_box64_0.2.8.tar.xz](https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.2.8/rootfs_box64_0.2.8.tar.xz)，5,352,260字节，SHA-256为 `870f46487e11e7acbb5f72e6684be29d844f91b64668cb234f9638dd3e621d16`。游戏与维护任务使用 `/opt/box64/rootfs_box64_0.2.8/bin/box64` 和同组件支持库；缺包失败，无自动升级或换版。ELF和QEMU基础程序验证通过，设备游戏由用户手动验证。

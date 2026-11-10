@@ -28,7 +28,6 @@ import com.termux.ui.api.RuntimeSetupRequest;
 import com.termux.ui.components.ComponentDownloader;
 import com.termux.ui.components.ComponentStoragePaths;
 import com.termux.ui.components.DefaultHttpConnectionFactory;
-import com.termux.ui.components.LocalComponentCache;
 import com.termux.ui.components.delivery.ComponentDeliveryCoordinator;
 import com.termux.ui.components.index.ComponentDescriptor;
 import com.termux.ui.components.index.ComponentIndex;
@@ -47,7 +46,6 @@ import com.termux.ui.wine.runtime.GlibcTermuxBoxBackend;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -101,7 +99,6 @@ public final class ComponentTaskForegroundService extends Service {
         });
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, buildPreparingNotification());
-        submit(this::recoverTasks);
     }
 
     @Override
@@ -109,7 +106,10 @@ public final class ComponentTaskForegroundService extends Service {
         latestStartId = startId;
         // A new command can reach this instance after its previous idle transition.
         startForeground(NOTIFICATION_ID, buildPreparingNotification());
-        if (intent == null || intent.getAction() == null) return START_STICKY;
+        if (intent == null || intent.getAction() == null) {
+            submit(this::recoverTasks);
+            return START_STICKY;
+        }
 
         String action = intent.getAction();
         String taskId = intent.getStringExtra(ComponentTasks.EXTRA_TASK_ID);
@@ -127,6 +127,18 @@ public final class ComponentTaskForegroundService extends Service {
                 ComponentDeliveryCoordinator current = coordinator;
                 if (current != null && runningTasks.contains(taskId)) {
                     current.signalCancel(taskId);
+                }
+            }
+        }
+        if (ComponentTasks.ACTION_UNINSTALL.equals(action) || ComponentTasks.ACTION_REINSTALL.equals(action)) {
+            // Signal the running serial worker before queuing the mutation behind it.
+            synchronized (controlRegistrationLock) {
+                ComponentDeliveryCoordinator current = coordinator;
+                if (current != null) for (String running : runningTasks) {
+                    try {
+                        ComponentTask task = current.find(running).orElse(null);
+                        if (task != null && task.getPackageName().equals(componentId)) current.signalCancel(running);
+                    } catch (IOException error) { Log.w(TAG, "Unable to signal component cancellation", error); }
                 }
             }
         }
@@ -152,7 +164,39 @@ public final class ComponentTaskForegroundService extends Service {
                                @Nullable ResultReceiver receiver) {
         try {
             ComponentDeliveryCoordinator current = requireCoordinator();
-            if (ComponentTasks.ACTION_ENQUEUE.equals(action)) {
+            if (ComponentTasks.ACTION_UNINSTALL.equals(action)) {
+                com.termux.ui.components.install.ComponentMaintenance.requireManageable(componentId);
+                synchronized (com.termux.ui.wine.runtime.RuntimeEditingStop.LOCK) {
+                    cancelComponentTasks(current, componentId);
+                    ComponentMutationStop.stop(getFilesDir(), LocalGames.requireHost(this), componentId);
+                    new com.termux.ui.components.install.ComponentMaintenance(getFilesDir()).uninstall(componentId);
+                }
+                if (receiver != null) receiver.send(0, null);
+            } else if (ComponentTasks.ACTION_INSTALL.equals(action) || ComponentTasks.ACTION_REINSTALL.equals(action)) {
+                com.termux.ui.components.install.ComponentMaintenance.requireManageable(componentId);
+                ComponentDescriptor descriptor = requiredDescriptor(componentId);
+                ComponentTaskConsoleLog.clearCommandFailure(getFilesDir(), taskId);
+                boolean reinstall = ComponentTasks.ACTION_REINSTALL.equals(action);
+                if (reinstall) {
+                    cancelComponentTasks(current, componentId);
+                    ComponentMutationStop.stop(getFilesDir(), LocalGames.requireHost(this), componentId);
+                }
+                RuntimeInstallationGate.requireComponentSlot(getFilesDir(), taskId);
+                if (!reinstall && componentAvailable(descriptor)) {
+                    // An explicit ordinary install cannot replace an existing installation.
+                    current.enqueue(descriptor, taskId);
+                    current.transitionHostManagedTask(taskId, ComponentTaskState.INSTALLED, "", "", this::publishTask);
+                } else {
+                    new com.termux.ui.components.install.ComponentMaintenance(getFilesDir())
+                        .clearDownload(componentId, retainedDownloadDirectory());
+                    File fresh = freshFile(taskId);
+                    if (!fresh.getParentFile().isDirectory() && !fresh.getParentFile().mkdirs()) throw new IOException("component_operation_record_failed");
+                    if (!fresh.createNewFile() && !fresh.isFile()) throw new IOException("component_operation_record_failed");
+                    current.enqueue(descriptor, taskId);
+                    executeTask(taskId);
+                }
+            } else if (ComponentTasks.ACTION_ENQUEUE.equals(action)) {
+
                 ComponentTaskConsoleLog.clearCommandFailure(getFilesDir(), taskId);
                 RuntimeInstallationGate.requireComponentSlot(getFilesDir(), requiredIdentifier(taskId, "taskId"));
                 ComponentDescriptor descriptor = requiredDescriptor(componentId);
@@ -204,11 +248,33 @@ public final class ComponentTaskForegroundService extends Service {
                 receiver.send(1, result);
             }
             if (taskId != null && taskId.matches("[A-Za-z0-9._-]+") &&
-                (ComponentTasks.ACTION_ENQUEUE.equals(action) || ComponentTasks.ACTION_RETRY.equals(action) ||
+                (ComponentTasks.ACTION_ENQUEUE.equals(action) || ComponentTasks.ACTION_INSTALL.equals(action) ||
+                    ComponentTasks.ACTION_REINSTALL.equals(action) || ComponentTasks.ACTION_RETRY.equals(action) ||
                     ComponentTasks.ACTION_RESUME.equals(action))) {
                 ComponentTaskConsoleLog.commandFailed(getFilesDir(), taskId, stableMessage(error));
             }
             publishFailure(error);
+        }
+    }
+
+    private File freshFile(String taskId) throws IOException {
+        requiredIdentifier(taskId, "taskId");
+        return new File(new ComponentStoragePaths(getFilesDir()).getTasksDirectory(), taskId + ".fresh");
+    }
+
+    private boolean componentAvailable(ComponentDescriptor descriptor) throws IOException {
+        InstalledComponent active = new ComponentInstallationReader(new ComponentStoragePaths(getFilesDir())
+            .getInstallDirectory()).read(descriptor.getId()).getActive().orElse(null);
+        return descriptor.supportsBackend(GameRuntimeBackendType.GLIBC_TERMUX_BOX)
+            ? LocalGames.requireHost(this).isRuntimeComponentAvailable(descriptor.getId())
+            : active != null && active.getDirectory().isDirectory();
+    }
+
+    private void cancelComponentTasks(ComponentDeliveryCoordinator current, String componentId) throws IOException {
+        for (ComponentTask task : new FileComponentTaskRepository(new ComponentStoragePaths(getFilesDir()).getTasksDirectory()).list()) {
+            if (task.getPackageName().equals(componentId) && !task.getState().isTerminal()) {
+                current.requestCancel(task.getTaskId(), this::publishTask);
+            }
         }
     }
 
@@ -250,7 +316,8 @@ public final class ComponentTaskForegroundService extends Service {
             } else {
                 ComponentTaskConsoleLog.append(getFilesDir(), taskId,
                     "Starting download, extraction and activation pipeline.");
-                current.execute(taskId, this::publishTask);
+                current.execute(taskId, this::publishTask, freshFile(taskId).isFile());
+
             }
         } catch (Exception error) {
             ComponentTaskConsoleLog.append(getFilesDir(), taskId,
@@ -354,15 +421,12 @@ public final class ComponentTaskForegroundService extends Service {
     private synchronized ComponentDeliveryCoordinator requireCoordinator() throws IOException {
         if (coordinator != null) return coordinator;
         File retainedDownloads = retainedDownloadDirectory();
-        ComponentStoragePaths privatePaths = new ComponentStoragePaths(getFilesDir());
-        migrateVerifiedArchives(privatePaths.getDownloadsDirectory(), retainedDownloads);
         ComponentStoragePaths paths = new ComponentStoragePaths(getFilesDir(), retainedDownloads);
         ComponentTaskRepository repository = new FileComponentTaskRepository(
             paths.getTasksDirectory());
         ComponentDownloader downloader = new ComponentDownloader(repository,
             paths.getDownloadsDirectory(),
-            new DefaultHttpConnectionFactory(),
-            new LocalComponentCache(localComponentCacheDirectory()));
+            new DefaultHttpConnectionFactory());
         ComponentInstaller installer = new ComponentInstaller(repository,
             paths.getInstallDirectory(),
             new AndroidArchiveFileOperations(),
@@ -371,60 +435,22 @@ public final class ComponentTaskForegroundService extends Service {
             componentIndex = new ComponentIndexParser().parse(input);
         }
         installer.setRuntimeComponentActivator(this::activateRuntimeComponent);
+        installer.setInstallationPublisher((task, directory) -> {
+            if (freshFile(task.getTaskId()).isFile() &&
+                !requiredDescriptor(task.getPackageName()).supportsBackend(GameRuntimeBackendType.GLIBC_TERMUX_BOX)) {
+                synchronized (com.termux.ui.wine.runtime.RuntimeEditingStop.LOCK) {
+                    new com.termux.ui.components.install.ComponentMaintenance(getFilesDir()).refreshProotBindings(task.getPackageName());
+                }
+            }
+        });
         coordinator = new ComponentDeliveryCoordinator(repository, downloader, installer,
             paths.getDownloadsDirectory());
         return coordinator;
     }
 
-    /** Fixed, user-writable directory a user can manually drop previously-downloaded component
-     *  archives into (keyed by the archive's own filename -- see LocalComponentCache) so a build
-     *  can recover without network access. Never created here -- it's a read-only lookup target;
-     *  LocalComponentCache treats a missing directory the same as an empty one. */
-    private static File localComponentCacheDirectory() {
-        return new File(Environment.getExternalStoragePublicDirectory(
-            Environment.DIRECTORY_DOWNLOADS), "component");
-    }
-
     private File retainedDownloadDirectory() throws IOException {
-        File downloads = Environment.getExternalStoragePublicDirectory(
-            Environment.DIRECTORY_DOWNLOADS);
-        File directory = new File(downloads, "Termux/Games/components");
-        if ((directory.isDirectory() || directory.mkdirs()) && directory.canWrite()) {
-            return directory;
-        }
-        File scoped = getExternalFilesDir("games/components");
-        if (scoped != null && (scoped.isDirectory() || scoped.mkdirs()) && scoped.canWrite()) {
-            return scoped;
-        }
-        throw new IOException("component_external_cache_unavailable");
-    }
-
-    /** Copies old private verified archives once; sources are retained as a rollback cache. */
-    private static void migrateVerifiedArchives(File source, File destination) throws IOException {
-        if (source.equals(destination) || !source.isDirectory()) return;
-        File[] archives = source.listFiles(file -> file.isFile() &&
-            (file.getName().endsWith(".archive") || file.getName().endsWith(".part")));
-        if (archives == null) throw new IOException("component_cache_list_failed");
-        byte[] buffer = new byte[64 * 1024];
-        for (File archive : archives) {
-            File target = new File(destination, archive.getName());
-            if (target.isFile() && target.length() == archive.length()) continue;
-            File temporary = new File(destination, archive.getName() + ".migrating");
-            try (FileInputStream input = new FileInputStream(archive);
-                 FileOutputStream output = new FileOutputStream(temporary, false)) {
-                int read;
-                while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
-                output.getFD().sync();
-            }
-            if (target.exists() && !target.delete()) {
-                temporary.delete();
-                throw new IOException("component_cache_replace_failed");
-            }
-            if (!temporary.renameTo(target)) {
-                temporary.delete();
-                throw new IOException("component_cache_publish_failed");
-            }
-        }
+        return com.termux.ui.platform.ExternalStoragePaths.requireWritable(this,
+            com.termux.ui.platform.ExternalStoragePaths.components());
     }
 
     /**
@@ -434,7 +460,16 @@ public final class ComponentTaskForegroundService extends Service {
     private void activateRuntimeComponent(ComponentTask task, File preparedDirectory)
         throws IOException {
         ComponentDescriptor descriptor = requiredDescriptor(task.getPackageName());
-        activateRuntimeComponent(descriptor, preparedDirectory);
+        synchronized (com.termux.ui.wine.runtime.RuntimeEditingStop.LOCK) {
+            if (freshFile(task.getTaskId()).isFile()) {
+                ComponentMutationStop.stop(getFilesDir(), LocalGames.requireHost(this), descriptor.getId());
+                if (com.termux.ui.components.install.ComponentMaintenance.variantArchive(descriptor.getId()) != null) {
+                    new com.termux.ui.components.install.ComponentMaintenance(getFilesDir()).clearExpandedVariant(descriptor.getId());
+                }
+
+            }
+            activateRuntimeComponent(descriptor, preparedDirectory);
+        }
     }
 
     private void activateInstalledComponent(String componentId) throws IOException {
@@ -444,10 +479,6 @@ public final class ComponentTaskForegroundService extends Service {
             .read(componentId).getActive().orElseThrow(
                 () -> new ComponentInstallException("runtime_activation_source_missing",
                     "No local component is available for activation"));
-        if (active.getVersion() != descriptor.getVersion()) {
-            throw new ComponentInstallException("runtime_activation_source_mismatch",
-                "Verified local component does not match the current catalog");
-        }
         activateRuntimeComponent(descriptor, active.getDirectory());
         publishMessage(getString(R.string.local_games_component_activation_complete,
             descriptor.getDisplayName()));

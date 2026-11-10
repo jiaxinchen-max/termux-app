@@ -67,6 +67,8 @@ final class TermuxRuntimeComponentProbe {
                 nonEmpty(new File(glibcDirectory, "lib/libXrandr.so.2")) &&
                 nonEmpty(new File(glibcDirectory, "lib/libfreetype.so.6"));
         }
+        String graphicsArchive = com.termux.ui.components.install.ComponentMaintenance.variantArchive(componentId);
+        if (graphicsArchive != null) return nonEmpty(new File(termuxFilesDirectory, "usr/" + graphicsArchive));
         return hasInstallMetadata(componentId, expectedVersion) &&
             hasRuntimeCapability(componentId);
     }
@@ -90,7 +92,8 @@ final class TermuxRuntimeComponentProbe {
         switch (componentId) {
             case "glibc_scripts_29":
                 return new File(glibcDirectory, "opt/scripts").isDirectory();
-            case "glibc_box64_0.2.7":
+            case "glibc_box64_0.2.8":
+            case "glibc_box64_0.3.8":
             case "glibc_box64_0.4.4":
                 return executable(new File(glibcDirectory,
                     com.termux.ui.wine.runtime.NativeBox64Versions.relativeDirectory(componentId) + "/bin/box64"));
@@ -105,18 +108,9 @@ final class TermuxRuntimeComponentProbe {
                 // scan directory; unlike Wine engines they do not contain a bin/wine payload.
                 return nonEmpty(new File(glibcDirectory,
                     "share/fonts/NotoSansCJK-Regular.ttc"));
-            case "turnip":
-                // The catalog release bundles several driver builds as nested .7z archives
-                // (7-Zip's ARM64 filter, which Apache Commons Compress cannot decode) meant for
-                // an interactive in-guest installer. This launcher publishes that bundle as-is;
-                // bootstrap_termux_box.sh extracts the selected build with the real `7z` binary
-                // once the GLIBC runtime is available, so activation only requires the bundle
-                // itself to be present.
-                return new File(glibcDirectory, "opt/libs/mesa").isDirectory();
             case "virgl-mesa":
                 return nonEmpty(new File(glibcDirectory,
                     "opt/virgl/libvirgl_test_server.so"));
-            case "dxvk":
             case "wined3d":
                 return new File(glibcDirectory, "opt/libs/d3d").isDirectory() ||
                     new File(glibcDirectory, "opt/prefix/d3d").isDirectory();
@@ -133,7 +127,7 @@ final class TermuxRuntimeComponentProbe {
             String value = reader.readLine();
             if (value == null) return false;
             int actual = Integer.parseInt(value.trim());
-            return actual > 0 && (expectedVersion == null || actual == expectedVersion);
+            return actual > 0;
         } catch (IOException | NumberFormatException error) {
             return false;
         }

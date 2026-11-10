@@ -20,7 +20,7 @@ public final class ComponentStoragePaths {
         }
         root = new File(FrontStorage.root(applicationFilesDirectory), "components");
         downloadsDirectory = retainedDownloadsDirectory == null
-            ? new File(root, "downloads") : retainedDownloadsDirectory;
+            ? com.termux.ui.platform.ExternalStoragePaths.components() : retainedDownloadsDirectory;
     }
 
     public File getRoot() { return root; }

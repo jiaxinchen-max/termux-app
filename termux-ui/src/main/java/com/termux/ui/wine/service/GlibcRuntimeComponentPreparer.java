@@ -161,7 +161,7 @@ final class GlibcRuntimeComponentPreparer {
     }
 
     private static boolean matches(InstalledComponent installed, ComponentDescriptor descriptor) {
-        return installed != null && installed.getVersion() == descriptor.getVersion() ;
+        return installed != null && installed.getDirectory().isDirectory() ;
     }
 
     private static void sleep() throws IOException {

@@ -111,13 +111,13 @@ public final class GlibcTermuxBoxBackend implements GameRuntimeBackend {
 
     private static String graphicsComponent(String selection) {
         if ("virgl".equals(selection) || "virgl-mesa".equals(selection)) return "virgl-mesa";
-        if (isNativeTurnip(selection)) return "turnip";
+        if (isNativeTurnip(selection)) return selection;
         throw new IllegalArgumentException("renderer_unsupported:" + selection);
     }
 
     private static String dxComponent(String selection) {
         if ("wined3d".equals(selection)) return "wined3d";
-        if (isNativeDx(selection)) return "dxvk";
+        if (isNativeDx(selection)) return selection;
         throw new IllegalArgumentException("dxWrapper:" + selection);
     }
 

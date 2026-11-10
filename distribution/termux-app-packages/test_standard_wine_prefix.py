@@ -48,7 +48,7 @@ class PackagingTests(unittest.TestCase):
         self.write(self.prefix/'.update-timestamp',b'0\n')
         for name in ['NotoSansCJK-Regular.ttc','NotoSansCJK-Bold.ttc']:
             self.write(self.rootfs/('usr/share/fonts/opentype/noto/'+name),b'font')
-        for name in ['setup-container.sh','games-runtime.properties']:
+        for name in ['setup-container.sh','wine-runtime.properties']:
             self.write(self.recipe/name,b'recipe')
         self.evidence.write_text(json.dumps(dict(exitCode=0,serverExitCode=0,user='root',locale='zh_CN.UTF-8',sourceComponentSha256='f'*64)))
         self.archive_component()

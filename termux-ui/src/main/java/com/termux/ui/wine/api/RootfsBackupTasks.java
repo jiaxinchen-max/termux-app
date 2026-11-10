@@ -33,7 +33,7 @@ public final class RootfsBackupTasks {
 
     private RootfsBackupTasks() {}
 
-    /** Backs up to the archive the user chose (inside shared storage). */
+    /** Backs up to the generated archive in the fixed external directory. */
     @NonNull
     public static String enqueueBackup(@NonNull Context context, @NonNull File archive) {
         return enqueueBackup(context, archive, true);
@@ -46,7 +46,7 @@ public final class RootfsBackupTasks {
         return enqueue(context, RootfsBackupTask.Kind.BACKUP, archive, includePrefixTemplates);
     }
 
-    /** Restores from the archive the user chose, read in place. */
+    /** Restores from a backup selected from the fixed external directory, read in place. */
     @NonNull
     public static String enqueueRestore(@NonNull Context context, @NonNull File archive) {
         return enqueue(context, RootfsBackupTask.Kind.RESTORE, archive, true);

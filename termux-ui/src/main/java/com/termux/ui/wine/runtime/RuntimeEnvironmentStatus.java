@@ -60,13 +60,13 @@ public final class RuntimeEnvironmentStatus {
             new File(root, "usr/bin/wine").canExecute() &&
             new File(root, "usr/bin/wineboot").canExecute() &&
             new File(root, "usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc").isFile() &&
-            new File(root, "etc/games-runtime.properties").isFile() &&
+            new File(root, "etc/wine-runtime.properties").isFile() &&
             new File(root, "mnt/games/game").isDirectory() &&
             new File(root, "mnt/games/prefix").isDirectory();
         if (complete) return RuntimeReadinessState.READY;
         if (paths.getSharedRootfsContainerDirectory().exists()
             || paths.getRootfsBuildContainerDirectory().exists()
-            || new File(paths.getTemplateArchiveCacheDirectory(), "games-rootfs-base.recipe").exists()) {
+            || new File(paths.getTemplateArchiveCacheDirectory(), "wine-rootfs-base.recipe").exists()) {
             return RuntimeReadinessState.INCOMPLETE;
         }
         return RuntimeReadinessState.NOT_READY;

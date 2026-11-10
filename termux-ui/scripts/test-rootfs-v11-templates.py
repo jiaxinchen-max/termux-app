@@ -13,7 +13,7 @@ class ExternalTemplates(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name)
         (self.root/'rootfs/etc').mkdir(parents=True)
-        (self.root/'rootfs/etc/games-runtime.properties').write_text('recipeSha256='+'a'*64+'\n')
+        (self.root/'rootfs/etc/wine-runtime.properties').write_text('recipeSha256='+'a'*64+'\n')
         (self.root/'game').mkdir()
     def run_shell(self,tail):
         code='''set -eu

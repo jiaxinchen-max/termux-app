@@ -55,7 +55,7 @@ public final class ProotPreparedRuntime {
 
     private static Properties manifest(File rootfs) throws IOException {
         Properties value = new Properties();
-        File file = new File(rootfs, "etc/games-runtime.properties");
+        File file = new File(rootfs, "etc/wine-runtime.properties");
         if (!file.isFile()) return value;
         try (FileInputStream input = new FileInputStream(file)) { value.load(input); }
         return value;

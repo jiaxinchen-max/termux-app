@@ -39,7 +39,7 @@
     <string name="action_reset_terminal">重置</string>
     <string name="msg_terminal_reset">终端重置</string>
     <string name="action_kill_process">终止进程 (%d)</string>
-    <string name="title_confirm_kill_process">终止本次会话？</string>
+    <string name="title_confirm_kill_process">将终止此终端会话，未保存的内容可能丢失。</string>
     <string name="action_style_terminal">风格</string>
     <string name="action_toggle_keep_screen_on">屏幕常亮</string>
     <string name="action_open_help">帮助</string>
@@ -146,5 +146,5 @@
     <string name="remove">删除</string>
     <string name="update">更新</string>
     <string name="invalid_config">无效的参数</string>
-    <string name="stop_desktop_title">是否关闭图形显示?</string>
+    <string name="stop_desktop_title">将关闭图形显示并停止显示服务。</string>
 </resources>

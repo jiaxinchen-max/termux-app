@@ -18,14 +18,14 @@ import tempfile
 IMAGE_ID = 'rootfs_debian13_hangover_pdb2_minimal'
 SOURCE_SHA = 'ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1'
 MANIFEST = '.idap-image-manifest.json'
-RECEIPT = 'etc/games-image-install.json'
+RECEIPT = 'etc/wine-image-install.json'
 MAX_MANIFEST = 24 * 1024 * 1024
 MAX_ENTRIES = 100000
 MAX_BYTES = 4 * 1024**3
 RESET = {'etc/machine-id': b'', 'var/lib/dbus/machine-id': b'',
          'etc/hostname': b'idap\n', 'etc/hosts': b'127.0.0.1 localhost idap\n::1 localhost\n',
          'etc/resolv.conf': b'nameserver 1.1.1.1\n'}
-EXCLUDE = {'etc/games-rootfs-trim.json', 'var/lib/systemd/random-seed'}
+EXCLUDE = {'etc/wine-rootfs-trim.json', 'var/lib/systemd/random-seed'}
 
 
 def require(value, code):
@@ -112,7 +112,7 @@ def record(path, name):
 def clean_bytes(path, name):
     if name in RESET:
         return RESET[name]
-    if name == 'etc/games-runtime.properties':
+    if name == 'etc/wine-runtime.properties':
         return ('\n'.join('recipeVersion=12' if x.startswith('recipeVersion=') else x
                           for x in path.read_text().splitlines() if not x.startswith('recipeSha256=')) + '\n').encode()
     return None
@@ -125,7 +125,7 @@ def excluded(name):
 
 def inventory(root):
     require(root.is_dir() and not root.is_symlink(), 'image_root_invalid')
-    require(not (root / '.games-minimize-candidate.json').exists(), 'image_experimental_root')
+    require(not (root / '.wine-minimize-candidate.json').exists(), 'image_experimental_root')
     require(not (root / RECEIPT).exists(), 'image_already_imported')
     for prefix in ('root', 'home', 'mnt/games/game', 'mnt/games/prefix'):
         p = root / prefix
@@ -182,7 +182,7 @@ def pack(root, output, descriptor_path, assets, zstd):
     import importlib.util
     spec = importlib.util.spec_from_file_location('image_trim', Path(__file__).with_name('minimize-rootfs.py'))
     trim = importlib.util.module_from_spec(spec); spec.loader.exec_module(trim)
-    receipt = json.loads((root / 'etc/games-rootfs-trim.json').read_text())
+    receipt = json.loads((root / 'etc/wine-rootfs-trim.json').read_text())
     require(receipt['state'] == 'Verified' and len(receipt['batches']) == 5, 'image_trim_not_verified')
     protected = trim.protect(root, assets)
     entries = inventory(root)
@@ -242,7 +242,7 @@ def verify(root, descriptor, recipe, full=False):
     require(receipt.get('schemaVersion') == 1 and set(receipt) == {'schemaVersion', 'imageSha256', 'manifestSha256', 'recipeSha256'}, 'image_install_identity')
 
     data = leaf(root, MANIFEST).read_bytes(); m = validate_manifest(data, d)
-    props = leaf(root, 'etc/games-runtime.properties').read_text()
+    props = leaf(root, 'etc/wine-runtime.properties').read_text()
 
     guards = m['protectedFiles'] if full else m['runtimeFiles']
     for name in guards:
@@ -254,7 +254,7 @@ def verify(root, descriptor, recipe, full=False):
         for r in m['entries']:
             p = leaf(root, r['path'])
             actual = record(p, r['path'])
-            if r['path'] == 'etc/games-runtime.properties':
+            if r['path'] == 'etc/wine-runtime.properties':
                 data = clean_bytes(p, r['path']); actual['bytes'] = len(data); actual['sha256'] = sha_bytes(data)
             require({k:v for k,v in actual.items() if k != 'sha256'} == {k:v for k,v in r.items() if k != 'sha256'}, 'image_installed_member_mismatch:' + r['path'])
     return {'state': 'Ready', 'imageSha256': d['sha256'], 'protectedFiles': len(m['protectedFiles'])}
@@ -338,8 +338,32 @@ def restore(archive, root, descriptor, recipe, zstd, reserve_bytes=0):
             p.symlink_to(edge)
         for p, mode in sorted(directories, key=lambda x: len(x[0].parts), reverse=True):
             os.chmod(p, mode)
-        (root / MANIFEST).write_bytes(data)
-        props = leaf(root, 'etc/games-runtime.properties')
+        # Source archive names belong to the pinned image format. Publish this app's
+        # filenames consistently and record the installed names for every future read.
+        source_names = {
+            'games-runtime.properties': 'wine-runtime.properties',
+            'games-rootfs-trim.json': 'wine-rootfs-trim.json',
+            'games-external-wine-dependencies.json': 'wine-external-wine-dependencies.json',
+        }
+        def installed_name(name):
+            parent, _, base = name.rpartition('/')
+            return (parent + '/' if parent else '') + source_names.get(base, base)
+        for entry in m['entries']:
+            if entry['type'] == 'directory':
+                continue
+            old_name = entry['path']
+            new_name = installed_name(old_name)
+            if new_name != old_name:
+                target = leaf(root, new_name)
+                require(not target.exists() and not target.is_symlink(), 'image_name_collision')
+                leaf(root, old_name).rename(target)
+                entry['path'] = new_name
+        for key in ('protectedFiles', 'runtimeFiles'):
+            values = m[key]
+            m[key] = ({installed_name(name): value for name, value in values.items()}
+                      if isinstance(values, dict) else [installed_name(name) for name in values])
+        (root / MANIFEST).write_bytes(raw_json(m))
+        props = leaf(root, 'etc/wine-runtime.properties')
         props.write_text(props.read_text() + 'recipeSha256=' + recipe + '\n')
         leaf(root, RECEIPT).write_bytes(raw_json({'schemaVersion': 1, 'imageSha256': d['sha256'],
             'manifestSha256': d['manifestSha256'], 'recipeSha256': recipe}))

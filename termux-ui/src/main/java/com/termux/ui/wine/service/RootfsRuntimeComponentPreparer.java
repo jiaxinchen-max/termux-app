@@ -138,16 +138,10 @@ final class RootfsRuntimeComponentPreparer {
         throw new IOException("component_prepare_timeout:" + descriptor.getId());
     }
 
-    /** RootFS components are "ready" once installed into the private tree at the catalog version;
-     *  unlike GLIBC components they are not published to the host prefix. An empty descriptor
-     *  sha256 means a descriptor was resolved without a pre-known digest --
-     *  the bundled Hangover catalog pins both version and SHA-256. For unpinned descriptors,
-     *  identity falls back to the version alone, since the installed receipt always holds
-     *  the real computed hash and could never equal an empty string. */
+    /** Availability follows the installed identity, never the catalog revision. */
     private boolean isInstalled(ComponentDescriptor descriptor) throws IOException {
         InstalledComponent active = installations.read(descriptor.getId()).getActive().orElse(null);
-        if (active == null || active.getVersion() != descriptor.getVersion()) return false;
-        return true;
+        return active != null && active.getDirectory().isDirectory();
     }
 
     private static void sleep() throws IOException {

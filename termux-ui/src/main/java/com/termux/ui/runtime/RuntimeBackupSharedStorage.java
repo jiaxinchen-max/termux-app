@@ -15,10 +15,8 @@ import java.util.Locale;
 /**
  * Pure path and size helpers for runtime backups that live directly on shared storage.
  *
- * <p>Termux reaches shared storage as {@code ~/storage/shared}, which is the same directory as the
- * primary external storage root. The export archive is written there by the tar session itself and
- * a restore reads the chosen archive in place, so nothing is copied through a private job
- * directory. The in-app chooser may never leave that root, which {@link #isWithin} enforces.</p>
+ * <p>Backups are exported directly to Download/Termux/backups and restored in place.
+ * Directory-navigation helpers below remain for external desktop component import.</p>
  */
 public final class RuntimeBackupSharedStorage {
     /** The shared RootFS (PRoot) backup is a zstd-compressed tar. */
@@ -26,14 +24,14 @@ public final class RuntimeBackupSharedStorage {
     private static final int MAX_NAME_LENGTH = 120;
     private static final long TAR_BLOCK = 512L;
     /** Name prefix of the per-package Wine prefix template archives in the template cache. */
-    private static final String PREFIX_TEMPLATE_PREFIX = "games-rootfs-base-prefix-";
+    private static final String PREFIX_TEMPLATE_PREFIX = "wine-rootfs-base-prefix-";
     /** Slack for the staging copy and compressed PRoot archive. */
     private static final long ROOTFS_BACKUP_MARGIN_BYTES = 256L * 1024L * 1024L;
 
     private RuntimeBackupSharedStorage() { }
 
     public static String rootfsExportFileName(Date now) {
-        return "games-base-backup-" + timestamp(now) + ROOTFS_ARCHIVE_EXTENSION;
+        return "wine-base-backup-" + timestamp(now) + ROOTFS_ARCHIVE_EXTENSION;
     }
 
     private static String timestamp(Date now) {

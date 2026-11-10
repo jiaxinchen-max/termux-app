@@ -81,7 +81,7 @@ public class AndroidLaunchPreflightAvailabilityTest {
         receipt.setProperty("packageName", componentId);
         receipt.setProperty("version", "1");
         receipt.setProperty("sha256", SHA);
-        store(new File(version, ".games-component.properties"), receipt);
+        store(new File(version, ".wine-component.properties"), receipt);
         Properties pointer = new Properties();
         pointer.setProperty("schemaVersion", "1");
         pointer.setProperty("active", "v1-test");

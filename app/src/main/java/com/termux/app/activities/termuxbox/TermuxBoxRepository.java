@@ -273,6 +273,23 @@ public final class TermuxBoxRepository {
             installBox64Version(spec, glibcSource, listener);
             return;
         }
+        String variant = com.termux.ui.components.install.ComponentMaintenance.variantArchive(spec.name);
+        if (variant != null) {
+            File payload = new File(preparedDirectory, variant);
+            if (!payload.isFile() || payload.length() == 0 || isSymlinkCompat(payload)) {
+                throw new IOException("graphics_package_payload_missing:" + spec.name);
+            }
+            // An independent variant owns one archive; old receipts never authorize other deletions.
+            File target = new File(glibcDir.getParentFile(), variant);
+            ensureParent(target);
+            File stage = File.createTempFile(spec.name + ".", ".stage", target.getParentFile());
+            try {
+                copyFile(stage, payload);
+                if (!stage.renameTo(target)) throw new IOException("graphics_package_publish_failed:" + spec.name);
+            } finally { stage.delete(); }
+            writeInstalledMetadata(spec, glibcSource);
+            return;
+        }
         removePackage(spec);
         if (listener != null) {
             listener.onMessage("Installing " + spec.name);
@@ -312,7 +329,7 @@ public final class TermuxBoxRepository {
         File installedVersion = new File(installedDir, spec.name);
         File listFile = new File(installedDir, spec.name + "_lists");
         File md5File = new File(installedDir, spec.name + "_md5");
-        if (listFile.isFile()) {
+        if (!spec.wine && listFile.isFile()) {
             List<String> lines = readLines(listFile);
             for (String line : lines) {
                 String relative = line.trim();

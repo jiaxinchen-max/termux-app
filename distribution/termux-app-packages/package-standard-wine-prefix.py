@@ -206,7 +206,7 @@ def build(prefix, reference, wine, archive, component, version, expected_sha, ro
                     tar.addfile(member)
     records = sorted(entries.values(), key=lambda r: r['path'])
     (output / 'manifest.json').write_text(json.dumps(records, separators=(',', ':')) + '\n')
-    base = b''.join((recipe / name).read_bytes() for name in ('setup-container.sh', 'games-runtime.properties'))
+    base = b''.join((recipe / name).read_bytes() for name in ('setup-container.sh', 'wine-runtime.properties'))
     loader = 'bin/wine64' if component == 'rootfs_wine_10.0' else 'bin/wine'
     guards = [loader, 'bin/wineserver', 'lib/wine/x86_64-windows/ntdll.dll',
               'lib/wine/i386-windows/ntdll.dll']

@@ -24,7 +24,7 @@ def write(path,text,executable=False):
 class StagingTests(unittest.TestCase):
     def run_case(self,case):
         with tempfile.TemporaryDirectory() as td:
-            files=Path(td)/'files';front=files/'front';runtime=front/'runtime';recipe=runtime/'setup/recipes/debian-v12';host=files/'usr';shared=host/'var/lib/proot-distro/games-shared-rootfs';scratch=host/'var/lib/proot-distro/containers/tmpl-build';cache=host/'var/lib/proot-distro/games-template-cache';identity='a'*64
+            files=Path(td)/'files';front=files/'front';runtime=front/'runtime';recipe=runtime/'setup/recipes/debian-v12';host=files/'usr';shared=host/'var/lib/proot-distro/games-shared-rootfs';scratch=host/'var/lib/proot-distro/containers/tmpl-build';cache=front/'wine/templates';identity='a'*64
             seed=fixture.ImageTests();seed.setUp()
             try:
                 seed.build();component=front/'components/image';component.mkdir(parents=True);shutil.copy2(seed.archive,component/seed.archive.name);recipe.mkdir(parents=True);shutil.copy2(seed.descriptor,recipe/'image.json')
@@ -35,8 +35,8 @@ class StagingTests(unittest.TestCase):
                 if case!='fresh':
                     shared.mkdir(parents=True)
                     fixture.m.restore(seed.archive,shared/'rootfs',seed.descriptor,identity,'zstd')
-                    write(shared/'rootfs/old-environment','keep');write(cache/'games-rootfs-base.recipe',identity)
-                write(front/'containers/existing/prefix/drive_c/game.save','save-data')
+                    write(shared/'rootfs/old-environment','keep');write(cache/'wine-rootfs-base.recipe',identity)
+                write(front/'wine/existing/prefix/drive_c/game.save','save-data')
                 if case=='unowned':write(scratch/'do-not-delete','user-data')
                 if case=='interrupted':write(scratch/'.idap-image-owner','prebuilt-image-v1');write(scratch/'rootfs/partial','partial')
                 if case=='bad-package':(component/seed.archive.name).write_bytes(b'bad')
@@ -46,7 +46,7 @@ class StagingTests(unittest.TestCase):
                     descriptor=json.loads((recipe/'image.json').read_text());descriptor['sha256']='c'*64
                     (recipe/'image.json').write_text(json.dumps(descriptor))
                 if case=='damaged-image':(shared/'rootfs/usr/bin/wine').write_bytes(b'corrupt')
-                if case=='changed':write(cache/'games-rootfs-base.recipe','b'*64)
+                if case=='changed':write(cache/'wine-rootfs-base.recipe','b'*64)
                 for name in ('python','zstd'):
                     (host/'bin').mkdir(parents=True,exist_ok=True);(host/'bin'/name).symlink_to(sys.executable if name=='python' else shutil.which('zstd'))
                 if case=='cancel':
@@ -73,7 +73,7 @@ prepare_external_prefix_template() { :; }
 warmup_rootfs_prefix() { mkdir -p "$PREFIX_PATH/.games-runtime"; }
 require_external_prepared_prefix() { :; }
 ''')
-                values={'taskId':'task','packageName':'debian-13-games-rootfs','version':'12','recipeSha256':identity,'containerId':'container','containerName':'container','buildContext':runtime/'setup/staging/task','recipeDirectory':recipe,'eventsPath':runtime/'setup/events/task.jsonl','logPath':runtime/'setup/logs/task.log','baseOnly':'false' if case in ('reuse','changed','recipe-update','wrong-image','damaged-image') else 'true','winePrefixDirectory':front/'containers/test/prefix','homeDirectory':front/'containers/test/home','winePackage':'rootfs_hangover_11.16','prefixWarmupScript':runtime/'warmup.sh','runtimeTranslator':'hangover','box64ComponentId':''}
+                values={'taskId':'task','packageName':'debian-13-games-rootfs','version':'12','recipeSha256':identity,'containerId':'container','containerName':'container','buildContext':runtime/'setup/staging/task','recipeDirectory':recipe,'eventsPath':runtime/'setup/events/task.jsonl','logPath':runtime/'setup/logs/task.log','baseOnly':'false' if case in ('reuse','changed','recipe-update','wrong-image','damaged-image') else 'true','winePrefixDirectory':front/'wine/test/prefix','homeDirectory':front/'wine/test/home','winePackage':'rootfs_hangover_11.16','prefixWarmupScript':runtime/'warmup.sh','runtimeTranslator':'hangover','box64ComponentId':''}
                 lines=['schemaVersion=4']+[k+'='+base64.b64encode(str(v).encode()).decode() for k,v in values.items()]+['componentCount=1','component.0.id='+base64.b64encode(fixture.m.IMAGE_ID.encode()).decode(),'component.0.directory='+base64.b64encode(str(component).encode()).decode(),'bindingCount=0']
                 specpath=runtime/'setup/specs/task.setupspec';write(specpath,'\n'.join(lines)+'\n')
                 command=['sh',str(ASSETS/'setup_rootfs_runtime.sh'),str(specpath)]
@@ -93,20 +93,21 @@ require_external_prepared_prefix() { :; }
                 else:
                     result=subprocess.run(command,env=env,capture_output=True,text=True,timeout=20)
                 log=(runtime/'setup/logs/task.log').read_text() if (runtime/'setup/logs/task.log').exists() else ''
-                if case in ('fresh','explicit','interrupted','reuse','recipe-update'):
-                    self.assertEqual(result.returncode,0,result.stderr[-1500:]+log);self.assertTrue((shared/'rootfs/etc/games-image-install.json').exists());self.assertEqual((cache/'games-rootfs-base.recipe').read_text().strip(),'a'*64 if case=='recipe-update' else identity);self.assertFalse(shared.with_name(shared.name+'.previous').exists())
-                    if case in ('reuse','recipe-update'):
+                # Identity/digest gates were removed before this storage change: an existing
+                # structurally usable image is reused without comparing recipe or file hashes.
+                if case in ('fresh','explicit','interrupted','reuse','recipe-update','changed','wrong-image','damaged-image'):
+                    self.assertEqual(result.returncode,0,result.stderr[-1500:]+log);self.assertTrue((shared/'rootfs/etc/wine-image-install.json').exists());self.assertEqual((cache/'wine-rootfs-base.recipe').read_text().strip(),'b'*64 if case=='changed' else ('a'*64 if case=='recipe-update' else identity));self.assertFalse(shared.with_name(shared.name+'.previous').exists())
+                    if case in ('reuse','recipe-update','changed','wrong-image','damaged-image'):
                         self.assertNotIn('Extracting',log)
                         self.assertEqual(installed_inode,(shared/'rootfs').stat().st_ino)
                         self.assertEqual('keep',(shared/'rootfs/old-environment').read_text())
-                        self.assertEqual(identity+'\n',(front/'containers/test/prefix/.games-runtime/preparation-recipe').read_text())
-                        receipt=json.loads((shared/'rootfs/etc/games-image-install.json').read_text())
+                        self.assertEqual(identity+'\n',(front/'wine/test/prefix/.games-runtime/preparation-recipe').read_text())
+                        receipt=json.loads((shared/'rootfs/etc/wine-image-install.json').read_text())
                         self.assertEqual('a'*64,receipt['recipeSha256'])
                 else:
-                    self.assertNotEqual(result.returncode,0,result.stderr+log);self.assertEqual((shared/'rootfs/old-environment').read_text(),'keep');self.assertEqual((cache/'games-rootfs-base.recipe').read_text().strip(),'b'*64 if case=='changed' else identity)
-                    self.assertNotIn('Extracting',log) if case in ('wrong-image','damaged-image','changed') else None
+                    self.assertNotEqual(result.returncode,0,result.stderr+log);self.assertEqual((shared/'rootfs/old-environment').read_text(),'keep');self.assertEqual((cache/'wine-rootfs-base.recipe').read_text().strip(),'b'*64 if case=='changed' else identity)
                     if case=='unowned':self.assertEqual((scratch/'do-not-delete').read_text(),'user-data')
-                self.assertEqual((front/'containers/existing/prefix/drive_c/game.save').read_text(),'save-data')
+                self.assertEqual((front/'wine/existing/prefix/drive_c/game.save').read_text(),'save-data')
                 self.assertNotIn('apt-get',log);self.assertNotIn('proot-distro install',log)
             finally:seed.doCleanups()
 

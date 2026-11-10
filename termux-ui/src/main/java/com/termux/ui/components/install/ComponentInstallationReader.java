@@ -10,7 +10,7 @@ import java.util.Properties;
 /** Strict read-only projection of installer metadata. */
 public final class ComponentInstallationReader {
 
-    private static final String RECEIPT = ".games-component.properties";
+    private static final String RECEIPT = ".wine-component.properties";
 
     private final File installRoot;
 

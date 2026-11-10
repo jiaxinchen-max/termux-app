@@ -86,10 +86,10 @@ public class ComponentInstallationReaderTest {
         File safe = temporaryFolder.newFolder("receipt-link-install");
         writeReceipt(safe, "runtime", "v1-aaaaaaaaaaaa", 1, SHA_A);
         writePointer(safe, "runtime", "v1-aaaaaaaaaaaa", "");
-        File receipt = new File(safe, "runtime/versions/v1-aaaaaaaaaaaa/.games-component.properties");
+        File receipt = new File(safe, "runtime/versions/v1-aaaaaaaaaaaa/.wine-component.properties");
         java.nio.file.Files.delete(receipt.toPath());
         java.nio.file.Files.createSymbolicLink(receipt.toPath(),
-            new File(outside, "runtime/versions/v1-aaaaaaaaaaaa/.games-component.properties").toPath());
+            new File(outside, "runtime/versions/v1-aaaaaaaaaaaa/.wine-component.properties").toPath());
         expectInvalid(safe);
     }
 
@@ -125,7 +125,7 @@ public class ComponentInstallationReaderTest {
         value.setProperty("version", String.valueOf(version));
         value.setProperty("sha256", sha256);
         write(new File(new File(new File(new File(root, packageName), "versions"), directory),
-            ".games-component.properties"), value);
+            ".wine-component.properties"), value);
     }
 
     private static void write(File file, Properties value) throws Exception {

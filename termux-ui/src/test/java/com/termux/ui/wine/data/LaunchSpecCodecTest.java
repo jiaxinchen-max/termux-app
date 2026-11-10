@@ -103,7 +103,7 @@ public class LaunchSpecCodecTest {
             base.getTimeoutSeconds(), GameRuntimeBackendType.ROOTFS_PROOT,
             "debian-13-games-rootfs",
             "/data/data/com.termux/files/front/components/install/debian/versions/v1/rootfs",
-            "/data/data/com.termux/files/front/containers/container-1/home-rootfs_proot");
+            "/data/data/com.termux/files/front/wine/container-1/home-rootfs_proot");
         File target = temporary.newFile("rootfs.launchspec");
 
         new LaunchSpecCodec().write(target, rootfs);

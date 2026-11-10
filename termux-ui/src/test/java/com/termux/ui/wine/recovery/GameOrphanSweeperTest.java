@@ -43,6 +43,8 @@ public class GameOrphanSweeperTest {
         record(paths, "container-live0001");
         record(paths, "container-gone0001");
         record(paths, "container-stray001");
+        File template = new File(paths.getTemplateArchiveCacheDirectory(), "v11/shared/prefix.tar.gz");
+        write(template, "shared template");
         File mount = new File(paths.getLibraryDirectory().getParentFile(), "mounts/gone");
         write(mount, "link");
 
@@ -50,6 +52,7 @@ public class GameOrphanSweeperTest {
 
         assertEquals(1, result.profiles);
         assertEquals(2, result.containers);
+        assertTrue(template.isFile());
         assertTrue(profiles.find("live").isPresent());
         assertFalse(profiles.find("gone").isPresent());
         assertFalse(mount.exists());

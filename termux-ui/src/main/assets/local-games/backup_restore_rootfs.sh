@@ -115,8 +115,8 @@ warmup_fail() { fail "$1" 70; }
 PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
 SHARED_ROOTFS_CONTAINER_DIRECTORY="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-shared-rootfs"
 SHARED_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY/rootfs"
-TEMPLATE_CACHE_DIR="$TERMUX_FILES_ROOT/usr/var/lib/proot-distro/games-template-cache"
-TEMPLATE_RECIPE="$TEMPLATE_CACHE_DIR/games-rootfs-base.recipe"
+TEMPLATE_CACHE_DIR="$TERMUX_FILES_ROOT/front/wine/templates"
+TEMPLATE_RECIPE="$TEMPLATE_CACHE_DIR/wine-rootfs-base.recipe"
 if command -v zstd >/dev/null 2>&1; then
     ARCHIVE_COMPRESSOR=zstd
 else
@@ -131,7 +131,7 @@ runtime_complete() {
         [ -x "$root/usr/bin/wine" ] &&
         [ -x "$root/usr/bin/wineboot" ] &&
         [ -f "$root/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" ] &&
-        [ -f "$root/etc/games-runtime.properties" ] &&
+        [ -f "$root/etc/wine-runtime.properties" ] &&
         [ -d "$root/mnt/games/game" ] &&
         [ -d "$root/mnt/games/prefix" ]
 }
@@ -140,7 +140,7 @@ runtime_complete() {
 if [ "$MODE" = restore ]; then
     fail rootfs_backup_format_unsupported 64
 fi
-if grep -Fqx 'layout=external-components-v1' "$SHARED_ROOTFS/etc/games-runtime.properties" 2>/dev/null; then
+if grep -Fqx 'layout=external-components-v1' "$SHARED_ROOTFS/etc/wine-runtime.properties" 2>/dev/null; then
     fail rootfs_external_backup_not_ready 69
 fi
 STAGING_DIRECTORY="$TEMPLATE_CACHE_DIR/backup-staging"
@@ -169,7 +169,7 @@ if [ "$MODE" = backup ]; then
     # decompressing and recompressing, which would just burn time for no size benefit. They are
     # optional: a restore rebuilds whatever template the archive does not carry.
     if [ "$INCLUDE_PREFIX_TEMPLATES" = true ]; then
-        for prefix_archive in "$TEMPLATE_CACHE_DIR"/games-rootfs-base-prefix-*.tar.*; do
+        for prefix_archive in "$TEMPLATE_CACHE_DIR"/wine-rootfs-base-prefix-*.tar.*; do
             [ -f "$prefix_archive" ] || continue
             cp -a "$prefix_archive" "$STAGING_DIRECTORY/"
         done
@@ -180,8 +180,8 @@ if [ "$MODE" = backup ]; then
     # tell whether the restored content still matches the current recipe (see the restore branch
     # below) instead of either always forcing a redundant rebuild or trusting stale content
     # forever.
-    [ ! -f "$TEMPLATE_RECIPE" ] || cp -a "$TEMPLATE_RECIPE" "$STAGING_DIRECTORY/games-rootfs-base.recipe"
-    printf 'games-base-backup\nschemaVersion=1\n' > "$STAGING_DIRECTORY/backup-manifest.txt"
+    [ ! -f "$TEMPLATE_RECIPE" ] || cp -a "$TEMPLATE_RECIPE" "$STAGING_DIRECTORY/wine-rootfs-base.recipe"
+    printf 'wine-base-backup\nschemaVersion=1\n' > "$STAGING_DIRECTORY/backup-manifest.txt"
 
     backup_directory=${BACKUP_ARCHIVE_PATH%/*}
     mkdir -p "$backup_directory" || fail backup_destination_directory_failed 70
@@ -218,7 +218,7 @@ else
     runtime_complete "$SHARED_ROOTFS" || fail rootfs_restore_publish_invalid 70
 
     mkdir -p "$TEMPLATE_CACHE_DIR"
-    for prefix_archive in "$STAGING_DIRECTORY"/games-rootfs-base-prefix-*.tar.*; do
+    for prefix_archive in "$STAGING_DIRECTORY"/wine-rootfs-base-prefix-*.tar.*; do
         [ -f "$prefix_archive" ] || continue
         mv "$prefix_archive" "$TEMPLATE_CACHE_DIR/" || fail rootfs_restore_prefix_failed 70
     done
@@ -230,8 +230,8 @@ else
     # malformed recorded hash is not fatal: it just means the next setup call always rebuilds,
     # identical to the behavior before per-build recipe tracking existed.
     rm -f "$TEMPLATE_RECIPE"
-    if [ -f "$STAGING_DIRECTORY/games-rootfs-base.recipe" ]; then
-        restored_recipe=$(cat "$STAGING_DIRECTORY/games-rootfs-base.recipe" 2>/dev/null || true)
+    if [ -f "$STAGING_DIRECTORY/wine-rootfs-base.recipe" ]; then
+        restored_recipe=$(cat "$STAGING_DIRECTORY/wine-rootfs-base.recipe" 2>/dev/null || true)
         case "$restored_recipe" in
             *[!0-9a-f]*|'') ;;
             *) [ "${#restored_recipe}" -ne 64 ] || printf '%s\n' "$restored_recipe" > "$TEMPLATE_RECIPE" ;;
@@ -242,7 +242,7 @@ else
     # rebuild the missing ones now, as the base build does, so every container clones instead of paying
     # a full wineboot. The base itself is already restored and usable, so a failure here only warns --
     # a container then falls back to its own wineboot, exactly as before templates existed.
-    runtime_packages=$(sed -n 's/^runtimePackages=//p' "$SHARED_ROOTFS/etc/games-runtime.properties" 2>/dev/null)
+    runtime_packages=$(sed -n 's/^runtimePackages=//p' "$SHARED_ROOTFS/etc/wine-runtime.properties" 2>/dev/null)
     if [ -n "$runtime_packages" ] && [ -f "$PREFIX_WARMUP_SCRIPT" ]; then
         progress '==> Rebuilding the Wine prefix templates the backup did not include'
         TEMPLATE_COMPRESSOR=$ARCHIVE_COMPRESSOR

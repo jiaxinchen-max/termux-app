@@ -32,7 +32,7 @@ public class ProotPreparedRuntimeTest {
         new File(root, "etc").mkdirs();
         new File(root, "mnt/games/game").mkdirs();
         new File(root, "mnt/games/prefix").mkdirs();
-        Files.write(new File(root, "etc/games-runtime.properties").toPath(),
+        Files.write(new File(root, "etc/wine-runtime.properties").toPath(),
             ("schemaVersion=3\nlayout=external-components-v1\nruntimeBackend=rootfs_proot\n" +
              "architecture=aarch64\nruntimePackages=rootfs_hangover_11.16\ndxWrappers=rootfs-wined3d\n" +
              "graphicsDrivers=rootfs-llvmpipe\naudioDrivers=pulseaudio\nrecipeSha256="+SHA+"\n")
@@ -81,7 +81,7 @@ public class ProotPreparedRuntimeTest {
         prepare(paths, updated); preparationRecord(paths, updated + "\n");
         assertEquals(updated, ProotPreparedRuntime.require(paths, profile("rootfs-wined3d")).getRecipeSha256());
         assertTrue(new String(Files.readAllBytes(new File(paths.getSharedRootfsDirectory(),
-            "etc/games-runtime.properties").toPath()), StandardCharsets.US_ASCII).contains("recipeSha256=" + SHA));
+            "etc/wine-runtime.properties").toPath()), StandardCharsets.US_ASCII).contains("recipeSha256=" + SHA));
     }
     @Test public void preparationDigestDifferenceDoesNotBlockBindings() throws Exception {
         GameStoragePaths paths = paths(); prepare(paths, SHA);

@@ -49,7 +49,7 @@ def main():
                     dst.addfile(member, data)
     (out/'manifest.json').write_text(json.dumps(records, separators=(',', ':')) + '\n')
     recipe = hashlib.sha256()
-    for name in ['setup-container.sh', 'games-runtime.properties']:
+    for name in ['setup-container.sh', 'wine-runtime.properties']:
         recipe.update((a.recipe/name).read_bytes())
     meta = {'schemaVersion': 1, 'backend': 'rootfs_proot', 'hostAbi': 'aarch64',
             'prefixArch': 'wow64', 'winePackage': 'rootfs_hangover_11.16',

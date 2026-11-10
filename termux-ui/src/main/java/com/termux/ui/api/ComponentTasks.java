@@ -19,6 +19,24 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Public command API for durable component delivery tasks. */
 public final class ComponentTasks {
 
+    public static final String ACTION_INSTALL = "com.termux.ui.action.INSTALL_COMPONENT";
+    public static final String ACTION_UNINSTALL = "com.termux.ui.action.UNINSTALL_COMPONENT";
+    public static final String ACTION_REINSTALL = "com.termux.ui.action.REINSTALL_COMPONENT";
+
+    public static String install(Context context, String componentId, boolean reinstall) {
+        requireIdentifier(componentId, "componentId");
+        String taskId = UUID.randomUUID().toString();
+        start(context, command(context, reinstall ? ACTION_REINSTALL : ACTION_INSTALL, taskId)
+            .putExtra(EXTRA_COMPONENT_ID, componentId));
+        return taskId;
+    }
+
+    public static void uninstall(Context context, String componentId, ResultReceiver receiver) {
+        requireIdentifier(componentId, "componentId");
+        start(context, command(context, ACTION_UNINSTALL, UUID.randomUUID().toString())
+            .putExtra(EXTRA_COMPONENT_ID, componentId).putExtra(EXTRA_COMMAND_RECEIVER, receiver));
+    }
+
     public static final String ACTION_ENQUEUE = "com.termux.ui.action.ENQUEUE_COMPONENT";
     public static final String ACTION_PAUSE = "com.termux.ui.action.PAUSE_COMPONENT";
     public static final String ACTION_RESUME = "com.termux.ui.action.RESUME_COMPONENT";

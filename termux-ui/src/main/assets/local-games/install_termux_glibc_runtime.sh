@@ -75,7 +75,7 @@ done
 # only after both required data sets exist; an old marker alone proves nothing.
 prepare_cjk_locale() {
     locale_root="$PREFIX/glibc/lib/locale"
-    locale_marker="$PREFIX/glibc/termux-box/run/games-zh-cn-locale-v1"
+    locale_marker="$PREFIX/glibc/termux-box/run/wine-zh-cn-locale-v1"
     locale_data_ready() {
         [ -f "$locale_root/zh_CN.utf8/LC_CTYPE" ] && [ -s "$locale_root/zh_CN.utf8/LC_CTYPE" ] &&
         [ -f "$locale_root/zh_CN.gbk/LC_CTYPE" ] && [ -s "$locale_root/zh_CN.gbk/LC_CTYPE" ]

@@ -125,6 +125,7 @@ public final class CustomComponentInstallForegroundService extends Service {
             RuntimeTranslator translator, String displayName, String payloadPath, String sha256,
             GameRuntimeBackendType backendType)
             throws Exception {
+        synchronized (com.termux.ui.wine.runtime.RuntimeEditingStop.LOCK) {
         if (tasks.find(taskId).isPresent()) return;
         // The UI stages the SAF-drained file at a path of its own choosing (it does not know
         // taskId yet, since that is minted inside CustomComponentInstallTasks.enqueue()) -- move
@@ -146,13 +147,20 @@ public final class CustomComponentInstallForegroundService extends Service {
             }
             if (!source.renameTo(staged)) throw new IOException("custom_install_staging_move_failed");
         }
+        if (new FileCustomRuntimeComponentRepository(paths.getCustomRuntimeComponentsDirectory()).find(componentId).isPresent()) {
+            ComponentMutationStop.stop(getFilesDir(), host, componentId);
+            new com.termux.ui.components.install.ComponentMaintenance(getFilesDir()).uninstall(componentId);
+        }
         CustomComponentInstallTask task = CustomComponentInstallTask.queued(taskId, componentId,
             kind, translator, displayName, sha256, System.currentTimeMillis(), backendType);
         tasks.save(task);
         prepareAndStart(task, staged);
+        }
     }
 
     private void prepareAndStart(CustomComponentInstallTask task, File payload) throws Exception {
+        synchronized (com.termux.ui.wine.runtime.RuntimeEditingStop.LOCK) {
+        if (requiredTask(task.getTaskId()).getState().isTerminal()) return;
         if (!submitted.add(task.getTaskId())) return;
         try {
             LaunchScriptInstaller installer = new LaunchScriptInstaller(this, paths);
@@ -172,6 +180,7 @@ public final class CustomComponentInstallForegroundService extends Service {
         } catch (Exception error) {
             submitted.remove(task.getTaskId());
             throw error;
+        }
         }
     }
 
@@ -198,6 +207,8 @@ public final class CustomComponentInstallForegroundService extends Service {
     }
 
     private void reconcile(CustomComponentInstallTask task) throws Exception {
+        synchronized (com.termux.ui.wine.runtime.RuntimeEditingStop.LOCK) {
+        if (requiredTask(task.getTaskId()).getState().isTerminal()) return;
         InstallEvent event = readLastEvent(eventFile(task.getTaskId()));
         if (event.state == Event.SUCCEEDED) {
             CustomComponentInstallTask current = requiredTask(task.getTaskId());
@@ -220,6 +231,7 @@ public final class CustomComponentInstallForegroundService extends Service {
             // if the shell script is still actively running).
             prepareAndStart(task, stagedPayloadFile(task.getTaskId()));
         }
+        }
     }
 
     private void registerComponent(CustomComponentInstallTask task) throws IOException {
@@ -231,6 +243,9 @@ public final class CustomComponentInstallForegroundService extends Service {
         }
         new FileCustomRuntimeComponentRepository(paths.getCustomRuntimeComponentsDirectory())
             .save(entry);
+        if (entry.getBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
+            new com.termux.ui.components.install.ComponentMaintenance(getFilesDir()).refreshProotBindings(entry.getId());
+        }
     }
 
     private void cleanupStaging(String taskId) {

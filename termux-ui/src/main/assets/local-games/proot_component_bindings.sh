@@ -85,7 +85,7 @@ proot_binding_validate() {
     PB_SOURCE=$(realpath "$PB_SOURCE") || return 2
     case "$PB_SOURCE" in "$PB_VERSION_DIR"|"$PB_VERSION_DIR"/*) ;; *) return 2 ;; esac
     [ -d "$PB_SOURCE" ] || return 2
-    pb_receipt="$PB_VERSION_DIR/.games-component.properties"
+    pb_receipt="$PB_VERSION_DIR/.wine-component.properties"
     grep -Fqx 'schemaVersion=1' "$pb_receipt" &&
         grep -Fqx "packageName=$PB_ID" "$pb_receipt" &&
         grep -Fqx "version=$PB_VERSION" "$pb_receipt" &&
@@ -98,7 +98,7 @@ proot_binding_validate() {
                 *) return 2 ;;
             esac ;;
         BOX64)
-            case "$PB_ID" in rootfs_box64_0.4.5|custom-box64-?*) ;; *) return 2 ;; esac
+            case "$PB_ID" in rootfs_box64_0.2.8|rootfs_box64_0.3.8|rootfs_box64_0.4.5|custom-box64-?*) ;; *) return 2 ;; esac
             pb_expected="/opt/box64/$PB_ID" ;;
         DXVK64|DXVK32)
             case "$PB_ID" in

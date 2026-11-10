@@ -11,7 +11,7 @@ ensure_games_wine_fonts() {
     # The GLIBC Wine runtime resolves font fallback through FONTCONFIG_PATH, whose
     # configured source is $TERMUX_GLIBC_DIR/share/fonts.  Keeping a TTC only in
     # C:\\Windows\\Fonts leaves that source empty and produces tofu glyphs.
-    _font_marker="$WINEPREFIX/termux-boxmeta/games-wine-fonts-v2"
+    _font_marker="$WINEPREFIX/termux-boxmeta/wine-fonts-v2"
     [ -f "$_font_source" ] && [ -f "$_serif_source" ] &&
     [ -f "$WINEPREFIX/drive_c/windows/Fonts/NotoSansCJK-Regular.ttc" ] &&
     [ -f "$WINEPREFIX/drive_c/windows/Fonts/NotoSerifCJK-Regular.ttc" ] || {
@@ -30,7 +30,7 @@ ensure_games_wine_fonts() {
 
 # Generated and verified by install_termux_glibc_runtime.sh. Never repair at game time.
 ensure_games_cjk_locale() {
-    [ -f "$TERMUX_BOX_RUN_DIR/games-zh-cn-locale-v1" ] &&
+    [ -f "$TERMUX_BOX_RUN_DIR/wine-zh-cn-locale-v1" ] &&
     [ -f "$TERMUX_GLIBC_DIR/lib/locale/zh_CN.utf8/LC_CTYPE" ] && [ -s "$TERMUX_GLIBC_DIR/lib/locale/zh_CN.utf8/LC_CTYPE" ] &&
     [ -f "$TERMUX_GLIBC_DIR/lib/locale/zh_CN.gbk/LC_CTYPE" ] && [ -s "$TERMUX_GLIBC_DIR/lib/locale/zh_CN.gbk/LC_CTYPE" ] || {
         echo "ERROR: glibc_cjk_locale_missing"

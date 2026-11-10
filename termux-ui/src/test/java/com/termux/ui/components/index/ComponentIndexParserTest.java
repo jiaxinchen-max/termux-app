@@ -28,8 +28,8 @@ public class ComponentIndexParserTest {
         }
 
         assertEquals(2, index.getSchemaVersion());
-        assertEquals("2026-11-08T23:50:00Z", index.getGeneratedAt());
-        assertEquals(29, index.getComponents().size());
+        assertEquals("2026-11-10T10:32:17Z", index.getGeneratedAt());
+        assertEquals(43, index.getComponents().size());
         ComponentDescriptor image = index.find("rootfs_debian13_hangover_pdb2_minimal").get();
         assertEquals(ComponentType.IMAGE_FS, image.getType());
         assertTrue(image.isBase());
@@ -47,7 +47,7 @@ public class ComponentIndexParserTest {
         assertFalse(index.find("rootfs_hangover_11.16").isPresent());
         assertTrue(index.find("glibc_box64_0.4.4").isPresent());
         for (String automatic : new String[]{"glibc_scripts_29", "glibc_fonts_1", "glibc_prefix-apps_3",
-                "glibc_box64_0.2.7", "rootfs_debian13_hangover_pdb2_minimal"}) {
+                "glibc_box64_0.2.8", "rootfs_debian13_hangover_pdb2_minimal"}) {
             assertTrue("automatic component must remain available internally but hidden: " + automatic,
                 index.find(automatic).get().isHidden());
         }

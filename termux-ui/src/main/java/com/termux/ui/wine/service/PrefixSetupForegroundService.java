@@ -227,7 +227,7 @@ public final class PrefixSetupForegroundService extends Service {
             !new File(prefix, ".update-timestamp").exists()) return false;
         if (!NativePrefixAssets.isPrepared(this, profile.getWinePackage(), prefix)) return false;
         // Fonts are prefix assets; locale readiness is owned by the host glibc installer.
-        if (!new File(prefix, "termux-boxmeta/games-wine-fonts-v2").isFile() ||
+        if (!new File(prefix, "termux-boxmeta/wine-fonts-v2").isFile() ||
             !com.termux.ui.wine.runtime.NativeGlibcLocale.isReady(
                 new File(paths.getTermuxPrefixDirectory(), "glibc"))) return false;
         File runtime = new File(prefix, ".termux-box-wine-package");

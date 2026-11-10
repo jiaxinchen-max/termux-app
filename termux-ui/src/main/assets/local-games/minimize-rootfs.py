@@ -22,12 +22,12 @@ import tempfile
 import time
 
 REVISION = 'pdb2-incremental-1'
-MARKER = '.games-minimize-candidate.json'
+MARKER = '.wine-minimize-candidate.json'
 PACKAGE = '11.16~trixie+idap.pdb2'
 LIVE = 'games-shared-rootfs'
 BUILD_BATCHES = ('development', 'resources', 'fonts', 'build-tools', 'gpu-drivers')  # Expand only after each batch passes device validation.
-TRIM_RECEIPT = 'etc/games-rootfs-trim.json'
-EXTERNAL_WINE_RECEIPT = 'etc/games-external-wine-dependencies.json'
+TRIM_RECEIPT = 'etc/wine-rootfs-trim.json'
+EXTERNAL_WINE_RECEIPT = 'etc/wine-external-wine-dependencies.json'
 
 
 def require(ok, message):
@@ -128,7 +128,7 @@ def guest_file(root, name):
 
 def identity(root):
     require(root.is_dir() and root != Path('/'), 'root_invalid')
-    receipt = root / 'etc/games-runtime.properties'
+    receipt = root / 'etc/wine-runtime.properties'
     properties = dict(line.split('=', 1) for line in receipt.read_text().splitlines() if '=' in line)
     require(properties.get('runtimeBackend') == 'rootfs_proot' and
             properties.get('architecture') == 'aarch64', 'runtime_identity')
@@ -344,7 +344,7 @@ def build(root, termux_files, assets, recipe, report):
         require(not target.is_symlink() and (not target.exists() or
                 (target.is_dir() and not any(target.iterdir()))), 'nonempty_game_bind_target:' + name)
     original_identity = identity(root)
-    require('recipeSha256=' + recipe in (root / 'etc/games-runtime.properties').read_text().splitlines(),
+    require('recipeSha256=' + recipe in (root / 'etc/wine-runtime.properties').read_text().splitlines(),
             'build_recipe_not_installed')
     marker = {'revision': REVISION, 'state': 'Ready', 'kind': 'UnpublishedBuild',
               'source': None, 'termuxFiles': str(termux_files), 'identity': original_identity,

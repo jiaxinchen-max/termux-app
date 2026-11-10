@@ -364,13 +364,13 @@ public class GameEditorActionsTest {
             index = new com.termux.ui.components.index.ComponentIndexParser().parse(stream);
         }
         File installRoot = new com.termux.ui.components.ComponentStoragePaths(context.getFilesDir()).getInstallDirectory();
-        for (String id : new String[] {"glibc_box64_0.2.7", "glibc_box64_0.4.4"}) {
+        for (String id : new String[] {"glibc_box64_0.2.8", "glibc_box64_0.4.4"}) {
             com.termux.ui.components.index.ComponentDescriptor descriptor = index.find(id).get();
             File packageRoot = new File(installRoot, id);
             File version = new File(packageRoot, "versions/test"); assertTrue(version.mkdirs());
             java.nio.file.Files.write(new File(packageRoot, "active.properties").toPath(),
                 "schemaVersion=1\nactive=test\nprevious=\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            java.nio.file.Files.write(new File(version, ".games-component.properties").toPath(),
+            java.nio.file.Files.write(new File(version, ".wine-component.properties").toPath(),
                 ("schemaVersion=1\npackageName=" + id + "\nversion=" + descriptor.getVersion() +
                     "\nsha256=" + descriptor.getSha256() + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
@@ -381,9 +381,9 @@ public class GameEditorActionsTest {
                     RuntimeComponentVersionsActivity.class, intent).create().start().resume()) {
                 RuntimeComponentVersionsActivity activity = controller.get(); flushIo(activity);
                 View decor = activity.getWindow().getDecorView();
-                String selectedName = current.isEmpty() ? "box64_0.2.7" : "box64_0.4.4";
+                String selectedName = current.isEmpty() ? "box64_0.2.8" : "box64_0.4.4";
                 assertTrue(clickableParent(findText(decor, selectedName)).isSelected());
-                String next = current.isEmpty() ? "0.4.4" : "0.2.7";
+                String next = current.isEmpty() ? "0.4.4" : "0.2.8";
                 clickText(decor, "box64_" + next);
                 assertEquals(android.app.Activity.RESULT_OK, Shadows.shadowOf(activity).getResultCode());
                 assertEquals("glibc_box64_" + next, Shadows.shadowOf(activity).getResultIntent()
@@ -400,11 +400,15 @@ public class GameEditorActionsTest {
             RuntimeComponentVersionsActivity activity = controller.get(); flushIo(activity);
             View decor = activity.getWindow().getDecorView();
             assertNotNull(findText(decor, "box64_0.4.5"));
-            assertNotNull(findText(decor, activity.getString(R.string.component_versions_online)));
+            assertNotNull(findText(decor, activity.getString(R.string.component_actions_available)));
             assertNotNull(findText(decor, activity.getString(R.string.component_versions_download)));
             assertNotNull(findText(decor, activity.getString(R.string.component_versions_empty)));
-            assertNull(findText(decor, "box64_0.2.7"));
+            assertNotNull(findText(decor, "box64_0.2.8"));
             assertNull(findText(decor, "box64_0.4.4"));
+            clickText(decor, "box64_0.4.5");
+            android.widget.PopupMenu actions = org.robolectric.shadows.ShadowPopupMenu.getLatestPopupMenu();
+            assertEquals(1, actions.getMenu().size());
+            assertEquals(activity.getString(R.string.local_games_component_install), actions.getMenu().getItem(0).getTitle());
             assertEquals(android.app.Activity.RESULT_CANCELED, Shadows.shadowOf(activity).getResultCode());
         }
     }
@@ -421,7 +425,7 @@ public class GameEditorActionsTest {
         File version = new File(packageRoot, "versions/test"); assertTrue(version.mkdirs());
         java.nio.file.Files.write(new File(packageRoot, "active.properties").toPath(),
             "schemaVersion=1\nactive=test\nprevious=\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        java.nio.file.Files.write(new File(version, ".games-component.properties").toPath(),
+        java.nio.file.Files.write(new File(version, ".wine-component.properties").toPath(),
             ("schemaVersion=1\npackageName=" + descriptor.getId() + "\nversion=" + descriptor.getVersion() +
                 "\nsha256=" + descriptor.getSha256() + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
         assertFalse(new File(new GameStoragePaths(context.getFilesDir()).getSharedRootfsDirectory(),
@@ -434,14 +438,24 @@ public class GameEditorActionsTest {
                 RuntimeComponentVersionsActivity activity = controller.get(); flushIo(activity);
                 View decor = activity.getWindow().getDecorView();
                 assertTrue(clickableParent(findText(decor, "box64_0.4.5")).isSelected());
-                assertNull(findText(decor, activity.getString(R.string.component_versions_online)));
+                android.view.ViewGroup row = (android.view.ViewGroup) clickableParent(findText(decor, "box64_0.4.5"));
+                assertNull(findText(row, activity.getString(R.string.component_actions_available)));
+                View actionButton = row.getChildAt(row.getChildCount() - 1);
+                assertTrue(actionButton instanceof android.widget.ImageButton);
+                assertTrue(actionButton.performClick());
+                android.widget.PopupMenu actions = org.robolectric.shadows.ShadowPopupMenu.getLatestPopupMenu();
+                assertEquals(2, actions.getMenu().size());
+                assertEquals(activity.getString(R.string.component_actions_uninstall), actions.getMenu().getItem(0).getTitle());
+                assertEquals(activity.getString(R.string.local_games_component_reinstall), actions.getMenu().getItem(1).getTitle());
+                assertEquals(android.app.Activity.RESULT_CANCELED, Shadows.shadowOf(activity).getResultCode());
+                actions.dismiss();
                 clickText(decor, "box64_0.4.5");
                 assertEquals(android.app.Activity.RESULT_OK, Shadows.shadowOf(activity).getResultCode());
                 assertEquals("rootfs_box64_0.4.5", Shadows.shadowOf(activity).getResultIntent()
                     .getStringExtra(RuntimeComponentVersionsActivity.EXTRA_SELECTION_ID));
             }
         }
-        new File(version, ".games-component.properties").delete(); assertTrue(version.delete());
+        new File(version, ".wine-component.properties").delete(); assertTrue(version.delete());
         Intent intent = RuntimeComponentVersionsActivity.createSelectIntent(context,
             CustomRuntimeComponent.Kind.BOX64, GameRuntimeBackendType.ROOTFS_PROOT, "", RuntimeTranslator.BOX64);
         try (ActivityController<RuntimeComponentVersionsActivity> controller = Robolectric.buildActivity(
@@ -487,7 +501,7 @@ public class GameEditorActionsTest {
         String gameA = createGame(GameRuntimeBackendType.GLIBC_TERMUX_BOX);
         String gameB = createGame(GameRuntimeBackendType.GLIBC_TERMUX_BOX);
         String[] games = {gameA, gameB};
-        String[] builds = {"glibc_box64_0.2.7", "glibc_box64_0.4.4"};
+        String[] builds = {"glibc_box64_0.2.8", "glibc_box64_0.4.4"};
         for (int i = 0; i < games.length; i++) {
             try (ActivityController<GameDetailActivity> controller = open(games[i])) {
                 GameDetailActivity activity = controller.get(); flush(activity);
@@ -607,7 +621,7 @@ public class GameEditorActionsTest {
             assertNotNull(findText(activity.getWindow().getDecorView(),
                 activity.getString(R.string.component_versions_preinstalled_incomplete)));
             for (String path : new String[] {"usr/bin/env", "usr/bin/wine", "usr/bin/wineboot",
-                    "opt/box64/rootfs_box64_0.4.5/bin/box64", "etc/games-runtime.properties",
+                    "opt/box64/rootfs_box64_0.4.5/bin/box64", "etc/wine-runtime.properties",
                     "usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"}) {
                 File file = new File(rootfs, path); file.getParentFile().mkdirs();
                 java.nio.file.Files.write(file.toPath(), new byte[] {1}); file.setExecutable(true);

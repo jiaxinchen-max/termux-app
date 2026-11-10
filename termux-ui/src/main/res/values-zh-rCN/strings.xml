@@ -5,7 +5,7 @@
     <string name="wine_cdrive_failed">C 盘操作失败</string>
     <string name="wine_cdrive_backup">备份 C 盘</string>
     <string name="wine_cdrive_restore">恢复 C 盘</string>
-    <string name="wine_cdrive_restore_confirm">使用所选备份替换此配置的 C 盘和 Wine 注册表？共享运行环境、应用配置和盘符映射会保留。备份必须使用相同的 Wine 版本。</string>
+    <string name="wine_cdrive_restore_confirm">将用所选备份覆盖此配置的 C 盘和注册表，请使用相同 Wine 版本的备份。</string>
     <string name="local_games_collection_refresh">刷新</string>
     <string name="local_games_back_again_exit">再按一次返回键退出并停止所有会话</string>
     <string name="local_game_import_configuration_title">新建游戏配置 · 运行模式</string>
@@ -25,10 +25,10 @@
     <string name="local_games_reset_in_progress">正在重置…</string>
     <string name="local_games_reset_status">%1$s · %2$s</string>
     <string name="local_games_install_confirm_title">安装这个环境？</string>
-    <string name="local_games_install_confirm_glibc">这会下载并安装启动 GLIBC 游戏所需的运行环境（Wine、X11、显卡驱动），可能需要几分钟。</string>
+    <string name="local_games_install_confirm_glibc">将下载并安装 Native 游戏运行环境。</string>
     <string name="local_games_install_action">安装</string>
     <string name="local_games_rootfs_rebuild_confirm_title">重建基础运行环境？</string>
-    <string name="local_games_rootfs_rebuild_confirm_message">下载或复用缓存中的精简 RootFS，校验后替换共享基础环境，保留现有游戏前缀。安装失败时保留当前基础环境。</string>
+    <string name="local_games_rootfs_rebuild_confirm_message">将替换容器基础环境，保留现有游戏数据。</string>
     <string name="local_games_rootfs_rebuild_action">重建</string>
     <string name="local_games_import_gate_title">运行环境未就绪</string>
     <string name="local_games_import_gate_glibc_missing">GLIBC 运行时未就绪。</string>
@@ -101,7 +101,7 @@
     <string name="local_game_detail_cover_failed">无法使用该封面：%1$s</string>
     <string name="local_game_detail_delete">从游戏库移除</string>
     <string name="local_game_detail_delete_title">从游戏库移除“%1$s”？</string>
-    <string name="local_game_detail_delete_message">将移除此配置、私有封面及未被其他配置使用的容器数据。共享运行环境和原始游戏目录将保留。</string>
+    <string name="local_game_detail_delete_message">将删除此游戏配置及不再共用的容器数据，保留原始游戏文件。</string>
     <string name="local_game_detail_delete_confirm">确认移除</string>
     <string name="local_game_detail_delete_failed">无法移除该游戏：%1$s</string>
     <string name="local_game_detail_edit_help">工作目录显示实际路径，可使用游戏根目录或内部已存在的子目录。保存后会准备选定的运行组件和 Wine 环境；启动参数独立保存。</string>
@@ -175,7 +175,6 @@
     <string name="local_games_component_summary_scripts">GLIBC 后端使用的启动和环境脚本。</string>
     <string name="local_games_component_active_version">已安装版本 %1$d</string>
     <string name="local_games_component_not_installed">未安装</string>
-    <string name="local_games_component_update_available">可更新 · 已安装版本 %1$d</string>
     <string name="local_games_component_progress_value">%1$s · %2$d%%</string>
     <string name="local_games_component_download">下载</string>
     <string name="local_games_component_install">安装</string>
@@ -266,7 +265,7 @@
     <string name="local_game_session_keyboard">键盘</string>
     <string name="local_game_session_exit">退出</string>
     <string name="local_game_session_exit_title">退出游戏？</string>
-    <string name="local_game_session_exit_message">将终止游戏、Wine、音频和显示进程，未保存的进度可能丢失。</string>
+    <string name="local_game_session_exit_message">将强制结束游戏，未保存的进度可能丢失。</string>
     <string name="local_game_session_exit_confirm">退出游戏</string>
     <string name="local_game_session_input_unavailable">冻结的触控配置不可用；X11 基础输入仍可使用。</string>
     <string name="local_game_session_task_missing">游戏会话已不存在。</string>
@@ -281,7 +280,7 @@
     <string name="local_games_app_mode_terminal_summary">终端是主界面，并保留内嵌 X11 Surface。</string>
     <string name="local_games_app_mode_games_summary">通过图形界面管理游戏、桌面和文件；终端只负责进程和会话管理。</string>
     <string name="local_games_app_mode_restart_title">重启并切换模式？</string>
-    <string name="local_games_app_mode_restart_message">App 进程将重启。请先安全退出正在运行的游戏和终端 Session。</string>
+    <string name="local_games_app_mode_restart_message">将重启应用，请先退出正在运行的游戏和终端会话。</string>
     <string name="local_games_app_mode_restart_confirm">重启</string>
     <string name="local_games_app_mode_restart_failed">无法保存模式或重启 App。</string>
     <string name="local_games_navigation_files">文件</string>
@@ -375,7 +374,7 @@
     <string name="local_games_environment_restore_from_file">从文件恢复</string>
     <string name="local_games_environment_backup_to_file">备份到文件</string>
     <string name="local_games_native_rebuild_confirm_title">重建 Native 环境？</string>
-    <string name="local_games_native_rebuild_confirm_message">将通过包管理器移除 Native（GLIBC）运行环境及已下载的组件，然后重新下载并安装，可能需要几分钟。</string>
+    <string name="local_games_native_rebuild_confirm_message">将删除并重新安装 Native 运行环境及已下载的组件。</string>
     <string name="local_games_native_rebuild_action">重建</string>
     <string name="local_games_orientation_vertical">竖屏</string>
     <string name="local_games_orientation_horizontal">横屏</string>
@@ -391,13 +390,13 @@
     <string name="local_games_backup_create_console_title">正在创建备份</string>
     <string name="local_games_backup_restore_console_title">正在从备份恢复</string>
     <string name="local_games_backup_templates_title">是否包含 Wine prefix 模板?</string>
-    <string name="local_games_backup_templates_message">模板是新游戏克隆用的现成 Wine prefix,可以重新生成。不包含可以让备份更小,恢复时会重新生成它们,多花几分钟。</string>
+    <string name="local_games_backup_templates_message">包含运行模板会增加备份大小。</string>
     <string name="local_games_backup_templates_include">包含</string>
     <string name="local_games_backup_templates_exclude">不包含</string>
     <string name="local_games_backup_requires_base">请先构建基础环境再备份。</string>
     <string name="local_games_backup_restore_action">从备份恢复</string>
     <string name="local_games_backup_restore_confirm_title">从备份恢复？</string>
-    <string name="local_games_backup_restore_confirm_message">这会用所选备份替换当前共享的 RootFS 基础环境和 Wine 前缀模板。已安装的游戏仍可使用，可能需要几分钟。</string>
+    <string name="local_games_backup_restore_confirm_message">将用所选备份覆盖当前容器基础环境和运行模板。</string>
     <string name="local_games_backup_create_done">备份已保存到：\n%1$s</string>
     <string name="local_games_backup_restore_done">已从以下文件恢复：\n%1$s</string>
     <string name="local_games_backup_failed">备份或恢复失败：%1$s</string>
@@ -411,7 +410,7 @@
     <string name="local_games_chooser_empty">此处没有 %1$s 文件</string>
     <string name="local_games_chooser_invalid_name">仅可使用英文字母、数字及 . _ - + = ( ) , 和空格。</string>
     <string name="local_games_chooser_overwrite_title">替换已有文件？</string>
-    <string name="local_games_chooser_overwrite_message">同名文件已存在，将被替换。</string>
+    <string name="local_games_chooser_overwrite_message">将覆盖已有的同名文件。</string>
     <string name="local_game_runtime_title_default">运行参数</string>
     <string name="local_game_runtime_load_failed">无法加载运行参数</string>
     <string name="local_game_runtime_save">保存</string>
@@ -485,7 +484,7 @@
     <string name="local_game_runtime_advanced_all_cores">全部可用</string>
     <string name="local_game_runtime_not_selected">未选择</string>
     <string name="local_game_runtime_save_dialog_title">保存运行参数？</string>
-    <string name="local_game_runtime_save_dialog_message">更改仅应用于 %1$s。</string>
+    <string name="local_game_runtime_save_dialog_message">保存后将应用于“%1$s”，放弃则丢弃本次修改。</string>
     <string name="local_game_runtime_save_dialog_discard">放弃</string>
     <string name="local_game_runtime_save_failed">无法保存运行参数</string>
     <plurals name="local_game_runtime_env_count">
@@ -562,7 +561,7 @@
     <string name="desktop_settings_save">保存</string>
     <string name="desktop_settings_cancel">取消</string>
     <string name="desktop_delete_title">删除“%1$s”?</string>
-    <string name="desktop_delete_message">将移除桌面条目与会话状态,运行中的进程会先被停止。</string>
+    <string name="desktop_delete_message">将停止此桌面并删除其条目和会话状态。</string>
     <string name="desktop_delete_container_check">同时删除容器实例 %1$s 及其全部数据</string>
     <string name="desktop_action_settings">设置</string>
     <string name="desktop_mode_container_badge">容器 · %1$s</string>
@@ -598,7 +597,7 @@
     <string name="desktop_create_action">创建</string>
     <string name="desktop_create_invalid">请检查名称、分辨率和刷新率。</string>
     <string name="desktop_install_started">已在 Termux 会话中开始安装。</string>
-    <string name="desktop_install_hint">将下载桌面所需包(首次使用还包括容器 rootfs),可能需要几分钟。继续?</string>
+    <string name="desktop_install_hint">将下载并安装此桌面所需的运行环境。</string>
     <string name="desktop_stop_requested">正在停止桌面…</string>
     <string name="desktop_error">无法完成请求（%1$s）。</string>
     <string name="desktop_delete_running">请先停止桌面再删除。</string>
@@ -619,7 +618,7 @@
     <string name="local_games_settings_x_server">X server</string>
     <string name="local_games_x_server_legacy">Termux-X11（内置）</string>
     <string name="local_games_x_server_xlorie">Xlorie（实验性）</string>
-    <string name="local_games_x_server_install_message">Xlorie 是独立的 X server 软件包，目前尚未安装。现在安装吗？Xlorie 暂不支持 Vortek Vulkan（glibc 游戏）。</string>
+    <string name="local_games_x_server_install_message">将安装 Xlorie 显示服务，该服务暂不支持 Vortek Vulkan。</string>
     <string name="local_games_x_server_abi_unsupported">此设备的架构暂未发布 Xlorie 软件包。</string>
     <string name="desktop_session_touch_mode_title">触控模式</string>
     <string name="desktop_session_orientation_title">屏幕方向</string>
@@ -654,8 +653,8 @@
     <string name="desktop_archive_background">后台运行</string>
     <string name="desktop_archive_busy">已有容器归档任务正在运行。</string>
     <string name="desktop_archive_running_forbidden">请先停止容器，再导出。</string>
-    <string name="desktop_archive_export_scope">仅导出此容器和桌面设置。请选择新文件名，已有文件不会被覆盖。</string>
-    <string name="desktop_archive_import_scope">导入容器和桌面设置。将先检查并安装所需宿主组件，失败时停止导入。保留归档中的明确渲染设置。</string>
+    <string name="desktop_archive_export_scope">将把此容器和桌面设置备份到 Download/Termux/backups/。</string>
+    <string name="desktop_archive_import_scope">将从所选文件导入桌面容器和设置。</string>
     <string name="desktop_archive_destination_exists">文件已存在，请选择一个新文件名。</string>
     <string name="desktop_archive_cleaning_interrupted">正在清理已中断的容器归档任务…</string>
     <string name="desktop_archive_service_start_failed">无法启动容器归档任务。</string>
@@ -671,7 +670,7 @@
     <string name="local_game_assets_build_cache">运行环境构建缓存</string>
     <string name="local_game_runtime_backend_subtitle">后端：%1$s</string>
     <string name="local_game_runtime_backend_unavailable">后端信息不可用</string>
-    <string name="local_games_install_confirm_rootfs">下载并解压已预装 Hangover 和字体的精简 RootFS。每个游戏使用独立的 Wine 前缀。</string>
+    <string name="local_games_install_confirm_rootfs">将下载并安装已包含 Hangover 的容器运行环境。</string>
     <string name="local_game_card_wine">Wine：%1$s</string>
     <string name="component_versions_preinstalled">容器预装</string>
     <string name="component_versions_preinstalled_ready">已随容器预装</string>
@@ -693,12 +692,20 @@
     <string name="browser_cut_pending">已剪切“%1$s”，在目标目录粘贴后才会移动。</string>
     <string name="browser_copy_pending">已复制“%1$s”，请选择目标目录并粘贴。</string>
     <string name="browser_no_open_app">没有应用可以打开此文件类型或目录。</string>
-    <string name="browser_delete_confirm">永久删除“%1$s”？若为目录，将删除其中所有内容。</string>
+    <string name="browser_delete_confirm">将永久删除“%1$s”及其全部内容，无法撤销。</string>
     <string name="browser_operation_failed">文件操作失败。</string>
     <string name="browser_conflict">目标目录已有同名项目，没有覆盖原有内容。</string>
     <string name="browser_inside_source">请选择其他目标，不能将目录粘贴到自身或其子目录。</string>
     <string name="browser_protected_root">此根目录不能执行该操作。</string>
     <string name="browser_move_partial">目标已复制完成，但来源删除失败或仅完成了一部分，请检查两处内容。</string>
-    <string name="local_game_file_manager_help">浏览私有文件或共享存储。长按文件或目录可打开、复制、剪切或删除，长按空白处操作当前目录。工具栏菜单提供粘贴和显示隐藏文件。三个根目录不能作为操作对象。</string>
+    <string name="local_game_file_manager_help">浏览私有文件或共享存储。长按文件或目录可打开、复制、剪切或删除。工具栏菜单提供粘贴和显示隐藏文件。三个根目录不能作为操作对象。</string>
     <string name="browser_delete_partial">删除失败或仅完成了一部分，重试前请检查目录内容。</string>
+    <string name="external_storage_permission_required">无法写入 %1$s。请在 Android 设置中授予本应用存储访问权限，然后重试。</string>
+    <string name="backup_select_archive">选择备份恢复</string>
+    <string name="backup_no_archives">%1$s 中没有对应的备份文件。</string>
+    <string name="component_actions_menu">%1$s的操作</string>
+    <string name="component_actions_uninstall">卸载</string>
+    <string name="component_actions_removing">正在卸载组件…</string>
+    <string name="component_actions_removed">组件已卸载</string>
+    <string name="component_actions_available">可安装组件</string>
 </resources>
