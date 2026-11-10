@@ -27,7 +27,7 @@ public final class GameContainerProfileResolverTest {
     @Test
     public void keepsGameLaunchSelectionsAndAppliesContainerSubstrate() {
         RuntimeProfile gameProfile = RuntimeProfilePresets.create("game-1",
-            RuntimeProfilePreset.RECOMMENDED);
+            RuntimeProfilePreset.RECOMMENDED).withInputApis(false, true);
         GameContainer container = new GameContainer("default", "Global GLIBC",
             GameRuntimeBackendType.GLIBC_TERMUX_BOX, "", RuntimeTranslator.BOX64,
             "container-wine", "container-graphics", "container-dx", "container-audio",
@@ -35,6 +35,8 @@ public final class GameContainerProfileResolverTest {
 
         RuntimeProfile resolved = new GameContainerProfileResolver().resolve(gameProfile, container);
 
+        assertEquals(false, resolved.isXinputEnabled());
+        assertEquals(true, resolved.isDinputEnabled());
         assertEquals(gameProfile.getWinePackage(), resolved.getWinePackage());
         assertEquals(gameProfile.getGraphicsDriver(), resolved.getGraphicsDriver());
         assertEquals(gameProfile.getDxWrapper(), resolved.getDxWrapper());

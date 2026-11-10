@@ -2,7 +2,7 @@ package com.termux.ui.wine.domain;
 
 /** Exact catalog identities shared by selection, bindings and component maintenance. */
 public final class ProotBox64Versions {
-    public static final String DEFAULT_ID = "rootfs_box64_0.4.5";
+    public static final String DEFAULT_ID = "rootfs_box64_0.4.4";
 
     private ProotBox64Versions() { }
 

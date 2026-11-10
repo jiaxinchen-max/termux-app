@@ -123,7 +123,8 @@ public final class FileRuntimeProfileRepository implements RuntimeProfileReposit
                     ? GameRuntimeBackendType.fromStorageValue(required(properties, "runtimeBackendType"))
                     : GameRuntimeBackendType.GLIBC_TERMUX_BOX,
                 schema >= 3 ? requiredAllowEmpty(properties, "rootfsPackage") : "",
-                schema >= 4 ? required(properties, "containerId") : "default");
+                schema >= 4 ? required(properties, "containerId") : "default",
+                inputApi(properties, "xinputEnabled"), inputApi(properties, "dinputEnabled"));
             if (!file.getName().equals(profile.getId() + suffix)) {
                 throw new IOException("runtime_profile_id_file_mismatch");
             }
@@ -144,6 +145,8 @@ public final class FileRuntimeProfileRepository implements RuntimeProfileReposit
         properties.setProperty("resolution", profile.getResolution());
         properties.setProperty("box64Preset", profile.getBox64Preset());
         properties.setProperty("inputProfileId", profile.getInputProfileId());
+        properties.setProperty("xinputEnabled", Boolean.toString(profile.isXinputEnabled()));
+        properties.setProperty("dinputEnabled", Boolean.toString(profile.isDinputEnabled()));
         properties.setProperty("launchExecutionMode",
             profile.getLaunchExecutionMode().getStorageValue());
         properties.setProperty("runtimeBackendType",
@@ -189,6 +192,8 @@ public final class FileRuntimeProfileRepository implements RuntimeProfileReposit
             allowed.add("rootfsPackage");
         }
         if (schema >= 4) allowed.add("containerId");
+        allowed.add("xinputEnabled");
+        allowed.add("dinputEnabled");
         addMapKeys(allowed, "environment", envCount);
         addMapKeys(allowed, "componentVersions", componentCount);
         for (Object key : properties.keySet()) {
@@ -201,6 +206,14 @@ public final class FileRuntimeProfileRepository implements RuntimeProfileReposit
             keys.add(prefix + "." + index + ".key");
             keys.add(prefix + "." + index + ".value");
         }
+    }
+
+    private static boolean inputApi(Properties properties, String key) throws IOException {
+        String value = required(properties, key);
+        if (!"true".equals(value) && !"false".equals(value)) {
+            throw new IOException("invalid_runtime_profile_field:" + key);
+        }
+        return "true".equals(value);
     }
 
     private static int count(Properties properties, String key) throws IOException {

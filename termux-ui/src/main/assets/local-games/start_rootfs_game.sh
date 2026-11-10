@@ -102,6 +102,7 @@ while IFS= read -r line || [ -n "$line" ]; do
         audioDriver) AUDIO_DRIVER=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         resolution) RESOLUTION=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         box64Preset) BOX64_PRESET=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
+        xinputEnabled|dinputEnabled) case "$value" in 0|1) ;; *) fail_before_events invalid_input_api_flag ;; esac ;;
         inputProfileId) INPUT_PROFILE_ID=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         launchExecutionMode) LAUNCH_EXECUTION_MODE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         runtimeBackendType) RUNTIME_BACKEND_TYPE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
@@ -704,15 +705,15 @@ apply_rootfs_game_options
 [ -n "${GAMES_DLL_DPLAY:-}" ] && export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}dplayx=${GAMES_DLL_DPLAY}"
 
 # Controller: release the patched xinput/dinput DLLs and winhandler.exe into the prefix (the game is then started
-# through winhandler.exe, the Wine end of the controller bridge) and switch the DLLs on. A failure only costs the
-# controller; the game then starts directly, as before. dinput* in the input profile selects the DInput mapper.
+# through winhandler.exe, the Wine end of the controller bridge) and switch the DLLs on.
+# Deployment failure terminates launch; API flags must never silently be ignored.
 . "$(dirname "$SCRIPT_PATH")/controller_runtime.sh"
 # The arm64 Hangover Wine takes its own build of the DLLs (wine-hangover/ in the payload) as builtin DLLs from the guest
 # Wine's lib/wine and from the prefix; the x86 copies would break it, and "native" would reject the builtin marker.
 if [ "$RUNTIME_TRANSLATOR" = hangover ] && [ "${WINE_PACKAGE#custom-wine-}" != "$WINE_PACKAGE" ]; then
     # Custom versions are immutable. The builtin Hangover patcher writes guest /usr/lib/wine
-    # and cannot safely provide the custom build's builtin DLLs. Fall back to direct launch.
-    printf 'WARNING: controller injection is unavailable for custom Hangover; keeping its frozen component and the builtin Wine unchanged.\n' >> "$LOG_PATH"
+    # and cannot safely provide the custom build's builtin DLLs. Terminate this launch.
+    printf 'ERROR: controller injection is unavailable for custom Hangover.\n' >> "$LOG_PATH"
     false
 elif [ "$RUNTIME_TRANSLATOR" = hangover ]; then
     install_games_controller_hangover "$PREFIX_PATH" "$(dirname "$SCRIPT_PATH")" "$ROOTFS_CANONICAL/usr/lib/wine" >> "$LOG_PATH" 2>&1
@@ -722,14 +723,15 @@ fi
 if [ $? -eq 0 ]; then
     CONTROLLER_WRAPPER=$GAMES_CONTROLLER_WINHANDLER_WINDOWS_PATH
 else
-    printf 'WARNING: controller runtime could not be installed; the on-screen controller is unavailable.\n' >> "$LOG_PATH"
-    CONTROLLER_WRAPPER=
+    terminal_failure controller_runtime_install_failed
 fi
-case "$INPUT_PROFILE_ID" in dinput*) CONTROLLER_MAPPER=0 ;; *) CONTROLLER_MAPPER=1 ;; esac
-# Empty while the DirectInput / XInput library setting is empty (builtin); a chosen mode makes the marker-free prefix
-# copies of the patched DLLs load.
-CONTROLLER_DLL_OVERRIDES=$(games_controller_dll_overrides "$CONTROLLER_MAPPER")
-[ "$RUNTIME_TRANSLATOR" != hangover ] || CONTROLLER_DLL_OVERRIDES=
+# Apply both input library settings. Hangover's ARM64 DLLs carry Wine's builtin marker, so the editor exposes them
+# as built-in only; native loading would reject these DLLs. Ordinary Wine/Proton uses the user's independent choices.
+if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
+    CONTROLLER_DLL_OVERRIDES=$(GAMES_DLL_DINPUT=builtin GAMES_DLL_XINPUT=builtin games_controller_dll_overrides)
+else
+    CONTROLLER_DLL_OVERRIDES=$(games_controller_dll_overrides)
+fi
 [ -z "$CONTROLLER_DLL_OVERRIDES" ] || export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}$CONTROLLER_DLL_OVERRIDES"
 
 [ ! -e "$CANCEL_PATH" ] || CANCELLED=1

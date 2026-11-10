@@ -67,7 +67,7 @@ public final class LaunchSpecFactory {
             new File(paths.getLaunchLocksDirectory(), taskId).getCanonicalPath(),
             new File(paths.getLaunchCancelDirectory(), taskId + ".cancel").getCanonicalPath(),
             43200, profile.getRuntimeBackendType(), profile.getRootfsPackage(),
-            runtimeRootPath, home == null ? "" : home.getCanonicalPath(), desktopOnly, bindings);
+            runtimeRootPath, home == null ? "" : home.getCanonicalPath(), desktopOnly, bindings, profile.isXinputEnabled(), profile.isDinputEnabled());
     }
 
     private static void requireContained(File root, File child, String error) throws IOException {

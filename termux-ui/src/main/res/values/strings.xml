@@ -477,6 +477,7 @@
     <string name="local_game_runtime_wine_mouse_overlay">Mouse overlay offset</string>
     <string name="local_game_runtime_wine_mouse_disable">Disable</string>
     <string name="local_game_runtime_wine_mouse_force">Force</string>
+    <string name="local_game_runtime_gamepad_mapping">DirectInput mapping</string>
     <string name="local_game_runtime_dll_builtin">Built-in</string>
     <string name="local_game_runtime_dll_native">Native</string>
     <string name="local_game_runtime_dll_native_builtin">Native, built-in</string>
@@ -724,4 +725,6 @@
     <string name="component_actions_removing">Uninstalling component…</string>
     <string name="component_actions_removed">Component uninstalled</string>
     <string name="component_actions_available">Available to install</string>
+    <string name="local_game_runtime_enable_xinput">Enable XInput</string>
+    <string name="local_game_runtime_enable_dinput">Enable DirectInput</string>
 </resources>

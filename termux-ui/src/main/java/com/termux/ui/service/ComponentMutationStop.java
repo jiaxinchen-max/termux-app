@@ -25,7 +25,7 @@ public final class ComponentMutationStop {
                 profile.getComponentVersions().containsKey(id);
             if ((box == null || box.isEmpty()) && "glibc_box64_0.2.8".equals(id) && profile.getRuntimeBackendType() ==
                     com.termux.ui.wine.domain.GameRuntimeBackendType.GLIBC_TERMUX_BOX) related = true;
-            if ("rootfs_box64_0.4.5".equals(id) && (box == null || box.isEmpty()) &&
+            if ("rootfs_box64_0.4.4".equals(id) && (box == null || box.isEmpty()) &&
                 profile.getRuntimeBackendType() == com.termux.ui.wine.domain.GameRuntimeBackendType.ROOTFS_PROOT &&
                 !profile.getWinePackage().startsWith("rootfs_hangover_")) related = true;
             if (related) RuntimeEditingStop.game(files, host, profile.getId());

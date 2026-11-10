@@ -46,7 +46,7 @@ public class GameRuntimeBackendTest {
         // The default image and only the selected optional DXVK are required.
         assertTrue(components.contains(RootfsSetupRecipe.IMAGE_COMPONENT));
         assertFalse(components.contains("rootfs_hangover_11.16"));
-        assertFalse(components.contains("rootfs_box64_0.4.5"));
+        assertFalse(components.contains("rootfs_box64_0.4.4"));
         assertFalse(components.contains("rootfs_dxvk_2.7"));
         assertFalse(components.contains(GlibcTermuxBoxBackend.TERMUX_GLIBC_ID));
         assertEquals(2, backend.requiredHostCapabilityIds(rootfsProfile()).size());
@@ -67,7 +67,7 @@ public class GameRuntimeBackendTest {
         // Optional components stay independent; an unrelated DXVK or translator is not pulled.
         Set<String> components = backend.requiredComponentIds(withDxvk);
 
-        assertFalse(components.contains("rootfs_box64_0.4.5"));
+        assertFalse(components.contains("rootfs_box64_0.4.4"));
         assertTrue(components.contains("rootfs_dxvk_2.7"));
         assertFalse(components.contains("rootfs_dxvk_3.1"));
         assertFalse(components.contains("rootfs_dxvk_1.10.3"));

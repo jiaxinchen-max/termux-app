@@ -139,7 +139,7 @@ public final class RuntimeComponentLaunchContractTest {
         for (String bin : new String[] {"wine", "wineboot", "wineserver"}) {
             executable(root, "rootfs/opt/custom-wine/custom-wine-a/bin/" + bin, "#!/bin/sh\nexit 0\n");
         }
-        executable(root, "rootfs/opt/box64/rootfs_box64_0.4.5/bin/box64", "#!/bin/sh\nexit 0\n");
+        executable(root, "rootfs/opt/box64/rootfs_box64_0.4.4/bin/box64", "#!/bin/sh\nexit 0\n");
         executable(root, "rootfs/opt/box64/custom-box64-a/bin/box64", "#!/bin/sh\nexit 0\n");
         receipt(root, "rootfs/opt/custom-wine/custom-wine-a", "rootfs_proot", "wine", "custom-wine-a", "box64");
         receipt(root, "rootfs/opt/box64/custom-box64-a", "rootfs_proot", "box64", "custom-box64-a");
@@ -156,7 +156,7 @@ public final class RuntimeComponentLaunchContractTest {
     @Test public void templateBuildPreservesSelectedWineAndTranslator() throws Exception {
         File root = temporary.newFolder();
         for (String bin : new String[] {"usr/bin/wine", "usr/bin/wineboot",
-                "opt/box64/rootfs_box64_0.4.5/bin/box64", "opt/box64-wine/bin/wine64",
+                "opt/box64/rootfs_box64_0.4.4/bin/box64", "opt/box64-wine/bin/wine64",
                 "opt/box64-proton/bin/wine"}) {
             executable(root, "rootfs/" + bin, "#!/bin/sh\nexit 0\n");
         }

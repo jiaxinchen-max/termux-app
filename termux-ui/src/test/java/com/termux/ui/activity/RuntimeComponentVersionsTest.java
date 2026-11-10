@@ -85,7 +85,7 @@ public class RuntimeComponentVersionsTest {
     }
 
     @Test public void prebuiltProotBox64IsSelectableWithoutExposingOtherHiddenDependencies() throws Exception {
-        for (String id : new String[]{"rootfs_box64_0.2.8", "rootfs_box64_0.3.8", "rootfs_box64_0.4.5"}) {
+        for (String id : new String[]{"rootfs_box64_0.2.8", "rootfs_box64_0.3.8", "rootfs_box64_0.4.4"}) {
         ComponentDescriptor build = index().find(id).get();
         assertTrue("Keep the general component catalog clean", build.isHidden());
         assertTrue(RuntimeComponentVersions.accepts(build, CustomRuntimeComponent.Kind.BOX64, prootBackend, null));
@@ -99,8 +99,8 @@ public class RuntimeComponentVersionsTest {
     }
 
     @Test public void box64DefaultsMatchEachRuntimeAndExplicitSelectionsRemainExact() {
-        assertEquals("rootfs_box64_0.4.5", RuntimeComponentVersions.selectedBox64Id(prootBackend, ""));
-        assertEquals("rootfs_box64_0.4.5", RuntimeComponentVersions.selectedBox64Id(prootBackend, null));
+        assertEquals("rootfs_box64_0.4.4", RuntimeComponentVersions.selectedBox64Id(prootBackend, ""));
+        assertEquals("rootfs_box64_0.4.4", RuntimeComponentVersions.selectedBox64Id(prootBackend, null));
         assertEquals("glibc_box64_0.2.8", RuntimeComponentVersions.selectedBox64Id(nativeBackend, ""));
         assertEquals("glibc_box64_0.4.4", RuntimeComponentVersions.selectedBox64Id(nativeBackend, "glibc_box64_0.4.4"));
         assertEquals("custom-box64-test", RuntimeComponentVersions.selectedBox64Id(prootBackend, "custom-box64-test"));

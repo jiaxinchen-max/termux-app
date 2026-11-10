@@ -89,7 +89,7 @@ proot_bindings_complete || exit 65
             self.assertEqual(64, self.run_fields(self.fields(role=value)).returncode)
 
     def test_box64038_binding_uses_its_own_version_and_guest_target(self):
-        for component in ['rootfs_box64_0.2.8', 'rootfs_box64_0.3.8', 'rootfs_box64_0.4.5']:
+        for component in ['rootfs_box64_0.2.8', 'rootfs_box64_0.3.8', 'rootfs_box64_0.4.4']:
             version = self.files / 'front/components/install' / component / 'versions/one'
             version.mkdir(parents=True)
             (version / '.wine-component.properties').write_text(

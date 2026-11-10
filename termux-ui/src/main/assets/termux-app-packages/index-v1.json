@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-10T10:32:17Z",
+  "generatedAt": "2026-11-10T10:46:24Z",
   "packages": [
     {
       "id": "glibc_box64_0.2.8",
@@ -519,8 +519,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_proton_11.0-v1/glibc_proton_11.0.tar.xz",
-      "size": 91599396,
-      "sha256": "b34fdcd433620966c86b6c11231ddb2649b853281be837ede7c99407d3d61bc8"
+      "size": 91613132,
+      "sha256": "ddd3094073a448552bb307dcbb44a4c8059d99b8d727c44ccf173e3b0ae87890"
     },
     {
       "id": "rootfs_box64_0.2.8",
@@ -563,12 +563,12 @@
       "sha256": "939c3e738da05301ef1343af404404fdc7fa461f2a83ac84c36b3e7b0fa66508"
     },
     {
-      "id": "rootfs_box64_0.4.5",
+      "id": "rootfs_box64_0.4.4",
       "category": "runtime",
       "type": "translator",
-      "displayName": "box64_0.4.5",
-      "versionName": "0.4.5 W^X patch",
-      "summary": "W^X mprotect fix for box64-rootfs, coexisting as its own /opt/box64/box64-rootfs-mprotect-patch/bin/box64 build (not an overlay). Needed by box64-translated Wine. Not yet submitted upstream.",
+      "displayName": "box64_0.4.4",
+      "versionName": "0.4.4",
+      "summary": "Box64 0.4.4 with target-specific x86_64 support libraries.",
       "framework": "ROOTFS",
       "base": false,
       "recommended": false,
@@ -577,10 +577,10 @@
       "runtimeBackends": [
         "rootfs_proot"
       ],
-      "version": 2,
-      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.4.5-v2/rootfs_box64_0.4.5.tar.xz",
-      "size": 6429892,
-      "sha256": "113e95a0e9623acd6573ab0d46ac73d8425cd368cb1f4a788c30a37c135e863d"
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.4.4/rootfs_box64_0.4.4.tar.xz",
+      "size": 6470584,
+      "sha256": "7fa5b348073c4d33914b657e5415bbd19844c957f0badc60d1bec7fa7f3cfe2f"
     },
     {
       "id": "rootfs_dxvk_2.7",
@@ -679,8 +679,8 @@
       ],
       "version": 2,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_proton_11.0-v2/rootfs_proton_11.0.tar.xz",
-      "size": 73929128,
-      "sha256": "a62eed7a78adb8b4edc2229e2e5f5c7a22e66eb7fcb13c25b27bd3667a7ffae6"
+      "size": 73941120,
+      "sha256": "acf200a1116c7557910afda81d4a853efe679bced5d63f120d46cf98861ed6b9"
     },
     {
       "id": "rootfs_debian13_hangover_pdb2_minimal",

@@ -499,12 +499,12 @@ apply_native_dx_component || exit 1
 apply_game_options
 
 # Release the controller DLLs into the Wine runtime (Wine loads them as builtin DLLs from there) and winhandler.exe
-# into this prefix. A failure only costs the controller: the game then starts directly, as before.
+# into this prefix. Both the app and DLLs must use the selected input API flags.
 if install_games_controller_runtime "$WINEPREFIX" "$GAMES_RUNTIME_SCRIPT_DIR" "$WINE_PATH"; then
     CONTROLLER_WRAPPER=$GAMES_CONTROLLER_WINHANDLER_WINDOWS_PATH
 else
-    echo "WARNING: controller runtime could not be installed; the on-screen controller is unavailable."
-    CONTROLLER_WRAPPER=
+    echo "ERROR: controller runtime could not be installed." >&2
+    exit 1
 fi
 
 # The game profile may override the runtime locale without changing the shared
@@ -525,9 +525,8 @@ if [ -z "$LC_ALL" ]; then
     LC_ALL="en_US.utf8"
 fi
 
-# Build WINEDLLOVERRIDES from container gamepad mapper type
-# 0 = Standard (DInput), 1 = XInput
-WINE_DLL_OVERRIDES="${NATIVE_D3D_OVERRIDES};$(games_controller_dll_overrides "${TERMUX_BOX_GAMEPAD_MAPPER:-1}")"
+# Apply both input library settings, independently of the axis/button mapper.
+WINE_DLL_OVERRIDES="${NATIVE_D3D_OVERRIDES};$(games_controller_dll_overrides)"
 [ -n "${GAMES_DLL_D3D:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}d3d8,d3d9,d3d10core,d3d11,dxgi=${GAMES_DLL_D3D};"
 [ -n "${GAMES_DLL_DSOUND:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}dsound=${GAMES_DLL_DSOUND};"
 [ -n "${GAMES_DLL_DMUSIC:-}" ] && WINE_DLL_OVERRIDES="${WINE_DLL_OVERRIDES}dmusic=${GAMES_DLL_DMUSIC};"

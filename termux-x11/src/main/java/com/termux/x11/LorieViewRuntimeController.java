@@ -484,6 +484,18 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
      *
      * @param mapperType 0 = Standard (DInput), 1 = XInput
      */
+    private boolean gamepadXinputEnabled = true;
+    private boolean gamepadDinputEnabled = true;
+
+    public void setGamepadInputApis(boolean xinput, boolean dinput) {
+        gamepadXinputEnabled = xinput;
+        gamepadDinputEnabled = dinput;
+        if (mX11WinHandlerController.isRunning()) {
+            mX11WinHandlerController.getWinHandler().gamepadHandler.clearInputClients();
+            mX11WinHandlerController.getWinHandler().gamepadHandler.setInputApis(xinput, dinput);
+        }
+    }
+
     public void setGamepadMapperType(byte mapperType) {
         mGamepadMapperType = mapperType;
         if (mX11WinHandlerController.isRunning()) {
@@ -520,6 +532,7 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         mX11WinHandlerController.attach(lorieView);
         if (mX11WinHandlerController.isRunning()) {
             mX11WinHandlerController.getWinHandler().gamepadHandler.setDInputMapperType(mGamepadMapperType);
+            mX11WinHandlerController.getWinHandler().gamepadHandler.setInputApis(gamepadXinputEnabled, gamepadDinputEnabled);
         }
     }
 

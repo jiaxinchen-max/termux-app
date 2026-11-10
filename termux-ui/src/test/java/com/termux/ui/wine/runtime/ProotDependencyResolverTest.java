@@ -29,12 +29,12 @@ public class ProotDependencyResolverTest {
     }
     @Test public void protonOnlyRequestsItsTranslatorAndSelectedDxvk() {
         assertEquals(new LinkedHashSet<>(Arrays.asList(RootfsSetupRecipe.IMAGE_COMPONENT,
-            "rootfs_proton_11.0", "rootfs_box64_0.4.5", "rootfs_dxvk_3.1")),
+            "rootfs_proton_11.0", "rootfs_box64_0.4.4", "rootfs_dxvk_3.1")),
             resolve("rootfs_proton_11.0", "rootfs-llvmpipe", "rootfs_dxvk_3.1"));
     }
     @Test public void wineWined3dDoesNotPullProtonOrDxvk() {
         assertEquals(new LinkedHashSet<>(Arrays.asList(RootfsSetupRecipe.IMAGE_COMPONENT,
-            "rootfs_wine_10.0", "rootfs_box64_0.4.5")),
+            "rootfs_wine_10.0", "rootfs_box64_0.4.4")),
             resolve("rootfs_wine_10.0", "rootfs-llvmpipe", "rootfs-wined3d"));
     }
     @Test(expected = IllegalArgumentException.class) public void invalidCombinationStillFails() {

@@ -98,7 +98,7 @@ proot_binding_validate() {
                 *) return 2 ;;
             esac ;;
         BOX64)
-            case "$PB_ID" in rootfs_box64_0.2.8|rootfs_box64_0.3.8|rootfs_box64_0.4.5|custom-box64-?*) ;; *) return 2 ;; esac
+            case "$PB_ID" in rootfs_box64_0.2.8|rootfs_box64_0.3.8|rootfs_box64_0.4.4|custom-box64-?*) ;; *) return 2 ;; esac
             pb_expected="/opt/box64/$PB_ID" ;;
         DXVK64|DXVK32)
             case "$PB_ID" in

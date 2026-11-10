@@ -460,8 +460,13 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         addDllChoice("DirectMusic", "GAMES_DLL_DMUSIC");
         addDllChoice("DirectShow", "GAMES_DLL_DSHOW");
         addDllChoice("DirectPlay", "GAMES_DLL_DPLAY");
-        addDllChoice("DirectInput", "GAMES_DLL_DINPUT");
-        addDllChoice("XInput", "GAMES_DLL_XINPUT");
+        if (HangoverEmulationMode.appliesTo(profile)) {
+            addRow("DirectInput", s(R.string.local_game_runtime_dll_builtin), false, null);
+            addRow("XInput", s(R.string.local_game_runtime_dll_builtin), false, null);
+        } else {
+            addDllChoice("DirectInput", "GAMES_DLL_DINPUT");
+            addDllChoice("XInput", "GAMES_DLL_XINPUT");
+        }
     }
 
     private void renderFolders() {
@@ -616,6 +621,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         state.putString("resolution", profile.getResolution());
         state.putString("box64", profile.getBox64Preset());
         state.putString("input", profile.getInputProfileId());
+        state.putBoolean("xinputEnabled", profile.isXinputEnabled());
+        state.putBoolean("dinputEnabled", profile.isDinputEnabled());
         state.putString("execution", profile.getLaunchExecutionMode().name());
         state.putBundle("environment", mapBundle(profile.getEnvironment()));
         state.putString("name", game.getName());
@@ -640,6 +647,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         Bundle savedEnvironment = state.getBundle("environment");
         if (savedEnvironment != null) for (String key : savedEnvironment.keySet())
             environment.put(key, savedEnvironment.getString(key));
+        profile = profile.withInputApis(state.getBoolean("xinputEnabled"), state.getBoolean("dinputEnabled"));
         replace(state.getString("wine"), state.getString("graphics"), state.getString("dx"),
             state.getString("audio"), state.getString("resolution"), state.getString("box64"),
             environment, state.getString("input"), LaunchExecutionMode.valueOf(state.getString("execution")));
@@ -746,6 +754,19 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     private void renderAdvanced() {
         pageTitle(s(R.string.local_game_runtime_menu_advanced));
+        addInputApiSwitch(s(R.string.local_game_runtime_enable_xinput), profile.isXinputEnabled(),
+            enabled -> profile = profile.withInputApis(enabled, profile.isDinputEnabled()));
+        addInputApiSwitch(s(R.string.local_game_runtime_enable_dinput), profile.isDinputEnabled(),
+            enabled -> profile = profile.withInputApis(profile.isXinputEnabled(), enabled));
+        addChoice(s(R.string.local_game_runtime_gamepad_mapping), labels("XInput", "DirectInput"),
+            "dinput".equals(GameInputProfileChoices.mapperOf(profile.getInputProfileId())) ? 1 : 0,
+            which -> {
+                String input = GameInputProfileChoices.withMapper(profile.getInputProfileId(),
+                    which == 0 ? "xinput" : "dinput");
+                replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
+                    profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
+                    profile.getEnvironment(), input, profile.getLaunchExecutionMode());
+            });
         addChoice(s(R.string.local_game_runtime_advanced_box64_preset), withCurrent(profile.getBox64Preset(), "STABILITY", "INTERMEDIATE", "PERFORMANCE"),
             value -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
                 profile.getAudioDriver(), profile.getResolution(), value, profile.getEnvironment(),
@@ -798,6 +819,20 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     private void addReadOnly(String label, String summary) {
         addRow(label, summary, false, null);
+    }
+
+    private void addInputApiSwitch(String label, boolean enabled, java.util.function.Consumer<Boolean> changed) {
+        androidx.appcompat.widget.SwitchCompat toggle = new androidx.appcompat.widget.SwitchCompat(getContext());
+        toggle.setText(label);
+        toggle.setTextColor(color(R.color.local_games_on_surface));
+        toggle.setPadding(dp(16), dp(14), dp(16), dp(14));
+        toggle.setChecked(enabled);
+        toggle.setOnCheckedChangeListener((button, checked) -> {
+            changed.accept(checked);
+            listener.onRuntimeOptionsChanged();
+        });
+        content.addView(toggle, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
     }
 
     private void addChoice(String label, String[] values, ChoiceCallback callback) {
@@ -965,7 +1000,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                          LaunchExecutionMode mode) {
         profile = new RuntimeProfile(profile.getId(), wine, graphics, dx, audio, resolution, box64,
             environment, input, mode, profile.getComponentVersions(), profile.getRuntimeBackendType(),
-            profile.getRootfsPackage(), profile.getContainerId());
+            profile.getRootfsPackage(), profile.getContainerId(), profile.isXinputEnabled(), profile.isDinputEnabled());
         listener.onRuntimeOptionsChanged();
     }
 

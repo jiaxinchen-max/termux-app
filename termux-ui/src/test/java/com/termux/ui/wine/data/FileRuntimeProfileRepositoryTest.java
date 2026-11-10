@@ -23,6 +23,27 @@ public class FileRuntimeProfileRepositoryTest {
 
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+    @Test public void independentInputApisSurviveStorageAndProfileCopies() throws Exception {
+        FileRuntimeProfileRepository repository = repository();
+        for (boolean xinput : new boolean[] {false, true}) {
+            for (boolean dinput : new boolean[] {false, true}) {
+                RuntimeProfile selected = RuntimeProfilePresets.create("wine-input",
+                    RuntimeProfilePreset.RECOMMENDED).withInputApis(xinput, dinput)
+                    .withInputProfileId("dinput:3").withContainerId("default")
+                    .withLaunchExecutionMode(LaunchExecutionMode.APP_SHELL)
+                    .withRuntimeBackend(GameRuntimeBackendType.GLIBC_TERMUX_BOX, "");
+                repository.save(selected);
+                repository.saveLastSuccessful(selected);
+                for (RuntimeProfile restored : new RuntimeProfile[] {
+                        repository.find("wine-input").get(), repository.findLastSuccessful("wine-input").get()}) {
+                    assertEquals(xinput, restored.isXinputEnabled());
+                    assertEquals(dinput, restored.isDinputEnabled());
+                    assertEquals("dinput:3", restored.getInputProfileId());
+                }
+            }
+        }
+    }
+
     @Test
     public void persistsCurrentAndIndependentLastSuccess() throws Exception {
         FileRuntimeProfileRepository repository = repository();

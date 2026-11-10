@@ -29,6 +29,8 @@ public final class LaunchSpec {
     private final String resolution;
     private final String box64Preset;
     private final String inputProfileId;
+    private final boolean xinputEnabled;
+    private final boolean dinputEnabled;
     private final LaunchExecutionMode launchExecutionMode;
     private final Map<String, String> environment;
     private final String eventPath;
@@ -127,6 +129,26 @@ public final class LaunchSpec {
                       GameRuntimeBackendType runtimeBackendType, String rootfsPackage,
                       String runtimeRootPath, String homeDirectoryPath, boolean desktopOnly,
                       List<ProotComponentBinding> componentBindings) {
+        this(taskId, gameId, gameRootPath, executable, workingDirectory, arguments,
+            prefixPath, winePackage, graphicsDriver, dxWrapper, audioDriver, resolution,
+            box64Preset, inputProfileId, launchExecutionMode, environment, eventPath,
+            logPath, lockPath, cancelPath, timeoutSeconds, runtimeBackendType, rootfsPackage,
+            runtimeRootPath, homeDirectoryPath, desktopOnly, componentBindings, true, true);
+    }
+
+    public LaunchSpec(String taskId, String gameId, String gameRootPath,
+                      String executable, String workingDirectory, List<String> arguments,
+                      String prefixPath, String winePackage, String graphicsDriver,
+                      String dxWrapper, String audioDriver, String resolution, String box64Preset,
+                      String inputProfileId, LaunchExecutionMode launchExecutionMode,
+                      Map<String, String> environment, String eventPath,
+                      String logPath, String lockPath, String cancelPath, long timeoutSeconds,
+                      GameRuntimeBackendType runtimeBackendType, String rootfsPackage,
+                      String runtimeRootPath, String homeDirectoryPath, boolean desktopOnly,
+                      List<ProotComponentBinding> componentBindings,
+                      boolean xinputEnabled, boolean dinputEnabled) {
+        this.xinputEnabled = xinputEnabled;
+        this.dinputEnabled = dinputEnabled;
         this.taskId = requireId(taskId, "taskId");
         this.gameId = requireId(gameId, "gameId");
         this.gameRootPath = requireAbsolute(gameRootPath, "gameRootPath");
@@ -256,6 +278,8 @@ public final class LaunchSpec {
     public String getResolution() { return resolution; }
     public String getBox64Preset() { return box64Preset; }
     public String getInputProfileId() { return inputProfileId; }
+    public boolean isXinputEnabled() { return xinputEnabled; }
+    public boolean isDinputEnabled() { return dinputEnabled; }
     public LaunchExecutionMode getLaunchExecutionMode() { return launchExecutionMode; }
     public Map<String, String> getEnvironment() { return environment; }
     public String getEventPath() { return eventPath; }

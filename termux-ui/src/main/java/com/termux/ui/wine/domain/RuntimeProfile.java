@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
 /** Immutable game-level runtime selection frozen before launch. */
 public final class RuntimeProfile {
 
-    public static final int SCHEMA_VERSION = 4;
+    public static final int SCHEMA_VERSION = 5;
     private static final Pattern ENVIRONMENT_KEY =
         Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
     private static final Pattern COMPONENT_ID = Pattern.compile("[A-Za-z0-9._-]+");
@@ -23,6 +23,8 @@ public final class RuntimeProfile {
     private final String box64Preset;
     private final Map<String, String> environment;
     private final String inputProfileId;
+    private final boolean xinputEnabled;
+    private final boolean dinputEnabled;
     private final LaunchExecutionMode launchExecutionMode;
     private final Map<String, String> componentVersions;
     private final GameRuntimeBackendType runtimeBackendType;
@@ -67,6 +69,19 @@ public final class RuntimeProfile {
                           Map<String, String> componentVersions,
                           GameRuntimeBackendType runtimeBackendType,
                           String rootfsPackage, String containerId) {
+        this(id, winePackage, graphicsDriver, dxWrapper, audioDriver, resolution, box64Preset,
+            environment, inputProfileId, launchExecutionMode, componentVersions, runtimeBackendType,
+            rootfsPackage, containerId, true, true);
+    }
+
+    public RuntimeProfile(String id, String winePackage, String graphicsDriver,
+                          String dxWrapper, String audioDriver, String resolution,
+                          String box64Preset, Map<String, String> environment,
+                          String inputProfileId, LaunchExecutionMode launchExecutionMode,
+                          Map<String, String> componentVersions,
+                          GameRuntimeBackendType runtimeBackendType,
+                          String rootfsPackage, String containerId,
+                          boolean xinputEnabled, boolean dinputEnabled) {
         this.id = DomainValidation.requireText(id, "id");
         this.winePackage = DomainValidation.requireText(winePackage, "winePackage");
         this.graphicsDriver = DomainValidation.requireText(graphicsDriver, "graphicsDriver");
@@ -76,6 +91,8 @@ public final class RuntimeProfile {
         this.box64Preset = DomainValidation.requireText(box64Preset, "box64Preset");
         this.environment = DomainValidation.immutableTextMap(environment, "environment");
         this.inputProfileId = DomainValidation.optionalText(inputProfileId);
+        this.xinputEnabled = xinputEnabled;
+        this.dinputEnabled = dinputEnabled;
         if (launchExecutionMode == null) {
             throw new IllegalArgumentException("launchExecutionMode must not be null");
         }
@@ -111,6 +128,8 @@ public final class RuntimeProfile {
     public String getBox64Preset() { return box64Preset; }
     public Map<String, String> getEnvironment() { return environment; }
     public String getInputProfileId() { return inputProfileId; }
+    public boolean isXinputEnabled() { return xinputEnabled; }
+    public boolean isDinputEnabled() { return dinputEnabled; }
     public LaunchExecutionMode getLaunchExecutionMode() { return launchExecutionMode; }
     public Map<String, String> getComponentVersions() { return componentVersions; }
     public GameRuntimeBackendType getRuntimeBackendType() { return runtimeBackendType; }
@@ -120,7 +139,7 @@ public final class RuntimeProfile {
     public RuntimeProfile withLaunchExecutionMode(LaunchExecutionMode mode) {
         return new RuntimeProfile(id, winePackage, graphicsDriver, dxWrapper, audioDriver,
             resolution, box64Preset, environment, inputProfileId, mode, componentVersions,
-            runtimeBackendType, rootfsPackage, containerId);
+            runtimeBackendType, rootfsPackage, containerId, xinputEnabled, dinputEnabled);
     }
 
     /**
@@ -134,19 +153,25 @@ public final class RuntimeProfile {
         }
         return new RuntimeProfile(id, winePackage, graphicsDriver, dxWrapper, audioDriver,
             resolution, box64Preset, environment, value, launchExecutionMode,
-            componentVersions, runtimeBackendType, rootfsPackage, containerId);
+            componentVersions, runtimeBackendType, rootfsPackage, containerId, xinputEnabled, dinputEnabled);
     }
 
     public RuntimeProfile withRuntimeBackend(GameRuntimeBackendType type, String rootfs) {
         return new RuntimeProfile(id, winePackage, graphicsDriver, dxWrapper, audioDriver,
             resolution, box64Preset, environment, inputProfileId, launchExecutionMode,
-            componentVersions, type, rootfs, containerId);
+            componentVersions, type, rootfs, containerId, xinputEnabled, dinputEnabled);
     }
 
     public RuntimeProfile withContainerId(String value) {
         return new RuntimeProfile(id, winePackage, graphicsDriver, dxWrapper, audioDriver,
             resolution, box64Preset, environment, inputProfileId, launchExecutionMode,
-            componentVersions, runtimeBackendType, rootfsPackage, value);
+            componentVersions, runtimeBackendType, rootfsPackage, value, xinputEnabled, dinputEnabled);
+    }
+
+    public RuntimeProfile withInputApis(boolean xinput, boolean dinput) {
+        return new RuntimeProfile(id, winePackage, graphicsDriver, dxWrapper, audioDriver,
+            resolution, box64Preset, environment, inputProfileId, launchExecutionMode,
+            componentVersions, runtimeBackendType, rootfsPackage, containerId, xinput, dinput);
     }
 
     private static String requireContainerId(String value) {

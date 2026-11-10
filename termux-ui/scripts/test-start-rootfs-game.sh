@@ -52,6 +52,8 @@ ln -s "$TERMUX_ROOT" "$TERMUX_ALIAS"
 for asset in start_rootfs_game.sh proot_component_bindings.sh rootfs_prefix_warmup.sh controller_runtime.sh x_server_common.sh x_server_legacy.sh x_server_xlorie.sh x_server_dimensions.py; do
     cp "$PROJECT_ROOT/termux-ui/src/main/assets/local-games/$asset" "$RUNTIME_DIR/$asset"
 done
+gzip -dc "$PROJECT_ROOT/termux-x11/src/main/assets/wine.tar.gz" > "$RUNTIME_DIR/controller_wine.tar"
+cp "$PROJECT_ROOT/termux-x11/src/main/assets/winhandler.exe" "$RUNTIME_DIR/controller_winhandler.exe"
 [ -z "${ROOTFS_LAUNCHER_UNDER_TEST:-}" ] || cp "$ROOTFS_LAUNCHER_UNDER_TEST" "$RUNTIME_DIR/start_rootfs_game.sh"
 # This is a prepared prefix, matching the current shared RootFS and Wine package.
 seed_prefix() {
@@ -149,6 +151,7 @@ encode() { printf '%s' "$1" | base64 | tr -d '\n'; }
     printf 'audioDriver=%s\n' "$(encode pulseaudio)"
     printf 'resolution=%s\n' "$(encode 1280x720)"
     printf 'box64Preset=%s\n' "$(encode INTERMEDIATE)"
+    printf 'xinputEnabled=1\ndinputEnabled=1\n'
     printf 'inputProfileId=%s\n' "$(encode xinput)"
     printf 'launchExecutionMode=%s\n' "$(encode app_shell)"
     printf 'runtimeBackendType=%s\n' "$(encode rootfs_proot)"
@@ -187,12 +190,22 @@ import base64,sys
 from pathlib import Path
 args=[base64.b64decode(line).decode() for line in Path(sys.argv[1]).read_text().splitlines()]
 actual=args[args.index('game-session')+1:]
-expected=sys.argv[2:]+['explorer','/desktop=shell,1280x720','/mnt/games/game/bin folder/game.exe',
+expected=sys.argv[2:]+['explorer','/desktop=shell,1280x720',r'C:\windows\winhandler.exe',r'Z:\mnt\games\game\bin folder\game.exe',
                        'hello world','$HOME',"it's-safe",r'back\slash']
 assert actual==expected, ('RootFS argv changed',actual,expected)
 PYARGV
 }
 assert_guest_argv /usr/bin/wine
+# Missing protocol payload must stop before a game process is launched.
+mv "$RUNTIME_DIR/controller_wine.tar" "$RUNTIME_DIR/controller_wine.saved"
+rm -f "$CAPTURE"
+if PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"; then
+    printf 'Missing controller payload was accepted\n' >&2; exit 1
+fi
+grep -q 'controller_runtime_install_failed' "$EVENT"
+[ ! -e "$CAPTURE" ]
+mv "$RUNTIME_DIR/controller_wine.saved" "$RUNTIME_DIR/controller_wine.tar"
+PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
 # Capture the actual PRoot launch environment; switching never writes the prepared prefix.
 printf 'wowbox64.dll\nlibarm64ecfex.dll\n' > "$TEST_ROOT/expected-emulators"
 cmp "$TEST_ROOT/expected-emulators" "$CAPTURE.emulators"
@@ -258,7 +271,7 @@ grep -q '"errorCode":"rootfs_turnip_icd_missing"' "$EVENT"
 mv "$SPEC.llvmpipe" "$SPEC"
 mv "$TEST_ROOT/manifest.llvmpipe" "$ROOTFS/etc/wine-runtime.properties"
 PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
-grep -qx "$(encode /mnt/games/game/bin\ folder/game.exe)" "$CAPTURE"
+grep -qx "$(encode 'Z:\mnt\games\game\bin folder\game.exe')" "$CAPTURE"
 grep -qx "$(encode 'hello world')" "$CAPTURE"
 grep -qx "$(encode '$HOME')" "$CAPTURE"
 grep -qx "$(encode "it's-safe")" "$CAPTURE"
@@ -285,11 +298,11 @@ mv "$TERMUX_ROOT/usr/glibc/opt/virgl/libvirgl_test_server.so.disabled" \
 sed "s|^graphicsDriver=.*$|graphicsDriver=$(encode rootfs-llvmpipe)|" "$SPEC" > "$SPEC.tmp"
 mv "$SPEC.tmp" "$SPEC"
 
-mkdir -p "$ROOTFS/opt/box64-wine/bin" "$ROOTFS/opt/box64/rootfs_box64_0.4.5/bin"
-printf '#!/bin/sh\nexit 0\n' > "$ROOTFS/opt/box64/rootfs_box64_0.4.5/bin/box64"
+mkdir -p "$ROOTFS/opt/box64-wine/bin" "$ROOTFS/opt/box64/rootfs_box64_0.4.4/bin"
+printf '#!/bin/sh\nexit 0\n' > "$ROOTFS/opt/box64/rootfs_box64_0.4.4/bin/box64"
 printf '#!/bin/sh\nexit 0\n' > "$ROOTFS/opt/box64-wine/bin/wine64"
 printf '#!/bin/sh\nexit 0\n' > "$ROOTFS/opt/box64-wine/bin/wineboot"
-chmod 700 "$ROOTFS/opt/box64/rootfs_box64_0.4.5/bin/box64" "$ROOTFS/opt/box64-wine/bin/wine64" \
+chmod 700 "$ROOTFS/opt/box64/rootfs_box64_0.4.4/bin/box64" "$ROOTFS/opt/box64-wine/bin/wine64" \
     "$ROOTFS/opt/box64-wine/bin/wineboot"
 sed "s|^winePackage=.*$|winePackage=$(encode rootfs_wine_10.0)|" "$SPEC" > "$SPEC.tmp"
 mv "$SPEC.tmp" "$SPEC"
@@ -306,9 +319,9 @@ seed_prefix "$BOX_PREFIX" rootfs_wine_10.0
 sed "s|^prefixPath=.*$|prefixPath=$(encode "$BOX_PREFIX")|" "$SPEC" > "$SPEC.tmp"
 mv "$SPEC.tmp" "$SPEC"
 PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
-grep -qx "$(encode /opt/box64/rootfs_box64_0.4.5/bin/box64)" "$CAPTURE"
+grep -qx "$(encode /opt/box64/rootfs_box64_0.4.4/bin/box64)" "$CAPTURE"
 grep -qx "$(encode /opt/box64-wine/bin/wine64)" "$CAPTURE"
-assert_guest_argv /opt/box64/rootfs_box64_0.4.5/bin/box64 /opt/box64-wine/bin/wine64
+assert_guest_argv /opt/box64/rootfs_box64_0.4.4/bin/box64 /opt/box64-wine/bin/wine64
 grep -q '"state":"SUCCEEDED".*"stage":"COMPLETE"' "$EVENT"
 [ ! -e "$LOCK" ]
 
@@ -319,7 +332,7 @@ import base64, pathlib, shutil, sys
 files, rootfs, spec = map(pathlib.Path, sys.argv[1:])
 bindings = []
 for cid, guest, role in [('rootfs_wine_10.0','/opt/box64-wine','WINE'),
-    ('rootfs_box64_0.4.5','/opt/box64/rootfs_box64_0.4.5','BOX64')]:
+    ('rootfs_box64_0.4.4','/opt/box64/rootfs_box64_0.4.4','BOX64')]:
     version = files / 'front/components/install' / cid / 'versions/v1-fixture'
     version.mkdir(parents=True)
     source = version / "payload $' ="
@@ -338,13 +351,13 @@ for i, binding in enumerate(bindings):
 spec.write_text(raw)
 PYBIND
 PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
-assert_guest_argv /opt/box64/rootfs_box64_0.4.5/bin/box64 /opt/box64-wine/bin/wine64
+assert_guest_argv /opt/box64/rootfs_box64_0.4.4/bin/box64 /opt/box64-wine/bin/wine64
 assert_frozen_bind_argv() {
     python3 - "$CAPTURE" "$TERMUX_ROOT" <<'PYBINDARGV'
 import base64, pathlib, sys
 args=[base64.b64decode(line).decode() for line in pathlib.Path(sys.argv[1]).read_text().splitlines()]
 for cid, target in [('rootfs_wine_10.0','/opt/box64-wine'),
-    ('rootfs_box64_0.4.5','/opt/box64/rootfs_box64_0.4.5')]:
+    ('rootfs_box64_0.4.4','/opt/box64/rootfs_box64_0.4.4')]:
     expected=str(pathlib.Path(sys.argv[2])/'front/components/install'/cid/'versions/v1-fixture'/"payload $' =")+':'+target
     index=args.index(expected)
     assert args[index-1]=='-b', args
@@ -385,7 +398,7 @@ V11MANIFEST
 printf '\nwarmup_rootfs_prefix() { warmup_fail forbidden_launch_wineboot; }\n' >> "$RUNTIME_DIR/rootfs_prefix_warmup.sh"
 PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
 assert_frozen_bind_argv
-assert_guest_argv /opt/box64/rootfs_box64_0.4.5/bin/box64 /opt/box64-wine/bin/wine64
+assert_guest_argv /opt/box64/rootfs_box64_0.4.4/bin/box64 /opt/box64-wine/bin/wine64
 # Readiness is structural after digest checks were removed. A missing registry
 # must still stop launch without wineboot; a missing digest marker is not a gate.
 mv "$BOX_PREFIX/user.reg" "$BOX_PREFIX/user.reg-kept"
@@ -414,7 +427,7 @@ printf '#!/bin/sh\nexit 1\n' > "$TERMUX_ROOT/usr/bin/pulseaudio"
 chmod 700 "$TERMUX_ROOT/usr/bin/pulseaudio"
 PATH="$FAKE_BIN:$PATH" "$SCRIPT" "$SPEC"
 assert_frozen_bind_argv
-assert_guest_argv /opt/box64/rootfs_box64_0.4.5/bin/box64 /opt/box64-wine/bin/wine64
+assert_guest_argv /opt/box64/rootfs_box64_0.4.4/bin/box64 /opt/box64-wine/bin/wine64
 mv "$TERMUX_ROOT/usr/bin/pulseaudio.disabled" "$TERMUX_ROOT/usr/bin/pulseaudio"
 
 # A parent-directory link must not let any DLL/controller operation touch the source.

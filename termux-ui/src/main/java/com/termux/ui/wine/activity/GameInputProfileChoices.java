@@ -114,6 +114,15 @@ final class GameInputProfileChoices {
         return mapper + ":" + profileId;
     }
 
+    /** Changes only the axis/button mapping; the selected touch layout stays active. */
+    @NonNull
+    static String withMapper(@Nullable String currentSelection, @NonNull String mapper) {
+        if (!"xinput".equals(mapper) && !"dinput".equals(mapper)) {
+            throw new IllegalArgumentException("invalid_input_mapper");
+        }
+        return compose(mapper, profileIdOf(currentSelection));
+    }
+
     /**
      * The profiles that belong in the list for a screen: only layouts designed for the screen's
      * orientation. The layout that is active right now stays listed whatever its orientation, so the

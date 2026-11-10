@@ -28,7 +28,7 @@ public class ComponentIndexParserTest {
         }
 
         assertEquals(2, index.getSchemaVersion());
-        assertEquals("2026-11-10T10:32:17Z", index.getGeneratedAt());
+        assertEquals("2026-11-10T10:46:24Z", index.getGeneratedAt());
         assertEquals(43, index.getComponents().size());
         ComponentDescriptor image = index.find("rootfs_debian13_hangover_pdb2_minimal").get();
         assertEquals(ComponentType.IMAGE_FS, image.getType());
@@ -51,13 +51,15 @@ public class ComponentIndexParserTest {
             assertTrue("automatic component must remain available internally but hidden: " + automatic,
                 index.find(automatic).get().isHidden());
         }
-        ComponentDescriptor box64Rootfs = index.find("rootfs_box64_0.4.5").get();
+        ComponentDescriptor box64Rootfs = index.find("rootfs_box64_0.4.4").get();
+        assertFalse(index.find("rootfs_box64_0.4.5").isPresent());
+        assertEquals("0.4.4", box64Rootfs.getVersionName());
         assertTrue(box64Rootfs.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
         assertEquals(ComponentType.TRANSLATOR, box64Rootfs.getType());
         // The three implementation-detail components are hidden from the user-facing list; a
         // representative selectable one is not.
         assertTrue(box64Rootfs.isHidden());
-        assertTrue(index.find("rootfs_box64_0.4.5").get().isHidden());
+        assertTrue(index.find("rootfs_box64_0.4.4").get().isHidden());
         assertFalse(index.find("rootfs_wine_10.0").get().isHidden());
         ComponentDescriptor rootfsDxvk = index.find("rootfs_dxvk_2.7").get();
         assertEquals(ComponentType.DX_WRAPPER, rootfsDxvk.getType());
@@ -70,7 +72,7 @@ public class ComponentIndexParserTest {
         assertTrue(boxProton.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
         assertEquals("rootfs_proton_11.0", boxProton.getProfileValue());
         assertEquals(2, boxProton.getVersion());
-        assertEquals("a62eed7a78adb8b4edc2229e2e5f5c7a22e66eb7fcb13c25b27bd3667a7ffae6",
+        assertEquals("acf200a1116c7557910afda81d4a853efe679bced5d63f120d46cf98861ed6b9",
             boxProton.getSha256());
         for (String id : new String[]{"rootfs_prefix_hangover_pdb2", "rootfs_prefix_wine10_wow64",
                 "rootfs_prefix_proton11_wow64"}) {

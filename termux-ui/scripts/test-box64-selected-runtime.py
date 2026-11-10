@@ -20,7 +20,7 @@ class SelectedRuntimeTest(unittest.TestCase):
         self.root = Path(self.temp.name)
         for path in ['opt/box64/rootfs_box64_0.2.8/bin/box64',
                      'opt/box64/rootfs_box64_0.3.8/bin/box64',
-                     'opt/box64/rootfs_box64_0.4.5/bin/box64',
+                     'opt/box64/rootfs_box64_0.4.4/bin/box64',
                      'opt/box64-wine/bin/wine64', 'opt/box64-proton/bin/wine']:
             binary = self.root / path
             binary.parent.mkdir(parents=True, exist_ok=True)
@@ -47,8 +47,8 @@ class SelectedRuntimeTest(unittest.TestCase):
 
     def test_game_and_maintenance_use_only_selected_box64_libraries(self):
         for wine in ['rootfs_wine_10.0', 'rootfs_proton_11.0']:
-            for selected in ['', 'rootfs_box64_0.2.8', 'rootfs_box64_0.3.8', 'rootfs_box64_0.4.5']:
-                expected = selected or 'rootfs_box64_0.4.5'
+            for selected in ['', 'rootfs_box64_0.2.8', 'rootfs_box64_0.3.8', 'rootfs_box64_0.4.4']:
+                expected = selected or 'rootfs_box64_0.4.4'
                 for pulse, maintenance in [(0, False), (1, False), (0, True)]:
                     with self.subTest(wine=wine, selected=selected, pulse=pulse, maintenance=maintenance):
                         p = self.run_command(wine, selected, pulse, maintenance)
@@ -64,6 +64,24 @@ class SelectedRuntimeTest(unittest.TestCase):
             self.assertEqual(p.returncode, 91)
             self.assertIn('custom_box64_id_invalid', p.stderr)
             self.assertEqual(p.stdout, '')
+
+
+    def test_missing_default_does_not_use_another_installed_version(self):
+        (self.root / 'opt/box64/rootfs_box64_0.4.4/bin/box64').unlink()
+        for selection in ['', 'rootfs_box64_0.4.4']:
+            p = self.run_command('rootfs_proton_11.0', selection, 0)
+            self.assertEqual(p.returncode, 91)
+            self.assertEqual(p.stdout, '')
+
+    def test_retired_version_is_rejected_even_if_its_binary_exists(self):
+        retired = self.root / 'opt/box64/rootfs_box64_0.4.5/bin/box64'
+        retired.parent.mkdir(parents=True)
+        retired.write_text('#!/bin/sh\nexit 0\n')
+        retired.chmod(0o755)
+        p = self.run_command('rootfs_wine_10.0', 'rootfs_box64_0.4.5', 0)
+        self.assertEqual(p.returncode, 91)
+        self.assertIn('custom_box64_id_invalid', p.stderr)
+        self.assertEqual(p.stdout, '')
 
 
 if __name__ == '__main__':

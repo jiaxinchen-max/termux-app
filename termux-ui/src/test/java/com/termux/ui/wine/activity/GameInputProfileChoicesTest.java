@@ -14,6 +14,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import com.termux.ui.wine.domain.GameRuntimeBackendType;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -44,6 +48,44 @@ public class GameInputProfileChoicesTest {
     public void composeOffYieldsTheBarePrefix() {
         assertEquals("xinput", GameInputProfileChoices.compose("xinput", GameInputProfileChoices.OFF));
         assertEquals("dinput", GameInputProfileChoices.compose("dinput:12", GameInputProfileChoices.OFF));
+    }
+
+    @Test
+    public void mappingChangeKeepsTouchLayoutWithoutEnablingAnOffController() {
+        assertEquals("dinput:3", GameInputProfileChoices.withMapper("xinput:3", "dinput"));
+        assertEquals("xinput:999999", GameInputProfileChoices.withMapper("dinput:999999", "xinput"));
+        assertEquals("dinput", GameInputProfileChoices.withMapper("xinput", "dinput"));
+        assertEquals("xinput", GameInputProfileChoices.withMapper("dinput", "xinput"));
+    }
+
+    @Test
+    public void mappingChangeSurvivesSaveForBothBackendsWithoutChangingLibraries() throws Exception {
+        FileRuntimeProfileRepository repository = new FileRuntimeProfileRepository(temporaryFolder.newFolder());
+        for (GameRuntimeBackendType backend : GameRuntimeBackendType.values()) {
+            RuntimeProfile original = RuntimeProfilePresets.create("game-" + backend.name(),
+                RuntimeProfilePreset.RECOMMENDED);
+            Map<String, String> environment = new LinkedHashMap<>(original.getEnvironment());
+            environment.put("GAMES_DLL_DINPUT", "native,builtin");
+            environment.put("GAMES_DLL_XINPUT", "builtin");
+            original = new RuntimeProfile(original.getId(), original.getWinePackage(),
+                original.getGraphicsDriver(), original.getDxWrapper(), original.getAudioDriver(),
+                original.getResolution(), original.getBox64Preset(), environment, "xinput:3",
+                original.getLaunchExecutionMode(), original.getComponentVersions(), backend,
+                backend == GameRuntimeBackendType.ROOTFS_PROOT ? "rootfs_debian" : "",
+                original.getContainerId());
+            for (String mapper : new String[] {"dinput", "xinput"}) {
+                RuntimeProfile changed = original.withInputProfileId(
+                    GameInputProfileChoices.withMapper(original.getInputProfileId(), mapper));
+                repository.save(changed);
+                RuntimeProfile restored = repository.find(changed.getId()).get();
+                assertEquals(mapper + ":3", restored.getInputProfileId());
+                assertEquals(original.getEnvironment(), restored.getEnvironment());
+                assertEquals(backend, restored.getRuntimeBackendType());
+                assertEquals(original.getWinePackage(), restored.getWinePackage());
+                assertEquals(original.getContainerId(), restored.getContainerId());
+                original = restored;
+            }
+        }
     }
 
     @Test

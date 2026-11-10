@@ -147,7 +147,7 @@ resolve_rootfs_translator() {
                 rootfs_proton_*) box64_wine_root=/opt/box64-proton; box64_wine_bin=wine ;;
                 *) box64_wine_root=/opt/box64-wine; box64_wine_bin=wine64 ;;
             esac
-            GUEST_COMMAND=/opt/box64/rootfs_box64_0.4.5/bin/box64
+            GUEST_COMMAND=/opt/box64/rootfs_box64_0.4.4/bin/box64
             if [ -n "$SELECTED_CUSTOM_WINE_ROOT" ]; then
                 GUEST_WINE="$SELECTED_CUSTOM_WINE_ROOT/bin/wine"
             else
@@ -184,7 +184,7 @@ resolve_rootfs_translator() {
     if [ -n "${GAMES_CUSTOM_BOX64_ID:-}" ]; then
         [ "$RUNTIME_TRANSLATOR" = box64 ] || warmup_fail box64_translator_mismatch
         case "$GAMES_CUSTOM_BOX64_ID" in
-            custom-box64-?*|rootfs_box64_0.2.8|rootfs_box64_0.3.8|rootfs_box64_0.4.5) ;;
+            custom-box64-?*|rootfs_box64_0.2.8|rootfs_box64_0.3.8|rootfs_box64_0.4.4) ;;
             *) warmup_fail custom_box64_id_invalid ;;
         esac
         case "$GAMES_CUSTOM_BOX64_ID" in *[!A-Za-z0-9._-]*) warmup_fail custom_box64_id_invalid ;; esac
@@ -195,7 +195,7 @@ resolve_rootfs_translator() {
         [ -x "$(rootfs_component_host "$custom_box64_bin")" ] || warmup_fail custom_box64_id_invalid
         GUEST_COMMAND=$custom_box64_bin
     fi
-    GUEST_BOX64_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.5/lib/x86_64-linux-gnu
+    GUEST_BOX64_LIBRARY_PATH=/opt/box64/rootfs_box64_0.4.4/lib/x86_64-linux-gnu
     if [ "$RUNTIME_TRANSLATOR" = box64 ]; then
         GUEST_BOX64_LIBRARY_PATH="${GUEST_COMMAND%/bin/box64}/lib/x86_64-linux-gnu"
     fi

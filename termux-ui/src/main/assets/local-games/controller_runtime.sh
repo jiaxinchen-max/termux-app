@@ -38,7 +38,7 @@ _games_controller_strip_marker() {
 # written through, so a prefix whose stubs link into a shared Wine build never modifies that build. With a third
 # argument the replaced file is kept once as <name>.stock.
 _games_controller_copy_dlls() {
-    [ -d "$1" ] || return 0
+    _games_controller_validate_tree "$1" || return 1
     mkdir -p "$2" || return 1
     for _source in "$1"/*.dll; do
         [ -f "$_source" ] || continue
@@ -52,6 +52,13 @@ _games_controller_copy_dlls() {
     done
 }
 
+# A protocol update must include every DLL for each supported architecture.
+_games_controller_validate_tree() {
+    for _required_dll in dinput dinput8 xinput1_1 xinput1_2 xinput1_3 xinput1_4 xinput9_1_0 xinputuap; do
+        [ -s "$1/$_required_dll.dll" ] || return 1
+    done
+}
+
 # Unpacks the DLL archive next to it, once per archive content: wine/ keeps the DLLs as shipped, wine-native/ holds
 # the same DLLs without the builtin marker.
 _games_controller_stage() {
@@ -61,11 +68,15 @@ _games_controller_stage() {
     [ -f "$_archive" ] || return 1
     _archive_sum=$(_games_controller_sum "$_archive")
     [ -n "$_archive_sum" ] || return 1
-    [ "$(cat "$_stage/.archive-sum" 2>/dev/null)" = "$_archive_sum" ] && [ -d "$_stage/wine-native" ] && return 0
+    [ "$(cat "$_stage/.archive-sum" 2>/dev/null)" = "$_archive_sum" ] && [ -d "$_stage/wine-native" ] && \
+        _games_controller_validate_tree "$_stage/wine/x86_64-windows" && \
+        _games_controller_validate_tree "$_stage/wine/i386-windows" && return 0
     rm -rf "$_stage.tmp"
     mkdir -p "$_stage.tmp" || return 1
     tar -xf "$_archive" -C "$_stage.tmp" || { rm -rf "$_stage.tmp"; return 1; }
-    [ -f "$_stage.tmp/wine/x86_64-windows/xinput1_3.dll" ] || { rm -rf "$_stage.tmp"; return 1; }
+    for _required_arch in x86_64-windows i386-windows; do
+        _games_controller_validate_tree "$_stage.tmp/wine/$_required_arch" || { rm -rf "$_stage.tmp"; return 1; }
+    done
     cp -R "$_stage.tmp/wine" "$_stage.tmp/wine-native" || { rm -rf "$_stage.tmp"; return 1; }
     for _dll in "$_stage.tmp"/wine-native/*/*.dll; do
         [ -f "$_dll" ] && _games_controller_strip_marker "$_dll"
@@ -80,8 +91,8 @@ _games_controller_stage() {
 # its lib/wine/x86_64-windows and lib/wine/i386-windows, as shipped, so that Wine loads them as builtin DLLs. Without
 # one (rootfs launcher) marker-free copies go into the prefix: a prefix with a syswow64 directory is 64-bit, so
 # x86_64 DLLs go to system32 and i386 DLLs to syswow64; otherwise system32 is 32-bit and takes the i386 DLLs.
-# Returns non-zero when the payload is missing or cannot be copied; the caller then starts the game the old way (a
-# missing controller must never keep a game from starting).
+# Returns non-zero when the payload is missing or cannot be copied; the caller must terminate launch so that
+# the selected API policy is never silently ignored.
 install_games_controller_runtime() {
     _prefix=$1
     _runtime_dir=$2
@@ -124,7 +135,8 @@ install_games_controller_hangover() {
     [ -f "$_runtime_dir/controller_winhandler.exe" ] || return 1
     _games_controller_stage "$_runtime_dir" || return 1
     _hangover="$_runtime_dir/controller-stage/wine-hangover"
-    [ -f "$_hangover/aarch64-windows/xinput1_3.dll" ] || return 1
+    _games_controller_validate_tree "$_hangover/aarch64-windows" || return 1
+    _games_controller_validate_tree "$_hangover/i386-windows" || return 1
     _games_controller_copy_dlls "$_hangover/aarch64-windows" "$_wine_dir/aarch64-windows" keep || return 1
     _games_controller_copy_dlls "$_hangover/aarch64-windows" "$_system32" keep || return 1
     if [ -d "$_wine_dir/i386-windows" ]; then
@@ -144,20 +156,21 @@ _games_controller_install_winhandler() {
     fi
 }
 
-# games_controller_dll_overrides <gamepad mapper>
-# The WINEDLLOVERRIDES entries for the patched DLLs, from the game's Runtime > Libraries settings: 0 = standard
-# (DInput, GAMES_DLL_DINPUT), anything else = XInput (GAMES_DLL_XINPUT); the value is builtin, native or native,builtin.
-# Nothing is printed while the setting is empty: the DLLs then load as builtin DLLs, which is what the installed
-# patched copies are.
+# games_controller_dll_overrides
+# Library load orders are independent of the gamepad's axis/button mapping. Both APIs can be used in the same
+# process. An empty setting adds no override, preserving Wine's existing default/registry load order.
 games_controller_dll_overrides() {
-    case "$1" in
-        0) _dlls='dinput dinput8'; _mode=${GAMES_DLL_DINPUT:-} ;;
-        *) _dlls='xinput1_1 xinput1_2 xinput1_3 xinput1_4 xinput9_1_0 xinputuap'; _mode=${GAMES_DLL_XINPUT:-} ;;
-    esac
-    [ -n "$_mode" ] || return 0
-    for _dll in $_dlls; do
-        printf '%s=%s;' "$_dll" "$_mode"
-    done
+    if [ -n "${GAMES_DLL_DINPUT:-}" ]; then
+        for _dll in dinput dinput8; do
+            printf '%s=%s;' "$_dll" "$GAMES_DLL_DINPUT"
+        done
+    fi
+    if [ -n "${GAMES_DLL_XINPUT:-}" ]; then
+        for _dll in xinput1_1 xinput1_2 xinput1_3 xinput1_4 xinput9_1_0 xinputuap; do
+            printf '%s=%s;' "$_dll" "$GAMES_DLL_XINPUT"
+        done
+    fi
+    return 0
 }
 
 # games_controller_windows_target <absolute Unix path inside the guest>

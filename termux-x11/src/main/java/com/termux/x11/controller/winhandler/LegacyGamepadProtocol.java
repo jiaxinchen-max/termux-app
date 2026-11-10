@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
  * Wire format of the patched xinput/dinput DLLs shipped with the app (wine.tar.gz): one controller per client, packets
  * of at most 64 bytes, little endian. The multi-slot protocol of {@link GamepadHandler} needs different DLLs.
  *
- * GET_GAMEPAD reply: [8] then either [int deviceId][byte mapperType][int nameLength][name] or [int 0] (no controller).
+ * GET_GAMEPAD reply: [8] then either [int deviceId][byte inputFlags][int nameLength][name] or [int 0] (no controller).
  * GET_GAMEPAD_STATE reply and pushes: [9][byte enabled] then, when enabled, [int deviceId][GamepadState.writeTo].
  */
 final class LegacyGamepadProtocol {
@@ -23,12 +23,17 @@ final class LegacyGamepadProtocol {
      * Whether a GET_GAMEPAD request asks to be notified of state changes. The request is [8][isXInput][notify] and the
      * buffer is positioned after the request code, as in {@link WinHandler}.
      */
-    static boolean isNotifyRequest(ByteBuffer request) {
-        request.get(); // isXInput
-        return request.get() == 1;
+    static final class Request {
+        final boolean xinput;
+        final boolean notify;
+        Request(boolean xinput, boolean notify) { this.xinput = xinput; this.notify = notify; }
     }
 
-    static void writeGamepadInfo(ByteBuffer out, boolean enabled, int deviceId, byte mapperType, String name) {
+    static Request readRequest(ByteBuffer request) {
+        return new Request(request.get() == 1, request.get() == 1);
+    }
+
+    static void writeGamepadInfo(ByteBuffer out, boolean enabled, int deviceId, byte inputFlags, String name) {
         out.put(RequestCodes.GET_GAMEPAD);
         if (!enabled) {
             out.putInt(0);
@@ -37,7 +42,7 @@ final class LegacyGamepadProtocol {
         byte[] bytes = name.getBytes(StandardCharsets.UTF_8);
         int length = Math.min(bytes.length, MAX_NAME_LENGTH);
         out.putInt(deviceId);
-        out.put(mapperType);
+        out.put(inputFlags);
         out.putInt(length);
         out.put(bytes, 0, length);
     }

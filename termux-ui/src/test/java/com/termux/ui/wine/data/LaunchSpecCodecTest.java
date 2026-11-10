@@ -26,6 +26,30 @@ public class LaunchSpecCodecTest {
 
     @Rule public final TemporaryFolder temporary = new TemporaryFolder();
 
+    @Test public void independentApiFlagsAreFrozenAndRoundTrip() throws Exception {
+        LaunchSpec base = spec(new LinkedHashMap<>());
+        for (boolean xinput : new boolean[] {false, true}) {
+            for (boolean dinput : new boolean[] {false, true}) {
+                LaunchSpec selected = new LaunchSpec(base.getTaskId(), base.getGameId(),
+                    base.getGameRootPath(), base.getExecutable(), base.getWorkingDirectory(),
+                    base.getArguments(), base.getPrefixPath(), base.getWinePackage(),
+                    base.getGraphicsDriver(), base.getDxWrapper(), base.getAudioDriver(),
+                    base.getResolution(), base.getBox64Preset(), base.getInputProfileId(),
+                    base.getLaunchExecutionMode(), base.getEnvironment(), base.getEventPath(),
+                    base.getLogPath(), base.getLockPath(), base.getCancelPath(), base.getTimeoutSeconds(),
+                    GameRuntimeBackendType.GLIBC_TERMUX_BOX, "", "", "", false, null, xinput, dinput);
+                File target = new File(temporary.getRoot(), "api.launchspec");
+                LaunchSpecCodec codec = new LaunchSpecCodec();
+                codec.write(target, selected);
+                LaunchSpec restored = codec.read(target);
+                assertEquals(xinput, restored.isXinputEnabled());
+                assertEquals(dinput, restored.isDinputEnabled());
+                assertEquals("dinput:3", restored.getInputProfileId());
+                assertEquals(codec.fingerprint(selected), codec.fingerprint(restored));
+            }
+        }
+    }
+
     @Test
     public void preservesSpecialCharactersAsIndependentValues() throws Exception {
         Map<String, String> environment = new LinkedHashMap<>();

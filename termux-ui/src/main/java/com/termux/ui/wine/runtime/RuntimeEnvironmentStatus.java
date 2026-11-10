@@ -75,7 +75,7 @@ public final class RuntimeEnvironmentStatus {
         try {
             if (ProotPreparedRuntime.usesExternalLayout(root)) return true;
         } catch (java.io.IOException error) { return false; }
-        return new File(root, "opt/box64/rootfs_box64_0.4.5/bin/box64").canExecute();
+        return new File(root, "opt/box64/rootfs_box64_0.4.4/bin/box64").canExecute();
     }
 
 }

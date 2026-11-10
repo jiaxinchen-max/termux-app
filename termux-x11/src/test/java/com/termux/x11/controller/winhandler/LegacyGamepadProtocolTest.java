@@ -28,12 +28,12 @@ public class LegacyGamepadProtocolTest {
     @Test
     public void gamepadInfoCarriesIdMapperAndName() {
         ByteBuffer out = buffer();
-        LegacyGamepadProtocol.writeGamepadInfo(out, true, 0x0102, GamepadHandler.DINPUT_MAPPER_TYPE_XINPUT, "Pad");
+        LegacyGamepadProtocol.writeGamepadInfo(out, true, 0x0102, (byte) 0x0e, "Pad");
 
         assertEquals(1 + 4 + 1 + 4 + 3, out.position());
         assertEquals(RequestCodes.GET_GAMEPAD, out.get(0));
         assertEquals(0x0102, out.getInt(1));
-        assertEquals(GamepadHandler.DINPUT_MAPPER_TYPE_XINPUT, out.get(5));
+        assertEquals(0x0e, out.get(5));
         assertEquals(3, out.getInt(6));
         assertEquals("Pad", new String(out.array(), 10, 3, StandardCharsets.UTF_8));
     }
@@ -96,9 +96,9 @@ public class LegacyGamepadProtocolTest {
     @Test
     public void notifyFlagIsTheSecondByteOfTheRequest() {
         // [8][isXInput][notify], as sent by get_gamepad_request() of the DLLs; the code byte is already consumed.
-        assertTrue(LegacyGamepadProtocol.isNotifyRequest(afterCode(8, 1, 1)));
-        assertTrue(!LegacyGamepadProtocol.isNotifyRequest(afterCode(8, 1, 0)));
-        assertTrue(!LegacyGamepadProtocol.isNotifyRequest(afterCode(8, 0, 0)));
-        assertTrue(LegacyGamepadProtocol.isNotifyRequest(afterCode(8, 0, 1)));
+        assertTrue(LegacyGamepadProtocol.readRequest(afterCode(8, 1, 1)).notify);
+        assertTrue(!LegacyGamepadProtocol.readRequest(afterCode(8, 1, 0)).notify);
+        assertTrue(!LegacyGamepadProtocol.readRequest(afterCode(8, 0, 0)).notify);
+        assertTrue(LegacyGamepadProtocol.readRequest(afterCode(8, 0, 1)).notify);
     }
 }

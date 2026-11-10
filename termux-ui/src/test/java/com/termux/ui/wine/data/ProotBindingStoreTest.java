@@ -23,9 +23,9 @@ public class ProotBindingStoreTest {
                 new ProotComponentBinding("rootfs_wine_10.0", 1, SHA,
                     "/private/install/rootfs_wine_10.0/versions/v1-aaaa", "wine $' = 目录",
                     "/opt/box64-wine", ProotComponentBinding.Role.WINE),
-                new ProotComponentBinding("rootfs_box64_0.4.5", 2, SHA,
-                    "/private/install/rootfs_box64_0.4.5/versions/v2-aaaa", "",
-                    "/opt/box64/rootfs_box64_0.4.5", ProotComponentBinding.Role.BOX64)));
+                new ProotComponentBinding("rootfs_box64_0.4.4", 2, SHA,
+                    "/private/install/rootfs_box64_0.4.4/versions/v2-aaaa", "",
+                    "/opt/box64/rootfs_box64_0.4.4", ProotComponentBinding.Role.BOX64)));
     }
     @Test public void exactIdentityRoundTripsWithoutAnActivePointer() throws Exception {
         File root = temp.newFolder();

@@ -460,6 +460,7 @@
     <string name="local_game_runtime_wine_mouse_overlay">鼠标叠加偏移</string>
     <string name="local_game_runtime_wine_mouse_disable">禁用</string>
     <string name="local_game_runtime_wine_mouse_force">强制</string>
+    <string name="local_game_runtime_gamepad_mapping">DirectInput 映射</string>
     <string name="local_game_runtime_dll_builtin">内置</string>
     <string name="local_game_runtime_dll_native">原生</string>
     <string name="local_game_runtime_dll_native_builtin">原生，内置</string>
@@ -708,4 +709,6 @@
     <string name="component_actions_removing">正在卸载组件…</string>
     <string name="component_actions_removed">组件已卸载</string>
     <string name="component_actions_available">可安装组件</string>
+    <string name="local_game_runtime_enable_xinput">启用 XInput</string>
+    <string name="local_game_runtime_enable_dinput">启用 DirectInput</string>
 </resources>

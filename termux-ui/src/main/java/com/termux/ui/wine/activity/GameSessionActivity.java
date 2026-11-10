@@ -197,6 +197,7 @@ public final class GameSessionActivity extends AppCompatActivity {
                 frozenSpec.getInputProfileId()))) {
             // Activity recreated (e.g. dark-mode switch): keep what the user picked in this session.
             inputSelection = restoredSelection;
+            binding.gameSessionX11.setInputApis(frozenSpec.isXinputEnabled(), frozenSpec.isDinputEnabled());
             applyInputSelection(restoredSelection);
         } else {
             inputSelection = frozenSpec.getInputProfileId();
@@ -280,6 +281,7 @@ public final class GameSessionActivity extends AppCompatActivity {
     }
 
     private void applyFrozenInputProfile(@NonNull LaunchSpec spec) {
+        binding.gameSessionX11.setInputApis(spec.isXinputEnabled(), spec.isDinputEnabled());
         applyInputSelection(spec.getInputProfileId());
     }
 

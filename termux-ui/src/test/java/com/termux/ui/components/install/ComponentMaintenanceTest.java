@@ -51,7 +51,7 @@ public class ComponentMaintenanceTest {
             File files = temp.newFolder();
             File install = new ComponentStoragePaths(files).getInstallDirectory();
             File selected = new File(install, id + "/versions/one/bin/box64");
-            File other = new File(install, "rootfs_box64_0.4.5/versions/old/bin/box64");
+            File other = new File(install, "rootfs_box64_0.4.4/versions/old/bin/box64");
             File nativeSelected = new File(files, "usr/glibc/components/" + id + "/bin/box64");
             File nativeOther = new File(files, "usr/glibc/components/glibc_box64_0.4.4/bin/box64");
             File prefix = new File(files, "front/wine/wine-one/drive_c/save.dat");

@@ -174,7 +174,7 @@ public class RuntimeEnvironmentStatusTest {
     public void externalRootfsIsReadyWithoutStandaloneBox64() throws Exception {
         GameStoragePaths paths = new GameStoragePaths(temporary.newFolder("files-external"));
         File root = createCompleteSharedRootfs(paths);
-        assertTrue(new File(root, "opt/box64/rootfs_box64_0.4.5/bin/box64").delete());
+        assertTrue(new File(root, "opt/box64/rootfs_box64_0.4.4/bin/box64").delete());
         File manifest = new File(root, "etc/wine-runtime.properties");
         java.nio.file.Files.write(manifest.toPath(),
             "schemaVersion=3\nlayout=external-components-v1\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -215,7 +215,7 @@ public class RuntimeEnvironmentStatusTest {
 
     private static File createCompleteSharedRootfs(GameStoragePaths paths) throws Exception {
         File root = paths.getSharedRootfsDirectory();
-        for (String executable : new String[] {"usr/bin/env", "opt/box64/rootfs_box64_0.4.5/bin/box64", "usr/bin/wine", "usr/bin/wineboot"}) {
+        for (String executable : new String[] {"usr/bin/env", "opt/box64/rootfs_box64_0.4.4/bin/box64", "usr/bin/wine", "usr/bin/wineboot"}) {
             File file = new File(root, executable);
             assertTrue(file.getParentFile().isDirectory() || file.getParentFile().mkdirs());
             assertTrue(file.createNewFile());

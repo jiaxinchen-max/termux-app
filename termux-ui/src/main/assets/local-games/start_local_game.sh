@@ -85,6 +85,7 @@ while IFS= read -r line || [ -n "$line" ]; do
         audioDriver) AUDIO_DRIVER=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         resolution) RESOLUTION=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         box64Preset) BOX64_PRESET=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
+        xinputEnabled|dinputEnabled) case "$value" in 0|1) ;; *) fail_before_events invalid_input_api_flag ;; esac ;;
         inputProfileId) INPUT_PROFILE_ID=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         launchExecutionMode) LAUNCH_EXECUTION_MODE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;
         runtimeBackendType) RUNTIME_BACKEND_TYPE=$(decode_text "$value") || fail_before_events invalid_launch_spec_base64 ;;

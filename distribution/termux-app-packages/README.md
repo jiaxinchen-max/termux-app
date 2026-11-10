@@ -580,7 +580,7 @@ PRoot 显式重装后刷新引用该组件的已准备绑定，不重建 prefix�
 
 当前分发文件名采用 `<组件ID>.tar.xz`，Native 使用 `glibc_box64_<版本>`，PRoot 使用
 `rootfs_box64_<版本>`。Native 0.2.7、0.4.4 已以规范名称发布至原资产仓库的同名组件标签，
-当前 APK 索引使用新地址；PRoot 0.4.5 原文件名已符合规范。历史输入仍按真实来源记录。
+该次 APK 索引使用规范地址；PRoot 0.4.5 原文件名已符合规范。下表记录该次历史资产，当前 PRoot 默认已替换为后文 0.4.4。
 本次只调整分发名称和 URL，归档字节、组件 ID、程序版本、索引修订和安装目录均保持。
 
 - Native 0.2.7：`glibc_box64_0.2.7.tar.xz`（22,582,612 字节）
@@ -600,6 +600,24 @@ ELF、4K/16K布局、QEMU AArch64版本及静态/动态x86_64程序验证通过�
 
 ### PRoot Box64 0.2.8候选
 
-新增 `rootfs_box64_0.2.8` 独立候选；PRoot默认0.4.5及原有0.3.8保留。固定上游v0.2.8提交8545d0505f274554561ca30e1839027dd7be783a，Release ARM64 dynarec构建并strip；解释器为 `/lib/ld-linux-aarch64.so.1`，无Native RUNPATH，配套库沿用PRoot0.4.5包。
+提供 `rootfs_box64_0.2.8` 独立候选；PRoot当前默认0.4.4，保留0.3.8候选。固定上游v0.2.8提交8545d0505f274554561ca30e1839027dd7be783a，Release ARM64 dynarec构建并strip；解释器为 `/lib/ld-linux-aarch64.so.1`，无Native RUNPATH，配套库沿用PRoot0.4.5包。
 
 资产：[rootfs_box64_0.2.8.tar.xz](https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.2.8/rootfs_box64_0.2.8.tar.xz)，5,352,260字节，SHA-256为 `870f46487e11e7acbb5f72e6684be29d844f91b64668cb234f9638dd3e621d16`。游戏与维护任务使用 `/opt/box64/rootfs_box64_0.2.8/bin/box64` 和同组件支持库；缺包失败，无自动升级或换版。ELF和QEMU基础程序验证通过，设备游戏由用户手动验证。
+
+
+### PRoot Box64 0.4.4 构建替换
+
+当前目录以 `rootfs_box64_0.4.4` 替换原0.4.5，版本0.4.4、修订号1；默认选择、绑定、安装检查及游戏/prefix维护命令同步使用 `/opt/box64/rootfs_box64_0.4.4/bin/box64`，配套库位于同组件 `lib/x86_64-linux-gnu`。PRoot0.2.8/0.3.8和所有Native候选保持不变，不迁移旧选择、不自动升级、不回退其他版本。历史0.4.5资产保留，但不再列入当前目录。
+
+固定上游v0.4.4提交 `2f130fab1d6e1a4ee8a71dc60cfdfcc839ad192a`，无本地补丁；GCC14.2 AArch64 glibc Release、ARM64 dynarec并strip，LOAD对齐64KiB。解释器为 `/lib/ld-linux-aarch64.so.1`，无Native RUNPATH；携带原PRoot包的x86_64支持库，不引入额外系统设施。
+
+资产：[rootfs_box64_0.4.4.tar.xz](https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.4.4/rootfs_box64_0.4.4.tar.xz)，6,470,584字节；SHA-256为 `7fa5b348073c4d33914b657e5415bbd19844c957f0badc60d1bec7fa7f3cfe2f`，仅记录构建来源，不增加运行时摘要/签名校验。
+
+ELF、4K/16K布局、QEMU版本及静态/动态x86_64程序验证通过。用户手动安装APK并进行Android Wine/游戏验收；不将QEMU基础程序检查视为实际游戏验证。
+
+
+### Proton 11 控制面板 DirectInput 修复
+
+2026-11-10 回移 Wine 官方提交 `70ed59e3f4570e61aea2f36a4d18b9c6eaa0f922`，修复无力反馈虚拟手柄因可选 AUTOCENTER 不支持而被面板过滤的问题。Native/PRoot各更新i386及x86_64的 `joy.cpl`，其他归档内容不变；组件ID、版本号、原下载URL和prefix保持不变，用户显式重装获取修复。
+
+构建、源补丁、回调回归及逐成员重打包核验见 [proton-joy-cpl](proton-joy-cpl/README.md)。四份PE来源、架构、builtin标记、导入及资源检查通过；875项Java测试通过。两份资产已发布至原标签并核验公开下载；Android界面和游戏输入待用户手动验收。

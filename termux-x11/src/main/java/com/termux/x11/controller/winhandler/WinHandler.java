@@ -210,6 +210,7 @@ public class WinHandler {
 
     public void stop() {
         running = false;
+        gamepadHandler.clearInputClients();
 
         if (socket != null) {
             socket.close();

@@ -129,7 +129,7 @@ public final class CustomComponentSelectionTest {
                 "rootfs-llvmpipe", "rootfs-wined3d", boxId);
             java.util.Set<String> ids = new ProotDependencyResolver().requiredComponentIds(selected, null);
             assertTrue(ids.contains(boxId));
-            assertFalse(ids.contains("rootfs_box64_0.4.5"));
+            assertFalse(ids.contains("rootfs_box64_0.4.4"));
             expect("box64_selection_unsupported:" + boxId, () ->
                 CustomComponentSelection.validate(profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX,
                     "native-turnip-v6.5", "wined3d", boxId), null));

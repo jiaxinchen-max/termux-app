@@ -240,6 +240,10 @@ public final class X11SessionView extends FrameLayout {
         return LorieView.renderedFrameCount();
     }
 
+    public void setInputApis(boolean xinput, boolean dinput) {
+        requireRuntime().setGamepadInputApis(xinput, dinput);
+    }
+
     public boolean applyInputProfile(@NonNull String profileId) {
         return requireRuntime().applyGameInputProfile(profileId);
     }

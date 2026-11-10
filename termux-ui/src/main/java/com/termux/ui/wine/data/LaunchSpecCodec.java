@@ -100,6 +100,8 @@ public final class LaunchSpecCodec {
         text(lines, "resolution", spec.getResolution());
         text(lines, "box64Preset", spec.getBox64Preset());
         text(lines, "inputProfileId", spec.getInputProfileId());
+        plain(lines, "xinputEnabled", spec.isXinputEnabled() ? "1" : "0");
+        plain(lines, "dinputEnabled", spec.isDinputEnabled() ? "1" : "0");
         text(lines, "launchExecutionMode", spec.getLaunchExecutionMode().getStorageValue());
         text(lines, "runtimeBackendType", spec.getRuntimeBackendType().getStorageValue());
         text(lines, "rootfsPackage", spec.getRootfsPackage());
@@ -137,7 +139,8 @@ public final class LaunchSpecCodec {
             "dxWrapper", "audioDriver", "resolution", "box64Preset", "inputProfileId",
             "launchExecutionMode", "runtimeBackendType", "rootfsPackage", "runtimeRootPath",
             "homeDirectory", "desktopOnly", "eventPath", "logPath", "lockPath",
-            "cancelPath", "timeoutSeconds", "argumentCount", "environmentCount");
+            "cancelPath", "timeoutSeconds", "argumentCount", "environmentCount",
+            "xinputEnabled", "dinputEnabled");
         List<String> argumentValues = new ArrayList<>();
         for (int index = 0; index < arguments; index++) {
             String key = "argument." + index;
@@ -179,7 +182,9 @@ public final class LaunchSpecCodec {
                 decoded(fields, "rootfsPackage"),
                 decoded(fields, "runtimeRootPath"),
                 decoded(fields, "homeDirectory"),
-                "1".equals(fields.get("desktopOnly")), bindings);
+                "1".equals(fields.get("desktopOnly")), bindings,
+                integer(fields, "xinputEnabled", 0, 1) == 1,
+                integer(fields, "dinputEnabled", 0, 1) == 1);
         } catch (IllegalArgumentException error) {
             throw new IOException("invalid_launch_spec", error);
         }

@@ -399,13 +399,13 @@ public class GameEditorActionsTest {
                 RuntimeComponentVersionsActivity.class, intent).create().start().resume()) {
             RuntimeComponentVersionsActivity activity = controller.get(); flushIo(activity);
             View decor = activity.getWindow().getDecorView();
-            assertNotNull(findText(decor, "box64_0.4.5"));
+            assertNotNull(findText(decor, "box64_0.4.4"));
             assertNotNull(findText(decor, activity.getString(R.string.component_actions_available)));
             assertNotNull(findText(decor, activity.getString(R.string.component_versions_download)));
             assertNotNull(findText(decor, activity.getString(R.string.component_versions_empty)));
             assertNotNull(findText(decor, "box64_0.2.8"));
-            assertNull(findText(decor, "box64_0.4.4"));
-            clickText(decor, "box64_0.4.5");
+            assertNull(findText(decor, "box64_0.4.5"));
+            clickText(decor, "box64_0.4.4");
             android.widget.PopupMenu actions = org.robolectric.shadows.ShadowPopupMenu.getLatestPopupMenu();
             assertEquals(1, actions.getMenu().size());
             assertEquals(activity.getString(R.string.local_games_component_install), actions.getMenu().getItem(0).getTitle());
@@ -418,7 +418,7 @@ public class GameEditorActionsTest {
         com.termux.ui.components.index.ComponentDescriptor descriptor;
         try (java.io.InputStream stream = context.getAssets().open("termux-app-packages/index-v1.json")) {
             descriptor = new com.termux.ui.components.index.ComponentIndexParser().parse(stream)
-                .find("rootfs_box64_0.4.5").get();
+                .find("rootfs_box64_0.4.4").get();
         }
         File packageRoot = new File(new com.termux.ui.components.ComponentStoragePaths(context.getFilesDir())
             .getInstallDirectory(), descriptor.getId());
@@ -429,16 +429,16 @@ public class GameEditorActionsTest {
             ("schemaVersion=1\npackageName=" + descriptor.getId() + "\nversion=" + descriptor.getVersion() +
                 "\nsha256=" + descriptor.getSha256() + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
         assertFalse(new File(new GameStoragePaths(context.getFilesDir()).getSharedRootfsDirectory(),
-            "opt/box64/rootfs_box64_0.4.5/bin/box64").exists());
-        for (String current : new String[] {"", "rootfs_box64_0.4.5"}) {
+            "opt/box64/rootfs_box64_0.4.4/bin/box64").exists());
+        for (String current : new String[] {"", "rootfs_box64_0.4.4"}) {
             Intent intent = RuntimeComponentVersionsActivity.createSelectIntent(context,
                 CustomRuntimeComponent.Kind.BOX64, GameRuntimeBackendType.ROOTFS_PROOT, current, RuntimeTranslator.BOX64);
             try (ActivityController<RuntimeComponentVersionsActivity> controller = Robolectric.buildActivity(
                     RuntimeComponentVersionsActivity.class, intent).create().start().resume()) {
                 RuntimeComponentVersionsActivity activity = controller.get(); flushIo(activity);
                 View decor = activity.getWindow().getDecorView();
-                assertTrue(clickableParent(findText(decor, "box64_0.4.5")).isSelected());
-                android.view.ViewGroup row = (android.view.ViewGroup) clickableParent(findText(decor, "box64_0.4.5"));
+                assertTrue(clickableParent(findText(decor, "box64_0.4.4")).isSelected());
+                android.view.ViewGroup row = (android.view.ViewGroup) clickableParent(findText(decor, "box64_0.4.4"));
                 assertNull(findText(row, activity.getString(R.string.component_actions_available)));
                 View actionButton = row.getChildAt(row.getChildCount() - 1);
                 assertTrue(actionButton instanceof android.widget.ImageButton);
@@ -449,9 +449,9 @@ public class GameEditorActionsTest {
                 assertEquals(activity.getString(R.string.local_games_component_reinstall), actions.getMenu().getItem(1).getTitle());
                 assertEquals(android.app.Activity.RESULT_CANCELED, Shadows.shadowOf(activity).getResultCode());
                 actions.dismiss();
-                clickText(decor, "box64_0.4.5");
+                clickText(decor, "box64_0.4.4");
                 assertEquals(android.app.Activity.RESULT_OK, Shadows.shadowOf(activity).getResultCode());
-                assertEquals("rootfs_box64_0.4.5", Shadows.shadowOf(activity).getResultIntent()
+                assertEquals("rootfs_box64_0.4.4", Shadows.shadowOf(activity).getResultIntent()
                     .getStringExtra(RuntimeComponentVersionsActivity.EXTRA_SELECTION_ID));
             }
         }
@@ -462,7 +462,7 @@ public class GameEditorActionsTest {
                 RuntimeComponentVersionsActivity.class, intent).create().start().resume()) {
             RuntimeComponentVersionsActivity activity = controller.get(); flushIo(activity);
             // A dangling active receipt is a failure, never a usable installed build or a silent fallback.
-            assertNull(findText(activity.getWindow().getDecorView(), "box64_0.4.5"));
+            assertNull(findText(activity.getWindow().getDecorView(), "box64_0.4.4"));
             assertNotNull(findText(activity.getWindow().getDecorView(), activity.getString(R.string.component_versions_retry)));
         }
     }
@@ -480,21 +480,21 @@ public class GameEditorActionsTest {
             activity.findViewById(R.id.game_detail_runtime_profile).performClick();
             GameRuntimeOptionsView options = (GameRuntimeOptionsView) field(activity, "runtimeOptionsView"); flushIo(options);
             options.restoreComponentSelection(new Intent()
-                .putExtra(RuntimeComponentVersionsActivity.EXTRA_SELECTION_ID, "rootfs_box64_0.4.5")
+                .putExtra(RuntimeComponentVersionsActivity.EXTRA_SELECTION_ID, "rootfs_box64_0.4.4")
                 .putExtra(RuntimeComponentVersionsActivity.EXTRA_KIND, "BOX64")
                 .putExtra(RuntimeComponentVersionsActivity.EXTRA_BACKEND, GameRuntimeBackendType.ROOTFS_PROOT.getStorageValue()));
             flushIo(options);
-            assertEquals("rootfs_box64_0.4.5", profile(options).getEnvironment().get("GAMES_CUSTOM_BOX64_ID"));
+            assertEquals("rootfs_box64_0.4.4", profile(options).getEnvironment().get("GAMES_CUSTOM_BOX64_ID"));
             controller.recreate(); activity = controller.get(); flush(activity);
             options = (GameRuntimeOptionsView) field(activity, "runtimeOptionsView"); flushIo(options);
-            assertEquals("rootfs_box64_0.4.5", profile(options).getEnvironment().get("GAMES_CUSTOM_BOX64_ID"));
+            assertEquals("rootfs_box64_0.4.4", profile(options).getEnvironment().get("GAMES_CUSTOM_BOX64_ID"));
             Method save = GameRuntimeOptionsView.class.getDeclaredMethod("saveAndFinish"); save.setAccessible(true);
             save.invoke(options); flushIo(options);
         }
         RuntimeProfile saved = profiles.find(game).get();
-        assertEquals("rootfs_box64_0.4.5", saved.getEnvironment().get("GAMES_CUSTOM_BOX64_ID"));
+        assertEquals("rootfs_box64_0.4.4", saved.getEnvironment().get("GAMES_CUSTOM_BOX64_ID"));
         assertTrue(new com.termux.ui.wine.runtime.ProotDependencyResolver().requiredComponentIds(saved, paths)
-            .contains("rootfs_box64_0.4.5"));
+            .contains("rootfs_box64_0.4.4"));
     }
 
     @Test public void savingBox64ForOneGameNeverChangesAnotherGamesVersion() throws Exception {
@@ -621,7 +621,7 @@ public class GameEditorActionsTest {
             assertNotNull(findText(activity.getWindow().getDecorView(),
                 activity.getString(R.string.component_versions_preinstalled_incomplete)));
             for (String path : new String[] {"usr/bin/env", "usr/bin/wine", "usr/bin/wineboot",
-                    "opt/box64/rootfs_box64_0.4.5/bin/box64", "etc/wine-runtime.properties",
+                    "opt/box64/rootfs_box64_0.4.4/bin/box64", "etc/wine-runtime.properties",
                     "usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"}) {
                 File file = new File(rootfs, path); file.getParentFile().mkdirs();
                 java.nio.file.Files.write(file.toPath(), new byte[] {1}); file.setExecutable(true);

@@ -26,6 +26,8 @@ public final class RuntimeProfileDiff {
         add(changes, "audioDriver", before.getAudioDriver(), after.getAudioDriver());
         add(changes, "resolution", before.getResolution(), after.getResolution());
         add(changes, "box64Preset", before.getBox64Preset(), after.getBox64Preset());
+        add(changes, "xinputEnabled", Boolean.toString(before.isXinputEnabled()), Boolean.toString(after.isXinputEnabled()));
+        add(changes, "dinputEnabled", Boolean.toString(before.isDinputEnabled()), Boolean.toString(after.isDinputEnabled()));
         add(changes, "inputProfileId", before.getInputProfileId(), after.getInputProfileId());
         add(changes, "launchExecutionMode",
             before.getLaunchExecutionMode().getStorageValue(),

@@ -62,7 +62,7 @@ public final class GameContainerProfileResolver {
             gameProfile.getResolution(), gameProfile.getBox64Preset(), environment,
             gameProfile.getInputProfileId(), gameProfile.getLaunchExecutionMode(),
             gameProfile.getComponentVersions(), container.getBackendType(),
-            container.getRootfsPackage(), container.getId());
+            container.getRootfsPackage(), container.getId(), gameProfile.isXinputEnabled(), gameProfile.isDinputEnabled());
     }
 
     /** Package-visible so GameContainerFactory can reuse the identical classification rule --
