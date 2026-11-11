@@ -127,6 +127,11 @@ public final class GameFileManagerActivity extends AppUiActivity {
                 if (current != null) showLocal(current); else showHome();
             });
         viewMode = collectionToolbar.getMode();
+        binding.localGameFileManagerToolbar.setNavigationOnClickListener(view -> navigateUp());
+        binding.localGameFileManagerToolbar.setNavigationIconTint(
+            ContextCompat.getColor(this, R.color.local_games_on_surface));
+        binding.localGameFileManagerToolbar.setNavigationContentDescription(
+            androidx.appcompat.R.string.abc_action_bar_up_description);
         configureFileActions();
         navigation = UiNavigation.install(this, R.id.local_games_navigation_file_manager, null);
         File restored = restoreBrowsedDirectory(savedInstanceState);
@@ -437,6 +442,8 @@ public final class GameFileManagerActivity extends AppUiActivity {
 
     private void updateFileActions() {
         if (binding == null) return;
+        if (localCurrent == null) binding.localGameFileManagerToolbar.setNavigationIcon(null);
+        else binding.localGameFileManagerToolbar.setNavigationIcon(R.drawable.local_games_ic_back);
         android.view.Menu menu = binding.localGameFileManagerToolbar.getMenu();
         if (menu.findItem(R.id.browser_paste) == null) return;
         boolean pending = clipboardSource != null;

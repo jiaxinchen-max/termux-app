@@ -40,8 +40,8 @@ public class ComponentIndexParserTest {
         assertEquals("https://github.com/jiaxinchen-max/termux-app-packages/releases/download/"
             + "rootfs-debian13-hangover-pdb2-minimal-v2/"
             + "rootfs-debian13-hangover-pdb2-minimal-v2.tar.zst", image.getUrl());
-        assertEquals(323406172L, image.getSize());
-        assertEquals("01b6fe94fc711db2e80ea69518e4ebfd613881dbed4d52bdd900b159221784b7",
+        assertEquals(320439261L, image.getSize());
+        assertEquals("e480a35af360dfd916d961be3cfaa2a7ab5208118e3899cca14662f84cda5b4f",
             image.getSha256());
         assertFalse(index.find("termux-glibc").isPresent());
         assertFalse(index.find("rootfs_hangover_11.16").isPresent());

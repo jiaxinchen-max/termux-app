@@ -23,9 +23,7 @@ import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Stack;
-import java.util.UUID;
 import java.util.concurrent.Executors;
 
 public abstract class FileUtils {
@@ -204,19 +202,6 @@ public abstract class FileUtils {
         }
     }
 
-    public static ArrayList<String> readLines(File file) {
-        ArrayList<String> lines = new ArrayList<>();
-        try (FileInputStream fis = new FileInputStream(file)) {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
-            String line;
-            while ((line = reader.readLine()) != null) lines.add(line);
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-        }
-        return lines;
-    }
-
     public static String getName(String path) {
         if (path == null) return "";
         path = StringUtils.removeEndSlash(path);
@@ -233,23 +218,6 @@ public abstract class FileUtils {
         path = StringUtils.removeEndSlash(path);
         int index = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
         return path.substring(0, index);
-    }
-
-    public static void chmod(File file, int mode) {
-        try {
-            Os.chmod(file.getAbsolutePath(), mode);
-        }
-        catch (ErrnoException e) {}
-    }
-
-    public static File createTempFile(File parent, String prefix) {
-        File tempFile = null;
-        boolean exists = true;
-        while (exists) {
-            tempFile = new File(parent, prefix+"-"+ UUID.randomUUID().toString().replace("-", "")+".tmp");
-            exists = tempFile.exists();
-        }
-        return tempFile;
     }
 
     public static String getFilePathFromUri(Uri uri) {

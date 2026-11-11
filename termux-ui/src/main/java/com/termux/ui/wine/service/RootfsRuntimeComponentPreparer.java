@@ -15,6 +15,7 @@ import com.termux.ui.domain.ComponentTaskState;
 import com.termux.ui.service.ComponentTaskConsoleLog;
 import com.termux.ui.service.SetupPreparationLog;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
@@ -26,7 +27,7 @@ import java.util.List;
  *
  * <p>Mirrors {@link GlibcRuntimeComponentPreparer}, but RootFS components are consumed by the
  * in-container build rather than published into the host GLIBC prefix, so "ready" means the
- * component's private active pointer matches the catalog descriptor -- there is no host activation
+ * component's private active directory exists -- there is no host activation
  * step. This closes the gap where a rebuild threw {@code rootfs_source_component_missing} (and
  * created no task, leaving the UI stuck) when a required component had never been downloaded.</p>
  *
@@ -38,32 +39,61 @@ final class RootfsRuntimeComponentPreparer {
 
     private final SetupPreparationLog console;
     private final String parentTaskId;
-    private final Context context;
+    private final File filesDirectory;
+    private final Commands commands;
     private final ComponentIndex index;
     private final FileComponentTaskRepository tasks;
     private final ComponentInstallationReader installations;
 
     RootfsRuntimeComponentPreparer(Context context, String parentTaskId) throws IOException {
-        this.context = context.getApplicationContext();
+        this(context.getFilesDir(), parentTaskId, readIndex(context), new Commands() {
+            @Override public String enqueue(String id) throws IOException {
+                return ComponentTasks.enqueueRuntimeDependency(context, id, parentTaskId);
+            }
+            @Override public void resume(String id, boolean retry) throws IOException {
+                ComponentTasks.resumeAndAwaitAcceptance(context, id, retry, 30000L);
+            }
+            @Override public void reconcile() { ComponentTasks.reconcile(context); }
+        });
+    }
+
+    RootfsRuntimeComponentPreparer(File filesDirectory, String parentTaskId,
+                                   ComponentIndex index, Commands commands) throws IOException {
+        this.filesDirectory = filesDirectory;
+        this.commands = commands;
+        this.index = index;
         this.parentTaskId = parentTaskId;
-        console = new SetupPreparationLog(context.getFilesDir(), parentTaskId);
-        ComponentStoragePaths paths = new ComponentStoragePaths(context.getFilesDir());
+        console = new SetupPreparationLog(filesDirectory, parentTaskId);
+        ComponentStoragePaths paths = new ComponentStoragePaths(filesDirectory);
         tasks = new FileComponentTaskRepository(paths.getTasksDirectory());
         installations = new ComponentInstallationReader(paths.getInstallDirectory());
+    }
+
+    private static ComponentIndex readIndex(Context context) throws IOException {
         try (InputStream input = context.getAssets().open(INDEX_ASSET)) {
-            index = new ComponentIndexParser().parse(input);
+            return new ComponentIndexParser().parse(input);
         }
     }
 
-    /** Downloads and installs every component id that is not already installed at the catalog
-     *  version; returns once all are present, or throws if any cannot be prepared in time. */
+    interface Commands {
+        String enqueue(String componentId) throws IOException;
+        void resume(String taskId, boolean retry) throws IOException;
+        void reconcile();
+    }
+
+    /** Ordinary program preparation reuses installed components without catalog upgrades. */
     void ensure(Collection<String> componentIds) throws IOException {
+        ensure(componentIds, false);
+    }
+
+    /** An explicit base build prepares the current image even when an old installation exists. */
+    void ensure(Collection<String> componentIds, boolean rebuildBase) throws IOException {
         for (String componentId : componentIds) {
             if (componentId.startsWith("custom-")) {
                 if (!installations.read(componentId).getActive().isPresent()) {
                     throw new IOException("rootfs_custom_component_prepare_required:" + componentId);
                 }
-            } else ensure(requiredDescriptor(componentId));
+            } else ensure(requiredDescriptor(componentId), rebuildBase);
         }
     }
 
@@ -72,28 +102,45 @@ final class RootfsRuntimeComponentPreparer {
             new IOException("component_unknown:" + componentId));
     }
 
-    private void ensure(ComponentDescriptor descriptor) throws IOException {
-        com.termux.ui.wine.runtime.RuntimeEditingStop.requireNotCancelled(context.getFilesDir(), parentTaskId);
+    private void ensure(ComponentDescriptor descriptor, boolean rebuildBase) throws IOException {
+        com.termux.ui.wine.runtime.RuntimeEditingStop.requireNotCancelled(filesDirectory, parentTaskId);
         console.append("Preparing component: " + descriptor.getDisplayName() + " (" + descriptor.getId() + ")");
-        if (isInstalled(descriptor)) return;
+        if (!rebuildBase && isInstalled(descriptor)) return;
 
-        ComponentTask reusable = findReusableTask(descriptor, tasks.list());
+        ComponentTask reusable = rebuildBase ? findBuildTask(descriptor, tasks.list())
+            : findReusableTask(descriptor, tasks.list());
         String taskId;
         if (reusable == null) {
-            taskId = ComponentTasks.enqueueRuntimeDependency(context, descriptor.getId(), parentTaskId);
+            taskId = commands.enqueue(descriptor.getId());
         } else {
             taskId = reusable.getTaskId();
-            com.termux.ui.service.RuntimeInstallationGate.registerDependency(context.getFilesDir(), parentTaskId, taskId);
-            ComponentTaskConsoleLog.clearCommandFailure(context.getFilesDir(), taskId);
+            if (rebuildBase) {
+                // Recover only this build's child; its own failure must never start a retry.
+                if (reusable.getState().shouldRecoverAutomatically()) commands.reconcile();
+                waitForTask(descriptor, taskId);
+                return;
+            }
+            com.termux.ui.service.RuntimeInstallationGate.registerDependency(filesDirectory, parentTaskId, taskId);
+            ComponentTaskConsoleLog.clearCommandFailure(filesDirectory, taskId);
             if (reusable.getState() == ComponentTaskState.FAILED) {
-                ComponentTasks.resumeAndAwaitAcceptance(context, taskId, true, 30000L);
+                commands.resume(taskId, true);
             } else if (reusable.getState() == ComponentTaskState.PAUSED) {
-                ComponentTasks.resumeAndAwaitAcceptance(context, taskId, false, 30000L);
+                commands.resume(taskId, false);
             } else {
-                ComponentTasks.reconcile(context);
+                commands.reconcile();
             }
         }
         waitForTask(descriptor, taskId);
+    }
+
+    private ComponentTask findBuildTask(ComponentDescriptor descriptor,
+                                         List<ComponentTask> candidates) {
+        for (ComponentTask task : candidates) {
+            if (descriptor.getId().equals(task.getPackageName()) &&
+                com.termux.ui.service.RuntimeInstallationGate.ownsDependency(
+                    filesDirectory, parentTaskId, task.getTaskId())) return task;
+        }
+        return null;
     }
 
     private ComponentTask findReusableTask(ComponentDescriptor descriptor,
@@ -114,9 +161,9 @@ final class RootfsRuntimeComponentPreparer {
     private void waitForTask(ComponentDescriptor descriptor, String taskId) throws IOException {
         long deadline = System.currentTimeMillis() + COMPONENT_TIMEOUT_MS;
         while (System.currentTimeMillis() < deadline) {
-            com.termux.ui.wine.runtime.RuntimeEditingStop.requireNotCancelled(context.getFilesDir(), parentTaskId);
+            com.termux.ui.wine.runtime.RuntimeEditingStop.requireNotCancelled(filesDirectory, parentTaskId);
             console.component(descriptor.getId(), taskId);
-            String rejected = ComponentTaskConsoleLog.commandFailure(context.getFilesDir(), taskId);
+            String rejected = ComponentTaskConsoleLog.commandFailure(filesDirectory, taskId);
             if (!rejected.isEmpty()) throw new IOException("component_prepare_failed:" + descriptor.getId() + ":" + rejected);
             ComponentTask task = tasks.find(taskId).orElse(null);
             if (task != null) {

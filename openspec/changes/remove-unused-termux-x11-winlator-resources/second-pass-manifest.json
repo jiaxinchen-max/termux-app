@@ -1,0 +1,63 @@
+{
+  "status": "ImplementedAndLocallyVerified",
+  "reason": "用户明确要求继续清理删除组件后的资源；源码、动态/JNI及跨模块引用已核对",
+  "deleteFiles": [
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/core/PreloaderDialog.java",
+      "bytes": 1744,
+      "sha256": "b6f4b53628ec751b1b6234d4fc60a7c54d5d8ae05bb4573372e6f630d645bc14",
+      "reason": "唯一引用为InputControllerActivity中从未读取的实例字段；实际下载使用DownloadProgressDialog"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/preloader_dialog.xml",
+      "bytes": 1274,
+      "sha256": "25e675db76b26760e0ee41e28eb2cdf958787e515403101cc8d727e88ec728eb",
+      "reason": "唯一消费者为删除的PreloaderDialog"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/progress_bar_indeterminate.xml",
+      "bytes": 3753,
+      "sha256": "a5d0e1c6fe41bba4b5fa538dae40028d25f22a3074f7a721abcc38147579825c",
+      "reason": "唯一消费者为删除的preloader_dialog布局"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/preloader_spinner.png",
+      "bytes": 5252,
+      "sha256": "c15db90c1fe9f845ac844ce976653d8fd35b74d9abef2eb4dad334130e552e9a",
+      "reason": "唯一消费者为删除的progress_bar_indeterminate动画"
+    }
+  ],
+  "editFiles": [
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/InputControllerActivity.java",
+      "bytes": 2659,
+      "sha256": "05199f63f416779ed0a1b138650a5336a0ad740bd7e6e85400381d0cb62dcb4d",
+      "reason": "删除无人读取的PreloaderDialog字段和导入；保留实际控制器Fragment"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/core/FileUtils.java",
+      "bytes": 12262,
+      "sha256": "4068ee8e36b34e8216b9fbf761661c2b5a9b88ad67352b78f2d5c88b151516c4",
+      "reason": "删除仅被已删除WineInfo/WineRegistryEditor/Shortcut消费的chmod/createTempFile/readLines和闲置导入"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/core/StringUtils.java",
+      "bytes": 2584,
+      "sha256": "e1023accac1b2ff7cbb00c666fb278871daa0093bfa9db5073b698a9e0b75acd",
+      "reason": "删除仅被已删除KeyValueSet/Shortcut消费的replace/unescape"
+    },
+    {
+      "path": "termux-x11/build.gradle",
+      "bytes": 6507,
+      "sha256": "f1c62aef7560cd674be835c5d4a235f01b42999006701d726e6683693f61ab58",
+      "reason": "移除全仓无人使用的zstd-jni及模块无人使用的xz/commons-compress声明；后两者保留在app和termux-ui；移除重复的Material1.4声明，保留1.9声明且解析版本不变"
+    }
+  ],
+  "keepEvidence": {
+    "preloader_background": "仍被download_progress_dialog引用，保留",
+    "DownloadProgressDialog": "LorieViewRuntimeController/InputControlsHost实际使用，保留",
+    "xz_and_commons_in_other_modules": "安装解压及备份仍使用，保留",
+    "kotlin_lifecycle": "移除可能改变全应用依赖版本，不属于本次删除链，保留",
+    "attrs": "额外按键主题在app中引用，保留全部styleable和attr"
+  }
+}

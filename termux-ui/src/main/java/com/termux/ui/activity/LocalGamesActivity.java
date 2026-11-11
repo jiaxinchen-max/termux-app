@@ -404,7 +404,15 @@ public final class LocalGamesActivity extends AppUiActivity {
         binding.localGamesToolbar.setVisibility(selectedTab == TAB_LIBRARY ? View.GONE : View.VISIBLE);
         binding.localGamesLibraryToolbar.setVisibility(selectedTab == TAB_LIBRARY ? View.VISIBLE : View.GONE);
         if (selectedTab == TAB_SETTINGS) {
-            binding.localGamesToolbar.setNavigationIcon(null);
+            if (settingsPage.isRoot()) {
+                binding.localGamesToolbar.setNavigationIcon(null);
+            } else {
+                binding.localGamesToolbar.setNavigationIcon(R.drawable.local_games_ic_back);
+                binding.localGamesToolbar.setNavigationIconTint(
+                    ContextCompat.getColor(this, R.color.local_games_on_surface));
+                binding.localGamesToolbar.setNavigationContentDescription(
+                    androidx.appcompat.R.string.abc_action_bar_up_description);
+            }
             binding.localGamesToolbar.setTitle(null);
         } else {
             binding.localGamesToolbar.setTitle(R.string.local_games_title);
@@ -1281,7 +1289,7 @@ public final class LocalGamesActivity extends AppUiActivity {
     private void renderSettingsMenu() {
         if (binding == null) return;
         SettingsMenuBuilder menu = new SettingsMenuBuilder(this, binding.localGamesSettingsMenu);
-        // The toolbar only holds Help; sub-pages carry their title in the content.
+        // Sub-pages keep their title in the content and expose Up in the toolbar.
         String pageTitle = settingsPageTitle(settingsPage);
         if (!settingsPage.isRoot()) {
             menu.heading(pageTitle);

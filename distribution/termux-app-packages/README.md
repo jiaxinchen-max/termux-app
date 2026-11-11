@@ -4,6 +4,36 @@ Publishing and migration tooling for `jiaxinchen-max/termux-app-packages`.
 Package archives are GitHub Release assets and are not committed to Git.
 The App bundles `termux-ui/src/main/assets/termux-app-packages/index-v1.json`.
 
+## PRoot 公共工具与开始菜单（本地候选，待 App 验收）
+
+`add-proot-prefix-tools.py` 在三套独立的 PRoot 预构建 prefix 中加入 13 个
+公共工具入口，便携工具及 TrueTransparency 配套文件放在 `C:\Tools`。
+快捷方式使用本地 C 盘目标及工作目录；不复制 Native 的主机路径、安装器、
+注册表脚本或架构相关系统 DLL，也不执行 wineboot。
+
+```sh
+python3 distribution/termux-app-packages/add-proot-prefix-tools.py \
+  --source /build/original/prefix-wine10-wow64 \
+  --scripts-archive /build/glibc_scripts_29.tar.xz \
+  --output /build/candidate/prefix-wine10-wow64
+python3 distribution/termux-app-packages/package-prefix-assets.py \
+  --source /build/candidate/prefix-wine10-wow64 \
+  --output /build/prefix-wine10-wow64-v1.tar.gz
+```
+
+对 `prefix-hangover-pdb2`、`prefix-wine10-wow64`、`prefix-proton11-wow64`
+分别制备；输出目录必须不存在，保留输入包原有文件、注册表及运行时来源记录。
+APK 只接入新的 `bundle.json` 描述；完整资源仍通过组件资产网络/缓存恢复。
+组件版本、发布文件名和 URL 不变，不自动升级或迁移已有 prefix。
+旧环境须显式重新准备，发布与 App 界面验收另行执行。
+
+构建测试使用独立的 Shell Link 解析器，仅为开发依赖：
+
+```sh
+python3 -m pip install -r distribution/termux-app-packages/prefix-tools-test-requirements.txt
+python3 distribution/termux-app-packages/test_proot_prefix_tools.py
+```
+
 `proton_prefix_fonts.py` applies Proton-only CJK font defaults at asset build time.
 The Native prefix packager invokes the same transform after collecting font files.
 To regenerate the registries of an existing build artifact without executing Wine:
@@ -614,6 +644,21 @@ ELF、4K/16K布局、QEMU AArch64版本及静态/动态x86_64程序验证通过�
 资产：[rootfs_box64_0.4.4.tar.xz](https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.4.4/rootfs_box64_0.4.4.tar.xz)，6,470,584字节；SHA-256为 `7fa5b348073c4d33914b657e5415bbd19844c957f0badc60d1bec7fa7f3cfe2f`，仅记录构建来源，不增加运行时摘要/签名校验。
 
 ELF、4K/16K布局、QEMU版本及静态/动态x86_64程序验证通过。用户手动安装APK并进行Android Wine/游戏验收；不将QEMU基础程序检查视为实际游戏验证。
+
+### PRoot 镜像残留开发文件清理
+
+`trim-rootfs-extras.py` 从现有预装镜像生成独立候选，仅清理 Perl 开发头文件、纯 POD 文档及非中英文 gettext 翻译，包括同语言指向这些翻译的 `LC_TIME` 链接。法律声明、其他存活链接依赖、prefix 来源及运行守卫全部保留。需要 Python 3 和 zstd；使用与原打包器相同的 `-T2 -6` 参数。
+
+```sh
+python3 distribution/termux-app-packages/trim-rootfs-extras.py \
+  --archive /path/to/rootfs-debian13-hangover-pdb2-minimal-v2.tar.zst \
+  --descriptor termux-ui/src/main/assets/local-games/runtime-rootfs-v12/image.json \
+  --output-dir /path/to/new-candidate
+```
+
+候选目录必须不存在。输出保留原文件名的镜像、更新后的 `image.json` 及 `cleanup-report.json`，原镜像和客户端配置不变；任一成员异常立即失败并清理临时输出。输入与输出的逐成员核对属于维护者离线制品审计，不增加 App 摘要或签名检查。报告的 `OfflineVerified` 仅表示归档完整性，真实运行验收仍为 `Pending`；历史 `sourceTrimReceipt` 保留原值，不代表新候选已运行验收。离线恢复可用于验证解压兼容性，发布及更新客户端索引仍需相应授权。
+
+2026-11-11：用户授权后，第一批已替换至原资产仓库 `rootfs-debian13-hangover-pdb2-minimal-v2` 标签的同名镜像，组件 ID、版本和 URL 均不变。清理 157 个普通文件及 43 个对应翻译链接，展开减少 19,827,051 字节，归档减少 2,966,911 字节至 320,439,261 字节。镜像描述与两个索引同步，公开原 URL 全量下载一致；当前 APK 解压及恢复后 12,507 项离线核对通过，1594 个 prefix 来源及运行守卫保持不变。64 项接入回归通过，原名正常 APK 已构建，Android 程序运行由用户手动验收；已有安装不自动升级，验证本次镜像应使用全新安装环境。
 
 
 ### Proton 11 控制面板 DirectInput 修复

@@ -181,7 +181,7 @@ public final class RootfsSetupForegroundService extends Service {
             if (prefix != null) required.add(prefix);
         }
         if (PENDING_RECIPE.equals(task.getRecipeSha256())) {
-            new RootfsRuntimeComponentPreparer(this, task.getTaskId()).ensure(required);
+            new RootfsRuntimeComponentPreparer(this, task.getTaskId()).ensure(required, task.isBaseOnly());
         }
         RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
         RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), task.getTaskId());

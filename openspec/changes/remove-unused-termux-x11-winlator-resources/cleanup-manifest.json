@@ -1,0 +1,2069 @@
+{
+  "status": "ImplementedAndLocallyVerified",
+  "head": "989eb1f2be52b76aad7470b48b988f3e73c3593d",
+  "resourceSymbols": 260,
+  "deleteFiles": [
+    {
+      "path": "termux-x11/src/main/assets/start-tfm",
+      "bytes": 10453,
+      "sha256": "4658576802c21d14fb4badb8c46340d5331333a10c9888d7ca678c5ca61a6b2c",
+      "reason": "旧启动资产；仅历史注释、测试路径样例及旧启动脚本自身提及，无当前执行入口"
+    },
+    {
+      "path": "termux-x11/src/main/assets/wfm.exe",
+      "bytes": 259072,
+      "sha256": "8723c0844e75de8c0a3ce2118a9f04935fb817ad27032bc1757a1e47a1df03b0",
+      "reason": "旧启动资产；仅历史注释、测试路径样例及旧启动脚本自身提及，无当前执行入口"
+    },
+    {
+      "path": "termux-x11/src/main/cpp/xrio/android.c",
+      "bytes": 7140,
+      "sha256": "a06a485e1a084a2a6bcc353a5d8666b4253f7a76d42bc28745f67ebd4d79ef33",
+      "reason": "所有已生成ABI构建清单均未编入，XrActivity JNI宿主不存在"
+    },
+    {
+      "path": "termux-x11/src/main/cpp/xrio/engine.c",
+      "bytes": 7124,
+      "sha256": "adcd823c502366c79d09ec9ea9449b612a5734dcd29e45ab8492aee5a8052f7b",
+      "reason": "所有已生成ABI构建清单均未编入，XrActivity JNI宿主不存在"
+    },
+    {
+      "path": "termux-x11/src/main/cpp/xrio/engine.h",
+      "bytes": 1995,
+      "sha256": "936da4962a20e8c2a5c57dad88cb1266f590c012e929e7e842348551618ad31c",
+      "reason": "所有已生成ABI构建清单均未编入，XrActivity JNI宿主不存在"
+    },
+    {
+      "path": "termux-x11/src/main/cpp/xrio/framebuffer.c",
+      "bytes": 5643,
+      "sha256": "fee536885d14f36a84613418634236e1611be61c1db09166ea9ebfb9ae7eb251",
+      "reason": "所有已生成ABI构建清单均未编入，XrActivity JNI宿主不存在"
+    },
+    {
+      "path": "termux-x11/src/main/cpp/xrio/framebuffer.h",
+      "bytes": 793,
+      "sha256": "f0c3f5c62976b9a034597af733ce731cbf98e60f59d199327ccc9b4168969e38",
+      "reason": "所有已生成ABI构建清单均未编入，XrActivity JNI宿主不存在"
+    },
+    {
+      "path": "termux-x11/src/main/cpp/xrio/input.c",
+      "bytes": 19935,
+      "sha256": "e29d378ac7169ab79fabf56c0df23cb23990a0090144e000762b71cc7116fdcc",
+      "reason": "所有已生成ABI构建清单均未编入，XrActivity JNI宿主不存在"
+    },
+    {
+      "path": "termux-x11/src/main/cpp/xrio/input.h",
+      "bytes": 2894,
+      "sha256": "68189740e70df950c73e31d1a0d11f6c4e9e58f92fe09a1da50f7fd2944f1e5c",
+      "reason": "所有已生成ABI构建清单均未编入，XrActivity JNI宿主不存在"
+    },
+    {
+      "path": "termux-x11/src/main/cpp/xrio/math.c",
+      "bytes": 5358,
+      "sha256": "3a1a4d84a6a5f144dc8ed2e5cc347c4bd9cd0c6e6c5cfd11dcc4219911861abd",
+      "reason": "所有已生成ABI构建清单均未编入，XrActivity JNI宿主不存在"
+    },
+    {
+      "path": "termux-x11/src/main/cpp/xrio/math.h",
+      "bytes": 986,
+      "sha256": "f2425892814a96f2d09033d9e29e05c821f71b4c29c1d2e0fa1efeaa9232bedc",
+      "reason": "所有已生成ABI构建清单均未编入，XrActivity JNI宿主不存在"
+    },
+    {
+      "path": "termux-x11/src/main/cpp/xrio/renderer.c",
+      "bytes": 25180,
+      "sha256": "b552e18cee06b8198cc83f0127f54d9dd4f0efe404e5edf8a9c5f4588c281330",
+      "reason": "所有已生成ABI构建清单均未编入，XrActivity JNI宿主不存在"
+    },
+    {
+      "path": "termux-x11/src/main/cpp/xrio/renderer.h",
+      "bytes": 2224,
+      "sha256": "d68f3bc785a9c13b7781dcba44bd406987c322dbfb7b1a86f0f91e862083b855",
+      "reason": "所有已生成ABI构建清单均未编入，XrActivity JNI宿主不存在"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/container/Container.java",
+      "bytes": 13409,
+      "sha256": "55af2be22752cf2e43466309297d93cd61268cb97b6d85dd9d7fd063fc839dfc",
+      "reason": "无调用的Java类；删除旧Shortcut/Container读取后其专属依赖一并不可达"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/container/Shortcut.java",
+      "bytes": 3977,
+      "sha256": "d961d3a5e2e7a86d5a0ea6afc744127cbdc9f398a1e5942ec2a95128148586b9",
+      "reason": "无调用的Java类；删除旧Shortcut/Container读取后其专属依赖一并不可达"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/core/EnvVars.java",
+      "bytes": 2059,
+      "sha256": "a66f3dd7243fb750a84df5f5ff283a6de3c9340d25092a1d0bacc99c782ea3e3",
+      "reason": "无调用的Java类；删除旧Shortcut/Container读取后其专属依赖一并不可达"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/core/KeyValueSet.java",
+      "bytes": 2135,
+      "sha256": "9ebfb61f98da899bc58cb9a2100b3d6c7be07b5db00a646c16af8ce3c407c388",
+      "reason": "无调用的Java类；删除旧Shortcut/Container读取后其专属依赖一并不可达"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/core/MSBitmap.java",
+      "bytes": 4711,
+      "sha256": "966ffa22aff693e6329ed1d78f52c605e9537d642176ac81389710109cdf0404",
+      "reason": "无调用的Java类；删除旧Shortcut/Container读取后其专属依赖一并不可达"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/core/WineInfo.java",
+      "bytes": 4085,
+      "sha256": "cb18a438fc3c6b4c507d2712c5da6867994011db7a42476ebbe653e13dc5da2f",
+      "reason": "无调用的Java类；删除旧Shortcut/Container读取后其专属依赖一并不可达"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/core/WineRegistryEditor.java",
+      "bytes": 14636,
+      "sha256": "5d16d1b6512fce9a42cfbc81e10ba7bb576fdee5c0f0732f4de47d07e165c9ed",
+      "reason": "无调用的Java类；删除旧Shortcut/Container读取后其专属依赖一并不可达"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/core/WineThemeManager.java",
+      "bytes": 10614,
+      "sha256": "3b9da343accf2b9334547995b719d875b7e74b597450513a727da74f5d37e893",
+      "reason": "无调用的Java类；删除旧Shortcut/Container读取后其专属依赖一并不可达"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/xserver/ScreenInfo.java",
+      "bytes": 259,
+      "sha256": "651ca3a9421ca7fc36d4d1844775b67a1ae90cf9a20ccb246fbc1acd2ca0204e",
+      "reason": "无调用的Java类；删除旧Shortcut/Container读取后其专属依赖一并不可达"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/utils/GLUtility.java",
+      "bytes": 4777,
+      "sha256": "997029a6c425350ca61f6f753ca42dd74bc83390ff1749031223709a20105bf8",
+      "reason": "无调用的Java类；删除旧Shortcut/Container读取后其专属依赖一并不可达"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/button_transparent.9.png",
+      "bytes": 844,
+      "sha256": "3e1782d4abeb1d25f1346a67f834658954be6870e2c0bf716c724751433efe2a",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/cursor.png",
+      "bytes": 173,
+      "sha256": "bdd26930e96407a9dc6315a1c7413da09bbe74ab1a93f0692b17883cef6c96a3",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_about.png",
+      "bytes": 1334,
+      "sha256": "4ad7a6629c9257bdbf8b85ab0afea3c2addaf28b9fd101b89888e1b6283e121e",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_confirm.png",
+      "bytes": 624,
+      "sha256": "743c7383d213b27e4b3be2df2b295624d4bbcf406311289922c19717bfb59b02",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_container.png",
+      "bytes": 972,
+      "sha256": "bc4e656e38bdd5c61748c13d76e9eff4703a641c507be91da71df1b0198eeac8",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_env_var.png",
+      "bytes": 737,
+      "sha256": "44642b407f409e0784579afa769bccfbde4482391be4359eae569e567a221382",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_exit.png",
+      "bytes": 520,
+      "sha256": "d1c0d7a33987e8211461fc483b60dac25dc44e6651753317ca9431a97e400496",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_fullscreen.png",
+      "bytes": 535,
+      "sha256": "d2fb4a219483e152e163af7db5da18914b9fac32aa138df02bed6aaf3f703162",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_help.png",
+      "bytes": 1189,
+      "sha256": "55e64f876bf220d1e128edf20c9701416e85f448032e6a9cb8027ff186364250",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_hide.png",
+      "bytes": 1301,
+      "sha256": "c0507068ccfcbab04c6f817ecf8b91db39cf5391c1cc1c1ee778f3c8f8ba72aa",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_keyboard.png",
+      "bytes": 565,
+      "sha256": "d3cd68a43455798a4ea34864e9cc78b347ce0e94420c21b764229aef8126c850",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_magnifier.png",
+      "bytes": 1000,
+      "sha256": "d41224a1dbbb66276af6611a43909fea917085330e469ed294ebb0cf7e0580ec",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_menu.png",
+      "bytes": 439,
+      "sha256": "f4353186f9a015bf24141ed2b5c11b99bc357f20f831eb193b3fbaee6febf4bc",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_move.png",
+      "bytes": 587,
+      "sha256": "79632d1ffffc9fddde937e987e84a12ed48dc29092a7cea8b5be22342daca8ff",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_open.png",
+      "bytes": 721,
+      "sha256": "7200765f0049de586d46acb14b1f7af57b2fd615a6cf46fdb19d31d9dfa4bb1e",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_shortcut.png",
+      "bytes": 1135,
+      "sha256": "44b48f6b030b4cb2e708a4007e6ef0103c046ccc313927022f12d7f8d85788a5",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_wine.png",
+      "bytes": 1238,
+      "sha256": "0d1e8ff4451caa63202e8fb8b3ecc156e96698a607bb9242b710554c01ff4d33",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_zoom_minus.png",
+      "bytes": 1163,
+      "sha256": "0fb0df5f424c149b2fe4b144a1cba840c5ab113279411b280ff19c43ed923908",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/icon_zoom_plus.png",
+      "bytes": 839,
+      "sha256": "5a4f9b97a3266d702e4587d2248098ae29a2ec03c572ed084b173bff75c0bfcf",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/logo.png",
+      "bytes": 3529,
+      "sha256": "d7cc12a076afc7eedf6421035995c3b571e0ea65b09b5ce6e17fb28faef91966",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/taskmgr_process.png",
+      "bytes": 196,
+      "sha256": "cc7ea279036f3efb6c9a6b3e1f419b5a7e81a74b72a22a5063c6a4493a57185f",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/terminal_combo_box.9.png",
+      "bytes": 1237,
+      "sha256": "06a344cbcd7af62dc11ce5114eb121ab455bce43c87a7ac27a6e16277edbbc42",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/toggle_button_off.png",
+      "bytes": 1452,
+      "sha256": "28cf180f2e89dceae87fef9a368b65e3f0328f1033c858b1e1f088f4d00bb3d1",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/toggle_button_on.png",
+      "bytes": 1596,
+      "sha256": "feff378df3e9aeb0a86f32951326bbc554e4cd9784decce7a21d82fa60062ba7",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/touchpad_help_main_menu.png",
+      "bytes": 2600,
+      "sha256": "79003369433d5d0d96751f4bcb765d0b3a07c404870197f45b86f728e7c65b8b",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/touchpad_help_mouse_left_click.png",
+      "bytes": 4648,
+      "sha256": "87b80b65890ea6956ada30b706d96cd3649044116b5af8b78ea6801bcd7d48b4",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/touchpad_help_mouse_right_click.png",
+      "bytes": 5353,
+      "sha256": "a674e6597c6608dcea266d837cba0bd6e4f35276609c427710ceb868c463b42c",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/touchpad_help_mouse_scroll_wheel.png",
+      "bytes": 3615,
+      "sha256": "99d63f7d8b1fcdbef2aa89d8d0f441d64bed58537c1e695cb082104bbbd056e7",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-hdpi/wallpaper.png",
+      "bytes": 24759,
+      "sha256": "346b65fbd08575cd2d8b19d0fd1acf74b3369a56f3f7764180c339081bef1e37",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-xxhdpi/icon_action_bar_add.png",
+      "bytes": 633,
+      "sha256": "d73f03bba10a2279e18dcd61ac382b8bfb25a908ed5629266c629ef8e345b857",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-xxhdpi/icon_action_bar_menu.png",
+      "bytes": 637,
+      "sha256": "f6a2f1ee65579af29c76adf776e70a1573dbfcb07f00f193c0a5a496a707d33c",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-xxhdpi/icon_popup_menu_duplicate.png",
+      "bytes": 1125,
+      "sha256": "966a4510dfc743ba282498b5c7d8ac399eaa45284a7f6965e8e8a5c18b37a51a",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-xxhdpi/icon_popup_menu_edit.png",
+      "bytes": 1009,
+      "sha256": "4ec530aefa9c8167410bc39720da2c73195757febcc1896c9f3a1c65bfb3a5fb",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-xxhdpi/icon_popup_menu_info.png",
+      "bytes": 1328,
+      "sha256": "56632d9995b1d1993a7a8d352a34a0a05d7b2650815a0ea4c895629b65f8279a",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-xxhdpi/icon_popup_menu_run.png",
+      "bytes": 1128,
+      "sha256": "be8694d82e98eeadf233564708c5eba35c63cd81815446b822113f3b79dc020e",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable-xxhdpi/icon_popup_menu_settings.png",
+      "bytes": 1434,
+      "sha256": "c2b4847ef4e0c4ebf608a60c4ca622a06e2ab3278927637bd793f8067d8288a5",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_add_item.xml",
+      "bytes": 703,
+      "sha256": "dffd21550f51b379f53480b8a0219fb50e2340f836e861fde1fe53c6fc31683b",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_add_item_pressed.xml",
+      "bytes": 679,
+      "sha256": "16e8999d418690bbdebf53ad8c2d266816277895b9c20f7e44e2eb3676a68fec",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_add_item_shape.xml",
+      "bytes": 358,
+      "sha256": "162bc1839315ed15fbc1b9e417c53d47c3540db1c06744a301571ccbe4c8c13d",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_delete_item.xml",
+      "bytes": 1100,
+      "sha256": "7e2cdeaa78fd4a924bc0860eecf5b25d4306299dda645d72ba299e515df977ec",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_delete_item_pressed.xml",
+      "bytes": 1092,
+      "sha256": "a7b71fdb6b93f9bed8bb502f5c6431e5f255336e3969ced5b52436eb3d54bb9f",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_delete_item_shape.xml",
+      "bytes": 367,
+      "sha256": "5168b1e6ab7338ef7af07c77ea14a3ba8a01eda91ee843856fdc41f683bdc4d4",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_item_back.xml",
+      "bytes": 401,
+      "sha256": "16ad0e5549ed2e76868c5838529f19b8246d6bb3c77cc440f782a70c78dd250b",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_play_launch_item.xml",
+      "bytes": 684,
+      "sha256": "33d06248d8974e73edf4cc3e07c8176ead21b1e2d6825e2e4dc4b9374356db73",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_save_item.xml",
+      "bytes": 536,
+      "sha256": "e437bf538a7903848235a701dd6bef1f092a3e2dc8548d361f03b782ecb1dc2d",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_save_item_pressed.xml",
+      "bytes": 536,
+      "sha256": "8356187a48d07bc46e64e76700c7f84d85593566f03e2ae83d0cad5c429493bd",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_save_item_shape.xml",
+      "bytes": 361,
+      "sha256": "fbcac309962284dd115c0ca5af3d810bb4162b61597885b137a1fd3d7c13409e",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/ic_set_launch_item.xml",
+      "bytes": 11876,
+      "sha256": "66492e3e457ade044a386606621976b963eafe4e70ae3d354d7ce1cae0238288",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/tab_layout_background.xml",
+      "bytes": 219,
+      "sha256": "f1a6cd50952feceac39b1921fb014ed040b5fe99bbc641c967a37b3646fdbf64",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/terminal_button_background.xml",
+      "bytes": 312,
+      "sha256": "b833172c8d250f7866c7adbcbca7592b1b8b374604f24ea56d285b7dafdb998f",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/drawable/toggle_button_selector.xml",
+      "bytes": 292,
+      "sha256": "f157d8300a4227a11ba7b935885449d0ba807cd7765a9466777b37f8a7ff7e8a",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/about_dialog.xml",
+      "bytes": 2416,
+      "sha256": "a7e0971b800eb8185cd6c9221acb569a3228b2c7093b4c0e59285508a1b2df0a",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/add_env_var_dialog.xml",
+      "bytes": 811,
+      "sha256": "681edb8d4a67fefe336b6b22f3b0121858b386c8b3c6bfb3a22c36367cb0066d",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/box86_64_edit_preset_dialog.xml",
+      "bytes": 1166,
+      "sha256": "5057f2708d32aaf44decce7b257294c4972f3dce1689a0ae766df0260432a587",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/box86_64_env_var_list_item.xml",
+      "bytes": 1571,
+      "sha256": "f5b889c11fe1e596b99bbf14048e42cce22761aca9b0060b36ea370641887fc5",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/container_detail_fragment.xml",
+      "bytes": 22910,
+      "sha256": "8341c2f5f54bd6d3398fd4a5a00624a7b0255962f6691f390dc59ed7bb09bed7",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/container_list_item.xml",
+      "bytes": 1111,
+      "sha256": "816d0419a5c26d17e0b298ff4dbf0d403c198bdc1cef4967e9e2362cd53c07ed",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/container_storage_info_dialog.xml",
+      "bytes": 3776,
+      "sha256": "938e37adfd3ecab898248a4f1486710e004269fef6caff56586c1a1d53c05d6e",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/containers_fragment.xml",
+      "bytes": 828,
+      "sha256": "98ad244aaaf230ca915f9bf7d7b50f86be4fc8e61d4efca326207a809fa7b7a4",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/drive_list_item.xml",
+      "bytes": 918,
+      "sha256": "148c33553a175865caf4c99a516631840bc4d9eeff2ddc1a8b3f60a50fdb799e",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/dxvk_config_dialog.xml",
+      "bytes": 1486,
+      "sha256": "a125ebcba311e516b35c8eb21e2d038d19f39575684bd559fb8898e91081abd5",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/env_vars_list_item.xml",
+      "bytes": 813,
+      "sha256": "a37a2c3441137a8d9f136618a6387ed0dbefcbe324e8985cbe1c61f8bff6b998",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/fragment_main.xml",
+      "bytes": 882,
+      "sha256": "9f9acc5de0ccc0d9d7daeedf36531941aa1fda106e69bc6e2052ca5057640b74",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/installed_wine_list_item.xml",
+      "bytes": 1354,
+      "sha256": "78bb32ef0c928ea59810a0b33a15c37832304a25a0d71d92dad27ce01708df13",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/magnifier_view.xml",
+      "bytes": 1257,
+      "sha256": "b2b99b63b97ba94ec4aa6e305d09b05b3332ef489450fdbb6098c937261dae52",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/main_menu_header.xml",
+      "bytes": 492,
+      "sha256": "041ce8d7be67fdacb156df82903e368c52c1b6f60a722f0838abab26da2a0ac8",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/settings_fragment.xml",
+      "bytes": 8812,
+      "sha256": "b75fe9e99e7337e242a2b27586c4aeb6e4349be20c9f4efd1be19b9115635267",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/shortcut_list_item.xml",
+      "bytes": 1934,
+      "sha256": "d244ecce7b867b031ec64badf1040d58c3448eb8f84f902a3fb5c81f199a3587",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/shortcut_settings_dialog.xml",
+      "bytes": 13913,
+      "sha256": "0f81df1f088a57c151bf342f8d6fe1f31f857410b9508e3c5f013e339deb4234",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/shortcuts_fragment.xml",
+      "bytes": 828,
+      "sha256": "98ad244aaaf230ca915f9bf7d7b50f86be4fc8e61d4efca326207a809fa7b7a4",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/touchpad_help_dialog.xml",
+      "bytes": 5380,
+      "sha256": "a1f97f6d75ddb14e99fabbc012c6d754d76422a626bdd5bc897f1eb77a8239e3",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/turnip_config_dialog.xml",
+      "bytes": 1276,
+      "sha256": "95bd1cd6ecc5d75451aa2f20e12cd33954b232a07d03f3c594aec648ee1196a3",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/wincomponent_list_item.xml",
+      "bytes": 567,
+      "sha256": "8a18791185170c259045cbe316ae621b66f1c2964a2758e8e332631d30a314f4",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/wine_install_options_dialog.xml",
+      "bytes": 1077,
+      "sha256": "e09cf9298a6676629330d25850185e218fc23410a99a2d732197ae4caa41d871",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/layout/xserver_display_activity.xml",
+      "bytes": 1275,
+      "sha256": "13bd504d148e93ce21a6b6acb84c3bb120646f720fe3922266072385cba1bcab",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/menu/container_popup_menu.xml",
+      "bytes": 934,
+      "sha256": "6887ea632365fd1c0c3f855dc4ee24b88be8a8f7e1071df8015e3b18aa0b245c",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/menu/containers_menu.xml",
+      "bytes": 355,
+      "sha256": "47293375c56cc626a0d9176defbe5c3be4823d11b981a605c40977f52ad61cf5",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/menu/extra_args_popup_menu.xml",
+      "bytes": 375,
+      "sha256": "2daaabbd937a6883c14bd72ff89803006b22e240eacdc51b9e015235d90be389",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/menu/main_menu.xml",
+      "bytes": 820,
+      "sha256": "3ad8e640d9fb6974202b11564f0e2f09654a99e26c234e7e5c6e40c5b79bf423",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/menu/shortcut_popup_menu.xml",
+      "bytes": 447,
+      "sha256": "2f1d9f67b076343198277ca8afd518b81e7c5717eee38d336bb4323cfee8f4e3",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    },
+    {
+      "path": "termux-x11/src/main/res/menu/xserver_menu.xml",
+      "bytes": 1102,
+      "sha256": "4e1e4107e0e8f550d81d5943fb4ca592abb3493294929a747473bd09cadda902",
+      "reason": "没有活动引用的Android资源；依赖图、动态命名规则及跨模块引用已核对"
+    }
+  ],
+  "editFiles": [
+    {
+      "path": "termux-x11/src/main/res/values-night/color.xml",
+      "sha256": "70faf965e7d16b307128acbc08fa72c9088394436c247fd73be56c0a73b41e65",
+      "removeDefinitions": [
+        {
+          "type": "color",
+          "name": "window_background_color"
+        }
+      ]
+    },
+    {
+      "path": "termux-x11/src/main/res/values-night/styles.xml",
+      "sha256": "f30feddf324cbebddee3049bb216916c0a2dc0ded48807cec3fd9187831d17bb",
+      "removeDefinitions": [
+        {
+          "type": "style",
+          "name": "AppTheme"
+        },
+        {
+          "type": "style",
+          "name": "AppThemeFullscreen"
+        },
+        {
+          "type": "style",
+          "name": "AppThemeLight"
+        },
+        {
+          "type": "style",
+          "name": "CheckBox"
+        },
+        {
+          "type": "style",
+          "name": "FieldSeparator"
+        },
+        {
+          "type": "style",
+          "name": "FieldSet"
+        },
+        {
+          "type": "style",
+          "name": "FieldSetLabel"
+        },
+        {
+          "type": "style",
+          "name": "HelpButton"
+        },
+        {
+          "type": "style",
+          "name": "ListPopupWindow"
+        },
+        {
+          "type": "style",
+          "name": "PopupMenu"
+        },
+        {
+          "type": "style",
+          "name": "PopupWindow"
+        },
+        {
+          "type": "style",
+          "name": "TerminalComboBox"
+        },
+        {
+          "type": "style",
+          "name": "TextView"
+        }
+      ]
+    },
+    {
+      "path": "termux-x11/src/main/res/values-zh-rCN/strings.xml",
+      "sha256": "ff19f1fc544d5582de9a4f5fcba3e0b9b740f1810460a30ce88876da61a841ab",
+      "removeDefinitions": [
+        {
+          "type": "string",
+          "name": "_new"
+        },
+        {
+          "type": "string",
+          "name": "about"
+        },
+        {
+          "type": "string",
+          "name": "action_already_disabled"
+        },
+        {
+          "type": "string",
+          "name": "action_already_granted"
+        },
+        {
+          "type": "string",
+          "name": "action_disable_battery_optimizations"
+        },
+        {
+          "type": "string",
+          "name": "action_grant_display_over_other_apps_permission"
+        },
+        {
+          "type": "string",
+          "name": "action_grant_storage_permission"
+        },
+        {
+          "type": "string",
+          "name": "add"
+        },
+        {
+          "type": "string",
+          "name": "advanced"
+        },
+        {
+          "type": "string",
+          "name": "app_name"
+        },
+        {
+          "type": "string",
+          "name": "arch"
+        },
+        {
+          "type": "string",
+          "name": "audio_driver"
+        },
+        {
+          "type": "string",
+          "name": "background"
+        },
+        {
+          "type": "string",
+          "name": "box64_preset"
+        },
+        {
+          "type": "string",
+          "name": "box64_version"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_bigblock"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_callret"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_fastnan"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_fastround"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_forward"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_safeflags"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_strongmem"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_wait"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_x87double"
+        },
+        {
+          "type": "string",
+          "name": "box86_box64"
+        },
+        {
+          "type": "string",
+          "name": "box86_preset"
+        },
+        {
+          "type": "string",
+          "name": "box86_version"
+        },
+        {
+          "type": "string",
+          "name": "cache"
+        },
+        {
+          "type": "string",
+          "name": "clear_cache"
+        },
+        {
+          "type": "string",
+          "name": "command"
+        },
+        {
+          "type": "string",
+          "name": "compatibility"
+        },
+        {
+          "type": "string",
+          "name": "configuration"
+        },
+        {
+          "type": "string",
+          "name": "container"
+        },
+        {
+          "type": "string",
+          "name": "containers"
+        },
+        {
+          "type": "string",
+          "name": "copy"
+        },
+        {
+          "type": "string",
+          "name": "creating_container"
+        },
+        {
+          "type": "string",
+          "name": "credits_and_third_party_apps"
+        },
+        {
+          "type": "string",
+          "name": "csmt"
+        },
+        {
+          "type": "string",
+          "name": "desktop"
+        },
+        {
+          "type": "string",
+          "name": "direct3d"
+        },
+        {
+          "type": "string",
+          "name": "directinput_mapper_type"
+        },
+        {
+          "type": "string",
+          "name": "directmusic"
+        },
+        {
+          "type": "string",
+          "name": "directplay"
+        },
+        {
+          "type": "string",
+          "name": "directshow"
+        },
+        {
+          "type": "string",
+          "name": "directsound"
+        },
+        {
+          "type": "string",
+          "name": "disable"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_duplicate_this_container"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_duplicate_this_preset"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_remove_this_container"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_remove_this_preset"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_remove_this_shortcut"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_remove_this_wine_version"
+        },
+        {
+          "type": "string",
+          "name": "drive_c"
+        },
+        {
+          "type": "string",
+          "name": "drives"
+        },
+        {
+          "type": "string",
+          "name": "duplicate"
+        },
+        {
+          "type": "string",
+          "name": "duplicating_container"
+        },
+        {
+          "type": "string",
+          "name": "dxwrapper"
+        },
+        {
+          "type": "string",
+          "name": "dxwrapper_help_content"
+        },
+        {
+          "type": "string",
+          "name": "edit"
+        },
+        {
+          "type": "string",
+          "name": "edit_container"
+        },
+        {
+          "type": "string",
+          "name": "enable"
+        },
+        {
+          "type": "string",
+          "name": "enabled"
+        },
+        {
+          "type": "string",
+          "name": "environment_variables"
+        },
+        {
+          "type": "string",
+          "name": "estimated_used_space"
+        },
+        {
+          "type": "string",
+          "name": "exec_arguments"
+        },
+        {
+          "type": "string",
+          "name": "exit"
+        },
+        {
+          "type": "string",
+          "name": "finishing_installation"
+        },
+        {
+          "type": "string",
+          "name": "force"
+        },
+        {
+          "type": "string",
+          "name": "force_fullscreen"
+        },
+        {
+          "type": "string",
+          "name": "frame_rate"
+        },
+        {
+          "type": "string",
+          "name": "gpu_name"
+        },
+        {
+          "type": "string",
+          "name": "graphics_driver"
+        },
+        {
+          "type": "string",
+          "name": "height"
+        },
+        {
+          "type": "string",
+          "name": "help_button_text"
+        },
+        {
+          "type": "string",
+          "name": "hide_x11_settings"
+        },
+        {
+          "type": "string",
+          "name": "install_wine"
+        },
+        {
+          "type": "string",
+          "name": "installed_version"
+        },
+        {
+          "type": "string",
+          "name": "installed_wine"
+        },
+        {
+          "type": "string",
+          "name": "installing_system_files"
+        },
+        {
+          "type": "string",
+          "name": "intermediate"
+        },
+        {
+          "type": "string",
+          "name": "keyboard"
+        },
+        {
+          "type": "string",
+          "name": "launch_button_text"
+        },
+        {
+          "type": "string",
+          "name": "letter"
+        },
+        {
+          "type": "string",
+          "name": "log_level_title"
+        },
+        {
+          "type": "string",
+          "name": "magnifier"
+        },
+        {
+          "type": "string",
+          "name": "max_device_memory"
+        },
+        {
+          "type": "string",
+          "name": "mouse_warp_override"
+        },
+        {
+          "type": "string",
+          "name": "msg_battery_optimization_not_disabled_warning"
+        },
+        {
+          "type": "string",
+          "name": "msg_display_over_other_apps_permission_not_granted_warning"
+        },
+        {
+          "type": "string",
+          "name": "msg_storage_permission_not_granted_warning"
+        },
+        {
+          "type": "string",
+          "name": "name"
+        },
+        {
+          "type": "string",
+          "name": "new_container"
+        },
+        {
+          "type": "string",
+          "name": "new_environment_variable"
+        },
+        {
+          "type": "string",
+          "name": "no_profile_found"
+        },
+        {
+          "type": "string",
+          "name": "offscreen_rendering_mode"
+        },
+        {
+          "type": "string",
+          "name": "old"
+        },
+        {
+          "type": "string",
+          "name": "options"
+        },
+        {
+          "type": "string",
+          "name": "performance"
+        },
+        {
+          "type": "string",
+          "name": "plugin_info"
+        },
+        {
+          "type": "string",
+          "name": "preparing_installation"
+        },
+        {
+          "type": "string",
+          "name": "preset"
+        },
+        {
+          "type": "string",
+          "name": "registry_keys"
+        },
+        {
+          "type": "string",
+          "name": "remove"
+        },
+        {
+          "type": "string",
+          "name": "removing_container"
+        },
+        {
+          "type": "string",
+          "name": "removing_wine"
+        },
+        {
+          "type": "string",
+          "name": "run"
+        },
+        {
+          "type": "string",
+          "name": "screen_size"
+        },
+        {
+          "type": "string",
+          "name": "set_cheat_code"
+        },
+        {
+          "type": "string",
+          "name": "settings"
+        },
+        {
+          "type": "string",
+          "name": "shortcuts"
+        },
+        {
+          "type": "string",
+          "name": "show_fps"
+        },
+        {
+          "type": "string",
+          "name": "stability"
+        },
+        {
+          "type": "string",
+          "name": "start_keyboard_x11"
+        },
+        {
+          "type": "string",
+          "name": "starting_up"
+        },
+        {
+          "type": "string",
+          "name": "stop_keyboard_x11"
+        },
+        {
+          "type": "string",
+          "name": "stop_services_on_startup"
+        },
+        {
+          "type": "string",
+          "name": "storage_info"
+        },
+        {
+          "type": "string",
+          "name": "strict_shader_math"
+        },
+        {
+          "type": "string",
+          "name": "system"
+        },
+        {
+          "type": "string",
+          "name": "target_path"
+        },
+        {
+          "type": "string",
+          "name": "theme"
+        },
+        {
+          "type": "string",
+          "name": "toggle_fullscreen"
+        },
+        {
+          "type": "string",
+          "name": "toggle_model"
+        },
+        {
+          "type": "string",
+          "name": "total"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_main_menu_description"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_main_menu_title"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_left_click_description"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_left_click_title"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_right_click_description"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_right_click_title"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_scroll_wheel_description"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_scroll_wheel_title"
+        },
+        {
+          "type": "string",
+          "name": "unable_to_download_file"
+        },
+        {
+          "type": "string",
+          "name": "unable_to_install_system_files"
+        },
+        {
+          "type": "string",
+          "name": "unable_to_install_wine"
+        },
+        {
+          "type": "string",
+          "name": "unable_to_remove_this_wine_version"
+        },
+        {
+          "type": "string",
+          "name": "use_dri3_extension"
+        },
+        {
+          "type": "string",
+          "name": "value"
+        },
+        {
+          "type": "string",
+          "name": "vcrun2010"
+        },
+        {
+          "type": "string",
+          "name": "version"
+        },
+        {
+          "type": "string",
+          "name": "video_memory_size"
+        },
+        {
+          "type": "string",
+          "name": "width"
+        },
+        {
+          "type": "string",
+          "name": "win_components"
+        },
+        {
+          "type": "string",
+          "name": "wine_configuration"
+        },
+        {
+          "type": "string",
+          "name": "wine_version"
+        },
+        {
+          "type": "string",
+          "name": "xserver"
+        },
+        {
+          "type": "string",
+          "name": "you_cannot_remove_this_preset"
+        }
+      ]
+    },
+    {
+      "path": "termux-x11/src/main/res/values/arrays.xml",
+      "sha256": "9344377f2c5e6aa09c7c355a7e96a46e404f0cee646e26b7d0b995ffaa3e5429",
+      "removeDefinitions": [
+        {
+          "type": "array",
+          "name": "audio_driver_entries"
+        },
+        {
+          "type": "array",
+          "name": "box64_version_entries"
+        },
+        {
+          "type": "array",
+          "name": "box86_version_entries"
+        },
+        {
+          "type": "array",
+          "name": "desktop_theme_entries"
+        },
+        {
+          "type": "array",
+          "name": "dinput_mapper_type_entries"
+        },
+        {
+          "type": "array",
+          "name": "dxvk_framerate_entries"
+        },
+        {
+          "type": "array",
+          "name": "dxvk_max_device_memory_entries"
+        },
+        {
+          "type": "array",
+          "name": "dxvk_version_entries"
+        },
+        {
+          "type": "array",
+          "name": "dxwrapper_entries"
+        },
+        {
+          "type": "array",
+          "name": "graphics_driver_entries"
+        },
+        {
+          "type": "array",
+          "name": "screen_size_entries"
+        },
+        {
+          "type": "array",
+          "name": "turnip_version_entries"
+        },
+        {
+          "type": "array",
+          "name": "video_memory_size_entries"
+        },
+        {
+          "type": "array",
+          "name": "wincomponent_entries"
+        }
+      ]
+    },
+    {
+      "path": "termux-x11/src/main/res/values/colors.xml",
+      "sha256": "42a2f4adee91334b9983303baff37c44f49b8c99d715624b887a9341274822d7",
+      "removeDefinitions": [
+        {
+          "type": "color",
+          "name": "window_background_color"
+        }
+      ]
+    },
+    {
+      "path": "termux-x11/src/main/res/values/dimens.xml",
+      "sha256": "572a1cc2128df5bc458174ce0de177a2ca1ce2c8b6876f0b1ef0d97b0ccb2540",
+      "removeDefinitions": [
+        {
+          "type": "dimen",
+          "name": "activity_horizontal_margin"
+        },
+        {
+          "type": "integer",
+          "name": "file_request_backup_code"
+        },
+        {
+          "type": "integer",
+          "name": "load_profile_code"
+        }
+      ]
+    },
+    {
+      "path": "termux-x11/src/main/res/values/strings.xml",
+      "sha256": "ca5e2e8c7d9dc300feb67809e4b7a482fddbf9d1ce6187e341b69af2f066bc3f",
+      "removeDefinitions": [
+        {
+          "type": "string",
+          "name": "_new"
+        },
+        {
+          "type": "string",
+          "name": "about"
+        },
+        {
+          "type": "string",
+          "name": "action_already_disabled"
+        },
+        {
+          "type": "string",
+          "name": "action_already_granted"
+        },
+        {
+          "type": "string",
+          "name": "action_disable_battery_optimizations"
+        },
+        {
+          "type": "string",
+          "name": "action_grant_display_over_other_apps_permission"
+        },
+        {
+          "type": "string",
+          "name": "action_grant_storage_permission"
+        },
+        {
+          "type": "string",
+          "name": "add"
+        },
+        {
+          "type": "string",
+          "name": "advanced"
+        },
+        {
+          "type": "string",
+          "name": "app_name"
+        },
+        {
+          "type": "string",
+          "name": "arch"
+        },
+        {
+          "type": "string",
+          "name": "audio_driver"
+        },
+        {
+          "type": "string",
+          "name": "background"
+        },
+        {
+          "type": "string",
+          "name": "box64_preset"
+        },
+        {
+          "type": "string",
+          "name": "box64_version"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_bigblock"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_callret"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_fastnan"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_fastround"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_forward"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_safeflags"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_strongmem"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_wait"
+        },
+        {
+          "type": "string",
+          "name": "box86_64_env_var_help__dynarec_x87double"
+        },
+        {
+          "type": "string",
+          "name": "box86_box64"
+        },
+        {
+          "type": "string",
+          "name": "box86_preset"
+        },
+        {
+          "type": "string",
+          "name": "box86_version"
+        },
+        {
+          "type": "string",
+          "name": "cache"
+        },
+        {
+          "type": "string",
+          "name": "clear_cache"
+        },
+        {
+          "type": "string",
+          "name": "command"
+        },
+        {
+          "type": "string",
+          "name": "compatibility"
+        },
+        {
+          "type": "string",
+          "name": "configuration"
+        },
+        {
+          "type": "string",
+          "name": "container"
+        },
+        {
+          "type": "string",
+          "name": "containers"
+        },
+        {
+          "type": "string",
+          "name": "copy"
+        },
+        {
+          "type": "string",
+          "name": "creating_container"
+        },
+        {
+          "type": "string",
+          "name": "credits_and_third_party_apps"
+        },
+        {
+          "type": "string",
+          "name": "csmt"
+        },
+        {
+          "type": "string",
+          "name": "desktop"
+        },
+        {
+          "type": "string",
+          "name": "direct3d"
+        },
+        {
+          "type": "string",
+          "name": "directinput_mapper_type"
+        },
+        {
+          "type": "string",
+          "name": "directmusic"
+        },
+        {
+          "type": "string",
+          "name": "directplay"
+        },
+        {
+          "type": "string",
+          "name": "directshow"
+        },
+        {
+          "type": "string",
+          "name": "directsound"
+        },
+        {
+          "type": "string",
+          "name": "disable"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_duplicate_this_container"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_duplicate_this_preset"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_remove_this_container"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_remove_this_preset"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_remove_this_shortcut"
+        },
+        {
+          "type": "string",
+          "name": "do_you_want_to_remove_this_wine_version"
+        },
+        {
+          "type": "string",
+          "name": "drive_c"
+        },
+        {
+          "type": "string",
+          "name": "drives"
+        },
+        {
+          "type": "string",
+          "name": "duplicate"
+        },
+        {
+          "type": "string",
+          "name": "duplicating_container"
+        },
+        {
+          "type": "string",
+          "name": "dxwrapper"
+        },
+        {
+          "type": "string",
+          "name": "dxwrapper_help_content"
+        },
+        {
+          "type": "string",
+          "name": "edit"
+        },
+        {
+          "type": "string",
+          "name": "edit_container"
+        },
+        {
+          "type": "string",
+          "name": "enable"
+        },
+        {
+          "type": "string",
+          "name": "enabled"
+        },
+        {
+          "type": "string",
+          "name": "environment_variables"
+        },
+        {
+          "type": "string",
+          "name": "estimated_used_space"
+        },
+        {
+          "type": "string",
+          "name": "exec_arguments"
+        },
+        {
+          "type": "string",
+          "name": "exit"
+        },
+        {
+          "type": "string",
+          "name": "finishing_installation"
+        },
+        {
+          "type": "string",
+          "name": "force"
+        },
+        {
+          "type": "string",
+          "name": "force_fullscreen"
+        },
+        {
+          "type": "string",
+          "name": "frame_rate"
+        },
+        {
+          "type": "string",
+          "name": "gpu_name"
+        },
+        {
+          "type": "string",
+          "name": "graphics_driver"
+        },
+        {
+          "type": "string",
+          "name": "height"
+        },
+        {
+          "type": "string",
+          "name": "help_button_text"
+        },
+        {
+          "type": "string",
+          "name": "hide_x11_settings"
+        },
+        {
+          "type": "string",
+          "name": "install_wine"
+        },
+        {
+          "type": "string",
+          "name": "installed_version"
+        },
+        {
+          "type": "string",
+          "name": "installed_wine"
+        },
+        {
+          "type": "string",
+          "name": "installing_system_files"
+        },
+        {
+          "type": "string",
+          "name": "intermediate"
+        },
+        {
+          "type": "string",
+          "name": "keyboard"
+        },
+        {
+          "type": "string",
+          "name": "launch_button_text"
+        },
+        {
+          "type": "string",
+          "name": "letter"
+        },
+        {
+          "type": "string",
+          "name": "log_level_title"
+        },
+        {
+          "type": "string",
+          "name": "magnifier"
+        },
+        {
+          "type": "string",
+          "name": "max_device_memory"
+        },
+        {
+          "type": "string",
+          "name": "mouse_warp_override"
+        },
+        {
+          "type": "string",
+          "name": "msg_battery_optimization_not_disabled_warning"
+        },
+        {
+          "type": "string",
+          "name": "msg_display_over_other_apps_permission_not_granted_warning"
+        },
+        {
+          "type": "string",
+          "name": "msg_storage_permission_not_granted_warning"
+        },
+        {
+          "type": "string",
+          "name": "name"
+        },
+        {
+          "type": "string",
+          "name": "new_container"
+        },
+        {
+          "type": "string",
+          "name": "new_environment_variable"
+        },
+        {
+          "type": "string",
+          "name": "no_profile_found"
+        },
+        {
+          "type": "string",
+          "name": "offscreen_rendering_mode"
+        },
+        {
+          "type": "string",
+          "name": "old"
+        },
+        {
+          "type": "string",
+          "name": "options"
+        },
+        {
+          "type": "string",
+          "name": "performance"
+        },
+        {
+          "type": "string",
+          "name": "plugin_info"
+        },
+        {
+          "type": "string",
+          "name": "preparing_installation"
+        },
+        {
+          "type": "string",
+          "name": "preset"
+        },
+        {
+          "type": "string",
+          "name": "registry_keys"
+        },
+        {
+          "type": "string",
+          "name": "remove"
+        },
+        {
+          "type": "string",
+          "name": "removing_container"
+        },
+        {
+          "type": "string",
+          "name": "removing_wine"
+        },
+        {
+          "type": "string",
+          "name": "run"
+        },
+        {
+          "type": "string",
+          "name": "screen_size"
+        },
+        {
+          "type": "string",
+          "name": "set_cheat_code"
+        },
+        {
+          "type": "string",
+          "name": "settings"
+        },
+        {
+          "type": "string",
+          "name": "shortcuts"
+        },
+        {
+          "type": "string",
+          "name": "show_fps"
+        },
+        {
+          "type": "string",
+          "name": "stability"
+        },
+        {
+          "type": "string",
+          "name": "start_keyboard_x11"
+        },
+        {
+          "type": "string",
+          "name": "starting_up"
+        },
+        {
+          "type": "string",
+          "name": "stop_keyboard_x11"
+        },
+        {
+          "type": "string",
+          "name": "stop_services_on_startup"
+        },
+        {
+          "type": "string",
+          "name": "storage_info"
+        },
+        {
+          "type": "string",
+          "name": "strict_shader_math"
+        },
+        {
+          "type": "string",
+          "name": "system"
+        },
+        {
+          "type": "string",
+          "name": "target_path"
+        },
+        {
+          "type": "string",
+          "name": "theme"
+        },
+        {
+          "type": "string",
+          "name": "toggle_fullscreen"
+        },
+        {
+          "type": "string",
+          "name": "toggle_model"
+        },
+        {
+          "type": "string",
+          "name": "total"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_main_menu_description"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_main_menu_title"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_left_click_description"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_left_click_title"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_right_click_description"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_right_click_title"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_scroll_wheel_description"
+        },
+        {
+          "type": "string",
+          "name": "touchpad_help_mouse_scroll_wheel_title"
+        },
+        {
+          "type": "string",
+          "name": "unable_to_download_file"
+        },
+        {
+          "type": "string",
+          "name": "unable_to_install_system_files"
+        },
+        {
+          "type": "string",
+          "name": "unable_to_install_wine"
+        },
+        {
+          "type": "string",
+          "name": "unable_to_remove_this_wine_version"
+        },
+        {
+          "type": "string",
+          "name": "use_dri3_extension"
+        },
+        {
+          "type": "string",
+          "name": "value"
+        },
+        {
+          "type": "string",
+          "name": "vcrun2010"
+        },
+        {
+          "type": "string",
+          "name": "version"
+        },
+        {
+          "type": "string",
+          "name": "video_memory_size"
+        },
+        {
+          "type": "string",
+          "name": "width"
+        },
+        {
+          "type": "string",
+          "name": "win_components"
+        },
+        {
+          "type": "string",
+          "name": "wine_configuration"
+        },
+        {
+          "type": "string",
+          "name": "wine_version"
+        },
+        {
+          "type": "string",
+          "name": "xserver"
+        },
+        {
+          "type": "string",
+          "name": "you_cannot_remove_this_preset"
+        }
+      ]
+    },
+    {
+      "path": "termux-x11/src/main/res/values/styles.xml",
+      "sha256": "a423f2c5d4645e776696e47762a9ac1f7de7fedf7da5307ffdedcaa4c6e07e9e",
+      "removeDefinitions": [
+        {
+          "type": "style",
+          "name": "AppTheme"
+        },
+        {
+          "type": "style",
+          "name": "AppThemeFullscreen"
+        },
+        {
+          "type": "style",
+          "name": "AppThemeLight"
+        },
+        {
+          "type": "style",
+          "name": "CheckBox"
+        },
+        {
+          "type": "style",
+          "name": "FieldSeparator"
+        },
+        {
+          "type": "style",
+          "name": "FieldSet"
+        },
+        {
+          "type": "style",
+          "name": "FieldSetLabel"
+        },
+        {
+          "type": "style",
+          "name": "HelpButton"
+        },
+        {
+          "type": "style",
+          "name": "ListPopupWindow"
+        },
+        {
+          "type": "style",
+          "name": "PopupMenu"
+        },
+        {
+          "type": "style",
+          "name": "PopupWindow"
+        },
+        {
+          "type": "style",
+          "name": "TerminalComboBox"
+        },
+        {
+          "type": "style",
+          "name": "TextView"
+        }
+      ]
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/LorieViewRuntimeController.java",
+      "sha256": "7af66519e3a3871f7f82f2f4a08140b77d486bae6b1d39656e227f2ec85b2b3a",
+      "action": "仅删除Shortcut/Container导入、字段、构造逻辑、getShortcut及随之无用的File导入；保留全部控制器与下载对话框初始化"
+    },
+    {
+      "path": "termux-x11/src/main/java/com/termux/x11/controller/InputControllerActivity.java",
+      "sha256": "6a078e8ffe8d66b32523b4f53570c9d990435e5bd21fdd4ba0a47cf77931d5ff",
+      "action": "仅删除读取selected_menu_item_id并赋予无用途menuItemId的else分支"
+    },
+    {
+      "path": "termux-ui/src/main/assets/local-games/controller_runtime.sh",
+      "sha256": "95718d8c30658d2961360bb3fe1ca873747aa55a7bfcb19b79807936b50e7f78",
+      "action": "仅删除两行关于旧start-tfm启动器的历史注释；执行语句不变"
+    }
+  ],
+  "statistics": {
+    "deleteFiles": 104,
+    "editFiles": 11,
+    "deletedSourceBytes": 582056,
+    "javaClasses": 10,
+    "xrioSourceFiles": 11,
+    "assetSourceBytes": 269525
+  },
+  "notApkSizeEstimate": true
+}

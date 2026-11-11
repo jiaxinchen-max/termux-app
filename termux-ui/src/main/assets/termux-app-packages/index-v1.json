@@ -699,8 +699,8 @@
       ],
       "version": 2,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-debian13-hangover-pdb2-minimal-v2/rootfs-debian13-hangover-pdb2-minimal-v2.tar.zst",
-      "size": 323406172,
-      "sha256": "01b6fe94fc711db2e80ea69518e4ebfd613881dbed4d52bdd900b159221784b7"
+      "size": 320439261,
+      "sha256": "e480a35af360dfd916d961be3cfaa2a7ab5208118e3899cca14662f84cda5b4f"
     },
     {
       "id": "rootfs_prefix_hangover_pdb2",
@@ -719,8 +719,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/prefix-hangover-pdb2-v1/prefix-hangover-pdb2-v1.tar.gz",
-      "size": 2720316,
-      "sha256": "ffc789ded7083cddc63d3506a8702cd6df5b6554f889f7de2e142327fc2d5147"
+      "size": 4455587,
+      "sha256": "4441ab08c96e3b3e8576071c2764d62bbed80923146de02bf67cebbbde7eb6ec"
     },
     {
       "id": "rootfs_prefix_wine10_wow64",
@@ -739,8 +739,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/prefix-wine10-wow64-v1/prefix-wine10-wow64-v1.tar.gz",
-      "size": 474599,
-      "sha256": "02986d6b5310ffe2ecfde0809e4cdcab2701a5e3b58ab0c3d96c5e155e81c02b"
+      "size": 2210005,
+      "sha256": "a477dcad1c6d9f2756bb69b167b2702f48e457b75cbc246c0d11dd4869ec937d"
     },
     {
       "id": "rootfs_prefix_proton11_wow64",
@@ -759,8 +759,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/prefix-proton11-wow64-v1/prefix-proton11-wow64-v1.tar.gz",
-      "size": 772405,
-      "sha256": "07235c1e47351a29dde91c9f2d27a0b34ddea3300a8829f551d49cd1aa9dbab8"
+      "size": 2506791,
+      "sha256": "9516aa411ecbc471f658c3cb068403e9fe660620a23eaec18c5ccfe453970294"
     },
     {
       "id": "native_prefix_wine_9.0-staging",

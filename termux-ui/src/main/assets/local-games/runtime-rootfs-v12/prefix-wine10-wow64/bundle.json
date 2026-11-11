@@ -18,10 +18,10 @@
     "lib/wine/x86_64-windows/ntdll.dll": "c00c19e1beab23f18308771520af868de55e0255d99e32a1b84503c2172ec575",
     "lib/wine/i386-windows/ntdll.dll": "f5f43940adcd8227a73e59b646c87d87a5cf95a029dbca4e20ae7b1dad4cff2c"
   },
-  "expandedBytes": 698176416,
+  "expandedBytes": 701884930,
   "assets": {
-    "manifest.json": "1ec85f9eadd8fc424ae65caa61af2ac6db32267ab1db97ba93ef91e9f0cfe57e",
-    "delta.tgz": "a4252a7370d506a03bc3d48bb8c7dfd476c4e77540576a60a853549c70b0f44b"
+    "manifest.json": "e8e85aeeba88d508e7844b71ea1a5e1d14310c15699c0bf8e231e49b84d75126",
+    "delta.tgz": "1c4e85b1c6ba62ce62b90d15a615cdc48f6e4e567a2a56065a035bbf3e93c943"
   },
   "provenance": {
     "kind": "x86_64-wow64-reference",
@@ -40,6 +40,92 @@
         "missingComponentFile": "lib/wine/x86_64-windows/winemenubuilder.exe"
       }
     ],
-    "targetAcceptance": "pending"
+    "targetAcceptance": "pending",
+    "portableTools": {
+      "scriptsArchiveSha256": "c6bd6c3a712f1657a7a0cdfac5af45cf7d7d0a1f042549ea05dfab69a62c26ef",
+      "menu": [
+        {
+          "name": "Command Prompt",
+          "target": "C:\\windows\\system32\\cmd.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\windows\\system32"
+        },
+        {
+          "name": "Notepad",
+          "target": "C:\\windows\\notepad.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\windows"
+        },
+        {
+          "name": "Registry Editor",
+          "target": "C:\\windows\\regedit.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\windows"
+        },
+        {
+          "name": "Task Manager",
+          "target": "C:\\windows\\system32\\taskmgr.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\windows\\system32"
+        },
+        {
+          "name": "Wine Configuration",
+          "target": "C:\\windows\\system32\\winecfg.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\windows\\system32"
+        },
+        {
+          "name": "Control Panel",
+          "target": "C:\\windows\\system32\\control.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\windows\\system32"
+        },
+        {
+          "name": "Controllers",
+          "target": "C:\\windows\\system32\\control.exe",
+          "arguments": "joy.cpl",
+          "workingDirectory": "C:\\windows\\system32"
+        },
+        {
+          "name": "TrueTransparency",
+          "target": "C:\\Tools\\TrueTransparency\\TrueTransparency.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\Tools\\TrueTransparency"
+        },
+        {
+          "name": "pgup-f6-pgdn-f7",
+          "target": "C:\\Tools\\pgup-f6-pgdn-f7.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\Tools"
+        },
+        {
+          "name": "tfm",
+          "target": "C:\\Tools\\tfm.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\Tools"
+        },
+        {
+          "name": "f5taskmgr",
+          "target": "C:\\Tools\\f5taskmgr.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\Tools"
+        },
+        {
+          "name": "servman",
+          "target": "C:\\Tools\\servman.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\Tools"
+        },
+        {
+          "name": "paint",
+          "target": "C:\\Tools\\paint.exe",
+          "arguments": "",
+          "workingDirectory": "C:\\Tools"
+        }
+      ],
+      "embeddedFiles": 118,
+      "addedBytes": 3708514,
+      "acceptance": "PendingAppUI"
+    }
   }
 }

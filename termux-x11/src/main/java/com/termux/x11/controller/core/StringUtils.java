@@ -19,14 +19,6 @@ public class StringUtils {
         return text.substring(0, index) + value + text.substring(index);
     }
 
-    public static String replace(String text, int start, int end, String value) {
-        return text.substring(0, start) + value + text.substring(end);
-    }
-
-    public static String unescape(String path) {
-        return path.replaceAll("\\\\([^\\\\]+)", "$1").replaceAll("\\\\([^\\\\]+)", "$1").replaceAll("\\\\\\\\", "\\\\").trim();
-    }
-
     public static String parseIdentifier(Object text) {
         return text.toString().toLowerCase(Locale.ENGLISH).replaceAll(" *\\(([^\\)]+)\\)$", "").replaceAll("( \\+ )+| +", "-");
     }

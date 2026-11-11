@@ -72,7 +72,7 @@ public final class RuntimeInstallationGate {
         if (!file.createNewFile() && !file.isFile()) throw new java.io.IOException("runtime_dependency_record_failed");
     }
 
-    private static boolean ownsDependency(File files, String parent, String child) {
+    public static boolean ownsDependency(File files, String parent, String child) {
         return child != null && dependencyFile(files, parent, child).isFile();
     }
 

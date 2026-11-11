@@ -14,8 +14,6 @@
 #     exists there, and it must not be switched to "native" (which rejects the marker);
 #   * wine-bridge.exe, a wrapper the game is started through: it runs the real program and is the Wine end of
 #     the controller / process bridge the app talks to over UDP (WinHandler, ports 7946/7947).
-# This replaces the removed setMoBoxEnv script, which unpacked the DLLs into the shared Wine runtime and
-# copied wine-bridge.exe next to the old start-tfm launcher.
 #
 # The app installs the payload next to the launcher as controller_wine.tar and wine-bridge.exe.
 

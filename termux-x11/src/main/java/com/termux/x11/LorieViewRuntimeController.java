@@ -57,8 +57,6 @@ import androidx.core.math.MathUtils;
 import androidx.fragment.app.FragmentManager;
 import androidx.viewpager.widget.ViewPager;
 
-import com.termux.x11.controller.container.Container;
-import com.termux.x11.controller.container.Shortcut;
 import com.termux.x11.controller.InputControllerActivity;
 import com.termux.x11.controller.contentdialog.ContentDialog;
 import com.termux.x11.controller.core.DownloadProgressDialog;
@@ -77,7 +75,6 @@ import com.termux.x11.utils.SamsungDexUtils;
 import com.termux.x11.utils.TermuxX11ExtraKeys;
 import com.termux.x11.utils.X11ToolbarViewPager;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -128,12 +125,10 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
     private Runnable editInputControlsCallback;
     /** Set by {@link #setInputControlsVisible(boolean)}: keeps the active profile but hides the overlay. */
     private boolean inputControlsSuppressed;
-    private Shortcut shortcut;
     private DownloadProgressDialog preloaderDialog;
     private float globalCursorSpeed = 1.0f;
     private ControlsProfile profile;
     private String controlsProfile;
-    private Container container;
 
     //    private final SharedPreferences.OnSharedPreferenceChangeListener preferencesChangedListener = (__, key) -> onPreferencesChanged(key);
 
@@ -661,10 +656,6 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         frm.addView(inputControlsView);
         inputControlsManager = new InputControlsManager(mActivity);
         preloaderDialog = new DownloadProgressDialog(mActivity);
-        String shortcutPath = getIntent().getStringExtra("shortcut_path");
-        container = new Container(0);
-        if (shortcutPath != null && !shortcutPath.isEmpty())
-            shortcut = new Shortcut(container, new File(shortcutPath));
     }
 
     //Register the needed events to handle stylus as left, middle and right click
@@ -1485,11 +1476,6 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
             }
         };
         mActivity.startActivityForResult(intent, InputControllerActivity.EDIT_INPUT_CONTROLS_REQUEST_CODE);
-    }
-
-    @Nullable
-    public Shortcut getShortcut() {
-        return shortcut;
     }
 
     public void showInputControlsDialog() {

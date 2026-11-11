@@ -11,7 +11,6 @@ import androidx.fragment.app.FragmentManager;
 
 import com.termux.x11.R;
 import com.termux.x11.controller.core.Callback;
-import com.termux.x11.controller.core.PreloaderDialog;
 
 public class InputControllerActivity extends AppCompatActivity {
 
@@ -25,7 +24,6 @@ public class InputControllerActivity extends AppCompatActivity {
     public static final byte PERMISSION_WRITE_EXTERNAL_STORAGE_REQUEST_CODE = 1;
     public static final byte OPEN_FILE_REQUEST_CODE = 2;
     public static final byte OPEN_DIRECTORY_REQUEST_CODE = 4;
-    public final PreloaderDialog preloaderDialog = new PreloaderDialog(this);
     private boolean editInputControls = false;
     private int selectedProfileId;
     private Callback<Uri> openFileCallback;
@@ -39,9 +37,6 @@ public class InputControllerActivity extends AppCompatActivity {
         editInputControls = intent.getBooleanExtra("edit_input_controls", false);
         if (editInputControls) {
             selectedProfileId = intent.getIntExtra("selected_profile_id", 0);
-        } else {
-            int selectedMenuItemId = intent.getIntExtra("selected_menu_item_id", 0);
-            int menuItemId = selectedMenuItemId > 0 ? selectedMenuItemId : R.id.main_menu_containers;
         }
         if (savedInstanceState == null) {
             initFragment();
