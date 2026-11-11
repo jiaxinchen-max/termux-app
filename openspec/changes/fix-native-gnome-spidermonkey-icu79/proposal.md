@@ -8,4 +8,4 @@
 
 api_docs 为 N/A：无 HTTP 契约变更。product_docs 为 Required：涉及 Native GNOME 与系统依赖兼容性，目标为 `docs/product/desktops.md`（当前仓库缺失，验收后再补齐）；一致性保持 Pending。
 
-本轮已授权故障调查；新增编译、发布与 App 代码实施待规划确认。设备仅只读取证，后续实际桌面测试仍由用户通过 App 完成。
+2026-11-11用户已批准本规划的编译、同名资产发布与App接入，并要求先推送当前代码；已完成首个提交9ceaf759并核对远端。后续实际桌面测试仍由用户通过App完成。
