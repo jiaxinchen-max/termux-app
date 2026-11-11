@@ -65,7 +65,7 @@ mkdir -p "$PREFIX_PATH/drive_c/windows/system32" "$PREFIX_PATH/drive_c/windows/s
     "$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/lib/wine/x86_64-windows" \
     "$TERMUX_ROOT/usr/glibc/$WINE_PACKAGE/lib/wine/i386-windows"
 gzip -dc "$PROJECT_ROOT/termux-x11/src/main/assets/wine.tar.gz" > "$RUNTIME_DIR/controller_wine.tar"
-cp "$PROJECT_ROOT/termux-x11/src/main/assets/winhandler.exe" "$RUNTIME_DIR/controller_winhandler.exe"
+cp "$PROJECT_ROOT/termux-x11/src/main/assets/wine-bridge.exe" "$RUNTIME_DIR/wine-bridge.exe"
 cp "$PROJECT_ROOT/termux-ui/src/main/assets/local-games/x_server_dimensions.py" "$RUNTIME_DIR/x_server_dimensions.py"
 mkdir -p "$TERMUX_ROOT/usr/glibc/lib" "$TERMUX_ROOT/usr/glibc/share/fonts" \
     "$PREFIX_PATH/termux-boxmeta" "$PREFIX_PATH/dosdevices" \
@@ -222,7 +222,7 @@ grep -q 'X11 display: .* target=1280x720' "$LOG_FILE"
 {
     encode explorer; printf '\n'
     encode /desktop=shell,1280x720; printf '\n'
-    encode 'C:\windows\winhandler.exe'; printf '\n'
+    encode 'C:\windows\wine-bridge.exe'; printf '\n'
     encode "G:\\bin folder\\it's game.exe"; printf '\n'
     encode "hello world"; printf '\n'
     encode '$HOME'; printf '\n'

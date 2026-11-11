@@ -1,9 +1,9 @@
 package com.termux.x11.controller.winhandler;
 
 /**
- * Tracks whether the Wine end of the bridge (winhandler.exe and the patched xinput/dinput DLLs) is up.
+ * Tracks whether the Wine end of the bridge (wine-bridge.exe and the patched xinput/dinput DLLs) is up.
  *
- * winhandler.exe sends INIT exactly once, right after it starts. When that datagram arrives before the Android side
+ * wine-bridge.exe sends INIT exactly once, right after it starts. When that datagram arrives before the Android side
  * has bound its port it is lost, and every reply stays queued for ever. Any gamepad request proves that Wine is up as
  * well, so it counts as an implicit INIT.
  */

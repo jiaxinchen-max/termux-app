@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:id="@+id/browser_new" android:title="@string/browser_new"
+        android:icon="@drawable/local_games_ic_add" app:iconTint="@color/local_games_on_surface"
+        app:contentDescription="@string/browser_new" app:showAsAction="always">
+        <menu>
+            <item android:id="@+id/browser_new_file" android:title="@string/browser_new_file" />
+            <item android:id="@+id/browser_new_folder" android:title="@string/browser_new_folder" />
+        </menu>
+    </item>
     <item android:id="@+id/browser_paste" android:title="@string/browser_paste" app:showAsAction="never" />
     <item android:id="@+id/browser_cancel_clipboard" android:title="@string/browser_cancel_clipboard" app:showAsAction="never" />
     <item android:id="@+id/browser_show_hidden" android:title="@string/browser_show_hidden" android:checkable="true" app:showAsAction="never" />

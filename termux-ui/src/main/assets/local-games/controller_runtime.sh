@@ -12,14 +12,14 @@
 #     wine-hangover/i386-windows, built from Hangover's own Wine source. Those keep the builtin marker and go both into the
 #     guest Wine's lib/wine and into the prefix's system32/syswow64: Wine only loads a builtin DLL when a file of that name
 #     exists there, and it must not be switched to "native" (which rejects the marker);
-#   * winhandler.exe, a wrapper the game is started through: it runs the real program and is the Wine end of
+#   * wine-bridge.exe, a wrapper the game is started through: it runs the real program and is the Wine end of
 #     the controller / process bridge the app talks to over UDP (WinHandler, ports 7946/7947).
 # This replaces the removed setMoBoxEnv script, which unpacked the DLLs into the shared Wine runtime and
-# copied winhandler.exe next to the old start-tfm launcher.
+# copied wine-bridge.exe next to the old start-tfm launcher.
 #
-# The app installs the payload next to the launcher as controller_wine.tar and controller_winhandler.exe.
+# The app installs the payload next to the launcher as controller_wine.tar and wine-bridge.exe.
 
-GAMES_CONTROLLER_WINHANDLER_WINDOWS_PATH='C:\windows\winhandler.exe'
+GAMES_WINE_BRIDGE_WINDOWS_PATH='C:\windows\wine-bridge.exe'
 
 # Checksum of a file that ignores the file name, or nothing when it does not exist.
 _games_controller_sum() {
@@ -87,7 +87,7 @@ _games_controller_stage() {
 }
 
 # install_games_controller_runtime <wine prefix> <runtime dir> [wine runtime dir]
-# Releases the controller DLLs and winhandler.exe. With a Wine runtime directory (native launcher) the DLLs go into
+# Releases the controller DLLs and wine-bridge.exe. With a Wine runtime directory (native launcher) the DLLs go into
 # its lib/wine/x86_64-windows and lib/wine/i386-windows, as shipped, so that Wine loads them as builtin DLLs. Without
 # one (rootfs launcher) marker-free copies go into the prefix: a prefix with a syswow64 directory is 64-bit, so
 # x86_64 DLLs go to system32 and i386 DLLs to syswow64; otherwise system32 is 32-bit and takes the i386 DLLs.
@@ -100,7 +100,7 @@ install_games_controller_runtime() {
     _system32="$_prefix/drive_c/windows/system32"
     _syswow64="$_prefix/drive_c/windows/syswow64"
     [ -d "$_system32" ] || return 1
-    [ -f "$_runtime_dir/controller_winhandler.exe" ] || return 1
+    [ -f "$_runtime_dir/wine-bridge.exe" ] || return 1
     _games_controller_stage "$_runtime_dir" || return 1
     if [ -n "$_wine_dir" ]; then
         _installed=0
@@ -116,7 +116,7 @@ install_games_controller_runtime() {
     else
         _games_controller_copy_dlls "$_runtime_dir/controller-stage/wine-native/i386-windows" "$_system32" || return 1
     fi
-    _games_controller_install_winhandler "$_prefix" "$_runtime_dir"
+    _games_controller_install_bridge "$_prefix" "$_runtime_dir"
 }
 
 # install_games_controller_hangover <wine prefix> <runtime dir> <guest wine dir>
@@ -132,7 +132,7 @@ install_games_controller_hangover() {
     _system32="$_prefix/drive_c/windows/system32"
     _syswow64="$_prefix/drive_c/windows/syswow64"
     [ -d "$_system32" ] && [ -d "$_wine_dir/aarch64-windows" ] || return 1
-    [ -f "$_runtime_dir/controller_winhandler.exe" ] || return 1
+    [ -f "$_runtime_dir/wine-bridge.exe" ] || return 1
     _games_controller_stage "$_runtime_dir" || return 1
     _hangover="$_runtime_dir/controller-stage/wine-hangover"
     _games_controller_validate_tree "$_hangover/aarch64-windows" || return 1
@@ -145,37 +145,44 @@ install_games_controller_hangover() {
     if [ -d "$_syswow64" ]; then
         _games_controller_copy_dlls "$_hangover/i386-windows" "$_syswow64" keep || return 1
     fi
-    _games_controller_install_winhandler "$_prefix" "$_runtime_dir"
+    _games_controller_install_bridge "$_prefix" "$_runtime_dir"
 }
 
-# Copies winhandler.exe into the prefix unless it is already there.
-_games_controller_install_winhandler() {
-    _winhandler="$1/drive_c/windows/winhandler.exe"
-    if [ "$(_games_controller_sum "$2/controller_winhandler.exe")" != "$(_games_controller_sum "$_winhandler")" ]; then
-        cp -f "$2/controller_winhandler.exe" "$_winhandler" || return 1
+# Copies wine-bridge.exe into the prefix unless it is already there.
+_games_controller_install_bridge() {
+    _wine_bridge="$1/drive_c/windows/wine-bridge.exe"
+    if [ "$(_games_controller_sum "$2/wine-bridge.exe")" != "$(_games_controller_sum "$_wine_bridge")" ]; then
+        cp -f "$2/wine-bridge.exe" "$_wine_bridge" || return 1
     fi
 }
 
-# games_controller_dll_overrides
+# games_controller_dll_overrides [translator]
 # Library load orders are independent of the gamepad's axis/button mapping. Both APIs can be used in the same
-# process. An empty setting adds no override, preserving Wine's existing default/registry load order.
+# process. Unspecified settings use native,builtin. Hangover's marked DLLs support builtin or native,builtin,
+# but pure native rejects them; reject that choice before emitting any overrides.
 games_controller_dll_overrides() {
-    if [ -n "${GAMES_DLL_DINPUT:-}" ]; then
-        for _dll in dinput dinput8; do
-            printf '%s=%s;' "$_dll" "$GAMES_DLL_DINPUT"
+    _games_dinput_order=${GAMES_DLL_DINPUT:-native,builtin}
+    _games_xinput_order=${GAMES_DLL_XINPUT:-native,builtin}
+    if [ "${1:-}" = hangover ]; then
+        for _games_input_order in "$_games_dinput_order" "$_games_xinput_order"; do
+            case "$_games_input_order" in
+                builtin|native,builtin) ;;
+                *) printf '%s\n' 'Unsupported controller DLL load order for Hangover.' >&2; return 1 ;;
+            esac
         done
     fi
-    if [ -n "${GAMES_DLL_XINPUT:-}" ]; then
-        for _dll in xinput1_1 xinput1_2 xinput1_3 xinput1_4 xinput9_1_0 xinputuap; do
-            printf '%s=%s;' "$_dll" "$GAMES_DLL_XINPUT"
-        done
-    fi
+    for _dll in dinput dinput8; do
+        printf '%s=%s;' "$_dll" "$_games_dinput_order"
+    done
+    for _dll in xinput1_1 xinput1_2 xinput1_3 xinput1_4 xinput9_1_0 xinputuap; do
+        printf '%s=%s;' "$_dll" "$_games_xinput_order"
+    done
     return 0
 }
 
 # games_controller_windows_target <absolute Unix path inside the guest>
-# winhandler.exe starts the program with ShellExecute, which does not take a Unix path ("path not found"): hand it the
-# Z: drive form instead, Z: being the guest root of the Wine prefix.
+# wine-bridge.exe starts the program with CreateProcessW, which takes a Windows path: hand it the Z: drive form,
+# Z: being the guest root of the Wine prefix.
 games_controller_windows_target() {
     printf 'Z:%s' "$(printf '%s' "$1" | tr '/' '\\')"
 }

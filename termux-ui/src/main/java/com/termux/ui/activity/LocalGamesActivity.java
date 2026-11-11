@@ -153,6 +153,7 @@ public final class LocalGamesActivity extends AppUiActivity {
     private Map<String, BuildingTask> buildingGameTasks = Collections.emptyMap();
     private Map<String, GameRuntimeBackendType> libraryBackends = Collections.emptyMap();
     private Map<String, String> libraryWines = Collections.emptyMap();
+    private Map<String, String> libraryProfileErrors = Collections.emptyMap();
     private static final long BUILDING_POLL_MS = 2500L;
     private final Runnable buildingPoll = () -> loadLibraryAsync(true);
     private final List<android.animation.ObjectAnimator> libraryCardBreathAnimators =
@@ -503,6 +504,7 @@ public final class LocalGamesActivity extends AppUiActivity {
             Map<String, BuildingTask> building = new HashMap<>();
             Map<String, GameRuntimeBackendType> backends = new HashMap<>();
             Map<String, String> wines = new HashMap<>();
+            Map<String, String> profileErrors = new HashMap<>();
             String error = null;
             try {
                 // Containers and profiles that removed games or abandoned edits left behind are reclaimed
@@ -541,7 +543,21 @@ public final class LocalGamesActivity extends AppUiActivity {
                 List<com.termux.ui.api.RuntimeComponentVariant> installedWines = new ArrayList<>();
                 java.util.Set<GameRuntimeBackendType> loadedWineBackends = new java.util.HashSet<>();
                 for (GameLibraryItem item : items) {
-                    RuntimeProfile savedProfile = profiles.find(item.getGame().getId()).orElse(null);
+                    String gameId = item.getGame().getId();
+                    RuntimeProfile savedProfile;
+                    try {
+                        savedProfile = profiles.find(gameId).orElseThrow(() ->
+                            new IOException("game_runtime_profile_missing:" + gameId));
+                    } catch (IOException invalidProfile) {
+                        profileErrors.put(gameId, safeMessage(invalidProfile));
+                        try {
+                            profiles.findBinding(gameId).ifPresent(binding ->
+                                backends.put(gameId, binding.getRuntimeBackendType()));
+                        } catch (IOException unreadableBinding) {
+                            Log.w("LocalGamesActivity", "profile ownership unavailable: " + gameId, unreadableBinding);
+                        }
+                        continue;
+                    }
                     if (savedProfile != null && loadedWineBackends.add(savedProfile.getRuntimeBackendType())) {
                         installedWines.addAll(LocalGames.requireHost(this).listInstalledRuntimeComponentVariants(
                             CustomRuntimeComponent.Kind.WINE, savedProfile.getRuntimeBackendType()));
@@ -581,10 +597,12 @@ public final class LocalGamesActivity extends AppUiActivity {
                     generation != libraryGeneration) return;
                 if (failure == null) {
                     boolean unchanged = pollOnly && sameBuilding(buildingGameTasks, loadedBuilding)
-                        && libraryWines.equals(wines) && libraryBackends.equals(backends);
+                        && libraryWines.equals(wines) && libraryBackends.equals(backends)
+                        && libraryProfileErrors.equals(profileErrors);
                     buildingGameTasks = loadedBuilding;
                     libraryBackends = backends;
                     libraryWines = wines;
+                    libraryProfileErrors = profileErrors;
                     if (!unchanged) renderLibrary(loaded, generation);
                     else binding.localGamesLibraryLoading.hide();
                     if (!loadedBuilding.isEmpty()) {
@@ -631,7 +649,9 @@ public final class LocalGamesActivity extends AppUiActivity {
             ? GameRuntimeBackendType.ROOTFS_PROOT : GameRuntimeBackendType.GLIBC_TERMUX_BOX;
         List<GameLibraryItem> visibleItems = new ArrayList<>();
         for (GameLibraryItem item : items) {
-            if (libraryBackends.get(item.getGame().getId()) == backend) visibleItems.add(item);
+            String id = item.getGame().getId();
+            if (libraryBackends.get(id) == backend ||
+                (libraryProfileErrors.containsKey(id) && !libraryBackends.containsKey(id))) visibleItems.add(item);
         }
         binding.localGamesCount.setText(collectionToolbar.getRuntimeCountText(visibleItems.size()));
         renderedGridWidth = gridWidth;
@@ -695,19 +715,25 @@ public final class LocalGamesActivity extends AppUiActivity {
                 : R.string.local_game_runtime_profile_backend_glibc);
         row.localGameExecutable.setText(getString(R.string.local_game_configuration_executable,
             runtime, game.getExecutable()));
-        row.localGameWine.setText(getString(R.string.local_game_card_wine,
-            libraryWines.get(game.getId())));
-        row.localGameAccessStatus.setText(accessLabel(item.getAccessState()));
+        String profileError = libraryProfileErrors.get(game.getId());
+        row.localGameWine.setText(profileError == null ? getString(R.string.local_game_card_wine,
+            libraryWines.get(game.getId())) : getString(R.string.local_game_profile_invalid));
+        row.localGameAccessStatus.setText(profileError == null ? getString(accessLabel(item.getAccessState()))
+            : getString(R.string.local_game_profile_invalid_action));
         row.localGameAccessStatus.setTextColor(ContextCompat.getColor(this,
-            item.getAccessState() == GameAccessState.ACCESSIBLE
+            profileError == null && item.getAccessState() == GameAccessState.ACCESSIBLE
                 ? R.color.local_games_success_text : R.color.local_games_error));
         row.localGameLastPlayed.setText(game.getLastPlayedAt() == 0
             ? getString(R.string.local_game_never_played)
             : getString(R.string.local_game_last_played, DateUtils.formatDateTime(this,
                 game.getLastPlayedAt(), DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_SHOW_TIME)));
-        BuildingTask building = buildingGameTasks.get(game.getId());
+        BuildingTask building = profileError == null ? buildingGameTasks.get(game.getId()) : null;
         applyCardBuildingState(row.getRoot(), building != null);
         row.getRoot().setOnClickListener(view -> {
+            if (profileError != null) {
+                showInvalidProfile(game, profileError);
+                return;
+            }
             if (building != null) {
                 Dialog dialog = building.rootfs
                     ? RuntimeSetupConsoleDialog.show(this, building.taskId)
@@ -718,8 +744,11 @@ public final class LocalGamesActivity extends AppUiActivity {
             showLaunchPresentation(item);
         });
         row.getRoot().setFocusable(true);
-        row.localGameDetails.setOnClickListener(view -> startActivity(
-            LocalGames.createRuntimeOptionsIntent(this, game.getId())));
+        row.localGameDetails.setEnabled(profileError == null);
+        row.localGameDetails.setOnClickListener(view -> {
+            if (!libraryProfileErrors.containsKey(game.getId()))
+                startActivity(LocalGames.createRuntimeOptionsIntent(this, game.getId()));
+        });
         row.localGameMore.setOnClickListener(view -> showActionsTextMenu(item, view));
         if (!game.getArtworkUri().isEmpty()) {
             libraryExecutor.execute(() -> {
@@ -838,8 +867,8 @@ public final class LocalGamesActivity extends AppUiActivity {
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         popup.setOutsideTouchable(true);
         popup.setElevation(dp(3));
-        addTextPopupAction(content, popup, item, R.string.local_game_action_edit,
-            GAME_ACTION_EDIT);
+        if (!libraryProfileErrors.containsKey(item.getGame().getId()))
+            addTextPopupAction(content, popup, item, R.string.local_game_action_edit, GAME_ACTION_EDIT);
         addTextPopupAction(content, popup, item, R.string.local_game_action_remove,
             GAME_ACTION_REMOVE);
         content.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
@@ -978,6 +1007,15 @@ public final class LocalGamesActivity extends AppUiActivity {
         configurePresentationSurface(dialog);
         fitPresentationWindow(dialog, root, maxWidthDp);
         return dialog;
+    }
+
+    private void showInvalidProfile(Game game, String error) {
+        new FrostedDialogBuilder(this)
+            .setTitle(R.string.local_game_profile_invalid)
+            .setMessage(getString(R.string.local_game_profile_invalid_details, error))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.local_game_action_remove, (dialog, which) -> confirmRemove(game))
+            .show();
     }
 
     private void confirmRemove(Game game) {

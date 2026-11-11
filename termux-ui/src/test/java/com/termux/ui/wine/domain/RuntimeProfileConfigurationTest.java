@@ -15,6 +15,18 @@ import static org.junit.Assert.assertTrue;
 public class RuntimeProfileConfigurationTest {
 
     @Test
+    public void allNewPresetsDefaultBothControllerLibrariesToNativeBuiltin() {
+        for (RuntimeProfilePreset preset : new RuntimeProfilePreset[] {
+                RuntimeProfilePreset.RECOMMENDED, RuntimeProfilePreset.STABLE,
+                RuntimeProfilePreset.COMPATIBILITY}) {
+            RuntimeProfile profile = RuntimeProfilePresets.create("wine-controller", preset);
+            assertEquals("native,builtin", profile.getEnvironment().get("GAMES_DLL_DINPUT"));
+            assertEquals("native,builtin", profile.getEnvironment().get("GAMES_DLL_XINPUT"));
+            assertEquals(null, profile.getEnvironment().get("GAMES_DLL_D3D"));
+        }
+    }
+
+    @Test
     public void presetsAndCustomHaveStableSemantics() {
         RuntimeProfile recommended = RuntimeProfilePresets.create("game-1",
             RuntimeProfilePreset.RECOMMENDED);

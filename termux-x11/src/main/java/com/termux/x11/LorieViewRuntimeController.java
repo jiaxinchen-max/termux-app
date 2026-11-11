@@ -491,7 +491,6 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         gamepadXinputEnabled = xinput;
         gamepadDinputEnabled = dinput;
         if (mX11WinHandlerController.isRunning()) {
-            mX11WinHandlerController.getWinHandler().gamepadHandler.clearInputClients();
             mX11WinHandlerController.getWinHandler().gamepadHandler.setInputApis(xinput, dinput);
         }
     }

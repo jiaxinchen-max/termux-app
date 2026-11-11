@@ -59,12 +59,12 @@ public final class X11SessionOverrides {
     @NonNull
     public String getGameTouchMode(@NonNull String gameId) {
         String value = preferences.getString(gameKey(gameId) + ".touchMode", TOUCH_TRACKPAD);
-        if (!isTouchMode(value)) throw new IllegalStateException("Invalid game touch mode");
+        if (!isTouchMode(value)) throw new IllegalStateException("Invalid program touch mode");
         return value;
     }
 
     public void setGameTouchMode(@NonNull String gameId, @NonNull String value) {
-        if (!isTouchMode(value)) throw new IllegalArgumentException("Invalid game touch mode");
+        if (!isTouchMode(value)) throw new IllegalArgumentException("Invalid program touch mode");
         edit(gameKey(gameId) + ".touchMode", value);
     }
 
@@ -91,7 +91,7 @@ public final class X11SessionOverrides {
         for (OrientationPreference choice : OrientationPreference.values()) {
             if (choice.getStorageValue().equals(value)) return choice;
         }
-        throw new IllegalStateException("Invalid game orientation");
+        throw new IllegalStateException("Invalid program orientation");
     }
 
     public void setGameOrientation(@NonNull String gameId, @NonNull OrientationPreference value) {

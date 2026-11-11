@@ -22,11 +22,11 @@ public final class LaunchScriptInstaller {
 
     private static final String BOOTSTRAP_ASSET = "bootstrap_termux_box.sh";
     /** Wine side of the controller shared by both launchers, with its payload (packaged by termux-x11):
-     *  the patched xinput/dinput DLL archive and winhandler.exe -- see controller_runtime.sh. */
+     *  the patched xinput/dinput DLL archive and wine-bridge.exe -- see controller_runtime.sh. */
     private static final String CONTROLLER_SCRIPT_ASSET = "local-games/controller_runtime.sh";
     /** The source file is wine.tar.gz; aapt2 inflates .gz assets and drops the suffix, so the packaged name is wine.tar. */
     private static final String CONTROLLER_DLL_ARCHIVE_ASSET = "wine.tar";
-    private static final String CONTROLLER_WINHANDLER_ASSET = "winhandler.exe";
+    private static final String WINE_BRIDGE_ASSET = "wine-bridge.exe";
     private static final String PREFIX_SETUP_ASSET = "local-games/setup_glibc_prefix.sh";
     /** Fonts + locale initialisation shared by bootstrap_termux_box.sh (setup time) and the launcher. */
     private static final String PREFIX_EXTRAS_ASSET = "local-games/glibc_prefix_extras.sh";
@@ -129,7 +129,7 @@ public final class LaunchScriptInstaller {
     private void installControllerRuntime() throws IOException {
         installAsset(CONTROLLER_SCRIPT_ASSET, new File(runtimeDirectory, "controller_runtime.sh"));
         installAsset(CONTROLLER_DLL_ARCHIVE_ASSET, new File(runtimeDirectory, "controller_wine.tar"));
-        installAsset(CONTROLLER_WINHANDLER_ASSET, new File(runtimeDirectory, "controller_winhandler.exe"));
+        installAsset(WINE_BRIDGE_ASSET, new File(runtimeDirectory, "wine-bridge.exe"));
     }
 
     /** Deploys the shell functions shared between start_rootfs_game.sh (launch-time fallback)

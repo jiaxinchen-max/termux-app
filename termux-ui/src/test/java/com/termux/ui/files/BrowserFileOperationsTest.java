@@ -34,6 +34,62 @@ public class BrowserFileOperationsTest {
     }
     private interface Throwing { void run() throws Exception; }
 
+    @Test public void createsEmptyFilesAndSingleFoldersInEveryRootWithoutChangingNames() throws Exception {
+        File shared = temp.newFolder("shared");
+        BrowserFileOperations creator = new BrowserFileOperations(links, root, games, shared);
+        for (File parent : new File[]{root, games, shared}) {
+            File result = creator.create(parent, "文件 no-extension ", false);
+            assertEquals(new File(parent, "文件 no-extension "), result);
+            assertTrue(result.isFile()); assertEquals(0, result.length());
+            File directory = creator.create(parent, ".folder", true);
+            assertTrue(directory.isDirectory()); assertEquals(0, directory.list().length);
+        }
+    }
+
+    @Test public void createRejectsInvalidNamesAndLeavesDirectoryUntouched() throws Exception {
+        for (String name : new String[]{null, "", " \t\n", ".", "..", "../escape", "/absolute", "a/b", "a\\b", "a\0b"}) {
+            fails("invalid_name", () -> operations.create(destination, name, false));
+            fails("invalid_name", () -> operations.create(destination, name, true));
+        }
+        assertEquals(0, destination.list().length);
+    }
+
+    @Test public void createNeverOverwritesFilesDirectoriesOrDanglingLinks() throws Exception {
+        File existing = file("destination/existing", "precious");
+        File child = file("destination/folder/child", "child");
+        File link = new File(destination, "link");
+        Path missing = new File(root, "missing").toPath();
+        Files.createSymbolicLink(link.toPath(), missing);
+        for (String name : new String[]{"existing", "folder", "link"}) {
+            fails("destination_exists", () -> operations.create(destination, name, false));
+            fails("destination_exists", () -> operations.create(destination, name, true));
+        }
+        assertEquals("precious", new String(Files.readAllBytes(existing.toPath()), "UTF-8"));
+        assertTrue(child.isFile()); assertEquals(missing, Files.readSymbolicLink(link.toPath()));
+        assertFalse(Files.exists(missing));
+    }
+
+    @Test public void createRejectsOutsideMissingAndNonDirectoryParents() throws Exception {
+        File outside = temp.newFolder("private-other");
+        File alias = new File(root, "escape"); Files.createSymbolicLink(alias.toPath(), outside.toPath());
+        for (File parent : new File[]{outside, alias}) {
+            fails("outside_roots", () -> operations.create(parent, "new", false));
+            fails("outside_roots", () -> operations.create(parent, "new", true));
+        }
+        for (File parent : new File[]{new File(root, "absent"), file("regular", "one")}) {
+            fails("destination_missing", () -> operations.create(parent, "new", false));
+            fails("destination_missing", () -> operations.create(parent, "new", true));
+        }
+        assertEquals(0, outside.list().length); assertFalse(new File(root, "absent").exists());
+    }
+
+    @Test public void interruptedCreateDoesNotWriteAnything() throws Exception {
+        Thread.currentThread().interrupt();
+        try { fails("operation_interrupted", () -> operations.create(destination, "new", false)); }
+        finally { Thread.interrupted(); }
+        assertEquals(0, destination.list().length);
+    }
+
     @Test public void copyIncludesHiddenChildrenAndPreservesSource() throws Exception {
         File source = file("folder/.hidden", "hidden").getParentFile(); file("folder/sub/a.txt", "payload");
         File result = operations.paste(source, destination, false);

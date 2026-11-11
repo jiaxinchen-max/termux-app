@@ -2,6 +2,7 @@ package com.termux.ui.activity;
 
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.net.Uri;
@@ -10,11 +11,13 @@ import android.os.Environment;
 import android.os.FileObserver;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputType;
 import android.text.format.Formatter;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.EditText;
 import android.widget.GridLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -22,6 +25,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.core.content.ContextCompat;
 
@@ -409,6 +413,10 @@ public final class GameFileManagerActivity extends AppUiActivity {
 
     private void configureFileActions() {
         binding.localGameFileManagerToolbar.inflateMenu(R.menu.local_game_browser_actions);
+        binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_new_file)
+            .setOnMenuItemClickListener(item -> { showCreateDialog(false); return true; });
+        binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_new_folder)
+            .setOnMenuItemClickListener(item -> { showCreateDialog(true); return true; });
         binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_show_hidden)
             .setOnMenuItemClickListener(item -> {
                 showHidden = !showHidden;
@@ -433,10 +441,44 @@ public final class GameFileManagerActivity extends AppUiActivity {
         if (menu.findItem(R.id.browser_paste) == null) return;
         boolean pending = clipboardSource != null;
         boolean ready = !operating && !importing;
+        menu.findItem(R.id.browser_new).setVisible(localCurrent != null).setEnabled(ready);
+        menu.findItem(R.id.browser_new_file).setEnabled(ready && localCurrent != null);
+        menu.findItem(R.id.browser_new_folder).setEnabled(ready && localCurrent != null);
         menu.findItem(R.id.browser_paste).setVisible(pending).setEnabled(ready && localCurrent != null)
             .setTitle(pending ? getString(R.string.browser_paste_named, clipboardSource.getName()) : getString(R.string.browser_paste));
         menu.findItem(R.id.browser_cancel_clipboard).setVisible(pending).setEnabled(ready);
         menu.findItem(R.id.browser_show_hidden).setChecked(showHidden).setEnabled(ready);
+    }
+
+    private void showCreateDialog(boolean directory) {
+        if (localCurrent == null || operating || importing || destroyed) return;
+        File destination = localCurrent;
+        FrostedDialogBuilder builder = new FrostedDialogBuilder(this);
+        EditText nameInput = new EditText(builder.getContext());
+        nameInput.setSingleLine(true);
+        nameInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        nameInput.setHint(R.string.browser_name);
+        FrameLayout content = new FrameLayout(builder.getContext());
+        content.setPadding(dp(24), dp(8), dp(24), 0);
+        content.addView(nameInput, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        AlertDialog dialog = builder.setTitle(directory ? R.string.browser_new_folder : R.string.browser_new_file)
+            .setView(content)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.browser_create, null)
+            .create();
+        dialog.show();
+        nameInput.requestFocus();
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(view -> {
+            if (operating || importing || destroyed) return;
+            String name = nameInput.getText().toString();
+            if (!BrowserFileOperations.isValidName(name)) {
+                nameInput.setError(getString(R.string.browser_invalid_name));
+                return;
+            }
+            dialog.dismiss();
+            runFileOperation(() -> fileOperations.create(destination, name, directory), () -> {});
+        });
     }
 
     private boolean showFileMenu(View anchor, File target) {
@@ -473,7 +515,8 @@ public final class GameFileManagerActivity extends AppUiActivity {
 
     private void openExternally(File target) {
         try {
-            startActivity(BrowserDocumentsProvider.openIntent(this, target));
+            startActivity(Intent.createChooser(BrowserDocumentsProvider.openIntent(this, target),
+                getString(R.string.browser_open_with)));
         } catch (ActivityNotFoundException e) {
             Toast.makeText(this, R.string.browser_no_open_app, Toast.LENGTH_LONG).show();
         } catch (IOException | SecurityException e) {

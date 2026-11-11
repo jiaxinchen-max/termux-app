@@ -131,6 +131,41 @@ public class FileRuntimeProfileRepositoryTest {
         }
     }
 
+    @Test public void ownershipInspectionDoesNotAcceptOrRewriteMissingInputSettings() throws Exception {
+        File directory = temporaryFolder.newFolder("broken-profile");
+        FileRuntimeProfileRepository repository = new FileRuntimeProfileRepository(directory);
+        repository.save(RuntimeProfilePresets.create("wine-broken", RuntimeProfilePreset.RECOMMENDED));
+        File file = new File(directory, "wine-broken.properties");
+        Properties data = new Properties();
+        try (java.io.FileInputStream input = new java.io.FileInputStream(file)) { data.load(input); }
+        data.remove("xinputEnabled");
+        try (FileOutputStream output = new FileOutputStream(file)) { data.store(output, null); }
+        byte[] original = java.nio.file.Files.readAllBytes(file.toPath());
+        RuntimeProfileBinding binding = repository.findBinding("wine-broken").get();
+        assertEquals("default", binding.getContainerId());
+        assertEquals(GameRuntimeBackendType.GLIBC_TERMUX_BOX, binding.getRuntimeBackendType());
+        assertEquals(java.util.Collections.singletonList("wine-broken"), repository.listProfileIds());
+        try { repository.find("wine-broken"); org.junit.Assert.fail("must reject missing input setting"); }
+        catch (IOException error) { assertEquals("missing_runtime_profile_field:xinputEnabled", error.getMessage()); }
+        org.junit.Assert.assertArrayEquals(original, java.nio.file.Files.readAllBytes(file.toPath()));
+    }
+
+    @Test public void invalidBindingIsUnknownAndMalformedPropertiesAreAnIoFailure() throws Exception {
+        File directory = temporaryFolder.newFolder("invalid-binding");
+        FileRuntimeProfileRepository repository = new FileRuntimeProfileRepository(directory);
+        File file = new File(directory, "wine-broken.properties");
+        for (String contents : new String[] {
+            "id=wine-other\nschemaVersion=5\ncontainerId=default\nruntimeBackendType=glibc_termux_box\nwinePackage=glibc_wine_9.3-vanilla\n",
+            "id=wine-broken\nschemaVersion=5\ncontainerId=../outside\nruntimeBackendType=glibc_termux_box\nwinePackage=glibc_wine_9.3-vanilla\n",
+            "id=wine-broken\nschemaVersion=5\ncontainerId=default\nruntimeBackendType=unknown\nwinePackage=glibc_wine_9.3-vanilla\n",
+            "bad=" + "\\" + "uBAD!\n"}) {
+            java.nio.file.Files.write(file.toPath(), contents.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            assertFalse(repository.findBinding("wine-broken").isPresent());
+        }
+        try { repository.find("wine-broken"); org.junit.Assert.fail("must reject malformed properties"); }
+        catch (IOException error) { assertEquals("invalid_runtime_profile", error.getMessage()); }
+    }
+
     private FileRuntimeProfileRepository repository() throws IOException {
         return new FileRuntimeProfileRepository(temporaryFolder.newFolder("profiles"));
     }

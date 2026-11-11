@@ -73,7 +73,7 @@ public class GameControllerMappingEditorTest {
         factory.set(null, oldFactory);
     }
 
-    @Test public void mappingPickerPreservesTouchLayoutAndBothLibraryChoices() throws Exception {
+    @Test public void advancedHasNoControllerSettingsAndPreservesExistingChoices() throws Exception {
         for (String wine : new String[] {"glibc_wine_9.3-vanilla", "glibc_proton_11.0",
                 "rootfs_proton_11.0", "rootfs_hangover_11.16"}) {
             Context context = RuntimeEnvironment.getApplication();
@@ -102,47 +102,115 @@ public class GameControllerMappingEditorTest {
                 GameRuntimeOptionsView options = (GameRuntimeOptionsView) field(activity.getClass(), activity, "runtimeOptionsView");
                 flush(options);
                 clickText(options, activity.getString(R.string.local_game_runtime_menu_libraries));
-                assertNull("Mapping belongs in Advanced, not Function Library",
+                assertNull("Mapping belongs in the running session, not Function Library",
                     findText(options, activity.getString(R.string.local_game_runtime_gamepad_mapping)));
                 View directInputLabel = findText(options, "DirectInput");
                 assertNotNull(directInputLabel);
                 View directInputRow = (View) directInputLabel.getParent().getParent();
-                assertEquals("Only Hangover's marked ARM64 libraries are fixed to builtin",
-                    !wine.startsWith("rootfs_hangover_"), directInputRow.isClickable());
+                assertTrue("Hangover supports builtin and native,builtin choices too",
+                    directInputRow.isClickable());
                 options.navigateBack();
                 clickText(options, activity.getString(R.string.local_game_runtime_menu_advanced));
-                androidx.appcompat.widget.SwitchCompat xinput = (androidx.appcompat.widget.SwitchCompat)
-                    findText(options, activity.getString(R.string.local_game_runtime_enable_xinput));
-                androidx.appcompat.widget.SwitchCompat dinput = (androidx.appcompat.widget.SwitchCompat)
-                    findText(options, activity.getString(R.string.local_game_runtime_enable_dinput));
-                assertFalse(xinput.isChecked());
-                assertTrue(dinput.isChecked());
-                xinput.setChecked(true);
-                dinput.setChecked(false);
-                assertTrue(options.hasUnsavedChanges());
-                android.os.Bundle draft = options.saveDraftState();
-                xinput.setChecked(false);
-                dinput.setChecked(true);
-                options.restoreDraftState(draft);
-                RuntimeProfile restoredDraft = (RuntimeProfile) field(options.getClass(), options, "profile");
-                assertTrue(restoredDraft.isXinputEnabled());
-                assertFalse(restoredDraft.isDinputEnabled());
-                for (int selection : new int[] {1, 0}) {
-                    clickText(options, activity.getString(R.string.local_game_runtime_gamepad_mapping));
-                    AlertDialog dialog = (AlertDialog) ShadowDialog.getLatestDialog();
-                    assertEquals(2, dialog.getListView().getCount());
-                    dialog.getListView().performItemClick(null, selection, selection);
-                    RuntimeProfile changed = (RuntimeProfile) field(options.getClass(), options, "profile");
-                    assertEquals(selection == 0 ? "xinput:3" : "dinput:3", changed.getInputProfileId());
-                    assertEquals(original.getEnvironment(), changed.getEnvironment());
-                    assertEquals(original.getWinePackage(), changed.getWinePackage());
-                    assertTrue(changed.isXinputEnabled());
-                    assertFalse(changed.isDinputEnabled());
-                    assertFalse(profiles.find(id).get().isXinputEnabled());
-                    assertTrue(profiles.find(id).get().isDinputEnabled());
-                    assertEquals("draft must not be persisted before Save", "xinput:3",
-                        profiles.find(id).get().getInputProfileId());
+                assertNull(findText(options, activity.getString(R.string.local_game_runtime_enable_xinput)));
+                assertNull(findText(options, activity.getString(R.string.local_game_runtime_enable_dinput)));
+                assertNull(findText(options, activity.getString(R.string.local_game_runtime_gamepad_mapping)));
+                RuntimeProfile unchanged = (RuntimeProfile) field(options.getClass(), options, "profile");
+                assertEquals("xinput:3", unchanged.getInputProfileId());
+                assertFalse(unchanged.isXinputEnabled());
+                assertTrue(unchanged.isDinputEnabled());
+                assertEquals(original.getEnvironment(), unchanged.getEnvironment());
+                assertFalse(profiles.find(id).get().isXinputEnabled());
+                assertTrue(profiles.find(id).get().isDinputEnabled());
+
+            }
+        }
+    }
+
+    @Test public void controllerLibraryDefaultsAndIndependentChoicesSurviveSaving() throws Exception {
+        for (String wine : new String[] {"glibc_wine_9.3-vanilla", "glibc_proton_11.0",
+                "rootfs_proton_11.0", "rootfs_hangover_11.16"}) {
+            for (boolean omitOptionalSettings : new boolean[] {false, true}) {
+                Context context = RuntimeEnvironment.getApplication();
+                GameStoragePaths paths = new GameStoragePaths(context.getFilesDir());
+                String id = "dll-default-" + UUID.randomUUID();
+                boolean proot = wine.startsWith("rootfs_");
+                boolean hangover = wine.startsWith("rootfs_hangover_");
+                RuntimeProfile base = RuntimeProfilePresets.create(id, RuntimeProfilePreset.RECOMMENDED);
+                Map<String, String> environment = new LinkedHashMap<>(base.getEnvironment());
+                if (omitOptionalSettings) {
+                    environment.remove("GAMES_DLL_DINPUT");
+                    environment.remove("GAMES_DLL_XINPUT");
                 }
+                RuntimeProfile original = new RuntimeProfile(id, wine,
+                    proot ? "rootfs-virgl-mesa" : base.getGraphicsDriver(),
+                    proot ? "rootfs-wined3d" : base.getDxWrapper(),
+                    proot ? "pulseaudio" : base.getAudioDriver(), base.getResolution(), base.getBox64Preset(), environment, "dinput:3",
+                    base.getLaunchExecutionMode(), base.getComponentVersions(), proot
+                        ? GameRuntimeBackendType.ROOTFS_PROOT : GameRuntimeBackendType.GLIBC_TERMUX_BOX,
+                    proot ? RootfsSetupRecipe.DEFAULT_PACKAGE : "", proot ? "dll-container" : "default", false, true);
+                FileRuntimeProfileRepository profiles = new FileRuntimeProfileRepository(paths.getProfilesDirectory());
+                profiles.save(original);
+                new FileGameRepository(paths.getLibraryDirectory()).save(new Game(id, "DLL test",
+                    Uri.fromFile(root).toString(), "game.exe", ".", Collections.emptyList(), "", 0));
+                try (ActivityController<GameDetailActivity> controller = Robolectric.buildActivity(GameDetailActivity.class,
+                        new Intent(context, GameDetailActivity.class).putExtra(GameDetailActivity.EXTRA_GAME_ID, id))
+                        .create().start().resume().visible()) {
+                    GameDetailActivity activity = controller.get();
+                    flush(activity);
+                    activity.findViewById(R.id.game_detail_runtime_profile).performClick();
+                    GameRuntimeOptionsView options = (GameRuntimeOptionsView) field(activity.getClass(), activity, "runtimeOptionsView");
+                    flush(options);
+                    clickText(options, activity.getString(R.string.local_game_runtime_menu_libraries));
+                    String mixed = activity.getString(R.string.local_game_runtime_dll_native_builtin);
+                    for (String label : new String[] {"DirectInput", "XInput"}) {
+                        View row = (View) findText(options, label).getParent().getParent();
+                        assertNotNull("Default summary must match the launch default", findText(row, mixed));
+                    }
+                    clickText(options, "DirectInput");
+                    AlertDialog directInput = (AlertDialog) ShadowDialog.getLatestDialog();
+                    assertEquals(hangover ? 2 : 3, directInput.getListView().getCount());
+                    assertEquals(hangover ? 1 : 2, directInput.getListView().getCheckedItemPosition());
+                    if (hangover) {
+                        for (int i = 0; i < directInput.getListView().getCount(); i++) {
+                            assertNotEquals(activity.getString(R.string.local_game_runtime_dll_native),
+                                directInput.getListView().getItemAtPosition(i).toString());
+                        }
+                    }
+                    directInput.getListView().performItemClick(null, 0, 0);
+                    RuntimeProfile draft = (RuntimeProfile) field(options.getClass(), options, "profile");
+                    assertEquals("builtin", draft.getEnvironment().get("GAMES_DLL_DINPUT"));
+                    assertEquals(environment.get("GAMES_DLL_XINPUT"), draft.getEnvironment().get("GAMES_DLL_XINPUT"));
+                    clickText(options, "XInput");
+                    AlertDialog xinput = (AlertDialog) ShadowDialog.getLatestDialog();
+                    assertEquals(hangover ? 1 : 2, xinput.getListView().getCheckedItemPosition());
+                    xinput.getListView().performItemClick(null, hangover ? 1 : 2, hangover ? 1 : 2);
+                    assertEquals(environment, profiles.find(id).get().getEnvironment());
+                    java.lang.reflect.Method save = GameRuntimeOptionsView.class.getDeclaredMethod("saveAndFinish");
+                    save.setAccessible(true);
+                    save.invoke(options);
+                    flush(options);
+                    flush(activity);
+                    activity.findViewById(R.id.game_detail_save).performClick();
+                    flush(activity);
+                }
+                RuntimeProfile saved = profiles.find(id).get();
+                assertEquals("builtin", saved.getEnvironment().get("GAMES_DLL_DINPUT"));
+                assertEquals("native,builtin", saved.getEnvironment().get("GAMES_DLL_XINPUT"));
+                assertEquals("dinput:3", saved.getInputProfileId());
+                assertFalse(saved.isXinputEnabled());
+                assertTrue(saved.isDinputEnabled());
+                assertFalse(saved.getEnvironment().containsKey("GAMES_DLL_D3D"));
+                File executable = new File(root, "game.exe");
+                assertTrue(executable.isFile() || executable.createNewFile());
+                com.termux.ui.wine.domain.LaunchSpec frozen = new com.termux.ui.wine.runtime.LaunchSpecFactory(paths)
+                    .create("launch-" + id, new FileGameRepository(paths.getLibraryDirectory()).find(id).get(),
+                        saved, root.getAbsolutePath(), proot ? new com.termux.ui.wine.runtime.RootfsProotBackend()
+                            : new com.termux.ui.wine.runtime.GlibcTermuxBoxBackend(),
+                        proot ? paths.getSharedRootfsDirectory().getAbsolutePath() : "");
+                File specFile = File.createTempFile("controller-dll-", ".launchspec", root);
+                com.termux.ui.wine.data.LaunchSpecCodec codec = new com.termux.ui.wine.data.LaunchSpecCodec();
+                codec.write(specFile, frozen);
+                assertEquals(saved.getEnvironment(), codec.read(specFile).getEnvironment());
             }
         }
     }

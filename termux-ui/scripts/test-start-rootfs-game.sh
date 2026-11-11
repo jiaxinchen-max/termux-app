@@ -53,7 +53,7 @@ for asset in start_rootfs_game.sh proot_component_bindings.sh rootfs_prefix_warm
     cp "$PROJECT_ROOT/termux-ui/src/main/assets/local-games/$asset" "$RUNTIME_DIR/$asset"
 done
 gzip -dc "$PROJECT_ROOT/termux-x11/src/main/assets/wine.tar.gz" > "$RUNTIME_DIR/controller_wine.tar"
-cp "$PROJECT_ROOT/termux-x11/src/main/assets/winhandler.exe" "$RUNTIME_DIR/controller_winhandler.exe"
+cp "$PROJECT_ROOT/termux-x11/src/main/assets/wine-bridge.exe" "$RUNTIME_DIR/wine-bridge.exe"
 [ -z "${ROOTFS_LAUNCHER_UNDER_TEST:-}" ] || cp "$ROOTFS_LAUNCHER_UNDER_TEST" "$RUNTIME_DIR/start_rootfs_game.sh"
 # This is a prepared prefix, matching the current shared RootFS and Wine package.
 seed_prefix() {
@@ -190,7 +190,7 @@ import base64,sys
 from pathlib import Path
 args=[base64.b64decode(line).decode() for line in Path(sys.argv[1]).read_text().splitlines()]
 actual=args[args.index('game-session')+1:]
-expected=sys.argv[2:]+['explorer','/desktop=shell,1280x720',r'C:\windows\winhandler.exe',r'Z:\mnt\games\game\bin folder\game.exe',
+expected=sys.argv[2:]+['explorer','/desktop=shell,1280x720',r'C:\windows\wine-bridge.exe',r'Z:\mnt\games\game\bin folder\game.exe',
                        'hello world','$HOME',"it's-safe",r'back\slash']
 assert actual==expected, ('RootFS argv changed',actual,expected)
 PYARGV

@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item name="local_games_dialog_scrim_controller" type="id" />
+    <item name="game_controller_xinput_switch" type="id" />
+    <item name="game_controller_dinput_switch" type="id" />
+    <item name="game_controller_mapping_switch" type="id" />
 </resources>

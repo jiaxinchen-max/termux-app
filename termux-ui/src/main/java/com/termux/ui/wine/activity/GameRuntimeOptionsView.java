@@ -45,6 +45,7 @@ import com.termux.ui.wine.domain.Game;
 import com.termux.ui.wine.domain.GameContainer;
 import com.termux.ui.wine.domain.GameRuntimeBackendType;
 import com.termux.ui.wine.domain.RuntimeProfile;
+import com.termux.ui.wine.domain.RuntimeProfilePresets;
 import com.termux.ui.wine.domain.RuntimeProfileDiff;
 import com.termux.ui.wine.domain.RuntimeTranslator;
 import com.termux.ui.wine.importer.LaunchArguments;
@@ -460,13 +461,8 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         addDllChoice("DirectMusic", "GAMES_DLL_DMUSIC");
         addDllChoice("DirectShow", "GAMES_DLL_DSHOW");
         addDllChoice("DirectPlay", "GAMES_DLL_DPLAY");
-        if (HangoverEmulationMode.appliesTo(profile)) {
-            addRow("DirectInput", s(R.string.local_game_runtime_dll_builtin), false, null);
-            addRow("XInput", s(R.string.local_game_runtime_dll_builtin), false, null);
-        } else {
-            addDllChoice("DirectInput", "GAMES_DLL_DINPUT");
-            addDllChoice("XInput", "GAMES_DLL_XINPUT");
-        }
+        addControllerDllChoice("DirectInput", "GAMES_DLL_DINPUT");
+        addControllerDllChoice("XInput", "GAMES_DLL_XINPUT");
     }
 
     private void renderFolders() {
@@ -754,19 +750,6 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     private void renderAdvanced() {
         pageTitle(s(R.string.local_game_runtime_menu_advanced));
-        addInputApiSwitch(s(R.string.local_game_runtime_enable_xinput), profile.isXinputEnabled(),
-            enabled -> profile = profile.withInputApis(enabled, profile.isDinputEnabled()));
-        addInputApiSwitch(s(R.string.local_game_runtime_enable_dinput), profile.isDinputEnabled(),
-            enabled -> profile = profile.withInputApis(profile.isXinputEnabled(), enabled));
-        addChoice(s(R.string.local_game_runtime_gamepad_mapping), labels("XInput", "DirectInput"),
-            "dinput".equals(GameInputProfileChoices.mapperOf(profile.getInputProfileId())) ? 1 : 0,
-            which -> {
-                String input = GameInputProfileChoices.withMapper(profile.getInputProfileId(),
-                    which == 0 ? "xinput" : "dinput");
-                replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
-                    profile.getAudioDriver(), profile.getResolution(), profile.getBox64Preset(),
-                    profile.getEnvironment(), input, profile.getLaunchExecutionMode());
-            });
         addChoice(s(R.string.local_game_runtime_advanced_box64_preset), withCurrent(profile.getBox64Preset(), "STABILITY", "INTERMEDIATE", "PERFORMANCE"),
             value -> replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
                 profile.getAudioDriver(), profile.getResolution(), value, profile.getEnvironment(),
@@ -819,20 +802,6 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     private void addReadOnly(String label, String summary) {
         addRow(label, summary, false, null);
-    }
-
-    private void addInputApiSwitch(String label, boolean enabled, java.util.function.Consumer<Boolean> changed) {
-        androidx.appcompat.widget.SwitchCompat toggle = new androidx.appcompat.widget.SwitchCompat(getContext());
-        toggle.setText(label);
-        toggle.setTextColor(color(R.color.local_games_on_surface));
-        toggle.setPadding(dp(16), dp(14), dp(16), dp(14));
-        toggle.setChecked(enabled);
-        toggle.setOnCheckedChangeListener((button, checked) -> {
-            changed.accept(checked);
-            listener.onRuntimeOptionsChanged();
-        });
-        content.addView(toggle, new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
     }
 
     private void addChoice(String label, String[] values, ChoiceCallback callback) {
@@ -909,6 +878,23 @@ public final class GameRuntimeOptionsView extends LinearLayout {
             s(R.string.local_game_runtime_dll_native_builtin));
         addChoice(label, values, choiceIndex(option(key), values),
             which -> setOption(key, new String[] { "builtin", "native", "native,builtin" }[which]));
+    }
+
+    private void addControllerDllChoice(String label, String key) {
+        boolean hangover = HangoverEmulationMode.appliesTo(profile);
+        String[] modes = hangover ? new String[] { "builtin", "native,builtin" }
+            : new String[] { "builtin", "native", "native,builtin" };
+        String[] values = hangover ? labels(s(R.string.local_game_runtime_dll_builtin),
+            s(R.string.local_game_runtime_dll_native_builtin))
+            : labels(s(R.string.local_game_runtime_dll_builtin), s(R.string.local_game_runtime_dll_native),
+                s(R.string.local_game_runtime_dll_native_builtin));
+        String selected = option(key);
+        if (selected.isEmpty()) selected = RuntimeProfilePresets.DEFAULT_CONTROLLER_DLL_LOAD_ORDER;
+        int checked = -1;
+        for (int index = 0; index < modes.length; index++) {
+            if (modes[index].equalsIgnoreCase(selected)) checked = index;
+        }
+        addChoice(label, values, checked, which -> setOption(key, modes[which]));
     }
 
     private String option(String key) {

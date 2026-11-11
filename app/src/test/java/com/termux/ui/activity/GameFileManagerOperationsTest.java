@@ -3,10 +3,13 @@ package com.termux.ui.activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.DialogInterface;
+import android.content.pm.ActivityInfo;
+import android.content.pm.ResolveInfo;
 import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.EditText;
 import android.widget.GridLayout;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.appcompat.widget.Toolbar;
@@ -18,6 +21,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
@@ -68,6 +72,25 @@ public class GameFileManagerOperationsTest {
         GridLayout grid = a.findViewById(R.id.local_game_file_manager_items);
         for (int i=0;i<grid.getChildCount();i++) if (text(grid.getChildAt(i), label) != null) return grid.getChildAt(i);
         throw new AssertionError("No browser entry " + label);
+    }
+    private EditText nameInput(View view) {
+        if (view instanceof EditText) return (EditText)view;
+        if (view instanceof ViewGroup) for (int i=0;i<((ViewGroup)view).getChildCount();i++) {
+            EditText input = nameInput(((ViewGroup)view).getChildAt(i));
+            if (input != null) return input;
+        }
+        return null;
+    }
+    private AlertDialog createDialog(GameFileManagerActivity a, boolean directory) {
+        assertTrue(toolbar(a).getMenu().performIdentifierAction(directory ? R.id.browser_new_folder : R.id.browser_new_file, 0));
+        AlertDialog dialog = (AlertDialog)ShadowDialog.getLatestDialog();
+        assertNotNull(dialog); assertTrue(dialog.isShowing());
+        assertNotNull(nameInput(dialog.getWindow().getDecorView()));
+        return dialog;
+    }
+    private void submitName(AlertDialog dialog, String name) {
+        nameInput(dialog.getWindow().getDecorView()).setText(name);
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();
     }
     private void flush(GameFileManagerActivity a) throws Exception {
         for (int i=0;i<2;i++) {
@@ -158,14 +181,126 @@ public class GameFileManagerOperationsTest {
             toolbar(a).getMenu().performIdentifierAction(R.id.browser_show_hidden,0);assertNull(text(grid,".secret"));assertNull(text(grid,".directory"));
         }
     }
-    @Test public void openMenuUsesSystemViewWithMimeAndReadGrant() throws Exception {
+    @Test public void openMenuAlwaysUsesChooserEvenWithDefaultAppAndPreservesReadGrant() throws Exception {
         File file=write("readme.txt","one");
         try(ActivityController<GameFileManagerActivity> c=open()) {
-            GameFileManagerActivity a=c.get();entry(a,"readme.txt").performLongClick();popup(a).getMenu().performIdentifierAction(101,0);
-            Intent started=Shadows.shadowOf(a).getNextStartedActivity();assertEquals(Intent.ACTION_VIEW,started.getAction());
+            GameFileManagerActivity a=c.get();
+            Intent view=com.termux.ui.files.BrowserDocumentsProvider.openIntent(a,file);
+            ResolveInfo app=new ResolveInfo();app.isDefault=true;app.activityInfo=new ActivityInfo();
+            app.activityInfo.packageName="test.reader";app.activityInfo.name="test.reader.Main";app.activityInfo.exported=true;
+            Shadows.shadowOf(a.getPackageManager()).addResolveInfoForIntent(view,app);
+            assertNotNull(a.getPackageManager().resolveActivity(view,android.content.pm.PackageManager.MATCH_DEFAULT_ONLY));
+            entry(a,"readme.txt").performLongClick();popup(a).getMenu().performIdentifierAction(101,0);
+            Intent chooser=Shadows.shadowOf(a).getNextStartedActivity();assertEquals(Intent.ACTION_CHOOSER,chooser.getAction());
+            Intent started=chooser.getParcelableExtra(Intent.EXTRA_INTENT);assertEquals(Intent.ACTION_VIEW,started.getAction());
             assertEquals("text/plain",started.getType());assertEquals("content",started.getData().getScheme());
             assertEquals(file.getCanonicalPath(),android.provider.DocumentsContract.getDocumentId(started.getData()));
             assertEquals(Intent.FLAG_GRANT_READ_URI_PERMISSION,started.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION));
+            assertEquals(started.getData(),started.getClipData().getItemAt(0).getUri());
+            assertEquals(started.getClipData(),chooser.getClipData());
+            assertEquals(Intent.FLAG_GRANT_READ_URI_PERMISSION,chooser.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION));
+            // Selecting or dismissing the system chooser belongs to Android: no second launch here.
+            assertNull(Shadows.shadowOf(a).getNextStartedActivity());
+        }
+    }
+
+    @Test public void newToolbarActionIsAnIconAndCreatesFilesAndFolders() throws Exception { createFromToolbar(); }
+
+    @Test @Config(qualifiers="w400dp-h800dp-port")
+    public void newToolbarIconAndCreationAlsoWorkInPortrait() throws Exception { createFromToolbar(); }
+
+    private void createFromToolbar() throws Exception {
+        try(ActivityController<GameFileManagerActivity> c=open()) {
+            GameFileManagerActivity a=c.get();
+            android.view.MenuItem item=toolbar(a).getMenu().findItem(R.id.browser_new);
+            assertTrue(item.isVisible());assertTrue(item.isEnabled());assertNotNull(item.getIcon());
+            androidx.appcompat.view.menu.ActionMenuItemView action=a.findViewById(R.id.browser_new);
+            assertNotNull(action);assertFalse(action.hasText());
+            assertEquals(a.getString(R.string.browser_new),action.getContentDescription());
+            AlertDialog dialog=createDialog(a,false);submitName(dialog,"notes");flush(a);
+            File file=new File(folder,"notes");assertTrue(file.isFile());assertEquals(0,file.length());entry(a,"notes");
+            dialog=createDialog(a,true);submitName(dialog,"folder");flush(a);
+            assertTrue(new File(folder,"folder").isDirectory());entry(a,"folder");
+        }
+    }
+
+    @Test public void cancelledOrInvalidCreationDoesNotWriteAndValidRetryWorks() throws Exception {
+        try(ActivityController<GameFileManagerActivity> c=open()) {
+            GameFileManagerActivity a=c.get();AlertDialog dialog=createDialog(a,false);
+            nameInput(dialog.getWindow().getDecorView()).setText("cancelled");
+            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).performClick();flush(a);
+            assertEquals(0,folder.list().length);
+            dialog=createDialog(a,true);submitName(dialog,"../escape");flush(a);
+            assertTrue(dialog.isShowing());assertNotNull(nameInput(dialog.getWindow().getDecorView()).getError());
+            assertEquals(0,folder.list().length);submitName(dialog,"valid");flush(a);
+            assertTrue(new File(folder,"valid").isDirectory());
+        }
+    }
+
+    @Test public void createConflictPreservesExistingContentsAndReportsFailure() throws Exception {
+        File precious=write("existing","precious");
+        try(ActivityController<GameFileManagerActivity> c=open()) {
+            GameFileManagerActivity a=c.get();submitName(createDialog(a,false),"existing");flush(a);
+            assertEquals("precious",new String(Files.readAllBytes(precious.toPath()),"UTF-8"));
+            AlertDialog error=(AlertDialog)ShadowDialog.getLatestDialog();assertTrue(error.isShowing());
+            assertNotNull(text(error.getWindow().getDecorView(),a.getString(R.string.browser_conflict)+"\ndestination_exists: "+precious.getCanonicalPath()));
+        }
+    }
+
+    @Test public void createKeepsOriginalDestinationAndHiddenPreference() throws Exception {
+        File other=new File(folder,"other");assertTrue(other.mkdir());
+        try(ActivityController<GameFileManagerActivity> c=open()) {
+            GameFileManagerActivity a=c.get();AlertDialog dialog=createDialog(a,false);
+            browse(a,other);submitName(dialog,".hidden");flush(a);
+            assertTrue(new File(folder,".hidden").isFile());assertFalse(new File(other,".hidden").exists());
+            browse(a,folder);assertNull(text(a.findViewById(R.id.local_game_file_manager_items),".hidden"));
+            assertFalse(toolbar(a).getMenu().findItem(R.id.browser_show_hidden).isChecked());
+        }
+    }
+
+    @Test public void homeHidesCreateAndAllThreeRootsAllowCreatingChildren() throws Exception {
+        try(ActivityController<GameFileManagerActivity> c=Robolectric.buildActivity(GameFileManagerActivity.class).setup().visible()) {
+            GameFileManagerActivity a=c.get();assertFalse(toolbar(a).getMenu().findItem(R.id.browser_new).isVisible());
+            assertFalse(toolbar(a).getMenu().findItem(R.id.browser_new_file).isEnabled());
+            for(File root:new File[]{a.getFilesDir(),new GameStoragePaths(a.getFilesDir()).getImportedGamesDirectory(),android.os.Environment.getExternalStorageDirectory()}) {
+                root.mkdirs();browse(a,root);assertTrue(toolbar(a).getMenu().findItem(R.id.browser_new).isVisible());
+                submitName(createDialog(a,false),"created-child");flush(a);
+                assertTrue(new File(root,"created-child").isFile());
+            }
+        }
+    }
+
+    @Test public void queuedCreationDisablesToolbarUntilItCompletes() throws Exception {
+        CountDownLatch release=new CountDownLatch(1),entered=new CountDownLatch(1);
+        try(ActivityController<GameFileManagerActivity> c=open()) {
+            GameFileManagerActivity a=c.get();
+            ((ExecutorService)field(a,"ioExecutor")).submit(() -> {
+                entered.countDown();
+                try { release.await(10,TimeUnit.SECONDS); }catch(InterruptedException e){Thread.currentThread().interrupt();}
+            });
+            assertTrue(entered.await(10,TimeUnit.SECONDS));
+            try {
+                submitName(createDialog(a,false),"queued");
+                assertFalse(toolbar(a).getMenu().findItem(R.id.browser_new).isEnabled());
+                assertFalse(toolbar(a).getMenu().findItem(R.id.browser_new_file).isEnabled());
+                assertFalse(new File(folder,"queued").exists());
+                assertEquals(View.VISIBLE,a.findViewById(R.id.local_game_file_manager_progress).getVisibility());
+            }finally{release.countDown();}
+            flush(a);assertTrue(new File(folder,"queued").isFile());
+            assertTrue(toolbar(a).getMenu().findItem(R.id.browser_new).isEnabled());
+        }finally{release.countDown();}
+    }
+
+    @Test public void directoryChooserPreservesOnlySelectedTreeReadAccess() throws Exception {
+        File child=new File(folder,"child");assertTrue(child.mkdir());
+        try(ActivityController<GameFileManagerActivity> c=open()) {
+            GameFileManagerActivity a=c.get();entry(a,"child").performLongClick();popup(a).getMenu().performIdentifierAction(101,0);
+            Intent chooser=Shadows.shadowOf(a).getNextStartedActivity();assertEquals(Intent.ACTION_CHOOSER,chooser.getAction());
+            Intent target=chooser.getParcelableExtra(Intent.EXTRA_INTENT);
+            assertEquals(android.provider.DocumentsContract.Document.MIME_TYPE_DIR,target.getType());
+            assertEquals(child.getCanonicalPath(),android.provider.DocumentsContract.getTreeDocumentId(chooser.getClipData().getItemAt(0).getUri()));
+            assertEquals(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PREFIX_URI_PERMISSION,chooser.getFlags());
+            assertEquals(target.getClipData(),chooser.getClipData());assertNull(Shadows.shadowOf(a).getNextStartedActivity());
         }
     }
     @Test public void rootOffersToolbarPasteWithoutBlankMenu() throws Exception {

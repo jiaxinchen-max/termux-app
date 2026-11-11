@@ -37,6 +37,62 @@ public class GameUninstallerTest {
 
     @Rule public final TemporaryFolder temporary = new TemporaryFolder();
 
+    @Test public void invalidProfileCanBeRemovedAfterForceStopWithoutChangingExternalFiles() throws Exception {
+        Fixture fixture = fixture("invalid-files", "wine-invalid");
+        File profile = fixture.paths.getCurrentProfileFile(fixture.gameId);
+        String text = new String(java.nio.file.Files.readAllBytes(profile.toPath()), StandardCharsets.UTF_8);
+        java.nio.file.Files.write(profile.toPath(), text.replace("xinputEnabled=true", "").getBytes(StandardCharsets.UTF_8));
+        new FileRuntimeProfileRepository(fixture.paths.getProfilesDirectory()).saveLastSuccessful(
+            RuntimeProfilePresets.create(fixture.gameId, RuntimeProfilePreset.RECOMMENDED));
+        final boolean[] killed = {false};
+        com.termux.ui.api.LocalGamesHost host = new com.termux.ui.api.LocalGamesHost() {
+            public boolean isRuntimeAvailable() { return true; }
+            public void forceStopRuntimeProcesses(java.util.List<String> scopes) {
+                assertTrue(profile.isFile());
+                assertFalse(scopes.isEmpty());
+                killed[0] = true;
+            }
+        };
+        new GameUninstaller(fixture.files, host).execute(GameUninstallPlan.keepPrivateAssets(fixture.gameId));
+        assertTrue(killed[0]);
+        assertFalse(fixture.games.find(fixture.gameId).isPresent());
+        assertFalse(profile.exists());
+        assertFalse(new File(fixture.paths.getProfilesDirectory(), fixture.gameId + ".last-success.properties").exists());
+        assertTrue(fixture.external.isFile());
+    }
+
+    @Test public void failedForceStopKeepsInvalidGameAndProfile() throws Exception {
+        Fixture fixture = fixture("stop-failure-files", "wine-invalid");
+        File profile = fixture.paths.getCurrentProfileFile(fixture.gameId);
+        write(profile, "broken=true");
+        com.termux.ui.api.LocalGamesHost host = new com.termux.ui.api.LocalGamesHost() {
+            public boolean isRuntimeAvailable() { return true; }
+            public void forceStopRuntimeProcesses(java.util.List<String> scopes) throws com.termux.ui.api.LaunchHostException {
+                throw new com.termux.ui.api.LaunchHostException("runtime_force_stop_failed", true, null);
+            }
+        };
+        try {
+            new GameUninstaller(fixture.files, host).execute(GameUninstallPlan.keepPrivateAssets(fixture.gameId));
+            fail("force-stop failure must abort removal");
+        } catch (IOException expected) { assertEquals("runtime_force_stop_failed", expected.getMessage()); }
+        assertTrue(profile.isFile());
+        assertTrue(fixture.games.find(fixture.gameId).isPresent());
+        assertTrue(fixture.external.isFile());
+    }
+
+    @Test public void unknownOtherBindingDoesNotBlockRemovalOrProveContainerOrphaned() throws Exception {
+        Fixture fixture = fixture("unknown-other-files", "wine-valid");
+        FileRuntimeProfileRepository profiles = new FileRuntimeProfileRepository(fixture.paths.getProfilesDirectory());
+        profiles.save(rootfsProfile(fixture.gameId, "container-keep"));
+        write(new File(fixture.paths.getProfilesDirectory(), "wine-broken.properties"), "broken=true");
+        write(new File(fixture.paths.getProfilesDirectory(), "invalid name.properties"), "broken=true");
+        File containerRecord = new File(fixture.paths.getContainersDirectory(), "container-keep.properties");
+        write(containerRecord, "keep");
+        new GameUninstaller(fixture.files, stoppingHost).execute(GameUninstallPlan.keepPrivateAssets(fixture.gameId));
+        assertFalse(fixture.games.find(fixture.gameId).isPresent());
+        assertTrue(containerRecord.isFile());
+    }
+
     @Test
     public void defaultUninstallKeepsAllOptionalPrivateAndExternalContent() throws Exception {
         Fixture fixture = fixture("default-files", "game-1");

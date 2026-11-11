@@ -8,7 +8,7 @@ import com.termux.ui.wine.data.FileLaunchTaskRepository;
 import com.termux.ui.wine.data.FileRuntimeProfileRepository;
 import com.termux.ui.wine.domain.GameContainer;
 import com.termux.ui.wine.domain.LaunchTask;
-import com.termux.ui.wine.domain.RuntimeProfile;
+import com.termux.ui.wine.data.RuntimeProfileBinding;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,7 +63,10 @@ public final class GameUninstaller {
         // away, then remove it only when it is genuinely this game's own and not shared.
         deleteBoundContainerIfOrphaned(gameId);
 
-        if (plan.removesConfiguration()) profiles.delete(gameId);
+        boolean invalidConfiguration;
+        try { invalidConfiguration = !profiles.find(gameId).isPresent(); }
+        catch (IOException invalid) { invalidConfiguration = true; }
+        if (plan.removesConfiguration() || invalidConfiguration) profiles.delete(gameId);
 
         try (GameArtworkStore.Mutation removal = artwork.stageRemoval(gameId)) {
             games.delete(gameId);
@@ -75,7 +78,7 @@ public final class GameUninstaller {
      *  per-container prefix/metadata, and its proot-distro RootFS directory -- but only when the
      *  container is not the shared global container and no other game still references it. */
     private void deleteBoundContainerIfOrphaned(String gameId) throws IOException {
-        Optional<RuntimeProfile> profile = profiles.find(gameId);
+        Optional<RuntimeProfileBinding> profile = profiles.findBinding(gameId);
         if (!profile.isPresent()) return;
         String containerId = profile.get().getContainerId();
         if (containerId == null || containerId.isEmpty()
@@ -96,9 +99,13 @@ public final class GameUninstaller {
 
     private boolean isContainerReferencedByOtherGame(String gameId, String containerId)
         throws IOException {
-        for (RuntimeProfile other : profiles.list()) {
-            if (gameId.equals(other.getId())) continue;
-            if (containerId.equals(other.getContainerId())) return true;
+        for (String otherId : profiles.listProfileIds()) {
+            if (gameId.equals(otherId)) continue;
+            Optional<RuntimeProfileBinding> other;
+            try { other = profiles.findBinding(otherId); }
+            catch (IOException | IllegalArgumentException unreadableOwnership) { return true; }
+            // Unknown ownership cannot prove this container is orphaned.
+            if (!other.isPresent() || containerId.equals(other.get().getContainerId())) return true;
         }
         return false;
     }

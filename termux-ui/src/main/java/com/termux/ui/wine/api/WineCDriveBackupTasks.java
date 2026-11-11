@@ -49,8 +49,8 @@ public final class WineCDriveBackupTasks {
         Thread running;
         synchronized (WineCDriveBackupTasks.class) {
             Properties job = load(files);
-            RuntimeProfile profile = new FileRuntimeProfileRepository(new GameStoragePaths(files).getProfilesDirectory())
-                .find(gameId).orElse(null);
+            com.termux.ui.wine.data.RuntimeProfileBinding profile = new FileRuntimeProfileRepository(
+                new GameStoragePaths(files).getProfilesDirectory()).findBinding(gameId).orElse(null);
             if (!gameId.equals(job.getProperty("gameId")) && (profile == null
                 || !profile.getContainerId().equals(job.getProperty("containerId")))) return;
             if (!"RUNNING".equals(job.getProperty("status"))

@@ -45,6 +45,39 @@ public final class FileRuntimeProfileRepository implements RuntimeProfileReposit
         return Collections.unmodifiableList(profiles);
     }
 
+    /** Names only: callers may inspect ownership without accepting invalid runtime parameters. */
+    public synchronized List<String> listProfileIds() throws IOException {
+        if (!directory.exists()) return Collections.emptyList();
+        File[] files = directory.listFiles((parent, name) ->
+            name.endsWith(CURRENT_SUFFIX) && !name.endsWith(SUCCESS_SUFFIX));
+        if (files == null) throw new IOException("runtime_profile_repository_unreadable");
+        Arrays.sort(files, Comparator.comparing(File::getName));
+        List<String> ids = new ArrayList<>();
+        for (File file : files) ids.add(file.getName().substring(0, file.getName().length() - CURRENT_SUFFIX.length()));
+        return Collections.unmodifiableList(ids);
+    }
+
+    /** No defaults or executable settings. Missing/untrusted ownership remains unknown. */
+    public synchronized Optional<RuntimeProfileBinding> findBinding(String profileId) throws IOException {
+        File file = fileFor(profileId, CURRENT_SUFFIX);
+        if (!file.isFile()) return Optional.empty();
+        Properties properties = new Properties();
+        try (FileInputStream input = new FileInputStream(file)) {
+            try { properties.load(input); }
+            catch (IllegalArgumentException malformed) { return Optional.empty(); }
+        }
+        try {
+            int schema = parseInt(properties, "schemaVersion");
+            if (schema < 1 || schema > RuntimeProfile.SCHEMA_VERSION ||
+                !profileId.equals(required(properties, "id"))) return Optional.empty();
+            return Optional.of(new RuntimeProfileBinding(profileId, required(properties, "containerId"),
+                GameRuntimeBackendType.fromStorageValue(required(properties, "runtimeBackendType")),
+                required(properties, "winePackage")));
+        } catch (IOException | IllegalArgumentException invalidMetadata) {
+            return Optional.empty();
+        }
+    }
+
     @Override
     public synchronized Optional<RuntimeProfile> find(String profileId) throws IOException {
         return find(profileId, CURRENT_SUFFIX);
@@ -98,7 +131,8 @@ public final class FileRuntimeProfileRepository implements RuntimeProfileReposit
     private RuntimeProfile read(File file, String suffix) throws IOException {
         Properties properties = new Properties();
         try (FileInputStream input = new FileInputStream(file)) {
-            properties.load(input);
+            try { properties.load(input); }
+            catch (IllegalArgumentException malformed) { throw new IOException("invalid_runtime_profile", malformed); }
         }
         int environmentCount = count(properties, "environment.count");
         int componentCount = count(properties, "componentVersions.count");

@@ -2,7 +2,7 @@
 # Verifies controller_runtime.sh: the patched xinput/dinput DLLs are installed as shipped (builtin marker intact) into
 # the Wine runtime for the native launcher, and as marker-free copies into the prefix (64-bit and 32-bit layouts) for
 # the rootfs launcher, and the Hangover build of the DLLs, marker intact, into the guest Wine and the prefix of an
-# arm64 Hangover container; winhandler.exe is released into the prefix; the release is idempotent, a symlinked stub is
+# arm64 Hangover container; wine-bridge.exe is released into the prefix; the release is idempotent, a symlinked stub is
 # replaced instead of written through, the launchers use it, and the DLL override strings are right.
 
 set -eu
@@ -19,7 +19,7 @@ RUNTIME="$WORK/runtime"
 mkdir -p "$RUNTIME"
 # The app ships the archive inflated (aapt2 drops the .gz suffix): wine.tar.
 gzip -dc "$PAYLOAD/wine.tar.gz" > "$RUNTIME/controller_wine.tar"
-cp "$PAYLOAD/winhandler.exe" "$RUNTIME/controller_winhandler.exe"
+cp "$PAYLOAD/wine-bridge.exe" "$RUNTIME/wine-bridge.exe"
 . "$ASSETS/controller_runtime.sh"
 
 same() { [ "$(cksum < "$1")" = "$(cksum < "$2")" ]; }
@@ -48,13 +48,13 @@ for dll in dinput dinput8 xinput1_1 xinput1_2 xinput1_3 xinput1_4 xinput9_1_0 xi
 done
 [ ! -L "$P64/drive_c/windows/system32/xinput1_3.dll" ] || fail "symlinked stub was kept"
 [ "$(cat "$WORK/shared/xinput1_3.dll")" = stock ] || fail "shared Wine file was modified through the symlink"
-same "$PAYLOAD/winhandler.exe" "$P64/drive_c/windows/winhandler.exe" || fail "winhandler.exe"
+same "$PAYLOAD/wine-bridge.exe" "$P64/drive_c/windows/wine-bridge.exe" || fail "wine-bridge.exe"
 
 # --- idempotent: nothing is rewritten the second time ---
-touch -d '2001-01-01 00:00:00' "$P64/drive_c/windows/system32/xinput1_3.dll" "$P64/drive_c/windows/winhandler.exe"
+touch -d '2001-01-01 00:00:00' "$P64/drive_c/windows/system32/xinput1_3.dll" "$P64/drive_c/windows/wine-bridge.exe"
 install_games_controller_runtime "$P64" "$RUNTIME" || fail "second install failed"
 [ "$(date -r "$P64/drive_c/windows/system32/xinput1_3.dll" +%Y)" = 2001 ] || fail "identical DLL was rewritten"
-[ "$(date -r "$P64/drive_c/windows/winhandler.exe" +%Y)" = 2001 ] || fail "identical winhandler.exe was rewritten"
+[ "$(date -r "$P64/drive_c/windows/wine-bridge.exe" +%Y)" = 2001 ] || fail "identical wine-bridge.exe was rewritten"
 
 # --- a modified DLL is repaired ---
 echo broken > "$P64/drive_c/windows/system32/xinput1_4.dll"
@@ -85,7 +85,7 @@ done
 [ "$(cat "$WINE/lib/wine/i386-windows/xinput1_3.dll.stock")" = stock32 ] || fail "stock i386 xinput1_3.dll was not kept"
 [ "$(cat "$WINE/lib/wine/x86_64-windows/kernel32.dll")" = untouched ] || fail "an unrelated Wine file was modified"
 [ ! -e "$PB/drive_c/windows/system32/xinput1_3.dll" ] || fail "the DLLs were copied into the prefix as well"
-same "$PAYLOAD/winhandler.exe" "$PB/drive_c/windows/winhandler.exe" || fail "winhandler.exe with a Wine runtime"
+same "$PAYLOAD/wine-bridge.exe" "$PB/drive_c/windows/wine-bridge.exe" || fail "wine-bridge.exe with a Wine runtime"
 # A second install changes nothing; the first stock file is not replaced by the patched one.
 touch -d '2001-01-01 00:00:00' "$WINE/lib/wine/x86_64-windows/xinput1_3.dll"
 install_games_controller_runtime "$PB" "$RUNTIME" "$WINE" || fail "second install into the Wine runtime failed"
@@ -129,7 +129,7 @@ done
 [ "$(cat "$HWINE/i386-windows/xinput1_3.dll.stock")" = stock-i386 ] || fail "Hangover Wine stock i386 DLL was not kept"
 [ "$(cat "$PH/drive_c/windows/system32/xinput1_3.dll.stock")" = prefix-stock-a64 ] || fail "prefix stock DLL was not kept"
 [ "$(cat "$HWINE/aarch64-windows/kernel32.dll")" = untouched ] || fail "an unrelated Hangover Wine file was modified"
-same "$PAYLOAD/winhandler.exe" "$PH/drive_c/windows/winhandler.exe" || fail "winhandler.exe in a Hangover prefix"
+same "$PAYLOAD/wine-bridge.exe" "$PH/drive_c/windows/wine-bridge.exe" || fail "wine-bridge.exe in a Hangover prefix"
 # No x86 DLL of the native trees reaches an arm64 prefix.
 for dll in dinput dinput8 xinput1_1 xinput1_2 xinput1_3 xinput1_4 xinput9_1_0 xinputuap; do
     same "$NATIVE_STAGE/x86_64-windows/$dll.dll" "$PH/drive_c/windows/system32/$dll.dll" && fail "x86_64 $dll.dll was copied into an arm64 prefix"
@@ -146,14 +146,14 @@ mkdir -p "$NOHANGOVER/unpack"
 tar -xf "$RUNTIME/controller_wine.tar" -C "$NOHANGOVER/unpack"
 rm -rf "$NOHANGOVER/unpack/wine-hangover"
 tar -cf "$NOHANGOVER/controller_wine.tar" -C "$NOHANGOVER/unpack" wine
-cp "$PAYLOAD/winhandler.exe" "$NOHANGOVER/controller_winhandler.exe"
+cp "$PAYLOAD/wine-bridge.exe" "$NOHANGOVER/wine-bridge.exe"
 PN="$WORK/pn"
 mkdir -p "$PN/drive_c/windows/system32"
 install_games_controller_hangover "$PN" "$NOHANGOVER" "$HWINE" && fail "archive without wine-hangover/ accepted"
 [ -z "$(ls "$PN/drive_c/windows/system32")" ] || fail "a failed Hangover install touched the prefix"
 install_games_controller_hangover "$PN" "$RUNTIME" "$WORK/no-wine" && fail "Hangover install without a guest Wine accepted"
 [ -z "$(ls "$PN/drive_c/windows/system32")" ] || fail "an install without a guest Wine touched the prefix"
-# The rootfs launcher uses it for Hangover only. Its builtin-only load order is tested below.
+# The rootfs launcher uses it for Hangover only. Its supported load orders are tested below.
 grep -q 'install_games_controller_hangover "\$PREFIX_PATH" .* "\$ROOTFS_CANONICAL/usr/lib/wine"' "$ASSETS/start_rootfs_game.sh" || fail "rootfs launcher does not install the Hangover DLLs"
 
 # --- override strings ---
@@ -174,18 +174,20 @@ expected_overrides() {
     _expected_mode=$1; shift
     for _expected_dll in "$@"; do printf '%s=%s;' "$_expected_dll" "$_expected_mode"; done
 }
-# Empty settings preserve Wine's defaults; mapping cannot suppress either API's library choice.
-[ -z "$(games_overrides 0)" ] || fail "DirectInput overrides without a setting"
-[ -z "$(games_overrides 1)" ] || fail "XInput overrides without a setting"
-[ -z "$(games_overrides 0 GAMES_DLL_DINPUT=)" ] || fail "empty DirectInput setting prints overrides"
-[ -z "$(games_overrides 1 GAMES_DLL_XINPUT=)" ] || fail "empty XInput setting prints overrides"
+# Missing/empty settings use native,builtin; mapping cannot suppress either library choice.
+DEFAULT_INPUT_OVERRIDES="$(expected_overrides native,builtin $DINPUT_DLLS $XINPUT_DLLS)"
+for mapper in 0 1; do
+    [ "$(games_overrides "$mapper")" = "$DEFAULT_INPUT_OVERRIDES" ] || fail "default input orders, mapper $mapper"
+    [ "$(games_overrides "$mapper" GAMES_DLL_DINPUT= GAMES_DLL_XINPUT=)" = "$DEFAULT_INPUT_OVERRIDES" ] \
+        || fail "empty input orders, mapper $mapper"
+done
 for mode in builtin native native,builtin; do
     # shellcheck disable=SC2086
-    [ "$(games_overrides 0 GAMES_DLL_DINPUT=$mode)" = "$(expected_overrides $mode $DINPUT_DLLS)" ] || fail "DirectInput $mode"
+    [ "$(games_overrides 0 GAMES_DLL_DINPUT=$mode)" = "$(expected_overrides $mode $DINPUT_DLLS)$(expected_overrides native,builtin $XINPUT_DLLS)" ] || fail "DirectInput $mode"
     # shellcheck disable=SC2086
-    [ "$(games_overrides 1 GAMES_DLL_XINPUT=$mode)" = "$(expected_overrides $mode $XINPUT_DLLS)" ] || fail "XInput $mode"
-    [ "$(games_overrides 0 GAMES_DLL_XINPUT=$mode)" = "$(expected_overrides $mode $XINPUT_DLLS)" ] || fail "DInput mapper suppresses XInput ($mode)"
-    [ "$(games_overrides 1 GAMES_DLL_DINPUT=$mode)" = "$(expected_overrides $mode $DINPUT_DLLS)" ] || fail "XInput mapper suppresses DirectInput ($mode)"
+    [ "$(games_overrides 1 GAMES_DLL_XINPUT=$mode)" = "$(expected_overrides native,builtin $DINPUT_DLLS)$(expected_overrides $mode $XINPUT_DLLS)" ] || fail "XInput $mode"
+    [ "$(games_overrides 0 GAMES_DLL_XINPUT=$mode)" = "$(expected_overrides native,builtin $DINPUT_DLLS)$(expected_overrides $mode $XINPUT_DLLS)" ] || fail "DInput mapper suppresses XInput ($mode)"
+    [ "$(games_overrides 1 GAMES_DLL_DINPUT=$mode)" = "$(expected_overrides $mode $DINPUT_DLLS)$(expected_overrides native,builtin $XINPUT_DLLS)" ] || fail "XInput mapper suppresses DirectInput ($mode)"
     for other_mode in builtin native native,builtin; do
         expected="$(expected_overrides $mode $DINPUT_DLLS)$(expected_overrides $other_mode $XINPUT_DLLS)"
         for mapper in 0 1; do
@@ -195,10 +197,10 @@ for mode in builtin native native,builtin; do
     done
 done
 
-# --- the program path handed to winhandler.exe is a Windows path ---
+# --- the program path handed to wine-bridge.exe is a Windows path ---
 [ "$(games_controller_windows_target /mnt/games/game/wfm.exe)" = 'Z:\mnt\games\game\wfm.exe' ] || fail "windows target of a guest path"
 [ "$(games_controller_windows_target '/mnt/games/game/My Game/a b.exe')" = 'Z:\mnt\games\game\My Game\a b.exe' ] || fail "windows target keeps spaces"
-grep -q 'games_controller_windows_target "\$GUEST_EXECUTABLE"' "$ASSETS/start_rootfs_game.sh" || fail "rootfs launcher passes a Unix path to winhandler.exe"
+grep -q 'games_controller_windows_target "\$GUEST_EXECUTABLE"' "$ASSETS/start_rootfs_game.sh" || fail "rootfs launcher passes a Unix path to wine-bridge.exe"
 
 # --- both launchers use it, and the app installs the payload ---
 grep -q 'controller_runtime.sh' "$ASSETS/start_termux_box_game.sh" || fail "native launcher does not source it"
@@ -207,7 +209,7 @@ grep -q 'install_games_controller_runtime "\$WINEPREFIX" "\$GAMES_RUNTIME_SCRIPT
 grep -q 'CONTROLLER_WRAPPER' "$ASSETS/start_termux_box_game.sh" || fail "native launcher has no wrapper"
 grep -q 'controller_runtime.sh' "$ASSETS/start_rootfs_game.sh" || fail "rootfs launcher does not source it"
 grep -q 'install_games_controller_runtime "\$PREFIX_PATH"' "$ASSETS/start_rootfs_game.sh" || fail "rootfs launcher does not install"
-grep -q 'controller_winhandler.exe' "$PROJECT_ROOT/termux-ui/src/main/java/com/termux/ui/service/LaunchScriptInstaller.java" || fail "installer does not deploy winhandler.exe"
+grep -q 'wine-bridge.exe' "$PROJECT_ROOT/termux-ui/src/main/java/com/termux/ui/service/LaunchScriptInstaller.java" || fail "installer does not deploy wine-bridge.exe"
 
 # --- the native launcher really exports the overrides to Wine ---
 # The launcher once ended its override block with a bare `export WINEDLLOVERRIDES`, which exports nothing when the
@@ -232,17 +234,16 @@ launcher_overrides() {
     )
 }
 
-# Direct3D selection now always supplies its own baseline. Empty controller settings must
-# add no controller overrides, while preserving that explicit Direct3D selection.
+# Default controller settings reach Wine alongside the selected Direct3D baseline.
 D3D_BASE='d3d8,d3d9,d3d10,d3d10_1,d3d10core,d3d11,dxgi,d3d12,d3d12core=b'
-[ "$(launcher_overrides 1)" = "$D3D_BASE;" ] || fail "native launcher exports controller overrides without a setting"
-[ "$(launcher_overrides 0)" = "$D3D_BASE;" ] || fail "native launcher exports dinput overrides without a setting"
-[ "$(launcher_overrides 1 GAMES_DLL_D3D=native,builtin)" = "$D3D_BASE;d3d8,d3d9,d3d10core,d3d11,dxgi=native,builtin;" ] \
+[ "$(launcher_overrides 1)" = "$D3D_BASE;$DEFAULT_INPUT_OVERRIDES" ] || fail "native launcher omits default controller overrides"
+[ "$(launcher_overrides 0)" = "$D3D_BASE;$DEFAULT_INPUT_OVERRIDES" ] || fail "native launcher omits default input overrides with DInput mapping"
+[ "$(launcher_overrides 1 GAMES_DLL_D3D=native,builtin)" = "$D3D_BASE;${DEFAULT_INPUT_OVERRIDES}d3d8,d3d9,d3d10core,d3d11,dxgi=native,builtin;" ] \
     || fail "native launcher does not export the D3D override on its own"
 # The Libraries settings reach the exported variable through the launcher, ahead of the other libraries.
-[ "$(launcher_overrides 1 GAMES_DLL_XINPUT=native,builtin)" = "$D3D_BASE;$(expected_overrides native,builtin $XINPUT_DLLS)" ] \
+[ "$(launcher_overrides 1 GAMES_DLL_XINPUT=native,builtin)" = "$D3D_BASE;$DEFAULT_INPUT_OVERRIDES" ] \
     || fail "native launcher ignores the XInput library setting"
-[ "$(launcher_overrides 0 GAMES_DLL_DINPUT=builtin GAMES_DLL_DSOUND=b)" = "$D3D_BASE;dinput=builtin;dinput8=builtin;dsound=b;" ] \
+[ "$(launcher_overrides 0 GAMES_DLL_DINPUT=builtin GAMES_DLL_DSOUND=b)" = "$D3D_BASE;$(expected_overrides builtin $DINPUT_DLLS)$(expected_overrides native,builtin $XINPUT_DLLS)dsound=b;" ] \
     || fail "native launcher ignores the DirectInput library setting"
 for mapper in 0 1; do
     [ "$(launcher_overrides "$mapper" GAMES_DLL_DINPUT=native,builtin GAMES_DLL_XINPUT=builtin)" \
@@ -250,7 +251,7 @@ for mapper in 0 1; do
         || fail "native launcher drops an input API, mapper $mapper"
 done
 
-# Execute the actual PRoot export block, including the Hangover builtin-only constraint.
+# Execute the actual PRoot export block, including Hangover policy validation.
 ROOTFS_OVERRIDES_BLOCK="$WORK/rootfs-overrides-block.sh"
 sed -n '/^# Apply both input library settings\./,/^\[ -z "\$CONTROLLER_DLL_OVERRIDES" \]/p' \
     "$ASSETS/start_rootfs_game.sh" > "$ROOTFS_OVERRIDES_BLOCK"
@@ -260,22 +261,38 @@ rootfs_overrides() {
         RUNTIME_TRANSLATOR=$1; shift
         unset WINEDLLOVERRIDES GAMES_DLL_DINPUT GAMES_DLL_XINPUT
         for _assignment in "$@"; do export "$_assignment"; done
+        terminal_failure() { printf '%s\n' "$1" >&2; exit 1; }
         . "$ROOTFS_OVERRIDES_BLOCK"
         _value=$(env | sed -n 's/^WINEDLLOVERRIDES=//p')
         printf '%s' "${_value:-<unset>}"
     )
 }
-[ "$(rootfs_overrides box64)" = '<unset>' ] || fail "rootfs default load order changed"
+[ "$(rootfs_overrides box64)" = "$DEFAULT_INPUT_OVERRIDES" ] || fail "rootfs default input orders missing"
+[ "$(rootfs_overrides hangover)" = "$DEFAULT_INPUT_OVERRIDES" ] || fail "Hangover default input orders missing"
 [ "$(rootfs_overrides box64 GAMES_DLL_DINPUT=native,builtin GAMES_DLL_XINPUT=builtin)" \
     = "$(expected_overrides native,builtin $DINPUT_DLLS)$(expected_overrides builtin $XINPUT_DLLS)" ] \
     || fail "rootfs launcher drops an input API"
-[ "$(rootfs_overrides hangover GAMES_DLL_DINPUT=native GAMES_DLL_XINPUT=native,builtin)" \
-    = "$(expected_overrides builtin $DINPUT_DLLS)$(expected_overrides builtin $XINPUT_DLLS)" ] \
-    || fail "Hangover's marked ARM64 DLLs are not loaded as builtin"
+for dinput_order in builtin native,builtin; do
+    for xinput_order in builtin native,builtin; do
+        [ "$(rootfs_overrides hangover GAMES_DLL_DINPUT=$dinput_order GAMES_DLL_XINPUT=$xinput_order)" \
+            = "$(expected_overrides $dinput_order $DINPUT_DLLS)$(expected_overrides $xinput_order $XINPUT_DLLS)" ] \
+            || fail "Hangover ignores selected input orders $dinput_order/$xinput_order"
+    done
+done
+for invalid in native unknown; do
+    for key in GAMES_DLL_DINPUT GAMES_DLL_XINPUT; do
+        if rootfs_overrides hangover "$key=$invalid" > "$WORK/invalid-order.out" 2> "$WORK/invalid-order.err"; then
+            fail "Hangover continued after unsupported $key=$invalid"
+        fi
+        [ ! -s "$WORK/invalid-order.out" ] || fail "unsupported input order emitted partial overrides"
+        grep -q controller_dll_load_order_unsupported "$WORK/invalid-order.err" \
+            || fail "unsupported input order did not report terminal failure"
+    done
+done
 [ "$(rootfs_overrides box64 WINEDLLOVERRIDES=dxgi=n GAMES_DLL_DINPUT=builtin)" \
-    = "dxgi=n;$(expected_overrides builtin $DINPUT_DLLS)" ] || fail "rootfs controller overrides drop existing graphics settings"
+    = "dxgi=n;$(expected_overrides builtin $DINPUT_DLLS)$(expected_overrides native,builtin $XINPUT_DLLS)" ] || fail "rootfs controller overrides drop existing graphics settings"
 [ "$(launcher_overrides 0 GAMES_DLL_DINPUT=native GAMES_DLL_D3D=n GAMES_DLL_DSOUND=b GAMES_DLL_DMUSIC=d GAMES_DLL_DSHOW=n,b GAMES_DLL_DPLAY=b)" \
-    = "$D3D_BASE;dinput=native;dinput8=native;d3d8,d3d9,d3d10core,d3d11,dxgi=n;dsound=b;dmusic=d;quartz=n,b;dplayx=b;" ] \
+    = "$D3D_BASE;$(expected_overrides native $DINPUT_DLLS)$(expected_overrides native,builtin $XINPUT_DLLS)d3d8,d3d9,d3d10core,d3d11,dxgi=n;dsound=b;dmusic=d;quartz=n,b;dplayx=b;" ] \
     || fail "native launcher override order is wrong"
 # A stale inherited value must be replaced by the selected Direct3D baseline,
 # even when no controller or optional library override is configured.

@@ -195,7 +195,7 @@ if [ -e "$CANCEL_PATH" ]; then
     exit 0
 fi
 if [ "$LAUNCH_EXECUTION_MODE" = terminal_session ]; then
-    printf 'Local Games task: %s\nLog: %s\n\n' "$TASK_ID" "$LOG_PATH"
+    printf 'Local Programs task: %s\nLog: %s\n\n' "$TASK_ID" "$LOG_PATH"
     tail -n +1 -f "$LOG_PATH" &
     LOG_TAIL_PID=$!
 fi

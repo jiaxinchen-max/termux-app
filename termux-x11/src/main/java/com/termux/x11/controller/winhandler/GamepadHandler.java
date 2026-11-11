@@ -75,8 +75,28 @@ public class GamepadHandler {
     public void setInputApis(boolean xinput, boolean dinput) {
         inputApis.setEnabled(xinput, dinput);
         for (int port : gamepadClients) {
-            if (!inputApis.allows(port)) gamepadClients.remove(Integer.valueOf(port));
+            if (!inputApis.allows(port)) {
+                if (LEGACY_DLL_PROTOCOL) resetLegacyGamepadClient(port);
+                else gamepadClients.remove(Integer.valueOf(port));
+            }
         }
+    }
+
+    /** Release held controls before disconnecting. Retain subscriptions for runtime re-enabling. */
+    private void resetLegacyGamepadClient(int port) {
+        ControlsProfile profile = legacyVirtualProfile();
+        ExternalController controller = legacyController;
+        int deviceId = profile != null ? profile.id : controller != null ? controller.getDeviceId() : 0;
+        winHandler.addAction(() -> {
+            ByteBuffer buffer = winHandler.sendData;
+            // DirectInput retains its last state when it receives an unavailable packet.
+            buffer.rewind();
+            LegacyGamepadProtocol.writeGamepadState(buffer, true, deviceId, new GamepadState());
+            winHandler.sendPacket(port, LegacyGamepadProtocol.PACKET_LENGTH);
+            buffer.rewind();
+            LegacyGamepadProtocol.writeGamepadState(buffer, false, deviceId, null);
+            winHandler.sendPacket(port, LegacyGamepadProtocol.PACKET_LENGTH);
+        });
     }
 
     public void clearInputClients() {
@@ -166,7 +186,7 @@ public class GamepadHandler {
         final ExternalController controller = legacyController;
         final boolean enabled = inputApis.allows(port) && (virtualProfile != null || controller != null);
 
-        if (enabled && request.notify) {
+        if (request.notify) {
             if (!gamepadClients.contains(port)) gamepadClients.add(port);
         }
         else gamepadClients.remove(Integer.valueOf(port));

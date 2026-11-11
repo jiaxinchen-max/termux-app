@@ -68,6 +68,28 @@ public final class BrowserFileOperations {
         throw failure("outside_roots", path);
     }
 
+    public static boolean isValidName(String name) {
+        return name != null && !name.trim().isEmpty() && !".".equals(name) && !"..".equals(name)
+            && name.indexOf('/') < 0 && name.indexOf('\\') < 0 && name.indexOf('\0') < 0;
+    }
+
+    /** Creates only a new direct child; never opens or truncates an existing item. */
+    public File create(File destination, String name, boolean directory) throws IOException {
+        if (!isValidName(name)) throw new IOException("invalid_name");
+        checkInterrupted();
+        File parent = destination.getCanonicalFile();
+        scoped(parent);
+        if (!parent.isDirectory()) throw failure("destination_missing", parent);
+        File target = new File(parent, name);
+        if (target.exists() || links.isLink(target)) throw failure("destination_exists", target);
+        boolean created = directory ? target.mkdir() : target.createNewFile();
+        if (!created) {
+            if (target.exists() || links.isLink(target)) throw failure("destination_exists", target);
+            throw failure("create_failed", target);
+        }
+        return target;
+    }
+
     public File paste(File original, File destination, boolean cut) throws IOException {
         File source = source(original);
         File parent = destination.getCanonicalFile();

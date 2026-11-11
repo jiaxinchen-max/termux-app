@@ -5,7 +5,7 @@
     <string name="component_versions_manual">从文件安装</string>
     <string name="component_versions_select">选择版本</string>
     <string name="component_versions_empty">尚无已安装版本</string>
-    <string name="component_versions_current">当前游戏已选择</string>
+    <string name="component_versions_current">当前程序已选择</string>
     <string name="component_versions_download">下载并安装</string>
     <string name="component_versions_downloaded">启用已下载的组件</string>
     <string name="component_versions_failed">组件操作失败：%1$s</string>

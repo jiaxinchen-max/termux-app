@@ -668,7 +668,7 @@
       "type": "translator",
       "displayName": "proton_11.0",
       "versionName": "11.0",
-      "summary": "Proton 11.0 runtime for Windows games, pinned.",
+      "summary": "Proton 11.0 runtime for Windows programs, pinned.",
       "framework": "ROOTFS",
       "base": false,
       "recommended": false,

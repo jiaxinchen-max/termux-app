@@ -210,7 +210,7 @@ if [ -e "$CANCEL_PATH" ]; then
     exit 0
 fi
 if [ "$LAUNCH_EXECUTION_MODE" = terminal_session ]; then
-    printf 'Local Games RootFS task: %s\nLog: %s\n\n' "$TASK_ID" "$LOG_PATH"
+    printf 'Local Programs RootFS task: %s\nLog: %s\n\n' "$TASK_ID" "$LOG_PATH"
     tail -n +1 -f "$LOG_PATH" &
     LOG_TAIL_PID=$!
 fi
@@ -704,8 +704,8 @@ apply_rootfs_game_options
 [ -n "${GAMES_DLL_DSHOW:-}" ] && export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}quartz=${GAMES_DLL_DSHOW}"
 [ -n "${GAMES_DLL_DPLAY:-}" ] && export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}dplayx=${GAMES_DLL_DPLAY}"
 
-# Controller: release the patched xinput/dinput DLLs and winhandler.exe into the prefix (the game is then started
-# through winhandler.exe, the Wine end of the controller bridge) and switch the DLLs on.
+# Controller: release the patched xinput/dinput DLLs and wine-bridge.exe into the prefix (the game is then started
+# through wine-bridge.exe, the Wine end of the controller bridge) and switch the DLLs on.
 # Deployment failure terminates launch; API flags must never silently be ignored.
 . "$(dirname "$SCRIPT_PATH")/controller_runtime.sh"
 # The arm64 Hangover Wine takes its own build of the DLLs (wine-hangover/ in the payload) as builtin DLLs from the guest
@@ -721,16 +721,13 @@ else
     install_games_controller_runtime "$PREFIX_PATH" "$(dirname "$SCRIPT_PATH")" >> "$LOG_PATH" 2>&1
 fi
 if [ $? -eq 0 ]; then
-    CONTROLLER_WRAPPER=$GAMES_CONTROLLER_WINHANDLER_WINDOWS_PATH
+    CONTROLLER_WRAPPER=$GAMES_WINE_BRIDGE_WINDOWS_PATH
 else
     terminal_failure controller_runtime_install_failed
 fi
-# Apply both input library settings. Hangover's ARM64 DLLs carry Wine's builtin marker, so the editor exposes them
-# as built-in only; native loading would reject these DLLs. Ordinary Wine/Proton uses the user's independent choices.
-if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
-    CONTROLLER_DLL_OVERRIDES=$(GAMES_DLL_DINPUT=builtin GAMES_DLL_XINPUT=builtin games_controller_dll_overrides)
-else
-    CONTROLLER_DLL_OVERRIDES=$(games_controller_dll_overrides)
+# Apply both input library settings. Defaults are native,builtin; Hangover also supports builtin, but not pure native.
+if ! CONTROLLER_DLL_OVERRIDES=$(games_controller_dll_overrides "$RUNTIME_TRANSLATOR"); then
+    terminal_failure controller_dll_load_order_unsupported
 fi
 [ -z "$CONTROLLER_DLL_OVERRIDES" ] || export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}$CONTROLLER_DLL_OVERRIDES"
 
@@ -753,7 +750,7 @@ if [ "$DESKTOP_ONLY" = 1 ]; then
         set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION"
     fi
 else
-    # The program is started by winhandler.exe when the controller bridge is installed, and that takes a Windows path.
+    # The program is started by wine-bridge.exe when the controller bridge is installed, and that takes a Windows path.
     GAME_TARGET=$GUEST_EXECUTABLE
     [ -z "$CONTROLLER_WRAPPER" ] || GAME_TARGET=$(games_controller_windows_target "$GUEST_EXECUTABLE")
     if [ "$RUNTIME_TRANSLATOR" = hangover ]; then

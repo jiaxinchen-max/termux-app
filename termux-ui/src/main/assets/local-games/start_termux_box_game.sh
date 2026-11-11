@@ -45,7 +45,7 @@ mkdir -p "$TERMUX_BOX_ROOT" "$TERMUX_BOX_RUN_DIR"
 GAMES_RUNTIME_SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$GAMES_RUNTIME_SCRIPT_DIR/glibc_prefix_extras.sh"
 . "$GAMES_RUNTIME_SCRIPT_DIR/native_runtime_components.sh"
-# install_games_controller_runtime / games_controller_dll_overrides: the patched xinput/dinput DLLs and winhandler.exe
+# install_games_controller_runtime / games_controller_dll_overrides: the patched xinput/dinput DLLs and wine-bridge.exe
 . "$GAMES_RUNTIME_SCRIPT_DIR/controller_runtime.sh"
 # x_server_start / x_server_kill_all: legacy termux-x11 or the Xlorie package
 X_SERVER_DIR="$GAMES_RUNTIME_SCRIPT_DIR"
@@ -272,11 +272,11 @@ ensure_launch_log() {
     _launch_log=${TERMUX_BOX_LAUNCH_LOG:-}
     [ -n "$_launch_log" ] || return 0
     mkdir -p "$(dirname "$_launch_log")" || {
-        echo "ERROR: Cannot create game launch log directory: $_launch_log"
+        echo "ERROR: Cannot create program launch log directory: $_launch_log"
         return 1
     }
     : >> "$_launch_log" || {
-        echo "ERROR: Cannot open game launch log: $_launch_log"
+        echo "ERROR: Cannot open program launch log: $_launch_log"
         return 1
     }
 }
@@ -355,7 +355,7 @@ resolve_resolution() {
     RESOLUTION="${TERMUX_BOX_RESOLUTION:-${RESOLUTION:-1280x720}}"
     case "$RESOLUTION" in
         *[!0-9x]*|*x*x*|x*|*x)
-            echo "Invalid game display resolution: $RESOLUTION"
+            echo "Invalid program display resolution: $RESOLUTION"
             exit 2
             ;;
     esac
@@ -363,7 +363,7 @@ resolve_resolution() {
     resolution_height=${RESOLUTION#*x}
     [ "$resolution_width" -gt 0 ] 2>/dev/null &&
         [ "$resolution_height" -gt 0 ] 2>/dev/null || {
-        echo "Invalid game display resolution: $RESOLUTION"
+        echo "Invalid program display resolution: $RESOLUTION"
         exit 2
     }
     export RESOLUTION
@@ -498,10 +498,10 @@ ensure_games_cjk_locale || exit 1
 apply_native_dx_component || exit 1
 apply_game_options
 
-# Release the controller DLLs into the Wine runtime (Wine loads them as builtin DLLs from there) and winhandler.exe
+# Release the controller DLLs into the Wine runtime (Wine loads them as builtin DLLs from there) and wine-bridge.exe
 # into this prefix. Both the app and DLLs must use the selected input API flags.
 if install_games_controller_runtime "$WINEPREFIX" "$GAMES_RUNTIME_SCRIPT_DIR" "$WINE_PATH"; then
-    CONTROLLER_WRAPPER=$GAMES_CONTROLLER_WINHANDLER_WINDOWS_PATH
+    CONTROLLER_WRAPPER=$GAMES_WINE_BRIDGE_WINDOWS_PATH
 else
     echo "ERROR: controller runtime could not be installed." >&2
     exit 1
@@ -540,10 +540,10 @@ WINE_DLL_OVERRIDES="${NATIVE_D3D_OVERRIDES};$(games_controller_dll_overrides)"
 # existing Termux-box prefix bootstrap, then use the same explorer desktop path.
 echo "[4/4] Starting Wine container: ${TERMUX_BOX_CONTAINER_NAME:-unknown}"
 case "${TERMUX_BOX_GAME_ID:-}" in
-    ''|*[!A-Za-z0-9._-]*) echo "Invalid game id"; exit 2 ;;
+    ''|*[!A-Za-z0-9._-]*) echo "Invalid program id"; exit 2 ;;
 esac
-[ -d "${TERMUX_BOX_GAME_ROOT:-}" ] || { echo "Game root is unavailable"; exit 2; }
-[ -d "${TERMUX_BOX_GAME_WORKDIR:-}" ] || { echo "Game working directory is unavailable"; exit 2; }
+[ -d "${TERMUX_BOX_GAME_ROOT:-}" ] || { echo "Program root is unavailable"; exit 2; }
+[ -d "${TERMUX_BOX_GAME_WORKDIR:-}" ] || { echo "Program working directory is unavailable"; exit 2; }
 GAME_MOUNT_ROOT="$TERMUX_FILES_DIR/front/mounts"
 GAME_MOUNT="$GAME_MOUNT_ROOT/$TERMUX_BOX_GAME_ID"
 mkdir -p "$GAME_MOUNT_ROOT"
@@ -559,7 +559,7 @@ if [ "${TERMUX_BOX_DESKTOP_ONLY:-0}" = 1 ]; then
     DISPLAY=:0 LC_ALL="$LC_ALL" run_container_wine explorer /desktop=shell,"$RESOLUTION" \
         >>"${TERMUX_BOX_LAUNCH_LOG:-/dev/null}" 2>&1 &
 else
-    # The game is started through winhandler.exe (the Wine end of the controller bridge) when it is installed.
+    # The game is started through wine-bridge.exe (the Wine end of the controller bridge) when it is installed.
     DISPLAY=:0 LC_ALL="$LC_ALL" run_container_wine explorer /desktop=shell,"$RESOLUTION" \
         ${CONTROLLER_WRAPPER:+"$CONTROLLER_WRAPPER"} "$WINDOWS_TARGET" "$@" >>"${TERMUX_BOX_LAUNCH_LOG:-/dev/null}" 2>&1 &
 fi

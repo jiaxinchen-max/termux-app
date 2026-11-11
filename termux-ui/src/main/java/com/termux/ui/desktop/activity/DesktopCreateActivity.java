@@ -10,9 +10,9 @@ import android.widget.LinearLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.ui.R;
 import com.termux.ui.activity.AppUiActivity;
+import com.termux.ui.activity.FrostedDialogBuilder;
 import com.termux.ui.databinding.ActivityDesktopCreateBinding;
 import com.termux.ui.databinding.ItemDesktopOptionBinding;
 import com.termux.ui.databinding.ItemDesktopSelectBinding;
@@ -222,7 +222,7 @@ public final class DesktopCreateActivity extends AppUiActivity {
         row.desktopSelectValue.setText(current.get());
         row.desktopSelectRoot.setOnClickListener(view -> {
             String[] values = choices.get();
-            new MaterialAlertDialogBuilder(this)
+            new FrostedDialogBuilder(this)
                 .setTitle(labelRes)
                 .setSingleChoiceItems(values, indexOf(values, current.get()),
                     (dialog, which) -> {

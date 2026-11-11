@@ -6,6 +6,8 @@ import android.view.View;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.termux.ui.R;
+import com.termux.ui.activity.FrostedDialogBuilder;
+import com.termux.ui.activity.FrostedWindow;
 import com.termux.ui.databinding.ItemDesktopSelectBinding;
 import com.termux.ui.databinding.SheetDesktopSettingsBinding;
 import com.termux.ui.desktop.api.DesktopTasks;
@@ -37,6 +39,7 @@ final class DesktopSettingsDialog {
             LayoutInflater.from(activity));
         BottomSheetDialog dialog = new BottomSheetDialog(activity);
         dialog.setContentView(sheet.getRoot());
+        FrostedWindow.applyScrim(dialog);
         dialog.getBehavior().setSkipCollapsed(true);
         dialog.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
 
@@ -102,7 +105,7 @@ final class DesktopSettingsDialog {
         row.desktopSelectLabel.setText(labelRes);
         row.desktopSelectValue.setText(current.get());
         row.desktopSelectRoot.setOnClickListener(view ->
-            new com.google.android.material.dialog.MaterialAlertDialogBuilder(activity)
+            new FrostedDialogBuilder(activity)
                 .setTitle(labelRes)
                 .setSingleChoiceItems(values, indexOf(values, current.get()),
                     (dialog, which) -> {

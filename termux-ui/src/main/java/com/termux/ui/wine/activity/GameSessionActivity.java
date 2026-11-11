@@ -44,6 +44,7 @@ import com.termux.ui.wine.data.LaunchSpecCodec;
 import com.termux.ui.wine.domain.LaunchSpec;
 import com.termux.ui.wine.domain.LaunchStage;
 import com.termux.ui.wine.domain.LaunchTask;
+import com.termux.ui.wine.domain.RuntimeProfile;
 import com.termux.ui.wine.runtime.OrchestrationException;
 import com.termux.ui.wine.runtime.Subscription;
 import com.termux.ui.wine.runtime.TaskObserver;
@@ -54,6 +55,7 @@ import com.termux.x11.session.metrics.PerformanceMetricsRecorder;
 import com.termux.x11.session.metrics.PerformanceMetricsSampler;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -303,28 +305,60 @@ public final class GameSessionActivity extends AppCompatActivity {
         binding.gameSessionPanelOperation.addView(host, params);
         controllerPanel = new GameControllerPanel(this, binding.gameSessionX11, host,
             binding.gameSessionControllerList, binding.gameSessionControllerNotice, inputSelection,
-            this::persistInputSelection, this::openControllerPage);
+            this::persistInputSelection, new GameControllerPanel.SettingsListener() {
+                @Override public void onMapperSelected(@NonNull String mapper) {
+                    updateControllerSettings(settings -> settings.setMapper(mapper), false,
+                        GameControllerPanel.Setting.MAPPING);
+                }
+                @Override public void onInputApiSelected(boolean xinputApi, boolean enabled) {
+                    updateControllerSettings(settings -> settings.setInputApi(xinputApi, enabled), true,
+                        xinputApi ? GameControllerPanel.Setting.XINPUT : GameControllerPanel.Setting.DINPUT);
+                }
+            }, this::openControllerPage);
         controllerPanel.render();
+        // Runtime API choices survive recreation; the mapping remains the frozen launch value.
+        updateControllerSettings(GameControllerSettings::read, true, GameControllerPanel.Setting.LOAD);
     }
 
     /** Applies nothing (the panel already did); remembers the choice for the next launch. */
     private void persistInputSelection(@NonNull String selection) {
         inputSelection = selection;
+        int profileId = GameInputProfileChoices.profileIdOf(selection);
+        updateControllerSettings(settings -> settings.setTouchProfile(profileId), false,
+            GameControllerPanel.Setting.TOUCH_PROFILE);
+    }
+
+    private interface ControllerSettingsEdit {
+        RuntimeProfile apply(GameControllerSettings settings) throws IOException;
+    }
+
+    private void updateControllerSettings(ControllerSettingsEdit edit, boolean applyApis,
+                                          GameControllerPanel.Setting setting) {
         if (destroyed || gameId == null) return;
         final String id = gameId;
         final File profilesDirectory = new GameStoragePaths(getFilesDir()).getProfilesDirectory();
+        controllerPanel.settingsLoading(setting);
         try {
             ioExecutor.execute(() -> {
-                boolean saved = GameInputProfileChoices.persist(
-                    new FileRuntimeProfileRepository(profilesDirectory), id, selection);
-                if (!saved) runOnUiThread(() -> {
-                    if (!destroyed && controllerPanel != null) {
-                        controllerPanel.showNotice(R.string.local_game_controller_save_failed);
-                    }
+                final RuntimeProfile updated;
+                try {
+                    updated = edit.apply(new GameControllerSettings(
+                        new FileRuntimeProfileRepository(profilesDirectory), id));
+                } catch (IOException | RuntimeException error) {
+                    runOnUiThread(() -> {
+                        if (!destroyed) controllerPanel.settingsFailed(setting);
+                    });
+                    return;
+                }
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    if (applyApis) binding.gameSessionX11.setInputApis(
+                        updated.isXinputEnabled(), updated.isDinputEnabled());
+                    controllerPanel.settingsSaved(updated, setting);
                 });
             });
-        } catch (RejectedExecutionException ignored) {
-            // Activity is shutting down; the selection stays session-local.
+        } catch (RejectedExecutionException error) {
+            if (!destroyed) controllerPanel.settingsFailed(setting);
         }
     }
 

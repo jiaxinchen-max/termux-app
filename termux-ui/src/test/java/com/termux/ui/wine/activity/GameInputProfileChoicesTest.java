@@ -280,48 +280,4 @@ public class GameInputProfileChoicesTest {
         assertEquals(1, GameInputProfileChoices.build(new ArrayList<>(), 0, OFF, UNNAMED).size());
     }
 
-    @Test
-    public void persistWritesTheSelectionIntoTheGameRuntimeProfile() throws Exception {
-        File directory = temporaryFolder.newFolder("profiles");
-        FileRuntimeProfileRepository repository = new FileRuntimeProfileRepository(directory);
-        RuntimeProfile original = RuntimeProfilePresets.create("game-1", RuntimeProfilePreset.RECOMMENDED);
-        repository.save(original);
-
-        assertTrue(GameInputProfileChoices.persist(repository, "game-1", "dinput:3"));
-        RuntimeProfile stored = repository.find("game-1").get();
-        assertEquals("dinput:3", stored.getInputProfileId());
-        assertEquals(original.getWinePackage(), stored.getWinePackage());
-
-        assertTrue(GameInputProfileChoices.persist(repository, "game-1", "dinput"));
-        assertEquals("dinput", repository.find("game-1").get().getInputProfileId());
-    }
-
-    @Test
-    public void persistedValueSatisfiesTheLaunchSpecEncoding() throws Exception {
-        FileRuntimeProfileRepository repository =
-            new FileRuntimeProfileRepository(temporaryFolder.newFolder("profiles"));
-        repository.save(RuntimeProfilePresets.create("game-1", RuntimeProfilePreset.RECOMMENDED));
-        String selection = GameInputProfileChoices.compose(
-            repository.find("game-1").get().getInputProfileId(), 2);
-
-        assertTrue(GameInputProfileChoices.persist(repository, "game-1", selection));
-        String stored = repository.find("game-1").get().getInputProfileId();
-        assertEquals(2, GameInputProfileChoices.profileIdOf(stored));
-        assertTrue(stored.matches("(?:xinput|dinput)(?::[1-9][0-9]{0,5})?"));
-    }
-
-    @Test
-    public void persistRejectsInvalidSelectionsAndMissingProfilesWithoutWriting() throws Exception {
-        File directory = temporaryFolder.newFolder("profiles");
-        FileRuntimeProfileRepository repository = new FileRuntimeProfileRepository(directory);
-        repository.save(RuntimeProfilePresets.create("game-1", RuntimeProfilePreset.RECOMMENDED));
-        String before = repository.find("game-1").get().getInputProfileId();
-
-        assertFalse(GameInputProfileChoices.persist(repository, "game-1", "xinput:0"));
-        assertFalse(GameInputProfileChoices.persist(repository, "game-1", null));
-        assertFalse(GameInputProfileChoices.persist(repository, "missing-game", "xinput:1"));
-        assertFalse(GameInputProfileChoices.persist(repository, "bad/id", "xinput:1"));
-        assertEquals(before, repository.find("game-1").get().getInputProfileId());
-        assertFalse(new File(directory, "missing-game.properties").exists());
-    }
 }

@@ -3,16 +3,12 @@ package com.termux.ui.wine.activity;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.termux.ui.wine.data.RuntimeProfileRepository;
-import com.termux.ui.wine.domain.RuntimeProfile;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -180,27 +176,6 @@ final class GameInputProfileChoices {
             result.add(new Choice(entry.id, label, entry.id == activeProfileId));
         }
         return Collections.unmodifiableList(result);
-    }
-
-    /**
-     * Remembers {@code selection} in the runtime profile of {@code gameId} (the profile id equals the
-     * game id) so the next launch restores it. Nothing is written when the stored value already
-     * equals it. Returns false when the selection is invalid, the profile is missing or storage fails.
-     */
-    static boolean persist(@NonNull RuntimeProfileRepository repository, @NonNull String gameId,
-                           @Nullable String selection) {
-        if (!isValidSelection(selection)) return false;
-        try {
-            Optional<RuntimeProfile> found = repository.find(gameId);
-            if (!found.isPresent()) return false;
-            RuntimeProfile current = found.get();
-            if (!selection.equals(current.getInputProfileId())) {
-                repository.save(current.withInputProfileId(selection));
-            }
-            return true;
-        } catch (IOException | RuntimeException error) {
-            return false;
-        }
     }
 
     /** Index of the checked choice ({@code 0}, the "Off" line, when none is checked). */

@@ -54,11 +54,16 @@ public final class RuntimeEditingStop {
         com.termux.ui.wine.api.WineCDriveBackupTasks.stopForMutation(files, gameId);
         synchronized (LOCK) {
             GameStoragePaths paths = new GameStoragePaths(files);
-            RuntimeProfile profile = new com.termux.ui.wine.importer.GameImportDrafts(files)
-                .editingProfiles(gameId).find(gameId).orElse(null);
+            RuntimeProfileBinding profile = new com.termux.ui.wine.importer.GameImportDrafts(files)
+                .editingProfiles(gameId).findBinding(gameId).orElse(null);
             Set<String> games = new HashSet<>(); games.add(gameId);
-            if (profile != null) for (RuntimeProfile other : new FileRuntimeProfileRepository(paths.getProfilesDirectory()).list()) {
-                if (other.getRuntimeBackendType() == profile.getRuntimeBackendType()
+            FileRuntimeProfileRepository profiles = new FileRuntimeProfileRepository(paths.getProfilesDirectory());
+            if (profile != null) for (String otherId : profiles.listProfileIds()) {
+                RuntimeProfileBinding other;
+                try { other = profiles.findBinding(otherId).orElse(null); }
+                catch (IOException | IllegalArgumentException unreadableOwnership) { continue; }
+                // The target prefix scope below also covers peers with unreadable metadata.
+                if (other != null && other.getRuntimeBackendType() == profile.getRuntimeBackendType()
                     && other.getContainerId().equals(profile.getContainerId())
                     && (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT
                         || other.getWinePackage().equals(profile.getWinePackage()))) games.add(other.getId());

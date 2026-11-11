@@ -287,16 +287,10 @@
                         android:visibility="gone">
                         <!-- Third level of the drawer: opened from the Controller row of the
                              Operation panel; the rows are added by GameControllerPanel. -->
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/local_game_controller_page_summary"
-                            android:textColor="@color/local_games_on_surface_secondary" />
                         <LinearLayout
                             android:id="@+id/game_session_controller_list"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
                             android:orientation="vertical" />
                         <TextView
                             android:id="@+id/game_session_controller_notice"

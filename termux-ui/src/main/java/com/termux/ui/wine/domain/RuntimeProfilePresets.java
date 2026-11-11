@@ -9,6 +9,7 @@ public final class RuntimeProfilePresets {
 
     public static final String NATIVE_DEFAULT_GRAPHICS = "native-turnip-v6.5";
     public static final String NATIVE_DEFAULT_DX = "native-dxvk-gplasync-2.3";
+    public static final String DEFAULT_CONTROLLER_DLL_LOAD_ORDER = "native,builtin";
 
     private RuntimeProfilePresets() {}
 
@@ -19,6 +20,8 @@ public final class RuntimeProfilePresets {
         Map<String, String> environment = new LinkedHashMap<>();
         environment.put("MESA_SHADER_CACHE_DISABLE", "false");
         environment.put("WINEESYNC", "1");
+        environment.put("GAMES_DLL_DINPUT", DEFAULT_CONTROLLER_DLL_LOAD_ORDER);
+        environment.put("GAMES_DLL_XINPUT", DEFAULT_CONTROLLER_DLL_LOAD_ORDER);
         switch (preset) {
             case RECOMMENDED:
                 environment.put("ZINK_DESCRIPTORS", "lazy");

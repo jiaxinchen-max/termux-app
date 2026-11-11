@@ -20,7 +20,7 @@ public class WinHandlerHandshakeTest {
 
     @Test
     public void gamepadRequestBeforeInitIsAnImplicitInit() {
-        // winhandler.exe sends INIT once; when it arrives before the port is bound the DLL's requests must still work.
+        // wine-bridge.exe sends INIT once; when it arrives before the port is bound the DLL's requests must still work.
         for (byte code : new byte[] { RequestCodes.GET_GAMEPAD, RequestCodes.GET_GAMEPAD_STATE }) {
             WinHandlerHandshake handshake = new WinHandlerHandshake();
             assertTrue("request " + code, handshake.onRequest(code));

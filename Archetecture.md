@@ -205,7 +205,7 @@ X11 输出链路：
 - `app/src/main/assets/xkeyboard-config_2.45_all.deb`
 - `termux-x11/src/main/assets/start-tfm`
 - `termux-x11/src/main/assets/wine.tar.gz`
-- `termux-x11/src/main/assets/winhandler.exe`
+- `termux-x11/src/main/assets/wine-bridge.exe`（源码及构建脚本：`termux-x11/tools/wine-bridge/`）
 - `termux-x11/src/main/assets/wfm.exe`
 - `termux-x11/src/main/assets/inputcontrols/*`
 

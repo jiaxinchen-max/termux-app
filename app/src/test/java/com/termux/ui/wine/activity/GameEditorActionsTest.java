@@ -8,6 +8,7 @@ import android.os.Looper;
 import android.view.View;
 import com.termux.ui.R;
 import com.termux.ui.activity.LocalGamesActivity;
+import com.termux.ui.activity.GameFileManagerActivity;
 import com.termux.ui.activity.RuntimeComponentVersionsActivity;
 import com.termux.ui.domain.CustomRuntimeComponent;
 import com.termux.ui.api.*;
@@ -826,6 +827,108 @@ public class GameEditorActionsTest {
                 p.getComponentVersions(), p.getRuntimeBackendType(), p.getRootfsPackage(), p.getContainerId()));
             controller.pause().stop().start().resume(); flushLibrary(activity);
             assertNotNull(findText(activity.getWindow().getDecorView(), activity.getString(R.string.local_game_card_wine, "Proton 11.0")));
+        }
+    }
+
+    @Test public void invalidProfilesAreIsolatedAndImportRemainsAvailableOnBothBackends() throws Exception {
+        for (GameRuntimeBackendType backend : GameRuntimeBackendType.values()) {
+            String valid = createGame(backend);
+            String broken = createGame(backend);
+            GameStoragePaths paths = new GameStoragePaths(RuntimeEnvironment.getApplication().getFilesDir());
+            File profileFile = paths.getCurrentProfileFile(broken);
+            java.util.Properties data = new java.util.Properties();
+            try (FileInputStream input = new FileInputStream(profileFile)) { data.load(input); }
+            data.remove("xinputEnabled");
+            try (FileOutputStream output = new FileOutputStream(profileFile)) { data.store(output, null); }
+            byte[] before = java.nio.file.Files.readAllBytes(profileFile.toPath());
+            try (ActivityController<LocalGamesActivity> controller = Robolectric.buildActivity(LocalGamesActivity.class,
+                    LocalGames.createLaunchIntent(RuntimeEnvironment.getApplication())).create().start().resume()) {
+                LocalGamesActivity activity = controller.get(); flushLibrary(activity);
+                setLibraryBackend(activity, backend); flushLibrary(activity);
+                android.view.ViewGroup grid = activity.findViewById(R.id.local_games_library_items);
+                assertEquals(3, grid.getChildCount());
+                assertEquals(View.GONE, activity.findViewById(R.id.local_games_library_error).getVisibility());
+                Map<?, ?> errors = (Map<?, ?>) field(activity, "libraryProfileErrors");
+                assertTrue(errors.containsKey(broken)); assertFalse(errors.containsKey(valid));
+                View invalidCard = null;
+                for (int i = 0; i < grid.getChildCount(); i++) {
+                    View card = grid.getChildAt(i);
+                    if (findText(card, activity.getString(R.string.local_game_profile_invalid)) != null) invalidCard = card;
+                }
+                assertNotNull(invalidCard);
+                assertFalse(invalidCard.findViewById(R.id.local_game_details).isEnabled());
+                invalidCard.performClick();
+                assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
+                android.app.Dialog dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog();
+                assertNotNull(dialog);
+                assertNotNull(findText(dialog.getWindow().getDecorView(), activity.getString(
+                    R.string.local_game_profile_invalid_details, "missing_runtime_profile_field:xinputEnabled")));
+                dialog.dismiss();
+                grid.getChildAt(grid.getChildCount() - 1).performClick();
+                Intent picker = Shadows.shadowOf(activity).getNextStartedActivity();
+                assertNotNull(picker);
+                assertEquals(GameFileManagerActivity.class.getName(), picker.getComponent().getClassName());
+                assertEquals(backend.getStorageValue(), picker.getStringExtra(GameFileManagerActivity.EXTRA_IMPORT_BACKEND));
+                assertArrayEquals(before, java.nio.file.Files.readAllBytes(profileFile.toPath()));
+                invalidCard.findViewById(R.id.local_game_more).performClick();
+                android.widget.PopupWindow menu = (android.widget.PopupWindow) field(activity, "moreMenuPopup");
+                assertNotNull(menu);
+                assertNull(findText(menu.getContentView(), activity.getString(R.string.local_game_action_edit)));
+                clickText(menu.getContentView(), activity.getString(R.string.local_game_action_remove));
+                android.app.Dialog confirmation = org.robolectric.shadows.ShadowDialog.getLatestDialog();
+                confirmation.findViewById(android.R.id.button1).performClick();
+                flushLibrary(activity);
+                assertTrue(kills > 0);
+                assertFalse(profileFile.exists());
+                assertFalse(new FileGameRepository(paths.getLibraryDirectory()).find(broken).isPresent());
+                assertTrue(new FileGameRepository(paths.getLibraryDirectory()).find(valid).isPresent());
+            }
+            new com.termux.ui.wine.recovery.GameUninstaller(RuntimeEnvironment.getApplication().getFilesDir(),
+                LocalGames.requireHost(RuntimeEnvironment.getApplication())).execute(
+                    com.termux.ui.wine.recovery.GameUninstallPlan.keepPrivateAssets(valid));
+        }
+    }
+
+    @Test public void unknownBindingStaysVisibleInBothCollectionsAndRefreshClearsResolvedError() throws Exception {
+        String id = createGame(GameRuntimeBackendType.GLIBC_TERMUX_BOX);
+        GameStoragePaths paths = new GameStoragePaths(RuntimeEnvironment.getApplication().getFilesDir());
+        FileRuntimeProfileRepository profiles = new FileRuntimeProfileRepository(paths.getProfilesDirectory());
+        RuntimeProfile valid = profiles.find(id).get();
+        java.nio.file.Files.write(paths.getCurrentProfileFile(id).toPath(), "broken=true".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        try (ActivityController<LocalGamesActivity> controller = Robolectric.buildActivity(LocalGamesActivity.class,
+                LocalGames.createLaunchIntent(RuntimeEnvironment.getApplication())).create().start().resume()) {
+            LocalGamesActivity activity = controller.get(); flushLibrary(activity);
+            for (GameRuntimeBackendType backend : GameRuntimeBackendType.values()) {
+                setLibraryBackend(activity, backend); flushLibrary(activity);
+                android.view.ViewGroup grid = activity.findViewById(R.id.local_games_library_items);
+                assertEquals(2, grid.getChildCount());
+                assertFalse(grid.getChildAt(0).findViewById(R.id.local_game_details).isEnabled());
+                assertNotNull(findText(grid, activity.getString(R.string.local_game_profile_invalid)));
+            }
+            // A new import can be saved while the unrelated invalid record remains.
+            String imported = stageImport(GameRuntimeBackendType.GLIBC_TERMUX_BOX);
+            try (ActivityController<GameDetailActivity> editor = open(imported)) {
+                editor.get().findViewById(R.id.game_detail_save).performClick(); flush(editor.get());
+                assertTrue(new FileGameRepository(paths.getLibraryDirectory()).find(imported).isPresent());
+                assertTrue(profiles.find(imported).isPresent());
+            }
+            profiles.save(valid);
+            Method reload = LocalGamesActivity.class.getDeclaredMethod("loadLibraryAsync", boolean.class);
+            reload.setAccessible(true); reload.invoke(activity, true); flushLibrary(activity);
+            assertTrue(((Map<?, ?>) field(activity, "libraryProfileErrors")).isEmpty());
+            setLibraryBackend(activity, GameRuntimeBackendType.GLIBC_TERMUX_BOX);
+            android.view.ViewGroup grid = activity.findViewById(R.id.local_games_library_items);
+            assertEquals(3, grid.getChildCount());
+            assertTrue(grid.getChildAt(0).findViewById(R.id.local_game_details).isEnabled());
+        }
+    }
+
+    private static void setLibraryBackend(LocalGamesActivity activity, GameRuntimeBackendType backend) throws Exception {
+        Object collection = field(activity, "collectionToolbar");
+        boolean proot = (boolean) collection.getClass().getMethod("isProot").invoke(collection);
+        if (proot != (backend == GameRuntimeBackendType.ROOTFS_PROOT)) {
+            androidx.appcompat.widget.Toolbar toolbar = activity.findViewById(R.id.local_games_library_toolbar);
+            toolbar.getMenu().findItem(R.id.local_games_action_runtime_mode).getActionView().performClick();
         }
     }
 

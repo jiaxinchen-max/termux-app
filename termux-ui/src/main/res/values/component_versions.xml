@@ -5,7 +5,7 @@
     <string name="component_versions_manual">Install from file</string>
     <string name="component_versions_select">Select version</string>
     <string name="component_versions_empty">No installed versions</string>
-    <string name="component_versions_current">Selected for this game</string>
+    <string name="component_versions_current">Selected for this program</string>
     <string name="component_versions_download">Download and install</string>
     <string name="component_versions_downloaded">Publish installed component</string>
     <string name="component_versions_failed">Component operation failed: %1$s</string>

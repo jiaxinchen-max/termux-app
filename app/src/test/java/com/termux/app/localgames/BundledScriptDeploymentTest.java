@@ -2,6 +2,8 @@ package com.termux.app.localgames;
 import android.content.Context;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.service.LaunchScriptInstaller;
+import com.termux.ui.wine.runtime.GlibcTermuxBoxBackend;
+import com.termux.ui.wine.runtime.RootfsProotBackend;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -13,6 +15,27 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class)
 public class BundledScriptDeploymentTest {
+    @Test public void bothBackendsDeployAndRepairTheWindowsBridge() throws Exception {
+        Context context = RuntimeEnvironment.getApplication();
+        GameStoragePaths paths = new GameStoragePaths(context.getFilesDir());
+        LaunchScriptInstaller installer = new LaunchScriptInstaller(context, paths);
+        installer.install(new GlibcTermuxBoxBackend());
+        File bridge = new File(paths.getRuntimeDirectory(), "wine-bridge.exe");
+        byte[] bundled = Files.readAllBytes(bridge.toPath());
+        // Check the actual packaged payload: DOS header, PE signature and AMD64 machine.
+        assertEquals('M', bundled[0]);
+        assertEquals('Z', bundled[1]);
+        int pe = java.nio.ByteBuffer.wrap(bundled).order(java.nio.ByteOrder.LITTLE_ENDIAN).getInt(60);
+        assertEquals(0x00004550, java.nio.ByteBuffer.wrap(bundled)
+            .order(java.nio.ByteOrder.LITTLE_ENDIAN).getInt(pe));
+        assertEquals(0x8664, java.nio.ByteBuffer.wrap(bundled)
+            .order(java.nio.ByteOrder.LITTLE_ENDIAN).getShort(pe + 4) & 0xffff);
+        Files.write(bridge.toPath(), new byte[] {0});
+        installer.install(new RootfsProotBackend());
+        assertArrayEquals(bundled, Files.readAllBytes(bridge.toPath()));
+        assertFalse(new File(paths.getRuntimeDirectory(), "controller_winhandler.exe").exists());
+    }
+
     @Test public void displayDiagnosticIsDeployedWithBothXServerImplementations() throws Exception {
         Context context = RuntimeEnvironment.getApplication();
         GameStoragePaths paths = new GameStoragePaths(context.getFilesDir());
