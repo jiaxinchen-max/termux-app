@@ -51,6 +51,7 @@ import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 
 import java.util.ArrayList;
+import java.io.File;
 import java.util.List;
 
 /**
@@ -98,6 +99,7 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
      * Termux app shell manager
      */
     private TermuxShellManager mShellManager;
+    private TerminalSession mTerminalX11Script;
 
     /** The wake lock and wifi lock are always acquired and released together. */
     private PowerManager.WakeLock mWakeLock;
@@ -651,6 +653,35 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         return newTermuxSession;
     }
 
+    /** The Service owns this session so Activity recreation cannot detach desktop cleanup. */
+    @Nullable
+    public synchronized TerminalSession startTerminalX11Script(File script) {
+        if (mTerminalX11Script != null && getTermuxSessionForTerminalSession(mTerminalX11Script) != null)
+            return mTerminalX11Script;
+        ExecutionCommand command = new ExecutionCommand(TermuxShellManager.getNextShellId(), null,
+            new String[]{"-c", "exec \"$1\"", "x11-startup", script.getAbsolutePath()}, null,
+            TermuxConstants.TERMUX_HOME_DIR_PATH, Runner.TERMINAL_SESSION.getName(), false);
+        command.shellName = script.getName();
+        command.commandLabel = script.getAbsolutePath();
+        command.autoCloseOnExit = true;
+        TermuxSession created = createTermuxSession(command);
+        if (created == null) return null;
+        mTerminalX11Script = created.getTerminalSession();
+        mTerminalX11Script.initializeEmulator(80, 24);
+        return mTerminalX11Script;
+    }
+
+    public synchronized boolean isTerminalX11Script(TerminalSession session) {
+        return session != null && session == mTerminalX11Script;
+    }
+
+    public synchronized void stopTerminalX11Script() {
+        TerminalSession session = mTerminalX11Script;
+        if (session == null) return;
+        session.finishIfRunning();
+        if (!session.isRunning()) removeTermuxSession(session);
+    }
+
     /** Remove a TermuxSession. */
     public synchronized int removeTermuxSession(TerminalSession sessionToRemove) {
         int index = getIndexOfSession(sessionToRemove);
@@ -665,6 +696,7 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     @Override
     public void onTermuxSessionExited(final TermuxSession termuxSession) {
         if (termuxSession != null) {
+            if (termuxSession.getTerminalSession() == mTerminalX11Script) mTerminalX11Script = null;
             ExecutionCommand executionCommand = termuxSession.getExecutionCommand();
 
             Logger.logVerbose(LOG_TAG, "The onTermuxSessionExited() callback called for \"" + executionCommand.getCommandIdAndLabelLogString() + "\" TermuxSession command");

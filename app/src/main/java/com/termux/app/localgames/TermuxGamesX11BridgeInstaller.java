@@ -15,7 +15,6 @@ import java.util.Map;
 final class TermuxGamesX11BridgeInstaller {
 
     private static final Object INSTALL_LOCK = new Object();
-    private static final long TIMEOUT_MS = 120_000;
     private static final int MAX_OUTPUT_BYTES = 64 * 1024;
 
     private TermuxGamesX11BridgeInstaller() { }
@@ -28,8 +27,7 @@ final class TermuxGamesX11BridgeInstaller {
             File temporary = new File(TermuxConstants.TERMUX_HOME_DIR_PATH, ".termux/tmp");
             ensureDirectory(temporary);
             File install = copyAsset(context, "install", temporary);
-            copyAsset(context, "xkeyboard-config_2.45_all.deb", temporary);
-            copyAsset(context, "termux-x11-nightly-1.03.10-0-all.deb", temporary);
+            copyAsset(context, "termux-x11-nightly-1.04.10-0-all.deb", temporary);
             if (!install.setExecutable(true, true) && !install.canExecute()) {
                 throw new IOException("x11_bridge_installer_not_executable");
             }
@@ -51,7 +49,7 @@ final class TermuxGamesX11BridgeInstaller {
             Thread reader = new Thread(() -> copyLimited(process.getInputStream(), output),
                 "GamesX11BridgeOutput");
             reader.start();
-            int exitCode = waitFor(process, TIMEOUT_MS);
+            int exitCode = waitFor(process);
             try {
                 reader.join(2_000);
             } catch (InterruptedException error) {
@@ -85,23 +83,14 @@ final class TermuxGamesX11BridgeInstaller {
         return target;
     }
 
-    private static int waitFor(Process process, long timeoutMs) throws IOException {
-        long deadline = System.currentTimeMillis() + timeoutMs;
-        while (System.currentTimeMillis() < deadline) {
-            try {
-                return process.exitValue();
-            } catch (IllegalThreadStateException running) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException error) {
-                    Thread.currentThread().interrupt();
-                    process.destroy();
-                    throw new IOException("x11_bridge_install_interrupted", error);
-                }
-            }
+    private static int waitFor(Process process) throws IOException {
+        try {
+            return process.waitFor();
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            process.destroy();
+            throw new IOException("x11_bridge_install_interrupted", error);
         }
-        process.destroy();
-        throw new IOException("x11_bridge_install_timeout");
     }
 
     private static void copyLimited(InputStream input, ByteArrayOutputStream output) {

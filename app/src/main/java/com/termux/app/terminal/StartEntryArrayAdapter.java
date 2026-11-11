@@ -14,7 +14,7 @@ public class StartEntryArrayAdapter extends ArrayAdapter<StartEntry.Entry> {
     private List<StartEntry.Entry> mDataList;
 
     public StartEntryArrayAdapter(Context context, List<StartEntry.Entry> dataList) {
-        super(context, android.R.layout.simple_spinner_item, dataList);
+        super(context, android.R.layout.simple_list_item_single_choice, dataList);
         this.mContext = context;
         this.mDataList = dataList;
     }
@@ -22,7 +22,7 @@ public class StartEntryArrayAdapter extends ArrayAdapter<StartEntry.Entry> {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         LayoutInflater inflater = LayoutInflater.from(mContext);
-        View view = inflater.inflate(android.R.layout.simple_spinner_item, parent, false);
+        View view = inflater.inflate(android.R.layout.simple_list_item_single_choice, parent, false);
         TextView textView = view.findViewById(android.R.id.text1);
 
         StartEntry.Entry item = mDataList.get(position);

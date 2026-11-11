@@ -52,12 +52,10 @@ public class TermuxScreenView extends FrameLayout {
         mStartDrawerMinSwipeDistance = Math.max(viewConfiguration.getScaledTouchSlop() * 4, Math.round(72 * density));
     }
 
-    public void setTerminalIdleActions(@NonNull Runnable preferences, @NonNull Runnable start,
-                                       @NonNull Runnable exit) {
+    public void setTerminalIdleActions(@NonNull Runnable preferences, @NonNull Runnable exit) {
         if (idlePresentation != IdlePresentation.TERMINAL)
             throw new IllegalStateException("Terminal actions require the terminal idle layout");
         findViewById(R.id.preferences_button).setOnClickListener(view -> preferences.run());
-        findViewById(R.id.help_button).setOnClickListener(view -> start.run());
         findViewById(R.id.exit_button).setOnClickListener(view -> exit.run());
     }
 

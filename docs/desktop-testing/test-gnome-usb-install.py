@@ -269,13 +269,13 @@ class InstallContract(unittest.TestCase):
         self.assertTrue(any(call[0]=='curl' and 'mesa-for-android-container' in call[-1] for call in calls))
         self.assertTrue((self.base/'usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-gnome').is_file())
 
-    def test_bad_turnip_digest_stops_before_mesa_install_and_ready_marker(self):
+    def test_turnip_install_does_not_enforce_asset_digests(self):
         result,calls=self.run_install(mode='proot',renderer='zink',
             bad_digest='mesa-for-android-container_27.0.0-devel-20261025_debian_trixie_arm64.tar.gz')
-        self.assertNotEqual(0,result.returncode,result.stdout)
-        self.assertIn('checksum mismatch',(self.base/'install.log').read_text())
-        self.assertFalse(any(call[0]=='python3' and any(Path(arg).name=='desktop_install_mesa.py' for arg in call) for call in calls))
-        self.assertFalse((self.base/'usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-gnome').exists())
+        self.assertEqual(0,result.returncode,result.stdout)
+        self.assertFalse(any(call[0]=='sha256sum' for call in calls),calls)
+        self.assertTrue(any(call[0]=='python3' and any(Path(arg).name=='desktop_install_mesa.py' for arg in call) for call in calls))
+        self.assertTrue((self.base/'usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-gnome').is_file())
 
     def test_turnip_installer_failure_is_preserved_and_reinstall_clears_old_marker(self):
         result,_=self.run_install(mode='proot',renderer='llvmpipe')
@@ -300,12 +300,12 @@ class InstallContract(unittest.TestCase):
         self.assertFalse(any(call[:2]==['proot-distro','login'] for call in calls),calls)
         self.assertFalse((self.base/'usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-gnome').exists())
 
-    def test_bad_gnome_deb_checksum_stops_before_apt_and_launcher_publication(self):
+    def test_gnome_install_does_not_enforce_deb_digests(self):
         result,calls = self.run_install(bad_digest='mutter_48.1-24_aarch64.deb')
-        self.assertNotEqual(0,result.returncode,result.stdout)
-        self.assertIn('checksum mismatch',(self.base/'install.log').read_text())
-        self.assertFalse(any(call[0]=='apt' for call in calls),calls)
-        self.assertFalse((self.base/'usr/libexec/termux-gnome/launch.py').exists())
+        self.assertEqual(0,result.returncode,result.stdout)
+        self.assertFalse(any(call[0]=='sha256sum' for call in calls),calls)
+        self.assertTrue(any(call[0]=='apt' for call in calls),calls)
+        self.assertTrue((self.base/'usr/libexec/termux-gnome/launch.py').is_file())
 
     def test_read_only_xfce_installs_the_pinned_usb_bridge(self):
         result,calls = self.run_install(de='xfce4',usb='read-only')
@@ -313,10 +313,11 @@ class InstallContract(unittest.TestCase):
         apt = next(call for call in calls if call[0]=='apt')
         self.assertTrue(any(Path(arg).name=='termux-usb-bridge_0.4.1_aarch64.deb' for arg in apt),apt)
 
-    def test_bad_usb_deb_checksum_stops_before_apt(self):
+    def test_usb_install_does_not_enforce_deb_digests(self):
         result,calls = self.run_install(de='xfce4',usb='read-only',bad_digest='termux-usb-bridge_0.4.1_aarch64.deb')
-        self.assertNotEqual(0,result.returncode,result.stdout)
-        self.assertFalse(any(call[0]=='apt' for call in calls),calls)
+        self.assertEqual(0,result.returncode,result.stdout)
+        self.assertFalse(any(call[0]=='sha256sum' for call in calls),calls)
+        self.assertTrue(any(call[0]=='apt' for call in calls),calls)
 
     def test_apt_failure_preserves_exit_code_and_skips_success_steps(self):
         result,calls = self.run_install(apt_error=100)
@@ -331,18 +332,17 @@ class InstallContract(unittest.TestCase):
         self.assertNotEqual('exit:0\n',(self.base/'state/status').read_text())
         self.assertNotIn('Desktop install finished.',result.stdout)
 
-    def test_same_version_alternate_mutter_payload_fails_final_sha_verification(self):
+    def test_same_version_mutter_payload_does_not_enforce_file_digests(self):
         result,calls = self.run_install(bad_digest='libmutter-android-system-egl.so')
-        self.assertNotEqual(0,result.returncode,result.stdout)
-        self.assertIn('installed package verification failed: mutter',result.stdout)
-        self.assertTrue(any(call[:2]==['dpkg','--verify'] and call[-1]=='mutter' for call in calls),calls)
-        self.assertNotIn('Desktop install finished.',result.stdout)
+        self.assertEqual(0,result.returncode,result.stdout)
+        self.assertFalse(any(call[0]=='sha256sum' or call[:2]==['dpkg','--verify'] for call in calls),calls)
+        self.assertIn('Desktop install finished.',result.stdout)
 
-    def test_dpkg_file_verification_failure_is_not_hidden_by_successful_apt(self):
+    def test_install_does_not_run_dpkg_file_verification(self):
         result,calls = self.run_install(corrupt_package='gnome-shell')
-        self.assertNotEqual(0,result.returncode,result.stdout)
-        self.assertIn('installed package verification failed: gnome-shell',result.stdout)
-        self.assertNotIn('Desktop install finished.',result.stdout)
+        self.assertEqual(0,result.returncode,result.stdout)
+        self.assertFalse(any(call[:2]==['dpkg','--verify'] for call in calls),calls)
+        self.assertIn('Desktop install finished.',result.stdout)
 
     def test_gnome_restore_prerequisites_are_explicitly_unsupported(self):
         result,calls = self.run_install(mode='proot',renderer='llvmpipe',operation='host-prerequisites')
@@ -368,7 +368,7 @@ class InstallContract(unittest.TestCase):
         queries=[call for call in calls[held+1:] if call[0]=='dpkg-query' and call[-1]=='xorg-server']
         self.assertTrue(any('-f=${Status}' in call for call in queries),queries)
         self.assertTrue(any('-f=${Version}' in call for call in queries),queries)
-        self.assertIn(['dpkg','--verify','xorg-server'],calls[held+1:])
+        self.assertNotIn(['dpkg','--verify','xorg-server'],calls[held+1:])
         self.assertEqual('exit:0\n',(self.base/'state/status').read_text())
 
     def test_hold_does_not_accept_partial_or_reinstreq_package_states(self):

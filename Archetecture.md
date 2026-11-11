@@ -201,8 +201,7 @@ X11 输出链路：
 - `app/src/main/assets/install`
 - `app/src/main/assets/setMoBoxEnv`
 - `app/src/main/assets/recover`
-- `app/src/main/assets/termux-x11-nightly-1.03.10-0-all.deb`
-- `app/src/main/assets/xkeyboard-config_2.45_all.deb`
+- `app/src/main/assets/termux-x11-nightly-1.04.10-0-all.deb`（由 `build_termux_package` 生成；安装前更新 APT 索引，键盘配置依赖从软件源安装最新候选版本）
 - `termux-x11/src/main/assets/start-tfm`
 - `termux-x11/src/main/assets/wine.tar.gz`
 - `termux-x11/src/main/assets/wine-bridge.exe`（源码及构建脚本：`termux-x11/tools/wine-bridge/`）

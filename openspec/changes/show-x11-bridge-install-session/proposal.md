@@ -1,0 +1,7 @@
+# 在可见终端执行重建依赖
+
+用户反馈重建依赖看不到安装过程和结果，并明确建议开session执行。此指令确认本次实施范围：终端模式X11偏好设置的重建依赖入口改为创建独立可见终端session。
+
+当前TermuxX11ActivityIntegration通过CommandUtils.execInPath把安装脚本作为后台任务执行，输出与最终状态没有呈现。改为复用已有addNewSessionAndRunCommand创建普通交互session，切换到终端页面，实时显示安装输出；脚本完成打印成功或失败及失败退出码，然后返回shell提示符，保留输出供用户查看和手动关闭。
+
+不改变1.04.10-0包、APT依赖更新/重装降级或失败中止规则；程序模式首次安装链路继续使用既有展示。没有新的自动升级、兼容迁移或设备操作。HTTP契约无变化，api_docs为N/A；用户可见安装流程变化，product_docs为Required，目标docs/product/terminal-x11.md，用户验收前一致性Pending。

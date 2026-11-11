@@ -1032,10 +1032,12 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         }
     }
 
-    private void startX11Display() {
-        ArrayList<String> args = new ArrayList<>();
-        args.add(":1");
-        CommandUtils.exec(this, "termux-x11", args);
+    public void launchX11Script(File script) {
+        mTermuxTerminalSessionActivityClient.startX11Script(script);
+    }
+
+    public void installX11BridgeInTerminal(File installer) {
+        mTermuxTerminalSessionActivityClient.startX11BridgeInstall(installer);
     }
 
     @Override
@@ -1125,8 +1127,9 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         setDisplaySidePanelDrawerListener();
         TermuxScreenView termuxScreenView = new TermuxScreenView(this,
             TermuxScreenView.IdlePresentation.TERMINAL);
-        termuxScreenView.setTerminalIdleActions(() -> openX11Preferences(true),
-            this::startX11Display, this::exitApp);
+        termuxScreenView.setTerminalIdleActions(() -> openX11Preferences(true), this::exitApp);
+        new com.termux.app.terminal.StartEntryClient(this,
+            termuxScreenView.findViewById(com.termux.x11.R.id.help_button));
         mMainSurfaceController.attachDisplayView(termuxScreenView);
         getLorieViewRuntime().attachTermuxScreenView(termuxScreenView);
         getLorieViewRuntime().setX11ConnectionStateListener(connected -> {
@@ -1775,6 +1778,7 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
         b.setPositiveButton(android.R.string.yes, (dialog, id) -> {
             dialog.dismiss();
             openX11Preferences(false);
+            if (mTermuxService != null) mTermuxService.stopTerminalX11Script();
             boolean externalServerKilled = LorieView.killExternalServer(15);
             if (externalServerKilled)
                 LoriePreferences.handler.postDelayed(() -> LorieView.killExternalServer(9), 1500);

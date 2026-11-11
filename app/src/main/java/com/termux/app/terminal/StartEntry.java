@@ -7,6 +7,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 
@@ -54,24 +56,36 @@ public class StartEntry {
         }
     }
 
-    private static final ArrayList<Entry> mStartEntryList = new ArrayList<>();
-    private static final HashSet<String> mStartSet = new HashSet<>();
-    private static int mCurrentStartItemIdx = 0;
+    private final File configFile;
+    private final ArrayList<Entry> mStartEntryList = new ArrayList<>();
+    private final HashSet<String> mStartSet = new HashSet<>();
+    private int mCurrentStartItemIdx = -1;
 
-    public static ArrayList<Entry> getStartItemList() {
+    public StartEntry(File configFile) {
+        this.configFile = configFile;
+    }
+
+    public ArrayList<Entry> getStartItemList() {
         return mStartEntryList;
     }
 
-    public static int getCurrentStartItemIdx() {
+    public int getCurrentStartItemIdx() {
         return mCurrentStartItemIdx;
     }
 
-    public static void setCurrentStartItemIdx(int startItemIdx) {
-        mCurrentStartItemIdx = startItemIdx;
+    public void setCurrentStartItemIdx(int startItemIdx) {
+        mCurrentStartItemIdx = startItemIdx >= 0 && startItemIdx < mStartEntryList.size()
+            ? startItemIdx : -1;
     }
 
-    public static void saveStartItems() {
-        File file = ToolboxConfigFiles.file(".startItemEntries");
+    public Entry getSelectedEntry() {
+        return mCurrentStartItemIdx >= 0 && mCurrentStartItemIdx < mStartEntryList.size()
+            ? mStartEntryList.get(mCurrentStartItemIdx) : null;
+    }
+
+    public void saveStartItems() throws IOException {
+        File parent = configFile.getParentFile();
+        if (!parent.isDirectory() && !parent.mkdirs()) throw new IOException("Cannot create script settings directory");
         try {
             JSONObject data = new JSONObject();
             data.put("version", "1.0");
@@ -86,20 +100,25 @@ public class StartEntry {
                 }
             }
             data.put("elements", elementsJSONArray);
-            FileUtils.writeString(file, data.toString());
+            if (!FileUtils.writeString(configFile, data.toString()))
+                throw new IOException("Cannot save startup scripts");
         } catch (JSONException e) {
-            e.printStackTrace();
+            throw new IOException("Cannot save startup scripts", e);
         }
     }
 
-    public static void loadStartItems() {
-        File file = ToolboxConfigFiles.existingFile(".startItemEntries");
-        if (!file.exists() || !file.isFile()) {
+    public void loadStartItems() throws IOException {
+        mStartEntryList.clear();
+        mStartSet.clear();
+        mCurrentStartItemIdx = -1;
+        if (!configFile.exists()) {
             return;
         }
 
         try {
-            JSONObject startItemEntriesJSONObject = new JSONObject(FileUtils.readString(file));
+            byte[] contents = FileUtils.read(configFile);
+            if (contents == null) throw new IOException("Cannot read startup scripts");
+            JSONObject startItemEntriesJSONObject = new JSONObject(new String(contents, StandardCharsets.UTF_8));
             JSONArray startItemsJSONArray = startItemEntriesJSONObject.getJSONArray("elements");
             for (int i = 0; i < startItemsJSONArray.length(); i++) {
                 JSONObject controllerJSONObject = startItemsJSONArray.getJSONObject(i);
@@ -117,14 +136,14 @@ public class StartEntry {
                 }
             }
             if (startItemEntriesJSONObject.has("currentStartItem")) {
-                mCurrentStartItemIdx = startItemEntriesJSONObject.getInt("currentStartItem");
+                setCurrentStartItemIdx(startItemEntriesJSONObject.getInt("currentStartItem"));
             }
         } catch (JSONException e) {
-            e.printStackTrace();
+            throw new IOException("Cannot read startup scripts", e);
         }
     }
 
-    public static boolean addStartEntry(Entry item) {
+    public boolean addStartEntry(Entry item) {
         String key = item.getPath();
         if (!mStartSet.contains(key)) {
             mStartSet.add(key);
@@ -134,10 +153,12 @@ public class StartEntry {
         return false;
     }
 
-    public static void deleteStartEntry(Entry currentCommand) {
+    public void deleteStartEntry(Entry currentCommand) {
         if (mStartSet.contains(currentCommand.getPath())) {
+            Entry selected = getSelectedEntry();
             mStartEntryList.remove(currentCommand);
             mStartSet.remove(currentCommand.getPath());
+            mCurrentStartItemIdx = mStartEntryList.indexOf(selected);
         }
     }
 }

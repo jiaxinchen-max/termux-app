@@ -6,7 +6,6 @@ import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.termux.app.TermuxActivity;
-import com.termux.app.terminal.utils.CommandUtils;
 import com.termux.app.terminal.utils.FileUtils;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.x11.LoriePreferences;
@@ -57,9 +56,9 @@ public class TermuxX11ActivityIntegration implements LorieViewRuntimeApi.Activit
         activity.runOnUiThread(() -> {
             FileUtils.copyAssetsFile2Phone(activity, "install", ".termux/tmp");
             new File(TermuxConstants.TERMUX_HOME_DIR_PATH, ".termux/tmp/install").setExecutable(true, true);
-            FileUtils.copyAssetsFile2Phone(activity, "termux-x11-nightly-1.03.10-0-all.deb", ".termux/tmp");
-            FileUtils.copyAssetsFile2Phone(activity, "xkeyboard-config_2.45_all.deb", ".termux/tmp");
-            CommandUtils.execInPath(activity, "install", null, "/home/.termux/tmp/");
+            FileUtils.copyAssetsFile2Phone(activity, "termux-x11-nightly-1.04.10-0-all.deb", ".termux/tmp");
+            mActivity.installX11BridgeInTerminal(
+                new File(TermuxConstants.TERMUX_HOME_DIR_PATH, ".termux/tmp/install"));
         });
     }
 

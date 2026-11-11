@@ -261,7 +261,6 @@ public final class LoriePreferences {
             if (getActivity() instanceof TerminalActions) {
                 TerminalActions actions = (TerminalActions) getActivity();
                 if ("main".equals(screen.getKey())) {
-                    with("version", p -> p.setOrder(100));
                     addTerminalAction(screen, "front_ui", R.string.terminal_open_ui, 90, actions::openFrontUi);
                     Preference data = new Preference(requireContext());
                     data.setKey("terminal_data");

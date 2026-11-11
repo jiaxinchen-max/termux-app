@@ -372,6 +372,19 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         createNewSession(isFailSafe, sessionName);
     }
 
+    public void startX11Script(File script) {
+        TermuxService service = mActivity.getTermuxService();
+        if (service == null) return;
+        if (service.getTermuxSessionsSize() >= MAX_SESSIONS) {
+            new AlertDialog.Builder(mActivity).setTitle(R.string.title_max_terminals_reached)
+                .setMessage(R.string.msg_max_terminals_reached)
+                .setPositiveButton(android.R.string.ok, null).show();
+            return;
+        }
+        TerminalSession session = service.startTerminalX11Script(script);
+        if (session != null) setCurrentSession(session);
+    }
+
     public void addNewSessionAndRunCommand(@Nullable String command, @Nullable String sessionName) {
         if (TextUtils.isEmpty(command))
             return;
@@ -381,6 +394,22 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             return;
 
         newTerminalSession.write(command.endsWith("\n") ? command : command + "\n");
+    }
+
+    public void startX11BridgeInstall(File installer) {
+        String command = "printf '\\n%s\\n' " + quoteShellArgument(mActivity.getString(R.string.x11_bridge_install_started))
+            + "; if sh " + quoteShellArgument(installer.getAbsolutePath())
+            + "; then printf '\\n%s\\n' " + quoteShellArgument(mActivity.getString(R.string.x11_bridge_install_success))
+            + "; else printf '\\n%s %s\\n' " + quoteShellArgument(mActivity.getString(R.string.x11_bridge_install_failure))
+            + " \"$?\"; fi";
+        // Use an ordinary interactive shell so both successful and failed output stays visible.
+        addNewSessionAndRunCommand(command, mActivity.getString(R.string.x11_bridge_install_session));
+        mActivity.getDrawer().closeDrawers();
+        mActivity.showTerminalSurface();
+    }
+
+    private static String quoteShellArgument(String value) {
+        return "'" + value.replace("'", "'\\''") + "'";
     }
 
     public void addNewAutoCloseSessionAndRunCommand(@Nullable String command, @Nullable String sessionName) {

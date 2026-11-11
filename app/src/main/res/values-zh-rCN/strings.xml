@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="x11_startup_scripts">启动脚本</string>
+    <string name="x11_startup_add">添加</string>
+    <string name="x11_bridge_install_session">X11 依赖安装</string>
+    <string name="x11_bridge_install_started">正在安装 X11 依赖…</string>
+    <string name="x11_bridge_install_success">安装成功。</string>
+    <string name="x11_bridge_install_failure">安装失败，退出码：</string>
     <string name="application_name">终端</string>
     <string name="shared_user_label">user</string>
     <string name="permission_run_command_label">在环境中运行命令</string>

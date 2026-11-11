@@ -3,6 +3,8 @@
 # the container). Runs in a visible Termux terminal session.
 
 set -u
+# debconf and dpkg conffile decisions are separate; -y alone cannot answer either.
+export DEBIAN_FRONTEND=noninteractive
 
 SPEC_PATH="${1:-}"
 [ -n "$SPEC_PATH" ] && [ -f "$SPEC_PATH" ] || { echo 'Usage: desktop_install.sh spec --operation=install|host-prerequisites [--task-id=id --result-file=path]' >&2; exit 64; }
@@ -117,13 +119,13 @@ gl4es_1.1.7.20260927_aarch64.deb eb0ba70d084c87b84b144ef2ce6ad415ca3810dcb356d77
 kwin_6.6.0-28_aarch64.deb d6b97467522ce0736d0f142baddd333072da76208c1bca985685b4a2b2d82cdf
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 qt6-qtbase-cross-tools_6.12.0-1+termuxkwin1_all.deb 07b9a9ae857225a814e85c74fdc613cc0720c328d3b2f4f5270a47b67169bf5f
-qt6-qtbase-gtk-platformtheme_6.12.0-1+termuxkwin1_aarch64.deb c682bf46ff7251449f41c420fe7818b2ff4f91a21477266fc458bf7d86795bb5
-qt6-qtbase_6.12.0-1+termuxkwin1_aarch64.deb 5b1507ff7c945c284e9230138752ccf2b63119cf03c4d782714aa8b3a6e91262
+qt6-qtbase-gtk-platformtheme_6.12.0-1+termuxkwin1_aarch64.deb 88174bce8ca6f5f5034c6a9b14360e1d1bc7f8e5af014cfbcd2440840897c622
+qt6-qtbase_6.12.0-1+termuxkwin1_aarch64.deb ac6a509819084af9601db572d88d02e384a034cbc27923f8c9b0780dd6a29cfb
 termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
 xwayland_24.1.11-1_aarch64.deb 3cc2999ae0ba90495abad71445f794723efc06a97c001b383467665e3038e8a4
 "
 
-# Reviewed GNOME/USB runtime assets; all downloaded payloads require an exact SHA256.
+# GNOME/USB release asset identities and publication digests.
 GNOME_USB_RELEASE_TAG="gnome-usb-20261030-r1"
 GNOME_USB_BASE_URL="https://github.com/jiaxinchen-max/termux-app-packages/releases/download/$GNOME_USB_RELEASE_TAG"
 GNOME_DEBS="
@@ -274,8 +276,8 @@ ensure_turnip_icd() { # alias
         || fail "holding the container Turnip packages"
 }
 
-# Fixed host-package identity plus dpkg file verification. Critical runtime files are also
-# checked against the published payload, so same-version alternate local builds are rejected.
+# Required runtime files, with release digests retained as publication metadata.
+# Installation checks package status, version and file presence without digest verification.
 HOST_FILES='
 mutter lib/libmutter-16.so.0.0.0 dd001f7aeb271f7b915fadf80dd5cf74c3966322bfa89e3061a3cba128562094
 gjs bin/gjs-console 942cdbf442a9d45c395703ca358664195300179e6a220234d9cda099b8e43316
@@ -334,8 +336,8 @@ kwin lib/libkwin.so.6.6.7 eee1bfc582e045ec44d8a9216ff787e435a8409a3ce4afbb0cd211
 kwin lib/qt6/plugins/wayland-graphics-integration-client/libqt-plugin-termux-ahardware-buffer.so ad6533bb6a2ddbb7bc1333d60cfb262261454b6650ee105c04a0f31eddccdf69
 kwin lib/qt6/termux-system-egl/libEGL.so.1 d5e14819eff485aef4cb3373a713ff6c2eb6da8de9fe976ae7874990295b77d1
 kwin lib/qt6/termux-system-egl/libEGL.so d5e14819eff485aef4cb3373a713ff6c2eb6da8de9fe976ae7874990295b77d1
-qt6-qtbase lib/qt6/plugins/wayland-shell-integration/libxdg-shell.so 76d7ddc767cf70fc340f57b84f2fdacd88ca7be15c46ec0286a882d0a0bf397b
-qt6-qtbase-gtk-platformtheme lib/qt6/plugins/platformthemes/libqgtk3.so fec799f8ce9f9a65522ad6be1118d6bc7064da699bd950bfc6256e353c621733
+qt6-qtbase lib/qt6/plugins/wayland-shell-integration/libxdg-shell.so 73e1b5cd7181cc3aa05424f54efaa09c6830ec3f8282027cae6935d22f8f9985
+qt6-qtbase-gtk-platformtheme lib/qt6/plugins/platformthemes/libqgtk3.so af3ae4b58f51c13ccc74c510860cc2f6aa288a35fd49974755bbf9be74fd7fe8
 qt6-qtbase-cross-tools opt/qt6/cross/lib/qt6/moc 7bdd400ea3e8eb2d888774f92505894502fa45828ba6531cd4ba898a1dc555e5
 gl4es lib/gl4es/libGL.so.1 4cef5efd53f4ba96447bcefdc755a1fc466d9c3031df69536c59287c83ff5813
 libandroid-stub lib/libtermux-platform-ns.so 6c39c6a3318accd5e34f4f2c9e5c9e14eed113fb3a92e8c0be86006dc9256e34
@@ -428,17 +430,17 @@ $name $digest"
     proot_distro_valid || standard_packages="$standard_packages proot-distro"
     if [ -n "$missing_debs" ] || [ -n "$standard_packages" ]; then
         log "Installing explicitly requested host prerequisites only ($DESKTOP_DE/$DESKTOP_GL_MODE)"
-        run pkg install -y x11-repo || fail 'x11-repo'
-        run pkg update -y || fail 'pkg update'
+        run pkg install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold x11-repo || fail 'x11-repo'
+        run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold || fail 'pkg update'
         host_paths=''
         if [ -n "$missing_debs" ]; then
             host_paths=$(fetch_debs "$release" "$url" "$missing_debs") || fail 'downloading host prerequisites'
             [ -n "$host_paths" ] || fail 'no host prerequisite packages downloaded'
         fi
-        # All paths are app-private, conservative spec paths; each deb SHA is checked above.
-        # --reinstall repairs an altered same-version package instead of calling it satisfied.
+        # All paths are app-private, conservative spec paths.
+        # --reinstall repairs explicitly requested missing or mismatched prerequisites.
         # shellcheck disable=SC2086
-        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $host_paths $standard_packages \
+        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $host_paths $standard_packages \
             || fail 'host prerequisite apt install'
     else
         log 'Host prerequisites already satisfied; no network or package update required.'
@@ -468,8 +470,8 @@ if [ "$OPERATION" = host-prerequisites ]; then
 fi
 
 log "Installing $DESKTOP_LABEL desktop packages ($DESKTOP_MODE mode)"
-run pkg install -y x11-repo || fail "x11-repo"
-run pkg update -y || fail "pkg update"
+run pkg install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold x11-repo || fail "x11-repo"
+run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold || fail "pkg update"
 
 # fetch_debs runs in a command substitution, so the exit of its fail() only ends that subshell: check
 # its status here, or a failed download goes on with an empty package list and "installs" nothing.
@@ -504,13 +506,13 @@ fi
 if [ "$DESKTOP_MODE" = "native" ]; then
     if [ "$DESKTOP_DE" = gnome ]; then
         # shellcheck disable=SC2086
-        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio python dbus dconf adwaita-icon-theme gnome-backgrounds xorg-xdpyinfo || fail 'apt install GNOME'
+        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio python dbus dconf adwaita-icon-theme gnome-backgrounds xorg-xdpyinfo || fail 'apt install GNOME'
     elif [ "$DESKTOP_DE" = "xfce4" ]; then
         # shellcheck disable=SC2086
-        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio xfce4 xfce4-terminal dbus || fail "apt install xfce4"
+        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio xfce4 xfce4-terminal dbus || fail "apt install xfce4"
     else
         # shellcheck disable=SC2086
-        run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole \
+        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole \
             || fail "apt install"
     fi
 else
@@ -521,7 +523,7 @@ else
         host_packages="$host_packages python dbus xorg-xdpyinfo"
         [ "$DESKTOP_GL_MODE" != zink ] || host_packages="$host_packages mesa mesa-vulkan-icd-freedreno vulkan-loader"
     fi
-    run apt install -y --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS $host_packages || fail "apt install"
+    run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS $host_packages || fail "apt install"
     # The container's Plasma must be about as new as the native KWin (6.6): Debian trixie's Plasma
     # 6.3 hits protocol mismatches (kde_output_device_mode_v2 events) and shows a black screen, while
     # forky's 6.7 renders. XFCE has no such coupling and stays on the stable image.

@@ -7,7 +7,7 @@ TERMUX_PKG_HOMEPAGE="https://github.com/termux/termux-x11"
 TERMUX_PKG_DESCRIPTION="Companion package for termux-x11 app"
 TERMUX_PKG_MAINTAINER="Twaik Yont @twaik"
 TERMUX_PKG_REVISION=0
-TERMUX_PKG_VERSION="1.03.10"
+TERMUX_PKG_VERSION="1.04.10"
 #TERMUX_PKG_VERSION=$(grep versionName termux-x11/build.gradle | cut -d '"' -f 2)
 TERMUX_PKG_DEPENDS="xkeyboard-config"
 
@@ -43,6 +43,7 @@ cp shell-loader/build/outputs/apk/debug/shell-loader-debug.apk \
     $PREFIX/libexec/termux-display/loader.apk
 cp stopserver $PREFIX/bin/
 cp startxserver $PREFIX/bin/
+chmod 755 "$PREFIX/bin/"* "$PREFIX/libexec/termux-x11/loader.apk" "$PREFIX/libexec/termux-display/loader.apk"
 
 cp install $ASSETS_PATH
 
@@ -59,13 +60,16 @@ EOF
 
 cat <<EOF >$CONTROL_DIR/postinst
 #!/data/data/com.termux/files/usr/bin/sh
-chmod 400 /data/data/com.termux/files/usr/libexec/termux-x11/loader.apk
-chmod 400 /data/data/com.termux/files/usr/bin/startxserver
-chmod 400 /data/data/com.termux/files/usr/bin/stopserver
-chmod 400 /data/data/com.termux/files/usr/bin/termux-x11
-chmod 400 /data/data/com.termux/files/usr/bin/termux-display
-chmod 400 /data/data/com.termux/files/usr/bin/termux-x11-preference
+set -e
+chmod 755 /data/data/com.termux/files/usr/libexec/termux-x11/loader.apk
+chmod 755 /data/data/com.termux/files/usr/libexec/termux-display/loader.apk
+chmod 755 /data/data/com.termux/files/usr/bin/startxserver
+chmod 755 /data/data/com.termux/files/usr/bin/stopserver
+chmod 755 /data/data/com.termux/files/usr/bin/termux-x11
+chmod 755 /data/data/com.termux/files/usr/bin/termux-display
+chmod 755 /data/data/com.termux/files/usr/bin/termux-x11-preference
 EOF
+chmod 755 "$CONTROL_DIR/postinst"
 
 mkdir -p $PACKAGE_DIR
 echo 2.0 >$PACKAGE_DIR/debian-binary
@@ -106,13 +110,13 @@ BUILD_DATE=$(date +%s)
 } >$DATA_DIR/.BUILDINFO
 {
     echo "post_install() {"
-    echo "    chmod 400 /data/data/com.termux/files/usr/libexec/termux-x11/loader.apk"
-    echo "    chmod 400 /data/data/com.termux/files/usr/bin/display"
-    echo "    chmod 400 /data/data/com.termux/files/usr/bin/startxserver"
-    echo "    chmod 400 /data/data/com.termux/files/usr/bin/stopserver"
-    echo "    chmod 400 /data/data/com.termux/files/usr/bin/termux-x11"
-    echo "    chmod 400 /data/data/com.termux/files/usr/bin/termux-display"
-    echo "    chmod 400 /data/data/com.termux/files/usr/bin/termux-x11-preference"
+    echo "    chmod 755 /data/data/com.termux/files/usr/libexec/termux-x11/loader.apk"
+    echo "    chmod 755 /data/data/com.termux/files/usr/libexec/termux-display/loader.apk"
+    echo "    chmod 755 /data/data/com.termux/files/usr/bin/startxserver"
+    echo "    chmod 755 /data/data/com.termux/files/usr/bin/stopserver"
+    echo "    chmod 755 /data/data/com.termux/files/usr/bin/termux-x11"
+    echo "    chmod 755 /data/data/com.termux/files/usr/bin/termux-display"
+    echo "    chmod 755 /data/data/com.termux/files/usr/bin/termux-x11-preference"
     echo "}"
 } >$DATA_DIR/.INSTALL
 
@@ -159,4 +163,4 @@ done
 
 printf '%s\0' "${FILES[@]}" ".MTREE" | tar --null --no-recursion --hard-dereference --files-from=- -cf - | xz > "$PACMAN_PACKAGE_PATH"
 cd -
-cp -rvf $PACMAN_PACKAGE_PATH $ASSETS_PATH
+# Keep the Pacman artifact in build outputs; the Android app uses APT packages.

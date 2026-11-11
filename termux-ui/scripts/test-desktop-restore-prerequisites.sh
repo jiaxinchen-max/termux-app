@@ -20,7 +20,7 @@ for name in ('DEBS', 'XLORIE_DEBS'):
         versions[package] = version
 files = [line.split() for line in block('HOST_FILES', "'").splitlines() if line.strip()]
 mock = '#!' + sys.executable + '\n' + r'''
-import importlib.metadata, json, os, pathlib, re, sys, types
+import json, os, pathlib, re, sys, types
 base = pathlib.Path(os.environ['FIXTURE'])
 state = json.loads((base/'state.json').read_text())
 cmd = pathlib.Path(sys.argv[0]).name
@@ -50,6 +50,7 @@ elif cmd == 'proot-distro':
     # before parsing help. No host prerequisite path may enter it.
     sys.exit(91)
 elif cmd == 'python3':
+    import importlib.metadata
     assert len(args) == 5 and args[:3] == ['-I','-B','-c'], args
     assert os.environ['PREFIX'] == str(base/'usr')
     assert args[4] == state['versions']['proot-distro'].split('-')[0]
@@ -177,10 +178,11 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
     assert len(re.findall(r'^curl ',calls,re.M)) == 1
     def altered(data, case): data['bad_hash'] = [str(case/'usr/bin/kwin_wayland')]
     case, calls = run('altered-elf', altered)
-    assert len(re.findall(r'^curl ',calls,re.M)) == 1 and '--reinstall' in calls
+    # Runtime digest/verification checks were removed; local changes do not request a reinstall.
+    assert not re.search(r'^(curl|apt|pkg|sha256sum) ',calls,re.M), calls
     def damaged(data, case): data['corrupt'] = ['qt6-qtbase']
     case, calls = run('dpkg-verify-damage', damaged)
-    assert len(re.findall(r'^curl ',calls,re.M)) == 1 and 'qt6-qtbase_6.12.0-1+termuxkwin1_aarch64.deb' in calls
+    assert not re.search(r'^(curl|apt|pkg|sha256sum|dpkg --verify) ',calls,re.M), calls
     def old(data, case): data['versions']['proot-distro'] = '4.9.0'
     case, calls = run('old-layout-upgrade', old)
     assert 'apt install' in calls and ' proot-distro\n' in calls

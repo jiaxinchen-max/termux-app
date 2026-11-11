@@ -6,8 +6,8 @@
         <Preference app:title="@string/pref_output" app:fragment="output" />
         <Preference app:title="@string/pref_pointer" app:fragment="pointer" />
         <Preference app:title="@string/pref_kbd" app:fragment="kbd" />
-        <Preference app:title="@string/pref_other" app:fragment="other" />
-        <Preference app:key="version" app:title="@string/pref_version" />
+        <Preference app:title="@string/pref_other" app:fragment="other" app:order="99" />
+        <Preference app:key="version" app:title="@string/pref_version" app:order="100" />
     </PreferenceScreen>
     <PreferenceScreen app:key="data" app:title="@string/terminal_data" />
     <PreferenceScreen app:key="output">

@@ -33,7 +33,8 @@ public class TermuxTerminalSessionServiceClient extends TermuxTerminalSessionCli
     public void onSessionFinished(@NonNull TerminalSession finishedSession) {
         // There is no Activity client when Games is foregrounded. Remove its completed
         // setup session here, equivalent to the Enter-key path in TermuxActivity.
-        if (TermuxGamesSetupTerminalRegistry.isSetupSession(finishedSession.mSessionName)) {
+        if (TermuxGamesSetupTerminalRegistry.isSetupSession(finishedSession.mSessionName)
+            || mService.isTerminalX11Script(finishedSession)) {
             mService.removeTermuxSession(finishedSession);
         }
     }

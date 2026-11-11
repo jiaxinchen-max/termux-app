@@ -663,7 +663,7 @@ code=$?
 set -e
 assert_eq "$code" 100 "install apt dependency exit"
 assert_eq "$(cat "$TEST_ROOT/state/dlfail.status")" exit:100 "failed install status"
-grep -q 'Command failed (exit 100): pkg install -y x11-repo' "$FAIL_ROOT/apt-stdout" \
+grep -q 'Command failed (exit 100): pkg install -y .*x11-repo' "$FAIL_ROOT/apt-stdout" \
     || fail "apt failure omitted command or exit code"
 grep -q 'E: Unmet dependencies: libtest Depends: libmissing (= 2)' "$FAIL_ROOT/apt-stdout" \
     || fail "apt failure omitted dependency diagnosis"

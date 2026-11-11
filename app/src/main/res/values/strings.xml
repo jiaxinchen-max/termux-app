@@ -3,6 +3,12 @@
 <!DOCTYPE resources [<!ENTITY TERMUX_PACKAGE_NAME "com.termux"><!ENTITY TERMUX_APP_NAME "Termux"><!ENTITY TERMUX_API_APP_NAME "Termux:API"><!ENTITY TERMUX_BOOT_APP_NAME "Termux:Boot"><!ENTITY TERMUX_FLOAT_APP_NAME "Termux:Float"><!ENTITY TERMUX_STYLING_APP_NAME "Termux:Styling"><!ENTITY TERMUX_TASKER_APP_NAME "Termux:Tasker"><!ENTITY TERMUX_WIDGET_APP_NAME "Termux:Widget">]>
 
 <resources>
+    <string name="x11_startup_scripts">Startup scripts</string>
+    <string name="x11_startup_add">Add</string>
+    <string name="x11_bridge_install_session">X11 dependency installation</string>
+    <string name="x11_bridge_install_started">Installing X11 dependencies…</string>
+    <string name="x11_bridge_install_success">Installation succeeded.</string>
+    <string name="x11_bridge_install_failure">Installation failed. Exit code:</string>
 
     <string name="application_name">&TERMUX_APP_NAME; </string>
     <string name="shared_user_label">&TERMUX_APP_NAME; user</string>
