@@ -15,11 +15,14 @@ import static org.junit.Assert.assertTrue;
 public class RuntimeProfileConfigurationTest {
 
     @Test
-    public void allNewPresetsDefaultBothControllerLibrariesToNativeBuiltin() {
+    public void allNewPresetsUseXinputMappingWithBothApisAndNativeBuiltinLibraries() {
         for (RuntimeProfilePreset preset : new RuntimeProfilePreset[] {
                 RuntimeProfilePreset.RECOMMENDED, RuntimeProfilePreset.STABLE,
                 RuntimeProfilePreset.COMPATIBILITY}) {
             RuntimeProfile profile = RuntimeProfilePresets.create("wine-controller", preset);
+            assertEquals("xinput", profile.getInputProfileId());
+            assertTrue(profile.isXinputEnabled());
+            assertTrue(profile.isDinputEnabled());
             assertEquals("native,builtin", profile.getEnvironment().get("GAMES_DLL_DINPUT"));
             assertEquals("native,builtin", profile.getEnvironment().get("GAMES_DLL_XINPUT"));
             assertEquals(null, profile.getEnvironment().get("GAMES_DLL_D3D"));

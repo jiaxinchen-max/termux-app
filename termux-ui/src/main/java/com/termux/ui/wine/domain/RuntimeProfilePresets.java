@@ -34,7 +34,7 @@ public final class RuntimeProfilePresets {
                 environment.put("MESA_GL_VERSION_OVERRIDE", "4.5");
                 return profile(gameId, "glibc_wine_8.18-staging", "virgl",
                     "wined3d", "alsa", "1024x768", "STABILITY",
-                    environment, "dinput");
+                    environment, "xinput");
             default:
                 throw new IllegalArgumentException("Unsupported preset: " + preset);
         }
