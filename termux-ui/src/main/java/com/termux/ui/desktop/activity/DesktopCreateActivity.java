@@ -9,6 +9,9 @@ import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.ViewModel;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.termux.ui.R;
 import com.termux.ui.activity.AppUiActivity;
@@ -20,6 +23,8 @@ import com.termux.ui.desktop.api.DesktopTasks;
 import com.termux.ui.desktop.domain.DesktopDe;
 import com.termux.ui.desktop.domain.DesktopDistro;
 import com.termux.ui.desktop.domain.DesktopGlMode;
+import com.termux.ui.desktop.domain.DesktopGuestGlMode;
+import com.termux.ui.desktop.domain.DesktopUsbStorageMode;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 import com.termux.ui.desktop.runtime.DesktopCreationCatalog;
 import com.termux.ui.desktop.runtime.DesktopRendererPolicy;
@@ -40,7 +45,10 @@ public final class DesktopCreateActivity extends AppUiActivity {
     private static final String[] RESOLUTIONS = {"1280x720", "1600x900", "1920x1080", "2560x1440"};
     private static final int[] REFRESH_RATES = {30, 60, 90, 120};
 
+    static final String EXTRA_CREATED_ID = "com.termux.ui.extra.DESKTOP_CREATED_ID";
+
     private ActivityDesktopCreateBinding binding;
+    private SaveState saveState;
     private DesktopTasks tasks;
     private DesktopRunMode mode;
     private List<DesktopDistro> existing = new ArrayList<>();
@@ -49,7 +57,8 @@ public final class DesktopCreateActivity extends AppUiActivity {
     private DesktopDe de;
     private String resolution = DesktopDistro.DEFAULT_RESOLUTION;
     private int refreshRate = DesktopDistro.DEFAULT_REFRESH_RATE;
-    private DesktopGlMode glMode;
+    private DesktopGlMode hostGlMode;
+    private DesktopGuestGlMode guestGlMode;
 
     public static Intent createIntent(Context context, DesktopRunMode mode) {
         return new Intent(context, DesktopCreateActivity.class).putExtra(EXTRA_MODE, mode.name());
@@ -61,19 +70,35 @@ public final class DesktopCreateActivity extends AppUiActivity {
         String selectedMode = getIntent().getStringExtra(EXTRA_MODE);
         if (selectedMode == null) throw new IllegalArgumentException("desktop_creation_mode_required");
         mode = DesktopRunMode.valueOf(selectedMode);
-        glMode = mode == DesktopRunMode.NATIVE ? DesktopGlMode.SYSTEM : DesktopGlMode.ZINK;
+        hostGlMode = DesktopGlMode.SYSTEM;
+        guestGlMode = mode == DesktopRunMode.NATIVE ? DesktopGuestGlMode.NONE : DesktopGuestGlMode.DEFAULT;
         binding = ActivityDesktopCreateBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         setTitle(mode == DesktopRunMode.NATIVE
             ? R.string.desktop_create_native_title : R.string.desktop_create_container_title);
-        binding.desktopCreateToolbar.setNavigationOnClickListener(view -> finish());
+        binding.desktopCreateToolbar.setNavigationOnClickListener(view -> {
+            if (saveState == null || !saveState.saving) finish();
+        });
         binding.desktopCreateToolbar.setTitle(mode == DesktopRunMode.NATIVE
             ? getString(R.string.desktop_create_native_title)
             : getString(R.string.desktop_create_container_title));
         tasks = new DesktopTasks(this);
+        saveState = new ViewModelProvider(this).get(SaveState.class);
+        saveState.result.observe(this, result -> {
+            if (result == null) return;
+            if (result.error != null) {
+                saveState.saving = false;
+                binding.desktopCreateAction.setEnabled(de != null);
+                android.widget.Toast.makeText(this, R.string.desktop_create_save_failed,
+                    android.widget.Toast.LENGTH_LONG).show();
+            } else {
+                setResult(RESULT_OK, new Intent().putExtra(EXTRA_CREATED_ID, result.id));
+                finish();
+            }
+        });
 
         binding.desktopCreateContainersSection.setVisibility(
-            mode == DesktopRunMode.PROOT ? View.VISIBLE : View.GONE);
+            View.GONE);
         binding.desktopCreateDeLabel.setText(mode == DesktopRunMode.NATIVE
             ? getString(R.string.desktop_create_section_de)
                 + getString(R.string.desktop_create_section_de_hidden)
@@ -94,8 +119,10 @@ public final class DesktopCreateActivity extends AppUiActivity {
         bindSelect(binding.desktopCreateRefresh, R.string.desktop_select_refresh,
             this::refreshLabels, () -> refreshRate + " Hz",
             value -> refreshRate = Integer.parseInt(value.substring(0, value.length() - 3)));
-        bindSelect(binding.desktopCreateRenderer, R.string.desktop_select_renderer,
-            this::rendererLabels, () -> glLabel(glMode), value -> glMode = glOf(value));
+        bindSelect(binding.desktopCreateHostRenderer, R.string.desktop_renderer_host,
+            this::hostRendererLabels, () -> hostLabel(this, hostGlMode), value -> hostGlMode = hostOf(this, value));
+        bindSelect(binding.desktopCreateRenderer, R.string.desktop_renderer_guest,
+            this::guestRendererLabels, () -> guestLabel(this, guestGlMode), value -> guestGlMode = guestOf(this, value));
 
         binding.desktopCreateAction.setOnClickListener(view -> create());
         load();
@@ -119,16 +146,6 @@ public final class DesktopCreateActivity extends AppUiActivity {
 
     private void populate() {
         LayoutInflater inflater = getLayoutInflater();
-        if (mode == DesktopRunMode.PROOT) {
-            binding.desktopCreateContainers.removeAllViews();
-            binding.desktopCreateContainers.addView(optionRow(inflater, "🌀",
-                getString(R.string.desktop_container_debian),
-                getString(R.string.desktop_container_debian_desc), true, true,
-                view -> container = DesktopCreationCatalog.DEFAULT_CONTAINER));
-            binding.desktopCreateContainers.addView(optionRow(inflater, "📦",
-                getString(R.string.desktop_container_more),
-                getString(R.string.desktop_container_more_desc), false, false, null));
-        }
         binding.desktopCreateDes.removeAllViews();
         List<DesktopDe> options = mode == DesktopRunMode.NATIVE
             ? DesktopCreationCatalog.nativeOptions(existing)
@@ -136,12 +153,10 @@ public final class DesktopCreateActivity extends AppUiActivity {
         if (de == null || !options.contains(de)) {
             de = options.isEmpty() ? null : options.get(0);
         }
-        if (!DesktopRendererPolicy.supports(mode, de, glMode)) glMode = null;
-        if (mode == DesktopRunMode.NATIVE && de == DesktopDe.GNOME) refreshRate = 60;
-        for (DesktopDe candidate : DesktopCreationCatalog.environments()) {
-            boolean creatable = options.contains(candidate);
-            // Created native environments are hidden entirely, not greyed out.
-            if (!creatable && candidate.isCreatable()) continue;
+
+        if (mode == DesktopRunMode.NATIVE && de != null && de.isGnomeSession()) refreshRate = 60;
+        for (DesktopDe candidate : options) {
+            boolean creatable = true;
             binding.desktopCreateDes.addView(optionRow(inflater, iconOf(candidate),
                 deLabel(candidate), deDesc(candidate), creatable,
                 creatable && candidate == de,
@@ -153,12 +168,18 @@ public final class DesktopCreateActivity extends AppUiActivity {
             binding.desktopCreateAction.setEnabled(false);
             return;
         }
+        binding.desktopCreateAction.setEnabled(!saveState.saving);
         syncDynamicFields();
     }
 
     private void selectDe(DesktopDe selected) {
-        // Experimental client acceleration is always an explicit Hyprland choice.
-        if (selected == DesktopDe.HYPRLAND && de != selected) glMode = DesktopGlMode.SYSTEM;
+        if (selected != de) {
+            hostGlMode = selected == DesktopDe.KWIN_PLASMA && mode == DesktopRunMode.PROOT
+                ? DesktopGlMode.ZINK : DesktopGlMode.SYSTEM;
+            guestGlMode = mode == DesktopRunMode.NATIVE ? DesktopGuestGlMode.NONE
+                : selected == DesktopDe.KWIN_PLASMA ? DesktopGuestGlMode.ZINK
+                : selected.isGnomeSession() ? DesktopGuestGlMode.LLVMPIPE : DesktopGuestGlMode.DEFAULT;
+        }
         de = selected;
         populate();
     }
@@ -166,8 +187,14 @@ public final class DesktopCreateActivity extends AppUiActivity {
     private void syncDynamicFields() {
         binding.desktopCreateResolution.desktopSelectValue.setText(resolution);
         binding.desktopCreateRefresh.desktopSelectValue.setText(refreshRate + " Hz");
-        binding.desktopCreateRenderer.desktopSelectValue.setText(glLabel(glMode));
+        binding.desktopCreateHostRenderer.desktopSelectValue.setText(hostLabel(this, hostGlMode));
+        binding.desktopCreateRenderer.desktopSelectValue.setText(guestLabel(this, guestGlMode));
+        binding.desktopCreateRenderer.getRoot().setVisibility(mode == DesktopRunMode.PROOT ? View.VISIBLE : View.GONE);
+        binding.desktopCreateRenderer.desktopSelectRoot.setEnabled(de != DesktopDe.XFCE4);
+        binding.desktopCreateRendererLabel.setText(R.string.desktop_create_section_renderer);
+        binding.desktopCreateNote.setText(renderingHint(this, mode, de));
         if (mode == DesktopRunMode.PROOT) {
+            container = DesktopCreationCatalog.containerBase(de);
             String alias = DesktopCreationCatalog.nextInstanceAlias(existing, container, de);
             binding.desktopCreateAlias.setText(getString(R.string.desktop_create_alias) + ": "
                 + alias);
@@ -180,14 +207,14 @@ public final class DesktopCreateActivity extends AppUiActivity {
 
     /** A stand-in entry so {@link DesktopCreationCatalog#instanceLabel} numbers the next one. */
     private DesktopDistro placeholder(String alias) {
-        return new DesktopDistro("next", alias, DesktopRunMode.PROOT, alias, de, glMode,
-            resolution, refreshRate);
+        return new DesktopDistro("next", alias, DesktopRunMode.PROOT, alias, de, hostGlMode, guestGlMode,
+            resolution, refreshRate, DesktopUsbStorageMode.OFF);
     }
 
     private void create() {
-        if (de == null) return;
-        if (!DesktopRendererPolicy.supports(mode, de, glMode)) {
-            android.widget.Toast.makeText(this, R.string.desktop_renderer_explicit_required,
+        if (de == null || saveState.saving) return;
+        if (!DesktopRendererPolicy.supports(mode, de, hostGlMode, guestGlMode)) {
+            android.widget.Toast.makeText(this, R.string.desktop_renderer_pair_unsupported,
                 android.widget.Toast.LENGTH_LONG).show();
             return;
         }
@@ -198,13 +225,45 @@ public final class DesktopCreateActivity extends AppUiActivity {
         if (name.trim().isEmpty()) name = deLabel(de);
         DesktopDistro distro = new DesktopDistro(
             "desktop-" + UUID.randomUUID().toString().substring(0, 8), name.trim(), mode, alias,
-            de, glMode, resolution, refreshRate);
-        new Thread(() -> {
-            try {
-                tasks.save(distro);
-            } catch (IOException ignored) { }
-            runOnUiThread(this::finish);
-        }, "DesktopCreateSave").start();
+            de, hostGlMode, guestGlMode, resolution, refreshRate, DesktopUsbStorageMode.OFF);
+        binding.desktopCreateAction.setEnabled(false);
+        saveState.save(tasks, distro);
+    }
+
+    /** Retains one in-flight save across Activity recreation, without retaining its Activity. */
+    public static final class SaveState extends ViewModel {
+        final MutableLiveData<SaveResult> result = new MutableLiveData<>();
+        boolean saving;
+
+        public SaveState() { }
+
+        void save(DesktopTasks tasks, DesktopDistro distro) {
+            if (saving) return;
+            saving = true;
+            result.setValue(null);
+            new Thread(() -> {
+                try {
+                    tasks.save(distro);
+                    result.postValue(new SaveResult(distro.getId(), null));
+                } catch (IOException error) {
+                    result.postValue(new SaveResult(null, error));
+                }
+            }, "DesktopCreateSave").start();
+        }
+    }
+
+    static final class SaveResult {
+        final String id;
+        final IOException error;
+
+        SaveResult(String id, IOException error) {
+            this.id = id;
+            this.error = error;
+        }
+    }
+
+    @Override public void onBackPressed() {
+        if (saveState == null || !saveState.saving) super.onBackPressed();
     }
 
     private interface Getter { String get(); }
@@ -243,28 +302,61 @@ public final class DesktopCreateActivity extends AppUiActivity {
     }
 
     private String[] refreshLabels() {
-        if (mode == DesktopRunMode.NATIVE && de == DesktopDe.GNOME) return new String[]{"60 Hz"};
+        if (mode == DesktopRunMode.NATIVE && de != null && de.isGnomeSession()) return new String[]{"60 Hz"};
         String[] labels = new String[REFRESH_RATES.length];
         for (int i = 0; i < REFRESH_RATES.length; i++) labels[i] = REFRESH_RATES[i] + " Hz";
         return labels;
     }
 
-    private String[] rendererLabels() {
+    private String[] hostRendererLabels() {
         List<String> labels = new ArrayList<>();
-        for (DesktopGlMode renderer : DesktopRendererPolicy.allowedModes(mode, de))
-            labels.add(glLabel(renderer));
+        for (DesktopGlMode renderer : DesktopRendererPolicy.hostModes(mode, de)) labels.add(hostLabel(this, renderer));
         return labels.toArray(new String[0]);
     }
 
-    private DesktopGlMode glOf(String label) {
-        if (label.equals(glLabel(DesktopGlMode.SYSTEM))) return DesktopGlMode.SYSTEM;
-        if (label.equals(glLabel(DesktopGlMode.ZINK))) return DesktopGlMode.ZINK;
-        if (label.equals(glLabel(DesktopGlMode.LLVMPIPE))) return DesktopGlMode.LLVMPIPE;
-        throw new IllegalArgumentException("unknown_desktop_renderer:" + label);
+    private String[] guestRendererLabels() {
+        List<String> labels = new ArrayList<>();
+        for (DesktopGuestGlMode renderer : DesktopRendererPolicy.guestModes(mode, de)) labels.add(guestLabel(this, renderer));
+        return labels.toArray(new String[0]);
     }
 
-    private String glLabel(DesktopGlMode renderer) {
-        return rendererLabel(this, mode, de, renderer);
+    static String hostLabel(Context context, DesktopGlMode renderer) {
+        if (renderer == null) return context.getString(R.string.desktop_renderer_choose);
+        switch (renderer) {
+            case SYSTEM: return context.getString(R.string.desktop_gl_system);
+            case ZINK: return context.getString(R.string.desktop_gl_zink);
+            case LLVMPIPE: return context.getString(R.string.desktop_gl_llvmpipe);
+            default: return context.getString(R.string.desktop_renderer_choose);
+        }
+    }
+    static String guestLabel(Context context, DesktopGuestGlMode renderer) {
+        if (renderer == null) return context.getString(R.string.desktop_renderer_choose);
+        switch (renderer) {
+            case DEFAULT: return context.getString(R.string.desktop_guest_default);
+            case ZINK: return context.getString(R.string.desktop_guest_zink);
+            case LLVMPIPE: return context.getString(R.string.desktop_gl_llvmpipe);
+            case NONE: return context.getString(R.string.desktop_guest_none);
+            default: return context.getString(R.string.desktop_renderer_choose);
+        }
+    }
+    static DesktopGlMode hostOf(Context context, String label) {
+        for (DesktopGlMode value : DesktopGlMode.values())
+            if (value != DesktopGlMode.AUTO && label.equals(hostLabel(context, value))) return value;
+        throw new IllegalArgumentException("unknown_host_renderer");
+    }
+    static DesktopGuestGlMode guestOf(Context context, String label) {
+        for (DesktopGuestGlMode value : DesktopGuestGlMode.values())
+            if (value != DesktopGuestGlMode.UNRESOLVED && label.equals(guestLabel(context, value))) return value;
+        throw new IllegalArgumentException("unknown_guest_renderer");
+    }
+    static int renderingHint(Context context, DesktopRunMode mode, DesktopDe de) {
+        if (mode == DesktopRunMode.NATIVE) return de == DesktopDe.UBUNTU_GNOME
+            ? R.string.desktop_native_ubuntu_hint : R.string.desktop_create_native_note;
+        if (de == DesktopDe.XFCE4) return R.string.desktop_xfce_renderer_hint;
+        if (de == DesktopDe.KWIN_PLASMA) return R.string.desktop_plasma_renderer_hint;
+        if (de == DesktopDe.GNOME) return R.string.desktop_gnome_proot_renderer_hint;
+        if (de == DesktopDe.UBUNTU_GNOME) return R.string.desktop_ubuntu_gnome_renderer_hint;
+        return R.string.desktop_hyprland_proot_renderer_hint;
     }
 
     static String rendererLabel(Context context, DesktopRunMode runMode, DesktopDe de, DesktopGlMode renderer) {
@@ -324,7 +416,8 @@ public final class DesktopCreateActivity extends AppUiActivity {
             case GNOME: return getString(R.string.desktop_de_gnome_desc);
             case HYPRLAND: return getString(mode == DesktopRunMode.PROOT
                 ? R.string.desktop_hyprland_proot_renderer_hint : R.string.desktop_de_hyprland_desc);
-            default: return getString(R.string.desktop_de_ubuntu_gnome_desc);
+            default: return getString(mode == DesktopRunMode.NATIVE
+                ? R.string.desktop_native_ubuntu_hint : R.string.desktop_de_ubuntu_gnome_desc);
         }
     }
 

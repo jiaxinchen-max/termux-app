@@ -41,21 +41,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/desktop_session_close" />
+            android:text="@string/desktop_session_exit" />
     </LinearLayout>
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/desktop_session_menu"
-        android:layout_width="64dp"
-        android:layout_height="48dp"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="18dp"
-        android:contentDescription="@string/desktop_session_menu"
-        android:text="☰"
-        android:textColor="@color/local_games_on_surface"
-        android:textSize="20sp"
-        app:backgroundTint="@color/local_games_overlay"
-        app:cornerRadius="6dp" />
 
     <FrameLayout
         android:id="@+id/desktop_session_drawer_layer"

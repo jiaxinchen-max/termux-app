@@ -14,6 +14,7 @@ import com.termux.ui.desktop.api.DesktopTasks;
 import com.termux.ui.desktop.domain.DesktopDe;
 import com.termux.ui.desktop.domain.DesktopDistro;
 import com.termux.ui.desktop.domain.DesktopGlMode;
+import com.termux.ui.desktop.domain.DesktopGuestGlMode;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 import com.termux.ui.desktop.domain.DesktopSessionState;
 import com.termux.ui.desktop.runtime.DesktopRendererPolicy;
@@ -48,32 +49,42 @@ final class DesktopSettingsDialog {
             DesktopCreateActivity.labelOf(activity, distro.getDe())
                 + (container ? " · " + distro.getProotDistro() : " · "
                     + activity.getString(R.string.desktop_tab_native))));
-        if (container && distro.getDe() == DesktopDe.GNOME)
-            sheet.desktopSettingsHint.append("\n" + activity.getString(R.string.desktop_gnome_proot_renderer_hint));
-        if (container && distro.getDe() == DesktopDe.HYPRLAND)
-            sheet.desktopSettingsHint.append("\n" + activity.getString(R.string.desktop_hyprland_proot_renderer_hint));
+        if (container) sheet.desktopSettingsHint.append("\n" + activity.getString(
+            DesktopCreateActivity.renderingHint(activity, distro.getRunMode(), distro.getDe())));
         sheet.desktopSettingsNameLayout.setVisibility(container ? View.VISIBLE : View.GONE);
         sheet.desktopSettingsNameNote.setVisibility(container ? View.GONE : View.VISIBLE);
         if (container) sheet.desktopSettingsName.setText(distro.getName());
 
         final String[] resolution = {distro.getResolution()};
         final int[] refresh = {distro.getRefreshRate()};
-        final DesktopGlMode[] gl = {distro.getGlMode()};
+        final DesktopGlMode[] host = {distro.getHostGlMode()};
+        final DesktopGuestGlMode[] guest = {distro.getGuestGlMode()};
 
         bind(activity, sheet.desktopSettingsResolution, R.string.desktop_select_resolution,
             RESOLUTIONS, () -> resolution[0], value -> resolution[0] = value);
         bind(activity, sheet.desktopSettingsRefresh, R.string.desktop_select_refresh,
-            distro.getDe() == DesktopDe.GNOME && !container ? new String[]{"60 Hz"} : refreshLabels(),
+            distro.getDe().isGnomeSession() && !container ? new String[]{"60 Hz"} : refreshLabels(),
             () -> refresh[0] + " Hz",
             value -> refresh[0] = Integer.parseInt(value.substring(0, value.length() - 3)));
-        bind(activity, sheet.desktopSettingsRenderer, R.string.desktop_select_renderer,
-            rendererLabels(activity, distro), () -> glLabel(activity, distro, gl[0]),
-            value -> gl[0] = glOf(activity, distro, value));
+        List<String> hosts = new ArrayList<>();
+        for (DesktopGlMode value : DesktopRendererPolicy.hostModes(distro.getRunMode(), distro.getDe()))
+            hosts.add(DesktopCreateActivity.hostLabel(activity, value));
+        List<String> guests = new ArrayList<>();
+        for (DesktopGuestGlMode value : DesktopRendererPolicy.guestModes(distro.getRunMode(), distro.getDe()))
+            guests.add(DesktopCreateActivity.guestLabel(activity, value));
+        bind(activity, sheet.desktopSettingsHostRenderer, R.string.desktop_renderer_host,
+            hosts.toArray(new String[0]), () -> DesktopCreateActivity.hostLabel(activity, host[0]),
+            value -> host[0] = DesktopCreateActivity.hostOf(activity, value));
+        bind(activity, sheet.desktopSettingsRenderer, R.string.desktop_renderer_guest,
+            guests.toArray(new String[0]), () -> DesktopCreateActivity.guestLabel(activity, guest[0]),
+            value -> guest[0] = DesktopCreateActivity.guestOf(activity, value));
+        sheet.desktopSettingsRenderer.getRoot().setVisibility(container ? View.VISIBLE : View.GONE);
+        sheet.desktopSettingsRenderer.desktopSelectRoot.setEnabled(distro.getDe() != DesktopDe.XFCE4);
 
         sheet.desktopSettingsCancel.setOnClickListener(view -> dialog.dismiss());
         sheet.desktopSettingsSave.setOnClickListener(view -> {
-            if (!DesktopRendererPolicy.supports(distro.getRunMode(), distro.getDe(), gl[0])) {
-                android.widget.Toast.makeText(activity, R.string.desktop_renderer_explicit_required,
+            if (!DesktopRendererPolicy.supports(distro.getRunMode(), distro.getDe(), host[0], guest[0])) {
+                android.widget.Toast.makeText(activity, R.string.desktop_renderer_pair_unsupported,
                     android.widget.Toast.LENGTH_LONG).show();
                 return;
             }
@@ -81,7 +92,7 @@ final class DesktopSettingsDialog {
                 : distro.getName();
             if (name == null || name.trim().isEmpty()) name = distro.getName();
             DesktopDistro updated = distro.withName(name.trim())
-                .withGlMode(gl[0]).withOutput(resolution[0], refresh[0]);
+                .withRenderers(host[0], guest[0]).withOutput(resolution[0], refresh[0]);
             dialog.dismiss();
             new Thread(() -> {
                 try {
@@ -129,22 +140,4 @@ final class DesktopSettingsDialog {
         return labels;
     }
 
-    private static String[] rendererLabels(DesktopActivity activity, DesktopDistro distro) {
-        List<String> labels = new ArrayList<>();
-        for (DesktopGlMode renderer : DesktopRendererPolicy.allowedModes(distro.getRunMode(), distro.getDe()))
-            labels.add(glLabel(activity, distro, renderer));
-        return labels.toArray(new String[0]);
-    }
-
-    private static DesktopGlMode glOf(DesktopActivity activity, DesktopDistro distro, String label) {
-        if (label.equals(glLabel(activity, distro, DesktopGlMode.SYSTEM))) return DesktopGlMode.SYSTEM;
-        if (label.equals(glLabel(activity, distro, DesktopGlMode.ZINK))) return DesktopGlMode.ZINK;
-        if (label.equals(glLabel(activity, distro, DesktopGlMode.LLVMPIPE)))
-            return DesktopGlMode.LLVMPIPE;
-        throw new IllegalArgumentException("unknown_desktop_renderer:" + label);
-    }
-
-    private static String glLabel(DesktopActivity activity, DesktopDistro distro, DesktopGlMode mode) {
-        return DesktopCreateActivity.rendererLabel(activity, distro.getRunMode(), distro.getDe(), mode);
-    }
 }

@@ -10,7 +10,7 @@ SPEC_PATH="${1:?Usage: $0 <desktop_spec>}"
 . "$(dirname "$0")/desktop_common.sh"
 
 existing=$(read_pid) && pid_alive "$existing" && {
-    log "ERROR: Desktop $DESKTOP_ID is already running (pid $existing); stop it before applying the requested renderer ${DESKTOP_GL_MODE:-unset}."
+    log "ERROR: Desktop $DESKTOP_ID is already running (pid $existing); stop it before applying the requested renderer ${DESKTOP_COMPONENT_RENDERER:-unset}."
     exit 73
 }
 
@@ -60,21 +60,27 @@ stop_other_desktops() {
     [ -z "$stopped_files" ] || rm -f $stopped_files
 }
 
+# Validate both layers before stopping or replacing any display session.
+. "$(dirname "$0")/desktop_rendering.sh"
+desktop_resolve_rendering || {
+    log 'Unsupported host/container renderer pair; choose compatible renderers explicitly.'
+    printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
+}
 printf 'starting\n' > "$DESKTOP_STATUS_FILE"
 : > "$DESKTOP_LOG_FILE"
 # Resolve no modes implicitly: old Auto entries must be edited in the app first.
-case "${DESKTOP_GL_MODE:-}" in
+case "${DESKTOP_COMPONENT_RENDERER:-}" in
     system|zink|llvmpipe) ;;
-    *) log "Invalid renderer '${DESKTOP_GL_MODE:-}'; select System EGL, Zink or Software in desktop settings."
+    *) log "Invalid renderer '${DESKTOP_COMPONENT_RENDERER:-}'; select System EGL, Zink or Software in desktop settings."
        printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"
        exit 64 ;;
 esac
-if [ "$DESKTOP_MODE" = "proot" ] && [ "${DESKTOP_DE:-kwin_plasma}" = "kwin_plasma" ] && [ "$DESKTOP_GL_MODE" = "system" ]; then
+if [ "$DESKTOP_MODE" = "proot" ] && [ "${DESKTOP_DE:-kwin_plasma}" = "kwin_plasma" ] && [ "$DESKTOP_COMPONENT_RENDERER" = "system" ]; then
     log "Container Plasma does not support System EGL; select Zink or Software explicitly."
     printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"
     exit 64
 fi
-log "Requested renderer: $DESKTOP_GL_MODE ($DESKTOP_MODE/${DESKTOP_DE:-kwin_plasma}); renderer fallback is disabled."
+log "Requested host=$DESKTOP_HOST_GL_MODE container=$DESKTOP_GUEST_GL_MODE ($DESKTOP_MODE/${DESKTOP_DE:-kwin_plasma}); renderer fallback is disabled."
 case "${DESKTOP_USB_STORAGE:-off}" in off|read-only) ;; *)
     log 'Unsupported USB storage policy; select off or read-only explicitly.'
     printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
@@ -83,12 +89,12 @@ if [ "${DESKTOP_DE:-kwin_plasma}:${DESKTOP_USB_STORAGE:-off}" = kwin_plasma:read
     log 'Plasma Dolphin does not support the GIO USB storage integration.'
     printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
 fi
-if [ "${DESKTOP_DE:-}" = gnome ]; then
+if [ "${DESKTOP_DE:-}" = gnome ] || [ "${DESKTOP_DE:-}" = ubuntu_gnome ]; then
     [ "${DESKTOP_GNOME_SESSION_STARTUP:-}" = direct ] || {
         log 'GNOME requires explicit session startup direct; session-manager fallback is disabled.'
         printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
     }
-    case "$DESKTOP_MODE:${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}:$DESKTOP_GL_MODE" in
+    case "$DESKTOP_MODE:${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}:$DESKTOP_COMPONENT_RENDERER" in
         native:android:system:system)
             [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}" ] && [ -z "${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" ] || {
                 log 'Native GNOME does not accept X11 display modes.'
@@ -104,8 +110,10 @@ if [ "${DESKTOP_DE:-}" = gnome ]; then
                 log 'PRoot GNOME llvmpipe requires explicit host system/native; Zink requires zink/dmabuf.'
                 printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
             ;; esac
-            [ "${DESKTOP_CONTAINER_CODENAME:-}" = trixie ] || {
-                log 'PRoot GNOME requires explicit Debian trixie.'
+            expected_gnome_codename=trixie
+            [ "$DESKTOP_DE" != ubuntu_gnome ] || expected_gnome_codename=noble
+            [ "${DESKTOP_CONTAINER_CODENAME:-}" = "$expected_gnome_codename" ] || {
+                log "PRoot $DESKTOP_DE requires explicit codename $expected_gnome_codename."
                 printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
             } ;;
         *) log 'GNOME requires Native android/system or PRoot x11/llvmpipe|zink explicitly.'
@@ -121,11 +129,23 @@ if [ "${DESKTOP_DE:-}" = hyprland ]; then
         log 'Hyprland requires its pinned Android/System EGL host and USB off.'
         printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
     }
-    case "$DESKTOP_MODE:$DESKTOP_GL_MODE:${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" in
+    case "$DESKTOP_MODE:$DESKTOP_COMPONENT_RENDERER:${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" in
         native:system:default|proot:system:default|proot:zink:zink) ;;
         *) log 'Hyprland experimental Zink is for PRoot clients only; select a supported mode.'
            printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
     esac
+fi
+if [ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" = native:ubuntu_gnome ]; then
+    "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_native_ubuntu.py" --prefix "$PREFIX" >> "$DESKTOP_LOG_FILE" 2>&1 || {
+        log 'Native Ubuntu GNOME appearance or dependencies are incomplete; reinstall the desktop.'
+        printf 'exit:65\n' > "$DESKTOP_STATUS_FILE"; exit 65
+    }
+elif [ "${DESKTOP_DE:-}" = ubuntu_gnome ]; then
+    rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
+    "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_ubuntu_gnome.py" --rootfs "$rootfs" >> "$DESKTOP_LOG_FILE" 2>&1 || {
+        log 'Ubuntu GNOME files or base do not match; reinstall the desktop.'
+        printf 'exit:65\n' > "$DESKTOP_STATUS_FILE"; exit 65
+    }
 fi
 stop_other_desktops || { printf 'exit:74\n' > "$DESKTOP_STATUS_FILE"; exit 74; }
 
@@ -160,9 +180,9 @@ finish_desktop() {
     case "$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)" in
         stopping|stopped)
             case "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}:$code" in
-                hyprland:*:0|hyprland:*:130|hyprland:*:143|gnome:*:0|gnome:*:130|gnome:*:143|xfce4:read-only:0|xfce4:read-only:130|xfce4:read-only:143)
+                hyprland:*:0|hyprland:*:130|hyprland:*:143|gnome:*:0|gnome:*:130|gnome:*:143|ubuntu_gnome:*:0|ubuntu_gnome:*:130|ubuntu_gnome:*:143|xfce4:read-only:0|xfce4:read-only:130|xfce4:read-only:143)
                     printf 'stopped\n' > "$DESKTOP_STATUS_FILE"; code=0 ;;
-                hyprland:*|gnome:*|xfce4:read-only:*) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
+                hyprland:*|gnome:*|ubuntu_gnome:*|xfce4:read-only:*) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
                 *) printf 'stopped\n' > "$DESKTOP_STATUS_FILE"; code=0 ;;
             esac ;;
         *) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
@@ -194,7 +214,7 @@ if [ "$DESKTOP_DE" = hyprland ]; then
     finish_desktop
 fi
 
-if [ "$DESKTOP_DE" != gnome ]; then
+if [ "$DESKTOP_DE" != gnome ] && [ "$DESKTOP_DE" != ubuntu_gnome ]; then
     if [ "$DESKTOP_MODE" = proot ]; then
         usb_user_config="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs/root/.config"
     else
@@ -206,7 +226,7 @@ if [ "$DESKTOP_DE" != gnome ]; then
     }
 fi
 
-if [ "$DESKTOP_DE" = gnome ]; then
+if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
     unset KWIN_ANDROID_RUNTIME_ROOT KWIN_ANDROID_GL_MODE KWIN_ANDROID_REFRESH_RATE
     unset KWIN_ANDROID_WIDTH KWIN_ANDROID_HEIGHT PLASMA_LOG
     GNOME_LAUNCHER="$PREFIX/libexec/termux-gnome/launch.py"
@@ -215,7 +235,15 @@ if [ "$DESKTOP_DE" = gnome ]; then
         code=127; finish_desktop
     }
     mkdir -p "$(dirname "$GNOME_LAUNCHER")" || { code=74; finish_desktop; }
-    for asset in desktop_gnome_launch.py desktop_usb_storage.py; do
+    launcher_assets="desktop_gnome_launch.py desktop_usb_storage.py"
+    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+        if [ "$DESKTOP_MODE" = native ]; then
+            launcher_assets="$launcher_assets desktop_native_ubuntu.py"
+        else
+            launcher_assets="$launcher_assets desktop_ubuntu_gnome.py"
+        fi
+    fi
+    for asset in $launcher_assets; do
         target="$(dirname "$GNOME_LAUNCHER")/$asset"
         [ "$asset" != desktop_gnome_launch.py ] || target="$GNOME_LAUNCHER"
         temporary="$target.tmp.$$"
@@ -235,6 +263,9 @@ if [ "$DESKTOP_DE" = gnome ]; then
         --refresh-rate "$DESKTOP_REFRESH_RATE" --render-socket "$DESKTOP_RENDER_SOCKET" \
         --display :0 --wayland-display wayland-gnome --service-policy core \
         --usb-storage "$DESKTOP_USB_STORAGE"
+    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+        set -- "$@" --session-profile "$DESKTOP_GNOME_SESSION_PROFILE"
+    fi
     if [ "$DESKTOP_MODE" = proot ]; then
         rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
         set -- "$@" --x11-display-gl-mode "$DESKTOP_GNOME_DISPLAY_GL_MODE" \
@@ -263,7 +294,7 @@ fi
 # compositor and host display modes and must never export these aliases.
 KWIN_ANDROID_RUNTIME_ROOT="$HOME/.termux/kwin-runtime"
 export KWIN_ANDROID_RUNTIME_ROOT
-export KWIN_ANDROID_GL_MODE="$DESKTOP_GL_MODE"
+export KWIN_ANDROID_GL_MODE="$DESKTOP_HOST_GL_MODE"
 export KWIN_ANDROID_REFRESH_RATE="$DESKTOP_REFRESH_RATE"
 export KWIN_ANDROID_WIDTH="$DESKTOP_WIDTH"
 export KWIN_ANDROID_HEIGHT="$DESKTOP_HEIGHT"
@@ -311,7 +342,7 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
         printf 'exit:127\n' > "$DESKTOP_STATUS_FILE"
         exit 127
     }
-    gl_mode="$DESKTOP_GL_MODE"
+    gl_mode="$DESKTOP_HOST_GL_MODE"
     export XLORIE_GL_MODE="$gl_mode"
     case "$gl_mode" in
         system) export TERMUX_RENDER_AHB_RECEIVE=native ;;
@@ -439,7 +470,7 @@ if [ "$DESKTOP_MODE" = "proot" ]; then
             --bind "$(dirname "$0")/desktop_container_statx_setup.sh:/tmp/desktop_container_statx_setup.sh" \
             --bind "$(dirname "$0")/desktop_container_run_config.sh:/tmp/desktop_container_run_config.sh" \
             --bind "$(dirname "$0")/desktop_container_statx_aarch64.bin:/tmp/desktop_container_statx_aarch64.bin" \
-            -- env DESKTOP_GL_MODE="$DESKTOP_GL_MODE" PULSE_SERVER="$PULSE_SERVER" DESKTOP_STATX_BACKEND=proc-fdinfo \
+            -- env DESKTOP_GUEST_GL_MODE="$DESKTOP_GUEST_GL_MODE" PULSE_SERVER="$PULSE_SERVER" DESKTOP_STATX_BACKEND=proc-fdinfo \
                 DESKTOP_KDE_SERVICE_POLICY=kwin-wayland QT_QPA_PLATFORM=wayland XDG_SESSION_TYPE=wayland \
                 sh /tmp/plasma-container-session.sh >> "$DESKTOP_LOG_FILE.out" 2>&1 &
         container=$!

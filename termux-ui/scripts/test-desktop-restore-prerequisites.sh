@@ -117,10 +117,11 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
             file = case/'usr'/relative
             file.parent.mkdir(parents=True, exist_ok=True)
             file.touch()
-        for asset in ('desktop_install.sh','desktop_common.sh'):
+        for asset in ('desktop_install.sh','desktop_common.sh','desktop_rendering.sh'):
             shutil.copy(assets/asset, case/asset)
         spec = dict(DESKTOP_MODE='proot', DESKTOP_DE=de,
-                    DESKTOP_GL_MODE='llvmpipe' if de=='kwin_plasma' else 'system', DESKTOP_USB_STORAGE='off',
+                    DESKTOP_SPEC_VERSION='3', DESKTOP_HOST_GL_MODE='llvmpipe' if de=='kwin_plasma' else 'system',
+                    DESKTOP_GUEST_GL_MODE='llvmpipe' if de=='kwin_plasma' else 'default', DESKTOP_USB_STORAGE='off',
                     DESKTOP_LOG_FILE=str(case/'install.log'), DESKTOP_PID_FILE=str(case/'state/pid'),
                     DESKTOP_STATUS_FILE=str(case/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.6-r28')
         spec.update(data.get('spec', {}))
@@ -190,7 +191,7 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
     run('old-layout-remains', persist_old, code=1)
     def apt_fail(data, case): missing(data,case); data['apt_failure'] = 100
     run('apt-failure', apt_fail, code=100)
-    for key, value in [('DESKTOP_MODE','native'),('DESKTOP_MODE','unknown'),('DESKTOP_GL_MODE','auto'),('DESKTOP_GL_MODE','unknown'),('DESKTOP_DE','hyprland')]:
+    for key, value in [('DESKTOP_MODE','native'),('DESKTOP_MODE','unknown'),('DESKTOP_HOST_GL_MODE','auto'),('DESKTOP_GUEST_GL_MODE','unknown'),('DESKTOP_DE','hyprland')]:
         case, calls = run('invalid-'+key+'-'+value, lambda data,case,k=key,v=value: data.update(spec={k:v}), code=64)
         assert not re.search(r'^(pkg|curl|apt) ',calls,re.M)
     run('wrong-abi', lambda data,case: data.update(arch='x86_64'), code=1)

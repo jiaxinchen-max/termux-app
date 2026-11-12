@@ -30,7 +30,9 @@ unset DISPLAY
 # Clear inherited renderer settings before applying the requested mode exactly.
 unset QSG_RHI_BACKEND QT_QUICK_BACKEND VK_ICD_FILENAMES VK_DRIVER_FILES
 unset LIBGL_ALWAYS_SOFTWARE MESA_LOADER_DRIVER_OVERRIDE GALLIUM_DRIVER
-case "${DESKTOP_GL_MODE:-}" in
+# Old entry points may still pass their historical container-only alias.
+[ -n "${DESKTOP_GUEST_GL_MODE:-}" ] && [ -z "${DESKTOP_GL_MODE:-}" ] || exit 64
+case "$DESKTOP_GUEST_GL_MODE" in
     zink)
         export QSG_RHI_BACKEND=vulkan
         export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json
@@ -41,7 +43,7 @@ case "${DESKTOP_GL_MODE:-}" in
         export LIBGL_ALWAYS_SOFTWARE=1
         export GALLIUM_DRIVER=llvmpipe
         ;;
-    *) echo "ERROR: container Plasma requires DESKTOP_GL_MODE=zink or llvmpipe; got '${DESKTOP_GL_MODE:-}'." >&2
+    *) echo "ERROR: container Plasma requires DESKTOP_GUEST_GL_MODE=zink or llvmpipe; got '$DESKTOP_GUEST_GL_MODE'." >&2
        exit 64 ;;
 esac
 
@@ -52,7 +54,7 @@ fi
 
 LOG="${PLASMA_CONTAINER_LOG:-$XDG_RUNTIME_DIR/plasma-container.log}"
 exec >"$LOG" 2>&1
-echo "=== Plasma container session (renderer=$DESKTOP_GL_MODE, fallback=disabled) $(date) ==="
+echo "=== Plasma container session (renderer=$DESKTOP_GUEST_GL_MODE, fallback=disabled) $(date) ==="
 
 # --- Ensure required container packages ------------------------------------
 # apt-installable components are auto-installed if missing; a failed install
@@ -70,7 +72,7 @@ ensure_container_deps() {
         needed="$needed packagekit"
     fi
     # The Vulkan loader is required only by the explicitly selected GPU mode.
-    if [ "$DESKTOP_GL_MODE" = "zink" ] && ! ls /usr/lib/*/libvulkan.so >/dev/null 2>&1 && [ ! -e /usr/lib/libvulkan.so ]; then
+    if [ "$DESKTOP_GUEST_GL_MODE" = "zink" ] && ! ls /usr/lib/*/libvulkan.so >/dev/null 2>&1 && [ ! -e /usr/lib/libvulkan.so ]; then
         needed="$needed libvulkan-dev"
     fi
     # Qt Wayland platform plugin (QT_QPA_PLATFORM=wayland).
@@ -101,7 +103,7 @@ ensure_container_deps() {
 
     # Turnip Vulkan ICD (the GPU driver) -- from the mesa-for-android-container
     # tarball, not apt. Without it there is no hardware Vulkan device.
-    if [ "$DESKTOP_GL_MODE" = "zink" ] && [ ! -r "$VK_ICD_FILENAMES" ]; then
+    if [ "$DESKTOP_GUEST_GL_MODE" = "zink" ] && [ ! -r "$VK_ICD_FILENAMES" ]; then
         echo "ERROR: Turnip Vulkan ICD not found: $VK_ICD_FILENAMES" >&2
         echo "  Install the mesa-for-android-container tarball" >&2
         echo "  (provides libvulkan_freedreno.so + the ICD json)." >&2
@@ -284,7 +286,7 @@ for kde_service in $KDE_SERVICE_PIDS; do
     require_kde_service_alive "${kde_service%%:*}" "${kde_service#*:}" || exit "$?"
 done
 
-echo "=== launching plasmashell (renderer=$DESKTOP_GL_MODE, QSG_RHI_BACKEND=${QSG_RHI_BACKEND:-unset}, QT_QUICK_BACKEND=${QT_QUICK_BACKEND:-unset}) ==="
+echo "=== launching plasmashell (renderer=$DESKTOP_GUEST_GL_MODE, QSG_RHI_BACKEND=${QSG_RHI_BACKEND:-unset}, QT_QUICK_BACKEND=${QT_QUICK_BACKEND:-unset}) ==="
 plasmashell &
 shell_pid=$!
 SESSION_PIDS="$SESSION_PIDS $shell_pid"

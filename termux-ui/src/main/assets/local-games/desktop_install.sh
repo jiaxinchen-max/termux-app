@@ -55,26 +55,28 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
 [ "$OPERATION" != install ] || printf 'installing\n' > "$DESKTOP_STATUS_FILE" || exit 74
+. "$(dirname "$0")/desktop_rendering.sh"
+desktop_resolve_rendering || { log 'Unsupported host/container renderer pair; choose compatible renderers explicitly.'; exit 64; }
 case "${DESKTOP_MODE:-}" in native|proot) ;; *) log 'Explicit desktop run mode required'; exit 64 ;; esac
 [ "$OPERATION" != host-prerequisites ] || [ "$DESKTOP_MODE" = proot ] || { log 'Host prerequisites require PROOT mode'; exit 64; }
-case "${DESKTOP_DE:-}" in xfce4|kwin_plasma|gnome|hyprland) ;; *) log 'Unsupported desktop environment'; exit 64 ;; esac
-case "${DESKTOP_GL_MODE:-}" in system|zink|llvmpipe) ;; *) log 'Explicit system, zink or llvmpipe renderer required'; exit 64 ;; esac
+case "${DESKTOP_DE:-}" in xfce4|kwin_plasma|gnome|ubuntu_gnome|hyprland) ;; *) log 'Unsupported desktop environment'; exit 64 ;; esac
+case "${DESKTOP_COMPONENT_RENDERER:-}" in system|zink|llvmpipe) ;; *) log 'Explicit system, zink or llvmpipe renderer required'; exit 64 ;; esac
 if [ "$DESKTOP_DE" = hyprland ]; then
     [ "$OPERATION" = install ] && [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_RELEASE:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:hyprland-android-0.57.0-70ec30e7-r7:system ] || {
         log 'Hyprland requires its pinned Android/System EGL host and USB off; archives are unsupported.'; exit 64
     }
-    case "$DESKTOP_MODE:$DESKTOP_GL_MODE:${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" in
+    case "$DESKTOP_MODE:$DESKTOP_COMPONENT_RENDERER:${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" in
         native:system:default|proot:system:default|proot:zink:zink) ;;
         *) log 'Hyprland supports default clients, or explicit experimental Zink clients in PRoot only.'; exit 64 ;;
     esac
 fi
-if [ "$DESKTOP_DE:$DESKTOP_MODE:$DESKTOP_GL_MODE" = kwin_plasma:proot:system ]; then
+if [ "$DESKTOP_DE:$DESKTOP_MODE:$DESKTOP_COMPONENT_RENDERER" = kwin_plasma:proot:system ]; then
     log 'Container Plasma requires explicit Zink or llvmpipe'; exit 64
 fi
 if [ "$OPERATION" = host-prerequisites ] && [ "${DESKTOP_USB_STORAGE:-off}" != off ]; then
     log 'Container archive prerequisites require USB storage off'; exit 64
 fi
-if [ "$OPERATION" = host-prerequisites ] && [ "$DESKTOP_DE" = gnome ]; then
+if [ "$OPERATION" = host-prerequisites ] && { [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; }; then
     log 'GNOME container archives are not supported'; exit 64
 fi
 case "${DESKTOP_USB_STORAGE:-}" in off|read-only) ;; *) log 'Explicit USB storage mode off|read-only required'; exit 64 ;; esac
@@ -83,7 +85,7 @@ if [ "$DESKTOP_USB_STORAGE" = read-only ] && [ "$DESKTOP_DE" = kwin_plasma ]; th
     exit 64
 fi
 if [ "$DESKTOP_DE" = gnome ]; then
-    case "$DESKTOP_MODE:$DESKTOP_GL_MODE:${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}" in
+    case "$DESKTOP_MODE:$DESKTOP_COMPONENT_RENDERER:${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}" in
         native:system:android:system)
             [ "$DESKTOP_REFRESH_RATE" = 60 ] || { log 'Native GNOME requires 60Hz'; exit 64; }
             [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" ] || { log 'Native GNOME does not use X11 display parameters'; exit 64; } ;;
@@ -107,6 +109,7 @@ case "$DESKTOP_DE" in
     xfce4) DESKTOP_LABEL="XFCE4" ;;
     kwin_plasma) DESKTOP_LABEL="KWin Plasma" ;;
     gnome) DESKTOP_LABEL="GNOME" ;;
+    ubuntu_gnome) DESKTOP_LABEL="Ubuntu GNOME" ;;
     *) DESKTOP_LABEL="$DESKTOP_DE" ;;
 esac
 
@@ -152,6 +155,13 @@ nautilus_48.3-3_aarch64.deb ee53e9a2961294df5516ba0d7e4a3e138e57634ec4b132f37f1e
 pipewire-dbus_1.4.9_aarch64.deb f42dd82ff03801d5c1e14203f78c3092cfdbf0a57add3133c37331afd4b8ac8b
 polkit_126_aarch64.deb 1eddba206bc72c6b423557ff749416971efdec25be03fca45ad5498b33e98b67
 spidermonkey_128.10.0-3_aarch64.deb d5a3437b0d0543e58cb01e07cad277334ee849b663c06aef71f5d4c4e8973308
+"
+NATIVE_GNOME_APPS_TAG="native-gnome-apps-48-r2"
+NATIVE_GNOME_APPS_URL="https://github.com/jiaxinchen-max/termux-app-packages/releases/download/$NATIVE_GNOME_APPS_TAG"
+NATIVE_GNOME_APPS_DEBS="
+gnome-control-center_48.5_aarch64.deb fe400c3c0366bdd81226d2e15d626178052a89d30ec32d9ff14f162d42a58308
+tecla_48.0.2_aarch64.deb 3d427cee412bfca29755e4926d4be063bb66d7bddd0c743982cd70c4eff23875
+gnome-clocks_51.0-1_aarch64.deb b4128a755e3b8a76ff1e07d13067ace817015b0490d90c5c8e71989bf769937c
 "
 USB_DEBS="
 termux-usb-bridge_0.4.1_aarch64.deb d00381ecca8285e502bcd00f3491032d25f14d499454bccbb1cb1dab3964770c
@@ -214,6 +224,61 @@ fetch_debs() { # tag base_url deb_list -> prints paths
         paths="$paths $target"
     done < "$deb_dir/manifest"
     printf '%s' "$paths"
+}
+
+# Native app assets use a fixed release and verify bytes before apt sees them.
+fetch_verified_debs() (
+    verified_tag="$1"; verified_url="$2"; verified_list="$3"
+    verified_cache="${TMPDIR:-$PREFIX/tmp}/desktop-debs-$verified_tag"
+    # Discard a damaged cache before downloading, so reinstall repairs it.
+    printf '%s\n' "$verified_list" | while read -r name digest; do
+        [ -n "$name" ] || continue
+        target="$verified_cache/$name"
+        if [ -f "$target" ] && ! printf '%s  %s\n' "$digest" "$target" | sha256sum -c - >/dev/null 2>&1; then
+            rm -f "$target" || exit 1
+        fi
+    done || exit 65
+    verified_paths=$(fetch_debs "$verified_tag" "$verified_url" "$verified_list") || exit "$?"
+    printf '%s\n' "$verified_list" | while read -r name digest; do
+        [ -n "$name" ] || continue
+        target="$verified_cache/$name"
+        if ! printf '%s  %s\n' "$digest" "$target" | sha256sum -c - >/dev/null 2>&1; then
+            rm -f "$target"
+            printf 'Native GNOME app SHA256 mismatch: %s\n' "$name" >&2
+            exit 65
+        fi
+    done || exit 65
+    printf '%s' "$verified_paths"
+)
+
+# Fixed data-only component, outside the APK. Only verified downloads become cache entries.
+fetch_native_ubuntu_profile() {
+    (
+        profile_name=native-ubuntu-gnome-48-r2.bin
+        profile_digest=5a767f2ef030ea401015e9c4afad6cfc582c203c6f4eb30e079ae6935474ff03
+        profile_url="https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-ubuntu-gnome-48-r2/$profile_name"
+        profile_cache="${TMPDIR:-$PREFIX/tmp}/desktop-native-ubuntu-gnome-48-r2"
+        mkdir -p "$profile_cache" || exit 1
+        profile_target="$profile_cache/$profile_name"
+        if [ -f "$profile_target" ] && printf '%s  %s\n' "$profile_digest" "$profile_target" | sha256sum -c - >/dev/null 2>&1; then
+            printf '%s\n' "$profile_target"
+            exit 0
+        fi
+        profile_partial=$(mktemp "$profile_cache/.download.XXXXXXXX") || exit 1
+        trap 'rm -f "$profile_partial"' EXIT
+        trap 'exit 1' HUP INT TERM
+        if ! curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
+            -o "$profile_partial" "$profile_url" >> "$DESKTOP_LOG_FILE" 2>&1; then
+            printf '%s\n' 'Native Ubuntu appearance download failed; retry desktop installation.' >> "$DESKTOP_LOG_FILE"
+            exit 1
+        fi
+        if ! printf '%s  %s\n' "$profile_digest" "$profile_partial" | sha256sum -c - >> "$DESKTOP_LOG_FILE" 2>&1; then
+            printf '%s\n' 'Native Ubuntu appearance SHA256 mismatch; refusing installation.' >> "$DESKTOP_LOG_FILE"
+            exit 1
+        fi
+        mv -f "$profile_partial" "$profile_target" || exit 1
+        printf '%s\n' "$profile_target"
+    )
 }
 
 # Creates the container instance for this desktop. proot-distro caches image layers locally and
@@ -454,7 +519,7 @@ $name $digest"
     proot_valid || standard_packages="$standard_packages proot"
     proot_distro_valid || standard_packages="$standard_packages proot-distro"
     if [ -n "$missing_debs" ] || [ -n "$standard_packages" ]; then
-        log "Installing explicitly requested host prerequisites only ($DESKTOP_DE/$DESKTOP_GL_MODE)"
+        log "Installing explicitly requested host prerequisites only ($DESKTOP_DE/$DESKTOP_COMPONENT_RENDERER)"
         run pkg install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold x11-repo || fail 'x11-repo'
         run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold || fail 'pkg update'
         host_paths=''
@@ -515,13 +580,13 @@ if [ "$DESKTOP_DE" = hyprland ]; then
             cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "staging client helper $helper"
         done
         zink_packages=''
-        if [ "$DESKTOP_GL_MODE" = zink ]; then
+        if [ "$DESKTOP_COMPONENT_RENDERER" = zink ]; then
             zink_packages='libvulkan1 vulkan-tools libllvm19 libdrm2 libgbm1 libegl1 libgles2 libgl1-mesa-dri libegl-mesa0 libglx-mesa0 mesa-vulkan-drivers python3 python3-gi gir1.2-gtk-3.0 libepoxy0'
         fi
         # shellcheck disable=SC2086
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
             --statx-backend=proc-fdinfo --no-install-recommends xfce4-terminal thunar dbus-x11 adwaita-icon-theme $zink_packages || fail 'Hyprland container clients'
-        if [ "$DESKTOP_GL_MODE" = zink ]; then
+        if [ "$DESKTOP_COMPONENT_RENDERER" = zink ]; then
             ensure_trixie_turnip_icd "$DESKTOP_PROOT_DISTRO" "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.hyprland-mesa-backup"
             run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- python3 -I -c \
                 "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk" || fail 'container GPU test dependencies'
@@ -535,7 +600,7 @@ if [ "$DESKTOP_DE" = hyprland ]; then
     audit=$(dpkg --audit 2>&1) || fail 'dpkg audit'
     [ -z "$audit" ] || fail "$audit"
     [ "$DESKTOP_MODE" != proot ] || : > "$de_marker" || fail 'writing client installation marker'
-    if [ "$DESKTOP_MODE:$DESKTOP_GL_MODE" = proot:zink ]; then
+    if [ "$DESKTOP_MODE:$DESKTOP_COMPONENT_RENDERER" = proot:zink ]; then
         printf '%s\n' b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687 > "$de_marker-zink" || fail 'writing experimental Zink identity'
     fi
     log 'Hyprland candidate installed. Runtime and input await manual device validation.'
@@ -556,7 +621,7 @@ run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-
 # fetch_debs runs in a command substitution, so the exit of its fail() only ends that subshell: check
 # its status here, or a failed download goes on with an empty package list and "installs" nothing.
 DEB_PATHS=""
-if [ "$DESKTOP_DE" = gnome ]; then
+if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
     DEB_PATHS=$(fetch_debs "$XLORIE_RELEASE_TAG" "$XLORIE_BASE_URL" "$XLORIE_DEBS") || fail "downloading GNOME display packages"
     if [ "$DESKTOP_MODE" = native ]; then
         GNOME_PATHS=$(fetch_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$GNOME_DEBS") || fail "downloading GNOME packages"
@@ -570,23 +635,37 @@ else
         || fail "downloading the $DESKTOP_LABEL packages"
 fi
 [ -n "$DEB_PATHS" ] || fail "no $DESKTOP_LABEL packages were downloaded"
+if [ "$DESKTOP_MODE:$DESKTOP_DE" = native:ubuntu_gnome ]; then
+    native_app_paths=$(fetch_verified_debs "$NATIVE_GNOME_APPS_TAG" "$NATIVE_GNOME_APPS_URL" "$NATIVE_GNOME_APPS_DEBS") || fail 'downloading verified native GNOME applications'
+    DEB_PATHS="$DEB_PATHS $native_app_paths"
+fi
 if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
     USB_PATHS=$(fetch_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$USB_DEBS") || fail 'downloading USB storage bridge'
     DEB_PATHS="$DEB_PATHS $USB_PATHS"
 fi
-if [ "$DESKTOP_DE" = gnome ]; then
+if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
     destination="$PREFIX/libexec/termux-gnome"
     mkdir -p "$destination" || fail 'creating GNOME launcher directory'
-    for item in desktop_gnome_launch.py desktop_usb_storage.py; do
+    launcher_assets="desktop_gnome_launch.py desktop_usb_storage.py"
+    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+        if [ "$DESKTOP_MODE" = native ]; then
+            launcher_assets="$launcher_assets desktop_native_ubuntu.py"
+        else
+            launcher_assets="$launcher_assets desktop_ubuntu_gnome.py"
+        fi
+    fi
+    for item in $launcher_assets; do
         case "$item" in desktop_gnome_launch.py) target=launch.py ;; *) target="$item" ;; esac
         cp "$(dirname "$0")/$item" "$destination/$target.tmp.$$" && mv "$destination/$target.tmp.$$" "$destination/$target" || fail "installing $item"
     done
 fi
 
 if [ "$DESKTOP_MODE" = "native" ]; then
-    if [ "$DESKTOP_DE" = gnome ]; then
+    if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+        native_ubuntu_packages=""
+        [ "$DESKTOP_DE" != ubuntu_gnome ] || native_ubuntu_packages="gtk3 gnome-desktop3 gnome-terminal gnome-text-editor gnome-calculator eog"
         # shellcheck disable=SC2086
-        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio python dbus dconf gvfs adwaita-icon-theme gnome-backgrounds xorg-xdpyinfo || fail 'apt install GNOME'
+        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio python dbus dconf gvfs adwaita-icon-theme gnome-backgrounds xorg-xdpyinfo $native_ubuntu_packages || fail 'apt install GNOME'
     elif [ "$DESKTOP_DE" = "xfce4" ]; then
         # shellcheck disable=SC2086
         run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio xfce4 xfce4-terminal dbus || fail "apt install xfce4"
@@ -599,9 +678,9 @@ else
     # The session itself lives in the container; the host needs the display server and proot.
     # shellcheck disable=SC2086
     host_packages="proot proot-distro pulseaudio"
-    if [ "$DESKTOP_DE" = gnome ]; then
+    if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
         host_packages="$host_packages python dbus xorg-xdpyinfo"
-        [ "$DESKTOP_GL_MODE" != zink ] || host_packages="$host_packages mesa mesa-vulkan-icd-freedreno vulkan-loader"
+        [ "$DESKTOP_HOST_GL_MODE" != zink ] || host_packages="$host_packages mesa mesa-vulkan-icd-freedreno vulkan-loader"
     fi
     run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS $host_packages || fail "apt install"
     # The container's Plasma must be about as new as the native KWin (6.6): Debian trixie's Plasma
@@ -609,16 +688,25 @@ else
     # forky's 6.7 renders. XFCE has no such coupling and stays on the stable image.
     case "$DESKTOP_DE" in
         kwin_plasma) default_base="debian:forky" ;;
+        ubuntu_gnome) default_base="ubuntu:noble" ;;
         *) default_base="debian:trixie" ;;
     esac
     ensure_container_instance "$DESKTOP_PROOT_DISTRO" "${DESKTOP_CONTAINER_BASE:-$default_base}"
     rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
-    case "$DESKTOP_DE" in kwin_plasma) expected_codename=forky ;; *) expected_codename=trixie ;; esac
+    case "$DESKTOP_DE" in
+        kwin_plasma) expected_distribution=debian:forky ;;
+        ubuntu_gnome) expected_distribution=ubuntu:noble ;;
+        *) expected_distribution=debian:trixie ;;
+    esac
+    [ "${DESKTOP_CONTAINER_BASE:-$default_base}" = "$expected_distribution" ] || fail "desktop base must be $expected_distribution"
     codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" | tr -d '\"')
     distro_id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" | tr -d '\"')
-    [ "$distro_id:$codename" = "debian:$expected_codename" ] || fail "container requires Debian $expected_codename, got $distro_id:$codename"
+    [ "$distro_id:$codename" = "$expected_distribution" ] || fail "container requires $expected_distribution, got $distro_id:$codename"
     de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE"
-    if [ -f "$de_marker" ] && [ "$DESKTOP_DE:$DESKTOP_GL_MODE" != gnome:zink ]; then
+    if [ "$DESKTOP_DE" = ubuntu_gnome ] && [ -f "$de_marker" ]; then
+        python3 -I -B "$(dirname "$0")/desktop_ubuntu_gnome.py" --rootfs "$rootfs" || rm -f "$de_marker" || fail 'resetting incomplete Ubuntu marker'
+    fi
+    if [ -f "$de_marker" ] && [ "$DESKTOP_DE:$DESKTOP_COMPONENT_RENDERER" != gnome:zink ]; then
         log "Container packages for $DESKTOP_DE already present; skipping"
     else
         # The container helper configures service-start policy before apt. Installation failure
@@ -626,11 +714,12 @@ else
         rm -f "$de_marker" || fail 'resetting the container install marker'
         case "$DESKTOP_DE" in
             xfce4) container_packages="xfce4 xfce4-terminal dbus-x11" ;;
+            ubuntu_gnome) container_packages="ubuntu-session ubuntu-settings gnome-shell gnome-settings-daemon nautilus gvfs-backends dbus-x11 libgl1-mesa-dri mesa-utils gnome-terminal gnome-text-editor gnome-control-center gnome-calculator gnome-clocks eog ubuntu-wallpapers ubuntu-wallpapers-noble fonts-ubuntu yaru-theme-gtk yaru-theme-icon yaru-theme-sound yaru-theme-gnome-shell gnome-shell-extension-ubuntu-dock gnome-shell-extension-appindicator gnome-shell-extension-desktop-icons-ng gnome-shell-extension-ubuntu-tiling-assistant" ;;
             gnome) container_packages="gnome-shell gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils"
-                [ "$DESKTOP_GL_MODE" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm19 libdrm2"
+                [ "$DESKTOP_COMPONENT_RENDERER" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm19 libdrm2"
                 ;;
             *) container_packages="plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit polkitd"
-               [ "$DESKTOP_GL_MODE" != "zink" ] || container_packages="$container_packages libvulkan-dev" ;;
+               [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || container_packages="$container_packages libvulkan-dev" ;;
         esac
         container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
         [ -r "$container_apt" ] || fail "missing $container_apt"
@@ -638,14 +727,15 @@ else
             cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "cannot stage container helper $helper"
         done
         recommend_option=''
-        [ "$DESKTOP_DE" != gnome ] || recommend_option=--no-install-recommends
+        { [ "$DESKTOP_DE" != gnome ] && [ "$DESKTOP_DE" != ubuntu_gnome ]; } || recommend_option=--no-install-recommends
+        [ "$DESKTOP_DE" != ubuntu_gnome ] || recommend_option="--no-install-recommends --reinstall"
         # shellcheck disable=SC2086
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
             --statx-backend=proc-fdinfo $recommend_option $container_packages || fail "container apt install $DESKTOP_DE"
     fi
     # Idempotent and independent of the marker: a container created before this step still gets it.
-    [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$DESKTOP_GL_MODE" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
-    [ "$DESKTOP_DE:$DESKTOP_GL_MODE" != gnome:zink ] || ensure_gnome_turnip_icd "$DESKTOP_PROOT_DISTRO"
+    [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
+    [ "$DESKTOP_DE:$DESKTOP_COMPONENT_RENDERER" != gnome:zink ] || ensure_gnome_turnip_icd "$DESKTOP_PROOT_DISTRO"
     if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
         # The guest must load glibc GIO code. Never bind a host Bionic module into it.
         for helper in desktop_container_plasma_apt.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
@@ -666,7 +756,7 @@ fi
 
 audit=$(dpkg --audit 2>&1) || fail 'dpkg --audit failed'
 [ -z "$audit" ] || fail "dpkg --audit reported problems: $audit"
-if [ "$DESKTOP_DE" = "xfce4" ] || [ "$DESKTOP_DE" = gnome ]; then
+if [ "$DESKTOP_DE" = "xfce4" ] || [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
     # The Xlorie xorg-server (release build) is older than Termux's stock one; keep a later
     # `pkg upgrade` from replacing it with a server that has no Xlorie.
     run apt-mark hold xorg-server || fail "holding xorg-server"
@@ -674,10 +764,12 @@ fi
 verification_manifest="$DEBS"
 case "$DESKTOP_DE" in
     xfce4) verification_manifest="$XLORIE_DEBS" ;;
-    gnome) verification_manifest="$XLORIE_DEBS"
+    gnome|ubuntu_gnome) verification_manifest="$XLORIE_DEBS"
         [ "$DESKTOP_MODE" != native ] || verification_manifest="$verification_manifest
 $GNOME_DEBS" ;;
 esac
+[ "$DESKTOP_MODE:$DESKTOP_DE" != native:ubuntu_gnome ] || verification_manifest="$verification_manifest
+$NATIVE_GNOME_APPS_DEBS"
 [ "$DESKTOP_USB_STORAGE" != read-only ] || verification_manifest="$verification_manifest
 $USB_DEBS"
 printf '%s\n' "$verification_manifest" > "$DESKTOP_LOG_FILE.verify-manifest.$$" || fail 'writing final verification manifest'
@@ -688,12 +780,24 @@ while read -r name digest; do
     pinned_package_valid "$package" "$version" || fail "installed package verification failed: $package $version"
 done < "$DESKTOP_LOG_FILE.verify-manifest.$$"
 rm -f "$DESKTOP_LOG_FILE.verify-manifest.$$"
-if [ "$DESKTOP_MODE:$DESKTOP_DE" = native:gnome ]; then
+if [ "$DESKTOP_MODE" = native ] && { [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; }; then
     # Match the launcher's core D-Bus policy: apt success alone does not prove these exist.
     for service in ca.desrt.dconf org.gtk.vfs.Daemon org.gnome.Nautilus; do
         [ -f "$PREFIX/share/dbus-1/services/$service.service" ] || \
             fail "Required Native GNOME D-Bus service is missing: $service.service. Reinstall the GNOME desktop."
     done
+fi
+if [ "$DESKTOP_MODE:$DESKTOP_DE" = native:ubuntu_gnome ]; then
+    ubuntu_profile=$(fetch_native_ubuntu_profile) || fail 'downloading verified native Ubuntu appearance'
+    run python3 -I -B "$(dirname "$0")/desktop_native_ubuntu.py" --prefix "$PREFIX" \
+        --install "$ubuntu_profile" || fail 'installing verified native Ubuntu appearance'
+elif [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+    run python3 -I -B "$(dirname "$0")/desktop_ubuntu_gnome.py" --rootfs "$rootfs" --prepare || {
+        validation_code=$?
+        rm -f "$de_marker"
+        log 'Ubuntu GNOME session/theme/extension verification failed'
+        exit "$validation_code"
+    }
 fi
 if [ "$DESKTOP_MODE" = proot ]; then
     : > "$de_marker" || fail 'writing the verified container install marker'

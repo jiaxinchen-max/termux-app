@@ -52,6 +52,7 @@ public final class LaunchScriptInstaller {
     private static final String XLORIE_INSTALL_ASSET = "local-games/xlorie_install.sh";
     private static final String X_SERVER_MANIFEST_ASSET = "local-games/x-server-packages.txt";
     private static final String DESKTOP_COMMON_ASSET = "local-games/desktop_common.sh";
+    private static final String DESKTOP_RENDERING_ASSET = "local-games/desktop_rendering.sh";
     private static final String DESKTOP_INSTALL_ASSET = "local-games/desktop_install.sh";
     private static final String DESKTOP_START_ASSET = "local-games/desktop_start.sh";
     private static final String DESKTOP_STOP_ASSET = "local-games/desktop_stop.sh";
@@ -64,7 +65,7 @@ public final class LaunchScriptInstaller {
     private static final String[] DESKTOP_CONTAINER_STATX_ASSETS = {
         "desktop_container_statx_setup.sh", "desktop_container_run_config.sh", "desktop_container_statx_aarch64.bin"};
     private static final String[] DESKTOP_SESSION_ASSETS = {
-        "desktop_hyprland.py", "desktop_hyprland_gpu.py", "desktop_hyprland_shell.py", "desktop_hyprland_theme.py", "hyprland-JetBrainsMonoNerdFont-Regular.ttf", "hyprland-font-license.txt", "desktop_hyprland_action.sh", "desktop_gnome_launch.py", "desktop_xfce_session.py", "desktop_usb_storage.py", "desktop_install_gio.py", "desktop_install_mesa.py"};
+        "desktop_hyprland.py", "desktop_hyprland_gpu.py", "desktop_hyprland_shell.py", "desktop_hyprland_theme.py", "hyprland-JetBrainsMonoNerdFont-Regular.ttf", "hyprland-font-license.txt", "desktop_hyprland_action.sh", "desktop_gnome_launch.py", "desktop_ubuntu_gnome.py", "desktop_native_ubuntu.py", "desktop_xfce_session.py", "desktop_usb_storage.py", "desktop_install_gio.py", "desktop_install_mesa.py"};
 
     private final Context context;
     private final File runtimeDirectory;
@@ -199,6 +200,7 @@ public final class LaunchScriptInstaller {
      *  other, because each of them sources desktop_common.sh through its own location. */
     public DesktopScripts installDesktopScripts() throws IOException {
         installAsset(DESKTOP_COMMON_ASSET, new File(runtimeDirectory, "desktop_common.sh"));
+        installAsset(DESKTOP_RENDERING_ASSET, new File(runtimeDirectory, "desktop_rendering.sh"));
         File install = new File(runtimeDirectory, "desktop_install.sh");
         File start = new File(runtimeDirectory, "desktop_start.sh");
         File stop = new File(runtimeDirectory, "desktop_stop.sh");

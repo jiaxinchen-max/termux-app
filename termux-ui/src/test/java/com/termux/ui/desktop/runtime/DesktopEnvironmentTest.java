@@ -1,5 +1,7 @@
 package com.termux.ui.desktop.runtime;
 
+import com.termux.ui.desktop.domain.DesktopGuestGlMode;
+import com.termux.ui.desktop.domain.DesktopUsbStorageMode;
 import com.termux.ui.desktop.domain.DesktopDe;
 import com.termux.ui.desktop.domain.DesktopDistro;
 import com.termux.ui.desktop.domain.DesktopGlMode;
@@ -36,10 +38,8 @@ public class DesktopEnvironmentTest {
 
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private static final DesktopDistro NATIVE = new DesktopDistro("n", "n", DesktopRunMode.NATIVE,
-        "", DesktopGlMode.SYSTEM, "1280x720", 30);
-    private static final DesktopDistro PROOT = new DesktopDistro("p", "p", DesktopRunMode.PROOT,
-        "debian", DesktopGlMode.ZINK, "1280x720", 30);
+    private static final DesktopDistro NATIVE = new DesktopDistro("n", "n", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 30, DesktopUsbStorageMode.OFF);
+    private static final DesktopDistro PROOT = new DesktopDistro("p", "p", DesktopRunMode.PROOT, "debian", DesktopDe.KWIN_PLASMA, DesktopGlMode.ZINK, DesktopGuestGlMode.ZINK, "1280x720", 30, DesktopUsbStorageMode.OFF);
 
     private File touch(String relative) throws IOException {
         File file = new File(temporaryFolder.getRoot(), relative);
@@ -51,8 +51,7 @@ public class DesktopEnvironmentTest {
     @Test
     public void hyprlandUpgradeRequiresTheFixedRuntimeAndMatchingManifest() throws Exception {
         DesktopEnvironment environment = new DesktopEnvironment(temporaryFolder.getRoot());
-        DesktopDistro distro = new DesktopDistro("hy", "Hyprland", DesktopRunMode.NATIVE,
-            "", DesktopDe.HYPRLAND, DesktopGlMode.SYSTEM, "1280x720", 30);
+        DesktopDistro distro = new DesktopDistro("hy", "Hyprland", DesktopRunMode.NATIVE, "", DesktopDe.HYPRLAND, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 30, DesktopUsbStorageMode.OFF);
         for (String program : new String[]{"python3", "dbus-daemon", "xfce4-terminal", "thunar",
                 "eww", "foot", "fish", "starship", "fc-cache", "xfce4-panel", "swaybg", "xfconf-query", "dbus-send"}) {
             touch("usr/bin/" + program);
@@ -79,19 +78,18 @@ public class DesktopEnvironmentTest {
         touch("usr/bin/proot-distro");
         String container = "usr/var/lib/proot-distro/containers/debian-hyprland-1/";
         touch(container + ".desktop-de-hyprland");
-        DesktopDistro guest = new DesktopDistro("hy-guest", "Hyprland", DesktopRunMode.PROOT,
-            "debian-hyprland-1", DesktopDe.HYPRLAND, DesktopGlMode.SYSTEM, "1280x720", 30);
+        DesktopDistro guest = new DesktopDistro("hy-guest", "Hyprland", DesktopRunMode.PROOT, "debian-hyprland-1", DesktopDe.HYPRLAND, DesktopGlMode.SYSTEM, DesktopGuestGlMode.DEFAULT, "1280x720", 30, DesktopUsbStorageMode.OFF);
         assertTrue(environment.isInstalled(guest));
-        assertFalse(environment.isInstalled(guest.withGlMode(DesktopGlMode.ZINK)));
+        assertFalse(environment.isInstalled(guest.withRenderers(DesktopGlMode.SYSTEM,DesktopGuestGlMode.ZINK)));
         File zinkMarker = touch(container + ".desktop-de-hyprland-zink");
         touch(container + "rootfs/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json");
         touch(container + "rootfs/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so");
         touch(container + "rootfs/usr/bin/python3");
-        assertFalse(environment.isInstalled(guest.withGlMode(DesktopGlMode.ZINK)));
+        assertFalse(environment.isInstalled(guest.withRenderers(DesktopGlMode.SYSTEM,DesktopGuestGlMode.ZINK)));
         try (FileWriter writer = new FileWriter(zinkMarker)) {
             writer.write("b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687\n");
         }
-        assertTrue(environment.isInstalled(guest.withGlMode(DesktopGlMode.ZINK)));
+        assertTrue(environment.isInstalled(guest.withRenderers(DesktopGlMode.SYSTEM,DesktopGuestGlMode.ZINK)));
         assertTrue(genmon.delete());
         assertFalse(environment.isInstalled(distro));
     }
@@ -178,8 +176,7 @@ public class DesktopEnvironmentTest {
     }
     @Test public void gnomeNativeRequiresPythonAndRealSessionPrograms() throws Exception {
         DesktopEnvironment env=new DesktopEnvironment(temporaryFolder.getRoot());
-        DesktopDistro d=new DesktopDistro("gn","GNOME",DesktopRunMode.NATIVE,"",DesktopDe.GNOME,
-            DesktopGlMode.SYSTEM,"1280x720",60);
+        DesktopDistro d=new DesktopDistro("gn", "GNOME", DesktopRunMode.NATIVE, "", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 60, DesktopUsbStorageMode.OFF);
         touch("usr/bin/python3");touch("usr/bin/gnome-shell");assertFalse(env.isInstalled(d));
         touch("usr/bin/gnome-session");assertFalse(env.isInstalled(d));
         touch("usr/libexec/termux-gnome/launch.py");assertFalse(env.isInstalled(d));
@@ -197,8 +194,7 @@ public class DesktopEnvironmentTest {
     }
     @Test public void gnomeProotRequiresPythonXlorieAndMatchingInstalledMarker() throws Exception {
         DesktopEnvironment env=new DesktopEnvironment(temporaryFolder.getRoot());
-        DesktopDistro d=new DesktopDistro("gp","GNOME",DesktopRunMode.PROOT,"debian-gnome-1",DesktopDe.GNOME,
-            DesktopGlMode.LLVMPIPE,"1280x720",60);
+        DesktopDistro d=new DesktopDistro("gp", "GNOME", DesktopRunMode.PROOT, "debian-gnome-1", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.LLVMPIPE, "1280x720", 60, DesktopUsbStorageMode.OFF);
         touch("usr/bin/python3");touch("usr/bin/Xlorie");touch("usr/bin/proot-distro");
         touch("usr/libexec/termux-gnome/launch.py");
         touch("usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-xfce4");
@@ -216,5 +212,42 @@ public class DesktopEnvironmentTest {
         assertFalse(DesktopEnvironment.gnomeReadyMarkerMatches(pidFile,-1));
         try(FileWriter out=new FileWriter(marker)){out.write("ready\n");}
         assertFalse(DesktopEnvironment.gnomeReadyMarkerMatches(pidFile,123));
+    }
+    @Test public void ubuntuShellAndMarkerAloneDoNotCountAsInstalled() throws Exception {
+        DesktopDistro distro = new DesktopDistro("ub", "Ubuntu", DesktopRunMode.PROOT, "ubuntu-ubuntu-gnome-1",
+            DesktopDe.UBUNTU_GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.LLVMPIPE, "1280x720", 60, DesktopUsbStorageMode.OFF);
+        for (String file : new String[]{"usr/bin/python3", "usr/bin/Xlorie", "usr/bin/proot-distro",
+                "usr/libexec/termux-gnome/launch.py", "usr/libexec/termux-gnome/desktop_ubuntu_gnome.py",
+                "usr/var/lib/proot-distro/containers/ubuntu-ubuntu-gnome-1/.desktop-de-ubuntu_gnome",
+                "usr/var/lib/proot-distro/containers/ubuntu-ubuntu-gnome-1/rootfs/usr/bin/gnome-shell"}) touch(file);
+        File release = touch("usr/var/lib/proot-distro/containers/ubuntu-ubuntu-gnome-1/rootfs/etc/os-release");
+        try (FileWriter writer = new FileWriter(release)) { writer.write("ID=ubuntu\nVERSION_CODENAME=noble\n"); }
+        assertFalse(new DesktopEnvironment(temporaryFolder.getRoot()).isInstalled(distro));
+    }
+    @Test public void nativeUbuntuNeedsItsOwnProfileAndRuntime() throws Exception {
+        DesktopEnvironment environment = new DesktopEnvironment(temporaryFolder.getRoot());
+        DesktopDistro desktop = new DesktopDistro("nu", "Ubuntu", DesktopRunMode.NATIVE, "",
+            DesktopDe.UBUNTU_GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE,
+            "1280x720", 60, DesktopUsbStorageMode.OFF);
+        for (String file : new String[]{"bin/python3", "bin/gnome-shell", "bin/gnome-session", "bin/gjs",
+                "bin/gnome-terminal", "bin/gnome-text-editor", "libexec/termux-gnome/launch.py",
+                "libexec/termux-gnome/desktop_native_ubuntu.py", "share/termux-native-ubuntu/manifest.json",
+                "share/gnome-shell/modes/termux-ubuntu.json", "share/gnome-shell/theme/Yaru/gnome-shell-theme.gresource",
+                "share/themes/Yaru/gtk-3.0/gtk.css", "share/icons/Yaru/index.theme",
+                "share/backgrounds/termux-native-ubuntu/default.png", "lib/girepository-1.0/Gtk-3.0.typelib",
+                "lib/girepository-1.0/GnomeDesktop-3.0.typelib"}) touch("usr/"+file);
+        for (String service : new String[]{"ca.desrt.dconf", "org.gtk.vfs.Daemon", "org.gnome.Nautilus",
+                "org.gnome.Terminal", "org.gnome.TextEditor"}) touch("usr/share/dbus-1/services/"+service+".service");
+        for (String uuid : new String[]{"ubuntu-dock@ubuntu.com", "appindicatorsupport@rgcjonas.gmail.com", "ding@rastersoft.com"}) {
+            touch("usr/share/gnome-shell/extensions/"+uuid+"/metadata.json");
+            touch("usr/share/gnome-shell/extensions/"+uuid+"/extension.js");
+        }
+        assertFalse(environment.isInstalled(desktop));
+        File marker = touch("usr/share/termux-native-ubuntu/.installed");
+        try (FileWriter writer = new FileWriter(marker)) { writer.write("5a767f2ef030ea401015e9c4afad6cfc582c203c6f4eb30e079ae6935474ff03\n"); }
+        assertTrue(environment.isInstalled(desktop));
+        assertTrue(environment.gnomeWaylandSocket(desktop).getPath().contains("gnome-nu"));
+        assertTrue(new File(temporaryFolder.getRoot(),"usr/bin/gnome-terminal").delete());
+        assertFalse(environment.isInstalled(desktop));
     }
 }

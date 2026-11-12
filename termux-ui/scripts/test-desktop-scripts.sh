@@ -44,7 +44,9 @@ write_spec() { # mode [distro] [de]
 DESKTOP_ID=test
 DESKTOP_DE=${3:-kwin_plasma}
 DESKTOP_MODE=$1
-DESKTOP_GL_MODE=zink
+DESKTOP_SPEC_VERSION=3
+DESKTOP_HOST_GL_MODE=zink
+DESKTOP_GUEST_GL_MODE=$([ "$1" = native ] && printf none || { [ "${3:-kwin_plasma}" = xfce4 ] && printf default || printf zink; })
 DESKTOP_USB_STORAGE=off
 DESKTOP_AUDIO_MODE=host-pulseaudio
 DESKTOP_PROOT_DISTRO=$2
@@ -191,7 +193,7 @@ assert_eq "$(cat "$TEST_ROOT/compositor-args")" "--compositor-only" "compositor 
 grep -q "login debian" "$TEST_ROOT/proot-args" || fail "proot-distro login debian missing: $(cat "$TEST_ROOT/proot-args")"
 grep -q -- "--bind $RUNTIME_DIR:/run/wl" "$TEST_ROOT/proot-args" || fail "runtime dir bind missing"
 grep -q "/tmp/plasma-container-session.sh" "$TEST_ROOT/proot-args" || fail "session bind missing"
-grep -q "env DESKTOP_GL_MODE=zink" "$TEST_ROOT/proot-args" || fail "container renderer parameter missing"
+grep -q "env DESKTOP_GUEST_GL_MODE=zink" "$TEST_ROOT/proot-args" || fail "container renderer parameter missing"
 pid_running || fail "compositor pid not running"
 container_pid=$(cat "$TEST_ROOT/state/test.pid.container")
 kill -0 "$container_pid" 2>/dev/null || fail "container not running"
@@ -332,11 +334,12 @@ exit 0
 FAKE
 chmod +x "$INST_ROOT/bin/"*
 cat > "$TEST_ROOT/inst-spec" <<SPEC
-DESKTOP_SPEC_VERSION=2
+DESKTOP_SPEC_VERSION=3
 DESKTOP_ID=inst
 DESKTOP_MODE=proot
 DESKTOP_DE=xfce4
-DESKTOP_GL_MODE=system
+DESKTOP_HOST_GL_MODE=system
+DESKTOP_GUEST_GL_MODE=default
 DESKTOP_USB_STORAGE=off
 DESKTOP_PROOT_DISTRO=debian-xfce4-1
 DESKTOP_RESOLUTION=1280x720
@@ -598,11 +601,12 @@ exit 35
 FAKE
 chmod +x "$FAIL_ROOT/bin/curl"
 cat > "$TEST_ROOT/dlfail-spec" <<SPEC
-DESKTOP_SPEC_VERSION=2
+DESKTOP_SPEC_VERSION=3
 DESKTOP_ID=dlfail
 DESKTOP_MODE=native
 DESKTOP_DE=kwin_plasma
-DESKTOP_GL_MODE=system
+DESKTOP_HOST_GL_MODE=system
+DESKTOP_GUEST_GL_MODE=none
 DESKTOP_USB_STORAGE=off
 DESKTOP_PROOT_DISTRO=
 DESKTOP_RESOLUTION=1280x720
@@ -635,10 +639,10 @@ grep -q 'curl -fL --retry [0-9]* --retry-all-errors' "$ASSETS/desktop_install.sh
     || fail "package downloads do not retry connection errors (--retry-all-errors)"
 
 
-# --- 17. legacy Auto and unknown renderers fail before invoking any backend -----------------
+# --- 17. Auto and unknown renderers fail before invoking any backend -----------------
 for mode in auto unknown ''; do
     write_spec native ""
-    sed "s/^DESKTOP_GL_MODE=.*/DESKTOP_GL_MODE=$mode/" "$TEST_ROOT/spec" > "$TEST_ROOT/invalid-spec"
+    sed "s/^DESKTOP_HOST_GL_MODE=.*/DESKTOP_HOST_GL_MODE=$mode/" "$TEST_ROOT/spec" > "$TEST_ROOT/invalid-spec"
     rm -f "$TEST_ROOT/capture"
     set +e
     sh "$TEST_ROOT/desktop_start.sh" "$TEST_ROOT/invalid-spec" > "$TEST_ROOT/invalid-out" 2>&1
@@ -740,7 +744,7 @@ printf 'RHI=%s\nQUICK=%s\nICD=%s\nDRIVER=%s\nSHELL=%s\n' \
     "${QSG_RHI_BACKEND:-unset}" "${QT_QUICK_BACKEND:-unset}" \
     "${VK_ICD_FILENAMES:-unset}" "${GALLIUM_DRIVER:-unset}" "$SHELL"
 CAPTURE
-DESKTOP_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
+DESKTOP_GUEST_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
     SHELL= QSG_RHI_BACKEND=vulkan QT_QUICK_BACKEND=legacy VK_ICD_FILENAMES=/bad/inherited.json \
     PATH="$SESSION_FIXTURE/bin:$PATH" sh "$SESSION_FIXTURE/preflight.sh" \
     || fail "explicit software mode required Vulkan or failed to clear an inherited renderer"
@@ -753,14 +757,14 @@ grep -qx 'SHELL=/bin/bash' "$SESSION_FIXTURE/runtime/plasma-container.log" || fa
 # Provisioning failure and an unsafe root identity stop before any bus or desktop is launched.
 rm "$SESSION_FIXTURE/passwd"
 set +e
-ACCOUNT_USERADD_FAIL=17 DESKTOP_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
+ACCOUNT_USERADD_FAIL=17 DESKTOP_GUEST_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
     PATH="$SESSION_FIXTURE/bin:$PATH" sh "$SESSION_FIXTURE/preflight.sh"
 code=$?
 set -e
 assert_eq "$code" 17 "PolicyKit service user creation failure exit"
 : > "$SESSION_FIXTURE/passwd"
 set +e
-ACCOUNT_UID=0 DESKTOP_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
+ACCOUNT_UID=0 DESKTOP_GUEST_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
     PATH="$SESSION_FIXTURE/bin:$PATH" sh "$SESSION_FIXTURE/preflight.sh"
 code=$?
 set -e
@@ -769,7 +773,7 @@ grep -q 'PolicyKit uid/gid is invalid or root' "$SESSION_FIXTURE/runtime/plasma-
     || fail "unsafe PolicyKit identity did not produce a concrete error"
 for bad_identity in ACCOUNT_NAMED_GID=997 ACCOUNT_HOME=/root ACCOUNT_SHELL=/bin/sh ACCOUNT_PASSWORD= ACCOUNT_EXPIRE=; do
     set +e
-    env "$bad_identity" DESKTOP_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
+    env "$bad_identity" DESKTOP_GUEST_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
         PATH="$SESSION_FIXTURE/bin:$PATH" sh "$SESSION_FIXTURE/preflight.sh"
     code=$?
     set -e
@@ -777,7 +781,7 @@ for bad_identity in ACCOUNT_NAMED_GID=997 ACCOUNT_HOME=/root ACCOUNT_SHELL=/bin/
 done
 # Debian trixie uses u; forky uses u!. Validate the packaged definition without creating users here.
 printf 'u polkitd - "User for polkitd"\n' > "$SESSION_FIXTURE/usr/lib/sysusers.d/polkit.conf"
-ACCOUNT_EXPIRE= DESKTOP_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
+ACCOUNT_EXPIRE= DESKTOP_GUEST_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
     PATH="$SESSION_FIXTURE/bin:$PATH" sh "$SESSION_FIXTURE/preflight.sh" \
     || fail "standard trixie u account with empty expiry was rejected"
 for definition in unknown duplicate; do
@@ -786,7 +790,7 @@ for definition in unknown duplicate; do
         duplicate) printf 'u polkitd - "User for polkitd"\nu! polkitd - "User for polkitd"\n' ;;
     esac > "$SESSION_FIXTURE/usr/lib/sysusers.d/polkit.conf"
     set +e
-    DESKTOP_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
+    DESKTOP_GUEST_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
         PATH="$SESSION_FIXTURE/bin:$PATH" sh "$SESSION_FIXTURE/preflight.sh"
     code=$?
     set -e
@@ -794,7 +798,7 @@ for definition in unknown duplicate; do
 done
 printf 'u! polkitd - "User for polkitd"\n' > "$SESSION_FIXTURE/usr/lib/sysusers.d/polkit.conf"
 set +e
-DESKTOP_STATX_BACKEND=auto DESKTOP_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
+DESKTOP_STATX_BACKEND=auto DESKTOP_GUEST_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
     PATH="$SESSION_FIXTURE/bin:$PATH" sh "$SESSION_FIXTURE/preflight.sh"
 code=$?
 set -e
@@ -802,7 +806,7 @@ assert_eq "$code" 64 "unspecified proot statx backend"
 # The service set is chosen explicitly before any process starts, never after a daemon exits.
 for invalid_policy in DESKTOP_KDE_SERVICE_POLICY= DESKTOP_KDE_SERVICE_POLICY=auto QT_QPA_PLATFORM=xcb XDG_SESSION_TYPE=x11; do
     set +e
-    env "$invalid_policy" DESKTOP_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
+    env "$invalid_policy" DESKTOP_GUEST_GL_MODE=llvmpipe XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
         PATH="$SESSION_FIXTURE/bin:$PATH" sh "$SESSION_FIXTURE/preflight.sh" > "$SESSION_FIXTURE/policy-out" 2>&1
     code=$?
     set -e
@@ -811,7 +815,7 @@ done
 # The GPU mode must fail with the requested ICD missing, never use the inherited software setting.
 : > "$SESSION_FIXTURE/usr/lib/aarch64-linux-gnu/libvulkan.so"
 set +e
-DESKTOP_GL_MODE=zink XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
+DESKTOP_GUEST_GL_MODE=zink XDG_RUNTIME_DIR="$SESSION_FIXTURE/runtime" \
     QT_QUICK_BACKEND=software PATH="$SESSION_FIXTURE/bin:$PATH" sh "$SESSION_FIXTURE/preflight.sh"
 code=$?
 set -e

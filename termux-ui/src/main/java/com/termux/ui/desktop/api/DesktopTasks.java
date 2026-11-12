@@ -152,7 +152,7 @@ public final class DesktopTasks {
         } else if (distro.getDe() == DesktopDe.HYPRLAND) {
             socket = alive && environment.hyprlandWaylandSocket(distro).exists();
             ready = socket && DesktopEnvironment.hyprlandReadyMarkerMatches(pidFile, pid);
-        } else if (distro.getDe() == DesktopDe.GNOME) {
+        } else if (distro.getDe().isGnomeSession()) {
             socket = alive && (distro.getRunMode() == DesktopRunMode.NATIVE
                 ? environment.gnomeWaylandSocket(distro).exists() : environment.x11Socket().exists());
             ready = socket && DesktopEnvironment.gnomeReadyMarkerMatches(pidFile, pid);

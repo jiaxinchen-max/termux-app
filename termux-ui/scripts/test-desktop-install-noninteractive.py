@@ -103,7 +103,9 @@ elif name == os.environ['FIXTURE_TARGET'] and args[0] == os.environ['FIXTURE_STA
         self.env["FIXTURE_STAGE"] = stage
         spec = self.base / "spec"
         values = dict(DESKTOP_MODE=mode, DESKTOP_DE=de,
-                      DESKTOP_GL_MODE="llvmpipe" if mode == "proot" and de == "kwin_plasma" else "system",
+                      DESKTOP_SPEC_VERSION="3",
+                      DESKTOP_HOST_GL_MODE="llvmpipe" if mode == "proot" and de == "kwin_plasma" else "system",
+                      DESKTOP_GUEST_GL_MODE="none" if mode == "native" else "llvmpipe" if de == "kwin_plasma" else "default",
                       DESKTOP_USB_STORAGE="off", DESKTOP_REFRESH_RATE="60",
                       DESKTOP_GNOME_BACKEND="android", DESKTOP_GNOME_RENDERER="system",
                       DESKTOP_LOG_FILE=str(self.base / "install.log"),

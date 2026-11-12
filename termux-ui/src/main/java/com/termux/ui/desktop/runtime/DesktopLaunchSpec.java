@@ -14,7 +14,7 @@ import com.termux.ui.desktop.domain.DesktopRunMode;
  */
 public final class DesktopLaunchSpec {
 
-    public static final int SCHEMA_VERSION = 2;
+    public static final int SCHEMA_VERSION = 3;
     /** The lorie render server socket that KWin's libtermux-render connects to. */
     public static final String RENDER_SOCKET_PATH = "/data/data/com.termux/files/home/tmp/termux-render";
     /** Logged by {@code start-plasma} once KWin's Android EGL backend is up. */
@@ -33,7 +33,8 @@ public final class DesktopLaunchSpec {
         put(spec, "DESKTOP_MODE", distro.getRunMode().getStorageValue());
         put(spec, "DESKTOP_REMOVE_METHOD", "proot-distro");
         put(spec, "DESKTOP_DE", distro.getDe().getStorageValue());
-        put(spec, "DESKTOP_GL_MODE", distro.getGlMode().getStorageValue());
+        put(spec, "DESKTOP_HOST_GL_MODE", distro.getHostGlMode().getStorageValue());
+        put(spec, "DESKTOP_GUEST_GL_MODE", distro.getGuestGlMode().getStorageValue());
         put(spec, "DESKTOP_AUDIO_MODE", "host-pulseaudio");
         put(spec, "DESKTOP_USB_STORAGE", distro.getUsbStorage().getStorageValue());
         put(spec, "DESKTOP_PROOT_DISTRO", distro.getProotDistro());
@@ -46,27 +47,34 @@ public final class DesktopLaunchSpec {
         put(spec, "DESKTOP_LOG_FILE", requirePath(logFile));
         put(spec, "DESKTOP_RENDER_SOCKET", RENDER_SOCKET_PATH);
         put(spec, "DESKTOP_RELEASE_TAG", RELEASE_TAG);
+        if (distro.getRunMode() == DesktopRunMode.PROOT) {
+            put(spec, "DESKTOP_CONTAINER_BASE", DesktopCreationCatalog.containerImage(distro.getDe()));
+            put(spec, "DESKTOP_CONTAINER_CODENAME", DesktopCreationCatalog.containerCodename(distro.getDe()));
+        }
         if (distro.getDe() == DesktopDe.HYPRLAND) {
             put(spec, "DESKTOP_HYPRLAND_RELEASE", "hyprland-android-0.57.0-70ec30e7-r7");
             put(spec, "DESKTOP_HYPRLAND_BACKEND", "android");
             put(spec, "DESKTOP_HYPRLAND_HOST_GL_MODE", "system");
             put(spec, "DESKTOP_HYPRLAND_CLIENT_GL_MODE",
-                distro.getGlMode() == DesktopGlMode.ZINK ? "zink" : "default");
+                distro.getGuestGlMode() == com.termux.ui.desktop.domain.DesktopGuestGlMode.ZINK ? "zink" : "default");
         }
-        if (distro.getDe() == DesktopDe.GNOME) {
+        if (distro.getDe().isGnomeSession()) {
+            put(spec, "DESKTOP_GNOME_SESSION_PROFILE",
+                distro.getDe() == DesktopDe.UBUNTU_GNOME
+                    ? (distro.getRunMode() == DesktopRunMode.NATIVE ? "native-ubuntu" : "ubuntu") : "gnome");
             put(spec, "DESKTOP_GNOME_SESSION_STARTUP", "direct");
             put(spec, "DESKTOP_GNOME_BACKEND", distro.getRunMode() == DesktopRunMode.NATIVE ? "android" : "x11");
-            put(spec, "DESKTOP_GNOME_RENDERER", distro.getGlMode().getStorageValue());
+            put(spec, "DESKTOP_GNOME_RENDERER", distro.getRunMode() == DesktopRunMode.NATIVE
+                ? distro.getHostGlMode().getStorageValue() : distro.getGuestGlMode().getStorageValue());
             if (distro.getRunMode() == DesktopRunMode.PROOT) {
-                put(spec, "DESKTOP_CONTAINER_CODENAME", "trixie");
                 // Each guest renderer requires its exact host display/buffer topology.
-                switch (distro.getGlMode()) {
+                switch (distro.getGuestGlMode()) {
                     case ZINK:
-                        put(spec, "DESKTOP_GNOME_DISPLAY_GL_MODE", "zink");
+                        put(spec, "DESKTOP_GNOME_DISPLAY_GL_MODE", distro.getHostGlMode().getStorageValue());
                         put(spec, "DESKTOP_GNOME_DISPLAY_BUFFER_MODE", "dmabuf");
                         break;
                     case LLVMPIPE:
-                        put(spec, "DESKTOP_GNOME_DISPLAY_GL_MODE", "system");
+                        put(spec, "DESKTOP_GNOME_DISPLAY_GL_MODE", distro.getHostGlMode().getStorageValue());
                         put(spec, "DESKTOP_GNOME_DISPLAY_BUFFER_MODE", "native");
                         break;
                     default:

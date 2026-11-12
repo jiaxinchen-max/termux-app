@@ -38,8 +38,7 @@ public class DesktopArchiveEngineTest {
         write("shm/old-ipc","not persistent");
         fs=new NioFs();engine=new DesktopArchiveEngine(fs,limits());
         metadata=DesktopArchiveMetadata.create("com.termux","aarch64","trixie",
-            new DesktopDistro("old-id","工作桌面",DesktopRunMode.PROOT,"old-container",DesktopDe.XFCE4,
-                DesktopGlMode.SYSTEM,"1920x1080",60),"3","horizontal");
+            new DesktopDistro("old-id", "工作桌面", DesktopRunMode.PROOT, "old-container", DesktopDe.XFCE4, DesktopGlMode.SYSTEM, DesktopGuestGlMode.DEFAULT, "1920x1080", 60, DesktopUsbStorageMode.OFF),"3","horizontal");
     }
     private DesktopArchiveLimits limits(){return new DesktopArchiveLimits(1024L*1024*1024,128L*1024*1024,30000,1024*1024);}
     private void write(String relative,String data)throws Exception {
@@ -77,8 +76,7 @@ public class DesktopArchiveEngineTest {
     @Test public void archiveRejectsUnimplementedGnomeFormat() {
         try {
             DesktopArchiveMetadata.create("com.termux","aarch64","trixie",
-                new DesktopDistro("gnome","GNOME",DesktopRunMode.PROOT,"debian-gnome-1",DesktopDe.GNOME,
-                    DesktopGlMode.LLVMPIPE,"1280x720",30),null,null);
+                new DesktopDistro("gnome", "GNOME", DesktopRunMode.PROOT, "debian-gnome-1", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.LLVMPIPE, "1280x720", 30, DesktopUsbStorageMode.OFF),null,null);
             fail("GNOME needs an explicit archive format implementation");
         } catch (IllegalArgumentException expected) {
             assertEquals("unsupported_archive_desktop_distribution", expected.getMessage());
@@ -92,7 +90,8 @@ public class DesktopArchiveEngineTest {
         assertTrue(checked.getEntryCount()>10);assertTrue(checked.getExpandedBytes()>checked.getEntryCount()*4096L);
         DesktopArchiveImportResult imported=restore(file,checked);Path root=imported.getContainerDirectory().toPath();
         assertEquals("new-id",imported.getDesktop().getId());assertEquals("new-container",imported.getDesktop().getProotDistro());
-        assertEquals(DesktopGlMode.SYSTEM,imported.getDesktop().getGlMode());assertEquals(60,imported.getDesktop().getRefreshRate());
+        assertEquals(DesktopGlMode.SYSTEM,imported.getDesktop().getHostGlMode());
+        assertEquals(DesktopGuestGlMode.DEFAULT,imported.getDesktop().getGuestGlMode());assertEquals(60,imported.getDesktop().getRefreshRate());
         assertEquals(TEXT,new String(Files.readAllBytes(root.resolve("rootfs/usr/bin/app")),"UTF-8"));
         assertTrue(Files.isSameFile(root.resolve("rootfs/usr/bin/app"),root.resolve("rootfs/usr/bin/app-hard")));
         assertEquals(0751,((Number)Files.getAttribute(root.resolve("rootfs/usr/bin/app"),"unix:mode")).intValue()&07777);
@@ -117,7 +116,7 @@ public class DesktopArchiveEngineTest {
     }
     @Test public void unknownArchitecturePackageAndModesAreRejected()throws Exception {
         File file=archive();rejected(()->engine.readMetadata(file,"com.other","aarch64"));rejected(()->engine.readMetadata(file,"com.termux","x86_64"));
-        try{DesktopArchiveMetadata.create("com.termux","aarch64","trixie",metadata.getDesktop().withGlMode(DesktopGlMode.AUTO),null,null);fail();}
+        try{DesktopArchiveMetadata.create("com.termux","aarch64","trixie",metadata.getDesktop().withRenderers(DesktopGlMode.AUTO,DesktopGuestGlMode.UNRESOLVED),null,null);fail();}
         catch(IllegalArgumentException expected){ }
         try{DesktopArchiveMetadata.create("com.termux","aarch64","forky",metadata.getDesktop(),null,null);fail();}
         catch(IllegalArgumentException expected){ }
@@ -467,4 +466,18 @@ public class DesktopArchiveEngineTest {
         @Override public void applyModifiedTime(File f,long value)throws IOException{Files.setLastModifiedTime(f.toPath(),FileTime.fromMillis(value));}
         @Override public void rename(File from,File to)throws IOException{Files.move(from.toPath(),to.toPath());}
     }
+
+    @Test public void splitMetadataUsesVersion2AndRejectsConflictingOrUnknownFields() throws Exception {
+        byte[] bytes=metadata.encode(); String json=new String(bytes,"UTF-8");
+        assertTrue(json.contains("\"version\":2")); assertTrue(json.contains("\"desktopSchema\":3"));
+        assertTrue(json.contains("\"hostGlMode\":\"system\""));
+        assertTrue(json.contains("\"guestGlMode\":\"default\""));
+        assertFalse(json.contains("\"glMode\""));
+        rejected(()->DesktopArchiveMetadata.decode(json.replace("\"version\":2", "\"version\":1").getBytes("UTF-8"),"com.termux","aarch64"));
+        for (String suffix : Arrays.asList(",\"glMode\":\"system\"",",\"hostGlMode\":\"zink\"",",\"other\":0"))
+            rejected(()->DesktopArchiveMetadata.decode((json.substring(0,json.length()-1)+suffix+"}").getBytes("UTF-8"),"com.termux","aarch64"));
+        rejected(()->DesktopArchiveMetadata.decode((json+" ").getBytes("UTF-8"),"com.termux","aarch64"));
+    }
+
+
 }

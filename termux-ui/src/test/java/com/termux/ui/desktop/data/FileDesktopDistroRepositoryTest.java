@@ -3,6 +3,7 @@ package com.termux.ui.desktop.data;
 import com.termux.ui.desktop.domain.DesktopDe;
 import com.termux.ui.desktop.domain.DesktopDistro;
 import com.termux.ui.desktop.domain.DesktopGlMode;
+import com.termux.ui.desktop.domain.DesktopGuestGlMode;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 import com.termux.ui.desktop.domain.DesktopUsbStorageMode;
 
@@ -30,8 +31,7 @@ public class FileDesktopDistroRepositoryTest {
     }
 
     private static DesktopDistro proot() {
-        return new DesktopDistro("p-1", "Debian KDE", DesktopRunMode.PROOT, "debian",
-            DesktopGlMode.ZINK, "1920x1080", 60);
+        return new DesktopDistro("p-1", "Debian KDE", DesktopRunMode.PROOT, "debian", DesktopDe.KWIN_PLASMA, DesktopGlMode.ZINK, DesktopGuestGlMode.ZINK, "1920x1080", 60, DesktopUsbStorageMode.OFF);
     }
 
     @Test
@@ -44,8 +44,7 @@ public class FileDesktopDistroRepositoryTest {
     public void roundTripsAllFields() throws Exception {
         FileDesktopDistroRepository repository = repository();
         repository.save(proot());
-        repository.save(new DesktopDistro("a-native", "Native", DesktopRunMode.NATIVE, "",
-            DesktopGlMode.SYSTEM, "1280x720", 30));
+        repository.save(new DesktopDistro("a-native", "Native", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 30, DesktopUsbStorageMode.OFF));
         List<DesktopDistro> all = repository.list();
         assertEquals(2, all.size());
         assertEquals("a-native", all.get(0).getId());
@@ -53,7 +52,7 @@ public class FileDesktopDistroRepositoryTest {
         assertEquals("Debian KDE", loaded.getName());
         assertEquals(DesktopRunMode.PROOT, loaded.getRunMode());
         assertEquals("debian", loaded.getProotDistro());
-        assertEquals(DesktopGlMode.ZINK, loaded.getGlMode());
+        assertEquals(DesktopGlMode.ZINK, loaded.getHostGlMode());
         assertEquals("1920x1080", loaded.getResolution());
         assertEquals(60, loaded.getRefreshRate());
     }
@@ -99,30 +98,10 @@ public class FileDesktopDistroRepositoryTest {
         assertThrows(IllegalArgumentException.class, () -> repository().find("../x"));
     }
 
-    @Test
-    public void schema1FilesMigrateToPlasma() throws Exception {
-        FileDesktopDistroRepository repository = repository();
-        File directory = new File(temporaryFolder.getRoot(), "distros");
-        assertTrue(directory.isDirectory() || directory.mkdirs());
-        File file = new File(directory, "old.properties");
-        FileOutputStream out = new FileOutputStream(file);
-        out.write(("schemaVersion=1\nid=old\nname=Plasma\nrunMode=native\nprootDistro=\n"
-            + "glMode=system\nresolution=1280x720\nrefreshRate=30\n").getBytes("UTF-8"));
-        out.close();
 
-        DesktopDistro migrated = repository.find("old").get();
-
-        assertEquals(DesktopDe.KWIN_PLASMA, migrated.getDe());
-        assertEquals(2, DesktopDistro.SCHEMA_VERSION);
-        // Saving rewrites the file at the current schema.
-        repository.save(migrated);
-        DesktopDistro reread = repository.find("old").get();
-        assertEquals(DesktopDe.KWIN_PLASMA, reread.getDe());
-    }
     @Test public void gnomeUsbSettingsRoundTripAndOldRecordsDefaultOff() throws Exception {
         FileDesktopDistroRepository repository=repository();
-        DesktopDistro gnome=new DesktopDistro("gnome","GNOME",DesktopRunMode.PROOT,"debian-gnome-1",
-            DesktopDe.GNOME,DesktopGlMode.LLVMPIPE,"1280x720",60).withUsbStorage(DesktopUsbStorageMode.READ_ONLY);
+        DesktopDistro gnome=new DesktopDistro("gnome", "GNOME", DesktopRunMode.PROOT, "debian-gnome-1", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.LLVMPIPE, "1280x720", 60, DesktopUsbStorageMode.OFF).withUsbStorage(DesktopUsbStorageMode.READ_ONLY);
         repository.save(gnome);
         assertEquals(DesktopDe.GNOME,repository.find("gnome").get().getDe());
         assertEquals(DesktopUsbStorageMode.READ_ONLY,repository.find("gnome").get().getUsbStorage());
@@ -135,5 +114,37 @@ public class FileDesktopDistroRepositoryTest {
         props.setProperty("usbStorage","read-write");
         try(FileOutputStream out=new FileOutputStream(file)){props.store(out,null);}
         assertThrows(IOException.class,()->repository.find("gnome"));
+    }
+
+
+    @Test public void splitGnomePairAndCopiesPreserveUsbAndIndependentModes() throws Exception {
+        DesktopDistro g = new DesktopDistro("g", "GNOME", DesktopRunMode.PROOT, "debian-gnome-1",
+            DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.LLVMPIPE, "1280x720", 60,
+            DesktopUsbStorageMode.READ_ONLY).withName("Renamed").withOutput("1920x1080",90);
+        FileDesktopDistroRepository r = repository(); r.save(g);
+        DesktopDistro read = r.find("g").get();
+        assertEquals(DesktopGlMode.SYSTEM, read.getHostGlMode());
+        assertEquals(DesktopGuestGlMode.LLVMPIPE, read.getGuestGlMode());
+        assertEquals(DesktopUsbStorageMode.READ_ONLY, read.getUsbStorage());
+        assertEquals(90, read.getRefreshRate());
+        assertEquals("Renamed", read.getName());
+    }
+
+    @Test public void oldSchemasAndMixedFieldsAreRejectedWithoutRewrite() throws Exception {
+        FileDesktopDistroRepository repository = repository(); repository.save(proot());
+        File file = new File(temporaryFolder.getRoot(), "distros/p-1.properties");
+        Properties current = new Properties();
+        try (java.io.FileInputStream in = new java.io.FileInputStream(file)) { current.load(in); }
+        for (String schema : new String[]{"1", "2", "99"}) {
+            current.setProperty("schemaVersion", schema);
+            try (FileOutputStream out = new FileOutputStream(file)) { current.store(out, null); }
+            byte[] before = java.nio.file.Files.readAllBytes(file.toPath());
+            assertThrows(IOException.class, () -> repository.find("p-1"));
+            org.junit.Assert.assertArrayEquals(before, java.nio.file.Files.readAllBytes(file.toPath()));
+        }
+        current.setProperty("schemaVersion", "3"); current.setProperty("glMode", "system");
+        try (FileOutputStream out = new FileOutputStream(file)) { current.store(out, null); }
+        assertThrows(IOException.class, () -> repository.find("p-1"));
+        assertEquals(1, file.getParentFile().list().length);
     }
 }

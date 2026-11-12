@@ -13,7 +13,6 @@ import com.termux.ui.api.LocalGamesHost;
 import com.termux.ui.api.RuntimeSetupRequest;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.desktop.domain.DesktopDistro;
-import com.termux.ui.desktop.domain.DesktopGlMode;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 import com.termux.ui.desktop.runtime.DesktopEnvironment;
 import com.termux.ui.desktop.runtime.DesktopLaunchSpec;
@@ -105,7 +104,8 @@ public final class DesktopRestorePrerequisites {
             throw new IllegalStateException("desktop_prerequisites_worker_required");
         }
         if (distro == null || distro.getRunMode() != DesktopRunMode.PROOT
-            || !distro.getDe().isCreatable() || distro.getGlMode() == DesktopGlMode.AUTO) {
+            || !com.termux.ui.desktop.runtime.DesktopRendererPolicy.supports(distro.getRunMode(),
+                distro.getDe(), distro.getHostGlMode(), distro.getGuestGlMode())) {
             throw new IllegalArgumentException("desktop_prerequisites_explicit_proot_mode_required");
         }
         if (taskId == null || !taskId.matches("[A-Za-z0-9._-]{1,128}")

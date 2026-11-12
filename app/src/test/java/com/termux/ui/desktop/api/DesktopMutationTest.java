@@ -96,9 +96,7 @@ public class DesktopMutationTest {
     }
 
     private DesktopDistro desktop(DesktopRunMode backend) {
-        return new DesktopDistro("desktop-" + UUID.randomUUID(), "Desktop", backend,
-            backend == DesktopRunMode.PROOT ? "test-container" : "", DesktopDe.XFCE4,
-            backend == DesktopRunMode.PROOT ? DesktopGlMode.LLVMPIPE : DesktopGlMode.SYSTEM, "1280x720", 60);
+        return new DesktopDistro("desktop-" + UUID.randomUUID(), "Desktop", backend, backend == DesktopRunMode.PROOT ? "test-container" : "", DesktopDe.XFCE4, backend == DesktopRunMode.PROOT ? DesktopGlMode.LLVMPIPE : DesktopGlMode.SYSTEM, (backend == DesktopRunMode.NATIVE ? DesktopGuestGlMode.NONE : DesktopGuestGlMode.DEFAULT), "1280x720", 60, DesktopUsbStorageMode.OFF);
     }
     private void write(File file, String text) throws IOException {
         assertTrue(file.getParentFile().isDirectory() || file.getParentFile().mkdirs());

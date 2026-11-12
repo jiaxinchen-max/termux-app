@@ -1,5 +1,7 @@
 package com.termux.ui.desktop.activity;
 
+import com.termux.ui.desktop.domain.DesktopGuestGlMode;
+import com.termux.ui.desktop.domain.DesktopUsbStorageMode;
 import android.view.View;
 import android.widget.GridLayout;
 import android.widget.TextView;
@@ -24,8 +26,7 @@ import static org.junit.Assert.*;
 @Config(sdk = 28, qualifiers = "w840dp-h660dp-land")
 public class DesktopGalleryRefreshTest {
     private static DesktopDistro desktop(String resolution) {
-        return new DesktopDistro("desktop-1", "XFCE", DesktopRunMode.NATIVE, "",
-            DesktopDe.XFCE4, DesktopGlMode.SYSTEM, resolution, 30);
+        return new DesktopDistro("desktop-1", "XFCE", DesktopRunMode.NATIVE, "", DesktopDe.XFCE4, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, resolution, 30, DesktopUsbStorageMode.OFF);
     }
 
     private static void render(DesktopActivity activity, DesktopDistro distro,

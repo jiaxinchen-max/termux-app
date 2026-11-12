@@ -18,21 +18,21 @@ import java.util.List;
  */
 public final class DesktopCreationCatalog {
 
-    /** The only proot distro shipped today; more arrive as "coming soon" rows. */
+    /** Default base for Debian desktop profiles; no distribution picker is exposed. */
     public static final String DEFAULT_CONTAINER = "debian";
 
     private DesktopCreationCatalog() {}
 
-    /** Every environment in display order, creatable or not. */
+    /** Only supported environments in display order. */
     public static List<DesktopDe> environments() {
-        return Collections.unmodifiableList(Arrays.asList(DesktopDe.values()));
+        return Collections.unmodifiableList(containerOptions());
     }
 
     /** Native: creatable environments that no existing native desktop uses yet. */
     public static List<DesktopDe> nativeOptions(List<DesktopDistro> existing) {
         List<DesktopDe> options = new ArrayList<>();
         for (DesktopDe de : DesktopDe.values()) {
-            if (!de.isCreatable() || count(existing, null, de) > 0) continue;
+            if (!de.supportsNative() || count(existing, null, de) > 0) continue;
             options.add(de);
         }
         return options;
@@ -45,9 +45,22 @@ public final class DesktopCreationCatalog {
         return options;
     }
 
-    /** Containers offered today; the rest are rendered as "coming soon". */
+    /** Supported bases, assigned automatically by the desktop profile. */
     public static List<String> containers() {
-        return Collections.singletonList(DEFAULT_CONTAINER);
+        return Collections.unmodifiableList(Arrays.asList("debian", "ubuntu"));
+    }
+
+    public static String containerBase(DesktopDe de) {
+        return de == DesktopDe.UBUNTU_GNOME ? "ubuntu" : DEFAULT_CONTAINER;
+    }
+
+    public static String containerCodename(DesktopDe de) {
+        return de == DesktopDe.UBUNTU_GNOME ? "noble"
+            : de == DesktopDe.KWIN_PLASMA ? "forky" : "trixie";
+    }
+
+    public static String containerImage(DesktopDe de) {
+        return containerBase(de) + ":" + containerCodename(de);
     }
 
     /** How many desktops of this environment exist (in {@code container}, or native when null). */

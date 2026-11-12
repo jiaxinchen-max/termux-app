@@ -15,7 +15,7 @@ class InstallTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary); prefix = base / 'usr'; (prefix / 'bin').mkdir(parents=True); (prefix / 'tmp').mkdir()
             assets = base / 'assets'; assets.mkdir()
-            for name in ['desktop_common.sh', 'desktop_container_plasma_apt.sh', 'desktop_container_statx_setup.sh', 'desktop_container_run_config.sh', 'desktop_container_statx_aarch64.bin']:
+            for name in ['desktop_common.sh', 'desktop_rendering.sh', 'desktop_container_plasma_apt.sh', 'desktop_container_statx_setup.sh', 'desktop_container_run_config.sh', 'desktop_container_statx_aarch64.bin']:
                 shutil.copyfile(ASSETS / name, assets / name)
             container = prefix / 'var/lib/proot-distro/containers/debian-1'; rootfs = container / 'rootfs'
             (rootfs / 'etc').mkdir(parents=True); (rootfs / 'etc/os-release').write_text('ID=debian\nVERSION_CODENAME=trixie\n')
@@ -47,7 +47,8 @@ dpkg() { :; }
             (prefix / 'bin/uname').write_text('#!/bin/sh\nprintf aarch64\n'); (prefix / 'bin/uname').chmod(0o755)
             script = assets / 'desktop_install.sh'; script.write_text(source)
             spec = base / 'spec'
-            values = dict(DESKTOP_MODE='proot', DESKTOP_DE=de, DESKTOP_GL_MODE=mode, DESKTOP_PROOT_DISTRO='debian-1',
+            values = dict(DESKTOP_MODE='proot', DESKTOP_DE=de, DESKTOP_SPEC_VERSION='3', DESKTOP_HOST_GL_MODE='zink' if de=='gnome' else 'system',
+                DESKTOP_GUEST_GL_MODE='zink' if mode=='zink' else 'default', DESKTOP_PROOT_DISTRO='debian-1',
                 DESKTOP_USB_STORAGE='off', DESKTOP_HYPRLAND_BACKEND='android',
                 DESKTOP_HYPRLAND_RELEASE='hyprland-android-0.57.0-70ec30e7-r7', DESKTOP_HYPRLAND_HOST_GL_MODE='system',
                 DESKTOP_HYPRLAND_CLIENT_GL_MODE='zink' if mode=='zink' else 'default',

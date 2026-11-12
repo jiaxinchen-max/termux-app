@@ -102,6 +102,10 @@
                 layout="@layout/item_desktop_select" />
 
             <include
+                android:id="@+id/desktop_settings_host_renderer"
+                layout="@layout/item_desktop_select" />
+
+            <include
                 android:id="@+id/desktop_settings_renderer"
                 layout="@layout/item_desktop_select" />
         </LinearLayout>

@@ -8,8 +8,7 @@ import static org.junit.Assert.assertThrows;
 public class DesktopDistroTest {
 
     private static DesktopDistro nativeDistro() {
-        return new DesktopDistro("desk-1", "Plasma", DesktopRunMode.NATIVE, "",
-            DesktopGlMode.SYSTEM, "1280x720", 30);
+        return new DesktopDistro("desk-1", "Plasma", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 30, DesktopUsbStorageMode.OFF);
     }
 
     @Test
@@ -22,39 +21,28 @@ public class DesktopDistroTest {
 
     @Test
     public void prootNeedsADistroAliasAndNativeRejectsOne() {
-        new DesktopDistro("p", "Debian", DesktopRunMode.PROOT, "debian", DesktopGlMode.ZINK,
-            "1920x1080", 60);
-        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("p", "Debian",
-            DesktopRunMode.PROOT, "", DesktopGlMode.ZINK, "1920x1080", 60));
-        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("p", "Debian",
-            DesktopRunMode.NATIVE, "debian", DesktopGlMode.SYSTEM, "1920x1080", 60));
-        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("p", "Debian",
-            DesktopRunMode.PROOT, "bad;alias", DesktopGlMode.ZINK, "1920x1080", 60));
+        new DesktopDistro("p", "Debian", DesktopRunMode.PROOT, "debian", DesktopDe.KWIN_PLASMA, DesktopGlMode.ZINK, DesktopGuestGlMode.ZINK, "1920x1080", 60, DesktopUsbStorageMode.OFF);
+        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("p", "Debian", DesktopRunMode.PROOT, "", DesktopDe.KWIN_PLASMA, DesktopGlMode.ZINK, DesktopGuestGlMode.ZINK, "1920x1080", 60, DesktopUsbStorageMode.OFF));
+        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("p", "Debian", DesktopRunMode.NATIVE, "debian", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1920x1080", 60, DesktopUsbStorageMode.OFF));
+        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("p", "Debian", DesktopRunMode.PROOT, "bad;alias", DesktopDe.KWIN_PLASMA, DesktopGlMode.ZINK, DesktopGuestGlMode.ZINK, "1920x1080", 60, DesktopUsbStorageMode.OFF));
     }
 
     @Test
     public void rejectsInvalidIdResolutionAndRefreshRate() {
-        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a/b", "n",
-            DesktopRunMode.NATIVE, "", DesktopGlMode.SYSTEM, "1280x720", 30));
-        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", "n",
-            DesktopRunMode.NATIVE, "", DesktopGlMode.SYSTEM, "1280", 30));
-        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", "n",
-            DesktopRunMode.NATIVE, "", DesktopGlMode.SYSTEM, "0x720", 30));
-        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", "n",
-            DesktopRunMode.NATIVE, "", DesktopGlMode.SYSTEM, "99999x720", 30));
-        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", "n",
-            DesktopRunMode.NATIVE, "", DesktopGlMode.SYSTEM, "1280x720", 0));
-        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", "n",
-            DesktopRunMode.NATIVE, "", DesktopGlMode.SYSTEM, "1280x720", 121));
-        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", " ",
-            DesktopRunMode.NATIVE, "", DesktopGlMode.SYSTEM, "1280x720", 30));
+        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a/b", "n", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 30, DesktopUsbStorageMode.OFF));
+        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", "n", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280", 30, DesktopUsbStorageMode.OFF));
+        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", "n", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "0x720", 30, DesktopUsbStorageMode.OFF));
+        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", "n", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "99999x720", 30, DesktopUsbStorageMode.OFF));
+        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", "n", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 0, DesktopUsbStorageMode.OFF));
+        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", "n", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 121, DesktopUsbStorageMode.OFF));
+        assertThrows(IllegalArgumentException.class, () -> new DesktopDistro("a", " ", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 30, DesktopUsbStorageMode.OFF));
     }
 
     @Test
     public void withCopiesChangeOnlyTheirField() {
-        DesktopDistro changed = nativeDistro().withGlMode(DesktopGlMode.LLVMPIPE)
+        DesktopDistro changed = nativeDistro().withRenderers(DesktopGlMode.LLVMPIPE,DesktopGuestGlMode.NONE)
             .withOutput("800x600", 45).withName("Other");
-        assertEquals(DesktopGlMode.LLVMPIPE, changed.getGlMode());
+        assertEquals(DesktopGlMode.LLVMPIPE, changed.getHostGlMode());
         assertEquals("800x600", changed.getResolution());
         assertEquals(45, changed.getRefreshRate());
         assertEquals("Other", changed.getName());
@@ -64,7 +52,7 @@ public class DesktopDistroTest {
     @Test public void usbModeDefaultsOffAndSurvivesEverySettingsCopy() {
         assertEquals(DesktopUsbStorageMode.OFF,nativeDistro().getUsbStorage());
         DesktopDistro changed=nativeDistro().withUsbStorage(DesktopUsbStorageMode.READ_ONLY)
-            .withName("USB").withOutput("1920x1080",60).withGlMode(DesktopGlMode.LLVMPIPE);
+            .withName("USB").withOutput("1920x1080",60).withRenderers(DesktopGlMode.LLVMPIPE,DesktopGuestGlMode.NONE);
         assertEquals(DesktopUsbStorageMode.READ_ONLY,changed.getUsbStorage());
         assertThrows(IllegalArgumentException.class,()->changed.withUsbStorage(null));
         assertThrows(IllegalArgumentException.class,()->DesktopUsbStorageMode.fromStorageValue("read-write"));

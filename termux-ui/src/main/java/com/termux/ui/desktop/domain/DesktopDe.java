@@ -1,17 +1,12 @@
 package com.termux.ui.desktop.domain;
 
-/**
- * The desktop environment a managed desktop runs.
- *
- * <p>Only {@link #isCreatable()} entries can be created today; the others are shown greyed out as
- * "coming soon" so the option list documents the roadmap (Ubuntu GNOME).
- */
+/** Supported desktop kinds; unsupported entries remain readable but are hidden in creation. */
 public enum DesktopDe {
     XFCE4("xfce4", true),
     KWIN_PLASMA("kwin_plasma", true),
     GNOME("gnome", true),
     HYPRLAND("hyprland", true),
-    UBUNTU_GNOME("ubuntu_gnome", false);
+    UBUNTU_GNOME("ubuntu_gnome", true);
 
     private final String storageValue;
     private final boolean creatable;
@@ -25,6 +20,10 @@ public enum DesktopDe {
 
     /** Whether the create screens offer this environment. */
     public boolean isCreatable() { return creatable; }
+
+    public boolean supportsNative() { return creatable; }
+
+    public boolean isGnomeSession() { return this == GNOME || this == UBUNTU_GNOME; }
 
     public static DesktopDe fromStorageValue(String value) {
         for (DesktopDe de : values()) {

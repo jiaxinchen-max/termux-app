@@ -10,39 +10,29 @@ import java.util.Collections;
 import static org.junit.Assert.*;
 
 public class DesktopRendererPolicyTest {
-    @Test public void gnomeHasExplicitRenderersForEachBackend() {
-        assertEquals(Collections.singletonList(DesktopGlMode.SYSTEM),
-            DesktopRendererPolicy.allowedModes(DesktopRunMode.NATIVE,DesktopDe.GNOME));
-        assertEquals(Arrays.asList(DesktopGlMode.ZINK,DesktopGlMode.LLVMPIPE),
-            DesktopRendererPolicy.allowedModes(DesktopRunMode.PROOT,DesktopDe.GNOME));
-        for(DesktopGlMode renderer:DesktopGlMode.values()) {
-            assertEquals(renderer==DesktopGlMode.SYSTEM,DesktopRendererPolicy.supports(DesktopRunMode.NATIVE,DesktopDe.GNOME,renderer));
-            assertEquals(renderer==DesktopGlMode.ZINK || renderer==DesktopGlMode.LLVMPIPE,
-                DesktopRendererPolicy.supports(DesktopRunMode.PROOT,DesktopDe.GNOME,renderer));
-        }
-        assertFalse(DesktopRendererPolicy.supports(DesktopRunMode.NATIVE,DesktopDe.GNOME,null));
-        assertFalse(DesktopRendererPolicy.supports(DesktopRunMode.PROOT,DesktopDe.GNOME,null));
-    }
-    @Test public void unsupportedAndAutoModesNeverEnterTheChoiceList() {
-        assertTrue(DesktopRendererPolicy.allowedModes(DesktopRunMode.NATIVE,DesktopDe.UBUNTU_GNOME).isEmpty());
-        assertEquals(Arrays.asList(DesktopGlMode.SYSTEM,DesktopGlMode.ZINK), DesktopRendererPolicy.allowedModes(DesktopRunMode.PROOT,DesktopDe.HYPRLAND));
-        for(DesktopDe de:DesktopDe.values()) for(DesktopRunMode mode:DesktopRunMode.values())
-            assertFalse(DesktopRendererPolicy.allowedModes(mode,de).contains(DesktopGlMode.AUTO));
-        assertFalse(DesktopRendererPolicy.supports(DesktopRunMode.PROOT,DesktopDe.KWIN_PLASMA,DesktopGlMode.SYSTEM));
-    }
-    @Test public void hyprlandRejectsEveryUnsupportedRendererForBothModes() {
-        for (DesktopRunMode mode : DesktopRunMode.values())
-            for (DesktopGlMode renderer : DesktopGlMode.values())
-                assertEquals(renderer == DesktopGlMode.SYSTEM || (mode == DesktopRunMode.PROOT && renderer == DesktopGlMode.ZINK),
-                    DesktopRendererPolicy.supports(mode, DesktopDe.HYPRLAND, renderer));
-    }
     @Test public void usbReadOnlyRequiresSupportedGioDesktopSidebar() {
         for(DesktopDe de:DesktopDe.values()) {
-            DesktopDistro desktop=new DesktopDistro("usb","USB",DesktopRunMode.NATIVE,"",de,
-                DesktopGlMode.SYSTEM,"1280x720",60).withUsbStorage(DesktopUsbStorageMode.READ_ONLY);
+            DesktopDistro desktop=new DesktopDistro("usb", "USB", DesktopRunMode.NATIVE, "", de, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 60, DesktopUsbStorageMode.OFF).withUsbStorage(DesktopUsbStorageMode.READ_ONLY);
             if(de==DesktopDe.GNOME || de==DesktopDe.XFCE4) DesktopRendererPolicy.requireSupported(desktop);
             else assertEquals("desktop_usb_storage_requires_gio_sidebar",assertThrows(IllegalArgumentException.class,
                 ()->DesktopRendererPolicy.requireSupported(desktop)).getMessage());
         }
     }
+
+    @Test public void splitPairsRejectCrossLayerAndUnresolvedSelections() {
+        String accepted = "native:xfce4:system:none native:xfce4:zink:none native:xfce4:llvmpipe:none "
+            + "native:kwin_plasma:system:none native:kwin_plasma:zink:none native:kwin_plasma:llvmpipe:none "
+            + "native:gnome:system:none native:ubuntu_gnome:system:none native:hyprland:system:none "
+            + "proot:xfce4:system:default proot:xfce4:zink:default proot:xfce4:llvmpipe:default "
+            + "proot:kwin_plasma:zink:zink proot:kwin_plasma:llvmpipe:llvmpipe "
+            + "proot:gnome:system:llvmpipe proot:gnome:zink:zink proot:ubuntu_gnome:system:llvmpipe "
+            + "proot:hyprland:system:default proot:hyprland:system:zink";
+        java.util.Set<String> pairs = new java.util.HashSet<>(Arrays.asList(accepted.split(" ")));
+        for (DesktopRunMode mode : DesktopRunMode.values()) for (DesktopDe de : DesktopDe.values())
+            for (DesktopGlMode host : DesktopGlMode.values()) for (DesktopGuestGlMode guest : DesktopGuestGlMode.values()) {
+                String pair=mode.getStorageValue()+":"+de.getStorageValue()+":"+host.getStorageValue()+":"+guest.getStorageValue();
+                assertEquals(pair,pairs.contains(pair),DesktopRendererPolicy.supports(mode,de,host,guest));
+            }
+    }
+
 }

@@ -135,6 +135,9 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     private long startRequestedAtMs;
     private boolean everRunning;
     private boolean stoppingObserved;
+    private boolean exitRequested;
+    private boolean exitStopSubmitted;
+    private boolean exitConfirmationVisible;
     private boolean firstFrame;
     private int selectedCategory = CATEGORY_OPERATION;
     private AudioManager audioManager;
@@ -213,7 +216,12 @@ public final class DesktopSessionActivity extends AppCompatActivity {
             X11SessionView::getRenderedFrameCount);
         selectedCategory = savedInstanceState == null ? CATEGORY_OPERATION
             : savedInstanceState.getInt(STATE_CATEGORY, CATEGORY_OPERATION);
-        binding.desktopSessionCloseWaiting.setOnClickListener(view -> finish());
+        exitRequested = savedInstanceState != null && savedInstanceState.getBoolean("desktop-exit-requested");
+        if (exitRequested) {
+            startRequested = true;
+            exitStopSubmitted = true;
+        }
+        binding.desktopSessionCloseWaiting.setOnClickListener(view -> showExitChoice());
         configureControlCenter();
         WindowInsetsPadding.apply(binding.desktopSessionDrawerLayer, true, true, true, true);
         applyOverlayLayout(getResources().getConfiguration());
@@ -258,6 +266,21 @@ public final class DesktopSessionActivity extends AppCompatActivity {
 
     private void onState(DesktopSessionState state) {
         if (destroyed || binding == null) return;
+        if (exitRequested) {
+            // Ignore observations queued before the stop command was submitted.
+            if (!exitStopSubmitted) return;
+            if (state == DesktopSessionState.FAILED) {
+                showExitFailure();
+                return;
+            }
+            if (!state.isActive()) {
+                finish();
+                return;
+            }
+            showStopping();
+            handler.postDelayed(pollTick, POLL_INTERVAL_MS);
+            return;
+        }
         switch (state) {
             case NOT_INSTALLED:
                 showFailure(getString(R.string.desktop_state_not_installed));
@@ -275,7 +298,6 @@ public final class DesktopSessionActivity extends AppCompatActivity {
                 binding.desktopSessionProgress.setVisibility(View.VISIBLE);
                 binding.desktopSessionStatus.setText(R.string.desktop_state_stopping);
                 binding.desktopSessionDrawerLayer.setVisibility(View.GONE);
-                binding.desktopSessionMenu.setEnabled(false);
                 break;
             case INSTALLED:
                 // Our start was submitted and the desktop later went away: stopped from outside.
@@ -291,7 +313,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     }
 
     private void showDesktop() {
-        if (binding != null && !stoppingObserved) binding.desktopSessionWaiting.setVisibility(View.GONE);
+        if (binding != null && !stoppingObserved && !exitRequested) binding.desktopSessionWaiting.setVisibility(View.GONE);
     }
 
     private void showFailure(String message) {
@@ -306,7 +328,6 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     private void configureControlCenter() {
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         binding.desktopSessionKeyboard.setOnClickListener(view -> binding.desktopSessionX11.toggleKeyboard());
-        binding.desktopSessionMenu.setOnClickListener(view -> showControlDrawer());
         binding.desktopSessionCloseDrawer.setOnClickListener(view -> hideControlDrawer());
         binding.desktopSessionDrawerLayer.setOnClickListener(view -> hideControlDrawer());
         binding.desktopSessionDrawer.setOnClickListener(view -> { });
@@ -525,7 +546,6 @@ public final class DesktopSessionActivity extends AppCompatActivity {
             return;
         }
         cancelDrawerAnimation();
-        binding.desktopSessionMenu.setVisibility(View.GONE);
         binding.desktopSessionDrawerLayer.setVisibility(View.VISIBLE);
         updateProcessRefresh();
         updateLogPage();
@@ -579,7 +599,6 @@ public final class DesktopSessionActivity extends AppCompatActivity {
         if (binding == null) return;
         stopProcessRefresh();
         binding.desktopSessionDrawerLayer.setVisibility(View.GONE);
-        binding.desktopSessionMenu.setVisibility(View.VISIBLE);
     }
 
     private void cancelDrawerAnimation() {
@@ -604,23 +623,57 @@ public final class DesktopSessionActivity extends AppCompatActivity {
         drawer.setTranslationY(drawerBottomSheet ? offset : 0);
     }
 
-    /** Exit leaves the view, optionally stopping the desktop with it. */
+    /** Every exit entry confirms stopping the session before leaving it. */
     private void showExitChoice() {
+        if (destroyed || isFinishing() || exitRequested || exitConfirmationVisible) return;
+        exitConfirmationVisible = true;
         new FrostedDialogBuilder(this)
             .setTitle(R.string.desktop_session_exit_title)
-            .setItems(new CharSequence[] {getString(R.string.desktop_session_close),
-                getString(R.string.desktop_session_stop)}, (dialog, which) -> {
-                    if (which == 1) {
-                        ioExecutor.execute(() -> {
-                            try {
-                                tasks.stop(distro);
-                            } catch (LaunchHostException ignored) {
-                                // The list screen shows the resulting state.
-                            }
-                        });
-                    }
-                    finish();
-                })
+            .setMessage(R.string.desktop_session_exit_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.desktop_session_exit_confirm, (dialog, which) -> stopAndExit())
+            .setOnDismissListener(dialog -> exitConfirmationVisible = false)
+            .show();
+    }
+
+    private void stopAndExit() {
+        if (destroyed || binding == null || exitRequested) return;
+        exitRequested = true;
+        exitStopSubmitted = false;
+        startRequested = true;
+        handler.removeCallbacks(pollTick);
+        cancelDrawerAnimation();
+        finishHidingDrawer();
+        showStopping();
+        ioExecutor.execute(() -> {
+            try {
+                tasks.stop(distro);
+                runOnUiThread(() -> {
+                    exitStopSubmitted = true;
+                    poll();
+                });
+            } catch (LaunchHostException error) {
+                runOnUiThread(this::showExitFailure);
+            }
+        });
+    }
+
+    private void showStopping() {
+        binding.desktopSessionWaiting.setVisibility(View.VISIBLE);
+        binding.desktopSessionProgress.setVisibility(View.VISIBLE);
+        binding.desktopSessionStatus.setText(R.string.desktop_state_stopping);
+        binding.desktopSessionCloseWaiting.setEnabled(false);
+    }
+
+    private void showExitFailure() {
+        if (destroyed || binding == null || isFinishing()) return;
+        exitRequested = false;
+        binding.desktopSessionCloseWaiting.setEnabled(true);
+        showFailure(getString(R.string.desktop_session_exit_failed_message));
+        new FrostedDialogBuilder(this)
+            .setTitle(R.string.desktop_session_exit_failed)
+            .setMessage(R.string.desktop_session_exit_failed_message)
+            .setPositiveButton(android.R.string.ok, null)
             .show();
     }
 
@@ -630,7 +683,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
      * milliseconds is the same press.
      */
     private void handleSessionBack() {
-        if (binding == null) return;
+        if (binding == null || exitRequested || exitConfirmationVisible) return;
         long now = SystemClock.uptimeMillis();
         if (GameSessionBackPolicy.isDuplicate(lastBackHandledAtMs, now)) return;
         lastBackHandledAtMs = now;
@@ -950,6 +1003,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         outState.putInt(STATE_CATEGORY, selectedCategory);
+        outState.putBoolean("desktop-exit-requested", exitRequested);
         super.onSaveInstanceState(outState);
     }
 

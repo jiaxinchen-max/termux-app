@@ -25,6 +25,7 @@ def main():
     ap.add_argument('--ready-file', type=Path, required=True)
     ap.add_argument('--run-mode', choices=('native', 'proot'), required=True)
     ap.add_argument('--backend', choices=('x11', 'android'), required=True)
+    ap.add_argument('--session-profile', choices=('gnome', 'ubuntu', 'native-ubuntu'), default='gnome')
     ap.add_argument('--session-startup', choices=('direct',), required=True)
     ap.add_argument('--gl-mode', choices=('system', 'llvmpipe', 'zink'), required=True)
     ap.add_argument('--x11-display-gl-mode', choices=('system', 'zink'))
@@ -39,6 +40,28 @@ def main():
     ap.add_argument('--display', required=True)
     ap.add_argument('--service-policy', choices=('core',), required=True)
     args = ap.parse_args()
+    ubuntu = args.session_profile in ('ubuntu', 'native-ubuntu')
+    native_ubuntu = args.session_profile == 'native-ubuntu'
+    profile = None
+    if ubuntu:
+        if native_ubuntu and ((args.run_mode, args.backend, args.gl_mode, args.usb_storage) != ('native', 'android', 'system', 'off') or args.rootfs):
+            ap.error('Native Ubuntu GNOME requires native Android/System EGL, USB off and no rootfs')
+        if not native_ubuntu and ((args.run_mode, args.backend, args.gl_mode, args.usb_storage) != ('proot', 'x11', 'llvmpipe', 'off') or not args.rootfs):
+            ap.error('Ubuntu GNOME requires PRoot x11/llvmpipe and USB off')
+        # -I excludes the script directory from sys.path. Load only the adjacent shipped asset.
+        import importlib.util
+        module_spec = importlib.util.spec_from_file_location(
+            'desktop_ubuntu_gnome', Path(__file__).with_name(
+                'desktop_native_ubuntu.py' if native_ubuntu else 'desktop_ubuntu_gnome.py'))
+        profile = importlib.util.module_from_spec(module_spec)
+        module_spec.loader.exec_module(profile)
+        try:
+            if native_ubuntu:
+                profile.validate(Path(os.environ['PREFIX']))
+            else:
+                profile.validate_rootfs(args.rootfs)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            ap.error(str(error))
     if args.backend == 'x11':
         expected_display = {'llvmpipe': ('system', 'native'), 'zink': ('zink', 'dmabuf')}
         if (args.x11_display_gl_mode, args.x11_display_buffer_mode) != expected_display.get(args.gl_mode):
@@ -99,7 +122,7 @@ def main():
             if '=' in line:
                 key, value = line.split('=', 1)
                 release[key] = value.strip(chr(34) + chr(39))
-        if release.get('ID') != 'debian' or release.get('VERSION_CODENAME') != 'trixie':
+        if not ubuntu and (release.get('ID') != 'debian' or release.get('VERSION_CODENAME') != 'trixie'):
             ap.error('PRoot GNOME supports Debian trixie only')
         if args.gl_mode == 'zink':
             icd = args.rootfs / 'usr/share/vulkan/icd.d/freedreno_icd.aarch64.json'
@@ -127,7 +150,9 @@ def main():
         session_config, session_cache, session_data = '/root/.config', '/root/.cache', '/root/.local/share'
     else:
         config_home, cache_home, data_home = w / 'config', w / 'cache', w / 'data'
-        session_home = termux_home
+        session_home = str(w / 'home') if native_ubuntu else termux_home
+        if native_ubuntu:
+            Path(session_home).mkdir(parents=True, exist_ok=True)
         session_config, session_cache, session_data = str(config_home), str(cache_home), str(data_home)
     for directory in (config_home / 'autostart', cache_home, data_home):
         directory.mkdir(parents=True, exist_ok=True)
@@ -201,6 +226,9 @@ def main():
                   PIPEWIRE_RUNTIME_DIR=gr, PIPEWIRE_REMOTE='pipewire-0',
                   TERMUX_USB_DESKTOP_DIR=str(usb_runtime),
                   LANG='C.UTF-8', TZ=os.environ.get('TZ', 'Asia/Shanghai'))
+    if ubuntu:
+        values.update(XDG_CURRENT_DESKTOP='ubuntu:GNOME', XDG_SESSION_DESKTOP='ubuntu',
+                      GNOME_SHELL_SESSION_MODE=profile.MODE if native_ubuntu else 'ubuntu', XCURSOR_THEME='Yaru')
     if args.gl_mode == 'llvmpipe':
         values.update(LIBGL_ALWAYS_SOFTWARE='1', GALLIUM_DRIVER='llvmpipe')
     elif args.gl_mode == 'zink':
@@ -220,7 +248,7 @@ def main():
         # or retry with its default "any" driver after GLX initialization fails.
         values.update(COGL_DRIVER='gl3', CLUTTER_DRIVER='gl3')
         values.update(PATH='/usr/sbin:/usr/bin:/sbin:/bin',
-                      XDG_DATA_DIRS='/usr/local/share:/usr/share', XDG_CONFIG_DIRS='/etc/xdg')
+                      XDG_DATA_DIRS=('/usr/share/ubuntu:/usr/local/share:/usr/share' if ubuntu else '/usr/local/share:/usr/share'), XDG_CONFIG_DIRS='/etc/xdg')
         if args.usb_storage == 'read-only':
             values['GIO_EXTRA_MODULES'] = '/usr/local/lib/termux-usb-bridge/gio/modules'
         base += [k + '=' + v for k, v in values.items()]
@@ -233,6 +261,9 @@ def main():
             values['GIO_EXTRA_MODULES'] = str(prefix / 'lib/gio/modules')
         guest.update(values)
         host.update(values)
+    if native_ubuntu:
+        profile.runtime_probe(prefix, host)
+    session_sh = '/bin/sh' if args.rootfs else str(prefix / 'bin/sh')
     (w / 'systembus.conf').write_text('<busconfig><type>system</type><listen>unix:path=' +
         escape(gr + '/system-bus') + '</listen><auth>EXTERNAL</auth><policy context="default">'
         '<allow user="*"/><allow own="*"/><allow send_destination="*"/>'
@@ -242,10 +273,11 @@ set -eu
 cd "$HOME"
 printf 'export DBUS_SESSION_BUS_ADDRESS="%s"\\n' "$DBUS_SESSION_BUS_ADDRESS" > ''' + shlex.quote(gw + '/session.env') + '''
 dbus-update-activation-environment ''' + ' '.join(values) + '''
-gsettings set org.gnome.desktop.interface cursor-theme "$XCURSOR_THEME"
+''' + ('' if native_ubuntu else 'gsettings set org.gnome.desktop.interface cursor-theme "$XCURSOR_THEME"\n') + '''
 gsettings set org.gnome.desktop.interface enable-animations ''' + ('true' if android else 'false') + '''
 gsettings set org.gnome.desktop.session idle-delay 0
 gsettings set org.gnome.desktop.screensaver lock-enabled false
+''' + (profile.session_setup(prefix) if native_ubuntu else profile.session_setup() if ubuntu else '') + '''
 printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
 ''' + (('exec env MUTTER_BACKEND=android MUTTER_ANDROID_GL_MODE=' + args.gl_mode +
         ' MUTTER_ANDROID_WIDTH=' + size[1] + ' MUTTER_ANDROID_HEIGHT=' + size[2] +
@@ -253,8 +285,8 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
         ' CLUTTER_DRIVER=gles2 TERMUX_ANDROID_ZINK=' + ('0' if args.gl_mode == 'system' else '1') +
         ((' LD_PRELOAD=' + shlex.quote(str(prefix / 'lib/mutter-16/libmutter-android-system-egl.so') +
             (':' + host['LD_PRELOAD'] if host.get('LD_PRELOAD') else ''))) if args.gl_mode == 'system' else '') +
-        ' gnome-shell --wayland --no-x11 --wayland-display=' + shlex.quote(args.wayland_display) + '\n')
-        if android else 'exec gnome-shell --x11 --sm-disable --mode=user\n'))
+        ' gnome-shell --wayland --no-x11' + (' --mode=' + profile.MODE if native_ubuntu else '') + ' --wayland-display=' + shlex.quote(args.wayland_display) + '\n')
+        if android else 'exec gnome-shell --x11 --sm-disable --mode=' + ('ubuntu' if ubuntu else 'user') + '\n'))
     session_bus_args = ['dbus-run-session', '--config-file=' + gw + '/sessionbus.conf']
     if args.service_policy == 'core':
         services = w / 'dbus-services'
@@ -266,6 +298,11 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
         required_services = {'ca.desrt.dconf', 'org.gtk.vfs.Daemon', 'org.gnome.Nautilus'}
         service_names = ['ca.desrt.dconf', 'org.gtk.vfs.Daemon', 'org.gtk.vfs.Metadata',
                          'org.gnome.Nautilus', 'org.gnome.Shell.Notifications', 'org.gnome.ScreenSaver']
+        if ubuntu or native_ubuntu:
+            application_services = {'org.gnome.Terminal', 'org.gnome.TextEditor', 'org.gnome.Settings', 'org.gnome.clocks'}
+            required_services.update(application_services)
+            service_names += sorted(application_services)
+            service_names += ['org.gnome.Calculator', 'org.gnome.Calculator.SearchProvider', 'org.gnome.eog']
         for name in service_names:
             source = service_root / (name + '.service')
             if source.is_file():
@@ -422,6 +459,10 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
                 if optional[-1][1].poll() is not None or time.monotonic() > deadline:
                     raise RuntimeError('USB storage did not become ready in this desktop session')
                 time.sleep(.1)
+        if ubuntu and not native_ubuntu:
+            settings = start('xsettings', base + ['/bin/sh', '-c',
+                '. ' + shlex.quote(gw + '/session.env') + '; exec /usr/libexec/gsd-xsettings'], guest)
+            optional.append(('Ubuntu XSettings', settings))
         if android:
             deadline = time.monotonic() + 30
             while not (runtime / args.wayland_display).is_socket():
@@ -436,6 +477,42 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
             if not shell_alive() or session.poll() is not None or time.monotonic() > deadline:
                 raise RuntimeError('GNOME Shell org.gnome.Shell D-Bus did not become ready')
             time.sleep(.1)
+        if ubuntu:
+            # Shell's bus alone is insufficient: broken Dock/DING must fail readiness.
+            for uuid in profile.EXTENSIONS:
+                command = base + [session_sh, '-c', '. ' + shlex.quote(gw + '/session.env') +
+                    '; exec gdbus call --session --dest org.gnome.Shell '
+                    '--object-path /org/gnome/Shell '
+                    '--method org.gnome.Shell.Extensions.GetExtensionInfo ' + shlex.quote(uuid)]
+                deadline = time.monotonic() + 30
+                while True:
+                    result = subprocess.run(command, env=guest, stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT, text=True, timeout=5)
+                    if result.returncode == 0 and re.search(
+                            r"'state': <(?:uint32 |double )?1(?:\.0)?>", result.stdout):
+                        break
+                    # GNOME 48 sets ERROR provisionally while awaiting module import.
+                    # An empty error during that interval is not a completed failure.
+                    if (re.search(r"'state': <(?:uint32 |double )?3(?:\.0)?>", result.stdout)
+                            and not re.search(r"'error': <''>", result.stdout)):
+                        raise RuntimeError('Ubuntu extension failed: ' + uuid + '\n' + result.stdout[-2000:])
+                    if not shell_alive() or session.poll() is not None or time.monotonic() > deadline:
+                        raise RuntimeError('Ubuntu extension did not become active: ' + uuid + '\n' + result.stdout[-2000:])
+                    time.sleep(.5)
+            for name in (('com.rastersoft.ding',) if native_ubuntu else ('com.rastersoft.ding', 'org.gnome.SettingsDaemon.XSettings')):
+                command = base + [session_sh, '-c', '. ' + shlex.quote(gw + '/session.env') +
+                    '; exec gdbus call --session --dest org.freedesktop.DBus '
+                    '--object-path /org/freedesktop/DBus '
+                    '--method org.freedesktop.DBus.NameHasOwner ' + shlex.quote(name)]
+                deadline = time.monotonic() + 30
+                while True:
+                    result = subprocess.run(command, env=guest, stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT, text=True, timeout=5)
+                    if result.returncode == 0 and result.stdout.strip() == '(true,)':
+                        break
+                    if not shell_alive() or session.poll() is not None or (not native_ubuntu and settings.poll() is not None) or time.monotonic() > deadline:
+                        raise RuntimeError('Ubuntu desktop service did not become ready: ' + name + '\n' + result.stdout[-2000:])
+                    time.sleep(.5)
         if any(process.poll() is not None for _, process in optional):
             raise RuntimeError('A requested desktop service terminated before GNOME was ready')
         if not shell_alive():

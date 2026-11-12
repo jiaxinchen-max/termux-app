@@ -1,6 +1,7 @@
 package com.termux.ui.desktop.activity;
 
 import android.content.res.Configuration;
+import android.content.Intent;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
@@ -15,6 +16,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
 
 import com.termux.ui.R;
@@ -43,6 +46,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -53,6 +58,14 @@ import java.util.concurrent.Executors;
  * settings, logs and delete.
  */
 public final class DesktopActivity extends AppUiActivity {
+
+    private final Set<String> handledCreations = new HashSet<>();
+    private final ActivityResultLauncher<Intent> createDesktop = registerForActivityResult(
+        new ActivityResultContracts.StartActivityForResult(), result -> {
+            if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                installCreatedDesktop(result.getData().getStringExtra(DesktopCreateActivity.EXTRA_CREATED_ID));
+            }
+        });
 
     private static final long REFRESH_INTERVAL_MS = 2000;
     private static final int LOG_TAIL_BYTES = 24 * 1024;
@@ -89,6 +102,10 @@ public final class DesktopActivity extends AppUiActivity {
         binding = ActivityDesktopBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         tasks = new DesktopTasks(this);
+        if (savedInstanceState != null) {
+            ArrayList<String> handled = savedInstanceState.getStringArrayList("desktop-handled-creations");
+            if (handled != null) handledCreations.addAll(handled);
+        }
         collectionToolbar = new CollectionToolbar(this, binding.desktopToolbar, "desktop",
             R.string.desktop_title, R.string.desktop_help, this::refresh,
             () -> render(shownDistros, shownStates));
@@ -210,7 +227,7 @@ public final class DesktopActivity extends AppUiActivity {
             DesktopDistro distro = distros.get(index);
             if (distro.getRunMode() != tab) continue;
             key.add(Arrays.asList(distro.getId(), distro.getName(), distro.getRunMode(),
-                distro.getProotDistro(), distro.getDe(), distro.getGlMode(),
+                distro.getProotDistro(), distro.getDe(), distro.getHostGlMode(), distro.getGuestGlMode(),
                 distro.getResolution(), distro.getRefreshRate(), distro.getUsbStorage(),
                 states.get(index)));
         }
@@ -271,7 +288,7 @@ public final class DesktopActivity extends AppUiActivity {
     }
 
     private void openCreate() {
-        startActivity(DesktopCreateActivity.createIntent(this, tab));
+        createDesktop.launch(DesktopCreateActivity.createIntent(this, tab));
     }
 
     /** Places a card in its grid cell with the Library's width, gutter and margins. */
@@ -310,7 +327,9 @@ public final class DesktopActivity extends AppUiActivity {
             ? getString(R.string.desktop_mode_native_badge)
             : getString(R.string.desktop_mode_container_badge, distro.getProotDistro()));
         card.desktopDetail.setText(getString(R.string.desktop_card_detail,
-            DesktopCreateActivity.rendererLabel(this, distro.getRunMode(), distro.getDe(), distro.getGlMode()), distro.getResolution(), distro.getRefreshRate()));
+            getString(R.string.desktop_host_summary, DesktopCreateActivity.hostLabel(this, distro.getHostGlMode()))
+                + (distro.getRunMode() == DesktopRunMode.PROOT ? " · " + getString(R.string.desktop_guest_summary,
+                    DesktopCreateActivity.guestLabel(this, distro.getGuestGlMode())) : ""), distro.getResolution(), distro.getRefreshRate()));
         card.desktopStatus.setText(stateLabel(state));
         card.desktopStatus.setTextColor(ContextCompat.getColor(this, stateColor(state)));
 
@@ -344,7 +363,7 @@ public final class DesktopActivity extends AppUiActivity {
         items.add(Menu.NONE, MENU_USB_STORAGE, Menu.NONE, R.string.desktop_usb_title)
             .setEnabled(state != DesktopSessionState.STOPPING);
         if (distro.getRunMode() == DesktopRunMode.PROOT) {
-            if (distro.getDe() == DesktopDe.GNOME) {
+            if (distro.getDe().isGnomeSession()) {
                 items.add(Menu.NONE, MENU_EXPORT, Menu.NONE, R.string.desktop_usb_gnome_archive_unsupported).setEnabled(false);
             } else {
                 items.add(Menu.NONE, MENU_EXPORT, Menu.NONE, R.string.desktop_archive_export)
@@ -416,21 +435,40 @@ public final class DesktopActivity extends AppUiActivity {
         }
     }
 
+    private void installCreatedDesktop(@Nullable String id) {
+        if (!DesktopDistro.isValidId(id) || !handledCreations.add(id)) return;
+        runHostAction(() -> {
+            try {
+                java.util.Optional<DesktopDistro> saved = tasks.find(id);
+                if (!saved.isPresent()) throw new IOException("desktop_not_found");
+                installAndShowConsole(saved.get());
+            } catch (IOException error) {
+                throw new LaunchHostException("desktop_load_failed", true, error);
+            }
+        });
+    }
+
+    @Override protected void onSaveInstanceState(Bundle outState) {
+        outState.putStringArrayList("desktop-handled-creations", new ArrayList<>(handledCreations));
+        super.onSaveInstanceState(outState);
+    }
+
     private void confirmInstall(DesktopDistro distro) {
         new FrostedDialogBuilder(this)
             .setTitle(R.string.desktop_action_install)
             .setMessage(R.string.desktop_install_hint)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.desktop_action_install, (dialog, which) ->
-                runHostAction(() -> {
-                    String taskId = tasks.install(distro);
-                    // The install runs in a host terminal session; surface it in the same
-                    // console dialog the prefix setups use instead of running headless.
-                    runOnUiThread(() -> {
-                        if (!destroyed) PrefixSetupConsoleDialog.show(this, taskId);
-                    });
-                }))
+                runHostAction(() -> installAndShowConsole(distro)))
             .show();
+    }
+
+    /** Both creation and manual retry attach to the same real installation terminal. */
+    private void installAndShowConsole(DesktopDistro distro) throws LaunchHostException {
+        String taskId = tasks.install(distro);
+        runOnUiThread(() -> {
+            if (!destroyed) PrefixSetupConsoleDialog.show(this, taskId);
+        });
     }
 
     private void open(DesktopDistro distro) {

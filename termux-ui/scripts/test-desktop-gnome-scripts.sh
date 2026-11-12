@@ -10,7 +10,7 @@ mock = '#!'+sys.executable+'\n'+r'''
 import html,json,os,pathlib,re,signal,socket,subprocess,sys,time
 base=pathlib.Path(os.environ['FIXTURE']); prefix=pathlib.Path(os.environ['PREFIX'])
 name=pathlib.Path(sys.argv[0]).name; args=sys.argv[1:]
-record={k:os.environ.get(k) for k in ('XLORIE_GL_MODE','XLORIE_GLX','TERMUX_RENDER_AHB_RECEIVE','LIBGL_ALWAYS_SOFTWARE','GALLIUM_DRIVER','MESA_LOADER_DRIVER_OVERRIDE','VK_DRIVER_FILES','VK_ICD_FILENAMES','LIBGL_KOPPER_DRI2','MESA_VK_DEVICE_SELECT','DRI_PRIME','COGL_DRIVER','CLUTTER_DRIVER','HOME','XCURSOR_PATH','XCURSOR_THEME','XDG_CONFIG_HOME','XDG_CACHE_HOME','XDG_DATA_HOME','XDG_RUNTIME_DIR','DBUS_SESSION_BUS_ADDRESS','TERMUX_USB_DESKTOP_DIR','PLASMA_LOG','PULSE_SERVER')}
+record={k:os.environ.get(k) for k in ('XLORIE_GL_MODE','XLORIE_GLX','TERMUX_RENDER_AHB_RECEIVE','LIBGL_ALWAYS_SOFTWARE','GALLIUM_DRIVER','MESA_LOADER_DRIVER_OVERRIDE','VK_DRIVER_FILES','VK_ICD_FILENAMES','LIBGL_KOPPER_DRI2','MESA_VK_DEVICE_SELECT','DRI_PRIME','COGL_DRIVER','CLUTTER_DRIVER','HOME','XCURSOR_PATH','XCURSOR_THEME','XDG_CONFIG_HOME','XDG_CACHE_HOME','XDG_DATA_HOME','XDG_RUNTIME_DIR','XDG_CURRENT_DESKTOP','XDG_SESSION_DESKTOP','GNOME_SHELL_SESSION_MODE','DBUS_SESSION_BUS_ADDRESS','TERMUX_USB_DESKTOP_DIR','PLASMA_LOG','PULSE_SERVER')}
 record['KWIN_ENV']={key:value for key,value in os.environ.items() if key.startswith('KWIN_')}
 with (base/'calls').open('a') as out: out.write(json.dumps([name,args,record])+'\n')
 def serve(path):
@@ -33,7 +33,7 @@ if name in ('proot','proot-distro'):
   key,value=args[index].split('=',1); env[key]=translate(value); index+=1
  env['PATH']=str(prefix/'bin')+':/usr/bin:/bin'
  env['FIXTURE_MAPS']=json.dumps(sorted(maps,key=lambda item:len(item[0]),reverse=True))
- command=[translate(value) for value in args[index:]]
+ command=[translate(value).replace('/usr/libexec/gsd-xsettings','gsd-xsettings') for value in args[index:]]
  if command[0]=='/bin/sh' and len(command)>1 and pathlib.Path(command[1]).name=='session.sh':
   original=pathlib.Path(command[1]); translated=original.with_name('fixture-session.sh')
   translated.write_text(translate(original.read_text())); command[1]=str(translated)
@@ -53,7 +53,20 @@ elif name=='dbus-run-session':
   translated.write_text(content); command[1]=str(translated)
  child=subprocess.Popen(command,env=env)
  sys.exit(child.wait())
-elif name in ('gsettings','dbus-update-activation-environment'): sys.exit(0)
+elif name in ('gnome-control-center','gnome-calculator','gnome-clocks','eog'):
+ print(name+' fixture version'); sys.exit(0)
+elif name in ('gsettings','gjs','dbus-update-activation-environment'): sys.exit(0)
+elif name=='gsd-xsettings': wait()
+elif name=='gdbus':
+ if 'org.gnome.Shell.Extensions.GetExtensionInfo' in args:
+  if args[args.index('--dest')+1]!='org.gnome.Shell' or args[args.index('--object-path')+1]!='/org/gnome/Shell':
+   print('Error: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: extension proxy is not activated'); sys.exit(1)
+ if os.environ.get('FIXTURE_EXTENSION_STATE')=='initializing' and 'GetExtensionInfo' in ' '.join(args):
+  counter=base/'extension-probed'
+  if not counter.exists():
+   counter.touch(); print("({'state': <double 3.0>, 'error': <''>},)"); sys.exit(0)
+  print("({'state': <double 1.0>, 'error': <''>},)"); sys.exit(0)
+ print('(true,)' if 'org.freedesktop.DBus.NameHasOwner' in args else "({'state': <uint32 "+os.environ.get('FIXTURE_EXTENSION_STATE','1')+">},)"); sys.exit(0)
 elif name=='dbus-send':
  sys.exit(0 if (base/'shell-authorized').exists() and (base/'shell-running').exists() else 1)
 elif name=='glxinfo':
@@ -64,6 +77,7 @@ elif name=='Xlorie':
   print('XLORIE_GL_MODE conflicts with KWIN_ANDROID_GL_MODE'); sys.exit(91)
  sock=serve(prefix/'tmp/.X11-unix/X0'); wait()
 elif name in ('gnome-shell','gnome-session','xfce4-session'):
+ if '--version' in args: print('GNOME Shell 48.7'); sys.exit(0)
  if name=='gnome-shell' and '--wayland' in args: sock=serve(pathlib.Path(os.environ['XDG_RUNTIME_DIR'])/os.environ['WAYLAND_DISPLAY'])
  if name!='xfce4-session': (pathlib.Path(os.environ['HOME'])/'user-created.txt').write_text('user data')
  (base/'shell-running').write_text(str(os.getpid())); wait()
@@ -78,10 +92,10 @@ def wait_for(predicate, process=None):
 with tempfile.TemporaryDirectory(prefix='gn-',dir='/tmp') as temporary:
  base=pathlib.Path(temporary)
  count=0
- def case(name,mode='native',backend='android',gl='system',hz=60,codename='trixie',success=False,usb=False,cleanup_failure=False,display_gl='by-backend',display_buffer='by-backend',probe_renderer='llvmpipe (LLVM fixture)',probe_code=0,expected_code=2,startup='direct',guest_icd='valid',host_icd='valid',probe_accelerated='yes'):
+ def case(name,mode='native',backend='android',gl='system',hz=60,codename='trixie',success=False,usb=False,cleanup_failure=False,display_gl='by-backend',display_buffer='by-backend',probe_renderer='llvmpipe (LLVM fixture)',probe_code=0,expected_code=2,startup='direct',guest_icd='valid',host_icd='valid',probe_accelerated='yes',profile='gnome',missing_asset=None,extension_state='1'):
   global count
   count+=1; folder=base/name; prefix=folder/'p'; (prefix/'bin').mkdir(parents=True); (prefix/'tmp').mkdir(); (folder/'calls').touch()
-  for command in ('proot','dbus-daemon','dbus-run-session','gsettings','dbus-update-activation-environment','dbus-send','xdpyinfo','glxinfo','Xlorie','gnome-shell','gnome-session'):
+  for command in ('proot','dbus-daemon','dbus-run-session','gsettings','dbus-update-activation-environment','dbus-send','xdpyinfo','glxinfo','Xlorie','gnome-shell','gnome-session','gdbus','gsd-xsettings','gjs','gnome-control-center','gnome-calculator','gnome-clocks','eog'):
    target=prefix/'bin'/command; target.write_text(mock); target.chmod(0o700)
   (prefix/'bin/sh').symlink_to('/bin/sh')
   (prefix/'bin/python3').symlink_to(sys.executable)
@@ -96,6 +110,7 @@ with tempfile.TemporaryDirectory(prefix='gn-',dir='/tmp') as temporary:
     target.parent.mkdir(parents=True,exist_ok=True); target.touch()
   turnip(prefix,host_icd,str(prefix/'lib/libvulkan_freedreno.so'))
   launcher=folder/'desktop_gnome_launch.py'; shutil.copy(assets/launcher.name,launcher)
+  shutil.copy(assets/'desktop_ubuntu_gnome.py',folder/'desktop_ubuntu_gnome.py')
   services=prefix/'share/dbus-1/services'; services.mkdir(parents=True)
   for service in ('ca.desrt.dconf','org.gtk.vfs.Daemon','org.gnome.Nautilus'): (services/(service+'.service')).write_text('[D-BUS Service]\nName='+service+'\nExec=/fixture\n')
   if usb:
@@ -120,16 +135,33 @@ while True: time.sleep(.1)
   sock=socket.socket(socket.AF_UNIX); sock.bind(str(render))
   termux_home=folder/'termux-home'; termux_home.mkdir()
   ready=folder/'ready'; work=folder/'work'; env=dict(os.environ,HOME=str(termux_home),LIBGL_ALWAYS_SOFTWARE='1',GALLIUM_DRIVER='softpipe',MESA_LOADER_DRIVER_OVERRIDE='swrast',VK_DRIVER_FILES='/stale/lvp.json',VK_ICD_FILENAMES='/stale/lvp.json',LIBGL_KOPPER_DRI2='true',MESA_VK_DEVICE_SELECT='wrong',DRI_PRIME='wrong',KWIN_ANDROID_GL_MODE='llvmpipe',KWIN_ANDROID_RUNTIME_ROOT='/stale-kwin-runtime',KWIN_ANDROID_REFRESH_RATE='120',KWIN_UNRELATED_TEST='must-not-leak',PLASMA_LOG='/stale-plasma.log',FIXTURE_ACCELERATED=probe_accelerated,FIXTURE_RENDERER=probe_renderer,FIXTURE_RENDERER_EXIT=str(probe_code),XCURSOR_PATH='/inherited-wrong-path',XCURSOR_THEME='WrongTheme',PREFIX=str(prefix),PATH=str(prefix/'bin')+':/usr/bin:/bin',FIXTURE=str(folder))
+  env['FIXTURE_EXTENSION_STATE']=extension_state
   env.update(COGL_DRIVER='gles2',CLUTTER_DRIVER='gles2,any',PULSE_SERVER='tcp:127.0.0.1:4713')
   command=[sys.executable,'-I','-B',str(launcher),'--desktop-id',name,'--ready-file',str(ready),'--run-mode',mode,'--backend',backend,'--gl-mode',gl,'--size','800x600','--refresh-rate',str(hz),'--render-socket',str(render),'--display',':0','--wayland-display','wayland-gnome','--usb-storage','read-only' if usb else 'off','--service-policy','core','--work',str(work)]
+  command+=['--session-profile',profile]
   if startup is not None: command+=['--session-startup',startup]
   if display_gl=='by-backend': display_gl=('zink' if gl=='zink' else 'system') if backend=='x11' else None
   if display_buffer=='by-backend': display_buffer=('dmabuf' if gl=='zink' else 'native') if backend=='x11' else None
   if display_gl is not None: command+=['--x11-display-gl-mode',display_gl]
   if display_buffer is not None: command+=['--x11-display-buffer-mode',display_buffer]
+  if profile=='native-ubuntu':
+   shutil.copy(assets/'desktop_native_ubuntu.py',folder/'desktop_native_ubuntu.py')
+   import importlib.util
+   spec=importlib.util.spec_from_file_location('native_profile',assets/'desktop_native_ubuntu.py')
+   native=importlib.util.module_from_spec(spec); spec.loader.exec_module(native)
+   for name_file in native.REQUIRED_FILES+native.RUNTIME_FILES:
+    f=prefix/name_file; f.parent.mkdir(parents=True,exist_ok=True)
+    if not f.exists(): f.touch()
+   (prefix/native.REQUIRED_FILES[0]).write_text(json.dumps({'parentMode':'user','stylesheetName':'Yaru/gnome-shell.css','themeResourceName':'theme/Yaru/gnome-shell-theme.gresource','enabledExtensions':list(native.EXTENSIONS)}))
+   for uuid in native.EXTENSIONS:
+    f=prefix/'share/gnome-shell/extensions'/uuid; f.mkdir(parents=True,exist_ok=True)
+    (f/'metadata.json').write_text(json.dumps({'uuid':uuid,'shell-version':['48']}));(f/'extension.js').touch()
+   manifest=prefix/native.MANIFEST; manifest.parent.mkdir(parents=True,exist_ok=True)
+   manifest.write_text(json.dumps({'profile':'native-ubuntu-gnome-48-r2','files':{}}))
+   if missing_asset: (prefix/missing_asset).unlink()
   if mode=='proot':
    rootfs=folder/'root'; (rootfs/'etc').mkdir(parents=True); (rootfs/'usr/bin').mkdir(parents=True)
-   (rootfs/'etc/os-release').write_text('ID=debian\nVERSION_CODENAME='+codename+'\n'); (rootfs/'usr/bin/gnome-shell').touch(); (rootfs/'usr/bin/gnome-shell').chmod(0o700)
+   (rootfs/'etc/os-release').write_text('ID='+('ubuntu' if profile=='ubuntu' else 'debian')+'\nVERSION_CODENAME='+codename+'\n'); (rootfs/'usr/bin/gnome-shell').touch(); (rootfs/'usr/bin/gnome-shell').chmod(0o700)
    if usb:
     (rootfs/'usr/local/lib/termux-usb-bridge/gio/modules').mkdir(parents=True)
     (rootfs/'usr/local/lib/termux-usb-bridge/gio/modules/libtusb-volume-monitor.so').touch()
@@ -137,13 +169,32 @@ while True: time.sleep(.1)
     (rootfs/'usr/local/libexec/tusb-gio-mount').touch(); (rootfs/'usr/local/libexec/tusb-gio-mount').chmod(0o700)
    turnip(rootfs/'usr',guest_icd,'/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so')
    shutil.copytree(services,rootfs/'usr/share/dbus-1/services')
+   if profile=='ubuntu':
+    import importlib.util
+    spec=importlib.util.spec_from_file_location('ubuntu_profile',assets/'desktop_ubuntu_gnome.py')
+    module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    for relative in module.REQUIRED_FILES:
+     target=rootfs/relative; target.parent.mkdir(parents=True,exist_ok=True); target.touch(exist_ok=True)
+    (rootfs/'usr/share/gnome-shell/modes/ubuntu.json').write_text(json.dumps({'parentMode':'user','stylesheetName':'Yaru/gnome-shell.css'}))
+    (rootfs/'usr/share/xsessions/ubuntu-xorg.desktop').write_text('Exec=env GNOME_SHELL_SESSION_MODE=ubuntu gnome-session --session=ubuntu')
+    for uuid in module.EXTENSIONS:
+     folder_ext=rootfs/'usr/share/gnome-shell/extensions'/uuid; folder_ext.mkdir(parents=True)
+     (folder_ext/'metadata.json').write_text(json.dumps({'uuid':uuid,'shell-version':['46']}))
+     (folder_ext/'extension.js').touch()
+    (rootfs/module.DING_SOURCE).write_bytes((root/'termux-ui/scripts/fixtures/ubuntu-ding47-extension.js').read_bytes())
+    if codename == 'noble': module.prepare_rootfs(rootfs)
+    settings=rootfs/'usr/libexec/gsd-xsettings'; settings.write_text(mock); settings.chmod(0o700)
+    if missing_asset: (rootfs/missing_asset).unlink()
    command+=['--rootfs',str(rootfs)]
+  if extension_state=='3': (folder/'shell-authorized').touch()
   output=(folder/'output').open('w'); process=subprocess.Popen(command,env=env,stdout=output,stderr=output)
   try:
    if not success:
     assert process.wait(timeout=10)==expected_code, (name,(folder/'output').read_text())
     assert not ready.exists(), name
     if expected_code==2: assert not (folder/'calls').read_text(), name
+    elif extension_state=='3':
+     assert 'Ubuntu extension failed' in (folder/'output').read_text()
     else:
      assert (work/'renderer-check.log').is_file()
      assert not (folder/'shell-running').exists(), 'renderer verification failure started Shell'
@@ -179,11 +230,11 @@ while True: time.sleep(.1)
      else:
       for key in ('LIBGL_ALWAYS_SOFTWARE','GALLIUM_DRIVER','MESA_LOADER_DRIVER_OVERRIDE','VK_DRIVER_FILES'): assert xlorie[2][key] is None
     else:
-     shell=next(row for row in calls if row[0]=='gnome-shell')
+     shell=next(row for row in calls if row[0]=='gnome-shell' and '--version' not in row[1])
      assert '--wayland' in shell[1] and '--no-x11' in shell[1]
      assert shell[2]['COGL_DRIVER'] is None and shell[2]['CLUTTER_DRIVER']=='gles2'
      assert not any(row[0]=='Xlorie' for row in calls)
-    shell_audio=next(row for row in calls if row[0]=='gnome-shell')
+    shell_audio=next(row for row in calls if row[0]=='gnome-shell' and '--version' not in row[1])
     assert shell_audio[2]['PULSE_SERVER']=='tcp:127.0.0.1:4713', 'audio endpoint was not forwarded'
     child_pid=int((folder/'shell-running').read_text())
     sentinel=subprocess.Popen(['/bin/sleep','30'])
@@ -193,7 +244,7 @@ while True: time.sleep(.1)
     finally:
      sentinel.terminate(); sentinel.wait()
     if usb: assert (folder/'storage-cleanup').read_text()=='session-alive'
-    user_home = rootfs.resolve()/'root' if mode=='proot' else termux_home
+    user_home = rootfs.resolve()/'root' if mode=='proot' else work.resolve()/'home' if profile=='native-ubuntu' else termux_home
     config_home = user_home/'.config' if mode=='proot' else work.resolve()/'config'
     assert (user_home/'user-created.txt').read_text()=='user data'
     assert not (work/'user-created.txt').exists(), 'user data leaked into launcher workspace'
@@ -202,16 +253,16 @@ while True: time.sleep(.1)
     assert (work/'session.env').is_file() and (work/'session.log').is_file()
     assert 'Hidden=true' in (config_home/'autostart/tusb-desktop.desktop').read_text()
     assert not (config_home/'gnome-session/sessions/gnome-bridge.session').exists(), 'unused session-manager config was generated'
-    shell = next(row for row in calls if row[0]=='gnome-shell')
+    shell = next(row for row in calls if row[0]=='gnome-shell' and '--version' not in row[1])
     assert shell[2]['HOME']==str(user_home)
-    assert shell[2]['XCURSOR_THEME']=='Adwaita'
+    assert shell[2]['XCURSOR_THEME']==('Yaru' if profile in ('ubuntu','native-ubuntu') else 'Adwaita')
     assert shell[2]['XCURSOR_PATH']==('/usr/share/icons' if mode=='proot' else str(prefix/'share/icons'))
-    assert any(row[0]=='gsettings' and row[1]==['set','org.gnome.desktop.interface','cursor-theme','Adwaita'] for row in calls)
+    assert any(row[0]=='gsettings' and row[1]==['set','org.gnome.desktop.interface','cursor-theme','Yaru' if profile in ('ubuntu','native-ubuntu') else 'Adwaita'] for row in calls)
     assert shell[2]['XDG_CONFIG_HOME']==str(config_home)
     assert shell[2]['XDG_CACHE_HOME']==str(user_home/'.cache' if mode=='proot' else work.resolve()/'cache')
     assert shell[2]['XDG_DATA_HOME']==str(user_home/'.local/share' if mode=='proot' else work.resolve()/'data')
     if mode=='proot':
-     for flag in ('--x11','--sm-disable','--mode=user'): assert flag in shell[1]
+     for flag in ('--x11','--sm-disable','--mode=ubuntu' if profile=='ubuntu' else '--mode=user'): assert flag in shell[1]
      assert '--wayland' not in shell[1]
      assert shell[2]['COGL_DRIVER']=='gl3' and shell[2]['CLUTTER_DRIVER']=='gl3'
      proot_args = next(row[1] for row in calls if row[0]=='proot')
@@ -227,6 +278,24 @@ while True: time.sleep(.1)
       gio_command=json.loads((folder/'gio-command').read_text())
       assert any('. /tusb-gnome/session.env;' in part for part in gio_command)
       assert 'HOME=/root' in gio_command
+    if profile=='native-ubuntu':
+     assert '--mode=termux-ubuntu' in shell[1]
+     assert shell[2]['GNOME_SHELL_SESSION_MODE']=='termux-ubuntu'
+     assert (config_home/'.termux-native-ubuntu-v1').exists()
+     assert not (termux_home/'Desktop').exists()
+     assert not any(row[0]=='gsd-xsettings' for row in calls)
+     assert (work/'dbus-services/org.gnome.Terminal.service').is_file()
+     assert (work/'dbus-services/org.gnome.TextEditor.service').is_file()
+     assert (work/'dbus-services/org.gnome.Settings.service').is_file()
+     assert (work/'dbus-services/org.gnome.clocks.service').is_file()
+    if profile=='ubuntu':
+     assert shell[2]['XDG_CURRENT_DESKTOP']=='ubuntu:GNOME'
+     assert shell[2]['XDG_SESSION_DESKTOP']=='ubuntu'
+     assert shell[2]['GNOME_SHELL_SESSION_MODE']=='ubuntu'
+     assert any(row[0]=='gsd-xsettings' for row in calls)
+     assert len([row for row in calls if row[0]=='gdbus'])==6
+     assert (rootfs/'root/.config/.termux-ubuntu-profile-v1').is_file()
+     assert (rootfs/'root/Desktop').is_dir()
     if usb:
      storage_args=json.loads((folder/'storage-args').read_text())
      assert storage_args[storage_args.index('--termux-usb')+1]==str(prefix/'libexec/termux-usb-app')
@@ -275,11 +344,25 @@ while True: time.sleep(.1)
  case('zink-glx-failed',mode='proot',backend='x11',gl='zink',probe_renderer='zink Vulkan Turnip Adreno 660',probe_code=1,expected_code=1)
  case('zink-ready',mode='proot',backend='x11',gl='zink',probe_renderer='zink Vulkan Turnip Adreno 660',success=True)
  case('zink-usb',mode='proot',backend='x11',gl='zink',probe_renderer='zink (Adreno (TM) 660)',success=True,usb=True)
+ case('native-ubuntu-initializing',profile='native-ubuntu',success=True,extension_state='initializing')
+ case('native-ubuntu-ready',profile='native-ubuntu',success=True)
+ case('native-ubuntu-broken-dock',profile='native-ubuntu',extension_state='3',expected_code=1)
+ case('native-ubuntu-missing-theme',profile='native-ubuntu',missing_asset='share/gnome-shell/theme/Yaru/gnome-shell-theme.gresource')
+ case('native-ubuntu-invalid-proot',profile='native-ubuntu',mode='proot',backend='x11',gl='llvmpipe')
+ case('native-ubuntu-invalid-usb',profile='native-ubuntu',usb=True)
+ case('native-ubuntu-invalid-hz',profile='native-ubuntu',hz=30)
  case('native-ready',success=True)
  case('proot-ready',mode='proot',backend='x11',gl='llvmpipe',hz=30,success=True)
  case('native-usb',success=True,usb=True)
  case('native-usb-cleanup-fail',success=True,usb=True,cleanup_failure=True)
  case('proot-usb',mode='proot',backend='x11',gl='llvmpipe',hz=30,success=True,usb=True)
+ case('ubuntu-ready',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',success=True)
+ case('ubuntu-wrong-base',mode='proot',backend='x11',gl='llvmpipe',profile='ubuntu')
+ case('ubuntu-native',profile='ubuntu')
+ case('ubuntu-zink',mode='proot',backend='x11',gl='zink',codename='noble',profile='ubuntu')
+ case('ubuntu-usb',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',usb=True)
+ case('ubuntu-missing-dock',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',missing_asset='usr/share/gnome-shell/extensions/ubuntu-dock@ubuntu.com/extension.js')
+ case('ubuntu-broken-dock',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',extension_state='3',expected_code=1)
  def xfce_case(name,mode='native',cleanup_failure=False):
   global count
   count+=1; folder=base/name; prefix=folder/'p'; (prefix/'bin').mkdir(parents=True); (prefix/'tmp').mkdir(); (folder/'calls').touch()

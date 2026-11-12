@@ -114,6 +114,10 @@
                 android:textStyle="bold" />
 
             <include
+                android:id="@+id/desktop_create_host_renderer"
+                layout="@layout/item_desktop_select" />
+
+            <include
                 android:id="@+id/desktop_create_renderer"
                 layout="@layout/item_desktop_select" />
 

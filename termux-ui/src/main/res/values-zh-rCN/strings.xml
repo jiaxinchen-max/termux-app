@@ -539,7 +539,7 @@
     <string name="desktop_de_hyprland">Hyprland</string>
     <string name="desktop_de_hyprland_desc">Wayland 平铺合成器（预览版）</string>
     <string name="desktop_de_ubuntu_gnome">Ubuntu GNOME</string>
-    <string name="desktop_de_ubuntu_gnome_desc">仅桌面会话,不作为容器</string>
+    <string name="desktop_de_ubuntu_gnome_desc">Ubuntu 24.04 LTS，包含 Yaru、Ubuntu Dock 和桌面图标</string>
     <string name="desktop_container_debian">Debian</string>
     <string name="desktop_container_debian_desc">rootfs tarball 首次安装后缓存 · 所有实例复用</string>
     <string name="desktop_container_more">更多发行版</string>
@@ -590,7 +590,7 @@
     <string name="desktop_create_gl_label">渲染方式</string>
     <string name="desktop_create_resolution_hint">分辨率（如 1280x720）</string>
     <string name="desktop_create_refresh_hint">刷新率（Hz）</string>
-    <string name="desktop_create_action">创建</string>
+    <string name="desktop_create_action">创建并安装</string>
     <string name="desktop_create_invalid">请检查名称、分辨率和刷新率。</string>
     <string name="desktop_install_started">已在 Termux 会话中开始安装。</string>
     <string name="desktop_install_hint">将下载并安装此桌面所需的运行环境。</string>
@@ -602,7 +602,6 @@
     <string name="desktop_session_starting">正在启动桌面…</string>
     <string name="desktop_session_failed">桌面已退出，请查看日志了解原因。</string>
     <string name="desktop_session_stop">停止桌面</string>
-    <string name="desktop_session_close">关闭视图</string>
     <string name="desktop_gpu_unavailable">此设备没有可读的 Adreno GPU 节点，Zink 可能无法工作。</string>
     <string name="desktop_more">更多操作</string>
     <string name="desktop_mode_native_hint">直接在 Termux 中运行</string>
@@ -623,14 +622,13 @@
     <string name="desktop_touch_trackpad">触控板</string>
     <string name="desktop_touch_simulated">模拟触屏</string>
     <string name="desktop_touch_direct">直接触控</string>
-    <string name="desktop_session_menu">控制中心</string>
     <string name="desktop_session_exit">退出</string>
     <string name="desktop_session_back">返回</string>
     <string name="desktop_session_operation_title">通用</string>
     <string name="desktop_session_operation_summary">设置此桌面的触控方式和屏幕方向。方向默认跟随 X11 会话设置，也可单独指定，与应用界面方向相互独立。</string>
     <string name="desktop_session_volume">音量</string>
     <string name="desktop_session_keyboard_summary">不离开桌面,直接打开系统软键盘。</string>
-    <string name="desktop_session_exit_title">离开桌面</string>
+    <string name="desktop_session_exit_title">退出桌面？</string>
     <string name="desktop_renderer_explicit_required">请明确选择此桌面支持的渲染模式。</string>
     <string name="desktop_archive_import">导入容器</string>
     <string name="desktop_archive_export">导出容器</string>
@@ -722,4 +720,9 @@
     <string name="local_game_controller_mapping_state">当前 %1$s · 下次启动生效</string>
     <string name="local_game_controller_settings_loading">正在读取控制器设置…</string>
     <string name="local_game_controller_settings_failed">无法读取或保存控制器设置。</string>
+    <string name="desktop_session_exit_message">桌面将被停止，未保存的内容可能丢失。</string>
+    <string name="desktop_session_exit_confirm">退出桌面</string>
+    <string name="desktop_session_exit_failed">无法停止桌面</string>
+    <string name="desktop_session_exit_failed_message">桌面可能仍在运行，请重试退出。</string>
+    <string name="desktop_create_save_failed">无法保存桌面，请重试。</string>
 </resources>

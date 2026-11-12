@@ -9,7 +9,7 @@ import com.termux.ui.domain.DomainValidation;
  */
 public final class DesktopDistro {
 
-    public static final int SCHEMA_VERSION = 2;
+    public static final int SCHEMA_VERSION = 3;
     public static final String DEFAULT_PROOT_DISTRO = "debian";
     public static final String DEFAULT_RESOLUTION = "1280x720";
     public static final int DEFAULT_REFRESH_RATE = 30;
@@ -20,26 +20,15 @@ public final class DesktopDistro {
     private final DesktopRunMode runMode;
     private final DesktopDe de;
     private final String prootDistro;
-    private final DesktopGlMode glMode;
+    private final DesktopGlMode hostGlMode;
+    private final DesktopGuestGlMode guestGlMode;
     private final String resolution;
     private final int refreshRate;
     private final DesktopUsbStorageMode usbStorage;
 
-    /** Schema-1 desktops: Plasma was the only environment. */
     public DesktopDistro(String id, String name, DesktopRunMode runMode, String prootDistro,
-                         DesktopGlMode glMode, String resolution, int refreshRate) {
-        this(id, name, runMode, prootDistro, DesktopDe.legacyDefault(), glMode, resolution,
-            refreshRate);
-    }
-
-    public DesktopDistro(String id, String name, DesktopRunMode runMode, String prootDistro,
-                         DesktopDe de, DesktopGlMode glMode, String resolution, int refreshRate) {
-        this(id, name, runMode, prootDistro, de, glMode, resolution, refreshRate, DesktopUsbStorageMode.OFF);
-    }
-
-    public DesktopDistro(String id, String name, DesktopRunMode runMode, String prootDistro,
-                         DesktopDe de, DesktopGlMode glMode, String resolution, int refreshRate,
-                         DesktopUsbStorageMode usbStorage) {
+                         DesktopDe de, DesktopGlMode hostGlMode, DesktopGuestGlMode guestGlMode,
+                         String resolution, int refreshRate, DesktopUsbStorageMode usbStorage) {
         if (usbStorage == null) throw new IllegalArgumentException("desktopUsbStorageRequired");
         this.usbStorage = usbStorage;
         if (de == null) throw new IllegalArgumentException("desktopDeRequired");
@@ -47,9 +36,12 @@ public final class DesktopDistro {
         this.id = requireId(id);
         this.name = DomainValidation.requireText(name, "desktopName");
         if (runMode == null) throw new IllegalArgumentException("desktopRunModeRequired");
-        if (glMode == null) throw new IllegalArgumentException("desktopGlModeRequired");
+        if (hostGlMode == null || guestGlMode == null) throw new IllegalArgumentException("desktopGlModeRequired");
         this.runMode = runMode;
-        this.glMode = glMode;
+        this.hostGlMode = hostGlMode;
+        this.guestGlMode = guestGlMode;
+        if ((runMode == DesktopRunMode.NATIVE) != (guestGlMode == DesktopGuestGlMode.NONE))
+            throw new IllegalArgumentException("desktopGuestModeRunModeMismatch");
         String distro = DomainValidation.optionalText(prootDistro);
         if (runMode == DesktopRunMode.PROOT) {
             if (!distro.matches("[a-z0-9][a-z0-9._-]{0,63}")) {
@@ -72,7 +64,8 @@ public final class DesktopDistro {
     /** The proot-distro alias of this desktop's own container instance; empty for native. */
     public String getProotDistro() { return prootDistro; }
     public DesktopDe getDe() { return de; }
-    public DesktopGlMode getGlMode() { return glMode; }
+    public DesktopGlMode getHostGlMode() { return hostGlMode; }
+    public DesktopGuestGlMode getGuestGlMode() { return guestGlMode; }
     /** {@code WIDTHxHEIGHT}, also the X11 display resolution of the session view. */
     public String getResolution() { return resolution; }
     public int getRefreshRate() { return refreshRate; }
@@ -82,22 +75,21 @@ public final class DesktopDistro {
     public int getHeight() { return Integer.parseInt(resolution.substring(resolution.indexOf('x') + 1)); }
 
     public DesktopDistro withName(String newName) {
-        return new DesktopDistro(id, newName, runMode, prootDistro, de, glMode, resolution,
+        return new DesktopDistro(id, newName, runMode, prootDistro, de, hostGlMode, guestGlMode, resolution,
             refreshRate, usbStorage);
     }
 
-    public DesktopDistro withGlMode(DesktopGlMode newGlMode) {
-        return new DesktopDistro(id, name, runMode, prootDistro, de, newGlMode, resolution,
-            refreshRate, usbStorage);
+    public DesktopDistro withRenderers(DesktopGlMode host, DesktopGuestGlMode guest) {
+        return new DesktopDistro(id, name, runMode, prootDistro, de, host, guest, resolution, refreshRate, usbStorage);
     }
 
     public DesktopDistro withOutput(String newResolution, int newRefreshRate) {
-        return new DesktopDistro(id, name, runMode, prootDistro, de, glMode, newResolution,
+        return new DesktopDistro(id, name, runMode, prootDistro, de, hostGlMode, guestGlMode, newResolution,
             newRefreshRate, usbStorage);
     }
 
     public DesktopDistro withUsbStorage(DesktopUsbStorageMode mode) {
-        return new DesktopDistro(id, name, runMode, prootDistro, de, glMode, resolution,
+        return new DesktopDistro(id, name, runMode, prootDistro, de, hostGlMode, guestGlMode, resolution,
             refreshRate, mode);
     }
 

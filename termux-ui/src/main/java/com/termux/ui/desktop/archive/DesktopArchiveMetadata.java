@@ -3,6 +3,9 @@ package com.termux.ui.desktop.archive;
 import com.termux.ui.desktop.domain.DesktopDe;
 import com.termux.ui.desktop.domain.DesktopDistro;
 import com.termux.ui.desktop.domain.DesktopGlMode;
+import com.termux.ui.desktop.domain.DesktopGuestGlMode;
+import com.termux.ui.desktop.domain.DesktopUsbStorageMode;
+import com.termux.ui.desktop.runtime.DesktopRendererPolicy;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 
 import org.json.JSONObject;
@@ -11,7 +14,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-/** Version-one archives contain one complete proot container, never host Termux components. */
+/** Current archives contain one complete proot container and explicit host/guest settings. */
 public final class DesktopArchiveMetadata {
     private final String appPackage, architecture, codename, touchMode, orientation;
     private final DesktopDistro desktop;
@@ -29,13 +32,12 @@ public final class DesktopArchiveMetadata {
             throw new IllegalArgumentException("archive_requires_container");
         if (desktop.getUsbStorage() != com.termux.ui.desktop.domain.DesktopUsbStorageMode.OFF)
             throw new IllegalArgumentException("archive_requires_usb_storage_off");
-        if (desktop.getGlMode() == DesktopGlMode.AUTO)
+        if (desktop.getHostGlMode() == DesktopGlMode.AUTO || desktop.getGuestGlMode() == DesktopGuestGlMode.UNRESOLVED)
             throw new IllegalArgumentException("archive_requires_explicit_renderer");
         if (!(desktop.getDe() == DesktopDe.XFCE4 && "trixie".equals(codename))
                 && !(desktop.getDe() == DesktopDe.KWIN_PLASMA && "forky".equals(codename)))
             throw new IllegalArgumentException("unsupported_archive_desktop_distribution");
-        if (desktop.getDe() == DesktopDe.KWIN_PLASMA && desktop.getGlMode() == DesktopGlMode.SYSTEM)
-            throw new IllegalArgumentException("unsupported_container_renderer");
+        DesktopRendererPolicy.requireSupported(desktop);
         if (touchMode != null && !Arrays.asList("1", "2", "3").contains(touchMode))
             throw new IllegalArgumentException("invalid_archive_touch_mode");
         if (orientation != null && !Arrays.asList("auto", "vertical", "horizontal").contains(orientation))
@@ -66,14 +68,15 @@ public final class DesktopArchiveMetadata {
     public long getExpandedBytes() { return entryCount < 0 ? -1 : regularBytes + entryCount * 4096L; }
 
     byte[] encode() {
-        String json="{\"format\":\"termux-desktop-container\",\"version\":1,\"compression\":\"gzip\""
+        String json="{\"format\":\"termux-desktop-container\",\"version\":2,\"compression\":\"gzip\""
             +",\"appPackage\":"+quote(appPackage)+",\"architecture\":"+quote(architecture)
             +",\"codename\":"+quote(codename)+",\"desktopSchema\":"+DesktopDistro.SCHEMA_VERSION
             +",\"id\":"+quote(desktop.getId())+",\"name\":"+quote(desktop.getName())
             +",\"runMode\":"+quote(desktop.getRunMode().getStorageValue())
             +",\"de\":"+quote(desktop.getDe().getStorageValue())
             +",\"prootAlias\":"+quote(desktop.getProotDistro())
-            +",\"glMode\":"+quote(desktop.getGlMode().getStorageValue())
+            +",\"hostGlMode\":"+quote(desktop.getHostGlMode().getStorageValue())
+            +",\"guestGlMode\":"+quote(desktop.getGuestGlMode().getStorageValue())
             +",\"resolution\":"+quote(desktop.getResolution())+",\"refreshRate\":"+desktop.getRefreshRate()
             +",\"touchMode\":"+quote(touchMode)+",\"orientation\":"+quote(orientation)
             +",\"payload\":\"container\",\"exclusions\":\"runtime-v1\"}";
@@ -83,16 +86,19 @@ public final class DesktopArchiveMetadata {
             throws IOException {
         try {
             JSONObject j=new JSONObject(new String(data, StandardCharsets.UTF_8));
-            if (j.length()!=19 || !"termux-desktop-container".equals(string(j,"format"))
-                    || integer(j,"version")!=1 || !"gzip".equals(string(j,"compression"))
-                    || integer(j,"desktopSchema")!=DesktopDistro.SCHEMA_VERSION
+            int version = integer(j,"version");
+            if (version != 2 || j.length() != 20 || !"termux-desktop-container".equals(string(j,"format"))
+                    || !"gzip".equals(string(j,"compression"))
+                    || integer(j,"desktopSchema") != DesktopDistro.SCHEMA_VERSION
                     || !"container".equals(string(j,"payload"))
                     || !"runtime-v1".equals(string(j,"exclusions")))
                 throw new IllegalArgumentException("unsupported_archive_manifest");
-            DesktopDistro d=new DesktopDistro(string(j,"id"),string(j,"name"),
-                DesktopRunMode.fromStorageValue(string(j,"runMode")),string(j,"prootAlias"),
-                DesktopDe.fromStorageValue(string(j,"de")),DesktopGlMode.fromStorageValue(string(j,"glMode")),
-                string(j,"resolution"),integer(j,"refreshRate"));
+            DesktopRunMode mode=DesktopRunMode.fromStorageValue(string(j,"runMode"));
+            DesktopDe de=DesktopDe.fromStorageValue(string(j,"de"));
+            DesktopGlMode host=DesktopGlMode.fromStorageValue(string(j,"hostGlMode"));
+            DesktopGuestGlMode guest=DesktopGuestGlMode.fromStorageValue(string(j,"guestGlMode"));
+            DesktopDistro d=new DesktopDistro(string(j,"id"),string(j,"name"),mode,string(j,"prootAlias"),
+                de,host,guest,string(j,"resolution"),integer(j,"refreshRate"),DesktopUsbStorageMode.OFF);
             DesktopArchiveMetadata result=create(string(j,"appPackage"),string(j,"architecture"),
                 string(j,"codename"),d,nullable(j,"touchMode"),nullable(j,"orientation"));
             if (!result.appPackage.equals(expectedPackage) || !result.architecture.equals(expectedArch))

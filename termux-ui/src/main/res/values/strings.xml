@@ -560,7 +560,7 @@
     <string name="desktop_de_hyprland">Hyprland</string>
     <string name="desktop_de_hyprland_desc">Wayland tiling compositor (preview)</string>
     <string name="desktop_de_ubuntu_gnome">Ubuntu GNOME</string>
-    <string name="desktop_de_ubuntu_gnome_desc">Desktop-only session, not a container</string>
+    <string name="desktop_de_ubuntu_gnome_desc">Ubuntu 24.04 LTS with Yaru, Ubuntu Dock and desktop icons</string>
     <string name="desktop_container_debian">Debian</string>
     <string name="desktop_container_debian_desc">rootfs tarball cached after first install · reused by every instance</string>
     <string name="desktop_container_more">More distros</string>
@@ -608,7 +608,7 @@
     <string name="desktop_create_gl_label">Rendering</string>
     <string name="desktop_create_resolution_hint">Resolution (e.g. 1280x720)</string>
     <string name="desktop_create_refresh_hint">Refresh rate (Hz)</string>
-    <string name="desktop_create_action">Create</string>
+    <string name="desktop_create_action">Create and install</string>
     <string name="desktop_create_invalid">Check the name, resolution and refresh rate.</string>
     <string name="desktop_install_started">Install started in a Termux session.</string>
     <string name="desktop_install_hint">The runtime required by this desktop will be downloaded and installed.</string>
@@ -620,7 +620,6 @@
     <string name="desktop_session_starting">Starting the desktop…</string>
     <string name="desktop_session_failed">The desktop exited. Check the log for details.</string>
     <string name="desktop_session_stop">Stop desktop</string>
-    <string name="desktop_session_close">Close view</string>
     <string name="desktop_gpu_unavailable">This device has no readable Adreno GPU node; Zink may not work.</string>
     <string name="desktop_more">More actions</string>
     <string name="desktop_mode_native_hint">Runs directly in Termux</string>
@@ -641,14 +640,13 @@
     <string name="desktop_touch_trackpad">Trackpad</string>
     <string name="desktop_touch_simulated">Simulated touch screen</string>
     <string name="desktop_touch_direct">Direct touch</string>
-    <string name="desktop_session_menu">Control center</string>
     <string name="desktop_session_exit">Exit</string>
     <string name="desktop_session_back">Back</string>
     <string name="desktop_session_operation_title">Common</string>
     <string name="desktop_session_operation_summary">Choose the touch mode and orientation for this desktop. Orientation follows the X11 session setting unless overridden here; it is independent of the app UI orientation.</string>
     <string name="desktop_session_volume">Volume</string>
     <string name="desktop_session_keyboard_summary">Open the system soft keyboard without leaving the desktop.</string>
-    <string name="desktop_session_exit_title">Leave the desktop</string>
+    <string name="desktop_session_exit_title">Exit the desktop?</string>
     <string name="desktop_renderer_explicit_required">Select a renderer supported by this desktop explicitly.</string>
     <string name="desktop_archive_import">Import container</string>
     <string name="desktop_archive_export">Export container</string>
@@ -738,4 +736,9 @@
     <string name="local_game_controller_mapping_state">Current: %1$s · changes next launch</string>
     <string name="local_game_controller_settings_loading">Loading controller settings…</string>
     <string name="local_game_controller_settings_failed">Controller settings could not be read or saved.</string>
+    <string name="desktop_session_exit_message">The desktop will be stopped; unsaved changes may be lost.</string>
+    <string name="desktop_session_exit_confirm">Exit desktop</string>
+    <string name="desktop_session_exit_failed">Could not stop the desktop</string>
+    <string name="desktop_session_exit_failed_message">The desktop may still be running. Try exiting again.</string>
+    <string name="desktop_create_save_failed">Could not save the desktop. Please try again.</string>
 </resources>
