@@ -537,7 +537,7 @@
     <string name="desktop_de_kwin_plasma">KWin Plasma</string>
     <string name="desktop_de_kwin_plasma_desc">KDE Plasma,硬件加速 KWin 合成器</string>
     <string name="desktop_de_hyprland">Hyprland</string>
-    <string name="desktop_de_hyprland_desc">Wayland 合成器,平铺式</string>
+    <string name="desktop_de_hyprland_desc">Wayland 平铺合成器（预览版）</string>
     <string name="desktop_de_ubuntu_gnome">Ubuntu GNOME</string>
     <string name="desktop_de_ubuntu_gnome_desc">仅桌面会话,不作为容器</string>
     <string name="desktop_container_debian">Debian</string>

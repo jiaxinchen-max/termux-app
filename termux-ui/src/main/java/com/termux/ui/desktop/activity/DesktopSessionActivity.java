@@ -2,13 +2,16 @@ package com.termux.ui.desktop.activity;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.media.AudioManager;
 import android.os.Build;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.util.AtomicFile;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -54,6 +57,9 @@ import com.termux.x11.session.metrics.PerformanceMetricsRecorder;
 import com.termux.x11.session.metrics.PerformanceMetricsSampler;
 
 import java.io.IOException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -86,6 +92,37 @@ public final class DesktopSessionActivity extends AppCompatActivity {
         new Thread(runnable, "DesktopSessionLog"));
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable pollTick = this::poll;
+    private final Runnable batteryTick = new Runnable() {
+        @Override public void run() {
+            if (destroyed || distro == null || !hostResumed
+                || distro.getDe() != com.termux.ui.desktop.domain.DesktopDe.HYPRLAND) return;
+            Intent battery = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+            if (battery != null) {
+                int level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int scale = battery.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                int status = battery.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+                int percent = level >= 0 && scale > 0 && level <= scale ? (int) (100L * level / scale) : -1;
+                boolean charging = status == BatteryManager.BATTERY_STATUS_CHARGING
+                    || status == BatteryManager.BATTERY_STATUS_FULL;
+                String json = "{\"percent\":" + percent + ",\"charging\":" + charging
+                    + ",\"updated\":" + System.currentTimeMillis() + "}\n";
+                ioExecutor.execute(() -> {
+                    File directory = new GameStoragePaths(getFilesDir()).getDesktopStateDirectory();
+                    if (!directory.isDirectory() && !directory.mkdirs()) return;
+                    AtomicFile file = new AtomicFile(new File(directory, "android-battery.json"));
+                    FileOutputStream output = null;
+                    try {
+                        output = file.startWrite();
+                        output.write(json.getBytes(StandardCharsets.UTF_8));
+                        file.finishWrite(output);
+                    } catch (IOException error) {
+                        if (output != null) file.failWrite(output);
+                    }
+                });
+            }
+            handler.postDelayed(this, 30000);
+        }
+    };
 
     private ActivityDesktopSessionBinding binding;
     private DesktopTasks tasks;
@@ -890,6 +927,8 @@ public final class DesktopSessionActivity extends AppCompatActivity {
         if (distro != null) applyOrientation(overrides.effectiveOrientation(this, distro.getId()));
         applyTouchMode();
         hostResumed = true;
+        handler.removeCallbacks(batteryTick);
+        handler.post(batteryTick);
         if (binding != null) {
             binding.desktopSessionX11.onHostResume();
             updateProcessRefresh();
@@ -901,6 +940,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     protected void onPause() {
         restoreGlobalTouchMode();
         hostResumed = false;
+        handler.removeCallbacks(batteryTick);
         updateMetricsSampling();
         stopProcessRefresh();
         if (binding != null) binding.desktopSessionX11.onHostPause();
@@ -935,6 +975,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     protected void onDestroy() {
         destroyed = true;
         handler.removeCallbacks(pollTick);
+        handler.removeCallbacks(batteryTick);
         if (overrides != null) restoreGlobalTouchMode();
         if (metricsRecorder != null) metricsRecorder.stop();
         if (processPanel != null) {

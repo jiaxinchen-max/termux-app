@@ -57,8 +57,17 @@ trap 'exit 129' HUP
 [ "$OPERATION" != install ] || printf 'installing\n' > "$DESKTOP_STATUS_FILE" || exit 74
 case "${DESKTOP_MODE:-}" in native|proot) ;; *) log 'Explicit desktop run mode required'; exit 64 ;; esac
 [ "$OPERATION" != host-prerequisites ] || [ "$DESKTOP_MODE" = proot ] || { log 'Host prerequisites require PROOT mode'; exit 64; }
-case "${DESKTOP_DE:-}" in xfce4|kwin_plasma|gnome) ;; *) log 'Unsupported desktop environment'; exit 64 ;; esac
+case "${DESKTOP_DE:-}" in xfce4|kwin_plasma|gnome|hyprland) ;; *) log 'Unsupported desktop environment'; exit 64 ;; esac
 case "${DESKTOP_GL_MODE:-}" in system|zink|llvmpipe) ;; *) log 'Explicit system, zink or llvmpipe renderer required'; exit 64 ;; esac
+if [ "$DESKTOP_DE" = hyprland ]; then
+    [ "$OPERATION" = install ] && [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_RELEASE:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:hyprland-android-0.57.0-70ec30e7-r7:system ] || {
+        log 'Hyprland requires its pinned Android/System EGL host and USB off; archives are unsupported.'; exit 64
+    }
+    case "$DESKTOP_MODE:$DESKTOP_GL_MODE:${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" in
+        native:system:default|proot:system:default|proot:zink:zink) ;;
+        *) log 'Hyprland supports default clients, or explicit experimental Zink clients in PRoot only.'; exit 64 ;;
+    esac
+fi
 if [ "$DESKTOP_DE:$DESKTOP_MODE:$DESKTOP_GL_MODE" = kwin_plasma:proot:system ]; then
     log 'Container Plasma requires explicit Zink or llvmpipe'; exit 64
 fi
@@ -230,13 +239,25 @@ ensure_container_instance() { # alias source
 TURNIP_REPO="lfdevs/mesa-for-android-container"
 TURNIP_RELEASE_TAG="mesa-27.0.0-devel-20261025"
 GNOME_TURNIP_ARTIFACT="mesa-for-android-container_27.0.0-devel-20261025_debian_trixie_arm64.tar.gz b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687"
-ensure_gnome_turnip_icd() { # explicit trixie GNOME only; never infer a driver from file presence
+ensure_trixie_turnip_icd() { # alias [backup directory]; never infer a driver from file presence
+    mesa_backup_dir="${2:-}"
     rootfs="$PREFIX/var/lib/proot-distro/containers/$1/rootfs"
     archive=$(fetch_debs "$TURNIP_RELEASE_TAG" "https://github.com/$TURNIP_REPO/releases/download/$TURNIP_RELEASE_TAG" "$GNOME_TURNIP_ARTIFACT") || fail 'downloading verified GNOME Zink Mesa/Turnip'
     set -- $archive
     [ "$#" -eq 1 ] || fail 'expected one verified Mesa artifact'
+    if [ -n "$mesa_backup_dir" ]; then
+        backup_dir="$mesa_backup_dir"
+        run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland_gpu.py" backup-mesa \
+            --archive "$1" --rootfs "$rootfs" --destination "$backup_dir" || fail 'backing up container Mesa files'
+        [ ! -L "$backup_dir/package-holds-before.txt" ] || fail 'unsafe package holds backup'
+        if [ ! -f "$backup_dir/package-holds-before.txt" ]; then
+            holds_temporary="$backup_dir/package-holds-before.tmp.$$"
+            (set -C; run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- apt-mark showhold > "$holds_temporary") || fail 'recording package holds'
+            mv "$holds_temporary" "$backup_dir/package-holds-before.txt" || fail 'saving package holds'
+        fi
+    fi
     run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_install_mesa.py" \
-        --archive "$1" --rootfs "$rootfs" --codename trixie --gl-mode zink || fail 'installing verified GNOME Zink Mesa/Turnip'
+        --archive "$1" --rootfs "$rootfs" --codename trixie --gl-mode zink || fail 'installing verified trixie Zink Mesa/Turnip'
     run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh -eu -c '
         for library in /usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so /usr/lib/aarch64-linux-gnu/libgallium-27.0.0-devel.so /usr/lib/aarch64-linux-gnu/libGLX_mesa.so.0; do
             dependencies=$(ldd "$library")
@@ -246,6 +267,10 @@ ensure_gnome_turnip_icd() { # explicit trixie GNOME only; never infer a driver f
     run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- apt-mark hold \
         mesa-vulkan-drivers libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 \
         || fail 'holding the explicit container Mesa/Turnip build'
+}
+
+ensure_gnome_turnip_icd() {
+    ensure_trixie_turnip_icd "$1"
 }
 
 ensure_turnip_icd() { # alias
@@ -462,6 +487,61 @@ $name $digest"
     fi
     log 'Host prerequisites finished; no container was created or modified.'
 }
+
+if [ "$DESKTOP_DE" = hyprland ]; then
+    log "Installing Hyprland Android candidate ($DESKTOP_MODE); device validation pending"
+    run pkg install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold x11-repo || fail 'x11-repo'
+    run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold || fail 'pkg update'
+    support='eww foot fish starship fontconfig-utils pygobject python dbus pulseaudio xfce4-panel xfce4-genmon-plugin xfce4-notifyd swaybg gtk-layer-shell adwaita-icon-theme xfce4-terminal'
+    if [ "$DESKTOP_MODE" = native ]; then support="$support xfce4-terminal thunar"; else support="$support proot proot-distro"; fi
+    # shellcheck disable=SC2086
+    run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold $support || fail 'Hyprland runtime/client dependencies'
+    HYPRLAND_RELEASE=hyprland-android-0.57.0-70ec30e7-r7
+    artifact=$(fetch_debs "$HYPRLAND_RELEASE" "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/$HYPRLAND_RELEASE" \
+        'hyprland-android-runtime-aarch64-0.57.0-r7.tar.gz 2fd3bd98104d7b411c9760efb2ad3270e950a1be4a146fa089b19a6fea169b10') || fail 'downloading Hyprland component'
+    artifact="${artifact# }"
+    if ! run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" install "$artifact"; then
+        rm -f "$artifact"
+        fail 'Hyprland runtime verification/install failed; retry will download the component again'
+    fi
+    if [ "$DESKTOP_MODE" = proot ]; then
+        ensure_container_instance "$DESKTOP_PROOT_DISTRO" debian:trixie
+        rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
+        [ -f "$rootfs/etc/os-release" ] || fail 'Hyprland container missing'
+        grep -q '^VERSION_CODENAME=trixie$' "$rootfs/etc/os-release" || fail 'Hyprland clients require Debian trixie'
+        de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-hyprland"
+        rm -f "$de_marker" "$de_marker-zink" || fail 'resetting Hyprland client install marker'
+        for helper in desktop_container_plasma_apt.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
+            cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "staging client helper $helper"
+        done
+        zink_packages=''
+        if [ "$DESKTOP_GL_MODE" = zink ]; then
+            zink_packages='libvulkan1 vulkan-tools libllvm19 libdrm2 libgbm1 libegl1 libgles2 libgl1-mesa-dri libegl-mesa0 libglx-mesa0 mesa-vulkan-drivers python3 python3-gi gir1.2-gtk-3.0 libepoxy0'
+        fi
+        # shellcheck disable=SC2086
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+            --statx-backend=proc-fdinfo --no-install-recommends xfce4-terminal thunar dbus-x11 adwaita-icon-theme $zink_packages || fail 'Hyprland container clients'
+        if [ "$DESKTOP_GL_MODE" = zink ]; then
+            ensure_trixie_turnip_icd "$DESKTOP_PROOT_DISTRO" "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.hyprland-mesa-backup"
+            run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- python3 -I -c \
+                "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk" || fail 'container GPU test dependencies'
+        fi
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" -- test -x /usr/bin/xfce4-terminal || fail 'missing container terminal'
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" -- test -x /usr/bin/thunar || fail 'missing container file manager'
+    else
+        [ -x "$PREFIX/bin/xfce4-terminal" ] && [ -x "$PREFIX/bin/thunar" ] || fail 'missing native clients'
+    fi
+    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check || fail 'Hyprland component verification'
+    audit=$(dpkg --audit 2>&1) || fail 'dpkg audit'
+    [ -z "$audit" ] || fail "$audit"
+    [ "$DESKTOP_MODE" != proot ] || : > "$de_marker" || fail 'writing client installation marker'
+    if [ "$DESKTOP_MODE:$DESKTOP_GL_MODE" = proot:zink ]; then
+        printf '%s\n' b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687 > "$de_marker-zink" || fail 'writing experimental Zink identity'
+    fi
+    log 'Hyprland candidate installed. Runtime and input await manual device validation.'
+    INSTALL_DONE=1
+    exit 0
+fi
 
 if [ "$OPERATION" = host-prerequisites ]; then
     check_host_prerequisites

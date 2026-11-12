@@ -27,10 +27,20 @@ public class DesktopCreationCatalogTest {
         List<DesktopDistro> existing = Collections.singletonList(
             desktop("n1", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA));
 
-        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.GNOME),
+        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.GNOME, DesktopDe.HYPRLAND),
             DesktopCreationCatalog.nativeOptions(existing));
-        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.GNOME),
+        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.GNOME, DesktopDe.HYPRLAND),
             DesktopCreationCatalog.nativeOptions(Collections.emptyList()));
+    }
+
+    @Test
+    public void hyprlandNativeIsUniqueAndGuestInstancesRemainAvailable() {
+        List<DesktopDistro> existing = Collections.singletonList(
+            desktop("h1", DesktopRunMode.NATIVE, "", DesktopDe.HYPRLAND));
+        assertFalse(DesktopCreationCatalog.nativeOptions(existing).contains(DesktopDe.HYPRLAND));
+        assertTrue(DesktopCreationCatalog.containerOptions().contains(DesktopDe.HYPRLAND));
+        assertEquals("debian-hyprland-1", DesktopCreationCatalog.nextInstanceAlias(existing,
+            "debian", DesktopDe.HYPRLAND));
     }
 
     @Test
@@ -39,7 +49,7 @@ public class DesktopCreationCatalogTest {
             desktop("c1", DesktopRunMode.PROOT, "debian-xfce4-1", DesktopDe.XFCE4),
             desktop("c2", DesktopRunMode.PROOT, "debian-xfce4-2", DesktopDe.XFCE4));
 
-        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.GNOME),
+        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.GNOME, DesktopDe.HYPRLAND),
             DesktopCreationCatalog.containerOptions());
         assertEquals(2, DesktopCreationCatalog.count(existing, "debian", DesktopDe.XFCE4));
     }
@@ -58,7 +68,7 @@ public class DesktopCreationCatalogTest {
 
     @Test
     public void comingSoonEnvironmentsAreNotCreatable() {
-        assertFalse(DesktopDe.HYPRLAND.isCreatable());
+        assertTrue(DesktopDe.HYPRLAND.isCreatable());
         assertFalse(DesktopDe.UBUNTU_GNOME.isCreatable());
         assertTrue(DesktopDe.XFCE4.isCreatable());
         assertTrue(DesktopDe.KWIN_PLASMA.isCreatable());

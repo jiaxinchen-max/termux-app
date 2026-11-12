@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_hyprland_terminal">Open terminal</string>
+    <string name="desktop_hyprland_files">Open file manager</string>
+    <string name="desktop_hyprland_next">Focus next window</string>
+    <string name="desktop_hyprland_float">Toggle floating window</string>
+    <string name="desktop_hyprland_close">Close focused window</string>
+    <string name="desktop_hyprland_gl_default">System EGL · default container apps</string>
+    <string name="desktop_hyprland_gl_zink">Container Zink / Turnip (experimental)</string>
+    <string name="desktop_hyprland_proot_renderer_hint">The compositor uses System EGL. Experimental Zink accelerates container apps only on compatible Adreno/KGSL devices with buffer import support. Select Zink, install its components, then stop and reopen. Default mode does not guarantee app GPU rendering.</string>
+</resources>

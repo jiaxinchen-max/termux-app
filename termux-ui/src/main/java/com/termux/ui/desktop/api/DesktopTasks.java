@@ -127,6 +127,7 @@ public final class DesktopTasks {
             new File(log.getPath() + ".out").delete();
             new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".container").delete();
             new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".gnome-ready").delete();
+            new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".hyprland-ready").delete();
 
         }
     }
@@ -148,6 +149,9 @@ public final class DesktopTasks {
             socket = alive && environment.waylandSocket(Process.myUid()).exists();
             ready = socket && DesktopEnvironment.logShowsReady(
                 paths.getDesktopLogFile(distro.getId()));
+        } else if (distro.getDe() == DesktopDe.HYPRLAND) {
+            socket = alive && environment.hyprlandWaylandSocket(distro).exists();
+            ready = socket && DesktopEnvironment.hyprlandReadyMarkerMatches(pidFile, pid);
         } else if (distro.getDe() == DesktopDe.GNOME) {
             socket = alive && (distro.getRunMode() == DesktopRunMode.NATIVE
                 ? environment.gnomeWaylandSocket(distro).exists() : environment.x11Socket().exists());
@@ -238,6 +242,8 @@ public final class DesktopTasks {
                 scopes.add(paths.getDesktopPidFile(distro.getId()).getAbsolutePath());
                 scopes.add(paths.getDesktopPidFile(distro.getId()).getAbsolutePath() + ".gnome-ready");
                 scopes.add(paths.getDesktopLogFile(distro.getId()).getAbsolutePath());
+                if (distro.getDe() == DesktopDe.HYPRLAND)
+                    scopes.add(new File(new File(context.getFilesDir(), "home"), ".termux/hyprland-" + distro.getId()).getAbsolutePath());
                 if (distro.getRunMode() == DesktopRunMode.PROOT) {
                     scopes.add(new File(paths.getTermuxPrefixDirectory(), "var/lib/proot-distro/installed-rootfs/" + distro.getProotDistro()).getAbsolutePath());
                     scopes.add(new File(paths.getTermuxPrefixDirectory(), "var/lib/proot-distro/containers/" + distro.getProotDistro()).getAbsolutePath());
@@ -245,7 +251,7 @@ public final class DesktopTasks {
                 try { LocalGames.requireHost(context).forceStopRuntimeProcesses(scopes); }
                 catch (LaunchHostException error) { throw new IOException(error.getErrorCode(), error); }
                 File pid = paths.getDesktopPidFile(distro.getId());
-                for (File file : new File[] {pid, new File(pid + ".container"), new File(pid + ".gnome-ready"), new File(pid + ".owned-session")})
+                for (File file : new File[] {pid, new File(pid + ".container"), new File(pid + ".gnome-ready"), new File(pid + ".hyprland-ready"), new File(pid + ".owned-session")})
                     if (file.exists() && !file.delete()) throw new IOException("desktop_force_stop_cleanup_failed");
                 File status = paths.getDesktopStatusFile(distro.getId());
                 if (!status.getParentFile().isDirectory() && !status.getParentFile().mkdirs()) throw new IOException("desktop_state_directory_failed");
@@ -253,6 +259,37 @@ public final class DesktopTasks {
                     output.write("stopped\n".getBytes(StandardCharsets.US_ASCII));
                 }
             }
+        }
+    }
+
+    /** Runs only a fixed Hyprland control action through the existing Termux host. */
+    public void hyprlandAction(@NonNull DesktopDistro distro, @NonNull String action)
+        throws LaunchHostException {
+        if (distro.getDe() != DesktopDe.HYPRLAND || !java.util.Arrays.asList(
+                "terminal", "files", "close", "next", "float").contains(action))
+            throw new IllegalArgumentException("unsupported_hyprland_action");
+        synchronized (DesktopOperationGate.LOCK) {
+            try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
+                throw new LaunchHostException("desktop_archive_busy", true, busy);
+            }
+            if (state(distro) != DesktopSessionState.RUNNING)
+                throw new LaunchHostException("desktop_not_running", true, null);
+            deploy(distro);
+            String task = "hyprland-action-" + distro.getId() + "-" + System.currentTimeMillis();
+            File spec = new File(paths.getRuntimeDirectory(), task + ".spec");
+            String content = DesktopLaunchSpec.encode(distro,
+                paths.getDesktopPidFile(distro.getId()).getPath(),
+                paths.getDesktopStatusFile(distro.getId()).getPath(),
+                paths.getDesktopLogFile(distro.getId()).getPath());
+            try (FileOutputStream output = new FileOutputStream(spec)) {
+                output.write((content + "DESKTOP_HYPRLAND_ACTION=" + action + "\n")
+                    .getBytes(StandardCharsets.UTF_8));
+            } catch (IOException error) {
+                throw new LaunchHostException("desktop_prepare_failed", true, error);
+            }
+            LocalGames.requireHost(context).startLaunch(new LaunchRequest(task,
+                new File(paths.getRuntimeDirectory(), "desktop_hyprland_action.sh").getPath(),
+                spec.getPath(), paths.getRuntimeDirectory().getPath(), LaunchExecutionMode.APP_SHELL));
         }
     }
 

@@ -25,10 +25,16 @@ public class DesktopRendererPolicyTest {
     }
     @Test public void unsupportedAndAutoModesNeverEnterTheChoiceList() {
         assertTrue(DesktopRendererPolicy.allowedModes(DesktopRunMode.NATIVE,DesktopDe.UBUNTU_GNOME).isEmpty());
-        assertTrue(DesktopRendererPolicy.allowedModes(DesktopRunMode.PROOT,DesktopDe.HYPRLAND).isEmpty());
+        assertEquals(Arrays.asList(DesktopGlMode.SYSTEM,DesktopGlMode.ZINK), DesktopRendererPolicy.allowedModes(DesktopRunMode.PROOT,DesktopDe.HYPRLAND));
         for(DesktopDe de:DesktopDe.values()) for(DesktopRunMode mode:DesktopRunMode.values())
             assertFalse(DesktopRendererPolicy.allowedModes(mode,de).contains(DesktopGlMode.AUTO));
         assertFalse(DesktopRendererPolicy.supports(DesktopRunMode.PROOT,DesktopDe.KWIN_PLASMA,DesktopGlMode.SYSTEM));
+    }
+    @Test public void hyprlandRejectsEveryUnsupportedRendererForBothModes() {
+        for (DesktopRunMode mode : DesktopRunMode.values())
+            for (DesktopGlMode renderer : DesktopGlMode.values())
+                assertEquals(renderer == DesktopGlMode.SYSTEM || (mode == DesktopRunMode.PROOT && renderer == DesktopGlMode.ZINK),
+                    DesktopRendererPolicy.supports(mode, DesktopDe.HYPRLAND, renderer));
     }
     @Test public void usbReadOnlyRequiresSupportedGioDesktopSidebar() {
         for(DesktopDe de:DesktopDe.values()) {

@@ -310,7 +310,7 @@ public final class DesktopActivity extends AppUiActivity {
             ? getString(R.string.desktop_mode_native_badge)
             : getString(R.string.desktop_mode_container_badge, distro.getProotDistro()));
         card.desktopDetail.setText(getString(R.string.desktop_card_detail,
-            glLabel(distro.getGlMode()), distro.getResolution(), distro.getRefreshRate()));
+            DesktopCreateActivity.rendererLabel(this, distro.getRunMode(), distro.getDe(), distro.getGlMode()), distro.getResolution(), distro.getRefreshRate()));
         card.desktopStatus.setText(stateLabel(state));
         card.desktopStatus.setTextColor(ContextCompat.getColor(this, stateColor(state)));
 

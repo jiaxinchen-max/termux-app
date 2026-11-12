@@ -18,6 +18,21 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class DesktopEnvironmentTest {
+    @org.junit.Test
+    public void oldHyprlandReadinessNeverMarksNewSupervisorReady() throws Exception {
+        java.io.File directory = java.nio.file.Files.createTempDirectory("hyprland-marker").toFile();
+        java.io.File pid = new java.io.File(directory, "session.pid");
+        java.io.File marker = new java.io.File(pid.getPath() + ".hyprland-ready");
+        try {
+            java.nio.file.Files.write(marker.toPath(), "123\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            org.junit.Assert.assertTrue(DesktopEnvironment.hyprlandReadyMarkerMatches(pid, 123));
+            org.junit.Assert.assertFalse(DesktopEnvironment.hyprlandReadyMarkerMatches(pid, 124));
+            org.junit.Assert.assertFalse(DesktopEnvironment.hyprlandReadyMarkerMatches(pid, 0));
+        } finally {
+            marker.delete(); directory.delete();
+        }
+    }
+
 
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -31,6 +46,54 @@ public class DesktopEnvironmentTest {
         assertTrue(file.getParentFile().isDirectory() || file.getParentFile().mkdirs());
         assertTrue(file.createNewFile());
         return file;
+    }
+
+    @Test
+    public void hyprlandUpgradeRequiresTheFixedRuntimeAndMatchingManifest() throws Exception {
+        DesktopEnvironment environment = new DesktopEnvironment(temporaryFolder.getRoot());
+        DesktopDistro distro = new DesktopDistro("hy", "Hyprland", DesktopRunMode.NATIVE,
+            "", DesktopDe.HYPRLAND, DesktopGlMode.SYSTEM, "1280x720", 30);
+        for (String program : new String[]{"python3", "dbus-daemon", "xfce4-terminal", "thunar",
+                "eww", "foot", "fish", "starship", "fc-cache", "xfce4-panel", "swaybg", "xfconf-query", "dbus-send"}) {
+            touch("usr/bin/" + program);
+        }
+        touch("usr/lib/xfce4/notifyd/xfce4-notifyd");
+        File genmon = touch("usr/lib/xfce4/panel/plugins/libgenmon.so");
+        String[] runtimeFiles = {"bin/Hyprland", "bin/Xwayland",
+            "lib/hyprland/android/libhyprland-system-gl.so", "lib/hyprland/android/libvndksupport.so"};
+        for (String file : runtimeFiles) touch("usr/opt/termux-hyprland/0.57.0-r2/" + file);
+        try (FileWriter writer = new FileWriter(touch("usr/opt/termux-hyprland/0.57.0-r2/.installed"))) {
+            writer.write("4e936063e9841d5044cfcdb02563ff529e749c055d1703fa61a35cde8ad7fd4e\n");
+        }
+        assertFalse(environment.isInstalled(distro));
+        for (String file : runtimeFiles) touch("usr/opt/termux-hyprland/0.57.0-r7/" + file);
+        File marker = touch("usr/opt/termux-hyprland/0.57.0-r7/.installed");
+        try (FileWriter writer = new FileWriter(marker)) {
+            writer.write("4e936063e9841d5044cfcdb02563ff529e749c055d1703fa61a35cde8ad7fd4e\n");
+        }
+        assertFalse(environment.isInstalled(distro));
+        try (FileWriter writer = new FileWriter(marker)) {
+            writer.write("6024fd61a4923031ce9d7c4d35c1d545e75cbff16fe1ae9ab8aab86a0167f948\n");
+        }
+        assertTrue(environment.isInstalled(distro));
+        touch("usr/bin/proot-distro");
+        String container = "usr/var/lib/proot-distro/containers/debian-hyprland-1/";
+        touch(container + ".desktop-de-hyprland");
+        DesktopDistro guest = new DesktopDistro("hy-guest", "Hyprland", DesktopRunMode.PROOT,
+            "debian-hyprland-1", DesktopDe.HYPRLAND, DesktopGlMode.SYSTEM, "1280x720", 30);
+        assertTrue(environment.isInstalled(guest));
+        assertFalse(environment.isInstalled(guest.withGlMode(DesktopGlMode.ZINK)));
+        File zinkMarker = touch(container + ".desktop-de-hyprland-zink");
+        touch(container + "rootfs/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json");
+        touch(container + "rootfs/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so");
+        touch(container + "rootfs/usr/bin/python3");
+        assertFalse(environment.isInstalled(guest.withGlMode(DesktopGlMode.ZINK)));
+        try (FileWriter writer = new FileWriter(zinkMarker)) {
+            writer.write("b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687\n");
+        }
+        assertTrue(environment.isInstalled(guest.withGlMode(DesktopGlMode.ZINK)));
+        assertTrue(genmon.delete());
+        assertFalse(environment.isInstalled(distro));
     }
 
     @Test

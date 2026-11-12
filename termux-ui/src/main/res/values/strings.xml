@@ -558,7 +558,7 @@
     <string name="desktop_de_kwin_plasma">KWin Plasma</string>
     <string name="desktop_de_kwin_plasma_desc">KDE Plasma, hardware-accelerated KWin compositor</string>
     <string name="desktop_de_hyprland">Hyprland</string>
-    <string name="desktop_de_hyprland_desc">Wayland compositor, tiling</string>
+    <string name="desktop_de_hyprland_desc">Wayland tiling compositor (preview)</string>
     <string name="desktop_de_ubuntu_gnome">Ubuntu GNOME</string>
     <string name="desktop_de_ubuntu_gnome_desc">Desktop-only session, not a container</string>
     <string name="desktop_container_debian">Debian</string>

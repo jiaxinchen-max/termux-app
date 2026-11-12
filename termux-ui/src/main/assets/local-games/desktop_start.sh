@@ -116,6 +116,17 @@ if [ "${DESKTOP_DE:-}" = gnome ]; then
         printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
     esac
 fi
+if [ "${DESKTOP_DE:-}" = hyprland ]; then
+    [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_RELEASE:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:hyprland-android-0.57.0-70ec30e7-r7:system ] || {
+        log 'Hyprland requires its pinned Android/System EGL host and USB off.'
+        printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
+    }
+    case "$DESKTOP_MODE:$DESKTOP_GL_MODE:${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" in
+        native:system:default|proot:system:default|proot:zink:zink) ;;
+        *) log 'Hyprland experimental Zink is for PRoot clients only; select a supported mode.'
+           printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
+    esac
+fi
 stop_other_desktops || { printf 'exit:74\n' > "$DESKTOP_STATUS_FILE"; exit 74; }
 
 wait_for_socket() {
@@ -149,9 +160,9 @@ finish_desktop() {
     case "$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)" in
         stopping|stopped)
             case "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}:$code" in
-                gnome:*:0|gnome:*:130|gnome:*:143|xfce4:read-only:0|xfce4:read-only:130|xfce4:read-only:143)
+                hyprland:*:0|hyprland:*:130|hyprland:*:143|gnome:*:0|gnome:*:130|gnome:*:143|xfce4:read-only:0|xfce4:read-only:130|xfce4:read-only:143)
                     printf 'stopped\n' > "$DESKTOP_STATUS_FILE"; code=0 ;;
-                gnome:*|xfce4:read-only:*) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
+                hyprland:*|gnome:*|xfce4:read-only:*) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
                 *) printf 'stopped\n' > "$DESKTOP_STATUS_FILE"; code=0 ;;
             esac ;;
         *) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
@@ -160,6 +171,28 @@ finish_desktop() {
 }
 
 DESKTOP_DE="${DESKTOP_DE:-kwin_plasma}"
+
+if [ "$DESKTOP_DE" = hyprland ]; then
+    rm -f "$DESKTOP_PID_FILE.hyprland-ready"
+    printf 'hyprland\n' > "$DESKTOP_PID_FILE.owned-session" || { code=74; finish_desktop; }
+    set -- session --desktop-id "$DESKTOP_ID" --ready-file "$DESKTOP_PID_FILE.hyprland-ready" \
+        --run-mode "$DESKTOP_MODE" --client-gl-mode "${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" --width "$DESKTOP_WIDTH" --height "$DESKTOP_HEIGHT" --refresh "$DESKTOP_REFRESH_RATE"
+    [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
+    "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" "$@" >> "$DESKTOP_LOG_FILE.out" 2>&1 &
+    child=$!
+    printf '%s\n' "$child" > "$DESKTOP_PID_FILE"
+    trap 'kill -TERM "$child" 2>/dev/null' TERM INT
+    while :; do
+        wait "$child"; code=$?
+        kill -0 "$child" 2>/dev/null || break
+    done
+    rm -f "$DESKTOP_PID_FILE.hyprland-ready"
+    if [ "$code" -ne 0 ]; then
+        tail -n 40 "$DESKTOP_LOG_FILE.out" | tee -a "$DESKTOP_LOG_FILE"
+        tail -n 40 "$HOME/.termux/hyprland-$DESKTOP_ID/session.log" 2>/dev/null | tee -a "$DESKTOP_LOG_FILE"
+    fi
+    finish_desktop
+fi
 
 if [ "$DESKTOP_DE" != gnome ]; then
     if [ "$DESKTOP_MODE" = proot ]; then

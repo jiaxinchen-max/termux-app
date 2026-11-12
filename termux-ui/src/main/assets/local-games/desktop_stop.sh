@@ -12,7 +12,7 @@ SPEC_PATH="${1:?Usage: $0 <desktop_spec>}"
 printf 'stopping\n' > "$DESKTOP_STATUS_FILE"
 owned_storage_session=0
 case "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}" in
-    gnome:*|xfce4:read-only) owned_storage_session=1 ;;
+    gnome:*|hyprland:*|xfce4:read-only) owned_storage_session=1 ;;
 esac
 stop_failure=0
 
@@ -51,7 +51,7 @@ if pid=$(read_pid) && pid_alive "$pid"; then
     fi
 fi
 
-if [ "${DESKTOP_DE:-}" != gnome ] && [ "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}" != xfce4:read-only ]; then
+if [ "${DESKTOP_DE:-}" != hyprland ] && [ "${DESKTOP_DE:-}" != gnome ] && [ "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}" != xfce4:read-only ]; then
     for name in plasmashell kded6 kglobalacceld kactivitymanagerd kwin_wayland Xwayland Xlorie xfce4-session xfwm4 xfdesktop xfce4-panel; do
         signal_by_name TERM "$name"
     done
@@ -61,7 +61,7 @@ if [ "${DESKTOP_DE:-}" != gnome ] && [ "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-o
     done
 fi
 
-rm -f "$DESKTOP_PID_FILE" "$DESKTOP_PID_FILE.container" "$DESKTOP_PID_FILE.gnome-ready" "$DESKTOP_PID_FILE.owned-session"
+rm -f "$DESKTOP_PID_FILE" "$DESKTOP_PID_FILE.container" "$DESKTOP_PID_FILE.gnome-ready" "$DESKTOP_PID_FILE.hyprland-ready" "$DESKTOP_PID_FILE.owned-session"
 if [ "$owned_storage_session" -eq 1 ]; then
     final_status=$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)
     case "$final_status" in

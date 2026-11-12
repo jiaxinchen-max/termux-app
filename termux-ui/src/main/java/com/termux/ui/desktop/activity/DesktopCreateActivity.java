@@ -157,6 +157,8 @@ public final class DesktopCreateActivity extends AppUiActivity {
     }
 
     private void selectDe(DesktopDe selected) {
+        // Experimental client acceleration is always an explicit Hyprland choice.
+        if (selected == DesktopDe.HYPRLAND && de != selected) glMode = DesktopGlMode.SYSTEM;
         de = selected;
         populate();
     }
@@ -261,13 +263,21 @@ public final class DesktopCreateActivity extends AppUiActivity {
         throw new IllegalArgumentException("unknown_desktop_renderer:" + label);
     }
 
-    private String glLabel(DesktopGlMode mode) {
-        if (mode == null) return getString(R.string.desktop_renderer_choose);
-        switch (mode) {
-            case SYSTEM: return getString(R.string.desktop_gl_system);
-            case ZINK: return getString(R.string.desktop_gl_zink);
-            case LLVMPIPE: return getString(R.string.desktop_gl_llvmpipe);
-            default: return getString(R.string.desktop_gl_auto);
+    private String glLabel(DesktopGlMode renderer) {
+        return rendererLabel(this, mode, de, renderer);
+    }
+
+    static String rendererLabel(Context context, DesktopRunMode runMode, DesktopDe de, DesktopGlMode renderer) {
+        if (renderer == null) return context.getString(R.string.desktop_renderer_choose);
+        if (runMode == DesktopRunMode.PROOT && de == DesktopDe.HYPRLAND) {
+            if (renderer == DesktopGlMode.SYSTEM) return context.getString(R.string.desktop_hyprland_gl_default);
+            if (renderer == DesktopGlMode.ZINK) return context.getString(R.string.desktop_hyprland_gl_zink);
+        }
+        switch (renderer) {
+            case SYSTEM: return context.getString(R.string.desktop_gl_system);
+            case ZINK: return context.getString(R.string.desktop_gl_zink);
+            case LLVMPIPE: return context.getString(R.string.desktop_gl_llvmpipe);
+            default: return context.getString(R.string.desktop_gl_auto);
         }
     }
 
@@ -312,7 +322,8 @@ public final class DesktopCreateActivity extends AppUiActivity {
             case XFCE4: return getString(R.string.desktop_de_xfce4_desc);
             case KWIN_PLASMA: return getString(R.string.desktop_de_kwin_plasma_desc);
             case GNOME: return getString(R.string.desktop_de_gnome_desc);
-            case HYPRLAND: return getString(R.string.desktop_de_hyprland_desc);
+            case HYPRLAND: return getString(mode == DesktopRunMode.PROOT
+                ? R.string.desktop_hyprland_proot_renderer_hint : R.string.desktop_de_hyprland_desc);
             default: return getString(R.string.desktop_de_ubuntu_gnome_desc);
         }
     }

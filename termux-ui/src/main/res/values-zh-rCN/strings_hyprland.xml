@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_hyprland_terminal">打开终端</string>
+    <string name="desktop_hyprland_files">打开文件管理器</string>
+    <string name="desktop_hyprland_next">切换到下一个窗口</string>
+    <string name="desktop_hyprland_float">切换浮动窗口</string>
+    <string name="desktop_hyprland_close">关闭当前窗口</string>
+    <string name="desktop_hyprland_gl_default">System EGL · 容器应用默认模式</string>
+    <string name="desktop_hyprland_gl_zink">容器 Zink / Turnip（实验性）</string>
+    <string name="desktop_hyprland_proot_renderer_hint">合成器使用 System EGL。实验性 Zink 仅用于容器应用，需要兼容 Adreno/KGSL 及图形缓冲导入。选择后安装所需组件，再停止并重开。默认模式不保证应用使用 GPU。</string>
+</resources>

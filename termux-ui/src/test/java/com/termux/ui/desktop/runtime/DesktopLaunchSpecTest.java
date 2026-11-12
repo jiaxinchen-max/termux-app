@@ -28,6 +28,36 @@ public class DesktopLaunchSpecTest {
     }
 
     @Test
+    public void hyprlandHasItsOwnPinnedBackendContractForBothClientModes() {
+        for (DesktopRunMode mode : DesktopRunMode.values()) {
+            DesktopDistro distro = new DesktopDistro("h-1", "Hyprland", mode,
+                mode == DesktopRunMode.PROOT ? "debian-hyprland-1" : "", DesktopDe.HYPRLAND,
+                DesktopGlMode.SYSTEM, "1280x720", 60);
+            Map<String,String> spec = parse(DesktopLaunchSpec.encode(distro,
+                "/files/h.pid", "/files/h.status", "/files/h.log"));
+            assertEquals("hyprland", spec.get("DESKTOP_DE"));
+            assertEquals("android", spec.get("DESKTOP_HYPRLAND_BACKEND"));
+            assertEquals("hyprland-android-0.57.0-70ec30e7-r7", spec.get("DESKTOP_HYPRLAND_RELEASE"));
+            assertFalse(spec.containsKey("DESKTOP_GNOME_BACKEND"));
+        }
+    }
+
+    @Test
+    public void hyprlandZinkChangesOnlyGuestRendererContract() {
+        DesktopDistro distro = new DesktopDistro("hy-zink", "Hyprland", DesktopRunMode.PROOT,
+            "debian-hyprland-1", DesktopDe.HYPRLAND, DesktopGlMode.ZINK, "1280x720", 30);
+        Map<String,String> spec = parse(DesktopLaunchSpec.encode(distro,
+            "/files/h.pid", "/files/h.status", "/files/h.log"));
+        assertEquals("zink", spec.get("DESKTOP_GL_MODE"));
+        assertEquals("system", spec.get("DESKTOP_HYPRLAND_HOST_GL_MODE"));
+        assertEquals("zink", spec.get("DESKTOP_HYPRLAND_CLIENT_GL_MODE"));
+        spec = parse(DesktopLaunchSpec.encode(distro.withGlMode(DesktopGlMode.SYSTEM),
+            "/files/h.pid", "/files/h.status", "/files/h.log"));
+        assertEquals("system", spec.get("DESKTOP_HYPRLAND_HOST_GL_MODE"));
+        assertEquals("default", spec.get("DESKTOP_HYPRLAND_CLIENT_GL_MODE"));
+    }
+
+    @Test
     public void encodesEverythingTheScriptsNeed() {
         DesktopDistro distro = new DesktopDistro("p-1", "Debian KDE", DesktopRunMode.PROOT,
             "debian", DesktopGlMode.ZINK, "1920x1080", 60);

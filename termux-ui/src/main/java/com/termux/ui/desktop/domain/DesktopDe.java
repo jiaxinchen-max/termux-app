@@ -4,13 +4,13 @@ package com.termux.ui.desktop.domain;
  * The desktop environment a managed desktop runs.
  *
  * <p>Only {@link #isCreatable()} entries can be created today; the others are shown greyed out as
- * "coming soon" so the option list documents the roadmap (hyprland, Ubuntu GNOME).
+ * "coming soon" so the option list documents the roadmap (Ubuntu GNOME).
  */
 public enum DesktopDe {
     XFCE4("xfce4", true),
     KWIN_PLASMA("kwin_plasma", true),
     GNOME("gnome", true),
-    HYPRLAND("hyprland", false),
+    HYPRLAND("hyprland", true),
     UBUNTU_GNOME("ubuntu_gnome", false);
 
     private final String storageValue;

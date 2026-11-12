@@ -2,6 +2,7 @@ package com.termux.ui.desktop.runtime;
 
 import com.termux.ui.desktop.domain.DesktopDe;
 import com.termux.ui.desktop.domain.DesktopDistro;
+import com.termux.ui.desktop.domain.DesktopGlMode;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 
 /**
@@ -45,6 +46,13 @@ public final class DesktopLaunchSpec {
         put(spec, "DESKTOP_LOG_FILE", requirePath(logFile));
         put(spec, "DESKTOP_RENDER_SOCKET", RENDER_SOCKET_PATH);
         put(spec, "DESKTOP_RELEASE_TAG", RELEASE_TAG);
+        if (distro.getDe() == DesktopDe.HYPRLAND) {
+            put(spec, "DESKTOP_HYPRLAND_RELEASE", "hyprland-android-0.57.0-70ec30e7-r7");
+            put(spec, "DESKTOP_HYPRLAND_BACKEND", "android");
+            put(spec, "DESKTOP_HYPRLAND_HOST_GL_MODE", "system");
+            put(spec, "DESKTOP_HYPRLAND_CLIENT_GL_MODE",
+                distro.getGlMode() == DesktopGlMode.ZINK ? "zink" : "default");
+        }
         if (distro.getDe() == DesktopDe.GNOME) {
             put(spec, "DESKTOP_GNOME_SESSION_STARTUP", "direct");
             put(spec, "DESKTOP_GNOME_BACKEND", distro.getRunMode() == DesktopRunMode.NATIVE ? "android" : "x11");

@@ -16,6 +16,9 @@ public final class DesktopRendererPolicy {
 
     public static List<DesktopGlMode> allowedModes(DesktopRunMode runMode, DesktopDe de) {
         if (runMode==null || de==null || !de.isCreatable()) return Collections.emptyList();
+        if (de==DesktopDe.HYPRLAND) return runMode==DesktopRunMode.PROOT
+            ? Collections.unmodifiableList(Arrays.asList(DesktopGlMode.SYSTEM, DesktopGlMode.ZINK))
+            : Collections.singletonList(DesktopGlMode.SYSTEM);
         if (de==DesktopDe.GNOME && runMode==DesktopRunMode.NATIVE)
             return Collections.singletonList(DesktopGlMode.SYSTEM);
         if (runMode==DesktopRunMode.PROOT && (de==DesktopDe.KWIN_PLASMA || de==DesktopDe.GNOME))

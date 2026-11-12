@@ -50,6 +50,8 @@ final class DesktopSettingsDialog {
                     + activity.getString(R.string.desktop_tab_native))));
         if (container && distro.getDe() == DesktopDe.GNOME)
             sheet.desktopSettingsHint.append("\n" + activity.getString(R.string.desktop_gnome_proot_renderer_hint));
+        if (container && distro.getDe() == DesktopDe.HYPRLAND)
+            sheet.desktopSettingsHint.append("\n" + activity.getString(R.string.desktop_hyprland_proot_renderer_hint));
         sheet.desktopSettingsNameLayout.setVisibility(container ? View.VISIBLE : View.GONE);
         sheet.desktopSettingsNameNote.setVisibility(container ? View.GONE : View.VISIBLE);
         if (container) sheet.desktopSettingsName.setText(distro.getName());
@@ -65,8 +67,8 @@ final class DesktopSettingsDialog {
             () -> refresh[0] + " Hz",
             value -> refresh[0] = Integer.parseInt(value.substring(0, value.length() - 3)));
         bind(activity, sheet.desktopSettingsRenderer, R.string.desktop_select_renderer,
-            rendererLabels(activity, distro), () -> glLabel(activity, gl[0]),
-            value -> gl[0] = glOf(activity, value));
+            rendererLabels(activity, distro), () -> glLabel(activity, distro, gl[0]),
+            value -> gl[0] = glOf(activity, distro, value));
 
         sheet.desktopSettingsCancel.setOnClickListener(view -> dialog.dismiss());
         sheet.desktopSettingsSave.setOnClickListener(view -> {
@@ -130,24 +132,19 @@ final class DesktopSettingsDialog {
     private static String[] rendererLabels(DesktopActivity activity, DesktopDistro distro) {
         List<String> labels = new ArrayList<>();
         for (DesktopGlMode renderer : DesktopRendererPolicy.allowedModes(distro.getRunMode(), distro.getDe()))
-            labels.add(glLabel(activity, renderer));
+            labels.add(glLabel(activity, distro, renderer));
         return labels.toArray(new String[0]);
     }
 
-    private static DesktopGlMode glOf(DesktopActivity activity, String label) {
-        if (label.equals(glLabel(activity, DesktopGlMode.SYSTEM))) return DesktopGlMode.SYSTEM;
-        if (label.equals(glLabel(activity, DesktopGlMode.ZINK))) return DesktopGlMode.ZINK;
-        if (label.equals(glLabel(activity, DesktopGlMode.LLVMPIPE)))
+    private static DesktopGlMode glOf(DesktopActivity activity, DesktopDistro distro, String label) {
+        if (label.equals(glLabel(activity, distro, DesktopGlMode.SYSTEM))) return DesktopGlMode.SYSTEM;
+        if (label.equals(glLabel(activity, distro, DesktopGlMode.ZINK))) return DesktopGlMode.ZINK;
+        if (label.equals(glLabel(activity, distro, DesktopGlMode.LLVMPIPE)))
             return DesktopGlMode.LLVMPIPE;
         throw new IllegalArgumentException("unknown_desktop_renderer:" + label);
     }
 
-    private static String glLabel(DesktopActivity activity, DesktopGlMode mode) {
-        switch (mode) {
-            case SYSTEM: return activity.getString(R.string.desktop_gl_system);
-            case ZINK: return activity.getString(R.string.desktop_gl_zink);
-            case LLVMPIPE: return activity.getString(R.string.desktop_gl_llvmpipe);
-            default: return activity.getString(R.string.desktop_gl_auto);
-        }
+    private static String glLabel(DesktopActivity activity, DesktopDistro distro, DesktopGlMode mode) {
+        return DesktopCreateActivity.rendererLabel(activity, distro.getRunMode(), distro.getDe(), mode);
     }
 }

@@ -4,6 +4,7 @@ import androidx.annotation.Nullable;
 
 import com.termux.ui.desktop.domain.DesktopDe;
 import com.termux.ui.desktop.domain.DesktopDistro;
+import com.termux.ui.desktop.domain.DesktopGlMode;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 
 import java.io.File;
@@ -34,6 +35,31 @@ public final class DesktopEnvironment {
                 // Both modes run the KWin compositor natively; proot only adds the container.
                 host = new File(prefix, "bin/start-plasma").isFile();
                 break;
+            case HYPRLAND:
+                File runtime = new File(prefix, "opt/termux-hyprland/0.57.0-r7");
+                host = new File(prefix, "bin/python3").isFile()
+                    && new File(prefix, "bin/dbus-daemon").isFile()
+                    && new File(prefix, "bin/eww").isFile()
+                    && new File(prefix, "bin/foot").isFile()
+                    && new File(prefix, "bin/fish").isFile()
+                    && new File(prefix, "bin/starship").isFile()
+                    && new File(prefix, "bin/fc-cache").isFile()
+                    && new File(prefix, "bin/xfce4-panel").isFile()
+                    && new File(prefix, "bin/swaybg").isFile()
+                    && new File(prefix, "bin/xfconf-query").isFile()
+                    && new File(prefix, "bin/dbus-send").isFile()
+                    && new File(prefix, "lib/xfce4/notifyd/xfce4-notifyd").isFile()
+                    && new File(prefix, "lib/xfce4/panel/plugins/libgenmon.so").isFile()
+                    && new File(runtime, "bin/Hyprland").isFile()
+                    && new File(runtime, "bin/Xwayland").isFile()
+                    && new File(runtime, "lib/hyprland/android/libhyprland-system-gl.so").isFile()
+                    && new File(runtime, "lib/hyprland/android/libvndksupport.so").isFile()
+                    && "6024fd61a4923031ce9d7c4d35c1d545e75cbff16fe1ae9ab8aab86a0167f948".equals(
+                        head(new File(runtime, ".installed"), 80).trim())
+                    && (distro.getRunMode() == DesktopRunMode.PROOT
+                        || new File(prefix, "bin/xfce4-terminal").isFile()
+                            && new File(prefix, "bin/thunar").isFile());
+                break;
             case GNOME:
                 host = new File(prefix, "bin/python3").isFile()
                     && new File(prefix, "libexec/termux-gnome/launch.py").isFile()
@@ -56,6 +82,15 @@ public final class DesktopEnvironment {
         if (distro.getRunMode() == DesktopRunMode.NATIVE) return true;
         if (!new File(prefix, "bin/proot-distro").isFile()) return false;
         File container = containerDir(distro.getProotDistro());
+        if (container != null && distro.getDe() == DesktopDe.HYPRLAND
+                && distro.getGlMode() == DesktopGlMode.ZINK) {
+            return "b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687".equals(
+                head(new File(container, ".desktop-de-hyprland-zink"), 80).trim())
+                && new File(container, ".desktop-de-hyprland").isFile()
+                && new File(container, "rootfs/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json").isFile()
+                && new File(container, "rootfs/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so").isFile()
+                && new File(container, "rootfs/usr/bin/python3").isFile();
+        }
         // The marker is written by the install script once the desktop packages are in the
         // container; a half-provisioned instance (interrupted apt) stays "not installed".
         return container != null
@@ -96,6 +131,16 @@ public final class DesktopEnvironment {
         if (distro.getDe()!=DesktopDe.GNOME || distro.getRunMode()!=DesktopRunMode.NATIVE)
             throw new IllegalArgumentException("desktop_gnome_native_required");
         return new File(home,".termux/gnome-"+distro.getId()+"/runtime/wayland-gnome");
+    }
+
+    public File hyprlandWaylandSocket(DesktopDistro distro) {
+        return new File(home, ".termux/hyprland-" + distro.getId() + "/runtime/wayland-hyprland");
+    }
+
+    public static boolean hyprlandReadyMarkerMatches(File pidFile, long currentPid) {
+        File marker = new File(pidFile.getPath() + ".hyprland-ready");
+        return currentPid > 0 && marker.isFile() && marker.length() <= 32
+            && Long.toString(currentPid).equals(head(marker, 32).trim());
     }
 
     /** A stale marker from an earlier launcher must not mark a new process ready. */
