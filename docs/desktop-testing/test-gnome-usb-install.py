@@ -39,6 +39,16 @@ elif command=='pkg':
 elif command=='apt':
     if state.get('apt_error'):
         print('E: fixture dependency failure',file=sys.stderr);sys.exit(state['apt_error'])
+    services=[]
+    if 'dconf' in args: services.append('ca.desrt.dconf')
+    if 'gvfs' in args: services.append('org.gtk.vfs.Daemon')
+    if any(pathlib.Path(arg).name.startswith('nautilus_') for arg in args):
+        services.append('org.gnome.Nautilus')
+    for service in services:
+        if service==state.get('missing_gnome_service'): continue
+        target=case/'usr/share/dbus-1/services'/(service+'.service')
+        target.parent.mkdir(parents=True,exist_ok=True)
+        target.write_text('[D-BUS Service]\nName='+service+'\n')
     if 'pulseaudio' in args:
         for name in ('pulseaudio','pactl'):
             target=case/'usr/bin'/name
@@ -209,10 +219,22 @@ class InstallContract(unittest.TestCase):
         self.assertTrue(any(Path(arg).name=='mutter_48.1-24_aarch64.deb' for arg in apt),apt)
         self.assertTrue(any(Path(arg).name=='gnome-shell_48.7-1_aarch64.deb' for arg in apt),apt)
         self.assertIn('python',apt)
+        self.assertIn('gvfs',apt)
         self.assertFalse(any('termux-usb-bridge_' in arg for call in calls for arg in call),calls)
         self.assertEqual((ASSETS/'desktop_gnome_launch.py').read_bytes(),
             (self.base/'usr/libexec/termux-gnome/launch.py').read_bytes())
         self.assertEqual('exit:0\n',(self.base/'state/status').read_text())
+
+    def test_native_gnome_cannot_finish_with_a_missing_required_dbus_service(self):
+        for service in ('ca.desrt.dconf','org.gtk.vfs.Daemon','org.gnome.Nautilus'):
+            with self.subTest(service=service):
+                services=self.base/'usr/share/dbus-1/services'
+                if services.exists(): shutil.rmtree(services)
+                result,calls=self.run_install(missing_gnome_service=service)
+                self.assertNotEqual(0,result.returncode,result.stdout)
+                self.assertIn(service+'.service',result.stdout)
+                self.assertNotIn('Desktop install finished.',result.stdout)
+                self.assertNotEqual('exit:0\n',(self.base/'state/status').read_text())
 
     def test_native_xfce_and_plasma_keep_their_original_package_families(self):
         for de,package in [('xfce4','xfce4'),('kwin_plasma','plasma-desktop')]:

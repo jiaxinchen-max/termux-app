@@ -506,7 +506,7 @@ fi
 if [ "$DESKTOP_MODE" = "native" ]; then
     if [ "$DESKTOP_DE" = gnome ]; then
         # shellcheck disable=SC2086
-        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio python dbus dconf adwaita-icon-theme gnome-backgrounds xorg-xdpyinfo || fail 'apt install GNOME'
+        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio python dbus dconf gvfs adwaita-icon-theme gnome-backgrounds xorg-xdpyinfo || fail 'apt install GNOME'
     elif [ "$DESKTOP_DE" = "xfce4" ]; then
         # shellcheck disable=SC2086
         run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio xfce4 xfce4-terminal dbus || fail "apt install xfce4"
@@ -608,6 +608,13 @@ while read -r name digest; do
     pinned_package_valid "$package" "$version" || fail "installed package verification failed: $package $version"
 done < "$DESKTOP_LOG_FILE.verify-manifest.$$"
 rm -f "$DESKTOP_LOG_FILE.verify-manifest.$$"
+if [ "$DESKTOP_MODE:$DESKTOP_DE" = native:gnome ]; then
+    # Match the launcher's core D-Bus policy: apt success alone does not prove these exist.
+    for service in ca.desrt.dconf org.gtk.vfs.Daemon org.gnome.Nautilus; do
+        [ -f "$PREFIX/share/dbus-1/services/$service.service" ] || \
+            fail "Required Native GNOME D-Bus service is missing: $service.service. Reinstall the GNOME desktop."
+    done
+fi
 if [ "$DESKTOP_MODE" = proot ]; then
     : > "$de_marker" || fail 'writing the verified container install marker'
 fi

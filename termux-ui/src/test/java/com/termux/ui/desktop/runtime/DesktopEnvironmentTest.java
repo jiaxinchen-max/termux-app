@@ -119,7 +119,17 @@ public class DesktopEnvironmentTest {
             DesktopGlMode.SYSTEM,"1280x720",60);
         touch("usr/bin/python3");touch("usr/bin/gnome-shell");assertFalse(env.isInstalled(d));
         touch("usr/bin/gnome-session");assertFalse(env.isInstalled(d));
-        touch("usr/libexec/termux-gnome/launch.py");assertTrue(env.isInstalled(d));
+        touch("usr/libexec/termux-gnome/launch.py");assertFalse(env.isInstalled(d));
+        String[] services={"ca.desrt.dconf", "org.gtk.vfs.Daemon", "org.gnome.Nautilus"};
+        for (String service:services) touch("usr/share/dbus-1/services/"+service+".service");
+        assertTrue(env.isInstalled(d));
+        for (String service:services) {
+            File file=new File(temporaryFolder.getRoot(),"usr/share/dbus-1/services/"+service+".service");
+            assertTrue(file.delete());
+            assertFalse(env.isInstalled(d));
+            touch("usr/share/dbus-1/services/"+service+".service");
+            assertTrue(env.isInstalled(d));
+        }
         assertTrue(env.gnomeWaylandSocket(d).getPath().endsWith("home/.termux/gnome-gn/runtime/wayland-gnome"));
     }
     @Test public void gnomeProotRequiresPythonXlorieAndMatchingInstalledMarker() throws Exception {

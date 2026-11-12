@@ -40,6 +40,7 @@ public final class DesktopEnvironment {
                     && (distro.getRunMode() == DesktopRunMode.NATIVE
                         ? new File(prefix, "bin/gnome-shell").isFile()
                             && new File(prefix, "bin/gnome-session").isFile()
+                            && nativeGnomeServicesInstalled()
                         : new File(prefix, "bin/Xlorie").isFile());
                 break;
             case XFCE4:
@@ -59,6 +60,14 @@ public final class DesktopEnvironment {
         // container; a half-provisioned instance (interrupted apt) stays "not installed".
         return container != null
             && new File(container, ".desktop-de-" + distro.getDe().getStorageValue()).isFile();
+    }
+
+    private boolean nativeGnomeServicesInstalled() {
+        // Required by desktop_gnome_launch.py's core D-Bus activation policy.
+        for (String service : new String[]{"ca.desrt.dconf", "org.gtk.vfs.Daemon", "org.gnome.Nautilus"}) {
+            if (!new File(prefix, "share/dbus-1/services/" + service + ".service").isFile()) return false;
+        }
+        return true;
     }
 
     /** The X socket the Xlorie-based sessions listen on; its presence means the display is up. */
