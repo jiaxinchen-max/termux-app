@@ -1,0 +1,14 @@
+
+* { all: unset; font-family: "JetBrainsMono Nerd Font", sans-serif; font-size: 13px; color: #e8e1ff; }
+.bar { background: rgba(12,16,32,.88); border-radius: 18px; padding: 6px 10px; border: 1px solid rgba(173,160,224,.22); }
+.pill { background: #24263e; border-radius: 24px; padding: 0px 8px; }
+button { padding: 8px 12px; border-radius: 22px; min-height: 28px; }
+button:hover { background: #3e3b5b; }
+.launch { background: #c8b6ff; color: #201b35; font-weight: bold; }
+.workspace { padding: 5px 8px; min-width: 28px; min-height: 34px; color: #a7a7bc; }
+.current { background: #c6b5f4; color: #171629; }
+.task { padding: 5px 10px; min-height: 34px; color: #d1cae9; }
+.active { background: #45415e; color: #eee6ff; }
+.clock { color: #ede5ff; }
+.battery { color: #b4d9cd; padding: 0 12px; }
+.small { color: #aaa9c2; font-size: 11px; }

@@ -38,3 +38,7 @@
 - **THEN** 宿主保持System EGL，沿用真实硬件与Wayland窗口诊断；模拟器不支持只记录负向结果。
 
 用户补充并授权：创建页仅展示受支持桌面候选卡片；当前底层发行版固定Debian，不展示发行版选择或Coming soon占位。Ubuntu GNOME的独立发行版问题另行核对，不作为已支持项目显示。
+
+## KWin PRoot 后续修正约定
+
+用户已确认 fix-kwin-proot-renderer-selection。本文原始 Plasma 同名配对限制由该活动变更的独立四组合、默认 System EGL/LLVMpipe 和实际后端验证方案取代；其他桌面白名单与历史验证记录保持。

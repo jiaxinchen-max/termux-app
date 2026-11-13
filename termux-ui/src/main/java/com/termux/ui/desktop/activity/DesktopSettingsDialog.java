@@ -6,6 +6,7 @@ import android.view.View;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.termux.ui.R;
+import com.termux.ui.desktop.domain.HyprlandComponents;
 import com.termux.ui.activity.FrostedDialogBuilder;
 import com.termux.ui.activity.FrostedWindow;
 import com.termux.ui.databinding.ItemDesktopSelectBinding;
@@ -56,6 +57,16 @@ final class DesktopSettingsDialog {
         sheet.desktopSettingsNameNote.setVisibility(container ? View.GONE : View.VISIBLE);
         if (container) sheet.desktopSettingsName.setText(distro.getName());
 
+        final String[] theme = {distro.getHyprlandThemeId()};
+        sheet.desktopSettingsHyprlandRuntime.getRoot().setVisibility(distro.getDe() == DesktopDe.HYPRLAND ? View.VISIBLE : View.GONE);
+        sheet.desktopSettingsHyprlandTheme.getRoot().setVisibility(distro.getDe() == DesktopDe.HYPRLAND ? View.VISIBLE : View.GONE);
+        if (distro.getDe() == DesktopDe.HYPRLAND) {
+            bind(activity, sheet.desktopSettingsHyprlandRuntime, R.string.desktop_hyprland_compositor,
+                new String[]{distro.getHyprlandRuntimeId()}, distro::getHyprlandRuntimeId, value -> { });
+            bind(activity, sheet.desktopSettingsHyprlandTheme, R.string.desktop_hyprland_theme,
+                DesktopCreateActivity.themeLabels(activity), () -> DesktopCreateActivity.themeLabel(activity, theme[0]),
+                value -> theme[0] = DesktopCreateActivity.themeOf(activity, value));
+        }
         final String[] resolution = {distro.getResolution()};
         final int[] refresh = {distro.getRefreshRate()};
         final DesktopGlMode[] host = {distro.getHostGlMode()};
@@ -92,21 +103,30 @@ final class DesktopSettingsDialog {
             String name = container ? String.valueOf(sheet.desktopSettingsName.getText())
                 : distro.getName();
             if (name == null || name.trim().isEmpty()) name = distro.getName();
-            DesktopDistro updated = distro.withName(name.trim())
+            DesktopDistro edited = distro.withName(name.trim())
                 .withRenderers(host[0], guest[0]).withOutput(resolution[0], refresh[0]);
+            final DesktopDistro updated = distro.getDe() == DesktopDe.HYPRLAND
+                ? edited.withHyprlandComponents(distro.getHyprlandRuntimeId(), theme[0]) : edited;
             dialog.dismiss();
             new Thread(() -> {
                 try {
-                    tasks.save(updated);
-                    if (updated.getHostGlMode() != distro.getHostGlMode()
-                            || updated.getGuestGlMode() != distro.getGuestGlMode()) {
-                        activity.installAndShowConsole(updated);
+                    if (distro.getDe() == DesktopDe.HYPRLAND && !theme[0].equals(distro.getHyprlandThemeId())) {
+                        String task = tasks.changeHyprlandComponents(updated);
+                        activity.runOnUiThread(() -> activity.showInstallConsole(task));
+                    } else {
+                        tasks.save(updated);
+                        if (updated.getHostGlMode() != distro.getHostGlMode()
+                                || updated.getGuestGlMode() != distro.getGuestGlMode()) {
+                            activity.installAndShowConsole(updated);
+                        }
                     }
                     activity.runOnUiThread(onSaved);
                 } catch (IOException | LaunchHostException error) {
                     android.util.Log.e("DesktopSettings", "Unable to save desktop settings", error);
                     activity.runOnUiThread(() -> android.widget.Toast.makeText(activity,
-                        activity.getString(R.string.desktop_error, "desktop_settings_save_failed"),
+                        "desktop_stop_before_theme_change".equals(error.getMessage())
+                            ? activity.getString(R.string.desktop_hyprland_stop_before_change)
+                            : activity.getString(R.string.desktop_error, "desktop_settings_save_failed"),
                         android.widget.Toast.LENGTH_LONG).show());
                 }
             }, "DesktopSettingsSave").start();

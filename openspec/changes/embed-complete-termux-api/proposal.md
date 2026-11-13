@@ -19,3 +19,7 @@ api_docs 为 N/A：本次为 Android 本地 IPC 与 CLI 契约，没有 HTTP API
 
 ## 审批与风险
 Manifest 中敏感权限与组件、Gradle 模块依赖、进程初始化、同 UID IPC 和组件安装配置均列为受保护修改。需要确认本提案及 design/specs/tasks 后实施；不含 Git 提交、推送或组件发布授权。权限只在用户调用对应功能时申请。
+
+## 已确认的交付方式修订（download-runtime-assets-on-demand）
+
+用户已确认主题与 API 配套资源改为资产库按需下载，取代本文件此前内嵌主题/CLI/deb 的交付要求。Android API 宿主保留 APK；Linux 下随 App 构建配套包与是否打入 APK 分开处理。最终要求及验收场景以 download-runtime-assets-on-demand 的四项规划为准，历史发布与验证记录保留原意，不声称旧 APK 已外置。

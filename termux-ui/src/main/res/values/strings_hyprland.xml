@@ -8,4 +8,12 @@
     <string name="desktop_hyprland_gl_default">System EGL · default container apps</string>
     <string name="desktop_hyprland_gl_zink">Container Zink / Turnip (experimental)</string>
     <string name="desktop_hyprland_proot_renderer_hint">The compositor uses System EGL. Experimental Zink accelerates container apps only on compatible Adreno/KGSL devices with buffer import support. Select Zink, install its components, then stop and reopen. Default mode does not guarantee app GPU rendering.</string>
+    <string name="desktop_hyprland_compositor">Hyprland compositor</string>
+    <string name="desktop_hyprland_theme">Desktop theme</string>
+    <string name="desktop_hyprland_classic">Classic · r7</string>
+    <string name="desktop_hyprland_m3ww">m3ww · v1 (r8)</string>
+    <string name="desktop_hyprland_stop_before_change">Stop this desktop before changing its theme.</string>
+    <string name="desktop_hyprland_components_summary">Compositor %1$s · %2$s</string>
+    <string name="desktop_hyprland_runtime_missing">Compositor needs installation or repair</string>
+    <string name="desktop_hyprland_theme_missing">Theme or its dependencies need installation</string>
 </resources>

@@ -13,7 +13,7 @@ PAIRS = set('''native:xfce4:system:none native:xfce4:zink:none native:xfce4:llvm
 native:kwin_plasma:system:none native:kwin_plasma:zink:none native:kwin_plasma:llvmpipe:none
 native:gnome:system:none native:ubuntu_gnome:system:none native:hyprland:system:none
 proot:xfce4:system:default proot:xfce4:zink:default proot:xfce4:llvmpipe:default
-proot:kwin_plasma:zink:zink proot:kwin_plasma:llvmpipe:llvmpipe
+proot:kwin_plasma:system:llvmpipe proot:kwin_plasma:system:zink proot:kwin_plasma:zink:llvmpipe proot:kwin_plasma:zink:zink proot:kwin_plasma:llvmpipe:llvmpipe
 proot:gnome:system:llvmpipe proot:gnome:zink:zink proot:ubuntu_gnome:system:llvmpipe
 proot:hyprland:system:default proot:hyprland:system:zink'''.split())
 
@@ -71,7 +71,7 @@ class DesktopRenderingTest(unittest.TestCase):
                 (state/'other.pid').write_text(str(other.pid))
                 spec = base/'spec'
                 values = dict(DESKTOP_SPEC_VERSION='3', DESKTOP_ID='new', DESKTOP_MODE='proot',
-                              DESKTOP_DE='kwin_plasma', DESKTOP_HOST_GL_MODE='system', DESKTOP_GUEST_GL_MODE='zink',
+                              DESKTOP_DE='kwin_plasma', DESKTOP_HOST_GL_MODE='llvmpipe', DESKTOP_GUEST_GL_MODE='zink',
                               DESKTOP_PID_FILE=str(state/'new.pid'), DESKTOP_STATUS_FILE=str(state/'new.status'),
                               DESKTOP_LOG_FILE=str(base/'log'))
                 spec.write_text(''.join(k+'='+shlex.quote(v)+'\n' for k,v in values.items()))

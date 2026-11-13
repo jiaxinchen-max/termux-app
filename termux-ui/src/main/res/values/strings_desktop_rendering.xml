@@ -8,7 +8,7 @@
     <string name="desktop_host_summary">Host: %1$s</string>
     <string name="desktop_guest_summary">Container: %1$s</string>
     <string name="desktop_xfce_renderer_hint">The host Xlorie renderer is configured separately. XFCE uses its default container environment; independent container GPU acceleration is not configured.</string>
-    <string name="desktop_plasma_renderer_hint">KWin runs on the host; Plasma Shell runs inside Debian. Supported pairs are Zink / Zink or LLVMpipe / LLVMpipe. Both selections must match.</string>
+    <string name="desktop_plasma_renderer_hint">KWin runs on the host; Plasma Shell runs inside Debian. Choose System EGL or Zink for the host, and LLVMpipe or Zink for the container independently. Zink requires a working Vulkan backend; software Vulkan uses the CPU.</string>
     <string name="desktop_renderer_pair_unsupported">This host and container renderer pair is unsupported. Check the supported pairs shown above; both selections must be set explicitly.</string>
     <string name="desktop_ubuntu_gnome_renderer_hint">Xlorie uses System EGL on the host. Ubuntu GNOME uses software rendering inside Ubuntu 24.04 LTS; container GPU acceleration, USB storage and backup are not yet supported.</string>
     <string name="desktop_native_ubuntu_hint">Ubuntu style · Native GNOME. Yaru theme, left Dock, system tray and desktop icons. Uses Android System EGL; runs native Termux applications.</string>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#101b35"/><stop offset="1" stop-color="#173f50"/></linearGradient>
+<linearGradient id="wave"><stop stop-color="#16465c"/><stop offset="1" stop-color="#256779"/></linearGradient></defs>
+<path fill="url(#bg)" d="M0 0h1920v1080H0z"/>
+<path fill="url(#wave)" d="M0 850Q520 200 1050 750T1920 550V1080H0Z"/>
+<path fill="#1a5267" opacity=".55" d="M0 980Q700 400 1300 900T1920 700V1080H0Z"/>
+</svg>

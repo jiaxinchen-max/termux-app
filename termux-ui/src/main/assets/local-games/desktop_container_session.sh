@@ -1,5 +1,5 @@
 #!/bin/sh
-# Plasma clients run in the container; the native compositor uses the same explicit mode.
+# Plasma clients run in the container; the native compositor has its own independent mode.
 
 set -u
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -33,9 +33,12 @@ unset LIBGL_ALWAYS_SOFTWARE MESA_LOADER_DRIVER_OVERRIDE GALLIUM_DRIVER
 [ -n "${DESKTOP_GUEST_GL_MODE:-}" ] && [ -z "${DESKTOP_GL_MODE:-}" ] || exit 64
 case "$DESKTOP_GUEST_GL_MODE" in
     zink)
-        export QSG_RHI_BACKEND=vulkan
-        export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json
-        export VK_DRIVER_FILES="$VK_ICD_FILENAMES"
+        # Use OpenGL over the selected Zink backend, rather than a Vulkan RHI bypassing Zink.
+        case "${DESKTOP_PLASMA_GUEST_ICD:-}" in /usr/share/vulkan/icd.d/*) ;; *) echo 'ERROR: explicit initialized guest ICD required' >&2; exit 66 ;; esac
+        case "${DESKTOP_PLASMA_GUEST_SOFTWARE:-}" in 0|1) ;; *) exit 66 ;; esac
+        export QSG_RHI_BACKEND=opengl GALLIUM_DRIVER=zink MESA_LOADER_DRIVER_OVERRIDE=zink
+        export VK_ICD_FILENAMES="$DESKTOP_PLASMA_GUEST_ICD" VK_DRIVER_FILES="$DESKTOP_PLASMA_GUEST_ICD"
+        export LIBGL_ALWAYS_SOFTWARE="$DESKTOP_PLASMA_GUEST_SOFTWARE"
         ;;
     llvmpipe)
         export QT_QUICK_BACKEND=software

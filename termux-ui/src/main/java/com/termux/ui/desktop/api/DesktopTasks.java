@@ -43,23 +43,46 @@ public final class DesktopTasks {
     private final GameStoragePaths paths;
     private final DesktopDistroRepository repository;
     private final DesktopEnvironment environment;
+    private final com.termux.ui.desktop.data.HyprlandSelectionTransaction selections;
 
     public DesktopTasks(@NonNull Context context) {
         this.context = context.getApplicationContext();
         File filesDirectory = this.context.getFilesDir();
         this.paths = new GameStoragePaths(filesDirectory);
-        this.repository = new FileDesktopDistroRepository(paths.getDesktopDistrosDirectory());
+        this.repository = new FileDesktopDistroRepository(paths.getDesktopDistrosDirectory(), new File(filesDirectory, "home"));
         this.environment = new DesktopEnvironment(filesDirectory);
+        this.selections = new com.termux.ui.desktop.data.HyprlandSelectionTransaction(
+            new File(paths.getDesktopDistrosDirectory(), "pending-hyprland"), repository);
     }
 
-    @NonNull public List<DesktopDistro> list() throws IOException { return repository.list(); }
+    @NonNull public List<DesktopDistro> list() throws IOException {
+        for (DesktopDistro distro : repository.list()) activeInstallTask(distro);
+        return repository.list();
+    }
 
     @NonNull public Optional<DesktopDistro> find(@NonNull String id) throws IOException {
+        Optional<DesktopDistro> current = repository.find(id);
+        if (current.isPresent()) activeInstallTask(current.get());
         return repository.find(id);
     }
 
     public void save(@NonNull DesktopDistro distro) throws IOException {
-        if (repository.find(distro.getId()).isPresent()) forceStop(distro);
+        Optional<DesktopDistro> current = repository.find(distro.getId());
+        if (current.isPresent() && componentsChanged(current.get(), distro)) {
+            synchronized (DesktopOperationGate.LOCK) {
+                try {
+                    DesktopOperationGate.requireAvailable();
+                    DesktopRendererPolicy.requireSupported(distro);
+                } catch (IllegalArgumentException invalid) {
+                    throw new IOException(invalid.getMessage(), invalid);
+                }
+                requireComponentSwitchStopped(sessionState(current.get()));
+                if (!environment.isInstalled(distro)) throw new IOException("hyprland_theme_install_required");
+                repository.save(distro);
+            }
+            return;
+        }
+        if (current.isPresent()) forceStop(distro);
         synchronized (DesktopOperationGate.LOCK) {
             try { requireNoInstallation(distro); }
             catch (LaunchHostException busy) { throw new IOException(busy.getErrorCode(), busy); }
@@ -69,6 +92,31 @@ public final class DesktopTasks {
 
         }
     }
+
+    static boolean componentsChanged(DesktopDistro before, DesktopDistro after) {
+        return before.getDe() == DesktopDe.HYPRLAND
+            && (!before.getHyprlandRuntimeId().equals(after.getHyprlandRuntimeId())
+                || !before.getHyprlandThemeId().equals(after.getHyprlandThemeId()));
+    }
+
+    static void requireComponentSwitchStopped(DesktopSessionState state) throws IOException {
+        if (state.isActive()) throw new IOException("desktop_stop_before_theme_change");
+    }
+
+    public String changeHyprlandComponents(DesktopDistro candidate) throws IOException, LaunchHostException {
+        synchronized (DesktopOperationGate.LOCK) {
+            DesktopDistro current = repository.find(candidate.getId()).orElseThrow(
+                () -> new IOException("desktop_not_found"));
+            if (candidate.getDe() != DesktopDe.HYPRLAND || !componentsChanged(current, candidate))
+                throw new IOException("hyprland_selection_required");
+            requireComponentSwitchStopped(sessionState(current));
+            // The install script sees the candidate, while the inventory keeps the last good selection.
+            return install(candidate, true, environment.isInstalled(current));
+        }
+    }
+
+    public boolean hyprlandRuntimeInstalled(DesktopDistro distro) { return environment.hyprlandRuntimeInstalled(distro); }
+    public boolean hyprlandThemeInstalled(DesktopDistro distro) { return environment.hyprlandThemeInstalled(distro); }
 
     static void requireNotStopping(DesktopSessionState state) throws IOException {
         if (state == DesktopSessionState.STOPPING) throw new IOException("desktop_stopping");
@@ -193,6 +241,10 @@ public final class DesktopTasks {
     /** Runs the install script in a visible Termux terminal; returns the task id. */
     @NonNull
     public String install(@NonNull DesktopDistro distro) throws LaunchHostException {
+        return install(distro, false, false);
+    }
+
+    private String install(DesktopDistro distro, boolean componentSelection, boolean themeOnly) throws LaunchHostException {
         synchronized (DesktopOperationGate.LOCK) {
             String existing = activeInstallTask(distro);
             if (existing != null) return existing;
@@ -204,6 +256,10 @@ public final class DesktopTasks {
             LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
             commandStatus(distro, "installing");
             try {
+                if (componentSelection) {
+                    if (themeOnly) writeSpec(distro, true);
+                    selections.stage(distro, taskId);
+                }
                 com.termux.ui.desktop.runtime.DesktopInstallState.writeTask(installRecord(distro), taskId);
                 com.termux.ui.wine.runtime.RuntimeEditingStop.register(taskId, "desktop:" + distro.getId());
                 LocalGames.requireHost(context).startTermuxPackageInstall(new RuntimeSetupRequest(
@@ -211,6 +267,10 @@ public final class DesktopTasks {
                     paths.getRuntimeDirectory().getPath()));
             } catch (LaunchHostException | IOException | RuntimeException error) {
                 installRecord(distro).delete();
+                if (componentSelection) {
+                    try { selections.discard(distro.getId()); }
+                    catch (IOException cleanup) { error.addSuppressed(cleanup); }
+                }
                 commandStatus(distro, "exit:1");
                 if (error instanceof LaunchHostException) throw (LaunchHostException) error;
                 throw new LaunchHostException("desktop_install_submit_failed", true, error);
@@ -246,6 +306,12 @@ public final class DesktopTasks {
                 } catch (IOException | LaunchHostException error) {
                     throw new IllegalStateException("desktop_install_reconcile_failed", error);
                 }
+            }
+            try {
+                selections.finish(distro.getId(), id,
+                    "exit:0".equals(readStatus(paths.getDesktopStatusFile(distro.getId()))), environment::isInstalled);
+            } catch (IOException error) {
+                throw new IllegalStateException("hyprland_selection_commit_failed", error);
             }
             record.delete();
             return null;
@@ -402,6 +468,10 @@ public final class DesktopTasks {
     }
 
     private void writeSpec(DesktopDistro distro) throws IOException {
+        writeSpec(distro, false);
+    }
+
+    private void writeSpec(DesktopDistro distro, boolean componentSelection) throws IOException {
         File spec = paths.getDesktopSpecFile(distro.getId());
         File directory = spec.getParentFile();
         if (!directory.isDirectory() && !directory.mkdirs()) {
@@ -411,6 +481,7 @@ public final class DesktopTasks {
             paths.getDesktopPidFile(distro.getId()).getPath(),
             paths.getDesktopStatusFile(distro.getId()).getPath(),
             paths.getDesktopLogFile(distro.getId()).getPath());
+        if (componentSelection) content += "DESKTOP_HYPRLAND_COMPONENT_SWITCH=1\n";
         File temporary = new File(directory, spec.getName() + ".tmp");
         try (FileOutputStream output = new FileOutputStream(temporary)) {
             output.write(content.getBytes(StandardCharsets.UTF_8));

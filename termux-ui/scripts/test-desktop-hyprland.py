@@ -29,6 +29,8 @@ class ComponentTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.prefix = patch.object(h, 'PREFIX', self.root / 'usr'); self.prefix.start()
         self.home = patch.object(h, 'HOME', self.root / 'home'); self.home.start()
+        h.COMPONENTS['install_theme'].__globals__['PREFIX'] = h.PREFIX
+        h.COMPONENTS['install_theme'](h.VERSION, 'm3ww-v1', Path(__file__).resolve().parents[2] / 'distribution/hyprland-themes/build/hyprland-theme-m3ww-v1.tgz')
 
     def tearDown(self):
         self.home.stop(); self.prefix.stop(); self.temp.cleanup()
@@ -122,7 +124,7 @@ class ComponentTests(unittest.TestCase):
         terminal=h.PREFIX/'bin/xfce4-terminal'
         terminal.write_text('#!/usr/bin/python3\nimport os,time\nfrom pathlib import Path\nPath('+repr(str(self.root/'client-environment'))+').write_text(repr((os.getenv("LD_LIBRARY_PATH"),os.getenv("LD_PRELOAD"))))\ntime.sleep(30)\n')
         ready=self.root/'ready';work=h.work_for('desktop-ready')
-        args=types.SimpleNamespace(desktop_id='desktop-ready',ready_file=ready,run_mode='native',
+        args=types.SimpleNamespace(runtime_id=h.VERSION,theme_id='m3ww-v1',desktop_id='desktop-ready',ready_file=ready,run_mode='native',
                                    width=1280,height=720,refresh=60,alias=None)
         observed=[]
         def watch():
@@ -159,7 +161,7 @@ class ComponentTests(unittest.TestCase):
         config=work/'config/hyprland.lua';config.write_text('-- keep my config\n')
         ready=self.root/'ready';ready.write_text('99999\n')
         unrelated=subprocess.Popen(['/bin/sleep','30'],start_new_session=True)
-        args=types.SimpleNamespace(desktop_id='desktop-test',ready_file=ready,run_mode='native',
+        args=types.SimpleNamespace(runtime_id=h.VERSION,theme_id='m3ww-v1',desktop_id='desktop-test',ready_file=ready,run_mode='native',
                                    width=1280,height=720,refresh=60,alias=None)
         try:
             with patch.object(h,'verify'),patch.object(h,'verify_shell'),patch.object(h,'prepare_shell',return_value=[]), self.assertRaisesRegex(RuntimeError,'before readiness'):
@@ -171,14 +173,15 @@ class ComponentTests(unittest.TestCase):
         finally:
             unrelated.terminate();unrelated.wait()
 
-    def testMissingShellDependencyCannotKeepAnOldReadyMarker(self):
+    def testDamagedThemeCannotKeepAnOldReadyMarker(self):
         ready = self.root / 'ready'; ready.write_text('123\n')
-        args = types.SimpleNamespace(desktop_id='desktop-missing', ready_file=ready)
+        args = types.SimpleNamespace(runtime_id=h.VERSION, theme_id='m3ww-v1',
+            desktop_id='desktop-missing', ready_file=ready, run_mode='native')
         work = h.work_for(args.desktop_id); work.mkdir(parents=True)
         (work / 'session.json').write_text('{"supervisor":123}')
-        with patch.object(h, 'verify'), patch.object(h, 'verify_shell', side_effect=RuntimeError('dependency missing')):
-            with self.assertRaisesRegex(RuntimeError, 'dependency missing'):
-                h.session(args)
+        (h.COMPONENTS['theme_root']('m3ww-v1') / 'eww.scss').write_text('damaged')
+        with self.assertRaisesRegex(RuntimeError, 'resource mismatch'):
+            h.session(args)
         self.assertFalse(ready.exists())
         self.assertFalse((work / 'session.json').exists())
 

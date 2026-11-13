@@ -18,3 +18,7 @@
 ## 当前验证限制
 
 设备电池/UPower链路正常；Dolphin冷启动20.15秒、干净复测4.065秒，仍有波动。app全量测试8项失败并OOM，定向复测2项仍失败，未证明为既有问题。proot无已安装容器、USB无实物，长会话/硬件/交互权限未全量验收；未完成任务保持未勾选。详见run evidence和coverage-matrix。
+
+## 已确认的交付方式修订（download-runtime-assets-on-demand）
+
+用户已确认主题与 API 配套资源改为资产库按需下载，取代本文件此前内嵌主题/CLI/deb 的交付要求。Android API 宿主保留 APK；Linux 下随 App 构建配套包与是否打入 APK 分开处理。最终要求及验收场景以 download-runtime-assets-on-demand 的四项规划为准，历史发布与验证记录保留原意，不声称旧 APK 已外置。

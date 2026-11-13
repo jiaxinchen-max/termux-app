@@ -58,7 +58,7 @@ public class DesktopEnvironmentTest {
         }
         touch("usr/lib/xfce4/notifyd/xfce4-notifyd");
         File genmon = touch("usr/lib/xfce4/panel/plugins/libgenmon.so");
-        String[] runtimeFiles = {"bin/Hyprland", "bin/Xwayland",
+        String[] runtimeFiles = {"bin/Hyprland", "bin/hyprctl", "bin/Xwayland",
             "lib/hyprland/android/libhyprland-system-gl.so", "lib/hyprland/android/libvndksupport.so"};
         for (String file : runtimeFiles) touch("usr/opt/termux-hyprland/0.57.0-r2/" + file);
         try (FileWriter writer = new FileWriter(touch("usr/opt/termux-hyprland/0.57.0-r2/.installed"))) {
@@ -73,6 +73,15 @@ public class DesktopEnvironmentTest {
         assertFalse(environment.isInstalled(distro));
         try (FileWriter writer = new FileWriter(marker)) {
             writer.write("6024fd61a4923031ce9d7c4d35c1d545e75cbff16fe1ae9ab8aab86a0167f948\n");
+        }
+        assertFalse(environment.isInstalled(distro));
+        for (String theme : com.termux.ui.desktop.domain.HyprlandComponents.themes()) {
+            for (String file : com.termux.ui.desktop.domain.HyprlandComponents.resourceFiles(theme))
+                touch("usr/share/termux-hyprland/themes/" + theme + "/" + file);
+            File receipt = touch("usr/share/termux-hyprland/themes/" + theme + "/.installed");
+            try (FileWriter writer = new FileWriter(receipt)) {
+                writer.write(com.termux.ui.desktop.domain.HyprlandComponents.themeManifest(theme));
+            }
         }
         assertTrue(environment.isInstalled(distro));
         touch("usr/bin/proot-distro");
@@ -91,6 +100,9 @@ public class DesktopEnvironmentTest {
         }
         assertTrue(environment.isInstalled(guest.withRenderers(DesktopGlMode.SYSTEM,DesktopGuestGlMode.ZINK)));
         assertTrue(genmon.delete());
+        assertTrue(environment.isInstalled(distro)); // m3ww has no XFCE panel dependency.
+        assertFalse(environment.isInstalled(distro.withHyprlandComponents("0.57.0-r7", "classic-r7")));
+        assertTrue(new File(temporaryFolder.getRoot(), "usr/bin/eww").delete());
         assertFalse(environment.isInstalled(distro));
     }
 
@@ -114,7 +126,12 @@ public class DesktopEnvironmentTest {
         // A container without the desktop packages is half-provisioned: still not installed.
         assertFalse(environment.isInstalled(PROOT));
         touch("usr/var/lib/proot-distro/containers/debian/.desktop-de-kwin_plasma");
+        assertFalse(environment.isInstalled(PROOT));
+        touch("usr/var/lib/termux-desktop/rendering/debian.zink.zink.env");
         assertTrue(environment.isInstalled(PROOT));
+        assertFalse(environment.isInstalled(PROOT.withRenderers(DesktopGlMode.SYSTEM, DesktopGuestGlMode.ZINK)));
+        touch("usr/var/lib/termux-desktop/rendering/debian.system.zink.env");
+        assertTrue(environment.isInstalled(PROOT.withRenderers(DesktopGlMode.SYSTEM, DesktopGuestGlMode.ZINK)));
     }
 
     @Test
@@ -125,6 +142,7 @@ public class DesktopEnvironmentTest {
         assertTrue(new File(temporaryFolder.getRoot(),
             "usr/var/lib/proot-distro/installed-rootfs/debian").mkdirs());
         touch("usr/var/lib/proot-distro/installed-rootfs/debian/.desktop-de-kwin_plasma");
+        touch("usr/var/lib/termux-desktop/rendering/debian.zink.zink.env");
         assertTrue(environment.isInstalled(PROOT));
     }
 

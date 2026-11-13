@@ -52,7 +52,8 @@ public final class DesktopLaunchSpec {
             put(spec, "DESKTOP_CONTAINER_CODENAME", DesktopCreationCatalog.containerCodename(distro.getDe()));
         }
         if (distro.getDe() == DesktopDe.HYPRLAND) {
-            put(spec, "DESKTOP_HYPRLAND_RELEASE", "hyprland-android-0.57.0-70ec30e7-r7");
+            put(spec, "DESKTOP_HYPRLAND_RUNTIME_ID", distro.getHyprlandRuntimeId());
+            put(spec, "DESKTOP_HYPRLAND_THEME_ID", distro.getHyprlandThemeId());
             put(spec, "DESKTOP_HYPRLAND_BACKEND", "android");
             put(spec, "DESKTOP_HYPRLAND_HOST_GL_MODE", "system");
             put(spec, "DESKTOP_HYPRLAND_CLIENT_GL_MODE",

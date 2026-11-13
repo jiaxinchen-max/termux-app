@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModel;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.termux.ui.R;
+import com.termux.ui.desktop.domain.HyprlandComponents;
 import com.termux.ui.activity.AppUiActivity;
 import com.termux.ui.activity.FrostedDialogBuilder;
 import com.termux.ui.databinding.ActivityDesktopCreateBinding;
@@ -59,6 +60,7 @@ public final class DesktopCreateActivity extends AppUiActivity {
     private int refreshRate = DesktopDistro.DEFAULT_REFRESH_RATE;
     private DesktopGlMode hostGlMode;
     private DesktopGuestGlMode guestGlMode;
+    private String hyprlandTheme = HyprlandComponents.DEFAULT_THEME;
 
     public static Intent createIntent(Context context, DesktopRunMode mode) {
         return new Intent(context, DesktopCreateActivity.class).putExtra(EXTRA_MODE, mode.name());
@@ -124,6 +126,11 @@ public final class DesktopCreateActivity extends AppUiActivity {
         bindSelect(binding.desktopCreateRenderer, R.string.desktop_renderer_guest,
             this::guestRendererLabels, () -> guestLabel(this, guestGlMode), value -> guestGlMode = guestOf(this, value));
 
+        if (savedInstanceState != null) hyprlandTheme = savedInstanceState.getString("hyprland-theme", HyprlandComponents.DEFAULT_THEME);
+        bindSelect(binding.desktopCreateHyprlandRuntime, R.string.desktop_hyprland_compositor,
+            new String[]{HyprlandComponents.RUNTIME_ID}, () -> HyprlandComponents.RUNTIME_ID, value -> { });
+        bindSelect(binding.desktopCreateHyprlandTheme, R.string.desktop_hyprland_theme,
+            themeLabels(this), () -> themeLabel(this, hyprlandTheme), value -> hyprlandTheme = themeOf(this, value));
         binding.desktopCreateAction.setOnClickListener(view -> create());
         load();
     }
@@ -174,17 +181,17 @@ public final class DesktopCreateActivity extends AppUiActivity {
 
     private void selectDe(DesktopDe selected) {
         if (selected != de) {
-            hostGlMode = selected == DesktopDe.KWIN_PLASMA && mode == DesktopRunMode.PROOT
-                ? DesktopGlMode.ZINK : DesktopGlMode.SYSTEM;
+            hostGlMode = DesktopGlMode.SYSTEM;
             guestGlMode = mode == DesktopRunMode.NATIVE ? DesktopGuestGlMode.NONE
-                : selected == DesktopDe.KWIN_PLASMA ? DesktopGuestGlMode.ZINK
-                : selected.isGnomeSession() ? DesktopGuestGlMode.LLVMPIPE : DesktopGuestGlMode.DEFAULT;
+                : selected == DesktopDe.KWIN_PLASMA || selected.isGnomeSession() ? DesktopGuestGlMode.LLVMPIPE : DesktopGuestGlMode.DEFAULT;
         }
         de = selected;
         populate();
     }
 
     private void syncDynamicFields() {
+        binding.desktopCreateHyprlandRuntime.getRoot().setVisibility(de == DesktopDe.HYPRLAND ? View.VISIBLE : View.GONE);
+        binding.desktopCreateHyprlandTheme.getRoot().setVisibility(de == DesktopDe.HYPRLAND ? View.VISIBLE : View.GONE);
         binding.desktopCreateResolution.desktopSelectValue.setText(resolution);
         binding.desktopCreateRefresh.desktopSelectValue.setText(refreshRate + " Hz");
         binding.desktopCreateHostRenderer.desktopSelectValue.setText(hostLabel(this, hostGlMode));
@@ -226,6 +233,7 @@ public final class DesktopCreateActivity extends AppUiActivity {
         DesktopDistro distro = new DesktopDistro(
             "desktop-" + UUID.randomUUID().toString().substring(0, 8), name.trim(), mode, alias,
             de, hostGlMode, guestGlMode, resolution, refreshRate, DesktopUsbStorageMode.OFF);
+        if (de == DesktopDe.HYPRLAND) distro = distro.withHyprlandComponents(HyprlandComponents.RUNTIME_ID, hyprlandTheme);
         binding.desktopCreateAction.setEnabled(false);
         saveState.save(tasks, distro);
     }
@@ -264,6 +272,24 @@ public final class DesktopCreateActivity extends AppUiActivity {
 
     @Override public void onBackPressed() {
         if (saveState == null || !saveState.saving) super.onBackPressed();
+    }
+
+    @Override protected void onSaveInstanceState(Bundle state) {
+        state.putString("hyprland-theme", hyprlandTheme);
+        super.onSaveInstanceState(state);
+    }
+
+    static String themeLabel(Context context, String theme) {
+        HyprlandComponents.requireSupported(HyprlandComponents.RUNTIME_ID, theme);
+        return context.getString(HyprlandComponents.CLASSIC.equals(theme)
+            ? R.string.desktop_hyprland_classic : R.string.desktop_hyprland_m3ww);
+    }
+    static String[] themeLabels(Context context) {
+        return new String[]{themeLabel(context, HyprlandComponents.CLASSIC), themeLabel(context, HyprlandComponents.DEFAULT_THEME)};
+    }
+    static String themeOf(Context context, String label) {
+        for (String id : HyprlandComponents.themes()) if (themeLabel(context, id).equals(label)) return id;
+        throw new IllegalArgumentException("unknown_hyprland_theme");
     }
 
     private interface Getter { String get(); }

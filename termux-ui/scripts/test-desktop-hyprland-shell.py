@@ -4,6 +4,7 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
+import runpy
 import unittest
 from unittest.mock import patch
 
@@ -14,6 +15,16 @@ spec.loader.exec_module(h)
 
 
 class ShellTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        prefix = Path(self.temp.name) / 'usr'
+        self.prefix_patch = patch.object(h, 'PREFIX', prefix)
+        self.prefix_patch.start(); self.addCleanup(self.prefix_patch.stop)
+        components = runpy.run_path(str(source.with_name('desktop_hyprland_components.py')))
+        components['install_theme'].__globals__['PREFIX'] = prefix
+        components['install_theme']('0.57.0-r7', 'classic-r7', Path(__file__).resolve().parents[2] / 'distribution/hyprland-themes/build/hyprland-theme-classic-r7.tgz')
+
     def testUpgradePreservesUserPanelWallpaperAndHyprlandConfig(self):
         with tempfile.TemporaryDirectory() as temp:
             work = Path(temp)
@@ -27,8 +38,8 @@ class ShellTests(unittest.TestCase):
                 p = work / name
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text(text)
-            h.prepare(work, 'native')
-            h.prepare(work, 'native')
+            h.prepare(work, 'native', 'classic-r7')
+            h.prepare(work, 'native', 'classic-r7')
             for name, text in originals.items():
                 self.assertEqual(text, (work / name).read_text())
 
@@ -36,7 +47,7 @@ class ShellTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             work = Path(temp)
             (work / 'bin').mkdir()
-            h.prepare(work, 'proot')
+            h.prepare(work, 'proot', 'classic-r7')
             menu = (work / 'config/menus/hyprland-applications.menu').read_text()
             self.assertNotIn('<All', menu)
             for action in ['terminal', 'files']:

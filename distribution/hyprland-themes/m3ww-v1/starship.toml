@@ -1,0 +1,17 @@
+add_newline = true
+format = "[](fg:#b5b9ff)[$username$directory](bg:#b5b9ff fg:#17152b)[](fg:#b5b9ff) $git_branch$git_status\n$character"
+right_format = "$cmd_duration"
+[username]
+show_always = true
+format = "[$user ](bg:#b5b9ff fg:#17152b)"
+[directory]
+format = "[$path](bg:#b5b9ff fg:#17152b)"
+truncation_length = 3
+[character]
+success_symbol = "[❯](bold #b5dfe4)"
+error_symbol = "[❯](bold #ffb4b0)"
+[cmd_duration]
+min_time = 0
+format = "[󱎫 $duration](#aca6c8)"
+[git_branch]
+format = "[$symbol$branch](#d1b8ff) "

@@ -37,7 +37,8 @@ public class DesktopLaunchSpecTest {
                 "/files/h.pid", "/files/h.status", "/files/h.log"));
             assertEquals("hyprland", spec.get("DESKTOP_DE"));
             assertEquals("android", spec.get("DESKTOP_HYPRLAND_BACKEND"));
-            assertEquals("hyprland-android-0.57.0-70ec30e7-r7", spec.get("DESKTOP_HYPRLAND_RELEASE"));
+            assertEquals("0.57.0-r7", spec.get("DESKTOP_HYPRLAND_RUNTIME_ID"));
+            assertEquals("m3ww-v1", spec.get("DESKTOP_HYPRLAND_THEME_ID"));
             assertFalse(spec.containsKey("DESKTOP_GNOME_BACKEND"));
         }
     }

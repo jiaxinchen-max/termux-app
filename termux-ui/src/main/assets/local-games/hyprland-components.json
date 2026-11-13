@@ -1,0 +1,132 @@
+{
+  "runtimes": {
+    "0.57.0-r7": {
+      "architecture": "aarch64",
+      "archive_sha256": "2fd3bd98104d7b411c9760efb2ad3270e950a1be4a146fa089b19a6fea169b10",
+      "asset": "hyprland-android-runtime-aarch64-0.57.0-r7.tar.gz",
+      "base_url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/hyprland-android-0.57.0-70ec30e7-r7",
+      "manifest_sha256": "6024fd61a4923031ce9d7c4d35c1d545e75cbff16fe1ae9ab8aab86a0167f948",
+      "release": "hyprland-android-0.57.0-70ec30e7-r7",
+      "required_files": [
+        "bin/Hyprland",
+        "bin/hyprctl",
+        "bin/Xwayland",
+        "lib/hyprland/android/libhyprland-system-gl.so",
+        "lib/hyprland/android/libvndksupport.so"
+      ],
+      "size": 58892089
+    }
+  },
+  "schema": 1,
+  "themes": {
+    "classic-r7": {
+      "archive_sha256": "760ca7702636adc7336cb373dc820fc1a25d5e524e77e122cde181df1dab3269",
+      "asset": "hyprland-theme-classic-r7.tgz",
+      "delivery_revision": "r7",
+      "files": [
+        "bin/xfce4-panel",
+        "bin/xfconf-query",
+        "lib/xfce4/panel/plugins/libgenmon.so"
+      ],
+      "label": "Classic · r7",
+      "manifest_sha256": "c53d379a39539cc77bd5e8501651d4dd7e00f06c44886fa1492af7e07b16fc20",
+      "packages": [
+        "python",
+        "dbus",
+        "pulseaudio",
+        "swaybg",
+        "xfce4-notifyd",
+        "gtk-layer-shell",
+        "adwaita-icon-theme",
+        "xfce4-terminal",
+        "xfce4-panel",
+        "xfce4-genmon-plugin"
+      ],
+      "release": "hyprland-components-20261113-r1",
+      "required_files": [
+        "bin/python3",
+        "bin/dbus-daemon",
+        "bin/swaybg",
+        "bin/dbus-send",
+        "lib/xfce4/notifyd/xfce4-notifyd",
+        "bin/xfce4-panel",
+        "bin/xfconf-query",
+        "lib/xfce4/panel/plugins/libgenmon.so"
+      ],
+      "resource_files": [
+        "LICENSE.txt",
+        "PROJECT-LICENSE.md",
+        "manifest.json",
+        "wallpaper.svg"
+      ],
+      "runtime_ids": [
+        "0.57.0-r7"
+      ],
+      "size": 1040,
+      "source": "release",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/hyprland-components-20261113-r1/hyprland-theme-classic-r7.tgz"
+    },
+    "m3ww-v1": {
+      "archive_sha256": "ed6431709fb9a0d496356d6de93b653070097127bb18a1750b7ca0855ca6bffc",
+      "asset": "hyprland-theme-m3ww-v1.tgz",
+      "delivery_revision": "r8",
+      "files": [
+        "bin/eww",
+        "bin/foot",
+        "bin/fish",
+        "bin/starship",
+        "bin/fc-cache"
+      ],
+      "label": "m3ww · v1 (r8)",
+      "manifest_sha256": "652e0a1d0107ccbd393bde1496e1643ae30d8e7a677c0739feb6df123770dced",
+      "packages": [
+        "python",
+        "dbus",
+        "pulseaudio",
+        "swaybg",
+        "xfce4-notifyd",
+        "gtk-layer-shell",
+        "adwaita-icon-theme",
+        "xfce4-terminal",
+        "eww",
+        "foot",
+        "fish",
+        "starship",
+        "fontconfig-utils",
+        "pygobject"
+      ],
+      "release": "hyprland-components-20261113-r1",
+      "required_files": [
+        "bin/python3",
+        "bin/dbus-daemon",
+        "bin/swaybg",
+        "bin/dbus-send",
+        "lib/xfce4/notifyd/xfce4-notifyd",
+        "bin/eww",
+        "bin/foot",
+        "bin/fish",
+        "bin/starship",
+        "bin/fc-cache"
+      ],
+      "resource_files": [
+        "FONT-LICENSE.txt",
+        "LICENSE.txt",
+        "PROJECT-LICENSE.md",
+        "eww.scss",
+        "font.ttf",
+        "foot.ini",
+        "gtk.css",
+        "manifest.json",
+        "settings.ini",
+        "starship.toml",
+        "wallpaper.svg"
+      ],
+      "runtime_ids": [
+        "0.57.0-r7"
+      ],
+      "size": 1352342,
+      "source": "release",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/hyprland-components-20261113-r1/hyprland-theme-m3ww-v1.tgz"
+    }
+  }
+}

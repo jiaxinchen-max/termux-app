@@ -261,4 +261,9 @@
     <string name="update">Update</string>
     <string name="invalid_config">invalid config</string>
     <string name="stop_desktop_title">The graphics display will close and its display service will stop.</string>
+
+    <string name="api_component_setup_title">Android API components pending</string>
+    <string name="api_component_setup_progress">Downloading and verifying Android API components…</string>
+    <string name="api_component_setup_pending">Android API command components are not ready. Connect to the internet and retry. Your terminal is ready and its files are preserved. You can continue using the terminal; API commands become available after initialization completes.</string>
+    <string name="api_component_setup_continue">Use terminal</string>
 </resources>

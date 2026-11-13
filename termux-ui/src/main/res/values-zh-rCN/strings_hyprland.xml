@@ -8,4 +8,12 @@
     <string name="desktop_hyprland_gl_default">System EGL · 容器应用默认模式</string>
     <string name="desktop_hyprland_gl_zink">容器 Zink / Turnip（实验性）</string>
     <string name="desktop_hyprland_proot_renderer_hint">合成器使用 System EGL。实验性 Zink 仅用于容器应用，需要兼容 Adreno/KGSL 及图形缓冲导入。选择后安装所需组件，再停止并重开。默认模式不保证应用使用 GPU。</string>
+    <string name="desktop_hyprland_compositor">Hyprland 合成器</string>
+    <string name="desktop_hyprland_theme">桌面主题</string>
+    <string name="desktop_hyprland_classic">经典 · r7</string>
+    <string name="desktop_hyprland_m3ww">m3ww · v1（r8）</string>
+    <string name="desktop_hyprland_stop_before_change">请先停止桌面，再切换主题。</string>
+    <string name="desktop_hyprland_components_summary">合成器 %1$s · %2$s</string>
+    <string name="desktop_hyprland_runtime_missing">合成器需要安装或修复</string>
+    <string name="desktop_hyprland_theme_missing">主题或其依赖需要安装</string>
 </resources>

@@ -20,11 +20,13 @@ import tarfile
 import tempfile
 import time
 
+COMPONENTS = runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_components.py')))
 VERSION = '0.57.0-r7'
-RELEASE = 'hyprland-android-0.57.0-70ec30e7-r7'
-ASSET = 'hyprland-android-runtime-aarch64-0.57.0-r7.tar.gz'
-ARCHIVE_SHA256 = '2fd3bd98104d7b411c9760efb2ad3270e950a1be4a146fa089b19a6fea169b10'
-MANIFEST_SHA256 = '6024fd61a4923031ce9d7c4d35c1d545e75cbff16fe1ae9ab8aab86a0167f948'
+RUNTIME = COMPONENTS['CATALOG']['runtimes'][VERSION]
+RELEASE = RUNTIME['release']
+ASSET = RUNTIME['asset']
+ARCHIVE_SHA256 = RUNTIME['archive_sha256']
+MANIFEST_SHA256 = RUNTIME['manifest_sha256']
 PREFIX = Path(os.environ.get('PREFIX', '/data/data/com.termux/files/usr'))
 HOME = Path(os.environ.get('HOME', '/data/data/com.termux/files/home'))
 
@@ -156,15 +158,17 @@ def ipc(env, *arguments):
                                    env=env, text=True, stderr=subprocess.STDOUT, timeout=5)
 
 
-def prepare_shell(work, run_mode):
-    return runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_shell.py')))['prepare'](work, run_mode)
+def prepare_shell(work, run_mode, theme_id):
+    return runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_shell.py')))['prepare'](work, run_mode, theme_id)
 
 
-def verify_shell():
-    for name in ['bin/eww', 'bin/foot', 'bin/fish', 'bin/starship', 'bin/fc-cache', 'bin/xfce4-panel', 'bin/swaybg', 'bin/xfconf-query', 'bin/dbus-send',
-                 'lib/xfce4/notifyd/xfce4-notifyd', 'lib/xfce4/panel/plugins/libgenmon.so']:
+def verify_shell(theme_id='m3ww-v1'):
+    _, theme = COMPONENTS['resolve'](VERSION, theme_id)
+    for name in theme['required_files']:
         if not (PREFIX / name).is_file():
             raise RuntimeError('Hyprland desktop dependency missing: ' + name + '; reinstall desktop')
+    if theme_id == 'classic-r7':
+        return
     probe = subprocess.run([str(PREFIX / 'bin/python3'), '-I', '-c',
                             "import gi; gi.require_version('Gtk', '3.0'); "
                             "gi.require_version('GtkLayerShell', '0.1'); "
@@ -286,8 +290,12 @@ def session(args):
     work.mkdir(mode=0o700, parents=True, exist_ok=True)
     if work.is_symlink() or work.stat().st_uid != os.getuid():
         raise RuntimeError('Unsafe Hyprland session directory')
-    lock = (work / 'session.lock').open('w')
-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    with (work / 'session.lock').open('w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return _session_locked(args, work, client_mode)
+
+
+def _session_locked(args, work, client_mode):
     for name in ['config', 'cache', 'data']:
         p = work / name
         if p.is_symlink():
@@ -317,6 +325,11 @@ def session(args):
     (work / 'gpu-client-report.json').unlink(missing_ok=True)
     (work / 'gpu-host-report.json').unlink(missing_ok=True)
     (work / 'hyprland.log').unlink(missing_ok=True)
+    COMPONENTS['resolve'](args.runtime_id, args.theme_id)
+    if args.runtime_id != VERSION:
+        raise ValueError('Unsupported Hyprland runtime')
+    COMPONENTS['theme_root'].__globals__['PREFIX'] = PREFIX
+    COMPONENTS['verify_theme'](COMPONENTS['theme_root'](args.theme_id), args.runtime_id, args.theme_id)
     env = clean_environment(work)
     env['TERMUX_HYPRLAND_SESSION'] = secrets.token_hex(16)
     env.update(AQ_ANDROID_WIDTH=str(args.width), AQ_ANDROID_HEIGHT=str(args.height),
@@ -356,7 +369,7 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
         wrapper.write_text('#!' + str(PREFIX / 'bin/sh') + '\nexec ' + shlex.join(executable) + ' "$@"\n')
         wrapper.chmod(0o700)
     (work / 'theme-session-config').unlink(missing_ok=True)
-    shell_commands = prepare_shell(work, args.run_mode)
+    shell_commands = prepare_shell(work, args.run_mode, args.theme_id)
     themed = work / 'theme-session-config'
     if themed.exists():
         command[-1] = themed.read_text()
@@ -369,6 +382,8 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
     signal.signal(signal.SIGINT, stop)
     try:
         with (work / 'session.log').open('w') as log:
+            log.write('runtime=' + args.runtime_id + ' theme=' + args.theme_id + '\n')
+            log.flush()
             bus = subprocess.Popen([str(PREFIX / 'bin/dbus-daemon'), '--session', '--nofork',
                                     '--address=' + env['DBUS_SESSION_BUS_ADDRESS']],
                                    env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
@@ -443,7 +458,8 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
             if process.poll() is not None or bus.poll() is not None or any(client.poll() is not None for client in clients):
                 raise RuntimeError('Hyprland compositor or desktop service exited during startup')
             (work / 'session.json').write_text(json.dumps({'supervisor':os.getpid(), 'env':env,
-                'host_gl_mode':'system', 'client_gl_mode':client_mode})+'\n')
+                'host_gl_mode':'system', 'client_gl_mode':client_mode,
+                'runtime_id':args.runtime_id, 'theme_id':args.theme_id})+'\n')
             temporary = args.ready_file.with_name(args.ready_file.name + '.tmp.' + str(os.getpid()))
             temporary.write_text(str(os.getpid()) + '\n')
             temporary.replace(args.ready_file)
@@ -514,7 +530,6 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
         # Preserve config, data and logs, remove only this session's IPC directory.
         shutil.rmtree(runtime)
         runtime.mkdir(mode=0o700)
-        lock.close()
 
 
 def action(args):
@@ -540,7 +555,9 @@ def main():
     sub = parser.add_subparsers(dest='command', required=True)
     p = sub.add_parser('install'); p.add_argument('archive', type=Path)
     sub.add_parser('check')
+    sub.add_parser('check-runtime')
     p = sub.add_parser('session')
+    p.add_argument('--runtime-id', required=True); p.add_argument('--theme-id', required=True)
     p.add_argument('--desktop-id', required=True); p.add_argument('--ready-file', type=Path, required=True)
     p.add_argument('--run-mode', choices=['native','proot'], required=True); p.add_argument('--alias')
     p.add_argument('--client-gl-mode', choices=['default','zink'], default='default')
@@ -552,6 +569,8 @@ def main():
     args = parser.parse_args()
     if args.command == 'install':
         install(args.archive)
+    elif args.command == 'check-runtime':
+        verify(runtime_root())
     elif args.command == 'check':
         verify(runtime_root())
         verify_shell()

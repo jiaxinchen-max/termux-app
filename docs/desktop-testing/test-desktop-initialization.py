@@ -3,6 +3,10 @@
 import argparse
 import ast
 import importlib.util
+import itertools
+import json
+import shlex
+import struct
 import os
 from pathlib import Path
 import runpy
@@ -88,6 +92,164 @@ class InitializationTests(unittest.TestCase):
                     with self.assertRaises(RuntimeError):
                         self.m.check_egl(command, 'zink', dict(os.environ))
 
+    def vulkan_fixture(self, root, guest=False, machine=183):
+        library = root / ('usr/lib/aarch64-linux-gnu/libvulkan_lvp.so' if guest else 'lib/libvulkan_lvp.so')
+        library.parent.mkdir(parents=True, exist_ok=True)
+        library.write_bytes(b'\x7fELF\x02\x01' + b'\0' * 12 + struct.pack('<H', machine))
+        icd = root / ('usr/share/vulkan/icd.d/lvp_icd.json' if guest else 'share/vulkan/icd.d/lvp_icd.aarch64.json')
+        icd.parent.mkdir(parents=True, exist_ok=True)
+        icd.write_text(json.dumps({'ICD': {'library_path': 'libvulkan_lvp.so' if guest else str(library)}}))
+        return icd, library
+
+    def test_plasma_software_zink_is_explicit_and_other_desktops_stay_strict(self):
+        for renderer in ['zink Vulkan 1.4(llvmpipe (LLVM 21))', 'zink (lavapipe)']:
+            command = [sys.executable, '-c', 'print(' + repr('renderer: ' + renderer) + ')']
+            self.assertEqual(self.m.check_egl(command, 'zink', {}, allow_software=True), renderer.lower())
+            with self.assertRaises(RuntimeError):
+                self.m.check_egl(command, 'zink', {})
+        with self.assertRaises(RuntimeError):
+            self.m.check_egl([sys.executable, '-c', 'print("renderer: llvmpipe")'], 'zink', {}, allow_software=True)
+
+    def test_plasma_icd_rejects_wrong_abi_path_and_missing_library(self):
+        icd, library = self.vulkan_fixture(self.prefix)
+        self.assertEqual(self.m.plasma_icd(self.prefix, False, True), str(icd))
+        library.write_bytes(b'not an ELF')
+        with self.assertRaisesRegex(RuntimeError, 'AArch64'):
+            self.m.plasma_icd(self.prefix, False, True)
+        self.vulkan_fixture(self.prefix, machine=62)
+        with self.assertRaisesRegex(RuntimeError, 'AArch64'):
+            self.m.plasma_icd(self.prefix, False, True)
+        self.vulkan_fixture(self.prefix)
+        icd.write_text(json.dumps({'ICD': {'library_path': '/usr/lib/aarch64-linux-gnu/libvulkan_lvp.so'}}))
+        with self.assertRaisesRegex(RuntimeError, 'ABI/library'):
+            self.m.plasma_icd(self.prefix, False, True)
+        icd.unlink()
+        with self.assertRaisesRegex(RuntimeError, 'explicit lvp'):
+            self.m.plasma_icd(self.prefix, False, True)
+
+    def test_plasma_four_pairs_keep_abis_separate_and_publish_after_both_probes(self):
+        guest_root = self.prefix / 'container'
+        host_icd, _ = self.vulkan_fixture(self.prefix)
+        guest_icd, _ = self.vulkan_fixture(guest_root, guest=True)
+        for host, guest in itertools.product(('system', 'zink'), ('llvmpipe', 'zink')):
+            args = self.args('kwin_plasma', 'proot', host, guest)
+            with patch.object(self.m, 'is_emulator', return_value=True), \
+                 patch.object(self.m.runpy, 'run_path', return_value={'host_probe': lambda: {}}), \
+                 patch.object(self.m, 'check_egl', return_value='validated') as check:
+                self.m.plasma_rendering(args, guest_root, ['proot', 'login', 'desk', '--', 'env'], {})
+            receipt = self.prefix / ('var/lib/termux-desktop/rendering/desk.' + host + '.' + guest + '.env')
+            env = subprocess.check_output(['sh', '-c', '. "$1"; printf "%s|%s|%s|%s" "$DESKTOP_PLASMA_HOST_MODE" "$DESKTOP_PLASMA_GUEST_MODE" "$DESKTOP_PLASMA_HOST_ICD" "$DESKTOP_PLASMA_GUEST_ICD"', 'sh', str(receipt)], text=True)
+            self.assertEqual(env, '|'.join((host, guest, str(host_icd) if host == 'zink' else '', '/usr/share/vulkan/icd.d/lvp_icd.json' if guest == 'zink' else '')))
+            last = check.call_args_list[-1]
+            self.assertIn('proot', last.args[0])
+            self.assertNotIn('TERMUX_ANDROID_ZINK=1', last.args[0])
+            if guest == 'zink':
+                self.assertIn('VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json', last.args[0])
+            self.assertEqual(receipt.stat().st_mode & 0o777, 0o600)
+            with patch.object(self.m, 'is_emulator', return_value=True), \
+                 patch.object(self.m.runpy, 'run_path', return_value={'host_probe': lambda: {}}), \
+                 patch.object(self.m, 'check_egl', side_effect=RuntimeError('probe failed')):
+                with self.assertRaisesRegex(RuntimeError, 'probe failed'):
+                    self.m.plasma_rendering(args, guest_root, ['proot', 'login', 'desk', '--', 'env'], {})
+            self.assertFalse(receipt.exists())
+
+    def test_plasma_runtime_reuses_software_identity_without_hardware_probe(self):
+        self.plasma()
+        self.m.prepare_plasma(self.prefix)
+        command = ['bash', '-uc', 'source "$PREFIX/libexec/termux-desktop/rendering-env"; kwin_android_select_rendering; printf "%s|%s|%s|%s" "$GALLIUM_DRIVER" "$VK_DRIVER_FILES" "$LIBGL_ALWAYS_SOFTWARE" "$KWIN_ANDROID_AHB_IMPORT"']
+        env = dict(os.environ, KWIN_ANDROID_GL_MODE='zink', DESKTOP_PLASMA_RENDERING='1',
+                   DESKTOP_PLASMA_HOST_ICD='/explicit/lvp.json', DESKTOP_PLASMA_HOST_SOFTWARE='1')
+        self.assertIn('zink|/explicit/lvp.json|1|off', subprocess.check_output(command, env=env, text=True))
+
+    def test_plasma_container_zink_uses_gl_over_its_own_initialized_icd(self):
+        script = (ASSETS / 'desktop_container_session.sh').read_text().split('# Optional:')[0]
+        script += '\nprintf "%s|%s|%s|%s" "$QSG_RHI_BACKEND" "$GALLIUM_DRIVER" "$VK_DRIVER_FILES" "$LIBGL_ALWAYS_SOFTWARE"'
+        env = dict(os.environ, DESKTOP_GUEST_GL_MODE='zink', DESKTOP_KDE_SERVICE_POLICY='kwin-wayland',
+                   QT_QPA_PLATFORM='wayland', XDG_SESSION_TYPE='wayland',
+                   DESKTOP_PLASMA_GUEST_ICD='/usr/share/vulkan/icd.d/lvp_icd.json', DESKTOP_PLASMA_GUEST_SOFTWARE='1',
+                   VK_DRIVER_FILES='/wrong/host/icd.json')
+        self.assertEqual(subprocess.check_output(['sh', '-c', script], env=env, text=True),
+                         'opengl|zink|/usr/share/vulkan/icd.d/lvp_icd.json|1')
+        del env['DESKTOP_PLASMA_GUEST_ICD']
+        self.assertEqual(subprocess.run(['sh', '-c', script], env=env, capture_output=True).returncode, 66)
+
+    def test_missing_or_mismatched_plasma_receipt_does_not_stop_another_desktop(self):
+        state = self.prefix / 'state'
+        state.mkdir()
+        other = subprocess.Popen(['sleep', '60'])
+        self.addCleanup(other.wait)
+        self.addCleanup(other.terminate)
+        (state / 'other.pid').write_text(str(other.pid))
+        spec = self.prefix / 'spec'
+        values = dict(DESKTOP_ID='desk', DESKTOP_SPEC_VERSION='3', DESKTOP_MODE='proot',
+                      DESKTOP_DE='kwin_plasma', DESKTOP_PROOT_DISTRO='desk',
+                      DESKTOP_HOST_GL_MODE='system', DESKTOP_GUEST_GL_MODE='llvmpipe',
+                      DESKTOP_LOG_FILE=str(self.prefix / 'log'),
+                      DESKTOP_PID_FILE=str(state / 'desk.pid'),
+                      DESKTOP_STATUS_FILE=str(state / 'status'))
+        spec.write_text(''.join(k + '=' + shlex.quote(v) + '\n' for k, v in values.items()))
+        receipt = self.prefix / 'var/lib/termux-desktop/rendering/desk.system.llvmpipe.env'
+        for content in (None, 'export DESKTOP_PLASMA_RENDERING=1\n'
+                       'export DESKTOP_PLASMA_HOST_MODE=zink\n'):
+            if content:
+                receipt.parent.mkdir(parents=True)
+                receipt.write_text(content)
+            result = subprocess.run(['sh', str(ASSETS / 'desktop_start.sh'), str(spec)],
+                                    capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 66, result.stdout + result.stderr)
+            self.assertIsNone(other.poll())
+            self.assertTrue((state / 'other.pid').exists())
+
+    def test_emulator_install_routes_matching_mesa_and_never_turnip_overlay(self):
+        contract = runpy.run_path(str(ROOT / 'docs/desktop-testing/test-gnome-usb-install.py'))
+        for host, guest in itertools.product(('system', 'zink'), ('llvmpipe', 'zink')):
+            with self.subTest(host=host, guest=guest):
+                fixture = contract['InstallContract']()
+                fixture.setUp()
+                self.addCleanup(fixture.doCleanups)
+                embedded = fixture.base / 'usr/share/embedded-api/termux-api.deb'
+                embedded.parent.mkdir(parents=True)
+                embedded.touch()
+                script = fixture.base / 'desktop_install.sh'
+                script.write_text(script.read_text().replace(
+                    '$(/system/bin/getprop ro.kernel.qemu 2>/dev/null)', '1'))
+                fake = fixture.base / 'usr/bin/python3'
+                fake.write_text(fake.read_text().replace("elif command=='python3':",
+                    "elif command=='python3':\n"
+                    "    if any('desktop_initialize.py' in a for a in args): sys.exit(0)"))
+                result, calls = fixture.run_install(de='kwin_plasma', mode='proot', overrides={
+                    'DESKTOP_GL_MODE': None, 'DESKTOP_SPEC_VERSION': '3',
+                    'DESKTOP_HOST_GL_MODE': host, 'DESKTOP_GUEST_GL_MODE': guest})
+                self.assertEqual(result.returncode, 0, result.stdout)
+                installs = [c for c in calls if c[:2] == ['apt', 'install']]
+                if host == 'zink':
+                    self.assertTrue(any('mesa-vulkan-icd-swrast' in c for c in installs))
+                self.assertFalse(any('mesa-vulkan-icd-freedreno' in c for c in installs))
+                repair = [c for c in calls if '--allow-change-held-packages' in c and c[0] == 'proot-distro']
+                self.assertEqual(len(repair), 1, calls)
+                self.assertIn('--reinstall', repair[0])
+                self.assertEqual(repair[0][-6:], ['libgbm1', 'libegl-mesa0', 'libgl1-mesa-dri',
+                                                  'libglx-mesa0', 'libgles2', 'mesa-vulkan-drivers'])
+                self.assertFalse(any('mesa-for-android-container' in ' '.join(c) for c in calls))
+                self.assertFalse(any(c[:2] == ['apt-mark', 'unhold'] for c in calls))
+
+    def test_held_mesa_repair_option_is_explicit_and_preserves_hold_selection(self):
+        contract = runpy.run_path(str(ROOT / 'docs/desktop-testing/test-gnome-usb-install.py'))
+        fixture = contract['ContainerAptContract']()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        result, calls = fixture.run_helper('--statx-backend=proc-fdinfo',
+            '--reinstall', '--allow-change-held-packages', 'mesa-vulkan-drivers',
+            package_status='hold ok installed')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertTrue(any(c[:2] == ['apt-get', 'install'] and '--reinstall' in c
+                            and '--allow-change-held-packages' in c for c in calls))
+        self.assertFalse(any(c[0] == 'apt-mark' for c in calls))
+        result, calls = fixture.run_helper('--statx-backend=proc-fdinfo',
+            '--allow-change-held-packages', 'mesa-vulkan-drivers')
+        self.assertEqual(result.returncode, 64)
+        self.assertEqual(calls, [])
+
     def test_wrong_rootfs_fails_before_launching_guest(self):
         root = self.prefix / 'var/lib/proot-distro/containers/desk/rootfs'
         release = root / 'etc/os-release'
@@ -172,7 +334,9 @@ class InitializationTests(unittest.TestCase):
 
     def test_hyprland_launch_reaches_first_service_without_static_verification(self):
         m = module('desktop_hyprland')
-        args = argparse.Namespace(client_gl_mode='zink', run_mode='proot', desktop_id='desk',
+        m.COMPONENTS['install_theme']('0.57.0-r7', 'm3ww-v1', Path(__file__).resolve().parents[2] / 'distribution/hyprland-themes/build/hyprland-theme-m3ww-v1.tgz')
+        args = argparse.Namespace(runtime_id='0.57.0-r7', theme_id='m3ww-v1',
+                                  client_gl_mode='zink', run_mode='proot', desktop_id='desk',
                                   alias='desk', width=1280, height=720, refresh=60, ready_file=self.prefix / 'ready')
         class ReachedService(Exception):
             pass
@@ -213,7 +377,8 @@ class InitializationTests(unittest.TestCase):
                 runpy.run_path(str(ASSETS / 'desktop_gnome_launch.py'), run_name='__main__')
 
     def test_launchers_have_no_synthetic_probe_calls(self):
-        for name, function in [('desktop_hyprland.py', 'session'), ('desktop_gnome_launch.py', 'main')]:
+        for name, function in [('desktop_hyprland.py', 'session'), ('desktop_hyprland.py', '_session_locked'),
+                               ('desktop_gnome_launch.py', 'main')]:
             tree = ast.parse((ASSETS / name).read_text())
             entry = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == function)
             calls = [n.func.id if isinstance(n.func, ast.Name) else n.func.attr
@@ -236,6 +401,9 @@ class InitializationTests(unittest.TestCase):
                 fixture = contract.InstallContract()
                 fixture.setUp()
                 self.addCleanup(fixture.doCleanups)
+                embedded = fixture.base / 'usr/share/embedded-api/termux-api.deb'
+                embedded.parent.mkdir(parents=True, exist_ok=True)
+                embedded.write_bytes(b'fixture package; dpkg is mocked')
                 fake = fixture.base / 'usr/bin/python3'
                 fake.write_text(fake.read_text().replace("elif command=='python3':", 
                     "elif command=='python3':\n    if any('desktop_initialize.py' in a for a in args): "

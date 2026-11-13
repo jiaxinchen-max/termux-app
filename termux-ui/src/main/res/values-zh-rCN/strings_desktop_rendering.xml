@@ -8,7 +8,7 @@
     <string name="desktop_host_summary">宿主：%1$s</string>
     <string name="desktop_guest_summary">容器：%1$s</string>
     <string name="desktop_xfce_renderer_hint">宿主 Xlorie 渲染单独配置。XFCE 使用容器默认环境，当前未配置独立容器 GPU 加速。</string>
-    <string name="desktop_plasma_renderer_hint">KWin 在宿主运行，Plasma Shell 在 Debian 内运行。当前支持 Zink / Zink 或 LLVMpipe / LLVMpipe，两个选项需要匹配。</string>
+    <string name="desktop_plasma_renderer_hint">KWin 在宿主运行，Plasma Shell 在 Debian 内运行。宿主 System EGL/Zink 与容器 LLVMpipe/Zink 可独立选择。Zink 需要可用的 Vulkan 后端；软件 Vulkan 使用 CPU。</string>
     <string name="desktop_renderer_pair_unsupported">当前宿主与容器渲染组合不受支持。请按上方说明分别选择兼容的两项配置。</string>
     <string name="desktop_ubuntu_gnome_renderer_hint">宿主 Xlorie 使用 System EGL；Ubuntu 24.04 LTS 内的 GNOME 使用软件渲染。暂不支持容器 GPU 加速、USB 存储和备份。</string>
     <string name="desktop_native_ubuntu_hint">Ubuntu 风格 · 原生 GNOME。Yaru 主题、左侧 Dock、系统托盘和桌面图标；使用 Android System EGL，运行 Termux 原生应用。</string>

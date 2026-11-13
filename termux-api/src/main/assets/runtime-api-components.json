@@ -1,0 +1,1252 @@
+{
+  "components": {
+    "arm64-v8a": {
+      "abi": "arm64-v8a",
+      "asset": "termux-api-companion-arm64-v8a-embedded-v1.zip",
+      "contract": "embedded-v1",
+      "files": {
+        "bin/termux-api-start": {
+          "executable": true,
+          "sha256": "a5d50def4fe194ea0f0e37dea34a58e5ba1cf40e7e8dd8aaef973a6da5a1bdcd",
+          "size": 103
+        },
+        "bin/termux-api-stop": {
+          "executable": true,
+          "sha256": "81b5d161b515a4acdf7f5c64bc628aa8979d17bae63f986443c34a7151dd79d7",
+          "size": 102
+        },
+        "bin/termux-audio-info": {
+          "executable": true,
+          "sha256": "7f3872b7d1a2b6b0507c2fe97ad8491d1aa5f5ebac48c83f1105b003856abc49",
+          "size": 500
+        },
+        "bin/termux-battery-status": {
+          "executable": true,
+          "sha256": "00e752f35378928ca52f41a37c045dbd5fcd74b1268c4831f0c4eed5e06fb310",
+          "size": 504
+        },
+        "bin/termux-brightness": {
+          "executable": true,
+          "sha256": "9d294e80fac45b0925a363197f1929421030da32d875be7b7f0c8735871f64da",
+          "size": 545
+        },
+        "bin/termux-call-log": {
+          "executable": true,
+          "sha256": "a828e42c70b57bff3dee3ed5a7b019ff249ccb758bc3dbf4490d30f9c4074499",
+          "size": 1241
+        },
+        "bin/termux-camera-info": {
+          "executable": true,
+          "sha256": "46e3ffb621b4a9617a8dad770b747b505af026b5965310a2efea91d240606ae3",
+          "size": 500
+        },
+        "bin/termux-camera-photo": {
+          "executable": true,
+          "sha256": "3f2c3d2e06e9f089efeb4e776d6f5e393502085a8d259b35cdbdf3cfe47b973c",
+          "size": 826
+        },
+        "bin/termux-clipboard-get": {
+          "executable": true,
+          "sha256": "b5db318fa416fd59d6867796371e62e86501f3962153764a24f54cf7afedf3c4",
+          "size": 478
+        },
+        "bin/termux-clipboard-set": {
+          "executable": true,
+          "sha256": "07c3653cfc05927213e0c105870852cefcaf5620d8db33c8747950b2b78dda68",
+          "size": 599
+        },
+        "bin/termux-contact-list": {
+          "executable": true,
+          "sha256": "f1882053693ae57b848d1427d374590f706c86b9f14ef4a12e81c64f0dd2b1d1",
+          "size": 481
+        },
+        "bin/termux-dialog": {
+          "executable": true,
+          "sha256": "8001896ae39ef9b26fa378917879960a113f2d537b4e75e499b8b2a14fde7d09",
+          "size": 7953
+        },
+        "bin/termux-download": {
+          "executable": true,
+          "sha256": "89a890eb636233ba77a188983e1cf3d63442c016069452d5d49b90abf61578df",
+          "size": 1271
+        },
+        "bin/termux-fingerprint": {
+          "executable": true,
+          "sha256": "ed078d8026590e8e57af332a24b8699198005f45da3206878010bd876144a499",
+          "size": 1064
+        },
+        "bin/termux-infrared-frequencies": {
+          "executable": true,
+          "sha256": "ef741e404b44de95301d0700d9ecef9fe54aacbbf43d84227dc0655640183891",
+          "size": 528
+        },
+        "bin/termux-infrared-transmit": {
+          "executable": true,
+          "sha256": "c14c1eeec61b9d722f22bbf088f44857b289ab9ac5613315711a90882dae730c",
+          "size": 951
+        },
+        "bin/termux-job-scheduler": {
+          "executable": true,
+          "sha256": "318e9d6a543f50a69864e16ad92ddd170fe6f71f6ca43ad1ef176ab6097dcefd",
+          "size": 3986
+        },
+        "bin/termux-keystore": {
+          "executable": true,
+          "sha256": "306c4abe4bd42357874bab6db667d4d97fdcbb0ace7523db2515476b09f3f2bd",
+          "size": 4227
+        },
+        "bin/termux-location": {
+          "executable": true,
+          "sha256": "7cc697b8b838c16b15e81d871c30b677c5995a2a3094c48aa1bfe819db87a9ab",
+          "size": 1262
+        },
+        "bin/termux-media-player": {
+          "executable": true,
+          "sha256": "ca6ce47a5084d76975722c065a1991e905f7ac4f1fae6413c713114007d80caf",
+          "size": 1296
+        },
+        "bin/termux-media-scan": {
+          "executable": true,
+          "sha256": "aeb54e6f1e3c4e5f9bd637c4e4b2543c444f11fee40863f0ba7e90b91f5f8067",
+          "size": 977
+        },
+        "bin/termux-microphone-record": {
+          "executable": true,
+          "sha256": "930e05f6a19494ade1b06d35bbeabf0832fc54d9e5acc905333bd594783db6a3",
+          "size": 2397
+        },
+        "bin/termux-nfc": {
+          "executable": true,
+          "sha256": "81ecd1f6d529adc164aeab0ab564104abae2c372c546ce0943bcd9cbce05da27",
+          "size": 1244
+        },
+        "bin/termux-notification": {
+          "executable": true,
+          "sha256": "f02914d2b40c055a12e5fbc1249776539635b7511602945178d74c30c74858ce",
+          "size": 10975
+        },
+        "bin/termux-notification-channel": {
+          "executable": true,
+          "sha256": "bf853e971e37991d441017f96dc33b91471a7747a92d0347609b5f499e71d579",
+          "size": 1172
+        },
+        "bin/termux-notification-list": {
+          "executable": true,
+          "sha256": "fba849b808672aa4969afbff40dc1830ba73ba9d82f6406e4cef156f13ac767a",
+          "size": 520
+        },
+        "bin/termux-notification-remove": {
+          "executable": true,
+          "sha256": "af7bc32e9e0bbf859b629ee5b8f21da89e44687db874811d5377c2a6acb2344d",
+          "size": 585
+        },
+        "bin/termux-saf-create": {
+          "executable": true,
+          "sha256": "1d42eb2dc245e527ed6d56cd7fdc2d4a9ccacba4f0962b03b9026f568aa92c61",
+          "size": 1483
+        },
+        "bin/termux-saf-dirs": {
+          "executable": true,
+          "sha256": "6321b21fbadbd1b6493ec9119b14174610cd3dcdc2185dc149ff9355de65f44e",
+          "size": 937
+        },
+        "bin/termux-saf-ls": {
+          "executable": true,
+          "sha256": "b30d82b39b219577be41a358151c89e34b555c4086d645eb53f590ade112c3cd",
+          "size": 1335
+        },
+        "bin/termux-saf-managedir": {
+          "executable": true,
+          "sha256": "6a0ee6cc157b945c60928dd2e53874f74235a57010ae57868023253541a63006",
+          "size": 1066
+        },
+        "bin/termux-saf-mkdir": {
+          "executable": true,
+          "sha256": "14b45e79e9ef3d7f6432087c037d79dd4034f80bfdc22bf37ca23d2349a4e2a2",
+          "size": 717
+        },
+        "bin/termux-saf-read": {
+          "executable": true,
+          "sha256": "6eb03124ec9531a99585b3eca02da12b8a2ba59f968ebf80b1b06795439000bc",
+          "size": 767
+        },
+        "bin/termux-saf-rm": {
+          "executable": true,
+          "sha256": "3a4b0dca270595dccde10bf0fdc785ebb2885669227365ebac8b1e91cc9752bf",
+          "size": 744
+        },
+        "bin/termux-saf-stat": {
+          "executable": true,
+          "sha256": "7104a794e68177293d6ab4603af8948f622ebda465bdce21b4e62571ba88e314",
+          "size": 644
+        },
+        "bin/termux-saf-write": {
+          "executable": true,
+          "sha256": "475ccf98b470b7a69cc019872c68fc5f8582d05130ca3c7945db81e4398e44f3",
+          "size": 683
+        },
+        "bin/termux-sensor": {
+          "executable": true,
+          "sha256": "6867328f26060a1cf225ef3e7df647cbb58499989fbe3501427da69548100500",
+          "size": 3217
+        },
+        "bin/termux-share": {
+          "executable": true,
+          "sha256": "9fee2a9d7efdd30760346fe53c696ecdcfda9ec84ab974cd68582c09fe796cb2",
+          "size": 1841
+        },
+        "bin/termux-sms-inbox": {
+          "executable": true,
+          "sha256": "3e13c865f7167d489e416592ee146391b0f283e7628dc519cb716fdc59c511e3",
+          "size": 124
+        },
+        "bin/termux-sms-list": {
+          "executable": true,
+          "sha256": "d0735077d7f3d124c6974492375053b80c0eaa1f85153823f67a5baa4548dfb2",
+          "size": 24941
+        },
+        "bin/termux-sms-send": {
+          "executable": true,
+          "sha256": "ecef3b428d6f399d703c827e5de3d933ead03ecf9e2efbb6f10ae1473d931156",
+          "size": 1086
+        },
+        "bin/termux-speech-to-text": {
+          "executable": true,
+          "sha256": "89d56f23d64fc95a103a5fcea0b06eb41e892ef9bf231000ee523e561febe543",
+          "size": 662
+        },
+        "bin/termux-storage-get": {
+          "executable": true,
+          "sha256": "e47a3d01a96d456585c000cac39c5116dbd67d3d39feb3238b2f6cb1e607e8cb",
+          "size": 650
+        },
+        "bin/termux-telephony-call": {
+          "executable": true,
+          "sha256": "edba64e6f2966e2b9f7a02b4c8cc1a25a467f43cbc8aa503cb43f4d3c1ad230a",
+          "size": 528
+        },
+        "bin/termux-telephony-cellinfo": {
+          "executable": true,
+          "sha256": "a60bdb45f60c7fd7d121aea71142a80c9dc3a966ec3c8fc445c6d11da39c927b",
+          "size": 601
+        },
+        "bin/termux-telephony-deviceinfo": {
+          "executable": true,
+          "sha256": "7f6254ccfe13e9b73b0aa075edf5985d9dc4b27037c8f69df90bfb924cddc5b7",
+          "size": 522
+        },
+        "bin/termux-toast": {
+          "executable": true,
+          "sha256": "5d99d3e3b9020675f6b662027ca48a7d513b1ed70e575aa39cbd9ae591b0e522",
+          "size": 1659
+        },
+        "bin/termux-torch": {
+          "executable": true,
+          "sha256": "3a5abce701c7905323446cbbdbb0f9009bbf7fc6abbe3a097837d55d4a9adfaa",
+          "size": 478
+        },
+        "bin/termux-tts-engines": {
+          "executable": true,
+          "sha256": "50960d001d1e7cd5a57c6b865583f7608cc3d444f5de9200386ae0ad3d61420d",
+          "size": 629
+        },
+        "bin/termux-tts-speak": {
+          "executable": true,
+          "sha256": "0f20cb1ca2f88d9527cab4c75586ffcc88b844ccabb7dc92078dbd4e62462b71",
+          "size": 2062
+        },
+        "bin/termux-usb": {
+          "executable": true,
+          "sha256": "a0a22b648bb6bdb56864c6b74f74de7430521efa0edfe1351b69335fa52ff3d0",
+          "size": 2792
+        },
+        "bin/termux-vibrate": {
+          "executable": true,
+          "sha256": "fa9600601b09deb53d65bc0b73ec3c21dda036cd5740f7a899047b3a32d766fe",
+          "size": 720
+        },
+        "bin/termux-volume": {
+          "executable": true,
+          "sha256": "40e5c33a3e24b103220144bfc934f9c754266169cee6b13af88ad05ccdf61dd7",
+          "size": 793
+        },
+        "bin/termux-wallpaper": {
+          "executable": true,
+          "sha256": "8914c6cc872d8de134976cb6b1e158aaf5a6313b7c1dbf7da7244f6713347fa6",
+          "size": 1338
+        },
+        "bin/termux-wifi-connectioninfo": {
+          "executable": true,
+          "sha256": "3690134211a18e128e3d5766a33cbea5fe77153a99b41c67305e8d41163503ca",
+          "size": 527
+        },
+        "bin/termux-wifi-enable": {
+          "executable": true,
+          "sha256": "7fe2ddf75d4f04ccaf6cd3fe7b530351725f2f8738729ee560cc06f420b848c5",
+          "size": 391
+        },
+        "bin/termux-wifi-scaninfo": {
+          "executable": true,
+          "sha256": "cbc8d4d47c0fffe5e4190c7a9c2a42f2f32f0576ae6686a64d3f5bdd22ba6a3b",
+          "size": 506
+        },
+        "libexec/termux-api": {
+          "executable": true,
+          "sha256": "e21c22eff39058ac3d4b3865dda87d52b36a0cb6386e264441537979b17d59ff",
+          "size": 21016
+        },
+        "libexec/termux-callback": {
+          "executable": true,
+          "sha256": "b3cf91822783a45414c71ecfc5243db68ccdf1968127440308b0b0d04e3a4168",
+          "size": 75
+        },
+        "share/embedded-api/termux-api.deb": {
+          "executable": false,
+          "sha256": "04e055e44a06380b23411751011a79aa81af90a4c6678508e51021fd81528bd0",
+          "size": 28516
+        },
+        "share/embedded-api/upower.deb": {
+          "executable": false,
+          "sha256": "e0198daeabe6e8e5013c9d393340118f27c583c8a68cdbc2f774e2b4d3b478f3",
+          "size": 81692
+        }
+      },
+      "sha256": "0daa8f842edced30fb2d9a4815c1e7e805add6e9c11ae6e7fefe2cb7878f0690",
+      "size": 162197,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/embedded-termux-api-0.60.0-r2/termux-api-companion-arm64-v8a-embedded-v1.zip"
+    },
+    "armeabi-v7a": {
+      "abi": "armeabi-v7a",
+      "asset": "termux-api-companion-armeabi-v7a-embedded-v1.zip",
+      "contract": "embedded-v1",
+      "files": {
+        "bin/termux-api-start": {
+          "executable": true,
+          "sha256": "a5d50def4fe194ea0f0e37dea34a58e5ba1cf40e7e8dd8aaef973a6da5a1bdcd",
+          "size": 103
+        },
+        "bin/termux-api-stop": {
+          "executable": true,
+          "sha256": "81b5d161b515a4acdf7f5c64bc628aa8979d17bae63f986443c34a7151dd79d7",
+          "size": 102
+        },
+        "bin/termux-audio-info": {
+          "executable": true,
+          "sha256": "7f3872b7d1a2b6b0507c2fe97ad8491d1aa5f5ebac48c83f1105b003856abc49",
+          "size": 500
+        },
+        "bin/termux-battery-status": {
+          "executable": true,
+          "sha256": "00e752f35378928ca52f41a37c045dbd5fcd74b1268c4831f0c4eed5e06fb310",
+          "size": 504
+        },
+        "bin/termux-brightness": {
+          "executable": true,
+          "sha256": "9d294e80fac45b0925a363197f1929421030da32d875be7b7f0c8735871f64da",
+          "size": 545
+        },
+        "bin/termux-call-log": {
+          "executable": true,
+          "sha256": "a828e42c70b57bff3dee3ed5a7b019ff249ccb758bc3dbf4490d30f9c4074499",
+          "size": 1241
+        },
+        "bin/termux-camera-info": {
+          "executable": true,
+          "sha256": "46e3ffb621b4a9617a8dad770b747b505af026b5965310a2efea91d240606ae3",
+          "size": 500
+        },
+        "bin/termux-camera-photo": {
+          "executable": true,
+          "sha256": "3f2c3d2e06e9f089efeb4e776d6f5e393502085a8d259b35cdbdf3cfe47b973c",
+          "size": 826
+        },
+        "bin/termux-clipboard-get": {
+          "executable": true,
+          "sha256": "b5db318fa416fd59d6867796371e62e86501f3962153764a24f54cf7afedf3c4",
+          "size": 478
+        },
+        "bin/termux-clipboard-set": {
+          "executable": true,
+          "sha256": "07c3653cfc05927213e0c105870852cefcaf5620d8db33c8747950b2b78dda68",
+          "size": 599
+        },
+        "bin/termux-contact-list": {
+          "executable": true,
+          "sha256": "f1882053693ae57b848d1427d374590f706c86b9f14ef4a12e81c64f0dd2b1d1",
+          "size": 481
+        },
+        "bin/termux-dialog": {
+          "executable": true,
+          "sha256": "8001896ae39ef9b26fa378917879960a113f2d537b4e75e499b8b2a14fde7d09",
+          "size": 7953
+        },
+        "bin/termux-download": {
+          "executable": true,
+          "sha256": "89a890eb636233ba77a188983e1cf3d63442c016069452d5d49b90abf61578df",
+          "size": 1271
+        },
+        "bin/termux-fingerprint": {
+          "executable": true,
+          "sha256": "ed078d8026590e8e57af332a24b8699198005f45da3206878010bd876144a499",
+          "size": 1064
+        },
+        "bin/termux-infrared-frequencies": {
+          "executable": true,
+          "sha256": "ef741e404b44de95301d0700d9ecef9fe54aacbbf43d84227dc0655640183891",
+          "size": 528
+        },
+        "bin/termux-infrared-transmit": {
+          "executable": true,
+          "sha256": "c14c1eeec61b9d722f22bbf088f44857b289ab9ac5613315711a90882dae730c",
+          "size": 951
+        },
+        "bin/termux-job-scheduler": {
+          "executable": true,
+          "sha256": "318e9d6a543f50a69864e16ad92ddd170fe6f71f6ca43ad1ef176ab6097dcefd",
+          "size": 3986
+        },
+        "bin/termux-keystore": {
+          "executable": true,
+          "sha256": "306c4abe4bd42357874bab6db667d4d97fdcbb0ace7523db2515476b09f3f2bd",
+          "size": 4227
+        },
+        "bin/termux-location": {
+          "executable": true,
+          "sha256": "7cc697b8b838c16b15e81d871c30b677c5995a2a3094c48aa1bfe819db87a9ab",
+          "size": 1262
+        },
+        "bin/termux-media-player": {
+          "executable": true,
+          "sha256": "ca6ce47a5084d76975722c065a1991e905f7ac4f1fae6413c713114007d80caf",
+          "size": 1296
+        },
+        "bin/termux-media-scan": {
+          "executable": true,
+          "sha256": "aeb54e6f1e3c4e5f9bd637c4e4b2543c444f11fee40863f0ba7e90b91f5f8067",
+          "size": 977
+        },
+        "bin/termux-microphone-record": {
+          "executable": true,
+          "sha256": "930e05f6a19494ade1b06d35bbeabf0832fc54d9e5acc905333bd594783db6a3",
+          "size": 2397
+        },
+        "bin/termux-nfc": {
+          "executable": true,
+          "sha256": "81ecd1f6d529adc164aeab0ab564104abae2c372c546ce0943bcd9cbce05da27",
+          "size": 1244
+        },
+        "bin/termux-notification": {
+          "executable": true,
+          "sha256": "f02914d2b40c055a12e5fbc1249776539635b7511602945178d74c30c74858ce",
+          "size": 10975
+        },
+        "bin/termux-notification-channel": {
+          "executable": true,
+          "sha256": "bf853e971e37991d441017f96dc33b91471a7747a92d0347609b5f499e71d579",
+          "size": 1172
+        },
+        "bin/termux-notification-list": {
+          "executable": true,
+          "sha256": "fba849b808672aa4969afbff40dc1830ba73ba9d82f6406e4cef156f13ac767a",
+          "size": 520
+        },
+        "bin/termux-notification-remove": {
+          "executable": true,
+          "sha256": "af7bc32e9e0bbf859b629ee5b8f21da89e44687db874811d5377c2a6acb2344d",
+          "size": 585
+        },
+        "bin/termux-saf-create": {
+          "executable": true,
+          "sha256": "1d42eb2dc245e527ed6d56cd7fdc2d4a9ccacba4f0962b03b9026f568aa92c61",
+          "size": 1483
+        },
+        "bin/termux-saf-dirs": {
+          "executable": true,
+          "sha256": "6321b21fbadbd1b6493ec9119b14174610cd3dcdc2185dc149ff9355de65f44e",
+          "size": 937
+        },
+        "bin/termux-saf-ls": {
+          "executable": true,
+          "sha256": "b30d82b39b219577be41a358151c89e34b555c4086d645eb53f590ade112c3cd",
+          "size": 1335
+        },
+        "bin/termux-saf-managedir": {
+          "executable": true,
+          "sha256": "6a0ee6cc157b945c60928dd2e53874f74235a57010ae57868023253541a63006",
+          "size": 1066
+        },
+        "bin/termux-saf-mkdir": {
+          "executable": true,
+          "sha256": "14b45e79e9ef3d7f6432087c037d79dd4034f80bfdc22bf37ca23d2349a4e2a2",
+          "size": 717
+        },
+        "bin/termux-saf-read": {
+          "executable": true,
+          "sha256": "6eb03124ec9531a99585b3eca02da12b8a2ba59f968ebf80b1b06795439000bc",
+          "size": 767
+        },
+        "bin/termux-saf-rm": {
+          "executable": true,
+          "sha256": "3a4b0dca270595dccde10bf0fdc785ebb2885669227365ebac8b1e91cc9752bf",
+          "size": 744
+        },
+        "bin/termux-saf-stat": {
+          "executable": true,
+          "sha256": "7104a794e68177293d6ab4603af8948f622ebda465bdce21b4e62571ba88e314",
+          "size": 644
+        },
+        "bin/termux-saf-write": {
+          "executable": true,
+          "sha256": "475ccf98b470b7a69cc019872c68fc5f8582d05130ca3c7945db81e4398e44f3",
+          "size": 683
+        },
+        "bin/termux-sensor": {
+          "executable": true,
+          "sha256": "6867328f26060a1cf225ef3e7df647cbb58499989fbe3501427da69548100500",
+          "size": 3217
+        },
+        "bin/termux-share": {
+          "executable": true,
+          "sha256": "9fee2a9d7efdd30760346fe53c696ecdcfda9ec84ab974cd68582c09fe796cb2",
+          "size": 1841
+        },
+        "bin/termux-sms-inbox": {
+          "executable": true,
+          "sha256": "3e13c865f7167d489e416592ee146391b0f283e7628dc519cb716fdc59c511e3",
+          "size": 124
+        },
+        "bin/termux-sms-list": {
+          "executable": true,
+          "sha256": "d0735077d7f3d124c6974492375053b80c0eaa1f85153823f67a5baa4548dfb2",
+          "size": 24941
+        },
+        "bin/termux-sms-send": {
+          "executable": true,
+          "sha256": "ecef3b428d6f399d703c827e5de3d933ead03ecf9e2efbb6f10ae1473d931156",
+          "size": 1086
+        },
+        "bin/termux-speech-to-text": {
+          "executable": true,
+          "sha256": "89d56f23d64fc95a103a5fcea0b06eb41e892ef9bf231000ee523e561febe543",
+          "size": 662
+        },
+        "bin/termux-storage-get": {
+          "executable": true,
+          "sha256": "e47a3d01a96d456585c000cac39c5116dbd67d3d39feb3238b2f6cb1e607e8cb",
+          "size": 650
+        },
+        "bin/termux-telephony-call": {
+          "executable": true,
+          "sha256": "edba64e6f2966e2b9f7a02b4c8cc1a25a467f43cbc8aa503cb43f4d3c1ad230a",
+          "size": 528
+        },
+        "bin/termux-telephony-cellinfo": {
+          "executable": true,
+          "sha256": "a60bdb45f60c7fd7d121aea71142a80c9dc3a966ec3c8fc445c6d11da39c927b",
+          "size": 601
+        },
+        "bin/termux-telephony-deviceinfo": {
+          "executable": true,
+          "sha256": "7f6254ccfe13e9b73b0aa075edf5985d9dc4b27037c8f69df90bfb924cddc5b7",
+          "size": 522
+        },
+        "bin/termux-toast": {
+          "executable": true,
+          "sha256": "5d99d3e3b9020675f6b662027ca48a7d513b1ed70e575aa39cbd9ae591b0e522",
+          "size": 1659
+        },
+        "bin/termux-torch": {
+          "executable": true,
+          "sha256": "3a5abce701c7905323446cbbdbb0f9009bbf7fc6abbe3a097837d55d4a9adfaa",
+          "size": 478
+        },
+        "bin/termux-tts-engines": {
+          "executable": true,
+          "sha256": "50960d001d1e7cd5a57c6b865583f7608cc3d444f5de9200386ae0ad3d61420d",
+          "size": 629
+        },
+        "bin/termux-tts-speak": {
+          "executable": true,
+          "sha256": "0f20cb1ca2f88d9527cab4c75586ffcc88b844ccabb7dc92078dbd4e62462b71",
+          "size": 2062
+        },
+        "bin/termux-usb": {
+          "executable": true,
+          "sha256": "a0a22b648bb6bdb56864c6b74f74de7430521efa0edfe1351b69335fa52ff3d0",
+          "size": 2792
+        },
+        "bin/termux-vibrate": {
+          "executable": true,
+          "sha256": "fa9600601b09deb53d65bc0b73ec3c21dda036cd5740f7a899047b3a32d766fe",
+          "size": 720
+        },
+        "bin/termux-volume": {
+          "executable": true,
+          "sha256": "40e5c33a3e24b103220144bfc934f9c754266169cee6b13af88ad05ccdf61dd7",
+          "size": 793
+        },
+        "bin/termux-wallpaper": {
+          "executable": true,
+          "sha256": "8914c6cc872d8de134976cb6b1e158aaf5a6313b7c1dbf7da7244f6713347fa6",
+          "size": 1338
+        },
+        "bin/termux-wifi-connectioninfo": {
+          "executable": true,
+          "sha256": "3690134211a18e128e3d5766a33cbea5fe77153a99b41c67305e8d41163503ca",
+          "size": 527
+        },
+        "bin/termux-wifi-enable": {
+          "executable": true,
+          "sha256": "7fe2ddf75d4f04ccaf6cd3fe7b530351725f2f8738729ee560cc06f420b848c5",
+          "size": 391
+        },
+        "bin/termux-wifi-scaninfo": {
+          "executable": true,
+          "sha256": "cbc8d4d47c0fffe5e4190c7a9c2a42f2f32f0576ae6686a64d3f5bdd22ba6a3b",
+          "size": 506
+        },
+        "libexec/termux-api": {
+          "executable": true,
+          "sha256": "3cf897b557bd4aba3ec02fe5d8c6821063d8502ce82d068b0c82505c4b3cd066",
+          "size": 19188
+        },
+        "libexec/termux-callback": {
+          "executable": true,
+          "sha256": "b3cf91822783a45414c71ecfc5243db68ccdf1968127440308b0b0d04e3a4168",
+          "size": 75
+        },
+        "share/embedded-api/termux-api.deb": {
+          "executable": false,
+          "sha256": "b19b308560be75f0315a3367bc0addd8416e9a32511aa47d70810e5b54e02110",
+          "size": 28152
+        }
+      },
+      "sha256": "7d43f020a989dd336b22cf9d61b80366c24ce7611c4534e954607e9606c6503d",
+      "size": 79894,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/embedded-termux-api-0.60.0-r2/termux-api-companion-armeabi-v7a-embedded-v1.zip"
+    },
+    "x86": {
+      "abi": "x86",
+      "asset": "termux-api-companion-x86-embedded-v1.zip",
+      "contract": "embedded-v1",
+      "files": {
+        "bin/termux-api-start": {
+          "executable": true,
+          "sha256": "a5d50def4fe194ea0f0e37dea34a58e5ba1cf40e7e8dd8aaef973a6da5a1bdcd",
+          "size": 103
+        },
+        "bin/termux-api-stop": {
+          "executable": true,
+          "sha256": "81b5d161b515a4acdf7f5c64bc628aa8979d17bae63f986443c34a7151dd79d7",
+          "size": 102
+        },
+        "bin/termux-audio-info": {
+          "executable": true,
+          "sha256": "7f3872b7d1a2b6b0507c2fe97ad8491d1aa5f5ebac48c83f1105b003856abc49",
+          "size": 500
+        },
+        "bin/termux-battery-status": {
+          "executable": true,
+          "sha256": "00e752f35378928ca52f41a37c045dbd5fcd74b1268c4831f0c4eed5e06fb310",
+          "size": 504
+        },
+        "bin/termux-brightness": {
+          "executable": true,
+          "sha256": "9d294e80fac45b0925a363197f1929421030da32d875be7b7f0c8735871f64da",
+          "size": 545
+        },
+        "bin/termux-call-log": {
+          "executable": true,
+          "sha256": "a828e42c70b57bff3dee3ed5a7b019ff249ccb758bc3dbf4490d30f9c4074499",
+          "size": 1241
+        },
+        "bin/termux-camera-info": {
+          "executable": true,
+          "sha256": "46e3ffb621b4a9617a8dad770b747b505af026b5965310a2efea91d240606ae3",
+          "size": 500
+        },
+        "bin/termux-camera-photo": {
+          "executable": true,
+          "sha256": "3f2c3d2e06e9f089efeb4e776d6f5e393502085a8d259b35cdbdf3cfe47b973c",
+          "size": 826
+        },
+        "bin/termux-clipboard-get": {
+          "executable": true,
+          "sha256": "b5db318fa416fd59d6867796371e62e86501f3962153764a24f54cf7afedf3c4",
+          "size": 478
+        },
+        "bin/termux-clipboard-set": {
+          "executable": true,
+          "sha256": "07c3653cfc05927213e0c105870852cefcaf5620d8db33c8747950b2b78dda68",
+          "size": 599
+        },
+        "bin/termux-contact-list": {
+          "executable": true,
+          "sha256": "f1882053693ae57b848d1427d374590f706c86b9f14ef4a12e81c64f0dd2b1d1",
+          "size": 481
+        },
+        "bin/termux-dialog": {
+          "executable": true,
+          "sha256": "8001896ae39ef9b26fa378917879960a113f2d537b4e75e499b8b2a14fde7d09",
+          "size": 7953
+        },
+        "bin/termux-download": {
+          "executable": true,
+          "sha256": "89a890eb636233ba77a188983e1cf3d63442c016069452d5d49b90abf61578df",
+          "size": 1271
+        },
+        "bin/termux-fingerprint": {
+          "executable": true,
+          "sha256": "ed078d8026590e8e57af332a24b8699198005f45da3206878010bd876144a499",
+          "size": 1064
+        },
+        "bin/termux-infrared-frequencies": {
+          "executable": true,
+          "sha256": "ef741e404b44de95301d0700d9ecef9fe54aacbbf43d84227dc0655640183891",
+          "size": 528
+        },
+        "bin/termux-infrared-transmit": {
+          "executable": true,
+          "sha256": "c14c1eeec61b9d722f22bbf088f44857b289ab9ac5613315711a90882dae730c",
+          "size": 951
+        },
+        "bin/termux-job-scheduler": {
+          "executable": true,
+          "sha256": "318e9d6a543f50a69864e16ad92ddd170fe6f71f6ca43ad1ef176ab6097dcefd",
+          "size": 3986
+        },
+        "bin/termux-keystore": {
+          "executable": true,
+          "sha256": "306c4abe4bd42357874bab6db667d4d97fdcbb0ace7523db2515476b09f3f2bd",
+          "size": 4227
+        },
+        "bin/termux-location": {
+          "executable": true,
+          "sha256": "7cc697b8b838c16b15e81d871c30b677c5995a2a3094c48aa1bfe819db87a9ab",
+          "size": 1262
+        },
+        "bin/termux-media-player": {
+          "executable": true,
+          "sha256": "ca6ce47a5084d76975722c065a1991e905f7ac4f1fae6413c713114007d80caf",
+          "size": 1296
+        },
+        "bin/termux-media-scan": {
+          "executable": true,
+          "sha256": "aeb54e6f1e3c4e5f9bd637c4e4b2543c444f11fee40863f0ba7e90b91f5f8067",
+          "size": 977
+        },
+        "bin/termux-microphone-record": {
+          "executable": true,
+          "sha256": "930e05f6a19494ade1b06d35bbeabf0832fc54d9e5acc905333bd594783db6a3",
+          "size": 2397
+        },
+        "bin/termux-nfc": {
+          "executable": true,
+          "sha256": "81ecd1f6d529adc164aeab0ab564104abae2c372c546ce0943bcd9cbce05da27",
+          "size": 1244
+        },
+        "bin/termux-notification": {
+          "executable": true,
+          "sha256": "f02914d2b40c055a12e5fbc1249776539635b7511602945178d74c30c74858ce",
+          "size": 10975
+        },
+        "bin/termux-notification-channel": {
+          "executable": true,
+          "sha256": "bf853e971e37991d441017f96dc33b91471a7747a92d0347609b5f499e71d579",
+          "size": 1172
+        },
+        "bin/termux-notification-list": {
+          "executable": true,
+          "sha256": "fba849b808672aa4969afbff40dc1830ba73ba9d82f6406e4cef156f13ac767a",
+          "size": 520
+        },
+        "bin/termux-notification-remove": {
+          "executable": true,
+          "sha256": "af7bc32e9e0bbf859b629ee5b8f21da89e44687db874811d5377c2a6acb2344d",
+          "size": 585
+        },
+        "bin/termux-saf-create": {
+          "executable": true,
+          "sha256": "1d42eb2dc245e527ed6d56cd7fdc2d4a9ccacba4f0962b03b9026f568aa92c61",
+          "size": 1483
+        },
+        "bin/termux-saf-dirs": {
+          "executable": true,
+          "sha256": "6321b21fbadbd1b6493ec9119b14174610cd3dcdc2185dc149ff9355de65f44e",
+          "size": 937
+        },
+        "bin/termux-saf-ls": {
+          "executable": true,
+          "sha256": "b30d82b39b219577be41a358151c89e34b555c4086d645eb53f590ade112c3cd",
+          "size": 1335
+        },
+        "bin/termux-saf-managedir": {
+          "executable": true,
+          "sha256": "6a0ee6cc157b945c60928dd2e53874f74235a57010ae57868023253541a63006",
+          "size": 1066
+        },
+        "bin/termux-saf-mkdir": {
+          "executable": true,
+          "sha256": "14b45e79e9ef3d7f6432087c037d79dd4034f80bfdc22bf37ca23d2349a4e2a2",
+          "size": 717
+        },
+        "bin/termux-saf-read": {
+          "executable": true,
+          "sha256": "6eb03124ec9531a99585b3eca02da12b8a2ba59f968ebf80b1b06795439000bc",
+          "size": 767
+        },
+        "bin/termux-saf-rm": {
+          "executable": true,
+          "sha256": "3a4b0dca270595dccde10bf0fdc785ebb2885669227365ebac8b1e91cc9752bf",
+          "size": 744
+        },
+        "bin/termux-saf-stat": {
+          "executable": true,
+          "sha256": "7104a794e68177293d6ab4603af8948f622ebda465bdce21b4e62571ba88e314",
+          "size": 644
+        },
+        "bin/termux-saf-write": {
+          "executable": true,
+          "sha256": "475ccf98b470b7a69cc019872c68fc5f8582d05130ca3c7945db81e4398e44f3",
+          "size": 683
+        },
+        "bin/termux-sensor": {
+          "executable": true,
+          "sha256": "6867328f26060a1cf225ef3e7df647cbb58499989fbe3501427da69548100500",
+          "size": 3217
+        },
+        "bin/termux-share": {
+          "executable": true,
+          "sha256": "9fee2a9d7efdd30760346fe53c696ecdcfda9ec84ab974cd68582c09fe796cb2",
+          "size": 1841
+        },
+        "bin/termux-sms-inbox": {
+          "executable": true,
+          "sha256": "3e13c865f7167d489e416592ee146391b0f283e7628dc519cb716fdc59c511e3",
+          "size": 124
+        },
+        "bin/termux-sms-list": {
+          "executable": true,
+          "sha256": "d0735077d7f3d124c6974492375053b80c0eaa1f85153823f67a5baa4548dfb2",
+          "size": 24941
+        },
+        "bin/termux-sms-send": {
+          "executable": true,
+          "sha256": "ecef3b428d6f399d703c827e5de3d933ead03ecf9e2efbb6f10ae1473d931156",
+          "size": 1086
+        },
+        "bin/termux-speech-to-text": {
+          "executable": true,
+          "sha256": "89d56f23d64fc95a103a5fcea0b06eb41e892ef9bf231000ee523e561febe543",
+          "size": 662
+        },
+        "bin/termux-storage-get": {
+          "executable": true,
+          "sha256": "e47a3d01a96d456585c000cac39c5116dbd67d3d39feb3238b2f6cb1e607e8cb",
+          "size": 650
+        },
+        "bin/termux-telephony-call": {
+          "executable": true,
+          "sha256": "edba64e6f2966e2b9f7a02b4c8cc1a25a467f43cbc8aa503cb43f4d3c1ad230a",
+          "size": 528
+        },
+        "bin/termux-telephony-cellinfo": {
+          "executable": true,
+          "sha256": "a60bdb45f60c7fd7d121aea71142a80c9dc3a966ec3c8fc445c6d11da39c927b",
+          "size": 601
+        },
+        "bin/termux-telephony-deviceinfo": {
+          "executable": true,
+          "sha256": "7f6254ccfe13e9b73b0aa075edf5985d9dc4b27037c8f69df90bfb924cddc5b7",
+          "size": 522
+        },
+        "bin/termux-toast": {
+          "executable": true,
+          "sha256": "5d99d3e3b9020675f6b662027ca48a7d513b1ed70e575aa39cbd9ae591b0e522",
+          "size": 1659
+        },
+        "bin/termux-torch": {
+          "executable": true,
+          "sha256": "3a5abce701c7905323446cbbdbb0f9009bbf7fc6abbe3a097837d55d4a9adfaa",
+          "size": 478
+        },
+        "bin/termux-tts-engines": {
+          "executable": true,
+          "sha256": "50960d001d1e7cd5a57c6b865583f7608cc3d444f5de9200386ae0ad3d61420d",
+          "size": 629
+        },
+        "bin/termux-tts-speak": {
+          "executable": true,
+          "sha256": "0f20cb1ca2f88d9527cab4c75586ffcc88b844ccabb7dc92078dbd4e62462b71",
+          "size": 2062
+        },
+        "bin/termux-usb": {
+          "executable": true,
+          "sha256": "a0a22b648bb6bdb56864c6b74f74de7430521efa0edfe1351b69335fa52ff3d0",
+          "size": 2792
+        },
+        "bin/termux-vibrate": {
+          "executable": true,
+          "sha256": "fa9600601b09deb53d65bc0b73ec3c21dda036cd5740f7a899047b3a32d766fe",
+          "size": 720
+        },
+        "bin/termux-volume": {
+          "executable": true,
+          "sha256": "40e5c33a3e24b103220144bfc934f9c754266169cee6b13af88ad05ccdf61dd7",
+          "size": 793
+        },
+        "bin/termux-wallpaper": {
+          "executable": true,
+          "sha256": "8914c6cc872d8de134976cb6b1e158aaf5a6313b7c1dbf7da7244f6713347fa6",
+          "size": 1338
+        },
+        "bin/termux-wifi-connectioninfo": {
+          "executable": true,
+          "sha256": "3690134211a18e128e3d5766a33cbea5fe77153a99b41c67305e8d41163503ca",
+          "size": 527
+        },
+        "bin/termux-wifi-enable": {
+          "executable": true,
+          "sha256": "7fe2ddf75d4f04ccaf6cd3fe7b530351725f2f8738729ee560cc06f420b848c5",
+          "size": 391
+        },
+        "bin/termux-wifi-scaninfo": {
+          "executable": true,
+          "sha256": "cbc8d4d47c0fffe5e4190c7a9c2a42f2f32f0576ae6686a64d3f5bdd22ba6a3b",
+          "size": 506
+        },
+        "libexec/termux-api": {
+          "executable": true,
+          "sha256": "05d6cb4de2b782cd9ff2b0f9bb0747c4bc312542e4c547097ae028d666549f6e",
+          "size": 17568
+        },
+        "libexec/termux-callback": {
+          "executable": true,
+          "sha256": "b3cf91822783a45414c71ecfc5243db68ccdf1968127440308b0b0d04e3a4168",
+          "size": 75
+        },
+        "share/embedded-api/termux-api.deb": {
+          "executable": false,
+          "sha256": "ccd27ecdc19699104311bea5a191b947fd20aed95d1efb217c40d94bd1a0402b",
+          "size": 28572
+        }
+      },
+      "sha256": "ced9d25082d4283f0159bd3dbdf4d73284e34726387469019d5a187361afde9a",
+      "size": 80343,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/embedded-termux-api-0.60.0-r2/termux-api-companion-x86-embedded-v1.zip"
+    },
+    "x86_64": {
+      "abi": "x86_64",
+      "asset": "termux-api-companion-x86_64-embedded-v1.zip",
+      "contract": "embedded-v1",
+      "files": {
+        "bin/termux-api-start": {
+          "executable": true,
+          "sha256": "a5d50def4fe194ea0f0e37dea34a58e5ba1cf40e7e8dd8aaef973a6da5a1bdcd",
+          "size": 103
+        },
+        "bin/termux-api-stop": {
+          "executable": true,
+          "sha256": "81b5d161b515a4acdf7f5c64bc628aa8979d17bae63f986443c34a7151dd79d7",
+          "size": 102
+        },
+        "bin/termux-audio-info": {
+          "executable": true,
+          "sha256": "7f3872b7d1a2b6b0507c2fe97ad8491d1aa5f5ebac48c83f1105b003856abc49",
+          "size": 500
+        },
+        "bin/termux-battery-status": {
+          "executable": true,
+          "sha256": "00e752f35378928ca52f41a37c045dbd5fcd74b1268c4831f0c4eed5e06fb310",
+          "size": 504
+        },
+        "bin/termux-brightness": {
+          "executable": true,
+          "sha256": "9d294e80fac45b0925a363197f1929421030da32d875be7b7f0c8735871f64da",
+          "size": 545
+        },
+        "bin/termux-call-log": {
+          "executable": true,
+          "sha256": "a828e42c70b57bff3dee3ed5a7b019ff249ccb758bc3dbf4490d30f9c4074499",
+          "size": 1241
+        },
+        "bin/termux-camera-info": {
+          "executable": true,
+          "sha256": "46e3ffb621b4a9617a8dad770b747b505af026b5965310a2efea91d240606ae3",
+          "size": 500
+        },
+        "bin/termux-camera-photo": {
+          "executable": true,
+          "sha256": "3f2c3d2e06e9f089efeb4e776d6f5e393502085a8d259b35cdbdf3cfe47b973c",
+          "size": 826
+        },
+        "bin/termux-clipboard-get": {
+          "executable": true,
+          "sha256": "b5db318fa416fd59d6867796371e62e86501f3962153764a24f54cf7afedf3c4",
+          "size": 478
+        },
+        "bin/termux-clipboard-set": {
+          "executable": true,
+          "sha256": "07c3653cfc05927213e0c105870852cefcaf5620d8db33c8747950b2b78dda68",
+          "size": 599
+        },
+        "bin/termux-contact-list": {
+          "executable": true,
+          "sha256": "f1882053693ae57b848d1427d374590f706c86b9f14ef4a12e81c64f0dd2b1d1",
+          "size": 481
+        },
+        "bin/termux-dialog": {
+          "executable": true,
+          "sha256": "8001896ae39ef9b26fa378917879960a113f2d537b4e75e499b8b2a14fde7d09",
+          "size": 7953
+        },
+        "bin/termux-download": {
+          "executable": true,
+          "sha256": "89a890eb636233ba77a188983e1cf3d63442c016069452d5d49b90abf61578df",
+          "size": 1271
+        },
+        "bin/termux-fingerprint": {
+          "executable": true,
+          "sha256": "ed078d8026590e8e57af332a24b8699198005f45da3206878010bd876144a499",
+          "size": 1064
+        },
+        "bin/termux-infrared-frequencies": {
+          "executable": true,
+          "sha256": "ef741e404b44de95301d0700d9ecef9fe54aacbbf43d84227dc0655640183891",
+          "size": 528
+        },
+        "bin/termux-infrared-transmit": {
+          "executable": true,
+          "sha256": "c14c1eeec61b9d722f22bbf088f44857b289ab9ac5613315711a90882dae730c",
+          "size": 951
+        },
+        "bin/termux-job-scheduler": {
+          "executable": true,
+          "sha256": "318e9d6a543f50a69864e16ad92ddd170fe6f71f6ca43ad1ef176ab6097dcefd",
+          "size": 3986
+        },
+        "bin/termux-keystore": {
+          "executable": true,
+          "sha256": "306c4abe4bd42357874bab6db667d4d97fdcbb0ace7523db2515476b09f3f2bd",
+          "size": 4227
+        },
+        "bin/termux-location": {
+          "executable": true,
+          "sha256": "7cc697b8b838c16b15e81d871c30b677c5995a2a3094c48aa1bfe819db87a9ab",
+          "size": 1262
+        },
+        "bin/termux-media-player": {
+          "executable": true,
+          "sha256": "ca6ce47a5084d76975722c065a1991e905f7ac4f1fae6413c713114007d80caf",
+          "size": 1296
+        },
+        "bin/termux-media-scan": {
+          "executable": true,
+          "sha256": "aeb54e6f1e3c4e5f9bd637c4e4b2543c444f11fee40863f0ba7e90b91f5f8067",
+          "size": 977
+        },
+        "bin/termux-microphone-record": {
+          "executable": true,
+          "sha256": "930e05f6a19494ade1b06d35bbeabf0832fc54d9e5acc905333bd594783db6a3",
+          "size": 2397
+        },
+        "bin/termux-nfc": {
+          "executable": true,
+          "sha256": "81ecd1f6d529adc164aeab0ab564104abae2c372c546ce0943bcd9cbce05da27",
+          "size": 1244
+        },
+        "bin/termux-notification": {
+          "executable": true,
+          "sha256": "f02914d2b40c055a12e5fbc1249776539635b7511602945178d74c30c74858ce",
+          "size": 10975
+        },
+        "bin/termux-notification-channel": {
+          "executable": true,
+          "sha256": "bf853e971e37991d441017f96dc33b91471a7747a92d0347609b5f499e71d579",
+          "size": 1172
+        },
+        "bin/termux-notification-list": {
+          "executable": true,
+          "sha256": "fba849b808672aa4969afbff40dc1830ba73ba9d82f6406e4cef156f13ac767a",
+          "size": 520
+        },
+        "bin/termux-notification-remove": {
+          "executable": true,
+          "sha256": "af7bc32e9e0bbf859b629ee5b8f21da89e44687db874811d5377c2a6acb2344d",
+          "size": 585
+        },
+        "bin/termux-saf-create": {
+          "executable": true,
+          "sha256": "1d42eb2dc245e527ed6d56cd7fdc2d4a9ccacba4f0962b03b9026f568aa92c61",
+          "size": 1483
+        },
+        "bin/termux-saf-dirs": {
+          "executable": true,
+          "sha256": "6321b21fbadbd1b6493ec9119b14174610cd3dcdc2185dc149ff9355de65f44e",
+          "size": 937
+        },
+        "bin/termux-saf-ls": {
+          "executable": true,
+          "sha256": "b30d82b39b219577be41a358151c89e34b555c4086d645eb53f590ade112c3cd",
+          "size": 1335
+        },
+        "bin/termux-saf-managedir": {
+          "executable": true,
+          "sha256": "6a0ee6cc157b945c60928dd2e53874f74235a57010ae57868023253541a63006",
+          "size": 1066
+        },
+        "bin/termux-saf-mkdir": {
+          "executable": true,
+          "sha256": "14b45e79e9ef3d7f6432087c037d79dd4034f80bfdc22bf37ca23d2349a4e2a2",
+          "size": 717
+        },
+        "bin/termux-saf-read": {
+          "executable": true,
+          "sha256": "6eb03124ec9531a99585b3eca02da12b8a2ba59f968ebf80b1b06795439000bc",
+          "size": 767
+        },
+        "bin/termux-saf-rm": {
+          "executable": true,
+          "sha256": "3a4b0dca270595dccde10bf0fdc785ebb2885669227365ebac8b1e91cc9752bf",
+          "size": 744
+        },
+        "bin/termux-saf-stat": {
+          "executable": true,
+          "sha256": "7104a794e68177293d6ab4603af8948f622ebda465bdce21b4e62571ba88e314",
+          "size": 644
+        },
+        "bin/termux-saf-write": {
+          "executable": true,
+          "sha256": "475ccf98b470b7a69cc019872c68fc5f8582d05130ca3c7945db81e4398e44f3",
+          "size": 683
+        },
+        "bin/termux-sensor": {
+          "executable": true,
+          "sha256": "6867328f26060a1cf225ef3e7df647cbb58499989fbe3501427da69548100500",
+          "size": 3217
+        },
+        "bin/termux-share": {
+          "executable": true,
+          "sha256": "9fee2a9d7efdd30760346fe53c696ecdcfda9ec84ab974cd68582c09fe796cb2",
+          "size": 1841
+        },
+        "bin/termux-sms-inbox": {
+          "executable": true,
+          "sha256": "3e13c865f7167d489e416592ee146391b0f283e7628dc519cb716fdc59c511e3",
+          "size": 124
+        },
+        "bin/termux-sms-list": {
+          "executable": true,
+          "sha256": "d0735077d7f3d124c6974492375053b80c0eaa1f85153823f67a5baa4548dfb2",
+          "size": 24941
+        },
+        "bin/termux-sms-send": {
+          "executable": true,
+          "sha256": "ecef3b428d6f399d703c827e5de3d933ead03ecf9e2efbb6f10ae1473d931156",
+          "size": 1086
+        },
+        "bin/termux-speech-to-text": {
+          "executable": true,
+          "sha256": "89d56f23d64fc95a103a5fcea0b06eb41e892ef9bf231000ee523e561febe543",
+          "size": 662
+        },
+        "bin/termux-storage-get": {
+          "executable": true,
+          "sha256": "e47a3d01a96d456585c000cac39c5116dbd67d3d39feb3238b2f6cb1e607e8cb",
+          "size": 650
+        },
+        "bin/termux-telephony-call": {
+          "executable": true,
+          "sha256": "edba64e6f2966e2b9f7a02b4c8cc1a25a467f43cbc8aa503cb43f4d3c1ad230a",
+          "size": 528
+        },
+        "bin/termux-telephony-cellinfo": {
+          "executable": true,
+          "sha256": "a60bdb45f60c7fd7d121aea71142a80c9dc3a966ec3c8fc445c6d11da39c927b",
+          "size": 601
+        },
+        "bin/termux-telephony-deviceinfo": {
+          "executable": true,
+          "sha256": "7f6254ccfe13e9b73b0aa075edf5985d9dc4b27037c8f69df90bfb924cddc5b7",
+          "size": 522
+        },
+        "bin/termux-toast": {
+          "executable": true,
+          "sha256": "5d99d3e3b9020675f6b662027ca48a7d513b1ed70e575aa39cbd9ae591b0e522",
+          "size": 1659
+        },
+        "bin/termux-torch": {
+          "executable": true,
+          "sha256": "3a5abce701c7905323446cbbdbb0f9009bbf7fc6abbe3a097837d55d4a9adfaa",
+          "size": 478
+        },
+        "bin/termux-tts-engines": {
+          "executable": true,
+          "sha256": "50960d001d1e7cd5a57c6b865583f7608cc3d444f5de9200386ae0ad3d61420d",
+          "size": 629
+        },
+        "bin/termux-tts-speak": {
+          "executable": true,
+          "sha256": "0f20cb1ca2f88d9527cab4c75586ffcc88b844ccabb7dc92078dbd4e62462b71",
+          "size": 2062
+        },
+        "bin/termux-usb": {
+          "executable": true,
+          "sha256": "a0a22b648bb6bdb56864c6b74f74de7430521efa0edfe1351b69335fa52ff3d0",
+          "size": 2792
+        },
+        "bin/termux-vibrate": {
+          "executable": true,
+          "sha256": "fa9600601b09deb53d65bc0b73ec3c21dda036cd5740f7a899047b3a32d766fe",
+          "size": 720
+        },
+        "bin/termux-volume": {
+          "executable": true,
+          "sha256": "40e5c33a3e24b103220144bfc934f9c754266169cee6b13af88ad05ccdf61dd7",
+          "size": 793
+        },
+        "bin/termux-wallpaper": {
+          "executable": true,
+          "sha256": "8914c6cc872d8de134976cb6b1e158aaf5a6313b7c1dbf7da7244f6713347fa6",
+          "size": 1338
+        },
+        "bin/termux-wifi-connectioninfo": {
+          "executable": true,
+          "sha256": "3690134211a18e128e3d5766a33cbea5fe77153a99b41c67305e8d41163503ca",
+          "size": 527
+        },
+        "bin/termux-wifi-enable": {
+          "executable": true,
+          "sha256": "7fe2ddf75d4f04ccaf6cd3fe7b530351725f2f8738729ee560cc06f420b848c5",
+          "size": 391
+        },
+        "bin/termux-wifi-scaninfo": {
+          "executable": true,
+          "sha256": "cbc8d4d47c0fffe5e4190c7a9c2a42f2f32f0576ae6686a64d3f5bdd22ba6a3b",
+          "size": 506
+        },
+        "libexec/termux-api": {
+          "executable": true,
+          "sha256": "75eacaf45006f7251c17c1fcdf33504f60cf2b8753781f68081911886dc1c791",
+          "size": 21056
+        },
+        "libexec/termux-callback": {
+          "executable": true,
+          "sha256": "b3cf91822783a45414c71ecfc5243db68ccdf1968127440308b0b0d04e3a4168",
+          "size": 75
+        },
+        "share/embedded-api/termux-api.deb": {
+          "executable": false,
+          "sha256": "b4426305802fe8ebffe05a042ba2e7396652eb38dfa110a4487150685d1b3135",
+          "size": 28784
+        }
+      },
+      "sha256": "3b11e4dc943699cdf2ddbafc82fbf0d7a730d70ae8c01375b20a003127b1b2de",
+      "size": 80897,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/embedded-termux-api-0.60.0-r2/termux-api-companion-x86_64-embedded-v1.zip"
+    }
+  },
+  "contract": "embedded-v1",
+  "release": "embedded-termux-api-0.60.0-r2",
+  "schema": 1
+}

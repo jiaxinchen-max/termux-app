@@ -107,7 +107,9 @@ final class TermuxInstaller {
             if (TermuxFileUtils.isTermuxPrefixDirectoryEmpty()) {
                 Logger.logInfo(LOG_TAG, "The termux prefix directory \"" + TERMUX_PREFIX_DIR_PATH + "\" exists but is empty or only contains specific unimportant files.");
             } else {
-                whenDone.run();
+                if (new File(TERMUX_PREFIX_DIR, ".runtime-api-pending").exists())
+                    showApiComponentsPending(activity, whenDone);
+                else whenDone.run();
                 return;
             }
         } else if (FileUtils.fileExists(TERMUX_PREFIX_DIR_PATH, false)) {
@@ -216,13 +218,13 @@ final class TermuxInstaller {
                         throw new RuntimeException("Moving termux prefix staging to prefix directory failed");
                     }
 
-                    com.termux.api.EmbeddedApiInstaller.install(activity);
+                    // Basic terminal initialization is independent of optional network payloads.
                     Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully.");
 
                     // Recreate env file since termux prefix was wiped earlier
                     TermuxShellEnvironment.writeEnvironmentToFile(activity);
 
-                    activity.runOnUiThread(whenDone);
+                    activity.runOnUiThread(() -> setupApiComponents(activity, whenDone));
 
                 } catch (final Exception e) {
                     showBootstrapErrorDialog(activity, whenDone, Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)));
@@ -238,6 +240,43 @@ final class TermuxInstaller {
                 }
             }
         }.start();
+    }
+
+    /** Explicit API retry keeps the already initialized prefix and runs all IO off the UI thread. */
+    private static void setupApiComponents(Activity activity, Runnable whenDone) {
+        ProgressDialog progress = ProgressDialog.show(activity, null,
+            activity.getString(R.string.api_component_setup_progress), true, true);
+        Thread worker = new Thread(() -> {
+            try {
+                new File(TERMUX_PREFIX_DIR, ".runtime-api-pending").createNewFile();
+                com.termux.api.EmbeddedApiInstaller.install(activity);
+                File pending = new File(TERMUX_PREFIX_DIR, ".runtime-api-pending");
+                if (pending.exists() && !pending.delete()) throw new java.io.IOException("Cannot clear API pending state");
+                activity.runOnUiThread(whenDone);
+            } catch (Exception error) {
+                Logger.logErrorExtended(LOG_TAG, "API components remain pending: " + error);
+                activity.runOnUiThread(() -> showApiComponentsPending(activity, whenDone));
+            } finally {
+                activity.runOnUiThread(() -> {
+                    try { progress.dismiss(); } catch (RuntimeException ignored) { }
+                });
+            }
+        }, "TermuxApiComponents");
+        progress.setOnCancelListener(dialog -> worker.interrupt());
+        worker.start();
+    }
+
+    private static void showApiComponentsPending(Activity activity, Runnable whenDone) {
+        try {
+            new AlertDialog.Builder(activity)
+                .setTitle(R.string.api_component_setup_title)
+                .setMessage(R.string.api_component_setup_pending)
+                .setCancelable(false)
+                .setPositiveButton(R.string.bootstrap_error_try_again, (dialog, which) ->
+                    setupApiComponents(activity, whenDone))
+                .setNegativeButton(R.string.api_component_setup_continue, (dialog, which) -> whenDone.run())
+                .show();
+        } catch (WindowManager.BadTokenException ignored) { }
     }
 
     public static void showBootstrapErrorDialog(Activity activity, Runnable whenDone, String message) {

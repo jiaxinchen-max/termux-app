@@ -26,3 +26,7 @@
 受保护：app/src/main/AndroidManifest.xml、Application 初始化、settings.gradle、app/build.gradle、新模块 Manifest/Gradle、IPC native 代码及相关组件打包/安装引用。影响包括权限声明、后台组件、资源合并、依赖体积及 CLI 路由；逐项审查导出组件和授权边界。回滚本变更模块/入口/依赖和配套组件版本，保留既有 USB 及其他脏工作树变更。
 
 OpenSpec CLI、仓库级 Harness 引导文件、strict gate 脚本及 baseline specs 缺失；当前手工生成规划材料，未运行任何不存在的工具，也不标记检查通过。确认后仍须记录可执行测试、构建及代码审查；严格门禁记 Unavailable。
+
+## 已确认的交付方式修订（download-runtime-assets-on-demand）
+
+用户已确认主题与 API 配套资源改为资产库按需下载，取代本文件此前内嵌主题/CLI/deb 的交付要求。Android API 宿主保留 APK；Linux 下随 App 构建配套包与是否打入 APK 分开处理。最终要求及验收场景以 download-runtime-assets-on-demand 的四项规划为准，历史发布与验证记录保留原意，不声称旧 APK 已外置。

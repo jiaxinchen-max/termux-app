@@ -66,6 +66,12 @@ desktop_resolve_rendering || {
     log 'Unsupported host/container renderer pair; choose compatible renderers explicitly.'
     printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
 }
+if [ "$DESKTOP_MODE:${DESKTOP_DE:-}" = proot:kwin_plasma ]; then
+    desktop_load_plasma_rendering || {
+        log 'Plasma renderer initialization is incomplete for this pair; retry installation.'
+        printf 'exit:66\n' > "$DESKTOP_STATUS_FILE"; exit 66
+    }
+fi
 printf 'starting\n' > "$DESKTOP_STATUS_FILE"
 : > "$DESKTOP_LOG_FILE"
 # Resolve no modes implicitly: old Auto entries must be edited in the app first.
@@ -125,10 +131,12 @@ if [ "${DESKTOP_DE:-}" = gnome ] || [ "${DESKTOP_DE:-}" = ubuntu_gnome ]; then
     esac
 fi
 if [ "${DESKTOP_DE:-}" = hyprland ]; then
-    [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_RELEASE:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:hyprland-android-0.57.0-70ec30e7-r7:system ] || {
+    [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:system ] || {
         log 'Hyprland requires its pinned Android/System EGL host and USB off.'
         printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
     }
+    . "$(dirname "$0")/hyprland-components.sh"
+    hyprland_resolve_components || { log 'Unknown or incompatible Hyprland compositor/theme selection'; exit 64; }
     case "$DESKTOP_MODE:$DESKTOP_COMPONENT_RENDERER:${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" in
         native:system:default|proot:system:default|proot:zink:zink) ;;
         *) log 'Hyprland experimental Zink is for PRoot clients only; select a supported mode.'
@@ -183,7 +191,7 @@ DESKTOP_DE="${DESKTOP_DE:-kwin_plasma}"
 if [ "$DESKTOP_DE" = hyprland ]; then
     rm -f "$DESKTOP_PID_FILE.hyprland-ready"
     printf 'hyprland\n' > "$DESKTOP_PID_FILE.owned-session" || { code=74; finish_desktop; }
-    set -- session --desktop-id "$DESKTOP_ID" --ready-file "$DESKTOP_PID_FILE.hyprland-ready" \
+    set -- session --runtime-id "$DESKTOP_HYPRLAND_RUNTIME_ID" --theme-id "$DESKTOP_HYPRLAND_THEME_ID" --desktop-id "$DESKTOP_ID" --ready-file "$DESKTOP_PID_FILE.hyprland-ready" \
         --run-mode "$DESKTOP_MODE" --client-gl-mode "${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" --width "$DESKTOP_WIDTH" --height "$DESKTOP_HEIGHT" --refresh "$DESKTOP_REFRESH_RATE"
     [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
     "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" "$@" >> "$DESKTOP_LOG_FILE.out" 2>&1 &
@@ -409,7 +417,8 @@ if [ "$DESKTOP_MODE" = "proot" ]; then
             --bind "$(dirname "$0")/desktop_container_statx_setup.sh:/tmp/desktop_container_statx_setup.sh" \
             --bind "$(dirname "$0")/desktop_container_run_config.sh:/tmp/desktop_container_run_config.sh" \
             --bind "$(dirname "$0")/desktop_container_statx_aarch64.bin:/tmp/desktop_container_statx_aarch64.bin" \
-            -- env DESKTOP_GUEST_GL_MODE="$DESKTOP_GUEST_GL_MODE" PULSE_SERVER="$PULSE_SERVER" DESKTOP_STATX_BACKEND=proc-fdinfo \
+            -- env DESKTOP_GUEST_GL_MODE="$DESKTOP_GUEST_GL_MODE" DESKTOP_PLASMA_GUEST_ICD="$DESKTOP_PLASMA_GUEST_ICD" \
+                DESKTOP_PLASMA_GUEST_SOFTWARE="$DESKTOP_PLASMA_GUEST_SOFTWARE" PULSE_SERVER="$PULSE_SERVER" DESKTOP_STATX_BACKEND=proc-fdinfo \
                 DESKTOP_KDE_SERVICE_POLICY=kwin-wayland QT_QPA_PLATFORM=wayland XDG_SESSION_TYPE=wayland \
                 sh /tmp/plasma-container-session.sh >> "$DESKTOP_LOG_FILE.out" 2>&1 &
         container=$!

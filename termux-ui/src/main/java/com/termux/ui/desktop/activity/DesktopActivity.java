@@ -336,7 +336,16 @@ public final class DesktopActivity extends AppUiActivity {
             getString(R.string.desktop_host_summary, DesktopCreateActivity.hostLabel(this, distro.getHostGlMode()))
                 + (distro.getRunMode() == DesktopRunMode.PROOT ? " · " + getString(R.string.desktop_guest_summary,
                     DesktopCreateActivity.guestLabel(this, distro.getGuestGlMode())) : ""), distro.getResolution(), distro.getRefreshRate()));
+        if (distro.getDe() == DesktopDe.HYPRLAND) {
+            card.desktopDetail.append("\n" + getString(R.string.desktop_hyprland_components_summary,
+                distro.getHyprlandRuntimeId(), DesktopCreateActivity.themeLabel(this, distro.getHyprlandThemeId())));
+        }
         card.desktopStatus.setText(stateLabel(state));
+        if (distro.getDe() == DesktopDe.HYPRLAND && state == DesktopSessionState.NOT_INSTALLED) {
+            card.desktopStatus.setText(!tasks.hyprlandRuntimeInstalled(distro)
+                ? R.string.desktop_hyprland_runtime_missing : !tasks.hyprlandThemeInstalled(distro)
+                ? R.string.desktop_hyprland_theme_missing : R.string.desktop_state_not_installed);
+        }
         card.desktopStatus.setTextColor(ContextCompat.getColor(this, stateColor(state)));
 
         boolean installing = state == DesktopSessionState.INSTALLING;
@@ -385,7 +394,7 @@ public final class DesktopActivity extends AppUiActivity {
                 case MENU_STOP: stop(distro); return true;
                 case MENU_SETTINGS:
                     runHostAction(() -> {
-                        try { tasks.forceStop(distro); }
+                        try { if (distro.getDe() != DesktopDe.HYPRLAND) tasks.forceStop(distro); }
                         catch (IOException error) { toastOnUi(getString(R.string.desktop_error, error.getMessage())); return; }
                         runOnUiThread(() -> DesktopSettingsDialog.show(this, tasks, distro, this::refresh));
                     });
@@ -474,7 +483,7 @@ public final class DesktopActivity extends AppUiActivity {
         });
     }
 
-    private void showInstallConsole(String taskId) {
+    void showInstallConsole(String taskId) {
         PrefixSetupConsoleDialog.show(this, taskId).setOnDismissListener(dialog -> refresh());
         refresh();
     }

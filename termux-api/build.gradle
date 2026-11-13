@@ -2,7 +2,6 @@ plugins { id 'com.android.library' }
 android {
     namespace 'com.termux.api'
     ndkVersion '25.1.8937393'
-    sourceSets.main.assets.srcDir layout.buildDirectory.dir('generated/apiAssets')
     compileSdk project.properties.compileSdkVersion.toInteger()
     defaultConfig { minSdkVersion project.properties.minSdkVersion.toInteger() }
     compileOptions {
@@ -14,16 +13,21 @@ android {
 dependencies {
     implementation project(':termux-shared')
     implementation project(':termux-usb')
+    implementation 'org.apache.commons:commons-compress:1.20'
     implementation 'com.google.android.material:material:1.4.0'
     implementation 'androidx.biometric:biometric:1.1.0'
     implementation 'androidx.media:media:1.7.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20231013'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.5'
 }
 
 tasks.register('generateApiCli', Exec) {
     inputs.dir rootProject.file('tools/embedded-termux-api')
-    outputs.dir layout.buildDirectory.dir('generated/apiAssets')
+    inputs.dir rootProject.file('distribution/embedded-termux-api')
+    inputs.file file('src/main/assets/runtime-api-components.json')
+    outputs.dir layout.buildDirectory.dir('outputs/apiComponents')
     commandLine 'python3', rootProject.file('tools/embedded-termux-api/build.py'), '--ndk',
-        new File(android.sdkDirectory, 'ndk/25.1.8937393'), '--output', layout.buildDirectory.dir('generated/apiAssets').get().asFile
+        new File(android.sdkDirectory, 'ndk/25.1.8937393'), '--output', layout.buildDirectory.dir('outputs/apiComponents').get().asFile
 }
 tasks.named('preBuild').configure { dependsOn 'generateApiCli' }

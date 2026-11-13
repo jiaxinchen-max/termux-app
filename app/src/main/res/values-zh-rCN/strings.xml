@@ -153,4 +153,9 @@
     <string name="update">更新</string>
     <string name="invalid_config">无效的参数</string>
     <string name="stop_desktop_title">将关闭图形显示并停止显示服务。</string>
+
+    <string name="api_component_setup_title">Android API 组件待完成</string>
+    <string name="api_component_setup_progress">正在下载并校验 Android API 配套组件…</string>
+    <string name="api_component_setup_pending">Android API 配套命令尚未就绪，请联网后重试。基础终端已就绪，已有文件会保留。你可以继续使用终端；API 命令将在初始化完成后可用。</string>
+    <string name="api_component_setup_continue">继续使用终端</string>
 </resources>

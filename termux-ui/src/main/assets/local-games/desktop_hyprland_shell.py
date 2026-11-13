@@ -76,8 +76,12 @@ def panel_config(menu, launcher):
     return ET.tostring(root, encoding='unicode') + '\n'
 
 
-def prepare(work, run_mode):
+def prepare(work, run_mode, theme_id):
     """Return host shell commands; applications route through session-local wrappers."""
+    import runpy
+    components = runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_components.py')))
+    components['resources'].__globals__['PREFIX'] = PREFIX
+    resources = components['resources'](theme_id)
     config, data = work / 'config', work / 'data'
     helper = Path(__file__).resolve()
     launcher = work / 'bin/termux-hyprland-shell'
@@ -123,13 +127,7 @@ def prepare(work, run_mode):
     panel = config / 'xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml'
     create_default(panel, panel_config(str(menu), str(launcher)))
     wallpaper = config / 'hyprland-wallpaper.svg'
-    create_default(wallpaper, '''<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
-<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#101b35"/><stop offset="1" stop-color="#173f50"/></linearGradient>
-<linearGradient id="wave"><stop stop-color="#16465c"/><stop offset="1" stop-color="#256779"/></linearGradient></defs>
-<path fill="url(#bg)" d="M0 0h1920v1080H0z"/>
-<path fill="url(#wave)" d="M0 850Q520 200 1050 750T1920 550V1080H0Z"/>
-<path fill="#1a5267" opacity=".55" d="M0 980Q700 400 1300 900T1920 700V1080H0Z"/>
-</svg>\n''')
+    create_default(wallpaper, (resources / 'wallpaper.svg').read_text())
     info = config / 'hyprland-display.txt'
     info.write_text('Android display capabilities\n\n'
                     'The current Android output backend supports 8-bit ARGB8888 buffers.\n'
@@ -144,7 +142,7 @@ def prepare(work, run_mode):
     notifyd = PREFIX / 'lib/xfce4/notifyd/xfce4-notifyd'
     import runpy
     theme = runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_theme.py')))
-    if theme['selected'](work) == theme['VERSION']:
+    if theme_id == theme['VERSION']:
         return theme['prepare'](work, run_mode)
     return [[str(PREFIX / 'bin/swaybg'), '-i', str(wallpaper), '-m', 'fill'],
             [str(notifyd)], [str(PREFIX / 'bin/xfce4-panel'), '--disable-wm-check']]
@@ -184,8 +182,7 @@ def main():
         print(battery_status(HOME.parent / 'front/desktop/state/android-battery.json'))
         return
     if args.action.startswith('theme-'):
-        (args.work / 'config/desktop-theme').write_text('m3ww-v1\n' if args.action == 'theme-m3ww' else 'r7\n')
-        subprocess.Popen([str(PREFIX / 'bin/notify-send'), 'Desktop appearance', 'Stop and reopen this desktop to apply the selected theme.'])
+        subprocess.Popen([str(PREFIX / 'bin/notify-send'), 'Desktop appearance', 'Stop the desktop and choose its theme in App settings.'])
         return
     state = json.loads((args.work / 'session.json').read_text())
     if not (Path('/proc') / str(state['supervisor'])).exists():

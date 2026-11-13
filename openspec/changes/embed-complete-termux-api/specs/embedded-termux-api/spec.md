@@ -20,3 +20,7 @@
 
 ## 要求：初始化与交付
 依赖安装、CLI 路由配置与静态能力检查在保存/初始化阶段完成，不增加桌面启动预检。UPower 的实际电池刷新须有界且不阻塞服务注册。APK 保持现有包名、签名、最低 Android 版本和普通可安装属性。
+
+## 已确认的交付方式修订（download-runtime-assets-on-demand）
+
+用户已确认主题与 API 配套资源改为资产库按需下载，取代本文件此前内嵌主题/CLI/deb 的交付要求。Android API 宿主保留 APK；Linux 下随 App 构建配套包与是否打入 APK 分开处理。最终要求及验收场景以 download-runtime-assets-on-demand 的四项规划为准，历史发布与验证记录保留原意，不声称旧 APK 已外置。

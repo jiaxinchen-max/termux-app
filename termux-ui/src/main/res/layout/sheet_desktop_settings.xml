@@ -102,6 +102,16 @@
                 layout="@layout/item_desktop_select" />
 
             <include
+                android:id="@+id/desktop_settings_hyprland_runtime"
+                layout="@layout/item_desktop_select"
+                android:visibility="gone" />
+
+            <include
+                android:id="@+id/desktop_settings_hyprland_theme"
+                layout="@layout/item_desktop_select"
+                android:visibility="gone" />
+
+            <include
                 android:id="@+id/desktop_settings_host_renderer"
                 layout="@layout/item_desktop_select" />
 

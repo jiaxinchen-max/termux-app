@@ -9,9 +9,13 @@ case "${1:-}" in --statx-backend=proc-fdinfo) shift ;;
     *) echo "ERROR: explicitly select --statx-backend=proc-fdinfo" >&2; exit 64 ;;
 esac
 REINSTALL_OPTION=''
+HELD_OPTION=''
 NO_INSTALL_RECOMMENDS=0
 case "${1:-}" in --no-install-recommends) NO_INSTALL_RECOMMENDS=1; shift ;; esac
 case "${1:-}" in --reinstall) REINSTALL_OPTION=--reinstall; shift ;; esac
+case "${1:-}" in --allow-change-held-packages)
+    [ "$REINSTALL_OPTION" = --reinstall ] || exit 64
+    HELD_OPTION=--allow-change-held-packages; shift ;; esac
 [ "$#" -gt 0 ] || { echo "ERROR: requested container packages are required" >&2; exit 64; }
 for requested in "$@"; do
     case "$requested" in -*) echo "ERROR: unsupported container apt option: $requested" >&2; exit 64 ;; esac
@@ -35,9 +39,9 @@ run_proot_config proc-fdinfo apt-get update
 code=$?
 [ "$code" -eq 0 ] || exit "$code"
 if [ "$NO_INSTALL_RECOMMENDS" -eq 1 ]; then
-    run_proot_config proc-fdinfo apt-get install -y --no-remove $REINSTALL_OPTION --no-install-recommends -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef "$@"
+    run_proot_config proc-fdinfo apt-get install -y --no-remove $REINSTALL_OPTION $HELD_OPTION --no-install-recommends -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef "$@"
 else
-    run_proot_config proc-fdinfo apt-get install -y --no-remove $REINSTALL_OPTION -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef "$@"
+    run_proot_config proc-fdinfo apt-get install -y --no-remove $REINSTALL_OPTION $HELD_OPTION -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef "$@"
 fi
 code=$?
 if [ "$code" -ne 0 ]; then

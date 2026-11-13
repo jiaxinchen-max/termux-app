@@ -3,6 +3,7 @@ package com.termux.ui.desktop.runtime;
 import androidx.annotation.Nullable;
 
 import com.termux.ui.desktop.domain.DesktopDe;
+import com.termux.ui.desktop.domain.HyprlandComponents;
 import com.termux.ui.desktop.domain.DesktopDistro;
 import com.termux.ui.desktop.domain.DesktopGlMode;
 import com.termux.ui.desktop.domain.DesktopRunMode;
@@ -37,29 +38,9 @@ public final class DesktopEnvironment {
                 host = new File(prefix, "bin/start-plasma").isFile();
                 break;
             case HYPRLAND:
-                File runtime = new File(prefix, "opt/termux-hyprland/0.57.0-r7");
-                host = new File(prefix, "bin/python3").isFile()
-                    && new File(prefix, "bin/dbus-daemon").isFile()
-                    && new File(prefix, "bin/eww").isFile()
-                    && new File(prefix, "bin/foot").isFile()
-                    && new File(prefix, "bin/fish").isFile()
-                    && new File(prefix, "bin/starship").isFile()
-                    && new File(prefix, "bin/fc-cache").isFile()
-                    && new File(prefix, "bin/xfce4-panel").isFile()
-                    && new File(prefix, "bin/swaybg").isFile()
-                    && new File(prefix, "bin/xfconf-query").isFile()
-                    && new File(prefix, "bin/dbus-send").isFile()
-                    && new File(prefix, "lib/xfce4/notifyd/xfce4-notifyd").isFile()
-                    && new File(prefix, "lib/xfce4/panel/plugins/libgenmon.so").isFile()
-                    && new File(runtime, "bin/Hyprland").isFile()
-                    && new File(runtime, "bin/Xwayland").isFile()
-                    && new File(runtime, "lib/hyprland/android/libhyprland-system-gl.so").isFile()
-                    && new File(runtime, "lib/hyprland/android/libvndksupport.so").isFile()
-                    && "6024fd61a4923031ce9d7c4d35c1d545e75cbff16fe1ae9ab8aab86a0167f948".equals(
-                        head(new File(runtime, ".installed"), 80).trim())
+                host = hyprlandRuntimeInstalled(distro) && hyprlandThemeInstalled(distro)
                     && (distro.getRunMode() == DesktopRunMode.PROOT
-                        || new File(prefix, "bin/xfce4-terminal").isFile()
-                            && new File(prefix, "bin/thunar").isFile());
+                        || new File(prefix, "bin/xfce4-terminal").isFile() && new File(prefix, "bin/thunar").isFile());
                 break;
             case UBUNTU_GNOME:
             case GNOME:
@@ -88,6 +69,13 @@ public final class DesktopEnvironment {
         if (distro.getRunMode() == DesktopRunMode.NATIVE) return true;
         if (!new File(prefix, "bin/proot-distro").isFile()) return false;
         File container = containerDir(distro.getProotDistro());
+        if (distro.getDe() == DesktopDe.KWIN_PLASMA) {
+            File rendering = new File(prefix, "var/lib/termux-desktop/rendering/"
+                + distro.getProotDistro() + "." + distro.getHostGlMode().getStorageValue()
+                + "." + distro.getGuestGlMode().getStorageValue() + ".env");
+            // A newly selected pair needs explicit initialization before the UI offers Start.
+            if (!rendering.isFile() || java.nio.file.Files.isSymbolicLink(rendering.toPath())) return false;
+        }
         if (distro.getDe() == DesktopDe.UBUNTU_GNOME && !ubuntuGnomeInstalled(container)) return false;
         if (container != null && distro.getDe() == DesktopDe.HYPRLAND
                 && distro.getGuestGlMode() == com.termux.ui.desktop.domain.DesktopGuestGlMode.ZINK) {
@@ -102,6 +90,26 @@ public final class DesktopEnvironment {
         // container; a half-provisioned instance (interrupted apt) stays "not installed".
         return container != null
             && new File(container, ".desktop-de-" + distro.getDe().getStorageValue()).isFile();
+    }
+
+    public boolean hyprlandRuntimeInstalled(DesktopDistro distro) {
+        if (distro.getDe() != DesktopDe.HYPRLAND) return false;
+        File root = new File(prefix, "opt/termux-hyprland/" + distro.getHyprlandRuntimeId());
+        for (String name : new String[]{"bin/Hyprland", "bin/hyprctl", "bin/Xwayland",
+                "lib/hyprland/android/libhyprland-system-gl.so", "lib/hyprland/android/libvndksupport.so"})
+            if (!new File(root, name).isFile()) return false;
+        return HyprlandComponents.RUNTIME_MANIFEST.equals(head(new File(root, ".installed"), 80).trim());
+    }
+
+    public boolean hyprlandThemeInstalled(DesktopDistro distro) {
+        String theme = distro.getHyprlandThemeId();
+        for (String file : HyprlandComponents.requiredFiles(theme))
+            if (!new File(prefix, file).isFile()) return false;
+        File root = new File(prefix, "share/termux-hyprland/themes/" + theme);
+        if (!HyprlandComponents.themeManifest(theme).equals(head(new File(root, ".installed"), 80).trim())) return false;
+        for (String file : HyprlandComponents.resourceFiles(theme))
+            if (!new File(root, file).isFile() || java.nio.file.Files.isSymbolicLink(new File(root, file).toPath())) return false;
+        return true;
     }
 
     private boolean ubuntuGnomeInstalled(File container) {

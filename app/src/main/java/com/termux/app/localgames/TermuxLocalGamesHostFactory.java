@@ -311,6 +311,8 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
             } catch (IOException | RuntimeException error) {
                 TermuxGamesSetupTerminalRegistry.submissionFailed(request.getTaskId());
                 String code = failureCode;
+                if (error.getMessage() != null && error.getMessage().startsWith("Android API component"))
+                    code = "api_component_initialization_failed";
                 if ("termux_shell_missing".equals(error.getMessage())) code = error.getMessage();
                 throw new LaunchHostException(code, true, error);
             }

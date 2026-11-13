@@ -114,6 +114,16 @@
                 android:textStyle="bold" />
 
             <include
+                android:id="@+id/desktop_create_hyprland_runtime"
+                layout="@layout/item_desktop_select"
+                android:visibility="gone" />
+
+            <include
+                android:id="@+id/desktop_create_hyprland_theme"
+                layout="@layout/item_desktop_select"
+                android:visibility="gone" />
+
+            <include
                 android:id="@+id/desktop_create_host_renderer"
                 layout="@layout/item_desktop_select" />
 

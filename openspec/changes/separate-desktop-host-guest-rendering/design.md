@@ -27,3 +27,7 @@ XFCE默认不额外装Mesa或注入Android库；不虚构容器Zink支持。启�
 产品文档Required/Pending，docs/product/desktops.md最终接受后维护；HTTP文档N/A。严格Harness脚本和OpenSpec CLI不存在，完整门禁Unavailable。本轮不自动执行Git提交、推送、外部发布、部署或归档。
 
 用户补充并授权：创建页仅展示受支持桌面候选卡片；当前底层发行版固定Debian，不展示发行版选择或Coming soon占位。Ubuntu GNOME的独立发行版问题另行核对，不作为已支持项目显示。
+
+## KWin PRoot 后续修正约定
+
+用户已确认 fix-kwin-proot-renderer-selection。本文原始 Plasma 同名配对限制由该活动变更的独立四组合、默认 System EGL/LLVMpipe 和实际后端验证方案取代；其他桌面白名单与历史验证记录保持。

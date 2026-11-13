@@ -27,7 +27,7 @@ public final class DesktopRendererPolicy {
             case UBUNTU_GNOME: return Collections.singletonList(DesktopGlMode.SYSTEM);
             case HYPRLAND: return Collections.singletonList(DesktopGlMode.SYSTEM);
             case GNOME: return Arrays.asList(DesktopGlMode.SYSTEM, DesktopGlMode.ZINK);
-            case KWIN_PLASMA: return Arrays.asList(DesktopGlMode.ZINK, DesktopGlMode.LLVMPIPE);
+            case KWIN_PLASMA: return Arrays.asList(DesktopGlMode.SYSTEM, DesktopGlMode.ZINK, DesktopGlMode.LLVMPIPE);
             default: return Arrays.asList(DesktopGlMode.SYSTEM, DesktopGlMode.ZINK, DesktopGlMode.LLVMPIPE);
         }
     }
@@ -53,7 +53,7 @@ public final class DesktopRendererPolicy {
             case HYPRLAND: return host == DesktopGlMode.SYSTEM;
             case GNOME: return host == DesktopGlMode.SYSTEM && guest == DesktopGuestGlMode.LLVMPIPE
                 || host == DesktopGlMode.ZINK && guest == DesktopGuestGlMode.ZINK;
-            case KWIN_PLASMA: return host == DesktopGlMode.ZINK && guest == DesktopGuestGlMode.ZINK
+            case KWIN_PLASMA: return host == DesktopGlMode.SYSTEM || host == DesktopGlMode.ZINK
                 || host == DesktopGlMode.LLVMPIPE && guest == DesktopGuestGlMode.LLVMPIPE;
             default: return false;
         }

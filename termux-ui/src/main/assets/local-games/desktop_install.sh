@@ -65,9 +65,11 @@ case "${DESKTOP_MODE:-}" in native|proot) ;; *) log 'Explicit desktop run mode r
 case "${DESKTOP_DE:-}" in xfce4|kwin_plasma|gnome|ubuntu_gnome|hyprland) ;; *) log 'Unsupported desktop environment'; exit 64 ;; esac
 case "${DESKTOP_COMPONENT_RENDERER:-}" in system|zink|llvmpipe) ;; *) log 'Explicit system, zink or llvmpipe renderer required'; exit 64 ;; esac
 if [ "$DESKTOP_DE" = hyprland ]; then
-    [ "$OPERATION" = install ] && [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_RELEASE:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:hyprland-android-0.57.0-70ec30e7-r7:system ] || {
+    [ "$OPERATION" = install ] && [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:system ] || {
         log 'Hyprland requires its pinned Android/System EGL host and USB off; archives are unsupported.'; exit 64
     }
+    . "$(dirname "$0")/hyprland-components.sh"
+    hyprland_resolve_components || { log 'Unknown or incompatible Hyprland compositor/theme selection'; exit 64; }
     case "$DESKTOP_MODE:$DESKTOP_COMPONENT_RENDERER:${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" in
         native:system:default|proot:system:default|proot:zink:zink) ;;
         *) log 'Hyprland supports default clients, or explicit experimental Zink clients in PRoot only.'; exit 64 ;;
@@ -103,9 +105,20 @@ if [ "$DESKTOP_DE" = gnome ]; then
 fi
 
 # Invalidate the previous completion before initialization; failure must leave no success marker.
-if [ "$OPERATION" = install ] && [ "${DESKTOP_MODE:-}" = proot ]; then
+if [ "$OPERATION" = install ] && [ "${DESKTOP_MODE:-}" = proot ] && [ "${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" != 1 ]; then
     rm -f "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE" \
         "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE-zink" || exit 74
+fi
+
+# An unsuccessful retry must also invalidate the exact pair's old initialization receipt.
+if [ "$OPERATION:$DESKTOP_MODE:$DESKTOP_DE" = install:proot:kwin_plasma ]; then
+    rm -f "$PREFIX/var/lib/termux-desktop/rendering/$DESKTOP_PROOT_DISTRO.$DESKTOP_HOST_GL_MODE.$DESKTOP_GUEST_GL_MODE.env" || exit 74
+fi
+
+PLASMA_EMULATOR=0
+if [ "$DESKTOP_MODE:$DESKTOP_DE" = proot:kwin_plasma ] &&
+    [ "$(/system/bin/getprop ro.kernel.qemu 2>/dev/null)" = 1 ]; then
+    PLASMA_EMULATOR=1
 fi
 
 BASE_URL="https://github.com/jiaxinchen-max/kwin/releases/download/$DESKTOP_RELEASE_TAG"
@@ -568,8 +581,8 @@ $name $digest"
 
 initialize_desktop() {
     # Reapply the APK-matched package after apt dependencies, before validating initialization.
-    [ -f "$PREFIX/share/embedded-api/termux-api.deb" ] || fail 'embedded Android API package missing'
-    run dpkg -i "$PREFIX/share/embedded-api/termux-api.deb" || fail 'embedded Android API package installation'
+    [ -f "$PREFIX/share/embedded-api/termux-api.deb" ] || fail 'Android API companion package missing; retry runtime initialization'
+    run dpkg -i "$PREFIX/share/embedded-api/termux-api.deb" || fail 'Android API companion package installation'
     if dpkg-query -W -f='${Status}' upower 2>/dev/null | grep -q 'install ok installed'; then
         [ -f "$PREFIX/share/embedded-api/upower.deb" ] || fail 'asynchronous UPower component missing'
         run dpkg -i "$PREFIX/share/embedded-api/upower.deb" || fail 'asynchronous UPower installation'
@@ -580,6 +593,7 @@ initialize_desktop() {
         --host-gl-mode "$DESKTOP_HOST_GL_MODE" --guest-gl-mode "$DESKTOP_GUEST_GL_MODE" \
         --usb-storage "$DESKTOP_USB_STORAGE"
     [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
+    [ "$DESKTOP_DE" != hyprland ] || set -- "$@" --runtime-id "$DESKTOP_HYPRLAND_RUNTIME_ID" --theme-id "$DESKTOP_HYPRLAND_THEME_ID"
     run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_initialize.py" initialize "$@" || fail 'desktop initialization verification'
     initialization_audit=$(dpkg --audit 2>&1) || fail 'initialization dpkg audit'
     [ -z "$initialization_audit" ] || fail "$initialization_audit"
@@ -589,17 +603,29 @@ if [ "$DESKTOP_DE" = hyprland ]; then
     log "Installing Hyprland Android candidate ($DESKTOP_MODE); device validation pending"
     run pkg install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold x11-repo || fail 'x11-repo'
     run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold || fail 'pkg update'
-    support='eww foot fish starship fontconfig-utils pygobject python dbus pulseaudio xfce4-panel xfce4-genmon-plugin xfce4-notifyd swaybg gtk-layer-shell adwaita-icon-theme xfce4-terminal'
-    if [ "$DESKTOP_MODE" = native ]; then support="$support xfce4-terminal thunar"; else support="$support proot proot-distro"; fi
+    support="$HYPRLAND_SUPPORT"
+    if [ "$DESKTOP_MODE" = native ]; then support="$support thunar"; else support="$support proot proot-distro"; fi
     # shellcheck disable=SC2086
     run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold $support || fail 'Hyprland runtime/client dependencies'
-    HYPRLAND_RELEASE=hyprland-android-0.57.0-70ec30e7-r7
-    artifact=$(fetch_debs "$HYPRLAND_RELEASE" "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/$HYPRLAND_RELEASE" \
-        'hyprland-android-runtime-aarch64-0.57.0-r7.tar.gz 2fd3bd98104d7b411c9760efb2ad3270e950a1be4a146fa089b19a6fea169b10') || fail 'downloading Hyprland component'
-    artifact="${artifact# }"
-    if ! run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" install "$artifact"; then
-        rm -f "$artifact"
-        fail 'Hyprland runtime verification/install failed; retry will download the component again'
+    if run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-runtime; then
+        log 'Selected Hyprland compositor already verified; preserving its files'
+    else
+        artifact=$(fetch_debs "$HYPRLAND_RELEASE" "$HYPRLAND_BASE_URL" "$HYPRLAND_ASSET $HYPRLAND_ARCHIVE_SHA256") || fail 'downloading Hyprland component'
+        artifact="${artifact# }"
+        if ! run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" install "$artifact"; then
+            rm -f "$artifact"
+            fail 'Hyprland runtime verification/install failed; retry will download the component again'
+        fi
+    fi
+    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland_components.py" install \
+        --runtime "$DESKTOP_HYPRLAND_RUNTIME_ID" --theme "$DESKTOP_HYPRLAND_THEME_ID" || fail 'Hyprland theme verification/install'
+    if [ "${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" = 1 ]; then
+        # A theme transaction must preserve the previous container and completion receipts.
+        # Initialization validates the candidate's clients/renderers without installing a guest.
+        initialize_desktop
+        log 'Hyprland theme candidate verified; App will commit the selection'
+        INSTALL_DONE=1
+        exit 0
     fi
     if [ "$DESKTOP_MODE" = proot ]; then
         ensure_container_instance "$DESKTOP_PROOT_DISTRO" debian:trixie
@@ -710,6 +736,13 @@ else
     # The session itself lives in the container; the host needs the display server and proot.
     # shellcheck disable=SC2086
     host_packages="proot proot-distro pulseaudio"
+    if [ "$DESKTOP_DE" = kwin_plasma ]; then
+        host_packages="$host_packages mesa mesa-demos"
+        if [ "$DESKTOP_HOST_GL_MODE" = zink ]; then
+            if [ "$PLASMA_EMULATOR" = 1 ]; then host_packages="$host_packages vulkan-loader mesa-vulkan-icd-swrast"
+            else host_packages="$host_packages vulkan-loader mesa-vulkan-icd-freedreno"; fi
+        fi
+    fi
     if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
         host_packages="$host_packages python dbus xorg-xdpyinfo"
         [ "$DESKTOP_HOST_GL_MODE" != zink ] || host_packages="$host_packages mesa mesa-vulkan-icd-freedreno vulkan-loader"
@@ -744,8 +777,8 @@ else
         gnome) container_packages="gjs mesa-utils-bin gnome-shell gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils"
             [ "$DESKTOP_COMPONENT_RENDERER" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm19 libdrm2"
             ;;
-        *) container_packages="qt6-wayland mesa-utils-bin plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit polkitd"
-           [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || container_packages="$container_packages libvulkan-dev" ;;
+        *) container_packages="qt6-wayland mesa-utils-bin plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit polkitd libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2"
+           [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || container_packages="$container_packages libvulkan-dev mesa-vulkan-drivers" ;;
     esac
     container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
     [ -r "$container_apt" ] || fail "missing $container_apt"
@@ -755,11 +788,19 @@ else
     recommend_option=''
     { [ "$DESKTOP_DE" != gnome ] && [ "$DESKTOP_DE" != ubuntu_gnome ]; } || recommend_option=--no-install-recommends
     [ "$DESKTOP_DE" != ubuntu_gnome ] || recommend_option="--no-install-recommends --reinstall"
+    # A prior Turnip overlay can leave Debian EGL linked to an absent LLVM ABI.
+    # Reinstall matching distro Mesa on emulators; preserve existing apt hold selections.
+    if [ "$PLASMA_EMULATOR" = 1 ]; then
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+            --statx-backend=proc-fdinfo --reinstall --allow-change-held-packages \
+            libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 mesa-vulkan-drivers \
+            || fail 'restoring matching emulator Mesa packages'
+    fi
     # shellcheck disable=SC2086
     run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
         --statx-backend=proc-fdinfo $recommend_option $container_packages || fail "container apt install $DESKTOP_DE"
     # Idempotent and independent of the marker: a container created before this step still gets it.
-    [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
+    [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$PLASMA_EMULATOR" = 1 ] || [ "$DESKTOP_GUEST_GL_MODE" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
     [ "$DESKTOP_DE:$DESKTOP_COMPONENT_RENDERER" != gnome:zink ] || ensure_gnome_turnip_icd "$DESKTOP_PROOT_DISTRO"
     if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
         # The guest must load glibc GIO code. Never bind a host Bionic module into it.

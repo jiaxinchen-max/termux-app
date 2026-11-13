@@ -1,6 +1,7 @@
 package com.termux.ui.desktop.data;
 
 import com.termux.ui.desktop.domain.DesktopDe;
+import com.termux.ui.desktop.domain.HyprlandComponents;
 import com.termux.ui.desktop.domain.DesktopDistro;
 import com.termux.ui.desktop.domain.DesktopGlMode;
 import com.termux.ui.desktop.domain.DesktopGuestGlMode;
@@ -30,13 +31,26 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
 
     private static final String SUFFIX = ".properties";
     private static final Set<String> KEYS = new HashSet<>(Arrays.asList("schemaVersion", "id",
-        "name", "runMode", "prootDistro", "de", "hostGlMode", "guestGlMode", "resolution", "refreshRate", "usbStorage"));
+        "name", "runMode", "prootDistro", "de", "hostGlMode", "guestGlMode", "resolution", "refreshRate", "usbStorage", "hyprlandRuntimeId", "hyprlandThemeId"));
 
     private final File directory;
+    private final File home;
 
     public FileDesktopDistroRepository(File directory) {
+        this(directory, defaultHome(directory));
+    }
+
+    private static File defaultHome(File directory) {
+        if (directory == null) throw new IllegalArgumentException("desktopDirectoryRequired");
+        File ancestor = directory.getAbsoluteFile();
+        for (int i = 0; i < 3 && ancestor.getParentFile() != null; i++) ancestor = ancestor.getParentFile();
+        return new File(ancestor, "home");
+    }
+
+    public FileDesktopDistroRepository(File directory, File home) {
         if (directory == null) throw new IllegalArgumentException("desktopDirectoryRequired");
         this.directory = directory;
+        this.home = home;
     }
 
     @Override public synchronized List<DesktopDistro> list() throws IOException {
@@ -111,7 +125,7 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
         Properties properties = new Properties();
         try (FileInputStream input = new FileInputStream(file)) { properties.load(input); }
         String schema = properties.getProperty("schemaVersion");
-        if (!String.valueOf(DesktopDistro.SCHEMA_VERSION).equals(schema))
+        if (!"3".equals(schema) && !"4".equals(schema))
             throw new IOException("unsupported_desktop_schema");
         for (Object key : properties.keySet()) {
             if (!KEYS.contains(key.toString())) throw new IOException("unknown_desktop_field");
@@ -119,15 +133,31 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
         try {
             DesktopRunMode mode = DesktopRunMode.fromStorageValue(required(properties, "runMode"));
             DesktopDe de = DesktopDe.fromStorageValue(required(properties, "de"));
+            if (("4".equals(schema) && de != DesktopDe.HYPRLAND)
+                    || ("3".equals(schema) && (properties.containsKey("hyprlandRuntimeId")
+                        || properties.containsKey("hyprlandThemeId"))))
+                throw new IOException("invalid_desktop_component_schema");
+            String runtime = de != DesktopDe.HYPRLAND ? "" : "4".equals(schema)
+                ? required(properties, "hyprlandRuntimeId") : HyprlandComponents.RUNTIME_ID;
+            String theme = de != DesktopDe.HYPRLAND ? "" : "4".equals(schema)
+                ? required(properties, "hyprlandThemeId") : legacyTheme(required(properties, "id"));
             DesktopGlMode host = DesktopGlMode.fromStorageValue(required(properties, "hostGlMode"));
             DesktopGuestGlMode guest = DesktopGuestGlMode.fromStorageValue(required(properties, "guestGlMode"));
             DesktopDistro distro = new DesktopDistro(required(properties, "id"),
                 required(properties, "name"), mode, properties.getProperty("prootDistro", ""), de,
                 host, guest, required(properties, "resolution"),
                 Integer.parseInt(required(properties, "refreshRate")),
-                DesktopUsbStorageMode.fromStorageValue(properties.getProperty("usbStorage", "off")));
+                DesktopUsbStorageMode.fromStorageValue(properties.getProperty("usbStorage", "off")), runtime, theme);
             if (!file.getName().equals(distro.getId() + SUFFIX)) {
                 throw new IOException("desktop_id_file_mismatch");
+            }
+            if (de == DesktopDe.HYPRLAND && "3".equals(schema)) {
+                File backup = new File(file.getPath() + ".schema3-backup");
+                if (!backup.exists()) java.nio.file.Files.copy(file.toPath(), backup.toPath());
+                else if (!java.util.Arrays.equals(java.nio.file.Files.readAllBytes(file.toPath()),
+                        java.nio.file.Files.readAllBytes(backup.toPath())))
+                    throw new IOException("desktop_migration_backup_conflict");
+                save(distro);
             }
             return distro;
         } catch (IllegalArgumentException error) {
@@ -137,7 +167,7 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
 
     private static Properties encode(DesktopDistro distro) {
         Properties result = new Properties();
-        result.setProperty("schemaVersion", Integer.toString(DesktopDistro.SCHEMA_VERSION));
+        result.setProperty("schemaVersion", Integer.toString(distro.getSchemaVersion()));
         result.setProperty("id", distro.getId());
         result.setProperty("name", distro.getName());
         result.setProperty("runMode", distro.getRunMode().getStorageValue());
@@ -148,7 +178,37 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
         result.setProperty("resolution", distro.getResolution());
         result.setProperty("refreshRate", Integer.toString(distro.getRefreshRate()));
         result.setProperty("usbStorage", distro.getUsbStorage().getStorageValue());
+        if (distro.getDe() == DesktopDe.HYPRLAND) {
+            result.setProperty("hyprlandRuntimeId", distro.getHyprlandRuntimeId());
+            result.setProperty("hyprlandThemeId", distro.getHyprlandThemeId());
+        }
         return result;
+    }
+
+    private String legacyTheme(String id) throws IOException {
+        if (!DesktopDistro.isValidId(id)) throw new IOException("invalidDesktopId");
+        File config = new File(home, ".termux/hyprland-" + id + "/config");
+        File marker = new File(config, "desktop-theme");
+        if (java.nio.file.Files.isSymbolicLink(marker.toPath())) throw new IOException("unsafe_theme_marker");
+        if (marker.exists()) {
+            if (marker.length() > 128) throw new IOException("invalid_theme_marker");
+            String value = new String(java.nio.file.Files.readAllBytes(marker.toPath()),
+                java.nio.charset.StandardCharsets.UTF_8).trim();
+            if ("r7".equals(value) || HyprlandComponents.CLASSIC.equals(value)) return HyprlandComponents.CLASSIC;
+            if (HyprlandComponents.DEFAULT_THEME.equals(value)) return value;
+            throw new IOException("unknown_hyprland_theme_marker");
+        }
+        File lua = new File(config, "hyprland.lua");
+        if (!lua.exists()) return HyprlandComponents.DEFAULT_THEME;
+        if (java.nio.file.Files.isSymbolicLink(lua.toPath()) || lua.length() > 1024 * 1024)
+            return HyprlandComponents.CLASSIC;
+        try {
+            byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest(java.nio.file.Files.readAllBytes(lua.toPath()));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : hash) hex.append(String.format(java.util.Locale.ROOT, "%02x", b & 255));
+            return "e0de98acf8ad690a0bcfb0e0814b58630d5e6919ab9f1c59d11068262cf1bbd8".equals(hex.toString())
+                ? HyprlandComponents.DEFAULT_THEME : HyprlandComponents.CLASSIC;
+        } catch (java.security.NoSuchAlgorithmException impossible) { throw new IOException(impossible); }
     }
 
     private File fileFor(String id) {

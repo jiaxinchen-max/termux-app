@@ -9,8 +9,8 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import random
 import re
+import runpy
 import shlex
 import shutil
 import subprocess
@@ -21,7 +21,6 @@ PREFIX = Path(os.environ.get('PREFIX', '/data/data/com.termux/files/usr'))
 HOME = Path(os.environ.get('HOME', '/data/data/com.termux/files/home'))
 VERSION = 'm3ww-v1'
 
-
 def default(path, text):
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -29,7 +28,6 @@ def default(path, text):
             f.write(text)
     except FileExistsError:
         pass
-
 
 def selected(work):
     path = work / 'config/desktop-theme'
@@ -44,62 +42,26 @@ def selected(work):
         return VERSION
     return 'r7'
 
-
 def command(work, *args):
     return shlex.join([str(work / 'bin/termux-hyprland-theme'), *map(str, args)])
-
 
 def dialog_command(work, action):
     # EWW times out long-running click commands; dialogs outlive the short handler.
     # The inherited session token keeps them within supervisor cleanup.
     return command(work, action) + ' >> ' + shlex.quote(str(work / 'session.log')) + ' 2>&1 &'
 
-
-def wallpaper():
-    """Original deterministic vector artwork: meteor sky, distant ridges and moon."""
-    rng = random.Random(57203)
-    stars = ''.join(f'<circle cx="{rng.randrange(1920)}" cy="{rng.randrange(820)}" r="{rng.uniform(.4,1.8):.2f}" opacity="{rng.uniform(.2,.85):.2f}"/>' for _ in range(300))
-    meteors = ''.join(f'<path d="M{x} {y}l{length} {-length*.42}"/>' for x,y,length in [(180,280,340),(700,340,280),(1280,520,360),(380,600,180),(1570,180,200),(1010,180,180)])
-    return '''<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
-<defs><linearGradient id="sky" x1="0" y1="0" x2=".75" y2="1"><stop stop-color="#070d23"/><stop offset=".55" stop-color="#14284d"/><stop offset="1" stop-color="#56446e"/></linearGradient>
-<radialGradient id="nebula"><stop stop-color="#277b9f" stop-opacity=".48"/><stop offset="1" stop-color="#19203c" stop-opacity="0"/></radialGradient>
-<linearGradient id="meteor"><stop stop-color="#98caff" stop-opacity="0"/><stop offset="1" stop-color="#d3c0ff"/></linearGradient>
-<linearGradient id="horizon" x2="0" y2="1"><stop stop-color="#e7a5ce"/><stop offset="1" stop-color="#273751"/></linearGradient></defs>
-<path fill="url(#sky)" d="M0 0h1920v1080H0z"/><ellipse cx="950" cy="450" rx="1100" ry="650" fill="url(#nebula)"/>
-<g fill="#cbe5ff">'''+stars+'''</g><g stroke="url(#meteor)" stroke-width="1.5">'''+meteors+'''</g>
-<circle cx="1380" cy="300" r="34" fill="#ded7ff"/><circle cx="1394" cy="287" r="32" fill="#1b2e50"/>
-<path d="M0 900Q460 830 960 900T1920 855V1080H0" fill="url(#horizon)" opacity=".6"/>
-<path d="M0 900L220 760 350 845 570 700 810 875 1030 790 1310 920 1580 730 1920 910V1080H0Z" fill="#172238"/>
-<path d="M0 990L180 930 320 985 570 875 820 1010 1130 900 1410 990 1740 880 1920 940V1080H0Z" fill="#0d1628"/>
-<path d="M0 1040Q410 955 770 1040T1500 1030T1920 1020V1080H0Z" fill="#080e1c"/></svg>\n'''
-
-
-CSS = '''
-* { all: unset; font-family: "JetBrainsMono Nerd Font", sans-serif; font-size: 13px; color: #e8e1ff; }
-.bar { background: rgba(12,16,32,.88); border-radius: 18px; padding: 6px 10px; border: 1px solid rgba(173,160,224,.22); }
-.pill { background: #24263e; border-radius: 24px; padding: 0px 8px; }
-button { padding: 8px 12px; border-radius: 22px; min-height: 28px; }
-button:hover { background: #3e3b5b; }
-.launch { background: #c8b6ff; color: #201b35; font-weight: bold; }
-.workspace { padding: 5px 8px; min-width: 28px; min-height: 34px; color: #a7a7bc; }
-.current { background: #c6b5f4; color: #171629; }
-.task { padding: 5px 10px; min-height: 34px; color: #d1cae9; }
-.active { background: #45415e; color: #eee6ff; }
-.clock { color: #ede5ff; }
-.battery { color: #b4d9cd; padding: 0 12px; }
-.small { color: #aaa9c2; font-size: 11px; }
-'''
-
-
 def prepare(work, run_mode):
+    components = runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_components.py')))
+    components['resources'].__globals__['PREFIX'] = PREFIX
+    resources = components['resources'](VERSION)
     theme = work / 'config/themes' / VERSION
     theme.mkdir(parents=True, exist_ok=True)
     helper = Path(__file__).resolve()
     launcher = work / 'bin/termux-hyprland-theme'
     launcher.write_text('#!' + str(PREFIX / 'bin/sh') + '\nexec ' + shlex.join([str(PREFIX / 'bin/python3'), '-I', '-B', str(helper), '--work', str(work)]) + ' "$@"\n')
     launcher.chmod(0o700)
-    default(theme / 'wallpaper.svg', wallpaper())
-    default(theme / 'eww.scss', CSS)
+    default(theme / 'wallpaper.svg', (resources / 'wallpaper.svg').read_text())
+    default(theme / 'eww.scss', (resources / 'eww.scss').read_text())
     cmd = command(work)
     initial = json.dumps(dict(workspace=1, tasks='(box)', battery='—', clock='—', date='', count=0))
     workspaces = ' '.join('(button :class {desktop.workspace == '+str(i)+' ? "workspace current" : "workspace"} :timeout "3s" :onclick '+json.dumps(command(work,'workspace',i))+' "'+str(i)+'")' for i in range(1,5))
@@ -118,55 +80,8 @@ def prepare(work, run_mode):
  :geometry (geometry :x "10px" :y "8px" :width "98%" :anchor "top center") (desktop_bar))
 '''.replace('@LAUNCH@',json.dumps(dialog_command(work,'launcher'))).replace('@DASHBOARD@',json.dumps(dialog_command(work,'dashboard'))).replace('@SETTINGS@',json.dumps(dialog_command(work,'settings'))).replace('@WORKSPACES@',workspaces)
     default(theme / 'eww.yuck', yuck)
-    default(theme / 'foot.ini', '''[main]
-font=JetBrainsMono Nerd Font:size=11
-pad=18x18
-term=xterm-256color
-[colors-dark]
-alpha=0.84
-background=111529
-foreground=e8e1ff
-regular0=171a2e
-regular1=ffb4b0
-regular2=abd8bb
-regular3=edcf9b
-regular4=a6c9ff
-regular5=d1b8ff
-regular6=9edce0
-regular7=e4ddf6
-bright0=6d718a
-bright1=ffc5c1
-bright2=c2ecd0
-bright3=ffe0b0
-bright4=c1dcff
-bright5=e0cdff
-bright6=b4f0f3
-bright7=ffffff
-[cursor]
-style=beam
-blink=yes
-[key-bindings]
-clipboard-copy=Control+Shift+c
-clipboard-paste=Control+Shift+v
-''')
-    default(theme / 'starship.toml', '''add_newline = true
-format = "[](fg:#b5b9ff)[$username$directory](bg:#b5b9ff fg:#17152b)[](fg:#b5b9ff) $git_branch$git_status\\n$character"
-right_format = "$cmd_duration"
-[username]
-show_always = true
-format = "[$user ](bg:#b5b9ff fg:#17152b)"
-[directory]
-format = "[$path](bg:#b5b9ff fg:#17152b)"
-truncation_length = 3
-[character]
-success_symbol = "[❯](bold #b5dfe4)"
-error_symbol = "[❯](bold #ffb4b0)"
-[cmd_duration]
-min_time = 0
-format = "[󱎫 $duration](#aca6c8)"
-[git_branch]
-format = "[$symbol$branch](#d1b8ff) "
-''')
+    default(theme / 'foot.ini', (resources / 'foot.ini').read_text())
+    default(theme / 'starship.toml', (resources / 'starship.toml').read_text())
     default(theme / 'fish/config.fish', 'set -gx STARSHIP_CONFIG ' + shlex.quote(str(theme / 'starship.toml')) + '\n'+str(PREFIX / 'bin/starship')+' init fish | source\n')
     # Scope Fish configuration to this terminal, leave HOME and user shell files alone.
     terminal = work / 'bin/termux-hyprland-terminal-themed'
@@ -176,14 +91,14 @@ format = "[$symbol$branch](#d1b8ff) "
         (work/'bin/termux-hyprland-terminal').write_text('#!'+str(PREFIX/'bin/sh')+'\nexec '+shlex.quote(str(terminal))+' "$@"\n')
     fonts = work / 'data/fonts'
     fonts.mkdir(parents=True,exist_ok=True)
-    source = helper.with_name('hyprland-JetBrainsMonoNerdFont-Regular.ttf')
+    source = resources / 'font.ttf'
     if source.exists() and not (fonts/source.name).exists():
         shutil.copyfile(source,fonts/source.name)
         if (PREFIX/'bin/fc-cache').is_file():
             subprocess.run([str(PREFIX/'bin/fc-cache'),str(fonts)],capture_output=True,timeout=20)
     # Per-session GTK, including notification popups and application launch dialogs.
-    default(work/'config/gtk-3.0/settings.ini','[Settings]\ngtk-application-prefer-dark-theme=1\ngtk-theme-name=Adwaita-dark\ngtk-icon-theme-name=Adwaita\ngtk-font-name=Sans 11\n')
-    default(work/'config/gtk-3.0/gtk.css','tooltip, menu { background: #20243a; color: #eee5ff; border-radius: 12px; }\n#XfceNotifyWindow { border-radius: 16px; background: #20243a; color: #eee5ff; border: 1px solid #9589bd; }\n')
+    default(work/'config/gtk-3.0/settings.ini', (resources/'settings.ini').read_text())
+    default(work/'config/gtk-3.0/gtk.css', (resources/'gtk.css').read_text())
     effects = theme/'effects'
     default(effects,'balanced\n')
     blur = 'true' if effects.read_text().strip()=='blur' else 'false'
@@ -207,13 +122,11 @@ hl.bind("SUPER + Space", hl.dsp.exec_cmd("termux-hyprland-theme launcher"))
             [str(PREFIX/'lib/xfce4/notifyd/xfce4-notifyd')],
             [str(launcher),'serve']]
 
-
 def session(work):
     state=json.loads((work/'session.json').read_text())
     if not (Path('/proc')/str(state['supervisor'])).exists():
         raise RuntimeError('Desktop is not running')
     return state
-
 
 def ipc(work,*args):
     state=session(work)
@@ -221,14 +134,12 @@ def ipc(work,*args):
     if executable is None:raise RuntimeError('Hyprland IPC missing')
     return subprocess.check_output([str(executable),*args],env=state['env'],text=True,timeout=4)
 
-
 def battery(path,now=None):
     try:
         data=json.loads(path.read_text());age=(time.time() if now is None else now)-data['updated']/1000
         if not 0<=age<=120 or type(data['percent']) is not int or not 0<=data['percent']<=100:raise ValueError()
         return ('󰂄 ' if data.get('charging') else '󰁹 ')+str(data['percent'])+'%'
     except (OSError,ValueError,KeyError,TypeError):return 'Battery —'
-
 
 def task_markup(work,clients,active):
     buttons=[]
@@ -252,7 +163,6 @@ def task_markup(work,clients,active):
         buttons.append('(button :class '+json.dumps('task active' if address==active else 'task')+' :timeout "3s" :onclick '+json.dumps(command(work,'focus',address))+' '+json.dumps(title,ensure_ascii=False)+')')
     return '(box :space-evenly false :spacing 4 '+' '.join(buttons)+')'
 
-
 def apps(work,run_mode):
     result=[dict(name='Terminal',description='Foot · Fish · Starship' if run_mode=='native' else 'Container terminal',icon='utilities-terminal',command=[str(work/'bin/termux-hyprland-terminal')]),dict(name='Files',description='File manager',icon='system-file-manager',command=[str(work/'bin/termux-hyprland-files')])]
     if run_mode=='native':
@@ -269,7 +179,6 @@ def apps(work,run_mode):
                     result.append(dict(name=name,description=item.get('Comment','Application')[:90],icon=item.get('Icon','application-x-executable'),command=[str(PREFIX/'bin/gio'),'launch',str(path)]))
                 except (OSError,ValueError,configparser.Error,KeyError):continue
     return result
-
 
 # Search input is handled by GTK events, without shell substitution.
 def dialog(work, kind):
@@ -397,7 +306,8 @@ def dialog(work, kind):
             subprocess.Popen([str(PREFIX / 'bin/notify-send'), title, 'Stop and reopen this desktop to apply.'])
             window.destroy()
         def choose(value):
-            (work / 'config/desktop-theme').write_text(value + '\n')
+            subprocess.Popen([str(PREFIX / 'bin/notify-send'), 'Desktop appearance',
+                              'Stop the desktop and choose its theme in App settings.'])
             restart_notice('Desktop appearance')
         def effect(value):
             (theme / 'effects').write_text(value + '\n')
@@ -443,7 +353,6 @@ def dispatch(work,action,value=None):
     else:raise ValueError('Unknown desktop action')
     return ipc(work,'dispatch',expr)
 
-
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--work',type=Path,required=True);parser.add_argument('action',choices=['serve','watch','launcher','dashboard','settings','workspace','focus','float','close']);parser.add_argument('value',nargs='?');a=parser.parse_args();work=a.work
     if work.parent!=HOME/'.termux' or not re.fullmatch(r'hyprland-desktop-[A-Za-z0-9._-]+',work.name):parser.error('Invalid desktop path')
@@ -475,7 +384,6 @@ def main():
             time.sleep(1)
     elif a.action in ('launcher','dashboard','settings'):dialog(work,a.action)
     else:print(dispatch(work,a.action,a.value))
-
 
 if __name__=='__main__':
     try:main()

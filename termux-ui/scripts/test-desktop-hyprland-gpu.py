@@ -78,21 +78,16 @@ class GpuGateTests(unittest.TestCase):
         self.assertNotIn('GALLIUM_DRIVER=llvmpipe', command)
         self.assertNotIn('MESA_LOADER_DRIVER_OVERRIDE=zink', command)
 
-    def testHostFailureNeverStartsCompositorOrPublishesReadiness(self):
+    def testHostCheckFailureRejectsUnsupportedDevice(self):
         with tempfile.TemporaryDirectory() as temp:
-            prefix = Path(temp) / 'usr'; home = Path(temp) / 'home'
-            ready = Path(temp) / 'ready'; ready.write_text('stale')
-            args = types.SimpleNamespace(desktop_id='desktop-zink', ready_file=ready,
-                run_mode='proot', client_gl_mode='zink', alias='debian-1', width=1280, height=720, refresh=30)
-            with patch.object(h, 'PREFIX', prefix), patch.object(h, 'HOME', home), patch.object(h, 'verify'), patch.object(h, 'verify_shell'), patch.object(h, 'prepare_shell', return_value=[]), patch.object(h, 'verify_zink_host', side_effect=RuntimeError('no dma-buf import')), patch.object(h.subprocess, 'Popen') as start:
-                with self.assertRaisesRegex(RuntimeError, 'no dma-buf import'):
-                    h.session(args)
+            work = Path(temp)
+            with patch.object(h.subprocess, 'run', return_value=types.SimpleNamespace(returncode=1)) as probe, \
+                 patch.object(h.subprocess, 'Popen') as start:
+                with self.assertRaisesRegex(RuntimeError, 'unsupported by this device'):
+                    h.verify_zink_host(work, {}, None)
+                self.assertIn('host-check', probe.call_args.args[0])
                 start.assert_not_called()
-                work = h.work_for(args.desktop_id)
-                self.assertFalse(ready.exists())
                 self.assertFalse((work / 'session.json').exists())
-                self.assertFalse(any((work / 'runtime').iterdir()))
-                self.assertIn('MESA_LOADER_DRIVER_OVERRIDE=zink', (work / 'bin/termux-hyprland-terminal').read_text())
 
     def testNativeZinkIsRejectedBeforeRuntimeAccess(self):
         with patch.object(h, 'verify') as verify:

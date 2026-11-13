@@ -4,6 +4,7 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
+import runpy
 import unittest
 from unittest.mock import patch
 
@@ -14,6 +15,16 @@ spec.loader.exec_module(theme)
 
 
 class ThemeTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        prefix = Path(self.temp.name) / 'usr'
+        self.prefix_patch = patch.object(theme, 'PREFIX', prefix)
+        self.prefix_patch.start(); self.addCleanup(self.prefix_patch.stop)
+        components = runpy.run_path(str(source.with_name('desktop_hyprland_components.py')))
+        components['install_theme'].__globals__['PREFIX'] = prefix
+        components['install_theme']('0.57.0-r7', 'm3ww-v1', Path(__file__).resolve().parents[2] / 'distribution/hyprland-themes/build/hyprland-theme-m3ww-v1.tgz')
+
     def testCustomConfigEvenWithGeneratedHeaderRequiresExplicitThemeChoice(self):
         with tempfile.TemporaryDirectory() as temp:
             work = Path(temp); (work / 'config').mkdir()
