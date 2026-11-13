@@ -6,6 +6,8 @@
     "path": "termux-api/src/main/assets/embedded-components/upower_1.91.5-1_aarch64.deb",
     "source": "tools/embedded-termux-api/upower",
     "builder": "120.24.191.156:7022 /workspace/termux-packages",
-    "published": false
+    "published": true,
+    "release": "https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/embedded-termux-api-0.60.0-r1",
+    "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/embedded-termux-api-0.60.0-r1/upower_1.91.5-1_aarch64.deb"
   }
 }
