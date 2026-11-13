@@ -6,7 +6,6 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # proot-distro's non-login command environment omits SHELL. Konsole otherwise
 # receives an empty command and selects its own fallback shell.
 export SHELL=/bin/bash
-[ -x "$SHELL" ] || { echo "ERROR: container shell is missing: $SHELL" >&2; exit 127; }
 
 # This launcher supports one explicit session policy. Choose services before launching them.
 case "${DESKTOP_KDE_SERVICE_POLICY:-}:${QT_QPA_PLATFORM:-}:${XDG_SESSION_TYPE:-}" in
@@ -56,64 +55,7 @@ LOG="${PLASMA_CONTAINER_LOG:-$XDG_RUNTIME_DIR/plasma-container.log}"
 exec >"$LOG" 2>&1
 echo "=== Plasma container session (renderer=$DESKTOP_GUEST_GL_MODE, fallback=disabled) $(date) ==="
 
-# --- Ensure required container packages ------------------------------------
-# apt-installable components are auto-installed if missing; a failed install
-# aborts the session. The Turnip Vulkan ICD is NOT apt-installable (it ships in
-# the mesa-for-android-container tarball), so it is only checked, not installed.
-ensure_container_deps() {
-    configure_proot_statx "${DESKTOP_STATX_BACKEND:-}" "$(dirname "$0")/desktop_container_statx_aarch64.bin" "$(dirname "$0")/desktop_container_run_config.sh" || exit "$?"
-    needed=""
-    command -v plasmashell  >/dev/null 2>&1 || needed="$needed plasma-workspace"
-    # Do not mistake a host Termux executable in PATH for a container daemon.
-    [ -x /usr/bin/dbus-daemon ] || needed="$needed dbus"
-    [ -x /usr/bin/dbus-send ] || needed="$needed dbus-bin"
-    [ -x /usr/lib/polkit-1/polkitd ] || needed="$needed polkitd"
-    if [ ! -x /usr/libexec/packagekitd ] && [ ! -x /usr/lib/packagekit/packagekitd ]; then
-        needed="$needed packagekit"
-    fi
-    # The Vulkan loader is required only by the explicitly selected GPU mode.
-    if [ "$DESKTOP_GUEST_GL_MODE" = "zink" ] && ! ls /usr/lib/*/libvulkan.so >/dev/null 2>&1 && [ ! -e /usr/lib/libvulkan.so ]; then
-        needed="$needed libvulkan-dev"
-    fi
-    # Qt Wayland platform plugin (QT_QPA_PLATFORM=wayland).
-    if ! ls /usr/lib/*/qt6/plugins/platforms/libqwayland*.so >/dev/null 2>&1; then
-        needed="$needed qt6-wayland"
-    fi
-
-    if [ -n "$needed" ]; then
-        echo "Installing missing container packages:$needed"
-        export DEBIAN_FRONTEND=noninteractive
-        run_proot_config proc-fdinfo apt-get update
-        package_code=$?
-        if [ "$package_code" -ne 0 ]; then
-            echo "ERROR: 'apt-get update' failed (status $package_code); cannot install:$needed" >&2
-            exit "$package_code"
-        fi
-        run_proot_config proc-fdinfo apt-get install -y --no-remove $needed
-        package_code=$?
-        if [ "$package_code" -ne 0 ]; then
-            echo "ERROR: failed to install:$needed (status $package_code)" >&2
-            exit "$package_code"
-        fi
-    fi
-
-    restore_legacy_postinsts || exit "$?"
-    run_proot_config proc-fdinfo /usr/bin/systemd-sysusers polkit.conf || exit "$?"
-    validate_polkit_identity || exit "$?"
-
-    # Turnip Vulkan ICD (the GPU driver) -- from the mesa-for-android-container
-    # tarball, not apt. Without it there is no hardware Vulkan device.
-    if [ "$DESKTOP_GUEST_GL_MODE" = "zink" ] && [ ! -r "$VK_ICD_FILENAMES" ]; then
-        echo "ERROR: Turnip Vulkan ICD not found: $VK_ICD_FILENAMES" >&2
-        echo "  Install the mesa-for-android-container tarball" >&2
-        echo "  (provides libvulkan_freedreno.so + the ICD json)." >&2
-        exit 1
-    fi
-}
-STATX_SETUP="$(dirname "$0")/desktop_container_statx_setup.sh"
-[ -r "$STATX_SETUP" ] || { echo "ERROR: proot statx setup asset is missing"; exit 66; }
-. "$STATX_SETUP"
-ensure_container_deps
+# Dependencies and polkit identity are prepared by desktop_install.sh.
 
 # Each desktop owns both buses. Never inherit a host bus across proot credentials.
 SESSION_PIDS=""

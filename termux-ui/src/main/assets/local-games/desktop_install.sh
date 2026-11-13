@@ -36,6 +36,9 @@ finish_operation() {
     trap - EXIT
     [ "$INSTALL_DONE" -eq 1 ] || { [ "$code" -ne 0 ] || code=1; }
     if [ "$OPERATION" = install ]; then
+        if [ "$INSTALL_DONE" -ne 1 ] && [ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" = native:ubuntu_gnome ]; then
+            rm -f "$PREFIX/share/termux-native-ubuntu/.installed"
+        fi
         printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" || code=74
     else
         outcome=failed
@@ -99,6 +102,12 @@ if [ "$DESKTOP_DE" = gnome ]; then
     esac
 fi
 
+# Invalidate the previous completion before initialization; failure must leave no success marker.
+if [ "$OPERATION" = install ] && [ "${DESKTOP_MODE:-}" = proot ]; then
+    rm -f "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE" \
+        "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE-zink" || exit 74
+fi
+
 BASE_URL="https://github.com/jiaxinchen-max/kwin/releases/download/$DESKTOP_RELEASE_TAG"
 # sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.6-r28).
 if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r28" ]; then
@@ -150,7 +159,7 @@ gnome-settings-daemon-schemas_48.1_all.deb 03ed7b7a1f8d184353906f511e66bbf767f32
 gnome-shell_48.7-1_aarch64.deb 285cdb99e61c761405d154f608520cc3bfdc8b7c9ea91b3619d467c9d7f4d900
 libgdm_48.0-1_aarch64.deb fb9d03f4665fd540af125d91784d0d284122b5ee81b53f279705eafdacb63231
 localsearch-schemas_3.9.0_all.deb 13a0f641887be3fb7c92034ae485a67bf9a8726a73bed04d8f6f77d3e6f1f2b6
-mutter_48.1-24_aarch64.deb c222405b73404c57799e53f32344b9db28adc8de2ba9ef98704d81950ab27349
+mutter_48.1-25_aarch64.deb ef6631c3a21eeb11bbafd50906bd7e77fd3c65387f734696250a60ffa72f6549
 nautilus_48.3-3_aarch64.deb ee53e9a2961294df5516ba0d7e4a3e138e57634ec4b132f37f1ea41c97d26506
 pipewire-dbus_1.4.9_aarch64.deb f42dd82ff03801d5c1e14203f78c3092cfdbf0a57add3133c37331afd4b8ac8b
 polkit_126_aarch64.deb 1eddba206bc72c6b423557ff749416971efdec25be03fca45ad5498b33e98b67
@@ -550,7 +559,30 @@ $name $digest"
     if [ "$DESKTOP_DE" = xfce4 ]; then
         run apt-mark hold xorg-server || fail 'holding xorg-server'
     fi
+    if [ "$DESKTOP_DE" = kwin_plasma ]; then
+        run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_initialize.py" prepare-plasma \
+            || fail 'preparing Plasma host launcher for restored desktop'
+    fi
     log 'Host prerequisites finished; no container was created or modified.'
+}
+
+initialize_desktop() {
+    # Reapply the APK-matched package after apt dependencies, before validating initialization.
+    [ -f "$PREFIX/share/embedded-api/termux-api.deb" ] || fail 'embedded Android API package missing'
+    run dpkg -i "$PREFIX/share/embedded-api/termux-api.deb" || fail 'embedded Android API package installation'
+    if dpkg-query -W -f='${Status}' upower 2>/dev/null | grep -q 'install ok installed'; then
+        [ -f "$PREFIX/share/embedded-api/upower.deb" ] || fail 'asynchronous UPower component missing'
+        run dpkg -i "$PREFIX/share/embedded-api/upower.deb" || fail 'asynchronous UPower installation'
+    fi
+    # EGL diagnostics are initialization-only and never invoked by the session entrypoints.
+    run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold python mesa-demos || fail 'initialization tools'
+    set -- --de "$DESKTOP_DE" --run-mode "$DESKTOP_MODE" \
+        --host-gl-mode "$DESKTOP_HOST_GL_MODE" --guest-gl-mode "$DESKTOP_GUEST_GL_MODE" \
+        --usb-storage "$DESKTOP_USB_STORAGE"
+    [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
+    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_initialize.py" initialize "$@" || fail 'desktop initialization verification'
+    initialization_audit=$(dpkg --audit 2>&1) || fail 'initialization dpkg audit'
+    [ -z "$initialization_audit" ] || fail "$initialization_audit"
 }
 
 if [ "$DESKTOP_DE" = hyprland ]; then
@@ -581,7 +613,7 @@ if [ "$DESKTOP_DE" = hyprland ]; then
         done
         zink_packages=''
         if [ "$DESKTOP_COMPONENT_RENDERER" = zink ]; then
-            zink_packages='libvulkan1 vulkan-tools libllvm19 libdrm2 libgbm1 libegl1 libgles2 libgl1-mesa-dri libegl-mesa0 libglx-mesa0 mesa-vulkan-drivers python3 python3-gi gir1.2-gtk-3.0 libepoxy0'
+            zink_packages='libvulkan1 vulkan-tools libllvm19 libdrm2 libgbm1 libegl1 libgles2 libgl1-mesa-dri libegl-mesa0 libglx-mesa0 mesa-vulkan-drivers python3 python3-gi gir1.2-gtk-3.0 libepoxy0 mesa-utils-bin'
         fi
         # shellcheck disable=SC2086
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
@@ -596,7 +628,7 @@ if [ "$DESKTOP_DE" = hyprland ]; then
     else
         [ -x "$PREFIX/bin/xfce4-terminal" ] && [ -x "$PREFIX/bin/thunar" ] || fail 'missing native clients'
     fi
-    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check || fail 'Hyprland component verification'
+    initialize_desktop
     audit=$(dpkg --audit 2>&1) || fail 'dpkg audit'
     [ -z "$audit" ] || fail "$audit"
     [ "$DESKTOP_MODE" != proot ] || : > "$de_marker" || fail 'writing client installation marker'
@@ -703,36 +735,29 @@ else
     distro_id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" | tr -d '\"')
     [ "$distro_id:$codename" = "$expected_distribution" ] || fail "container requires $expected_distribution, got $distro_id:$codename"
     de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE"
-    if [ "$DESKTOP_DE" = ubuntu_gnome ] && [ -f "$de_marker" ]; then
-        python3 -I -B "$(dirname "$0")/desktop_ubuntu_gnome.py" --rootfs "$rootfs" || rm -f "$de_marker" || fail 'resetting incomplete Ubuntu marker'
-    fi
-    if [ -f "$de_marker" ] && [ "$DESKTOP_DE:$DESKTOP_COMPONENT_RENDERER" != gnome:zink ]; then
-        log "Container packages for $DESKTOP_DE already present; skipping"
-    else
-        # The container helper configures service-start policy before apt. Installation failure
-        # is returned unchanged; package maintainer scripts are never replaced.
-        rm -f "$de_marker" || fail 'resetting the container install marker'
-        case "$DESKTOP_DE" in
-            xfce4) container_packages="xfce4 xfce4-terminal dbus-x11" ;;
-            ubuntu_gnome) container_packages="ubuntu-session ubuntu-settings gnome-shell gnome-settings-daemon nautilus gvfs-backends dbus-x11 libgl1-mesa-dri mesa-utils gnome-terminal gnome-text-editor gnome-control-center gnome-calculator gnome-clocks eog ubuntu-wallpapers ubuntu-wallpapers-noble fonts-ubuntu yaru-theme-gtk yaru-theme-icon yaru-theme-sound yaru-theme-gnome-shell gnome-shell-extension-ubuntu-dock gnome-shell-extension-appindicator gnome-shell-extension-desktop-icons-ng gnome-shell-extension-ubuntu-tiling-assistant" ;;
-            gnome) container_packages="gnome-shell gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils"
-                [ "$DESKTOP_COMPONENT_RENDERER" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm19 libdrm2"
-                ;;
-            *) container_packages="plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit polkitd"
-               [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || container_packages="$container_packages libvulkan-dev" ;;
-        esac
-        container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
-        [ -r "$container_apt" ] || fail "missing $container_apt"
-        for helper in desktop_container_plasma_apt.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
-            cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "cannot stage container helper $helper"
-        done
-        recommend_option=''
-        { [ "$DESKTOP_DE" != gnome ] && [ "$DESKTOP_DE" != ubuntu_gnome ]; } || recommend_option=--no-install-recommends
-        [ "$DESKTOP_DE" != ubuntu_gnome ] || recommend_option="--no-install-recommends --reinstall"
-        # shellcheck disable=SC2086
-        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
-            --statx-backend=proc-fdinfo $recommend_option $container_packages || fail "container apt install $DESKTOP_DE"
-    fi
+    # The container helper configures service-start policy before apt. Installation failure
+    # is returned unchanged; package maintainer scripts are never replaced.
+    rm -f "$de_marker" || fail 'resetting the container install marker'
+    case "$DESKTOP_DE" in
+        xfce4) container_packages="xfce4 xfce4-terminal dbus-x11" ;;
+        ubuntu_gnome) container_packages="ubuntu-session ubuntu-settings gjs mesa-utils-bin gnome-shell gnome-settings-daemon nautilus gvfs-backends dbus-x11 libgl1-mesa-dri mesa-utils gnome-terminal gnome-text-editor gnome-control-center gnome-calculator gnome-clocks eog ubuntu-wallpapers ubuntu-wallpapers-noble fonts-ubuntu yaru-theme-gtk yaru-theme-icon yaru-theme-sound yaru-theme-gnome-shell gnome-shell-extension-ubuntu-dock gnome-shell-extension-appindicator gnome-shell-extension-desktop-icons-ng gnome-shell-extension-ubuntu-tiling-assistant" ;;
+        gnome) container_packages="gjs mesa-utils-bin gnome-shell gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils"
+            [ "$DESKTOP_COMPONENT_RENDERER" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm19 libdrm2"
+            ;;
+        *) container_packages="qt6-wayland mesa-utils-bin plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit polkitd"
+           [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || container_packages="$container_packages libvulkan-dev" ;;
+    esac
+    container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
+    [ -r "$container_apt" ] || fail "missing $container_apt"
+    for helper in desktop_container_plasma_apt.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
+        cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "cannot stage container helper $helper"
+    done
+    recommend_option=''
+    { [ "$DESKTOP_DE" != gnome ] && [ "$DESKTOP_DE" != ubuntu_gnome ]; } || recommend_option=--no-install-recommends
+    [ "$DESKTOP_DE" != ubuntu_gnome ] || recommend_option="--no-install-recommends --reinstall"
+    # shellcheck disable=SC2086
+    run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+        --statx-backend=proc-fdinfo $recommend_option $container_packages || fail "container apt install $DESKTOP_DE"
     # Idempotent and independent of the marker: a container created before this step still gets it.
     [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
     [ "$DESKTOP_DE:$DESKTOP_COMPONENT_RENDERER" != gnome:zink ] || ensure_gnome_turnip_icd "$DESKTOP_PROOT_DISTRO"
@@ -799,6 +824,7 @@ elif [ "$DESKTOP_DE" = ubuntu_gnome ]; then
         exit "$validation_code"
     }
 fi
+initialize_desktop
 if [ "$DESKTOP_MODE" = proot ]; then
     : > "$de_marker" || fail 'writing the verified container install marker'
 fi

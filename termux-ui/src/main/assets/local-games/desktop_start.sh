@@ -135,18 +135,6 @@ if [ "${DESKTOP_DE:-}" = hyprland ]; then
            printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
     esac
 fi
-if [ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" = native:ubuntu_gnome ]; then
-    "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_native_ubuntu.py" --prefix "$PREFIX" >> "$DESKTOP_LOG_FILE" 2>&1 || {
-        log 'Native Ubuntu GNOME appearance or dependencies are incomplete; reinstall the desktop.'
-        printf 'exit:65\n' > "$DESKTOP_STATUS_FILE"; exit 65
-    }
-elif [ "${DESKTOP_DE:-}" = ubuntu_gnome ]; then
-    rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
-    "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_ubuntu_gnome.py" --rootfs "$rootfs" >> "$DESKTOP_LOG_FILE" 2>&1 || {
-        log 'Ubuntu GNOME files or base do not match; reinstall the desktop.'
-        printf 'exit:65\n' > "$DESKTOP_STATUS_FILE"; exit 65
-    }
-fi
 stop_other_desktops || { printf 'exit:74\n' > "$DESKTOP_STATUS_FILE"; exit 74; }
 
 wait_for_socket() {
@@ -229,31 +217,7 @@ fi
 if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
     unset KWIN_ANDROID_RUNTIME_ROOT KWIN_ANDROID_GL_MODE KWIN_ANDROID_REFRESH_RATE
     unset KWIN_ANDROID_WIDTH KWIN_ANDROID_HEIGHT PLASMA_LOG
-    GNOME_LAUNCHER="$PREFIX/libexec/termux-gnome/launch.py"
-    [ -x "$PREFIX/bin/python3" ] && [ -r "$(dirname "$0")/desktop_gnome_launch.py" ] || {
-        log 'GNOME Python launcher is missing; install the selected desktop components first.'
-        code=127; finish_desktop
-    }
-    mkdir -p "$(dirname "$GNOME_LAUNCHER")" || { code=74; finish_desktop; }
-    launcher_assets="desktop_gnome_launch.py desktop_usb_storage.py"
-    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
-        if [ "$DESKTOP_MODE" = native ]; then
-            launcher_assets="$launcher_assets desktop_native_ubuntu.py"
-        else
-            launcher_assets="$launcher_assets desktop_ubuntu_gnome.py"
-        fi
-    fi
-    for asset in $launcher_assets; do
-        target="$(dirname "$GNOME_LAUNCHER")/$asset"
-        [ "$asset" != desktop_gnome_launch.py ] || target="$GNOME_LAUNCHER"
-        temporary="$target.tmp.$$"
-        if cp "$(dirname "$0")/$asset" "$temporary" && chmod 600 "$temporary" && mv "$temporary" "$target"; then :
-        else
-            rm -f "$temporary"
-            log "Cannot stage current GNOME launcher asset: $asset"
-            code=74; finish_desktop
-        fi
-    done
+    GNOME_LAUNCHER="$(dirname "$0")/desktop_gnome_launch.py"
     rm -f "$DESKTOP_PID_FILE.gnome-ready"
     printf 'gnome\n' > "$DESKTOP_PID_FILE.owned-session" || { code=74; finish_desktop; }
     set -- --desktop-id "$DESKTOP_ID" --ready-file "$DESKTOP_PID_FILE.gnome-ready" \
@@ -337,11 +301,6 @@ wait_for_backend() { # socket label
 
 if [ "$DESKTOP_DE" = "xfce4" ]; then
     # Xlorie serves the X display; the XFCE session runs natively or inside the container.
-    command -v Xlorie >/dev/null 2>&1 || {
-        log "Xlorie is not installed; run the desktop install first."
-        printf 'exit:127\n' > "$DESKTOP_STATUS_FILE"
-        exit 127
-    }
     gl_mode="$DESKTOP_HOST_GL_MODE"
     export XLORIE_GL_MODE="$gl_mode"
     case "$gl_mode" in
@@ -381,11 +340,6 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
     if [ "${DESKTOP_USB_STORAGE:-off}" = read-only ]; then
         printf 'xfce4-usb\n' > "$DESKTOP_PID_FILE.owned-session" || { code=74; finish_desktop; }
         XFCE_LAUNCHER="$(dirname "$0")/desktop_xfce_session.py"
-        [ -x "$PREFIX/bin/python3" ] && [ -r "$XFCE_LAUNCHER" ] || {
-            log 'XFCE USB session launcher is missing; install the selected desktop components first.'
-            kill -TERM "$child" 2>/dev/null
-            code=127; finish_desktop
-        }
         set -- --desktop-id "$DESKTOP_ID" --run-mode "$DESKTOP_MODE" \
             --display :0 --usb-storage read-only
         [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
@@ -426,27 +380,12 @@ if [ "$DESKTOP_MODE" = "proot" ]; then
     # The r19 kwin package ships neither start-plasma-container nor the container session script,
     # so do what start-plasma-container does: native compositor first, then the Plasma session
     # inside the proot-distro container, sharing the compositor's runtime directory.
-    for needed in start-plasma proot-distro; do
-        command -v "$needed" >/dev/null 2>&1 || {
-            log "$needed is not installed; run the desktop install first."
-            printf 'exit:127\n' > "$DESKTOP_STATUS_FILE"
-            exit 127
-        }
-    done
     XDG_RUNTIME_DIR_HOST="$KWIN_ANDROID_RUNTIME_ROOT/runtime-$(id -u)"
     SESSION_SCRIPT="$(dirname "$0")/desktop_container_session.sh"
-    for helper in "$SESSION_SCRIPT" "$(dirname "$0")/desktop_container_statx_setup.sh" "$(dirname "$0")/desktop_container_run_config.sh" "$(dirname "$0")/desktop_container_statx_aarch64.bin"; do
-        [ -r "$helper" ] || {
-            log "Container session asset is missing: $helper"
-            printf 'exit:66\n' > "$DESKTOP_STATUS_FILE"
-            exit 66
-        }
-    done
-
     # Container clients show up to KWin as proot's loader, so its executable-path based authorisation
     # of plasma-window-management / kde-output-device would deny them; the whole container is trusted.
     rm -f "$XDG_RUNTIME_DIR_HOST/wayland-0"
-    KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 start-plasma --compositor-only >> "$DESKTOP_LOG_FILE.out" 2>&1 &
+    KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 "$PREFIX/bin/bash" "$PREFIX/libexec/termux-desktop/start-plasma" --compositor-only >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     child=$!
     printf '%s\n' "$child" > "$DESKTOP_PID_FILE"
     trap 'kill -TERM "$child" 2>/dev/null; [ -z "${container:-}" ] || kill -TERM "$container" 2>/dev/null' TERM INT
@@ -504,13 +443,8 @@ if [ "$DESKTOP_MODE" = "proot" ]; then
     [ -z "${container:-}" ] || kill -TERM "$container" 2>/dev/null
     rm -f "$CONTAINER_PID_FILE"
 else
-    command_name="start-plasma"
-    command -v "$command_name" >/dev/null 2>&1 || {
-        log "$command_name is not installed; run the desktop install first."
-        printf 'exit:127\n' > "$DESKTOP_STATUS_FILE"
-        exit 127
-    }
-    "$command_name" >> "$DESKTOP_LOG_FILE.out" 2>&1 &
+    command_name="$PREFIX/libexec/termux-desktop/start-plasma"
+    "$PREFIX/bin/bash" "$command_name" >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     child=$!
     printf '%s\n' "$child" > "$DESKTOP_PID_FILE"
     trap 'kill -TERM "$child" 2>/dev/null' TERM INT

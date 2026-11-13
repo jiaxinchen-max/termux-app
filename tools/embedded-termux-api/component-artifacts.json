@@ -1,0 +1,11 @@
+{
+  "upower": {
+    "version": "1.91.5-1",
+    "architecture": "aarch64",
+    "sha256": "e0198daeabe6e8e5013c9d393340118f27c583c8a68cdbc2f774e2b4d3b478f3",
+    "path": "termux-api/src/main/assets/embedded-components/upower_1.91.5-1_aarch64.deb",
+    "source": "tools/embedded-termux-api/upower",
+    "builder": "120.24.191.156:7022 /workspace/termux-packages",
+    "published": false
+  }
+}

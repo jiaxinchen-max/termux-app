@@ -199,7 +199,13 @@ public final class DesktopActivity extends AppUiActivity {
                 scheduleRefresh();
                 return;
             }
-            for (DesktopDistro distro : distros) states.add(tasks.state(distro));
+            try {
+                for (DesktopDistro distro : distros) states.add(tasks.state(distro));
+            } catch (RuntimeException error) {
+                toastOnUi(getString(R.string.desktop_error, error.getMessage()));
+                scheduleRefresh();
+                return;
+            }
             runOnUiThread(() -> {
                 if (destroyed || !resumed || binding == null) return;
                 render(distros, states);
@@ -333,14 +339,14 @@ public final class DesktopActivity extends AppUiActivity {
         card.desktopStatus.setText(stateLabel(state));
         card.desktopStatus.setTextColor(ContextCompat.getColor(this, stateColor(state)));
 
+        boolean installing = state == DesktopSessionState.INSTALLING;
+        if (installing) card.desktopInstallProgress.show(); else card.desktopInstallProgress.hide();
         boolean active = state.isActive();
         boolean stopping = state == DesktopSessionState.STOPPING;
         boolean install = state == DesktopSessionState.NOT_INSTALLED;
-        card.desktopPrimary.setText(install ? R.string.desktop_action_install
-            : R.string.desktop_action_open);
-        View.OnClickListener primary = view -> {
-            if (install) confirmInstall(distro); else open(distro);
-        };
+        card.desktopPrimary.setText(installing ? R.string.desktop_action_view_install
+            : install ? R.string.desktop_action_install : R.string.desktop_action_open);
+        View.OnClickListener primary = view -> primaryAction(distro);
         card.desktopPrimary.setOnClickListener(primary);
         card.desktopPrimary.setEnabled(!stopping);
         card.getRoot().setOnClickListener(stopping ? null : primary);
@@ -349,19 +355,20 @@ public final class DesktopActivity extends AppUiActivity {
 
     private void showMore(View anchor, DesktopDistro distro, DesktopSessionState state,
                           boolean active) {
+        boolean installing = state == DesktopSessionState.INSTALLING;
         PopupMenu menu = new PopupMenu(this, anchor);
         Menu items = menu.getMenu();
         if (state != DesktopSessionState.NOT_INSTALLED && !active) {
             items.add(Menu.NONE, MENU_INSTALL, Menu.NONE, R.string.desktop_action_install);
         }
-        if (active && state != DesktopSessionState.STOPPING)
+        if (active && !installing && state != DesktopSessionState.STOPPING)
             items.add(Menu.NONE, MENU_STOP, Menu.NONE, R.string.desktop_action_stop);
-        items.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.desktop_action_settings);
+        items.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.desktop_action_settings).setEnabled(!installing);
         if (DesktopArchiveFlow.instance().hasProgressFor(distro.getId())) {
             items.add(Menu.NONE, MENU_ARCHIVE_PROGRESS, Menu.NONE, R.string.desktop_archive_view_progress);
         }
         items.add(Menu.NONE, MENU_USB_STORAGE, Menu.NONE, R.string.desktop_usb_title)
-            .setEnabled(state != DesktopSessionState.STOPPING);
+            .setEnabled(!installing && state != DesktopSessionState.STOPPING);
         if (distro.getRunMode() == DesktopRunMode.PROOT) {
             if (distro.getDe().isGnomeSession()) {
                 items.add(Menu.NONE, MENU_EXPORT, Menu.NONE, R.string.desktop_usb_gnome_archive_unsupported).setEnabled(false);
@@ -370,7 +377,7 @@ public final class DesktopActivity extends AppUiActivity {
                     .setEnabled(!anyDesktopActive() && !DesktopArchiveFlow.instance().isBusy());
             }
         }
-        items.add(Menu.NONE, MENU_DELETE, Menu.NONE, R.string.desktop_action_delete);
+        items.add(Menu.NONE, MENU_DELETE, Menu.NONE, R.string.desktop_action_delete).setEnabled(!installing);
         items.add(Menu.NONE, MENU_LOGS, Menu.NONE, R.string.desktop_action_logs);
         menu.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
@@ -417,6 +424,7 @@ public final class DesktopActivity extends AppUiActivity {
 
     private String stateLabel(DesktopSessionState state) {
         switch (state) {
+            case INSTALLING: return getString(R.string.desktop_state_installing);
             case INSTALLED: return getString(R.string.desktop_state_installed);
             case STARTING: return getString(R.string.desktop_state_starting);
             case STOPPING: return getString(R.string.desktop_state_stopping);
@@ -453,6 +461,24 @@ public final class DesktopActivity extends AppUiActivity {
         super.onSaveInstanceState(outState);
     }
 
+    private void primaryAction(DesktopDistro distro) {
+        runHostAction(() -> {
+            String taskId = tasks.activeInstallTask(distro);
+            boolean installed = taskId == null && tasks.isInstalled(distro);
+            runOnUiThread(() -> {
+                if (destroyed) return;
+                if (taskId != null) showInstallConsole(taskId);
+                else if (installed) open(distro);
+                else confirmInstall(distro);
+            });
+        });
+    }
+
+    private void showInstallConsole(String taskId) {
+        PrefixSetupConsoleDialog.show(this, taskId).setOnDismissListener(dialog -> refresh());
+        refresh();
+    }
+
     private void confirmInstall(DesktopDistro distro) {
         new FrostedDialogBuilder(this)
             .setTitle(R.string.desktop_action_install)
@@ -464,10 +490,10 @@ public final class DesktopActivity extends AppUiActivity {
     }
 
     /** Both creation and manual retry attach to the same real installation terminal. */
-    private void installAndShowConsole(DesktopDistro distro) throws LaunchHostException {
+    void installAndShowConsole(DesktopDistro distro) throws LaunchHostException {
         String taskId = tasks.install(distro);
         runOnUiThread(() -> {
-            if (!destroyed) PrefixSetupConsoleDialog.show(this, taskId);
+            if (!destroyed) showInstallConsole(taskId);
         });
     }
 
@@ -553,6 +579,8 @@ public final class DesktopActivity extends AppUiActivity {
                 action.run();
             } catch (LaunchHostException error) {
                 toastOnUi(getString(R.string.desktop_error, error.getErrorCode()));
+            } catch (RuntimeException error) {
+                toastOnUi(getString(R.string.desktop_error, error.getMessage()));
             }
         });
     }

@@ -59,6 +59,7 @@ def safe_destination(prefix, name):
 
 
 def install(prefix, archive):
+    (prefix / 'share/termux-native-ubuntu/.installed').unlink(missing_ok=True)
     if digest(archive) != BUNDLE_SHA256:
         raise ValueError('Native Ubuntu bundle SHA256 mismatch')
     # Validate the entire archive before writing. No links or executables outside
@@ -84,7 +85,6 @@ def install(prefix, archive):
             extensions = tuple('share/gnome-shell/extensions/' + uuid + '/' for uuid in EXTENSIONS)
             if not member.isdir() and member.name not in specific and not member.name.startswith(allowed + extensions):
                 raise ValueError('Unexpected native Ubuntu bundle member: ' + member.name)
-        (prefix / 'share/termux-native-ubuntu/.installed').unlink(missing_ok=True)
         for member in members:
             if member.isdir():
                 continue
@@ -104,6 +104,7 @@ def install(prefix, archive):
             finally:
                 temporary.unlink(missing_ok=True)
     validate(prefix)
+    runtime_probe(prefix, os.environ.copy())
     (prefix / 'share/termux-native-ubuntu/.installed').write_text(BUNDLE_SHA256 + '\n')
 
 
@@ -190,11 +191,10 @@ def main():
     args = parser.parse_args()
     try:
         if args.install:
-            (args.prefix / 'share/termux-native-ubuntu/.installed').unlink(missing_ok=True)
-            runtime_probe(args.prefix, os.environ.copy())
             install(args.prefix, args.install)
         else:
             validate(args.prefix)
+            runtime_probe(args.prefix, os.environ.copy())
     except (OSError, ValueError, KeyError, TypeError, tarfile.TarError, subprocess.TimeoutExpired) as error:
         parser.exit(65, str(error) + '\n')
 

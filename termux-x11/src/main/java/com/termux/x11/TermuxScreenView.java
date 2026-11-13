@@ -1,6 +1,8 @@
 package com.termux.x11;
 
 import android.content.Context;
+import android.content.res.Configuration;
+import android.content.res.TypedArray;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -45,11 +47,37 @@ public class TermuxScreenView extends FrameLayout {
         LayoutInflater.from(context).inflate(R.layout.view_x11_display, this, true);
         LayoutInflater.from(context).inflate(idlePresentation.layout,
             (FrameLayout) findViewById(R.id.stub), true);
+        applySessionBackground();
 
         ViewConfiguration viewConfiguration = ViewConfiguration.get(context);
         float density = getResources().getDisplayMetrics().density;
         mStartDrawerEdgeSize = Math.max(viewConfiguration.getScaledEdgeSlop(), Math.round(24 * density));
         mStartDrawerMinSwipeDistance = Math.max(viewConfiguration.getScaledTouchSlop() * 4, Math.round(72 * density));
+    }
+
+    private void applySessionBackground() {
+        if (idlePresentation != IdlePresentation.UI)
+            return;
+
+        TypedArray colors = getContext().obtainStyledAttributes(new int[] { android.R.attr.colorBackground });
+        int background;
+        try {
+            background = colors.getColor(0, android.graphics.Color.BLACK) | 0xff000000;
+        } finally {
+            colors.recycle();
+        }
+        // The shared display layout keeps its terminal defaults. Only embedded sessions
+        // use the host theme for idle and letterbox areas, behind the rendered surface.
+        setBackgroundColor(background);
+        getChildAt(0).setBackgroundColor(background);
+        getDisplayFrame().setBackgroundColor(background);
+        findViewById(R.id.stub).setBackgroundColor(background);
+    }
+
+    @Override
+    protected void onConfigurationChanged(Configuration configuration) {
+        super.onConfigurationChanged(configuration);
+        applySessionBackground();
     }
 
     public void setTerminalIdleActions(@NonNull Runnable preferences, @NonNull Runnable exit) {

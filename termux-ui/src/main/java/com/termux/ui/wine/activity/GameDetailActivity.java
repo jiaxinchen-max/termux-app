@@ -291,6 +291,18 @@ public final class GameDetailActivity extends AppUiActivity {
             String error = null;
             GameRuntimeBackendType loadedBackend = null;
             try {
+                com.termux.ui.wine.api.ActiveWineInstallation installation =
+                    com.termux.ui.wine.api.ActiveWineInstallation.find(getFilesDir(), gameId);
+                if (installation != null) {
+                    runOnUiThread(() -> {
+                        if (isCurrent(generation)) {
+                            startActivity(LocalGames.createLibraryIntentShowingSetupConsole(this,
+                                installation.taskId, installation.rootfs));
+                            finish();
+                        }
+                    });
+                    return;
+                }
                 com.termux.ui.wine.runtime.RuntimeEditingStop.game(getFilesDir(), appHost, gameId);
                 found = gameRepository.find(gameId);
                 if (found.isPresent()) {

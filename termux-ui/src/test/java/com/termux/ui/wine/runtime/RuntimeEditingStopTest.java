@@ -17,7 +17,7 @@ public class RuntimeEditingStopTest {
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
     private static final String SHA = String.join("", Collections.nCopies(64, "a"));
 
-    @Test public void bothBackendsKillRegardlessOfPreparationState() throws Exception {
+    @Test public void bothBackendsProtectInstallationAndOnlyStopAfterItEnds() throws Exception {
         for (GameRuntimeBackendType backend : GameRuntimeBackendType.values()) {
             for (RuntimeSetupTaskState state : RuntimeSetupTaskState.values()) {
                 File files = temporary.newFolder(); GameStoragePaths paths = new GameStoragePaths(files);
@@ -32,19 +32,27 @@ public class RuntimeEditingStopTest {
                             "container", "container", false, state, "", 1, 1));
                 }
                 final boolean[] killed = {false};
-                RuntimeEditingStop.game(files, new Host() {
+                Host host = new Host() {
                     @Override public void forceStopRuntimeProcesses(List<String> scopes) {
                         killed[0] = true;
                         assertTrue(scopes.contains(paths.getContainerPrefixDirectory("container", backend,
                             profile.getWinePackage()).getAbsolutePath()));
                     }
-                }, "game");
-                assertTrue(killed[0]);
+                };
+                if (!state.isTerminal()) {
+                    assertEquals("runtime_installation_busy", assertThrows(IOException.class,
+                        () -> RuntimeEditingStop.game(files, host, "game")).getMessage());
+                    assertFalse(killed[0]);
+                    RuntimeEditingStop.requireNotCancelled(files, "task");
+                } else {
+                    RuntimeEditingStop.game(files, host, "game");
+                    assertTrue(killed[0]);
+                    assertThrows(IOException.class, () -> RuntimeEditingStop.requireNotCancelled(files, "task"));
+                }
                 RuntimeSetupTaskState result = backend == GameRuntimeBackendType.GLIBC_TERMUX_BOX
                     ? new FilePrefixSetupTaskRepository(paths.getPrefixSetupTasksDirectory()).find("task").get().getState()
                     : new FileRuntimeSetupTaskRepository(paths.getRuntimeSetupTasksDirectory()).find("task").get().getState();
-                assertEquals(state.isTerminal() ? state : RuntimeSetupTaskState.CANCELLED, result);
-                assertThrows(IOException.class, () -> RuntimeEditingStop.requireNotCancelled(files, "task"));
+                assertEquals(state, result);
             }
         }
     }
@@ -93,6 +101,25 @@ public class RuntimeEditingStopTest {
         tasks.save(LaunchTask.queued("other-launch", "other-game", 1));
         RuntimeEditingStop.game(files, new Host(), "game");
         assertEquals(LaunchTaskState.CANCELLED, tasks.find("other-launch").get().getState());
+    }
+
+    @Test public void sharedNativePrefixInstallationCannotBeKilledThroughAnotherGameOrDraft() throws Exception {
+        File files = temporary.newFolder(); GameStoragePaths paths = new GameStoragePaths(files);
+        FileRuntimeProfileRepository profiles = new FileRuntimeProfileRepository(paths.getProfilesDirectory());
+        profiles.save(profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX, "owner", "default"));
+        profiles.save(profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX, "peer", "default"));
+        com.termux.ui.wine.importer.GameImportDrafts drafts = new com.termux.ui.wine.importer.GameImportDrafts(files);
+        drafts.games().save(new Game("draft", "Draft", "file:///games", "game.exe", ".", Collections.emptyList(), "", 0));
+        drafts.profiles().save(profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX, "draft", "default"));
+        FilePrefixSetupTaskRepository tasks = new FilePrefixSetupTaskRepository(paths.getPrefixSetupTasksDirectory());
+        tasks.save(PrefixSetupTask.queued("owner-task", "owner", "glibc_wine_9.3-vanilla", 1));
+        for (String id : Arrays.asList("owner", "peer", "draft")) {
+            assertEquals("owner-task", com.termux.ui.wine.api.ActiveWineInstallation.find(files, id).taskId);
+            assertThrows(IOException.class, () -> RuntimeEditingStop.game(files, new Host() {
+                public void forceStopRuntimeProcesses(List<String> scopes) { fail("must not kill installer"); }
+            }, id));
+        }
+        assertEquals(RuntimeSetupTaskState.QUEUED, tasks.find("owner-task").get().getState());
     }
 
     @Test public void killFailureIsReportedInsteadOfAllowingMutation() throws Exception {

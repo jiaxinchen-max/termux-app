@@ -55,13 +55,6 @@ def main():
                 'desktop_native_ubuntu.py' if native_ubuntu else 'desktop_ubuntu_gnome.py'))
         profile = importlib.util.module_from_spec(module_spec)
         module_spec.loader.exec_module(profile)
-        try:
-            if native_ubuntu:
-                profile.validate(Path(os.environ['PREFIX']))
-            else:
-                profile.validate_rootfs(args.rootfs)
-        except (OSError, ValueError, KeyError, TypeError) as error:
-            ap.error(str(error))
     if args.backend == 'x11':
         expected_display = {'llvmpipe': ('system', 'native'), 'zink': ('zink', 'dmabuf')}
         if (args.x11_display_gl_mode, args.x11_display_buffer_mode) != expected_display.get(args.gl_mode):
@@ -95,14 +88,6 @@ def main():
     prefix = Path(os.environ['PREFIX'])
     if args.x11_display_gl_mode == 'zink':
         host_icd = prefix / 'share/vulkan/icd.d/freedreno_icd.aarch64.json'
-        try:
-            host_library = json.loads(host_icd.read_text())['ICD']['library_path']
-        except (OSError, ValueError, KeyError, TypeError) as error:
-            ap.error('Xlorie Zink requires a valid fixed host Turnip ICD: ' + str(error))
-        if host_library != str(prefix / 'lib/libvulkan_freedreno.so'):
-            ap.error('Host Turnip ICD must explicitly select ' + str(prefix / 'lib/libvulkan_freedreno.so'))
-        if not Path(host_library).is_file():
-            ap.error('The fixed host Turnip ICD library is missing: ' + host_library)
     desktop_key = hashlib.sha256(args.desktop_id.encode()).hexdigest()[:16]
     runtime = prefix / ('tmp/gnome-' + desktop_key) / 'runtime'
     usb_parent = prefix / ('tmp/tusb-' + desktop_key)
@@ -110,30 +95,6 @@ def main():
     if args.usb_storage == 'read-only':
         usb_parent.mkdir(parents=True, exist_ok=True)
         usb_parent.chmod(0o700)
-        module_dir = (args.rootfs / 'usr/local/lib/termux-usb-bridge/gio/modules' if args.rootfs
-                      else prefix / 'lib/gio/modules')
-        if not (module_dir / 'libtusb-volume-monitor.so').is_file():
-            ap.error('selected runtime GIO module directory is missing: ' + str(module_dir))
-        if args.rootfs and not os.access(args.rootfs / 'usr/local/libexec/tusb-gio-mount', os.X_OK):
-            ap.error('glibc tusb-gio-mount helper is missing from the selected rootfs')
-    if args.rootfs:
-        release = {}
-        for line in (args.rootfs / 'etc/os-release').read_text().splitlines():
-            if '=' in line:
-                key, value = line.split('=', 1)
-                release[key] = value.strip(chr(34) + chr(39))
-        if not ubuntu and (release.get('ID') != 'debian' or release.get('VERSION_CODENAME') != 'trixie'):
-            ap.error('PRoot GNOME supports Debian trixie only')
-        if args.gl_mode == 'zink':
-            icd = args.rootfs / 'usr/share/vulkan/icd.d/freedreno_icd.aarch64.json'
-            try:
-                library = json.loads(icd.read_text())['ICD']['library_path']
-            except (OSError, ValueError, KeyError, TypeError) as error:
-                ap.error('PRoot GNOME Zink requires a valid fixed Turnip ICD: ' + str(error))
-            if library != '/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so':
-                ap.error('Turnip ICD must explicitly select /usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so')
-            if not (args.rootfs / library.lstrip('/')).is_file():
-                ap.error('The fixed Turnip ICD library is missing: ' + library)
     if not args.render_socket.is_socket():
         ap.error('the requested App render socket is not available')
     w = args.work.resolve()
@@ -197,8 +158,6 @@ def main():
     gw, gr = str(w), str(runtime)
     if args.rootfs:
         root = args.rootfs.resolve()
-        if not os.access(root / 'usr/bin/gnome-shell', os.X_OK):
-            ap.error('rootfs does not contain an executable gnome-shell')
         for d in ('tusb-gnome', 'run/tusb-gnome', 'tmp/.X11-unix'):
             (root / d).mkdir(parents=True, exist_ok=True)
         gw, gr = '/tusb-gnome', '/run/tusb-gnome'
@@ -261,8 +220,6 @@ def main():
             values['GIO_EXTRA_MODULES'] = str(prefix / 'lib/gio/modules')
         guest.update(values)
         host.update(values)
-    if native_ubuntu:
-        profile.runtime_probe(prefix, host)
     session_sh = '/bin/sh' if args.rootfs else str(prefix / 'bin/sh')
     (w / 'systembus.conf').write_text('<busconfig><type>system</type><listen>unix:path=' +
         escape(gr + '/system-bus') + '</listen><auth>EXTERNAL</auth><policy context="default">'
@@ -376,35 +333,6 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
             if x11.poll() is not None or time.monotonic() > deadline:
                 raise RuntimeError('X11 display did not become ready')
             time.sleep(.1)
-        if not android:
-            # Check the guest GLX route before starting Shell. This verifies the
-            # selected client environment, not an assumed Mutter rendering API.
-            renderer_log = w / 'renderer-check.log'
-            try:
-                probe = subprocess.run(base + ['glxinfo', '-B'], env=guest, cwd=w,
-                                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                       text=True, timeout=30)
-                probe_output = probe.stdout
-            except subprocess.TimeoutExpired as error:
-                probe_output = error.stdout or ''
-                if isinstance(probe_output, bytes):
-                    probe_output = probe_output.decode(errors='replace')
-                renderer_log.write_text(probe_output + '\nGLX renderer check timed out after 30 seconds\n')
-                raise RuntimeError('PRoot GNOME ' + args.gl_mode + ' GLX verification timed out:\n' + probe_output[-6000:]) from error
-            renderer_log.write_text(probe_output)
-            renderer = re.search(r'^OpenGL renderer string:\s*(.*)$', probe_output, re.MULTILINE)
-            accelerated = re.search(r'^\s*Accelerated:\s*(yes|no)\s*$', probe_output,
-                                    re.MULTILINE | re.IGNORECASE)
-            actual = renderer[1].lower() if renderer else ''
-            matches = (bool(re.search(r'\bllvmpipe\b', actual)) and
-                       not re.search(r'zink|lavapipe', actual)) if args.gl_mode == 'llvmpipe' else (
-                bool(re.search(r'\bzink\b', actual)) and
-                bool(re.search(r'\b(?:adreno|turnip)\b', actual)) and
-                accelerated is not None and accelerated[1].lower() == 'yes' and
-                not re.search(r'llvmpipe|lavapipe|softpipe|software|swrast|swiftshader|cpu', actual))
-            if probe.returncode != 0 or not matches:
-                raise RuntimeError('PRoot GNOME ' + args.gl_mode + ' GLX verification failed (exit ' +
-                                   str(probe.returncode) + '):\n' + probe_output[-6000:])
         session = start('session', base + session_bus_args + ['--', '/bin/sh' if args.rootfs else str(prefix / 'bin/sh'), gw + '/session.sh'], guest)
         deadline = time.monotonic() + 30
         while not (w / 'session.env').exists():

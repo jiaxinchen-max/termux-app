@@ -3,6 +3,7 @@ package com.termux.ui.desktop.domain;
 /** Derived lifecycle state of one desktop distribution; never persisted. */
 public enum DesktopSessionState {
     NOT_INSTALLED,
+    INSTALLING,
     INSTALLED,
     STARTING,
     RUNNING,
@@ -11,6 +12,6 @@ public enum DesktopSessionState {
 
     /** An active desktop still owns its files/runtime, including while cleanup is pending. */
     public boolean isActive() {
-        return this == STARTING || this == RUNNING || this == STOPPING;
+        return this == INSTALLING || this == STARTING || this == RUNNING || this == STOPPING;
     }
 }

@@ -1,0 +1,1165 @@
+{
+  "methods": [
+    {
+      "method": "AudioInfo",
+      "implementation": [
+        [
+          "AudioAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Device partial: 音频参数实测成功，复测 0.406s",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "BatteryStatus",
+      "implementation": [
+        [
+          "BatteryStatusAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Device partial: 真实电量实测成功，23–246ms；最终复测141ms",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Brightness",
+      "implementation": [
+        [
+          "BrightnessAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [
+        "WRITE_SETTINGS"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "WRITE_SETTINGS"
+    },
+    {
+      "method": "CameraInfo",
+      "implementation": [
+        [
+          "CameraInfoAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Device partial: 模拟器摄像头元数据实测成功；拍照未验证",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "相机",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "CameraPhoto",
+      "implementation": [
+        [
+          "CameraPhotoAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [
+        "CAMERA"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "相机",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "CallLog",
+      "implementation": [
+        [
+          "CallLogAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [
+        "READ_CALL_LOG"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "电话服务",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Clipboard",
+      "implementation": [
+        [
+          "ClipboardAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "ContactList",
+      "implementation": [
+        [
+          "ContactListAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [
+        "READ_CONTACTS"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Dialog",
+      "implementation": [
+        [
+          "DialogAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "私有 DialogActivity，确认/取消/销毁返回结果；结果连接允许最长 5 分钟交互",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Download",
+      "implementation": [
+        [
+          "DownloadAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Fingerprint",
+      "implementation": [
+        [
+          "FingerprintAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "私有 FingerprintActivity/BiometricPrompt；认证完成、错误或取消后返回",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "系统生物识别服务/已录入凭据",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "InfraredFrequencies",
+      "implementation": [
+        [
+          "InfraredAPI",
+          "onReceiveCarrierFrequency"
+        ]
+      ],
+      "permissions": [
+        "TRANSMIT_IR"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Device partial: 无硬件错误实测成功；发射未验证",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "红外发射器",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "InfraredTransmit",
+      "implementation": [
+        [
+          "InfraredAPI",
+          "onReceiveTransmit"
+        ]
+      ],
+      "permissions": [
+        "TRANSMIT_IR"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "红外发射器",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "JobScheduler",
+      "implementation": [
+        [
+          "JobSchedulerAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "JobSchedulerService 持久作业；按 ID 取消/列出/执行，OS 调度约束生效",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Keystore",
+      "implementation": [
+        [
+          "KeystoreAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Device partial: list 实测成功；生成/签名未验证",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "Android Keystore 及算法/硬件支持"
+    },
+    {
+      "method": "Location",
+      "implementation": [
+        [
+          "LocationAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [
+        "ACCESS_FINE_LOCATION"
+      ],
+      "lifecycle": "LocationService 请求 last/once/updates；最长 30 秒刷新窗口，finally 注销监听器/线程，请求失败也清理",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "位置提供器",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "MediaPlayer",
+      "implementation": [
+        [
+          "MediaPlayerAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "MediaPlayerService 保存播放状态；pause/stop/播放结束及 onDestroy 清理",
+      "verification": "Device partial: 只读 info 实测成功；播放未验证",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "MediaScanner",
+      "implementation": [
+        [
+          "MediaScannerAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "MicRecorder",
+      "implementation": [
+        [
+          "MicRecorderAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
+      "lifecycle": "录音 Service 的 record/info/quit；onDestroy 释放 recorder，失败和重复释放受保护",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "麦克风",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Nfc",
+      "implementation": [
+        [
+          "NfcAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "私有 NfcActivity；标签交互、取消和销毁返回",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "NFC",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "NotificationList",
+      "implementation": [
+        [
+          "NotificationListAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Device partial: 缺失通知访问权限明确报错；授权后读取未验证",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "系统通知访问授权"
+    },
+    {
+      "method": "Notification",
+      "implementation": [
+        [
+          "NotificationAPI",
+          "onReceiveShowNotification"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "Android 通知策略"
+    },
+    {
+      "method": "NotificationChannel",
+      "implementation": [
+        [
+          "NotificationAPI",
+          "onReceiveChannel"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "NotificationRemove",
+      "implementation": [
+        [
+          "NotificationAPI",
+          "onReceiveRemoveNotification"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "NotificationReply",
+      "implementation": [
+        [
+          "NotificationAPI",
+          "onReceiveReplyToNotification"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "SAF",
+      "implementation": [
+        [
+          "SAFAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "私有 SAFActivity/ContentResolver；用户选目录后保留授权，文件操作流按作用域关闭",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "系统文档树授权"
+    },
+    {
+      "method": "Sensor",
+      "implementation": [
+        [
+          "SensorAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "SensorReaderService 注册监听器；输出限次数、cleanup 或断线注销，UID 校验；断线检测已修正",
+      "verification": "Device partial: 枚举、单条采样及自动清理实测成功；长期断线仍待验证",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "设备传感器",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Share",
+      "implementation": [
+        [
+          "ShareAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "系统 chooser/临时 URI grant"
+    },
+    {
+      "method": "SmsInbox",
+      "implementation": [
+        [
+          "SmsInboxAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [
+        "READ_SMS",
+        "READ_CONTACTS"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "短信服务",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "SmsSend",
+      "implementation": [
+        [
+          "SmsSendAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [
+        "READ_PHONE_STATE",
+        "SEND_SMS"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "短信服务",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "StorageGet",
+      "implementation": [
+        [
+          "StorageGetAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "私有 StorageActivity/系统文件选择器；结果或取消完成请求",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "SpeechToText",
+      "implementation": [
+        [
+          "SpeechToTextAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
+      "lifecycle": "SpeechToTextService 管理识别器与结果队列；退出销毁识别器",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "系统语音识别服务",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "TelephonyCall",
+      "implementation": [
+        [
+          "TelephonyAPI",
+          "onReceiveTelephonyCall"
+        ]
+      ],
+      "permissions": [
+        "CALL_PHONE"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "电话服务",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "TelephonyCellInfo",
+      "implementation": [
+        [
+          "TelephonyAPI",
+          "onReceiveTelephonyCellInfo"
+        ]
+      ],
+      "permissions": [
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "蜂窝基带",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "TelephonyDeviceInfo",
+      "implementation": [
+        [
+          "TelephonyAPI",
+          "onReceiveTelephonyDeviceInfo"
+        ]
+      ],
+      "permissions": [
+        "READ_PHONE_STATE"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "电话服务",
+      "special_access": "特权电话标识受系统限制"
+    },
+    {
+      "method": "TextToSpeech",
+      "implementation": [
+        [
+          "TextToSpeechAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "TextToSpeechService 管理引擎、完成回调与 shutdown",
+      "verification": "Device partial: 仅引擎枚举成功；发声未验证",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "系统 TTS 引擎",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Toast",
+      "implementation": [
+        [
+          "ToastAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Torch",
+      "implementation": [
+        [
+          "TorchAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [
+        "CAMERA"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "闪光灯/相机",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Usb",
+      "implementation": [
+        [
+          "UsbAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "标准 CLI → 同 UID EmbeddedUsbApi broker；原有 Activity 授权/30 秒权限期限与 SCM_RIGHTS，Java 临时 FD 关闭",
+      "verification": "Device partial: 枚举成功（无设备）；授权和FD需实物验证",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "USB host/已授权设备",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Vibrate",
+      "implementation": [
+        [
+          "VibrateAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Volume",
+      "implementation": [
+        [
+          "VolumeAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Device partial: 只读音量列表实测成功",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "Wallpaper",
+      "implementation": [
+        [
+          "WallpaperAPI",
+          "onReceive"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "WallpaperService 接收输入并应用后返回",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Android 系统服务（无专用外设）",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "WifiConnectionInfo",
+      "implementation": [
+        [
+          "WifiAPI",
+          "onReceiveWifiConnectionInfo"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Wi-Fi",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "WifiScanInfo",
+      "implementation": [
+        [
+          "WifiAPI",
+          "onReceiveWifiScanInfo"
+        ]
+      ],
+      "permissions": [
+        "ACCESS_FINE_LOCATION"
+      ],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Wi-Fi/定位服务",
+      "special_access": "按接口 Android 权限与系统策略"
+    },
+    {
+      "method": "WifiEnable",
+      "implementation": [
+        [
+          "WifiAPI",
+          "onReceiveWifiEnable"
+        ]
+      ],
+      "permissions": [],
+      "lifecycle": "单次 ResultReturner 请求；结束或异常关闭本地 socket，stdin 线程使用取消管道回收",
+      "verification": "Compiled; device verification pending",
+      "restrictions": "Android permissions, device hardware and OS policy; actual SMS/call/reply not exercised",
+      "hardware": "Wi-Fi",
+      "special_access": "按接口 Android 权限与系统策略"
+    }
+  ],
+  "commands": [
+    {
+      "command": "termux-api-start",
+      "methods": [],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-api-stop",
+      "methods": [],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-audio-info",
+      "methods": [
+        "AudioInfo"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Device: requested read-only/limited operation completed; see api-device-final.jsonl"
+    },
+    {
+      "command": "termux-battery-status",
+      "methods": [
+        "BatteryStatus"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Device: requested read-only/limited operation completed; see api-device-final.jsonl"
+    },
+    {
+      "command": "termux-brightness",
+      "methods": [
+        "Brightness"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-call-log",
+      "methods": [
+        "CallLog"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-camera-info",
+      "methods": [
+        "CameraInfo"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Device partial; see run evidence additional_observations"
+    },
+    {
+      "command": "termux-camera-photo",
+      "methods": [
+        "CameraPhoto"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-clipboard-get",
+      "methods": [
+        "Clipboard"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-clipboard-set",
+      "methods": [
+        "Clipboard"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-contact-list",
+      "methods": [
+        "ContactList"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-dialog",
+      "methods": [
+        "Dialog"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-download",
+      "methods": [
+        "Download"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-fingerprint",
+      "methods": [
+        "Fingerprint"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-infrared-frequencies",
+      "methods": [
+        "InfraredFrequencies"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Device: hardware-unavailable error returned; see api-device-final.jsonl"
+    },
+    {
+      "command": "termux-infrared-transmit",
+      "methods": [
+        "InfraredTransmit"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-job-scheduler",
+      "methods": [
+        "JobScheduler"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-keystore",
+      "methods": [
+        "Keystore"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Device partial; see run evidence additional_observations"
+    },
+    {
+      "command": "termux-location",
+      "methods": [
+        "Location"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-media-player",
+      "methods": [
+        "MediaPlayer"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Device partial; see run evidence additional_observations"
+    },
+    {
+      "command": "termux-media-scan",
+      "methods": [
+        "MediaScanner"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-microphone-record",
+      "methods": [
+        "MicRecorder"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-nfc",
+      "methods": [
+        "Nfc"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-notification",
+      "methods": [
+        "Notification"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-notification-channel",
+      "methods": [
+        "NotificationChannel"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-notification-list",
+      "methods": [
+        "NotificationList"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Device partial; see run evidence additional_observations"
+    },
+    {
+      "command": "termux-notification-remove",
+      "methods": [
+        "NotificationRemove"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-saf-create",
+      "methods": [
+        "SAF"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-saf-dirs",
+      "methods": [
+        "SAF"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-saf-ls",
+      "methods": [
+        "SAF"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-saf-managedir",
+      "methods": [
+        "SAF"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-saf-mkdir",
+      "methods": [
+        "SAF"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-saf-read",
+      "methods": [
+        "SAF"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-saf-rm",
+      "methods": [
+        "SAF"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-saf-stat",
+      "methods": [
+        "SAF"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-saf-write",
+      "methods": [
+        "SAF"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-sensor",
+      "methods": [
+        "Sensor"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Device: requested read-only/limited operation completed; see api-device-final.jsonl"
+    },
+    {
+      "command": "termux-share",
+      "methods": [
+        "Share"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-sms-inbox",
+      "methods": [],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-sms-list",
+      "methods": [
+        "SmsInbox"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-sms-send",
+      "methods": [
+        "SmsSend"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-speech-to-text",
+      "methods": [
+        "SpeechToText"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-storage-get",
+      "methods": [
+        "StorageGet"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-telephony-call",
+      "methods": [
+        "TelephonyCall"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-telephony-cellinfo",
+      "methods": [
+        "TelephonyCellInfo"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-telephony-deviceinfo",
+      "methods": [
+        "TelephonyDeviceInfo"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-toast",
+      "methods": [
+        "Toast"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-torch",
+      "methods": [
+        "Torch"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-tts-engines",
+      "methods": [
+        "TextToSpeech"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Device partial; see run evidence additional_observations"
+    },
+    {
+      "command": "termux-tts-speak",
+      "methods": [
+        "TextToSpeech"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-usb",
+      "methods": [
+        "Usb"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Device: requested read-only/limited operation completed; see api-device-final.jsonl"
+    },
+    {
+      "command": "termux-vibrate",
+      "methods": [
+        "Vibrate"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-volume",
+      "methods": [
+        "Volume"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Device: requested read-only/limited operation completed; see api-device-final.jsonl"
+    },
+    {
+      "command": "termux-wallpaper",
+      "methods": [
+        "Wallpaper"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-wifi-connectioninfo",
+      "methods": [
+        "WifiConnectionInfo"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-wifi-enable",
+      "methods": [
+        "WifiEnable"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    },
+    {
+      "command": "termux-wifi-scaninfo",
+      "methods": [
+        "WifiScanInfo"
+      ],
+      "routing": "com.termux/com.termux.api.TermuxApiReceiver or same-UID com.termux://api-v1",
+      "verification": "Packaged from pinned source; runtime pending"
+    }
+  ]
+}

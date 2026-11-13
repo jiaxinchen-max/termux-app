@@ -215,6 +215,8 @@ public final class LocalGameOrchestratorService extends Service {
             saveTask(task);
             synchronized (RuntimeEditingStop.LOCK) {
                 RuntimeEditingStop.requireNotCancelled(getFilesDir(), taskId);
+                if (com.termux.ui.wine.api.ActiveWineInstallation.find(getFilesDir(), task.getGameId()) != null)
+                    throw new IOException("runtime_installation_busy");
             host.startLaunch(new LaunchRequest(taskId, script.getCanonicalPath(),
                 specFile.getCanonicalPath(), paths.getRuntimeDirectory().getCanonicalPath(),
                 spec.getLaunchExecutionMode()));

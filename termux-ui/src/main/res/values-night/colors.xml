@@ -32,7 +32,7 @@
     <color name="local_games_dialog_scrim">#00000000</color>
     <color name="local_games_dialog_scrim_noblur">#00000000</color>
     <color name="local_games_nav_indicator">#29E3A35C</color>
-    <color name="local_games_session_backdrop">#FF000000</color>
+    <color name="local_games_session_backdrop">@color/local_games_background</color>
     <color name="local_games_session_waiting">#E617110D</color>
     <color name="local_games_cover">#3A2B20</color>
     <color name="local_games_console_background">#120D0A</color>

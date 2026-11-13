@@ -67,12 +67,7 @@ exec xfce4-session
         module_dir = (prefix / 'var/lib/proot-distro/containers' / args.alias /
                       'rootfs/usr/local/lib/termux-usb-bridge/gio/modules' if args.run_mode == 'proot'
                       else prefix / 'lib/gio/modules')
-        if not (module_dir / 'libtusb-volume-monitor.so').is_file():
-            parser.error('GIO storage modules are missing from the selected runtime')
         if args.run_mode == 'proot':
-            helper = prefix / 'var/lib/proot-distro/containers' / args.alias / 'rootfs/usr/local/libexec/tusb-gio-mount'
-            if not os.access(helper, os.X_OK):
-                parser.error('glibc tusb-gio-mount helper is missing from the selected rootfs')
             guest_values += ['GIO_EXTRA_MODULES=/usr/local/lib/termux-usb-bridge/gio/modules']
         else:
             host['GIO_EXTRA_MODULES'] = str(module_dir)

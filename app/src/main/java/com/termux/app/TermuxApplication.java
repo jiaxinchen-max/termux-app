@@ -35,6 +35,7 @@ public class TermuxApplication extends Application {
         // Register the app-owned Termux runtime bridge for the independently packaged local-games feature.
         LocalGames.install(new TermuxLocalGamesHostFactory());
         EmbeddedUsbApi.initialize(this);
+        com.termux.api.TermuxAPIApplication.initialize(this);
 
         // Set crash handler for the app
         TermuxCrashUtils.setDefaultCrashHandler(this);

@@ -115,6 +115,11 @@ public final class PrefixSetupForegroundService extends Service {
 
     private void enqueue(String taskId, String gameId) throws Exception {
         RuntimeEditingStop.requireNotCancelled(getFilesDir(), taskId);
+        PrefixSetupTask existing = tasks.find(taskId).orElse(null);
+        if (existing != null) {
+            if (!existing.getState().isTerminal()) prepareAndStart(existing);
+            return;
+        }
         RuntimeProfile profile = resolveContainer(profiles.find(gameId)
             .orElseThrow(() -> new IOException("runtime_profile_missing")));
         if (profile.getRuntimeBackendType() != GameRuntimeBackendType.GLIBC_TERMUX_BOX) return;
@@ -141,6 +146,7 @@ public final class PrefixSetupForegroundService extends Service {
         RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
         if (!submitted.add(task.getTaskId())) return;
         try {
+            com.termux.ui.service.RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), task.getTaskId());
             PrefixSetupTask preparing = task.getState() == RuntimeSetupTaskState.QUEUED
                 ? transition(task, RuntimeSetupTaskState.PREPARING, "") : task;
             new GlibcRuntimeComponentPreparer(this, host, task.getTaskId()).ensure(profile);

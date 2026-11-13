@@ -216,6 +216,7 @@ final class TermuxInstaller {
                         throw new RuntimeException("Moving termux prefix staging to prefix directory failed");
                     }
 
+                    com.termux.api.EmbeddedApiInstaller.install(activity);
                     Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully.");
 
                     // Recreate env file since termux prefix was wiped earlier

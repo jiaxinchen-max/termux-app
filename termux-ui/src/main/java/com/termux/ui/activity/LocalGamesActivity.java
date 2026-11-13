@@ -528,20 +528,6 @@ public final class LocalGamesActivity extends AppUiActivity {
                 GameStoragePaths gamePaths = new GameStoragePaths(getFilesDir());
                 FileRuntimeProfileRepository profiles =
                     new FileRuntimeProfileRepository(gamePaths.getProfilesDirectory());
-                Map<String, String> activeRootfsSetupByContainer = new HashMap<>();
-                for (RuntimeSetupTask task : new FileRuntimeSetupTaskRepository(
-                        gamePaths.getRuntimeSetupTasksDirectory()).list()) {
-                    if (!task.getState().isTerminal()) {
-                        activeRootfsSetupByContainer.put(task.getContainerId(), task.getTaskId());
-                    }
-                }
-                Map<String, String> activePrefixSetupByGame = new HashMap<>();
-                for (PrefixSetupTask task : new FilePrefixSetupTaskRepository(
-                        gamePaths.getPrefixSetupTasksDirectory()).list()) {
-                    if (!task.getState().isTerminal()) {
-                        activePrefixSetupByGame.put(task.getGameId(), task.getTaskId());
-                    }
-                }
                 ComponentIndex wineIndex;
                 try (InputStream input = getAssets().open(INDEX_ASSET)) {
                     wineIndex = new ComponentIndexParser().parse(input);
@@ -575,19 +561,10 @@ public final class LocalGamesActivity extends AppUiActivity {
                         backends.put(item.getGame().getId(), profile.getRuntimeBackendType());
                         wines.put(item.getGame().getId(), com.termux.ui.wine.runtime.WineDisplayNames.resolve(
                             profile, customWines, installedWines, wineIndex));
-                        if (profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT) {
-                            String taskId = activeRootfsSetupByContainer.get(
-                                profile.getContainerId());
-                            if (taskId != null) {
-                                building.put(item.getGame().getId(), new BuildingTask(taskId, true));
-                            }
-                        } else if (profile.getRuntimeBackendType() ==
-                                GameRuntimeBackendType.GLIBC_TERMUX_BOX) {
-                            String taskId = activePrefixSetupByGame.get(item.getGame().getId());
-                            if (taskId != null) {
-                                building.put(item.getGame().getId(), new BuildingTask(taskId, false));
-                            }
-                        }
+                        com.termux.ui.wine.api.ActiveWineInstallation installation =
+                            com.termux.ui.wine.api.ActiveWineInstallation.find(getFilesDir(), item.getGame().getId());
+                        if (installation != null) building.put(item.getGame().getId(),
+                            new BuildingTask(installation.taskId, installation.rootfs));
                     }
                     if (!backends.containsKey(item.getGame().getId())) {
                         throw new IOException("game_runtime_profile_missing:" + item.getGame().getId());
@@ -742,20 +719,14 @@ public final class LocalGamesActivity extends AppUiActivity {
                 showInvalidProfile(game, profileError);
                 return;
             }
-            if (building != null) {
-                Dialog dialog = building.rootfs
-                    ? RuntimeSetupConsoleDialog.show(this, building.taskId)
-                    : PrefixSetupConsoleDialog.show(this, building.taskId);
-                dialog.setOnDismissListener(ignored -> loadLibraryAsync());
-                return;
-            }
-            showLaunchPresentation(item);
+            withGameInstallation(game.getId(), () -> showLaunchPresentation(item));
         });
         row.getRoot().setFocusable(true);
         row.localGameDetails.setEnabled(profileError == null);
         row.localGameDetails.setOnClickListener(view -> {
             if (!libraryProfileErrors.containsKey(game.getId()))
-                startActivity(LocalGames.createRuntimeOptionsIntent(this, game.getId()));
+                withGameInstallation(game.getId(), () ->
+                    startActivity(LocalGames.createRuntimeOptionsIntent(this, game.getId())));
         });
         row.localGameMore.setOnClickListener(view -> showActionsTextMenu(item, view));
         if (!game.getArtworkUri().isEmpty()) {
@@ -939,7 +910,33 @@ public final class LocalGamesActivity extends AppUiActivity {
             getResources().getDisplayMetrics().widthPixels, getResources().getDisplayMetrics().density));
     }
 
+    private void withGameInstallation(String gameId, Runnable whenIdle) {
+        libraryExecutor.execute(() -> {
+            try {
+                com.termux.ui.wine.api.ActiveWineInstallation active =
+                    com.termux.ui.wine.api.ActiveWineInstallation.find(getFilesDir(), gameId);
+                mainHandler.post(() -> {
+                    if (!started || binding == null) return;
+                    if (active == null) whenIdle.run();
+                    else {
+                        Dialog dialog = active.rootfs ? RuntimeSetupConsoleDialog.show(this, active.taskId)
+                            : PrefixSetupConsoleDialog.show(this, active.taskId);
+                        dialog.setOnDismissListener(ignored -> loadLibraryAsync());
+                    }
+                });
+            } catch (IOException error) {
+                mainHandler.post(() -> {
+                    if (started) Toast.makeText(this, safeMessage(error), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
     private void performGameAction(GameLibraryItem item, int action) {
+        withGameInstallation(item.getGame().getId(), () -> performGameActionWhenIdle(item, action));
+    }
+
+    private void performGameActionWhenIdle(GameLibraryItem item, int action) {
         Game game = item.getGame();
         switch (action) {
             case GAME_ACTION_ENGINE:
@@ -1084,6 +1081,18 @@ public final class LocalGamesActivity extends AppUiActivity {
 
     /** @return true when another installation or reset owns the single execution slot. */
     private boolean showActiveInstallationConsole() {
+        try {
+            for (PrefixSetupTask task : new FilePrefixSetupTaskRepository(
+                new GameStoragePaths(getFilesDir()).getPrefixSetupTasksDirectory()).list()) {
+                if (!task.getState().isTerminal()) {
+                    PrefixSetupConsoleDialog.show(this, task.getTaskId());
+                    return true;
+                }
+            }
+        } catch (IOException error) {
+            Toast.makeText(this, safeMessage(error), Toast.LENGTH_LONG).show();
+            return true;
+        }
         ComponentTask component = findActiveComponentTask();
         if (component != null) {
             showComponentInstallationConsole(component);

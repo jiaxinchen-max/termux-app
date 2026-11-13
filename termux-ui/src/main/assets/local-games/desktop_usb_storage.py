@@ -29,7 +29,7 @@ def main():
     if len(os.fsencode(str(args.runtime / 'control.sock'))) >= 108:
         parser.error('USB control socket path exceeds the Unix socket limit')
     prefix = Path(os.environ['PREFIX'])
-    if args.termux_usb != prefix / 'libexec/termux-usb-app' or not os.access(args.termux_usb, os.X_OK):
+    if args.termux_usb != prefix / 'libexec/termux-usb-app':
         parser.error('the explicit built-in App USB client is missing or invalid')
     sys.path.insert(0, str(prefix / 'share/termux-usb-bridge'))
     import desktop

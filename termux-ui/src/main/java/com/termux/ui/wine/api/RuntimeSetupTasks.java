@@ -48,28 +48,41 @@ public final class RuntimeSetupTasks {
                                   @NonNull String containerId, boolean baseOnly) {
         requireId(packageName, "packageName");
         requireId(containerId, "containerId");
+        GameStoragePaths paths = new GameStoragePaths(context.getFilesDir());
+        FileRuntimeSetupTaskRepository repository = new FileRuntimeSetupTaskRepository(paths.getRuntimeSetupTasksDirectory());
         try {
-            FileRuntimeSetupTaskRepository repository = new FileRuntimeSetupTaskRepository(
-                new GameStoragePaths(context.getFilesDir()).getRuntimeSetupTasksDirectory());
-            for (RuntimeSetupTask task : repository.list()) {
-                if (task.getContainerId().equals(containerId) && !task.getState().isTerminal()) {
-                    reconcileAll(context);
-                    return task.getTaskId();
-                }
-            }
-        } catch (IOException ignored) {
-            // The foreground owner will persist a stable failure if storage is unavailable.
+            RuntimeSetupTask task = com.termux.ui.service.SetupTaskSubmission.submit(
+                com.termux.ui.wine.runtime.RuntimeEditingStop.LOCK,
+                () -> {
+                    for (RuntimeSetupTask current : repository.list())
+                        if (!current.getState().isTerminal() && (current.getContainerId().equals(containerId)
+                            || (baseOnly && current.isBaseOnly() && current.getPackageName().equals(packageName)))) return current;
+                    return null;
+                },
+                () -> {
+                    String id = "setup-" + UUID.randomUUID();
+                    com.termux.ui.wine.runtime.RootfsSetupRecipe recipe = com.termux.ui.wine.runtime.RootfsSetupRecipe.require(packageName);
+                    if (!baseOnly) {
+                        com.termux.ui.wine.domain.GameContainer container = new com.termux.ui.wine.data.FileGameContainerRepository(
+                            paths.getContainersDirectory()).find(containerId).orElseThrow(() -> new IOException("rootfs_container_missing"));
+                        new com.termux.ui.wine.data.FileGameContainerRepository(new java.io.File(
+                            paths.getRuntimeSetupDirectory(), "selections/" + id)).save(container);
+                    }
+                    return RuntimeSetupTask.queued(id, packageName, recipe.getVersion(),
+                        new String(new char[64]).replace('\0', '0'), recipe.getSourceComponentId(),
+                        containerId, containerId, baseOnly, System.currentTimeMillis());
+                }, repository::save,
+                queued -> {
+                    if (!baseOnly) com.termux.ui.wine.runtime.RuntimeEditingStop.register(queued.getTaskId(), "container:" + containerId);
+                    start(context, new Intent(context, RootfsSetupForegroundService.class).setAction(ACTION_ENQUEUE)
+                        .putExtra(EXTRA_TASK_ID, queued.getTaskId()).putExtra(EXTRA_PACKAGE_NAME, packageName)
+                        .putExtra(EXTRA_CONTAINER_ID, containerId).putExtra(EXTRA_BASE_ONLY, baseOnly));
+                }, queued -> repository.save(queued.transition(com.termux.ui.wine.domain.RuntimeSetupTaskState.FAILED,
+                    "setup_dispatch_failed", System.currentTimeMillis())));
+            return task.getTaskId();
+        } catch (IOException error) {
+            throw new IllegalStateException("rootfs_setup_submit_failed", error);
         }
-        String taskId = "setup-" + UUID.randomUUID().toString();
-        if (!baseOnly) com.termux.ui.wine.runtime.RuntimeEditingStop.register(taskId, "container:" + containerId);
-        Intent intent = new Intent(context, RootfsSetupForegroundService.class)
-            .setAction(ACTION_ENQUEUE)
-            .putExtra(EXTRA_TASK_ID, taskId)
-            .putExtra(EXTRA_PACKAGE_NAME, packageName)
-            .putExtra(EXTRA_CONTAINER_ID, containerId)
-            .putExtra(EXTRA_BASE_ONLY, baseOnly);
-        start(context, intent);
-        return taskId;
     }
 
     public static void reconcile(@NonNull Context context, @NonNull String taskId) {

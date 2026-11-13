@@ -1,0 +1,197 @@
+--- a/src/dummy/up-backend.c
++++ b/src/dummy/up-backend.c
+@@ -26,6 +26,9 @@
+ #include <math.h>
+ #include <glib/gi18n.h>
+ #include <gio/gio.h>
++#ifdef __TERMUX__
++#include "termux-battery-query.h"
++#endif
+ 
+ #include "up-backend.h"
+ #include "up-daemon.h"
+@@ -41,6 +44,9 @@
+ struct UpBackendPrivate
+ {
+ 	UpDaemon		*daemon;
++#ifdef __TERMUX__
++    guint refresh_source;
++#endif
+ #if defined(EGG_TEST) || defined(__TERMUX__)
+ 	UpDevice		*device;
+ #endif
+@@ -141,7 +147,7 @@
+     g_signal_emit (backend, signals[SIGNAL_DEVICE_ADDED], 0, backend->priv->device);
+ 
+     termux_update_device (backend->priv->device);
+-    g_timeout_add_seconds (5, termux_update_device, backend->priv->device);
++    backend->priv->refresh_source = g_timeout_add_seconds (5, termux_update_device, backend->priv->device);
+ 
+ #elif defined(EGG_TEST)
+ 	/* small delay until first device is added */
+@@ -161,6 +167,12 @@
+ void
+ up_backend_unplug (UpBackend *backend)
+ {
++#ifdef __TERMUX__
++    if (backend->priv->refresh_source) {
++        g_source_remove (backend->priv->refresh_source);
++        backend->priv->refresh_source = 0;
++    }
++#endif
+ 	if (backend->priv->device_list != NULL) {
+ 		g_object_unref (backend->priv->device_list);
+ 		backend->priv->device_list = NULL;
+@@ -242,27 +254,19 @@
+  **/
+ #ifdef __TERMUX__
+ 
+-static gboolean
+-termux_update_device (gpointer user_data)
++static void
++termux_battery_result (const gchar *buffer, gpointer user_data)
+ {
+     UpDevice *device = UP_DEVICE (user_data);
+-    FILE *fp;
+-    char buffer[4096];
+-    float percentage = 0.0f;
++    g_object_set_data (G_OBJECT (device), "termux-battery-query", NULL);
++    /* Never replace a valid reading with fabricated zeroes on API failure. */
++    if (!buffer || strstr (buffer, "\"error\"") || !strstr (buffer, "\"percentage\"")) return;
++    float percentage = -1.0f;
+     char status[64] = {0};
+     char plugged[64] = {0};
+     float temperature = 0.0f;
+     UpDeviceState state = UP_DEVICE_STATE_UNKNOWN;
+     gboolean online = FALSE;
+-
+-    fp = popen ("@TERMUX_PREFIX@/bin/termux-battery-status", "r");
+-    if (!fp)
+-        return TRUE;
+-
+-    size_t len = fread (buffer, 1, sizeof(buffer)-1, fp);
+-    buffer[len] = '\0';
+-    pclose (fp);
+-
+     char *p;
+ 
+     p = strstr (buffer, "\"percentage\"");
+@@ -300,6 +304,7 @@
+     else
+         online = FALSE;
+ 
++    if (!isfinite (percentage) || percentage < 0 || percentage > 100) return;
+     double energy = percentage;
+     double energy_full = 100.0;
+     double energy_empty = 0.0;
+@@ -317,7 +322,18 @@
+                   "update-time", (guint64) g_get_real_time () / G_USEC_PER_SEC,
+                    NULL);
+ 
+-    return TRUE;
++    g_object_set_data (G_OBJECT (device), "termux-battery-query", NULL);
++}
++
++static gboolean
++termux_update_device (gpointer user_data)
++{
++    UpDevice *device = UP_DEVICE (user_data);
++    if (g_object_get_data (G_OBJECT (device), "termux-battery-query")) return G_SOURCE_CONTINUE;
++    g_object_set_data (G_OBJECT (device), "termux-battery-query", GINT_TO_POINTER (1));
++    termux_battery_query ("@TERMUX_PREFIX@/bin/termux-battery-status", 3000,
++                         termux_battery_result, g_object_ref (device), g_object_unref);
++    return G_SOURCE_CONTINUE;
+ }
+ 
+ #endif
+@@ -367,13 +383,18 @@
+ 	g_return_if_fail (UP_IS_BACKEND (object));
+ 
+ 	backend = UP_BACKEND (object);
++#ifdef __TERMUX__
++    if (backend->priv->refresh_source) g_source_remove (backend->priv->refresh_source);
++    g_clear_object (&backend->priv->device);
++    g_clear_object (&backend->priv->native);
++#endif
+ 
+ 	if (backend->priv->daemon != NULL)
+ 		g_object_unref (backend->priv->daemon);
+ 	if (backend->priv->device_list != NULL)
+ 		g_object_unref (backend->priv->device_list);
+ 
+-#ifdef EGG_TEST
++#if defined(EGG_TEST) && !defined(__TERMUX__)
+ 	g_object_unref (backend->priv->native);
+ 	g_object_unref (backend->priv->device);
+ #endif
+--- /dev/null
++++ b/src/dummy/termux-battery-query.h
+@@ -0,0 +1,68 @@
++/* GPL-2.0-or-later. Async Android battery query; no blocking work on the D-Bus main loop. */
++#include <gio/gio.h>
++#include <signal.h>
++#include <unistd.h>
++
++typedef void (*TermuxBatteryResult) (const gchar *json, gpointer user_data);
++typedef struct {
++    GSubprocess *process;
++    guint deadline;
++    TermuxBatteryResult result;
++    gpointer user_data;
++    GDestroyNotify destroy;
++} TermuxBatteryQuery;
++
++static void termux_battery_child_setup (gpointer unused) { setsid (); }
++
++static gboolean termux_battery_deadline (gpointer user_data)
++{
++    TermuxBatteryQuery *query = user_data;
++    query->deadline = 0;
++    /* Kill the script, native API client and am helper as one private group. */
++    const gchar *identifier = g_subprocess_get_identifier (query->process);
++    if (identifier) {
++        pid_t pid = (pid_t) g_ascii_strtoll (identifier, NULL, 10);
++        if (pid > 1) kill (-pid, SIGKILL);
++    }
++    g_subprocess_force_exit (query->process);
++    return G_SOURCE_REMOVE;
++}
++
++static void termux_battery_finished (GObject *object, GAsyncResult *result, gpointer user_data)
++{
++    TermuxBatteryQuery *query = user_data;
++    g_autofree gchar *output = NULL;
++    g_autoptr(GError) error = NULL;
++    gboolean success = g_subprocess_communicate_utf8_finish (query->process, result, &output, NULL, &error);
++    if (query->deadline) g_source_remove (query->deadline);
++    if (success && g_subprocess_get_successful (query->process) && output && strlen (output) <= 16384)
++        query->result (output, query->user_data);
++    else
++        query->result (NULL, query->user_data);
++    if (query->destroy) query->destroy (query->user_data);
++    g_object_unref (query->process);
++    g_free (query);
++}
++
++static gboolean termux_battery_query (const gchar *command, guint timeout_ms,
++                                     TermuxBatteryResult result, gpointer user_data, GDestroyNotify destroy)
++{
++    g_autoptr(GSubprocessLauncher) launcher = g_subprocess_launcher_new (
++        G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_SILENCE);
++    g_subprocess_launcher_set_child_setup (launcher, termux_battery_child_setup, NULL, NULL);
++    g_autoptr(GError) error = NULL;
++    GSubprocess *process = g_subprocess_launcher_spawn (launcher, &error, command, NULL);
++    if (!process) {
++        result (NULL, user_data);
++        if (destroy) destroy (user_data);
++        return FALSE;
++    }
++    TermuxBatteryQuery *query = g_new0 (TermuxBatteryQuery, 1);
++    query->process = process;
++    query->result = result;
++    query->user_data = user_data;
++    query->destroy = destroy;
++    query->deadline = g_timeout_add (timeout_ms, termux_battery_deadline, query);
++    g_subprocess_communicate_utf8_async (process, NULL, NULL, termux_battery_finished, query);
++    return TRUE;
++}

@@ -255,6 +255,14 @@ public final class GameRuntimeOptionsView extends LinearLayout {
     private void load() {
         ioExecutor.execute(() -> {
             try {
+                com.termux.ui.wine.api.ActiveWineInstallation installation =
+                    com.termux.ui.wine.api.ActiveWineInstallation.find(getContext().getFilesDir(), gameId);
+                if (installation != null) {
+                    post(() -> {
+                        if (!destroyed) listener.onRuntimeOptionsSaved(installation.taskId, installation.rootfs);
+                    });
+                    return;
+                }
                 com.termux.ui.wine.runtime.RuntimeEditingStop.game(getContext().getFilesDir(),
                     LocalGames.requireHost(getContext()), gameId);
                 try (InputStream input = getContext().getAssets().open("termux-app-packages/index-v1.json")) {

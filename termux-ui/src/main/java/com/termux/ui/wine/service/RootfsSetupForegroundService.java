@@ -124,7 +124,14 @@ public final class RootfsSetupForegroundService extends Service {
     private void enqueue(String taskId, String packageName, String containerId, boolean baseOnly)
         throws Exception {
         RuntimeEditingStop.requireNotCancelled(getFilesDir(), taskId);
-        if (tasks.find(taskId).isPresent()) return;
+        RuntimeSetupTask existing = tasks.find(taskId).orElse(null);
+        if (existing != null) {
+            if (!existing.getState().isTerminal()) {
+                RuntimeInstallationGate.requireRootfsSlot(getFilesDir(), taskId);
+                prepareAndStart(existing);
+            }
+            return;
+        }
         if (com.termux.ui.wine.domain.GameContainer.DEFAULT_ID.equals(containerId)) {
             throw new IOException("rootfs_container_must_be_independent");
         }

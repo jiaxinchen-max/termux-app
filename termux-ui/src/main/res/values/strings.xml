@@ -741,4 +741,6 @@
     <string name="desktop_session_exit_failed">Could not stop the desktop</string>
     <string name="desktop_session_exit_failed_message">The desktop may still be running. Try exiting again.</string>
     <string name="desktop_create_save_failed">Could not save the desktop. Please try again.</string>
+    <string name="desktop_state_installing">Installing…</string>
+    <string name="desktop_action_view_install">View installation</string>
 </resources>

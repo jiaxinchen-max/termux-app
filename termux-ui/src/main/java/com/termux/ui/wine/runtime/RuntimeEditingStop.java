@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Editing/deletion always terminates related work, regardless of its reported state. */
+/** Mutations stop runtime sessions, but must not silently interrupt an active installation. */
 public final class RuntimeEditingStop {
     public static final Object LOCK = new Object();
     private static final Map<String, String> pendingOwners = new HashMap<>();
@@ -53,6 +53,8 @@ public final class RuntimeEditingStop {
     public static void game(File files, LocalGamesHost host, String gameId) throws IOException {
         com.termux.ui.wine.api.WineCDriveBackupTasks.stopForMutation(files, gameId);
         synchronized (LOCK) {
+            if (com.termux.ui.wine.api.ActiveWineInstallation.find(files, gameId) != null)
+                throw new IOException("runtime_installation_busy");
             GameStoragePaths paths = new GameStoragePaths(files);
             RuntimeProfileBinding profile = new com.termux.ui.wine.importer.GameImportDrafts(files)
                 .editingProfiles(gameId).findBinding(gameId).orElse(null);

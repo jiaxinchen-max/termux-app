@@ -45,7 +45,6 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
@@ -399,7 +398,6 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
         mX11BroadcastRegistrar.register();
 
         mX11SoftKeyboardController.attach();
-        updateDisconnectedRadar(LorieView.connected());
         // The render connection can complete before this view is bound (a termux-render client such
         // as Xlorie connects as soon as the bridge listens); that notification found no runtime and
         // was dropped. Connection state is level, not edge: apply the current value now, otherwise
@@ -1194,7 +1192,6 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
             setTerminalToolbarView();
             findViewById(R.id.mouse_buttons).setVisibility(prefs.showMouseHelper.get() && "1".equals(prefs.touchMode.get()) && connected ? VISIBLE : View.GONE);
             findViewById(R.id.stub).setVisibility(connected ? View.INVISIBLE : VISIBLE);
-            updateDisconnectedRadar(connected);
             getLorieView().setVisibility(connected ? VISIBLE : View.INVISIBLE);
             updateInputControlsVisibilityForConnection(connected);
             mX11DisplayController.setConnected(connected);
@@ -1219,48 +1216,6 @@ public final class LorieViewRuntimeController implements LorieViewRuntimeApi.Lor
 
     public static boolean isConnected() {
         return LorieView.connected();
-    }
-
-    private void updateDisconnectedRadar(boolean connected) {
-        View radarIcon = findViewById(R.id.x11_radar_icon);
-        ImageView radarDish = findViewById(R.id.x11_radar_dish);
-        if (radarIcon == null)
-            return;
-
-        if (connected) {
-            stopDisconnectedRadarAnimation();
-            radarIcon.setVisibility(View.GONE);
-        } else {
-            radarIcon.setVisibility(VISIBLE);
-            startDisconnectedRadarAnimation(radarDish);
-        }
-    }
-
-    private void startDisconnectedRadarAnimation(ImageView radarDish) {
-        if (radarDish == null)
-            return;
-
-        // Animation disabled — use static frame instead
-        // Drawable drawable = radarDish.getDrawable();
-        // if (!(drawable instanceof AnimationDrawable)) {
-        //     radarDish.setImageResource(R.drawable.ic_x11_radar_dish);
-        //     drawable = radarDish.getDrawable();
-        // }
-        // if (drawable instanceof AnimationDrawable && !((AnimationDrawable) drawable).isRunning())
-        //     ((AnimationDrawable) drawable).start();
-        radarDish.setImageResource(R.drawable.ic_x11_radar_frame_4);
-    }
-
-    private void stopDisconnectedRadarAnimation() {
-        ImageView radarDish = findViewById(R.id.x11_radar_dish);
-        if (radarDish == null)
-            return;
-
-        // Animation disabled — use static frame instead
-        // Drawable drawable = radarDish.getDrawable();
-        // if (drawable instanceof AnimationDrawable)
-        //     ((AnimationDrawable) drawable).stop();
-        radarDish.setImageResource(R.drawable.ic_x11_radar_frame_4);
     }
 
     public boolean shouldInterceptKeys() {

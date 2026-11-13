@@ -20,12 +20,6 @@ start_desktop_audio() {
         log 'Explicit DESKTOP_AUDIO_MODE=host-pulseaudio is required.'
         return 64
     }
-    for audio_command in pulseaudio pactl; do
-        [ -x "$PREFIX/bin/$audio_command" ] || {
-            log "Missing host $audio_command; install the desktop support components first."
-            return 127
-        }
-    done
     desktop_pulse_server=tcp:127.0.0.1:4713
     # After a package upgrade the live daemon may still use the replaced executable.
     # --check then rejects its PID even though the requested endpoint is healthy.

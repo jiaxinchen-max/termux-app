@@ -16,6 +16,7 @@ public final class RuntimeInstallationGate {
     public static void requireComponentSlot(File filesDirectory, String selfTaskId) throws Exception {
         com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(filesDirectory);
         GameStoragePaths games = new GameStoragePaths(filesDirectory);
+        requirePrefixSlot(filesDirectory, selfTaskId, true);
         for (RuntimeSetupTask task : new FileRuntimeSetupTaskRepository(
             games.getRuntimeSetupTasksDirectory()).list()) {
             if (!task.getState().isTerminal() && !ownsDependency(filesDirectory, task.getTaskId(), selfTaskId)) {
@@ -32,10 +33,12 @@ public final class RuntimeInstallationGate {
     }
 
     public static void requireRootfsSlot(File filesDirectory, String selfTaskId) throws Exception {
+        requirePrefixSlot(filesDirectory, selfTaskId, false);
         com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(filesDirectory);
         for (ComponentTask task : new FileComponentTaskRepository(new ComponentStoragePaths(
             filesDirectory).getTasksDirectory()).list()) {
-            if (task.getState().shouldRecoverAutomatically()) {
+            if (task.getState().shouldRecoverAutomatically()
+                && !ownsDependency(filesDirectory, selfTaskId, task.getTaskId())) {
                 throw new Exception("runtime_installation_busy");
             }
         }
@@ -49,6 +52,7 @@ public final class RuntimeInstallationGate {
     }
 
     public static void requireResetSlot(File filesDirectory, String selfTaskId) throws Exception {
+        requirePrefixSlot(filesDirectory, selfTaskId, false);
         com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(filesDirectory);
         for (ComponentTask task : new FileComponentTaskRepository(new ComponentStoragePaths(
             filesDirectory).getTasksDirectory()).list()) {
@@ -64,6 +68,16 @@ public final class RuntimeInstallationGate {
             }
         }
     }
+    private static void requirePrefixSlot(File files, String taskId, boolean allowDependency) throws Exception {
+        for (com.termux.ui.wine.domain.PrefixSetupTask task :
+            new com.termux.ui.wine.data.FilePrefixSetupTaskRepository(
+                new GameStoragePaths(files).getPrefixSetupTasksDirectory()).list()) {
+            if (!task.getState().isTerminal() && !task.getTaskId().equals(taskId)
+                && !(allowDependency && ownsDependency(files, task.getTaskId(), taskId)))
+                throw new Exception("runtime_installation_busy");
+        }
+    }
+
     public static void registerDependency(File files, String parent, String child) throws java.io.IOException {
         File file = dependencyFile(files, parent, child);
         if (!file.getParentFile().isDirectory() && !file.getParentFile().mkdirs()) {

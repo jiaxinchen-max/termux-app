@@ -33,6 +33,17 @@
                 android:src="@drawable/local_games_ic_desktop"
                 app:tint="@color/local_games_on_surface_secondary" />
 
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/desktop_install_progress"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:indeterminate="true"
+                android:visibility="gone"
+                app:indicatorColor="@color/local_games_primary"
+                app:indicatorSize="32dp"
+                app:trackThickness="3dp" />
+
             <TextView
                 android:id="@+id/desktop_mode_badge"
                 android:layout_width="wrap_content"

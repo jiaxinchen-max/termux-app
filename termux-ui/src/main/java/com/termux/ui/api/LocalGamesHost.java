@@ -104,6 +104,9 @@ public interface LocalGamesHost {
     @Nullable
     default TerminalSession getRuntimeSetupTerminal(String taskId) { return null; }
 
+    /** True only while an accepted setup command is waiting for its real terminal. */
+    default boolean isRuntimeSetupPending(String taskId) { return false; }
+
     /** Best-effort same-UID process liveness check used only during reconciliation. */
     default boolean isProcessAlive(long pid) { return false; }
 

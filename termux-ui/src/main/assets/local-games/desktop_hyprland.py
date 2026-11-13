@@ -282,7 +282,6 @@ def session(args):
     client_mode = getattr(args, 'client_gl_mode', 'default')
     if client_mode not in ('default', 'zink') or (client_mode == 'zink' and args.run_mode != 'proot'):
         raise ValueError('Experimental Zink is supported only for PRoot Hyprland clients')
-    verify(runtime_root())
     work = work_for(args.desktop_id)
     work.mkdir(mode=0o700, parents=True, exist_ok=True)
     if work.is_symlink() or work.stat().st_uid != os.getuid():
@@ -318,7 +317,6 @@ def session(args):
     (work / 'gpu-client-report.json').unlink(missing_ok=True)
     (work / 'gpu-host-report.json').unlink(missing_ok=True)
     (work / 'hyprland.log').unlink(missing_ok=True)
-    verify_shell()
     env = clean_environment(work)
     env['TERMUX_HYPRLAND_SESSION'] = secrets.token_hex(16)
     env.update(AQ_ANDROID_WIDTH=str(args.width), AQ_ANDROID_HEIGHT=str(args.height),
@@ -371,8 +369,6 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
     signal.signal(signal.SIGINT, stop)
     try:
         with (work / 'session.log').open('w') as log:
-            if client_mode == 'zink':
-                verify_zink_host(work, env, log)
             bus = subprocess.Popen([str(PREFIX / 'bin/dbus-daemon'), '--session', '--nofork',
                                     '--address=' + env['DBUS_SESSION_BUS_ADDRESS']],
                                    env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
@@ -444,10 +440,8 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
             time.sleep(.1)
             if any(client.poll() is not None for client in clients) or process.poll() is not None:
                 raise RuntimeError('Hyprland compositor or default clients exited during startup')
-            if client_mode == 'zink':
-                verify_zink_client(work, env, args.alias, log, clients)
             if process.poll() is not None or bus.poll() is not None or any(client.poll() is not None for client in clients):
-                raise RuntimeError('Hyprland compositor or desktop service exited during GPU validation')
+                raise RuntimeError('Hyprland compositor or desktop service exited during startup')
             (work / 'session.json').write_text(json.dumps({'supervisor':os.getpid(), 'env':env,
                 'host_gl_mode':'system', 'client_gl_mode':client_mode})+'\n')
             temporary = args.ready_file.with_name(args.ready_file.name + '.tmp.' + str(os.getpid()))

@@ -88,6 +88,32 @@ public class RuntimeInstallationGateTest {
         assertThrows(Exception.class, () -> RuntimeInstallationGate.requireResetSlot(files, "unrelated"));
     }
 
+    @Test public void prefixParentBlocksUnrelatedInstallResetAndRootfsButAllowsItsDependency() throws Exception {
+        File files = temporary.newFolder("prefix-parent");
+        new com.termux.ui.wine.data.FilePrefixSetupTaskRepository(new GameStoragePaths(files)
+            .getPrefixSetupTasksDirectory()).save(com.termux.ui.wine.domain.PrefixSetupTask.queued(
+                "prefix-parent", "game", "wine", 1));
+        assertThrows(Exception.class, () -> RuntimeInstallationGate.requireComponentSlot(files, "unrelated"));
+        assertThrows(Exception.class, () -> RuntimeInstallationGate.requireComponentSlot(files, null));
+        assertThrows(Exception.class, () -> RuntimeInstallationGate.requireRootfsSlot(files, "unrelated"));
+        assertThrows(Exception.class, () -> RuntimeInstallationGate.requireResetSlot(files, "unrelated"));
+        RuntimeInstallationGate.registerDependency(files, "prefix-parent", "child");
+        RuntimeInstallationGate.requireComponentSlot(files, "child");
+        RuntimeInstallationGate.requireRootfsSlot(files, "prefix-parent");
+        saveComponentTask(files, "child", ComponentTaskState.DOWNLOADING);
+        RuntimeInstallationGate.requireRootfsSlot(files, "prefix-parent");
+    }
+
+    @Test public void finishedPrefixDoesNotBlockSubsequentExplicitInstall() throws Exception {
+        File files = temporary.newFolder("prefix-finished");
+        new com.termux.ui.wine.data.FilePrefixSetupTaskRepository(new GameStoragePaths(files)
+            .getPrefixSetupTasksDirectory()).save(com.termux.ui.wine.domain.PrefixSetupTask.queued(
+                "prefix-parent", "game", "wine", 1).transition(RuntimeSetupTaskState.FAILED, "error", 2));
+        RuntimeInstallationGate.requireComponentSlot(files, "new-task");
+        RuntimeInstallationGate.requireRootfsSlot(files, "new-task");
+        RuntimeInstallationGate.requireResetSlot(files, "new-task");
+    }
+
     private static void saveComponentTask(File files, String taskId, ComponentTaskState state)
         throws Exception {
         ComponentTask task = new ComponentTask(taskId, "termux-glibc", 1,

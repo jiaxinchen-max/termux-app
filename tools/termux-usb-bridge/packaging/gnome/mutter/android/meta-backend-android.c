@@ -356,7 +356,9 @@ typedef MetaCursorRendererClass AndroidCursorClass;
 static GType android_cursor_get_type(void);
 G_DEFINE_TYPE(AndroidCursor,android_cursor,META_TYPE_CURSOR_RENDERER)
 static gboolean cursor_update(MetaCursorRenderer *r,MetaCursorSprite *sprite) {
-  if(sprite)meta_cursor_sprite_realize_texture(sprite);return FALSE;
+  if(sprite)meta_cursor_sprite_realize_texture(sprite);
+  /* Mutter 48 uses TRUE to enable its software cursor overlay. */
+  return sprite != NULL;
 }
 static void android_cursor_class_init(AndroidCursorClass *c) { c->update_cursor=cursor_update; }
 static void android_cursor_init(AndroidCursor *c) { }

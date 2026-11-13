@@ -36,7 +36,7 @@
     <color name="local_games_dialog_scrim_noblur">#99F3ECE3</color>
     <!-- Selected bottom-navigation item: accent tint, low alpha. -->
     <color name="local_games_nav_indicator">#1FA8651F</color>
-    <color name="local_games_session_backdrop">#FF000000</color>
+    <color name="local_games_session_backdrop">@color/local_games_background</color>
     <color name="local_games_session_waiting">#E6F3ECE3</color>
     <color name="local_games_cover">#E8D3B8</color>
     <color name="local_games_console_background">#F7F1E8</color>

@@ -6,3 +6,5 @@ include ':float-ball'
 include ':termux-render'
 include ':termux-ui'
 include ':termux-usb'
+
+include ':termux-api'

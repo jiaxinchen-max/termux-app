@@ -74,6 +74,13 @@ public final class ComponentTasks {
         return taskId;
     }
 
+    public static void activateRuntimeDependency(Context context, String componentId, String parent) throws IOException {
+        requireIdentifier(componentId, "componentId");
+        String taskId = UUID.randomUUID().toString();
+        com.termux.ui.service.RuntimeInstallationGate.registerDependency(context.getFilesDir(), parent, taskId);
+        start(context, command(context, ACTION_ACTIVATE, taskId).putExtra(EXTRA_COMPONENT_ID, componentId));
+    }
+
     public static void pause(@NonNull Context context, @NonNull String taskId) {
         start(context, command(context, ACTION_PAUSE, taskId));
     }

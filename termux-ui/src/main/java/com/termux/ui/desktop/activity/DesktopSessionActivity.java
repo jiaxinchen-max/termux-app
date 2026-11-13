@@ -236,7 +236,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
         handler.removeCallbacks(pollTick);
         if (destroyed || distro == null) return;
         ioExecutor.execute(() -> {
-            DesktopSessionState observed = tasks.state(distro);
+            DesktopSessionState observed = tasks.sessionState(distro);
             if (!startRequested && observed != DesktopSessionState.NOT_INSTALLED
                 && !observed.isActive()) {
                 startRequested = true;

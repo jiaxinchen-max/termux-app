@@ -53,16 +53,7 @@ final class DesktopUsbStorageDialog {
         enabled = new CheckBox(activity); enabled.setText(R.string.desktop_usb_enable_read_only); body.addView(enabled);
         if (!DesktopUsbStorageTasks.supported(distro)) text(body, activity.getString(R.string.desktop_usb_plasma_unsupported));
         status = text(body, activity.getString(R.string.desktop_usb_loading));
-        install = button(body, R.string.desktop_usb_install, () -> work(() -> {
-            String taskId = desktops.install(this.distro);
-            activity.runOnUiThread(() -> {
-                if (usable()) {
-                    dialog.dismiss();
-                    PrefixSetupConsoleDialog.show(activity, taskId);
-                    changed.run();
-                }
-            });
-        }));
+        install = button(body, R.string.desktop_usb_install, () -> work(this::initializeDesktop));
         refresh = button(body, R.string.desktop_usb_refresh, this::reload);
         devices = new LinearLayout(activity); devices.setOrientation(LinearLayout.VERTICAL); body.addView(devices);
         ScrollView scroll = new ScrollView(activity); scroll.addView(body);
@@ -75,7 +66,8 @@ final class DesktopUsbStorageDialog {
             work(() -> {
                 usb.setEnabled(this.distro, checked);
                 this.distro = this.distro.withUsbStorage(checked ? DesktopUsbStorageMode.READ_ONLY : DesktopUsbStorageMode.OFF);
-                activity.runOnUiThread(changed);
+                if (checked) initializeDesktop();
+                else activity.runOnUiThread(changed);
             });
         });
     }
@@ -165,6 +157,16 @@ final class DesktopUsbStorageDialog {
             default: resource = R.string.desktop_usb_device_error;
         }
         return activity.getString(resource);
+    }
+    private void initializeDesktop() throws com.termux.ui.api.LaunchHostException {
+        String taskId = desktops.install(this.distro);
+        activity.runOnUiThread(() -> {
+            if (usable()) {
+                dialog.dismiss();
+                PrefixSetupConsoleDialog.show(activity, taskId);
+                changed.run();
+            }
+        });
     }
     private interface Work { void run() throws Exception; }
     private void work(Work operation) {

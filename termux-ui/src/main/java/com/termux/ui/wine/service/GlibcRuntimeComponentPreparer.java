@@ -73,7 +73,7 @@ final class GlibcRuntimeComponentPreparer {
         InstalledComponent active = hostManaged ? null
             : installations.read(descriptor.getId()).getActive().orElse(null);
         if (matches(active, descriptor)) {
-            ComponentTasks.activate(context, descriptor.getId());
+            ComponentTasks.activateRuntimeDependency(context, descriptor.getId(), parentTaskId);
             waitForRuntime(descriptor, COMPONENT_TIMEOUT_MS);
             return;
         }
@@ -81,9 +81,10 @@ final class GlibcRuntimeComponentPreparer {
         ComponentTask reusable = findReusableTask(descriptor, tasks.list());
         String taskId;
         if (reusable == null) {
-            taskId = ComponentTasks.enqueue(context, descriptor.getId());
+            taskId = ComponentTasks.enqueueRuntimeDependency(context, descriptor.getId(), parentTaskId);
         } else {
             taskId = reusable.getTaskId();
+            com.termux.ui.service.RuntimeInstallationGate.registerDependency(context.getFilesDir(), parentTaskId, taskId);
             ComponentTaskConsoleLog.clearCommandFailure(context.getFilesDir(), taskId);
             if (reusable.getState() == ComponentTaskState.FAILED) {
                 ComponentTasks.resumeAndAwaitAcceptance(context, taskId, true, 30000L);

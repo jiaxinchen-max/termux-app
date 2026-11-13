@@ -11,6 +11,7 @@ import com.termux.ui.activity.FrostedWindow;
 import com.termux.ui.databinding.ItemDesktopSelectBinding;
 import com.termux.ui.databinding.SheetDesktopSettingsBinding;
 import com.termux.ui.desktop.api.DesktopTasks;
+import com.termux.ui.api.LaunchHostException;
 import com.termux.ui.desktop.domain.DesktopDe;
 import com.termux.ui.desktop.domain.DesktopDistro;
 import com.termux.ui.desktop.domain.DesktopGlMode;
@@ -97,8 +98,12 @@ final class DesktopSettingsDialog {
             new Thread(() -> {
                 try {
                     tasks.save(updated);
+                    if (updated.getHostGlMode() != distro.getHostGlMode()
+                            || updated.getGuestGlMode() != distro.getGuestGlMode()) {
+                        activity.installAndShowConsole(updated);
+                    }
                     activity.runOnUiThread(onSaved);
-                } catch (IOException error) {
+                } catch (IOException | LaunchHostException error) {
                     android.util.Log.e("DesktopSettings", "Unable to save desktop settings", error);
                     activity.runOnUiThread(() -> android.widget.Toast.makeText(activity,
                         activity.getString(R.string.desktop_error, "desktop_settings_save_failed"),

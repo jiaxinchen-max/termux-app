@@ -61,6 +61,8 @@ public final class DesktopTasks {
     public void save(@NonNull DesktopDistro distro) throws IOException {
         if (repository.find(distro.getId()).isPresent()) forceStop(distro);
         synchronized (DesktopOperationGate.LOCK) {
+            try { requireNoInstallation(distro); }
+            catch (LaunchHostException busy) { throw new IOException(busy.getErrorCode(), busy); }
             try { DesktopRendererPolicy.requireSupported(distro); }
             catch (IllegalArgumentException invalid) { throw new IOException(invalid.getMessage(), invalid); }
             repository.save(distro);
@@ -73,7 +75,10 @@ public final class DesktopTasks {
     }
 
     private void requireNotStoppingForLaunch(DesktopDistro distro) throws LaunchHostException {
-        try { requireNotStopping(state(distro)); }
+        requireNoInstallation(distro);
+        try { requireNotStopping(DesktopSessionStateResolver.STATUS_STOPPING.equals(
+                readStatus(paths.getDesktopStatusFile(distro.getId())))
+            ? DesktopSessionState.STOPPING : DesktopSessionState.INSTALLED); }
         catch (IOException stopping) {
             throw new LaunchHostException("desktop_stopping", true, stopping);
         }
@@ -85,6 +90,7 @@ public final class DesktopTasks {
      */
     public void removeContainer(@NonNull DesktopDistro distro) throws LaunchHostException {
         synchronized (DesktopOperationGate.LOCK) {
+            requireNoInstallation(distro);
             // delete() removes the old spec before this call; deploy a fresh explicit removal spec.
             LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
             commandStatus(distro, "removing");
@@ -138,8 +144,17 @@ public final class DesktopTasks {
 
     @NonNull
     public DesktopSessionState state(@NonNull DesktopDistro distro) {
+        if (activeInstallTask(distro) != null) return DesktopSessionState.INSTALLING;
+        if (hasTerminalFailureStatus(distro)) return DesktopSessionState.FAILED;
         boolean installed = environment.isInstalled(distro);
         if (!installed) return DesktopSessionState.NOT_INSTALLED;
+        return sessionState(distro);
+    }
+
+    /** Live session facts only: installation inventories are not a launch-time preflight. */
+    @NonNull
+    public DesktopSessionState sessionState(@NonNull DesktopDistro distro) {
+        if (activeInstallTask(distro) != null) return DesktopSessionState.INSTALLING;
         File pidFile = paths.getDesktopPidFile(distro.getId());
         long pid = readPid(pidFile);
         boolean alive = isAlive(pid);
@@ -179,23 +194,67 @@ public final class DesktopTasks {
     @NonNull
     public String install(@NonNull DesktopDistro distro) throws LaunchHostException {
         synchronized (DesktopOperationGate.LOCK) {
+            String existing = activeInstallTask(distro);
+            if (existing != null) return existing;
             try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
                 throw new LaunchHostException("desktop_archive_busy", true, busy);
             }
             requireNotStoppingForLaunch(distro);
-            String taskId = "desktop-install-" + distro.getId() + "-" + System.currentTimeMillis();
+            String taskId = "desktop-install-" + java.util.UUID.randomUUID();
             LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
             commandStatus(distro, "installing");
             try {
+                com.termux.ui.desktop.runtime.DesktopInstallState.writeTask(installRecord(distro), taskId);
+                com.termux.ui.wine.runtime.RuntimeEditingStop.register(taskId, "desktop:" + distro.getId());
                 LocalGames.requireHost(context).startTermuxPackageInstall(new RuntimeSetupRequest(
                     taskId, scripts.install.getPath(), paths.getDesktopSpecFile(distro.getId()).getPath(),
                     paths.getRuntimeDirectory().getPath()));
-            } catch (LaunchHostException error) {
+            } catch (LaunchHostException | IOException | RuntimeException error) {
+                installRecord(distro).delete();
                 commandStatus(distro, "exit:1");
-                throw error;
+                if (error instanceof LaunchHostException) throw (LaunchHostException) error;
+                throw new LaunchHostException("desktop_install_submit_failed", true, error);
             }
             return taskId;
         }
+    }
+
+    private File installRecord(DesktopDistro distro) {
+        return new File(paths.getDesktopStatusFile(distro.getId()).getPath() + ".install-task");
+    }
+
+    /** Resolves the original installation, including the host's terminal creation interval. */
+    @Nullable public String activeInstallTask(@NonNull DesktopDistro distro) {
+        synchronized (DesktopOperationGate.LOCK) {
+            File record = installRecord(distro);
+            String id;
+            try { id = com.termux.ui.desktop.runtime.DesktopInstallState.readTask(record); }
+            catch (IOException error) { throw new IllegalStateException("desktop_install_identity_read_failed", error); }
+            if (id == null) return null;
+            LocalGamesHost host = LocalGames.requireHost(context);
+            TerminalSession terminal = host.getRuntimeSetupTerminal(id);
+            boolean pending = host.isRuntimeSetupPending(id);
+            // Registration publishes the terminal before clearing pending; re-read across that handoff.
+            if (terminal == null && !pending) terminal = host.getRuntimeSetupTerminal(id);
+            if (com.termux.ui.desktop.runtime.DesktopInstallState.isActive(terminal != null,
+                terminal != null && terminal.isRunning(), pending)) return id;
+            // A dead/missing terminal must not leave a permanent spinner or be resubmitted on click.
+            if ("installing".equals(readStatus(paths.getDesktopStatusFile(distro.getId())))) {
+                try {
+                    com.termux.ui.wine.runtime.RuntimeEditingStop.cancelOwner(context.getFilesDir(), "desktop:" + distro.getId());
+                    commandStatus(distro, "exit:1");
+                } catch (IOException | LaunchHostException error) {
+                    throw new IllegalStateException("desktop_install_reconcile_failed", error);
+                }
+            }
+            record.delete();
+            return null;
+        }
+    }
+
+    private void requireNoInstallation(DesktopDistro distro) throws LaunchHostException {
+        if (activeInstallTask(distro) != null)
+            throw new LaunchHostException("desktop_installing", true, null);
     }
 
     /** The visible terminal of an install task, once the host has created it. */
@@ -231,10 +290,12 @@ public final class DesktopTasks {
         }
     }
 
-    /** Editing and deletion use immediate termination, with no state-based refusal. */
+    /** Editing and deletion stop runtime sessions after protecting any active installation. */
     public void forceStop(@NonNull DesktopDistro distro) throws IOException {
-        new DesktopArchiveTasks(context).stopForMutation(distro);
         synchronized (DesktopOperationGate.LOCK) {
+            try { requireNoInstallation(distro); }
+            catch (LaunchHostException busy) { throw new IOException(busy.getErrorCode(), busy); }
+            new DesktopArchiveTasks(context).stopForMutation(distro);
             synchronized (com.termux.ui.wine.runtime.RuntimeEditingStop.LOCK) {
                 com.termux.ui.wine.runtime.RuntimeEditingStop.cancelOwner(context.getFilesDir(), "desktop:" + distro.getId());
                 java.util.List<String> scopes = new java.util.ArrayList<>();
@@ -299,6 +360,7 @@ public final class DesktopTasks {
             try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
                 throw new LaunchHostException("desktop_archive_busy", true, busy);
             }
+            requireNoInstallation(distro);
             if (state(distro) == DesktopSessionState.STOPPING) return;
             LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
             commandStatus(distro, "stopping");

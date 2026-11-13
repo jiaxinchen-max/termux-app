@@ -1,0 +1,710 @@
+#define _POSIX_SOURCE
+#define _GNU_SOURCE
+#include <fcntl.h>
+#include <pthread.h>
+#include <poll.h>
+#include <errno.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <time.h>
+#include <unistd.h>
+
+#ifdef __ANDROID__
+#include <android/api-level.h>
+#endif
+
+#include "termux-api.h"
+
+#define TERMUX_API_PACKAGE_VERSION "0.60.0"
+
+#ifndef PREFIX
+# define PREFIX "/data/data/com.termux/files/usr"
+#endif
+
+#define LISTEN_SOCKET_ADDRESS "com.termux://api-v1"
+
+_Noreturn void contact_plugin(int argc, char** argv,
+                                 char* input_address_string,
+                                 char* output_address_string) {
+    pid_t api_server_pid = getppid(); // Assume running after fork, so use `getppid()` instead of `getpid()`.
+    uid_t api_server_uid = getuid();
+    unsigned long long api_server_starttime = get_process_starttime(api_server_pid);
+
+    contact_plugin_v2(argc, argv,
+        api_server_pid, api_server_uid, api_server_starttime,
+        input_address_string, output_address_string);
+}
+
+/* passes the arguments to the plugin via the unix socket, falling
+ * back to exec_am_broadcast() if that doesn't work
+ */
+_Noreturn void contact_plugin_v2(int argc, char** argv,
+                                 pid_t api_server_pid,
+                                 uid_t api_server_uid,
+                                 unsigned long long api_server_starttime,
+                                 char* input_address_string,
+                                 char* output_address_string)
+{
+    // Redirect stdout to /dev/null (but leave stderr open):
+    close(STDOUT_FILENO);
+    open("/dev/null", O_RDONLY);
+    // Close stdin:
+    close(STDIN_FILENO);
+
+    // ignore SIGPIPE, so am will be called when the connection is closed unexpectedly
+    struct sigaction sigpipe_action = {
+        .sa_handler = SIG_IGN,
+        .sa_flags = 0
+    };
+    sigaction(SIGPIPE, &sigpipe_action, NULL);
+
+    // Prefer authenticated same-UID IPC. A bounded handshake permits am to unfreeze
+    // the host on Android 14+ without leaving the client blocked indefinitely.
+    int listenfd = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
+    if (listenfd != -1) {
+        struct timeval deadline = { .tv_sec = 3 };
+        setsockopt(listenfd, SOL_SOCKET, SO_RCVTIMEO, &deadline, sizeof(deadline));
+        setsockopt(listenfd, SOL_SOCKET, SO_SNDTIMEO, &deadline, sizeof(deadline));
+        struct sockaddr_un listen_addr = { .sun_family = AF_UNIX };
+        memcpy(listen_addr.sun_path+1, LISTEN_SOCKET_ADDRESS, strlen(LISTEN_SOCKET_ADDRESS));
+        if (connect(listenfd, (struct sockaddr*) &listen_addr, sizeof(sa_family_t) + strlen(LISTEN_SOCKET_ADDRESS) + 1) == 0) {
+            socklen_t optlen = sizeof(struct ucred);
+            // check the uid to see if the socket is actually provided by the plugin
+            struct ucred cred;
+            if (getsockopt(listenfd, SOL_SOCKET, SO_PEERCRED, &cred, &optlen) == 0 && cred.uid == getuid()) {
+
+                const char insock_str[] = "--es socket_input \"";
+                const char outsock_str[] = "--es socket_output \"";
+                const char api_server_pid_str[] = "--ei api_server_pid ";
+                const char api_server_uid_str[] = "--ei api_server_uid ";
+                const char api_server_starttime_str[] = "--ei api_server_starttime ";
+                const char method_str[] = "--es api_method \"";
+
+                char *api_server_pid_string = "-1";
+                char *api_server_pid_string_temp = NULL;
+                if (asprintf(&api_server_pid_string_temp, "%ld", (long) api_server_pid) != -1) {
+                    api_server_pid_string = api_server_pid_string_temp;
+                }
+
+                char *api_server_uid_string = "-1";
+                char *api_server_uid_string_temp = NULL;
+                if (asprintf(&api_server_uid_string_temp, "%ju", (uintmax_t) api_server_uid) != -1) {
+                    api_server_uid_string = api_server_uid_string_temp;
+                }
+
+                char *api_server_starttime_string = "-1";
+                char *api_server_starttime_string_temp = NULL;
+                if (asprintf(&api_server_starttime_string_temp, "%llu", api_server_starttime) != -1) {
+                    api_server_starttime_string = api_server_starttime_string_temp;
+                }
+
+                int len = 0;
+                len += sizeof(insock_str)-1 + strlen(output_address_string)+2;
+                len += sizeof(outsock_str)-1 + strlen(input_address_string)+2;
+                len += sizeof(api_server_pid_str)-1 + strlen(api_server_pid_string)+1;
+                len += sizeof(api_server_uid_str)-1 + strlen(api_server_uid_string)+1;
+                len += sizeof(api_server_starttime_str)-1 + strlen(api_server_starttime_string)+1;
+                len += sizeof(method_str)-1 + strlen(argv[1])+2;
+                for (int i = 2; i<argc; i++) {
+                    len += strlen(argv[i])+1;
+                    if (strcmp(argv[i], "--es") == 0 || strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--esa") == 0) {
+                        len += 2; // the string extra has to be enclosed in "
+                    }
+                    for (int a = 0; a<strlen(argv[i]); a++) {
+                        if (argv[i][a] == '"') {
+                            len += 1; // " has to be escaped, so one character more.
+                            /* This assumes " is only present in
+                            string extra arguments, but that is
+                            probably an acceptable assumption to
+                            make */
+                        }
+                    }
+                }
+
+                if (len > 32768) { fprintf(stderr, "API arguments exceed 32 KiB\n"); exit(1); }
+                char* buffer = malloc(len);
+                if (!buffer) exit(1);
+
+                int offset = 0;
+
+                memcpy(buffer+offset, insock_str, sizeof(insock_str)-1);
+                offset += sizeof(insock_str)-1;
+
+                memcpy(buffer+offset, output_address_string, strlen(output_address_string));
+                offset += strlen(output_address_string);
+
+                buffer[offset] = '"';
+                offset++;
+                buffer[offset] = ' ';
+                offset++;
+
+
+                memcpy(buffer+offset, outsock_str, sizeof(outsock_str)-1);
+                offset += sizeof(outsock_str)-1;
+
+                memcpy(buffer+offset, input_address_string, strlen(input_address_string));
+                offset += strlen(input_address_string);
+
+                buffer[offset] = '"';
+                offset++;
+                buffer[offset] = ' ';
+                offset++;
+
+
+                memcpy(buffer+offset, api_server_pid_str, sizeof(api_server_pid_str)-1);
+                offset += sizeof(api_server_pid_str)-1;
+
+                memcpy(buffer+offset, api_server_pid_string, strlen(api_server_pid_string));
+                offset += strlen(api_server_pid_string);
+                free(api_server_pid_string_temp);
+
+                buffer[offset] = ' ';
+                offset++;
+
+
+                memcpy(buffer+offset, api_server_uid_str, sizeof(api_server_uid_str)-1);
+                offset += sizeof(api_server_uid_str)-1;
+
+                memcpy(buffer+offset, api_server_uid_string, strlen(api_server_uid_string));
+                offset += strlen(api_server_uid_string);
+                free(api_server_uid_string_temp);
+
+                buffer[offset] = ' ';
+                offset++;
+
+
+                memcpy(buffer+offset, api_server_starttime_str, sizeof(api_server_starttime_str)-1);
+                offset += sizeof(api_server_starttime_str)-1;
+
+                memcpy(buffer+offset, api_server_starttime_string, strlen(api_server_starttime_string));
+                offset += strlen(api_server_starttime_string);
+                free(api_server_starttime_string_temp);
+
+                buffer[offset] = ' ';
+                offset++;
+
+
+                memcpy(buffer+offset, method_str, sizeof(method_str)-1);
+                offset += sizeof(method_str)-1;
+
+                memcpy(buffer+offset, argv[1], strlen(argv[1]));
+                offset += strlen(argv[1]);
+
+                buffer[offset] = '"';
+                offset++;
+                buffer[offset] = ' ';
+                offset++;
+
+
+                for (int i = 2; i<argc; i++) {
+                    if (strcmp(argv[i], "--es") == 0 || strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--esa") == 0) {
+                        memcpy(buffer+offset, argv[i], strlen(argv[i]));
+                        offset += strlen(argv[i]);
+                        buffer[offset] = ' ';
+                        offset++;
+                        i++;
+                        if (i < argc) {
+                            memcpy(buffer+offset, argv[i], strlen(argv[i]));
+                            offset += strlen(argv[i]);
+                            buffer[offset] = ' ';
+                            offset++;
+                        }
+                        i++;
+                        if (i < argc) {
+                            buffer[offset] = '"';
+                            offset++;
+                            for (int a = 0; a<strlen(argv[i]); a++) {
+                                if (argv[i][a] == '"') {
+                                    buffer[offset] = '\\';
+                                    offset++;
+                                    buffer[offset] = '"';
+                                    offset++;
+                                } else {
+                                    buffer[offset] = argv[i][a];
+                                    offset++;
+                                }
+                            }
+                            buffer[offset] = '"';
+                            offset++;
+                            buffer[offset] = ' ';
+                            offset++;
+                        }
+                    } else {
+                        memcpy(buffer+offset, argv[i], strlen(argv[i]));
+                        offset += strlen(argv[i]);
+                        buffer[offset] = ' ';
+                        offset++;
+                    }
+                }
+
+                len = offset;
+                uint16_t netlen = htons(len);
+
+                bool err = false;
+                // transmit the size
+                int totransmit = 2;
+                void* transmit = &netlen;
+                while (totransmit > 0) {
+                    int ret = send(listenfd, transmit, totransmit, 0);
+                    if (ret <= 0) {
+                        err = true;
+                        break;
+                    }
+                    transmit = (char*)transmit + ret;
+                    totransmit -= ret;
+                }
+
+                // transmit the argument list
+                if (! err) {
+                    totransmit = len;
+                    transmit = buffer;
+                    while (totransmit > 0) {
+                        int ret = send(listenfd, transmit, totransmit, 0);
+                        if (ret <= 0) {
+                            err = true;
+                            break;
+                        }
+                        transmit = (char*)transmit + ret;
+                    totransmit -= ret;
+                    }
+                }
+
+                if (! err) {
+                    char readbuffer[100];
+                    int ret;
+                    bool first = true;
+                    err = true;
+                    while ((ret = read(listenfd, readbuffer, 99)) > 0) {
+                        // if a single null byte is received as the first message, the call was successful
+                        if (ret == 1 && readbuffer[0] == 0 && first) {
+                            err = false;
+                            break;
+                        }
+                        // otherwise it's an error message
+                        readbuffer[ret] = '\0';
+                        // printing out the error is good for debug purposes, but feel free to disable this
+                        fprintf(stderr, "%s", readbuffer);
+                        fflush(stderr);
+                        first = false;
+                    }
+                }
+
+                // if everything went well, there is no need to call am
+                if (! err) {
+                    exit(0);
+                }
+            }
+        }
+    }
+
+    exec_am_broadcast_v2(argc, argv,
+        api_server_pid, api_server_uid, api_server_starttime,
+        input_address_string, output_address_string);
+}
+
+
+
+
+_Noreturn void exec_am_broadcast(int argc, char** argv,
+                                 char* input_address_string,
+                                 char* output_address_string) {
+    pid_t api_server_pid = getppid(); // Assume running after fork, so use `getppid()` instead of `getpid()`.
+    uid_t api_server_uid = getuid();
+    unsigned long long api_server_starttime = get_process_starttime(api_server_pid);
+
+    exec_am_broadcast_v2(argc, argv,
+        api_server_pid, api_server_uid, api_server_starttime,
+        input_address_string, output_address_string);
+}
+
+// Function which execs "am broadcast ..".
+_Noreturn void exec_am_broadcast_v2(int argc, char** argv,
+                                    pid_t api_server_pid,
+                                    uid_t api_server_uid,
+                                    unsigned long long api_server_starttime,
+                                    char* input_address_string,
+                                    char* output_address_string)
+{
+    // Redirect stdout to /dev/null (but leave stderr open):
+    close(STDOUT_FILENO);
+    open("/dev/null", O_RDONLY);
+    // Close stdin:
+    close(STDIN_FILENO);
+
+    const int child_pre_argc = 23;
+    const int child_post_argc = argc - 1; // Except `argv[0]`.
+    const int child_argc = child_pre_argc + child_post_argc;
+
+    size_t child_argv_size = (sizeof(char*)) * (child_argc + 1); // Including trailing `NULL`.
+    // Do not directly cast, otherwise can trigger null pointer dereference if `NULL` is returned.
+    void* result = malloc(child_argv_size);
+    if (result == NULL) {
+        perror("malloc failed for am child args");
+        exit(1);
+    }
+
+    char **child_argv = (char **) result;
+
+    child_argv[0] = "am";
+    child_argv[1] = "broadcast";
+    child_argv[2] = "--user";
+    child_argv[3] = "0";
+    child_argv[4] = "-n";
+    child_argv[5] = "com.termux/com.termux.api.TermuxApiReceiver";
+    child_argv[6] = "--es";
+    // Input/output are reversed for the java process (our output is its input):
+    child_argv[7] = "socket_input";
+    child_argv[8] = output_address_string;
+    child_argv[9] = "--es";
+    child_argv[10] = "socket_output";
+    child_argv[11] = input_address_string;
+
+    child_argv[12] = (char *) "--ei";
+    child_argv[13] = (char *) "api_server_pid";
+    if (asprintf(&child_argv[14], "%ld", (long) api_server_pid) == -1) {
+        child_argv[14] = (char *) "-1";
+    }
+
+    child_argv[15] = (char *) "--ei";
+    child_argv[16] = (char *) "api_server_uid";
+    if (asprintf(&child_argv[17], "%ju", (uintmax_t) api_server_uid) == -1) {
+        child_argv[17] = (char *) "-1";
+    }
+
+    child_argv[18] = (char *) "--ei";
+    child_argv[19] = (char *) "api_server_starttime";
+    if (asprintf(&child_argv[20], "%llu", api_server_starttime) == -1) {
+        child_argv[20] = (char *) "-1";
+    }
+
+    child_argv[21] = "--es";
+    child_argv[22] = "api_method";
+
+    // Copy the remaining arguments except `argv[0]`, `argv[1]` should be `api_method` extra value:
+    memcpy(child_argv + child_pre_argc, argv + 1, child_post_argc * sizeof(char*));
+
+    // End with NULL:
+    child_argv[child_argc] = NULL;
+
+    // Use an a executable taking care of PATH and LD_LIBRARY_PATH:
+    execv(PREFIX "/bin/am", child_argv);
+
+    // We should not reach here, if we do, then free memory we malloc'ed
+    free(child_argv);
+    perror("execv(\"" PREFIX "/bin/am\")");
+    exit(1);
+}
+
+_Noreturn void exec_callback(int fd)
+{
+    char *fds;
+    if (asprintf(&fds, "%d", fd) == -1)
+        perror("asprintf");
+
+    /* TERMUX_EXPORT_FD and TERMUX_USB_FD are (currently) specific for
+       termux-usb, so there's some room for improvement here (this
+       function should be generic) */
+    char errmsg[256];
+    char *export_to_env = getenv("TERMUX_EXPORT_FD");
+    if (export_to_env && strncmp(export_to_env, "true", 4) == 0) {
+        if (setenv("TERMUX_USB_FD", fds, true) == -1)
+            perror("setenv");
+        execl(PREFIX "/libexec/termux-callback", "termux-callback", NULL);
+        sprintf(errmsg, "execl(\"" PREFIX "/libexec/termux-callback\")");
+    } else {
+        execl(PREFIX "/libexec/termux-callback", "termux-callback", fds, NULL);
+        sprintf(errmsg, "execl(\"" PREFIX "/libexec/termux-callback\", %s)", fds);
+    }
+    perror(errmsg);
+    exit(1);
+}
+
+unsigned long long get_process_starttime(pid_t pid) {
+    char *proc_stat_path = NULL;
+    if (asprintf(&proc_stat_path, "/proc/%ld/stat", (long) pid) == -1 || proc_stat_path == NULL) {
+        return -1;
+    }
+
+    FILE *fp = fopen(proc_stat_path, "r");
+    free(proc_stat_path);
+    if (fp == NULL) {
+        return -1;
+    }
+
+    char buffer[2048];
+    if (fgets(buffer, sizeof(buffer), fp) == NULL) {
+        fclose(fp);
+        return -1;
+    }
+    fclose(fp);
+
+    // Find last bracket `)` of field 2 for `executable` in the format `(executable)`.
+    char *lastBracketIndex = strrchr(buffer, ')');
+    if (lastBracketIndex == NULL) return -1;
+
+    // Parse fields starting right after the last `)`.
+    // Field 3 `state` begins immediately after `) `.
+    // Field 22 is `starttime` (the 20th field after field 2).
+    char state;
+    int ppid, pgrp, session, tty_nr, tpgid;
+    unsigned flags;
+    unsigned long minflt, cminflt, majflt, cmajflt, utime, stime;
+    long cutime, cstime, priority, nice, num_threads, itrealvalue;
+    unsigned long long starttime;
+
+    int parsed = sscanf(lastBracketIndex + 2,
+        "%c %d %d %d %d %d %u %lu %lu %lu %lu %lu %lu %ld %ld %ld %ld %ld %ld %llu",
+        &state, &ppid, &pgrp, &session, &tty_nr, &tpgid,
+        &flags,
+        &minflt, &cminflt, &majflt, &cmajflt, &utime, &stime,
+        &cutime, &cstime, &priority, &nice, &num_threads, &itrealvalue,
+        &starttime);
+
+    return (parsed == 20) ? starttime : -1;
+}
+
+void generate_uuid(char* str) {
+    sprintf(str, "%x%x-%x-%x-%x-%x%x%x",
+            /* 64-bit Hex number */
+            arc4random(), arc4random(),
+            /* 32-bit Hex number */
+            (uint32_t) getpid(),
+            /* 32-bit Hex number of the form 4xxx (4 is the UUID version) */
+            ((arc4random() & 0x0fff) | 0x4000),
+            /* 32-bit Hex number in the range [0x8000, 0xbfff] */
+            arc4random() % 0x3fff + 0x8000,
+            /*  96-bit Hex number */
+            arc4random(), arc4random(), arc4random());
+}
+
+// A cancellation pipe bounds stdin forwarding without unsupported Bionic pthread_cancel.
+struct input_forwarder { int server; int cancel; };
+static bool wait_input_or_cancel(int fd, short events, int cancel) {
+    struct pollfd fds[2] = {{.fd=fd,.events=events},{.fd=cancel,.events=POLLIN}};
+    int result;
+    do { result = poll(fds, 2, -1); } while (result < 0 && errno == EINTR);
+    return result > 0 && !fds[1].revents && fds[0].revents;
+}
+void* transmit_stdin_to_socket(void* arg) {
+    struct input_forwarder *f = arg;
+    if (!wait_input_or_cancel(f->server, POLLIN, f->cancel)) return NULL;
+    int client = accept(f->server, NULL, NULL);
+    struct ucred caller; socklen_t size = sizeof(caller);
+    if (client < 0) return NULL;
+    if (getsockopt(client, SOL_SOCKET, SO_PEERCRED, &caller, &size) != 0 || caller.uid != getuid()) { close(client); return NULL; }
+    char buffer[1024];
+    while (wait_input_or_cancel(STDIN_FILENO, POLLIN, f->cancel)) {
+        ssize_t count = read(STDIN_FILENO, buffer, sizeof(buffer));
+        if (count <= 0) break;
+        ssize_t offset = 0;
+        while (offset < count) {
+            if (!wait_input_or_cancel(client, POLLOUT, f->cancel)) goto done;
+            ssize_t sent = send(client, buffer + offset, count - offset, MSG_DONTWAIT | MSG_NOSIGNAL);
+            if (sent < 0 && (errno == EAGAIN || errno == EINTR)) continue;
+            if (sent <= 0) goto done;
+            offset += sent;
+        }
+    }
+done:
+    close(client);
+    return NULL;
+}
+
+// Main thread function which reads from input socket and writes to stdout.
+int transmit_socket_to_stdout(int input_socket_fd) {
+    ssize_t len;
+    char buffer[1024];
+    char cbuf[256];
+    struct iovec io = { .iov_base = buffer, .iov_len = sizeof(buffer) };
+    struct msghdr msg = { 0 };
+    int fd = -1;  // An optional file descriptor received through the socket
+    msg.msg_iov = &io;
+    msg.msg_iovlen = 1;
+    msg.msg_control = cbuf;
+    msg.msg_controllen = sizeof(cbuf);
+    while ((len = recvmsg(input_socket_fd, &msg, 0)) > 0) {
+        struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msg);
+        if (cmsg && cmsg->cmsg_len == CMSG_LEN(sizeof(int))) {
+            if (cmsg->cmsg_type == SCM_RIGHTS) {
+                fd = *((int *) CMSG_DATA(cmsg));
+            }
+        }
+        // A file descriptor must be accompanied by a non-empty message,
+        // so we use "@" when we don't want any output.
+        if (fd != -1 && len == 1 && buffer[0] == '@') { len = 0; }
+        write(STDOUT_FILENO, buffer, len);
+        msg.msg_controllen = sizeof(cbuf);
+    }
+    if (len < 0) perror("recvmsg()");
+    return fd;
+}
+
+int run_api_command(int argc, char **argv) {
+    if (argc < 2) { fprintf(stderr, "Usage: termux-api METHOD [arguments]\n"); exit(2); }
+    // If only `--version` argument is passed
+    if (argc == 2 && strcmp(argv[1], "--version") == 0) {
+        fprintf(stdout, "%s\n", TERMUX_API_PACKAGE_VERSION);
+        fflush(stdout);
+        exit(0);
+    }
+
+    // Do not transform children into zombies when they terminate:
+    struct sigaction sigchld_action = {
+        .sa_handler = SIG_DFL,
+        .sa_flags = SA_RESTART | SA_NOCLDSTOP | SA_NOCLDWAIT
+    };
+    sigaction(SIGCHLD, &sigchld_action, NULL);
+
+    char input_addr_str[100];  // This program reads from it.
+    char output_addr_str[100]; // This program writes to it.
+
+    generate_uuid(input_addr_str);
+    generate_uuid(output_addr_str);
+
+    struct sockaddr_un input_addr = { .sun_family = AF_UNIX };
+    struct sockaddr_un output_addr = { .sun_family = AF_UNIX };
+    // Leave struct sockaddr_un.sun_path[0] as 0 and use the UUID
+    // string as abstract linux namespace:
+    strncpy(&input_addr.sun_path[1], input_addr_str, strlen(input_addr_str));
+    strncpy(&output_addr.sun_path[1], output_addr_str, strlen(output_addr_str));
+
+    int input_server_socket = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
+    if (input_server_socket == -1) {
+        perror("socket()");
+        return -1;
+    }
+    int output_server_socket = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
+    if (output_server_socket == -1) {
+        perror("socket()");
+        return -1;
+    }
+
+    int ret;
+    ret = bind(input_server_socket, (struct sockaddr*) &input_addr,
+               sizeof(sa_family_t) + strlen(input_addr_str) + 1);
+    if (ret == -1) {
+        perror("bind(input)");
+        return ret;
+    }
+
+    ret = bind(output_server_socket, (struct sockaddr*) &output_addr,
+               sizeof(sa_family_t) + strlen(output_addr_str) + 1);
+    if (ret == -1) {
+        perror("bind(output)");
+        return ret;
+    }
+
+    if (listen(input_server_socket, 1) == -1) {
+        perror("listen()");
+        return -1;
+    }
+
+    if (listen(output_server_socket, 1) == -1) {
+        perror("listen()");
+        return -1;
+    }
+
+    // A `pid` and `starttime` combo can uniquely identify a process even if pid gets recycled.
+    pid_t api_server_pid = getpid();
+    uid_t api_server_uid = getuid();
+    unsigned long long api_server_starttime = get_process_starttime(api_server_pid);
+
+    // A separate authenticated acknowledgement distinguishes an unavailable host
+    // from a valid dialog waiting for the user. No short deadline truncates a stream.
+    char ready_addr_str[100]; generate_uuid(ready_addr_str);
+    struct sockaddr_un ready_addr = { .sun_family = AF_UNIX };
+    memcpy(ready_addr.sun_path + 1, ready_addr_str, strlen(ready_addr_str));
+    int ready_server = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
+    if (ready_server < 0 || bind(ready_server, (struct sockaddr*)&ready_addr,
+        sizeof(sa_family_t) + strlen(ready_addr_str) + 1) != 0 || listen(ready_server, 1) != 0) {
+        perror("API acknowledgement socket"); exit(1);
+    }
+    char **dispatch_args = calloc(argc + 4, sizeof(char*));
+    if (!dispatch_args) exit(1);
+    memcpy(dispatch_args, argv, argc * sizeof(char*));
+    dispatch_args[argc] = "--es"; dispatch_args[argc + 1] = "socket_ready";
+    dispatch_args[argc + 2] = ready_addr_str;
+    pid_t fork_result = fork();
+    if (fork_result == -1) {
+        perror("fork()");
+        return -1;
+    } else if (fork_result == 0) {
+        close(input_server_socket);
+        close(output_server_socket);
+        alarm(8); // Bound the helper, including Android am fallback.
+        close(ready_server);
+        contact_plugin_v2(argc + 3, dispatch_args,
+            api_server_pid, api_server_uid, api_server_starttime,
+            input_addr_str, output_addr_str);
+    }
+
+    free(dispatch_args);
+    struct pollfd acknowledged = { .fd = ready_server, .events = POLLIN };
+    int ack_result;
+    do { ack_result = poll(&acknowledged, 1, 10000); } while (ack_result < 0 && errno == EINTR);
+    int ack_socket = ack_result > 0 ? accept(ready_server, NULL, NULL) : -1;
+    close(ready_server);
+    struct ucred host; socklen_t host_size = sizeof(host);
+    if (ack_socket < 0 || getsockopt(ack_socket, SOL_SOCKET, SO_PEERCRED, &host, &host_size) != 0 || host.uid != getuid()) {
+        if (ack_socket >= 0) close(ack_socket);
+        close(input_server_socket); close(output_server_socket); kill(fork_result, SIGKILL);
+        fprintf(stderr, "Embedded Android API unavailable: %s\n", argv[1]); exit(124);
+    }
+    struct timeval ack_deadline = { .tv_sec = 3 };
+    setsockopt(ack_socket, SOL_SOCKET, SO_RCVTIMEO, &ack_deadline, sizeof(ack_deadline));
+    char ack_byte = 1;
+    if (read(ack_socket, &ack_byte, 1) != 1 || ack_byte != 0) {
+        close(ack_socket); close(input_server_socket); close(output_server_socket);
+        kill(fork_result, SIGKILL); fprintf(stderr, "Invalid API acknowledgement\n"); exit(124);
+    }
+    close(ack_socket);
+    struct sockaddr_un remote_addr;
+    socklen_t addrlen = sizeof(remote_addr);
+    const char *interactive[] = {"Dialog", "Usb", "SAF", "StorageGet", "Nfc", "Fingerprint", "CameraPhoto", "SpeechToText", NULL};
+    int connect_timeout_ms = 10000;
+    for (int i = 0; interactive[i]; i++) if (!strcmp(argv[1], interactive[i])) connect_timeout_ms = 300000;
+    struct pollfd ready = { .fd = input_server_socket, .events = POLLIN };
+    int available;
+    do { available = poll(&ready, 1, connect_timeout_ms); } while (available < 0 && errno == EINTR);
+    if (available <= 0) {
+        fprintf(stderr, "Embedded Android API unavailable or request timed out: %s\n", argv[1]);
+        close(input_server_socket); close(output_server_socket);
+        kill(fork_result, SIGKILL);
+        exit(124);
+    }
+    int input_client_socket = accept(input_server_socket,
+                                     (struct sockaddr*) &remote_addr,
+                                     &addrlen);
+
+    if (input_client_socket < 0) { perror("accept"); exit(1); }
+    struct ucred caller; socklen_t caller_size = sizeof(caller);
+    if (getsockopt(input_client_socket, SOL_SOCKET, SO_PEERCRED, &caller, &caller_size) != 0 || caller.uid != getuid()) {
+        fprintf(stderr, "API callback UID mismatch\n"); exit(1);
+    }
+    close(input_server_socket);
+    int cancellation[2];
+    if (pipe(cancellation) != 0) { perror("pipe"); exit(1); }
+    struct input_forwarder forwarder = { .server=output_server_socket, .cancel=cancellation[0] };
+    pthread_t transmit_thread;
+    if (pthread_create(&transmit_thread, NULL, transmit_stdin_to_socket, &forwarder) != 0) exit(1);
+
+    /* Device has been opened, time to actually get the fd */
+    int fd = transmit_socket_to_stdout(input_client_socket);
+    close(input_client_socket);
+    write(cancellation[1], "x", 1);
+    pthread_join(transmit_thread, NULL);
+    close(output_server_socket);
+    close(cancellation[0]); close(cancellation[1]);
+    return fd;
+}

@@ -234,7 +234,7 @@ public final class ComponentTaskForegroundService extends Service {
                 publishMessage(getString(R.string.local_games_component_rollback_complete,
                     component.getPackageName(), component.getVersion()));
             } else if (ComponentTasks.ACTION_ACTIVATE.equals(action)) {
-                RuntimeInstallationGate.requireComponentSlot(getFilesDir(), null);
+                RuntimeInstallationGate.requireComponentSlot(getFilesDir(), taskId);
                 activateInstalledComponent(requiredIdentifier(componentId, "componentId"));
             } else if (ComponentTasks.ACTION_RECONCILE.equals(action)) {
                 recoverTasks();

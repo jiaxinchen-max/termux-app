@@ -91,11 +91,11 @@ class DesktopAudio(unittest.TestCase):
                 self.assertEqual(70,result.returncode,result.stdout)
                 self.assertNotIn('ENDPOINT=',result.stdout)
 
-    def test_missing_support_and_implicit_modes_fail(self):
+    def test_missing_support_fails_when_service_cannot_start_and_implicit_modes_fail(self):
         for missing in ('pulseaudio','pactl'):
             result,calls=self.run_audio(missing=missing)
-            self.assertEqual(127,result.returncode,result.stdout)
-            self.assertFalse(calls)
+            self.assertNotEqual(0,result.returncode,result.stdout)
+            self.assertNotIn('ENDPOINT=',result.stdout)
         for mode in ('','auto','container-pulseaudio'):
             result,calls=self.run_audio(mode)
             self.assertEqual(64,result.returncode,result.stdout)

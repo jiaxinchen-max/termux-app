@@ -725,4 +725,6 @@
     <string name="desktop_session_exit_failed">无法停止桌面</string>
     <string name="desktop_session_exit_failed_message">桌面可能仍在运行，请重试退出。</string>
     <string name="desktop_create_save_failed">无法保存桌面，请重试。</string>
+    <string name="desktop_state_installing">正在安装…</string>
+    <string name="desktop_action_view_install">查看安装进度</string>
 </resources>

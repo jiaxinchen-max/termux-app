@@ -292,6 +292,7 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
         private void startTrustedTerminalScript(RuntimeSetupRequest request, String failureCode)
             throws LaunchHostException {
             try {
+                com.termux.api.EmbeddedApiInstaller.install(applicationContext);
                 requirePrivatePath(request.getScriptPath());
                 requirePrivatePath(request.getSpecPath());
                 requirePrivatePath(request.getWorkingDirectory());
@@ -301,12 +302,14 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
                 String shell = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/sh";
                 if (!new File(shell).isFile()) throw new IOException("termux_shell_missing");
                 Intent intent = createSetupIntent(applicationContext, shell, request);
+                TermuxGamesSetupTerminalRegistry.submitting(request.getTaskId());
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     applicationContext.startForegroundService(intent);
                 } else {
                     applicationContext.startService(intent);
                 }
             } catch (IOException | RuntimeException error) {
+                TermuxGamesSetupTerminalRegistry.submissionFailed(request.getTaskId());
                 String code = failureCode;
                 if ("termux_shell_missing".equals(error.getMessage())) code = error.getMessage();
                 throw new LaunchHostException(code, true, error);
@@ -316,6 +319,11 @@ public final class TermuxLocalGamesHostFactory implements LocalGamesHostFactory 
         @Override
         public TerminalSession getRuntimeSetupTerminal(String taskId) {
             return TermuxGamesSetupTerminalRegistry.find(taskId);
+        }
+
+        @Override
+        public boolean isRuntimeSetupPending(String taskId) {
+            return TermuxGamesSetupTerminalRegistry.isPending(taskId);
         }
 
         @Override
