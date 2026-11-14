@@ -20,6 +20,29 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class DesktopEnvironmentTest {
+    @Test
+    public void plasmaRequiresMatchingCurrentSessionAndRejectsRecycledPidEvidence() throws Exception {
+        File pid = new File(temporaryFolder.getRoot(), "plasma.pid");
+        File session = new File(pid.getPath() + ".plasma-session");
+        File marker = new File(pid.getPath() + ".plasma-ready");
+        String token = "123:0123456789abcdef0123456789abcdef\n";
+        assertFalse(DesktopEnvironment.plasmaReadyMarkerMatches(pid, 123));
+        try (FileWriter writer = new FileWriter(session)) { writer.write(token); }
+        assertFalse(DesktopEnvironment.plasmaReadyMarkerMatches(pid, 123));
+        try (FileWriter writer = new FileWriter(marker)) { writer.write(token); }
+        assertTrue(DesktopEnvironment.plasmaReadyMarkerMatches(pid, 123));
+        assertFalse(DesktopEnvironment.plasmaReadyMarkerMatches(pid, 124));
+        assertFalse(DesktopEnvironment.plasmaReadyMarkerMatches(pid, 0));
+        // Same PID, different launch token: old readiness cannot mark the new launch ready.
+        try (FileWriter writer = new FileWriter(session)) {
+            writer.write("123:abcdef0123456789abcdef0123456789\n");
+        }
+        assertFalse(DesktopEnvironment.plasmaReadyMarkerMatches(pid, 123));
+        try (FileWriter writer = new FileWriter(session)) { writer.write("123\n"); }
+        try (FileWriter writer = new FileWriter(marker)) { writer.write("123\n"); }
+        assertFalse(DesktopEnvironment.plasmaReadyMarkerMatches(pid, 123));
+    }
+
     @org.junit.Test
     public void oldHyprlandReadinessNeverMarksNewSupervisorReady() throws Exception {
         java.io.File directory = java.nio.file.Files.createTempDirectory("hyprland-marker").toFile();

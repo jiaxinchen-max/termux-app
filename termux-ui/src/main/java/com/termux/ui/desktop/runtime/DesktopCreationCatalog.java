@@ -51,12 +51,12 @@ public final class DesktopCreationCatalog {
     }
 
     public static String containerBase(DesktopDe de) {
-        return de == DesktopDe.UBUNTU_GNOME ? "ubuntu" : DEFAULT_CONTAINER;
+        return de == DesktopDe.UBUNTU_GNOME || de == DesktopDe.KWIN_PLASMA ? "ubuntu" : DEFAULT_CONTAINER;
     }
 
     public static String containerCodename(DesktopDe de) {
         return de == DesktopDe.UBUNTU_GNOME ? "noble"
-            : de == DesktopDe.KWIN_PLASMA ? "forky" : "trixie";
+            : de == DesktopDe.KWIN_PLASMA ? "resolute" : "trixie";
     }
 
     public static String containerImage(DesktopDe de) {

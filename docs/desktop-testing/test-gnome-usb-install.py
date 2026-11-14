@@ -88,7 +88,7 @@ elif command=='proot-distro':
         alias=args[args.index('-n')+1];release=args[-1].split(':')[-1]
         root=case/'usr/var/lib/proot-distro/containers'/alias/'rootfs'
         (root/'etc').mkdir(parents=True,exist_ok=True)
-        (root/'etc/os-release').write_text('ID='+state.get('actual_distro_id','debian')+'\nVERSION_CODENAME='+state.get('actual_codename',release)+'\n')
+        (root/'etc/os-release').write_text('ID='+state.get('actual_distro_id',args[-1].split(':')[0])+'\nVERSION_CODENAME='+state.get('actual_codename',release)+'\n')
     elif args and args[0]=='login': sys.exit(state.get('container_apt_error',0))
 elif command=='tar':
     # No real archive is extracted by this fixture.
@@ -136,9 +136,9 @@ class InstallContract(unittest.TestCase):
             DESKTOP_GL_MODE=renderer, DESKTOP_USB_STORAGE=usb, DESKTOP_REFRESH_RATE=rate,
             DESKTOP_GNOME_BACKEND='android' if mode=='native' else 'x11',
             DESKTOP_GNOME_RENDERER=renderer, DESKTOP_CONTAINER_CODENAME='trixie',
-            DESKTOP_PROOT_DISTRO='debian-'+de.replace('_','-')+'-1',
+            DESKTOP_PROOT_DISTRO=('ubuntu' if de=='kwin_plasma' else 'debian')+'-'+de.replace('_','-')+'-1',
             DESKTOP_LOG_FILE=str(self.base/'install.log'), DESKTOP_PID_FILE=str(self.base/'state/pid'),
-            DESKTOP_STATUS_FILE=str(self.base/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.6-r28')
+            DESKTOP_STATUS_FILE=str(self.base/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.7-r4')
         if de=='gnome' and mode=='proot':
             values['DESKTOP_GNOME_DISPLAY_GL_MODE']='zink' if renderer=='zink' else 'system'
             values['DESKTOP_GNOME_DISPLAY_BUFFER_MODE']='dmabuf' if renderer=='zink' else 'native'
@@ -245,13 +245,13 @@ class InstallContract(unittest.TestCase):
                 self.assertIn(package,apt)
                 self.assertFalse(any('mutter_' in arg or 'gnome-shell_' in arg for arg in apt),apt)
 
-    def test_container_release_selection_stays_trixie_for_xfce_gnome_and_forky_for_plasma(self):
-        for de,renderer,release in [('xfce4','system','trixie'),('gnome','llvmpipe','trixie'),('kwin_plasma','llvmpipe','forky')]:
+    def test_container_release_selection_uses_ubuntu_resolute_for_plasma(self):
+        for de,renderer,release in [('xfce4','system','trixie'),('gnome','llvmpipe','trixie'),('kwin_plasma','llvmpipe','resolute')]:
             with self.subTest(de=de):
                 result,calls = self.run_install(de=de,mode='proot',renderer=renderer)
                 self.assertEqual(0,result.returncode,result.stdout)
                 installs = [call for call in calls if call[:2]==['proot-distro','install'] and '-n' in call]
-                self.assertEqual('debian:'+release,installs[0][-1])
+                self.assertEqual(('ubuntu' if de=='kwin_plasma' else 'debian')+':'+release,installs[0][-1])
                 logins = [call for call in calls if call[:2]==['proot-distro','login']]
                 self.assertTrue(logins)
                 self.assertIn('gnome-shell' if de=='gnome' else 'xfce4' if de=='xfce4' else 'plasma-desktop',logins[0])

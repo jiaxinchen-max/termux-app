@@ -55,8 +55,25 @@ if [ "${PLASMA_CONTAINER_DEBUG:-0}" = "1" ]; then
 fi
 
 LOG="${PLASMA_CONTAINER_LOG:-$XDG_RUNTIME_DIR/plasma-container.log}"
+READY_FILE="$XDG_RUNTIME_DIR/plasma-container.ready"
+SESSION_TOKEN="${DESKTOP_PLASMA_SESSION_TOKEN:?Explicit session token is required}"
+case "$SESSION_TOKEN" in ''|*[!a-zA-Z0-9-]*) exit 64 ;; esac
 exec >"$LOG" 2>&1
 echo "=== Plasma container session (renderer=$DESKTOP_GUEST_GL_MODE, fallback=disabled) $(date) ==="
+rm -f "$READY_FILE"
+monotonic_cs() {
+    read -r uptime_seconds uptime_unused < /proc/uptime || return 1
+    uptime_fraction="${uptime_seconds#*.}00"
+    uptime_fraction="${uptime_fraction%${uptime_fraction#??}}"
+    NOW_CS=$(( ${uptime_seconds%.*} * 100 + 1$uptime_fraction - 100 ))
+}
+monotonic_cs || exit 70
+SESSION_STARTED_CS="${DESKTOP_PLASMA_STARTED_CS:-$NOW_CS}"
+case "$SESSION_STARTED_CS" in ''|*[!0-9]*) exit 64 ;; esac
+stage() {
+    monotonic_cs || return 70
+    echo "STARTUP stage=$1 elapsed_ms=$(( (NOW_CS - SESSION_STARTED_CS) * 10 ))"
+}
 
 # Dependencies and polkit identity are prepared by desktop_install.sh.
 
@@ -64,6 +81,7 @@ echo "=== Plasma container session (renderer=$DESKTOP_GUEST_GL_MODE, fallback=di
 SESSION_PIDS=""
 cleanup() {
     trap - EXIT TERM INT
+    rm -f "$READY_FILE" "$READY_FILE.$$"
     for pid in $SESSION_PIDS; do kill -TERM "$pid" 2>/dev/null || true; done
     sleep 1
     for pid in $SESSION_PIDS; do kill -KILL "$pid" 2>/dev/null || true; done
@@ -118,31 +136,61 @@ export DBUS_SESSION_BUS_ADDRESS="$(cat "$BUS_DIR/session.address")"
     exit "$bus_code"
 }
 echo "Started private container system and session D-Bus"
+stage buses-ready
 
-# Wait for the explicitly started process, without asking D-Bus to activate another instance.
-wait_for_system_service() { # pid bus-name label
-    service_pid="$1"
-    service_name="$2"
-    service_label="$3"
-    waited=0
-    while ! /usr/bin/dbus-send --system --print-reply --reply-timeout=1000 \
-        --dest=org.freedesktop.DBus /org/freedesktop/DBus \
-        org.freedesktop.DBus.NameHasOwner "string:$service_name" | grep -q 'boolean true'; do
-        waited=$((waited + 1))
-        if ! kill -0 "$service_pid" 2>/dev/null; then
-            wait "$service_pid"
-            service_code=$?
-            [ "$service_code" -ne 0 ] || service_code=70
-            echo "ERROR: $service_label exited before acquiring $service_name (status $service_code)"
-            return "$service_code"
+# kill -0 also succeeds for zombies; distinguish an exited child before waiting.
+require_service_alive() {
+    service_state=''
+    if kill -0 "$1" 2>/dev/null; then
+        if ! read -r service_stat < "/proc/$1/stat" 2>/dev/null; then
+            echo "ERROR: cannot read process state for $2"
+            return 70
         fi
-        if [ "$waited" -ge 10 ]; then
-            echo "ERROR: $service_label did not acquire $service_name (status 124)"
+        service_state="${service_stat##*) }"
+        service_state="${service_state%% *}"
+        case "$service_state" in Z|X) ;; '') return 70 ;; *) return 0 ;; esac
+    fi
+    wait "$1"; service_code=$?
+    [ "$service_code" -ne 0 ] || service_code=70
+    echo "ERROR: required service $2 exited (status $service_code)"
+    return "$service_code"
+}
+
+# One monotonic deadline includes every request. Resolve the unique name without
+# activation, then Ping that owner so a race cannot auto-start a duplicate daemon.
+bus_call() {
+    monotonic_cs || return 70
+    remaining_cs=$((service_deadline - NOW_CS))
+    [ "$remaining_cs" -gt 0 ] || return 124
+    [ "$remaining_cs" -le 100 ] || remaining_cs=100
+    call_seconds="$((remaining_cs / 100)).$(printf '%02d' "$((remaining_cs % 100))")"
+    timeout -k 0.1 "$call_seconds" /usr/bin/dbus-send "$service_bus" --print-reply \
+        --reply-timeout="$((remaining_cs * 10))" "$@"
+}
+wait_for_service() { # pid --system|--session name object-path
+    service_pid="$1"; service_bus="$2"; service_name="$3"; service_path="$4"
+    monotonic_cs || return 70
+    service_deadline=$((NOW_CS + 1000))
+    while :; do
+        require_service_alive "$service_pid" "$service_name" || return "$?"
+        owner_reply=$(bus_call --dest=org.freedesktop.DBus /org/freedesktop/DBus \
+            org.freedesktop.DBus.GetNameOwner "string:$service_name" 2>/dev/null) || owner_reply=''
+        case "$owner_reply" in
+            *'string "'*)
+                service_owner="${owner_reply#*string \"}"; service_owner="${service_owner%%\"*}"
+                if bus_call --dest="$service_owner" "$service_path" org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1; then
+                    require_service_alive "$service_pid" "$service_name" || return "$?"
+                    stage "$service_name-ready"
+                    return 0
+                fi ;;
+        esac
+        monotonic_cs || return 70
+        if [ "$NOW_CS" -ge "$service_deadline" ]; then
+            echo "ERROR: $service_name did not respond before startup deadline (status 124)"
             return 124
         fi
-        sleep 1
+        sleep 0.1
     done
-    kill -0 "$service_pid" 2>/dev/null || return 70
 }
 
 # Keep PolicyKit's packaged authentication and rules. Explicit startup is required because this
@@ -153,7 +201,7 @@ wait_for_system_service() { # pid bus-name label
 /usr/lib/polkit-1/polkitd --log-level=debug &
 polkit_pid=$!
 SESSION_PIDS="$SESSION_PIDS $polkit_pid"
-wait_for_system_service "$polkit_pid" org.freedesktop.PolicyKit1 PolicyKit || exit "$?"
+wait_for_service "$polkit_pid" --system org.freedesktop.PolicyKit1 /org/freedesktop/PolicyKit1/Authority || exit "$?"
 
 # Start PackageKit only after its authorization authority is ready.
 if [ -x /usr/libexec/packagekitd ]; then
@@ -168,16 +216,11 @@ if [ -n "$PACKAGEKIT_DAEMON" ]; then
     "$PACKAGEKIT_DAEMON" --keep-environment --disable-timer &
     packagekit_pid=$!
     SESSION_PIDS="$SESSION_PIDS $packagekit_pid"
-    wait_for_system_service "$packagekit_pid" org.freedesktop.PackageKit PackageKit || exit "$?"
-    /usr/bin/dbus-send --system --print-reply --reply-timeout=10000 \
-        --dest=org.freedesktop.PackageKit /org/freedesktop/PackageKit \
-        org.freedesktop.DBus.Peer.Ping || {
-        echo "ERROR: PackageKit is unavailable on the container system bus"; exit 1;
-    }
+    wait_for_service "$packagekit_pid" --system org.freedesktop.PackageKit /org/freedesktop/PackageKit || exit "$?"
 fi
 
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
-    dbus-update-activation-environment --all || {
+    timeout -k 1 5 dbus-update-activation-environment --all || {
         echo "ERROR: could not update container D-Bus activation environment"; exit 1;
     }
 fi
@@ -194,17 +237,12 @@ LIBEXEC="${KDE_LIBEXEC:-/usr/lib/aarch64-linux-gnu/libexec}"
 # These installed Plasma components are required; missing or dead services abort the session.
 KDE_SERVICE_PIDS=""
 require_kde_service_alive() { # pid label
-    if ! kill -0 "$1" 2>/dev/null; then
-        wait "$1"
-        kde_service_code=$?
-        [ "$kde_service_code" -ne 0 ] || kde_service_code=70
-        echo "ERROR: required KDE service $2 exited during startup (status $kde_service_code)"
-        return "$kde_service_code"
-    fi
+    require_service_alive "$1" "$2"
 }
-start_required_kde_service() { # label executable [args...]
+start_required_kde_service() { # bus-name object-path executable [args...]
     kde_service_label="$1"
-    shift
+    kde_service_path="$2"
+    shift 2
     if [ ! -x "$1" ] && ! command -v "$1" >/dev/null 2>&1; then
         echo "ERROR: required KDE service $kde_service_label is missing: $1"
         return 127
@@ -213,20 +251,16 @@ start_required_kde_service() { # label executable [args...]
     kde_service_pid=$!
     SESSION_PIDS="$SESSION_PIDS $kde_service_pid"
     KDE_SERVICE_PIDS="$KDE_SERVICE_PIDS $kde_service_pid:$kde_service_label"
-    sleep 1
-    require_kde_service_alive "$kde_service_pid" "$kde_service_label" || return "$?"
+    wait_for_service "$kde_service_pid" --session "$kde_service_label" "$kde_service_path"
 }
 
-start_required_kde_service kactivitymanagerd "$LIBEXEC/kactivitymanagerd" || exit "$?"
-start_required_kde_service kded6 kded6 || exit "$?"
+start_required_kde_service org.kde.ActivityManager /ActivityManager "$LIBEXEC/kactivitymanagerd" || exit "$?"
+start_required_kde_service org.kde.kded6 /kded kded6 || exit "$?"
 # Debian kglobalacceld main.cpp returns 0 immediately on Wayland: it belongs to KWin.
 # The native compositor has --no-global-shortcuts and a different private bus from these clients.
 # This policy deliberately does not launch the X11 daemon or claim cross-bus shortcut support.
 echo 'KDE service policy=kwin-wayland: standalone kglobalacceld is not launched (upstream Wayland no-op); global shortcuts are unavailable with the native compositor --no-global-shortcuts and separate private session buses.'
-command -v kbuildsycoca6 >/dev/null 2>&1 || { echo 'ERROR: required kbuildsycoca6 is missing'; exit 127; }
-kbuildsycoca6 --noincremental
-cache_code=$?
-[ "$cache_code" -eq 0 ] || { echo "ERROR: KDE service cache build failed (status $cache_code)"; exit "$cache_code"; }
+# KDE cache is prepared during explicit installation/initialization.
 for kde_service in $KDE_SERVICE_PIDS; do
     require_kde_service_alive "${kde_service%%:*}" "${kde_service#*:}" || exit "$?"
 done
@@ -235,5 +269,16 @@ echo "=== launching plasmashell (renderer=$DESKTOP_GUEST_GL_MODE, QSG_RHI_BACKEN
 plasmashell &
 shell_pid=$!
 SESSION_PIDS="$SESSION_PIDS $shell_pid"
-wait "$shell_pid"
-exit "$?"
+wait_for_service "$shell_pid" --session org.kde.plasmashell /PlasmaShell || exit "$?"
+require_session_services_alive() {
+    for required_pid in $SESSION_PIDS; do
+        require_service_alive "$required_pid" "session-pid-$required_pid" || return "$?"
+    done
+}
+require_session_services_alive || exit "$?"
+printf '%s\n' "$SESSION_TOKEN" > "$READY_FILE.$$" && mv "$READY_FILE.$$" "$READY_FILE" || exit 74
+stage shell-responsive
+while :; do
+    require_session_services_alive || exit "$?"
+    sleep 1
+done

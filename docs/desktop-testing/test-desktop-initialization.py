@@ -260,6 +260,19 @@ class InitializationTests(unittest.TestCase):
             self.m.initialize(self.args(mode='proot', guest='default'))
         self.assertFalse(self.trace.exists())
 
+    def test_plasma_rejects_debian_and_wrong_ubuntu_before_guest_work(self):
+        root = self.prefix / 'var/lib/proot-distro/containers/desk/rootfs'
+        (root / 'etc').mkdir(parents=True)
+        self.program('bin/proot-distro', 'echo called >> "$TRACE"')
+        for release in ('ID=debian\nVERSION_CODENAME=forky\n',
+                        'ID=debian\nVERSION_CODENAME=resolute\n',
+                        'ID=ubuntu\nVERSION_CODENAME=noble\n'):
+            with self.subTest(release=release):
+                (root / 'etc/os-release').write_text(release)
+                with self.assertRaisesRegex(RuntimeError, 'ubuntu:resolute'):
+                    self.m.initialize(self.args('kwin_plasma', 'proot', 'system', 'llvmpipe'))
+                self.assertFalse(self.trace.exists())
+
     def test_proot_gnome_initialization_does_not_need_x11(self):
         self.fixture()
         root = self.prefix / 'var/lib/proot-distro/containers/desk/rootfs'
@@ -296,6 +309,33 @@ class InitializationTests(unittest.TestCase):
         self.assertIn('wait "$KWIN_PID"', script)
         self.assertIn('kwin_wayland exited during startup', script)
         self.assertIn('cleanup_session', script)
+
+    def test_plasma_cache_failure_prevents_publishing_renderer_initialization(self):
+        self.plasma()
+        for name in ('python3', 'pulseaudio', 'pactl', 'kwin_wayland', 'dbus-launch'):
+            self.program('bin/' + name)
+        self.program('bin/proot-distro', 'echo "$*" >> "$TRACE"; exit 7')
+        library = self.prefix / 'lib/libtermux-render.so'
+        library.parent.mkdir(parents=True, exist_ok=True)
+        library.touch()
+        root = self.prefix / 'var/lib/proot-distro/containers/desk/rootfs'
+        (root / 'etc').mkdir(parents=True)
+        (root / 'etc/os-release').write_text('ID=ubuntu\nVERSION_CODENAME=resolute\n')
+        for name in ('usr/bin/plasmashell', 'usr/bin/dbus-daemon', 'usr/bin/dbus-send',
+                     'usr/lib/polkit-1/polkitd', 'usr/libexec/packagekitd'):
+            self.program(name, root=root)
+        plugin = root / 'usr/lib/aarch64-linux-gnu/qt6/plugins/platforms/libqwayland-egl.so'
+        plugin.parent.mkdir(parents=True)
+        plugin.touch()
+        with patch.object(self.m, 'plasma_rendering') as rendering:
+            with self.assertRaises(subprocess.CalledProcessError):
+                self.m.initialize(self.args('kwin_plasma', 'proot', 'system', 'llvmpipe'))
+            rendering.assert_not_called()
+        self.assertIn('XDG_MENU_PREFIX=plasma- kbuildsycoca6 --noincremental', self.trace.read_text())
+        self.program('bin/proot-distro', 'echo "$*" >> "$TRACE"')
+        with patch.object(self.m, 'plasma_rendering') as rendering:
+            self.m.initialize(self.args('kwin_plasma', 'proot', 'system', 'llvmpipe'))
+            rendering.assert_called_once()
 
     def test_restore_host_preparation_needs_no_container(self):
         self.plasma()

@@ -182,6 +182,8 @@ public final class DesktopTasks {
             new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".container").delete();
             new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".gnome-ready").delete();
             new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".hyprland-ready").delete();
+            new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".plasma-ready").delete();
+            new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".plasma-session").delete();
 
         }
     }
@@ -210,8 +212,14 @@ public final class DesktopTasks {
         boolean ready;
         if (distro.getDe() == DesktopDe.KWIN_PLASMA) {
             socket = alive && environment.waylandSocket(Process.myUid()).exists();
-            ready = socket && DesktopEnvironment.logShowsReady(
-                paths.getDesktopLogFile(distro.getId()));
+            if (distro.getRunMode() == DesktopRunMode.PROOT) {
+                long containerPid = readPid(new File(pidFile.getPath() + ".container"));
+                ready = socket && isAlive(containerPid)
+                    && DesktopEnvironment.plasmaReadyMarkerMatches(pidFile, pid);
+            } else {
+                ready = socket && DesktopEnvironment.logShowsReady(
+                    paths.getDesktopLogFile(distro.getId()));
+            }
         } else if (distro.getDe() == DesktopDe.HYPRLAND) {
             socket = alive && environment.hyprlandWaylandSocket(distro).exists();
             ready = socket && DesktopEnvironment.hyprlandReadyMarkerMatches(pidFile, pid);
@@ -378,7 +386,9 @@ public final class DesktopTasks {
                 try { LocalGames.requireHost(context).forceStopRuntimeProcesses(scopes); }
                 catch (LaunchHostException error) { throw new IOException(error.getErrorCode(), error); }
                 File pid = paths.getDesktopPidFile(distro.getId());
-                for (File file : new File[] {pid, new File(pid + ".container"), new File(pid + ".gnome-ready"), new File(pid + ".hyprland-ready"), new File(pid + ".owned-session")})
+                for (File file : new File[] {pid, new File(pid + ".container"), new File(pid + ".gnome-ready"),
+                        new File(pid + ".hyprland-ready"), new File(pid + ".plasma-ready"),
+                        new File(pid + ".plasma-session"), new File(pid + ".owned-session")})
                     if (file.exists() && !file.delete()) throw new IOException("desktop_force_stop_cleanup_failed");
                 File status = paths.getDesktopStatusFile(distro.getId());
                 if (!status.getParentFile().isDirectory() && !status.getParentFile().mkdirs()) throw new IOException("desktop_state_directory_failed");

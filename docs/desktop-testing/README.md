@@ -8,7 +8,7 @@
 |---|---|---|
 | App | jiaxinchen-max/termux-app `master-x11-submodule-tmp` | 桌面修复与 r28/r9 固定安装清单 |
 | X server（Xlorie） | jiaxinchen-max/xserver `codex/gnome-glx-swap-event` | release `termux-xlorie-21.1.16-r9`，xorg-server 21.1.16-9（需 hold） |
-| KWin | jiaxinchen-max/kwin `codex/kwin-r28-egl-teardown` | release `termux-hwaccel-6.6-r28`（kwin 6.6.0-28） |
+| KWin | jiaxinchen-max/kwin tag `termux-hwaccel-6.7-r4` | prerelease `termux-hwaccel-6.7-r4`（kwin 6.7.5-4，Native/System EGL画面及冷启动已验证，完整兼容性待验收） |
 | 容器 Mesa | lfdevs/mesa-for-android-container（`mesa-*` tag） | 完整 Mesa 覆盖层，提供 Turnip ICD |
 
 `DesktopLaunchSpec.RELEASE_TAG` 与 `desktop_install.sh` 里的 deb 文件名/SHA256 必须同步更新。
@@ -67,3 +67,9 @@
 ### P2
 - [ ] 清理 kwin 仓库旧 tag r19–r23。
 - [x] 将 MultiTouch 手势验证做成可重复脚本（含安装、坐标换算、截图比对）；远端编译、5 项脚本测试及模拟器原生 Plasma 正式右键计划通过，业务截图已人工检查。
+
+Native GLES r3 修复与实际验证边界见 [验证记录](release-kwin67-r3-20261114.md)。
+
+r3后续黑屏已定位为私有EGL身份导出和AHB请求参数问题，r4修复及延迟特效验证见 [记录](release-kwin67-r4-20261114.md)。
+
+新建Proot Plasma已切换Ubuntu26.04底包，安装与归档配置及95项目标回归见 [修复记录](ubuntu-plasma-app-fix-20261114.md)，完整设备验收待用户测试。

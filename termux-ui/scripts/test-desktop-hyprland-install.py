@@ -53,7 +53,7 @@ dpkg() { :; }
                 DESKTOP_USB_STORAGE='off', DESKTOP_HYPRLAND_BACKEND='android',
                 DESKTOP_HYPRLAND_COMPONENT_SWITCH='1' if switch else '0', DESKTOP_HYPRLAND_RUNTIME_ID='0.57.0-r7', DESKTOP_HYPRLAND_THEME_ID=theme, DESKTOP_HYPRLAND_HOST_GL_MODE='system',
                 DESKTOP_HYPRLAND_CLIENT_GL_MODE='zink' if mode=='zink' else 'default',
-                DESKTOP_RELEASE_TAG='termux-hwaccel-6.6-r28', DESKTOP_LOG_FILE=str(base/'log'),
+                DESKTOP_RELEASE_TAG='termux-hwaccel-6.7-r4', DESKTOP_LOG_FILE=str(base/'log'),
                 DESKTOP_PID_FILE=str(base/'pid'), DESKTOP_STATUS_FILE=str(base/'status'),
                 DESKTOP_GNOME_BACKEND='x11', DESKTOP_GNOME_RENDERER='zink', DESKTOP_CONTAINER_CODENAME='trixie',
                 DESKTOP_GNOME_DISPLAY_GL_MODE='zink', DESKTOP_GNOME_DISPLAY_BUFFER_MODE='dmabuf')

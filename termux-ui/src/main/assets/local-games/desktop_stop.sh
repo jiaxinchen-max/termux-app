@@ -15,9 +15,13 @@ case "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}" in
     gnome:*|ubuntu_gnome:*|hyprland:*|xfce4:read-only) owned_storage_session=1 ;;
 esac
 stop_failure=0
+plasma_owned=0
+[ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" != proot:kwin_plasma ] || plasma_owned=1
+# The Plasma supervisor owns its entire process groups, including the container.
+rm -f "$DESKTOP_PID_FILE.plasma-ready"
 
 # proot mode also has a container session; take it down first.
-if [ -f "$DESKTOP_PID_FILE.container" ]; then
+if [ "$plasma_owned" -eq 0 ] && [ -f "$DESKTOP_PID_FILE.container" ]; then
     container_pid=$(cat "$DESKTOP_PID_FILE.container" 2>/dev/null)
     case "$container_pid" in ''|*[!0-9]*) ;; *)
         kill -TERM "$container_pid" 2>/dev/null
@@ -51,7 +55,7 @@ if pid=$(read_pid) && pid_alive "$pid"; then
     fi
 fi
 
-if [ "${DESKTOP_DE:-}" != hyprland ] && [ "${DESKTOP_DE:-}" != gnome ] && [ "${DESKTOP_DE:-}" != ubuntu_gnome ] && [ "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}" != xfce4:read-only ]; then
+if [ "$plasma_owned" -eq 0 ] && [ "${DESKTOP_DE:-}" != hyprland ] && [ "${DESKTOP_DE:-}" != gnome ] && [ "${DESKTOP_DE:-}" != ubuntu_gnome ] && [ "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}" != xfce4:read-only ]; then
     for name in plasmashell kded6 kglobalacceld kactivitymanagerd kwin_wayland Xwayland Xlorie xfce4-session xfwm4 xfdesktop xfce4-panel; do
         signal_by_name TERM "$name"
     done
@@ -61,7 +65,7 @@ if [ "${DESKTOP_DE:-}" != hyprland ] && [ "${DESKTOP_DE:-}" != gnome ] && [ "${D
     done
 fi
 
-rm -f "$DESKTOP_PID_FILE" "$DESKTOP_PID_FILE.container" "$DESKTOP_PID_FILE.gnome-ready" "$DESKTOP_PID_FILE.hyprland-ready" "$DESKTOP_PID_FILE.owned-session"
+rm -f "$DESKTOP_PID_FILE" "$DESKTOP_PID_FILE.container" "$DESKTOP_PID_FILE.gnome-ready" "$DESKTOP_PID_FILE.hyprland-ready" "$DESKTOP_PID_FILE.owned-session" "$DESKTOP_PID_FILE.plasma-ready" "$DESKTOP_PID_FILE.plasma-session"
 if [ "$owned_storage_session" -eq 1 ]; then
     final_status=$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)
     case "$final_status" in

@@ -60,7 +60,7 @@ PRoot RootFS 由宿主 `proot-distro` 管理，Native 软件包仍安装到 Term
 | 组件 | 固定发布版本 | 源码分支 |
 | --- | --- | --- |
 | Xserver | `termux-xlorie-21.1.16-r9` | `jiaxinchen-max/xserver` / `codex/gnome-glx-swap-event` |
-| KWin | `termux-hwaccel-6.6-r28` | `jiaxinchen-max/kwin` / `codex/kwin-r28-egl-teardown` |
+| KWin | `termux-hwaccel-6.7-r4`（候选，设备兼容性待验收） | `jiaxinchen-max/kwin` / tag `termux-hwaccel-6.7-r4` |
 | GNOME / USB 支撑组件 | `gnome-usb-20261030-r1` | `jiaxinchen-max/termux-app-packages` 分发 |
 
 r9/r28 已公开，39 项资产及 App 的 14 个下载 URL 已校验；源码、构建输入和验收边界见 [发布记录](desktop-testing/release-xserver-r9-kwin-r28-20261106.md)。App 本轮提交推送不创建 APK release。
@@ -149,3 +149,9 @@ OpenSpec：[`repair-current-script-fixtures`](../openspec/changes/repair-current
 现有准备链按目录版本和摘要重新获取组件；配方摘要自然变为 `6a87fd7bb8562d2f309eb084c45bfb4ab75f20077b1cd0beb977d3203a3c239a`，模板身份随之变化，不重标旧 receipt 或模板。APK 保持 `termux-app_apt-android-7-debug_arm64-v8a.apk`，由用户手动下载安装；集成 APK 的全新网络准备尚待设备验收，不以先前直接 dpkg 安装的成功代替。
 
 本轮 633 JVM 与 35 打包用例通过，默认 APK 构建、签名、CRC、ARM64 和打包目录身份检查通过；启动、绑定、模板、staging、备份拒绝与模块合同另有本轮日志。完整 ABI/混合导出/异常展开、物理手柄和完整游戏矩阵、新格式离线备份恢复仍未完成。v11 备份保持显式拒绝，产品一致性 Pending，不归档。权威 Harness 脚本缺失，未报告 strict-run 通过。
+
+Native GLES r3 修复与实际验证边界见 [验证记录](desktop-testing/release-kwin67-r3-20261114.md)。
+
+r3后续黑屏已定位为私有EGL身份导出和AHB请求参数问题，r4修复及延迟特效验证见 [记录](desktop-testing/release-kwin67-r4-20261114.md)。
+
+App新建Proot Plasma已从Debian forky切换至Ubuntu26.04 resolute并安装Kubuntu桌面设置，同名APK已构建；实际设备验收Pending，见 [记录](desktop-testing/ubuntu-plasma-app-fix-20261114.md)。

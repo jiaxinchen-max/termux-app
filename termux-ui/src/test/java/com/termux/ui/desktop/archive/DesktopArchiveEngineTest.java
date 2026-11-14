@@ -138,6 +138,32 @@ public class DesktopArchiveEngineTest {
         File invalid=evil(Arrays.asList(dir("payload/container"),dir("payload/container/rootfs"),dir("payload/container/rootfs/linkerconfig"),bad));
         assertEquals("archive_runtime_placeholder_invalid",((DesktopArchiveException)rejected(()->inspect(invalid))).getCode());
     }
+    @Test public void ubuntuPlasmaArchivesRoundTripAndRejectWrongDistribution() throws Exception {
+        Files.delete(source.resolve(".desktop-de-xfce4"));
+        write(".desktop-de-kwin_plasma", "");
+        write("manifest.json", "{\"architecture\":\"arm64\",\"image\":\"ubuntu:resolute\"}");
+        write("rootfs/usr/lib/os-release", "ID=ubuntu\nVERSION_CODENAME=resolute\n");
+        DesktopDistro plasma = new DesktopDistro("old-id", "Kubuntu", DesktopRunMode.PROOT,
+            "old-container", DesktopDe.KWIN_PLASMA, DesktopGlMode.SYSTEM,
+            DesktopGuestGlMode.LLVMPIPE, "1920x1080", 60, DesktopUsbStorageMode.OFF);
+        metadata = DesktopArchiveMetadata.create("com.termux", "aarch64", "resolute", plasma, null, null);
+        File file = archive();
+        DesktopArchiveMetadata checked = inspect(file);
+        assertEquals("resolute", checked.getCodename());
+        DesktopArchiveImportResult restored = restore(file, checked);
+        assertTrue(restored.getContainerDirectory().isDirectory());
+        for (String release : Arrays.asList("ID=debian\nVERSION_CODENAME=resolute\n",
+                "ID=debian\nVERSION_CODENAME=forky\n", "ID=ubuntu\nVERSION_CODENAME=noble\n")) {
+            write("rootfs/usr/lib/os-release", release);
+            File invalid = temporary.resolve("invalid-" + Math.abs(release.hashCode()) + ".tar.gz").toFile();
+            rejected(() -> engine.exportArchive(source.toFile(), invalid, metadata,
+                DesktopArchiveExportMode.DIRECT_EXCLUSIVE, DesktopArchiveControl.NONE));
+            assertFalse(invalid.exists());
+        }
+        try { DesktopArchiveMetadata.create("com.termux", "aarch64", "forky", plasma, null, null); fail(); }
+        catch (IllegalArgumentException expected) { }
+    }
+
     @Test public void missingInstalledMarkerAndWrongActualCodenameDoNotPublishExport()throws Exception {
         Files.delete(source.resolve(".desktop-de-xfce4"));rejected(this::archive);assertFalse(Files.exists(temporary.resolve("desktop.tar.gz.partial")));
         write(".desktop-de-xfce4","");write("rootfs/usr/lib/os-release","ID=debian\nVERSION_CODENAME=forky\n");rejected(this::archive);

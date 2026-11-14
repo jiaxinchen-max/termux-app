@@ -167,11 +167,12 @@ if start_desktop_audio "${DESKTOP_AUDIO_MODE:-}"; then :; else
 fi
 
 CONTAINER_PID_FILE="$DESKTOP_PID_FILE.container"
-rm -f "$CONTAINER_PID_FILE"
+rm -f "$CONTAINER_PID_FILE" "$DESKTOP_PID_FILE.plasma-ready" "$DESKTOP_PID_FILE.plasma-session"
 code=0
 
 finish_desktop() {
-    rm -f "$DESKTOP_PID_FILE" "$CONTAINER_PID_FILE" "$DESKTOP_PID_FILE.owned-session"
+    rm -f "$DESKTOP_PID_FILE" "$CONTAINER_PID_FILE" "$DESKTOP_PID_FILE.owned-session" \
+        "$DESKTOP_PID_FILE.plasma-ready" "$DESKTOP_PID_FILE.plasma-session"
     # desktop_stop.sh owns a requested shutdown, even if it finished writing 'stopped' before us.
     case "$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)" in
         stopping|stopped)
@@ -385,72 +386,26 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
 fi
 
 if [ "$DESKTOP_MODE" = "proot" ]; then
-    # The r19 kwin package ships neither start-plasma-container nor the container session script,
-    # so do what start-plasma-container does: native compositor first, then the Plasma session
-    # inside the proot-distro container, sharing the compositor's runtime directory.
+    # Supervise both process groups and publish readiness only after the guest responds.
     XDG_RUNTIME_DIR_HOST="$KWIN_ANDROID_RUNTIME_ROOT/runtime-$(id -u)"
-    SESSION_SCRIPT="$(dirname "$0")/desktop_container_session.sh"
-    # Container clients show up to KWin as proot's loader, so its executable-path based authorisation
-    # of plasma-window-management / kde-output-device would deny them; the whole container is trusted.
-    rm -f "$XDG_RUNTIME_DIR_HOST/wayland-0"
-    KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 "$PREFIX/bin/bash" "$PREFIX/libexec/termux-desktop/start-plasma" --compositor-only >> "$DESKTOP_LOG_FILE.out" 2>&1 &
+    "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_plasma_session.py" \
+        --runtime "$XDG_RUNTIME_DIR_HOST" --pid-file "$DESKTOP_PID_FILE" \
+        --alias "$DESKTOP_PROOT_DISTRO" --guest-mode "$DESKTOP_GUEST_GL_MODE" \
+        --guest-icd "$DESKTOP_PLASMA_GUEST_ICD" --guest-software "$DESKTOP_PLASMA_GUEST_SOFTWARE" \
+        >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     child=$!
     printf '%s\n' "$child" > "$DESKTOP_PID_FILE"
-    trap 'kill -TERM "$child" 2>/dev/null; [ -z "${container:-}" ] || kill -TERM "$container" 2>/dev/null' TERM INT
-
-    if wait_for_backend "$XDG_RUNTIME_DIR_HOST/wayland-0" Compositor; then
-        :
-    else
-        code=$?
-        if [ -f "$DESKTOP_LOG_FILE.out" ]; then
-            log "--- compositor output (tail) ---"
-            tail -n 20 "$DESKTOP_LOG_FILE.out" | tee -a "$DESKTOP_LOG_FILE"
+    trap 'kill -TERM "$child" 2>/dev/null' TERM INT
+    wait "$child"
+    code=$?
+    # A signal can interrupt shell wait before the supervisor has finished its owned cleanup.
+    if kill -0 "$child" 2>/dev/null; then wait "$child"; code=$?; fi
+    if [ "$code" -ne 0 ]; then
+        tail -n 30 "$DESKTOP_LOG_FILE.out" | tee -a "$DESKTOP_LOG_FILE"
+        if [ -f "$XDG_RUNTIME_DIR_HOST/plasma-container.log" ]; then
+            tail -n 40 "$XDG_RUNTIME_DIR_HOST/plasma-container.log" | tee -a "$DESKTOP_LOG_FILE"
         fi
-        finish_desktop
     fi
-
-    if [ -S "$XDG_RUNTIME_DIR_HOST/wayland-0" ] && kill -0 "$child" 2>/dev/null; then
-        log "Compositor ready; starting the $DESKTOP_PROOT_DISTRO container session"
-        proot-distro login "$DESKTOP_PROOT_DISTRO" \
-            --bind "$XDG_RUNTIME_DIR_HOST:/run/wl" \
-            --bind "$SESSION_SCRIPT:/tmp/plasma-container-session.sh" \
-            --bind "$(dirname "$0")/desktop_container_statx_setup.sh:/tmp/desktop_container_statx_setup.sh" \
-            --bind "$(dirname "$0")/desktop_container_run_config.sh:/tmp/desktop_container_run_config.sh" \
-            --bind "$(dirname "$0")/desktop_container_statx_aarch64.bin:/tmp/desktop_container_statx_aarch64.bin" \
-            -- env DESKTOP_GUEST_GL_MODE="$DESKTOP_GUEST_GL_MODE" DESKTOP_PLASMA_GUEST_ICD="$DESKTOP_PLASMA_GUEST_ICD" \
-                DESKTOP_PLASMA_GUEST_SOFTWARE="$DESKTOP_PLASMA_GUEST_SOFTWARE" PULSE_SERVER="$PULSE_SERVER" DESKTOP_STATX_BACKEND=proc-fdinfo \
-                DESKTOP_KDE_SERVICE_POLICY=kwin-wayland QT_QPA_PLATFORM=wayland XDG_SESSION_TYPE=wayland \
-                sh /tmp/plasma-container-session.sh >> "$DESKTOP_LOG_FILE.out" 2>&1 &
-        container=$!
-        printf '%s\n' "$container" > "$CONTAINER_PID_FILE"
-    fi
-
-    # Either half dying ends the desktop: a container session that fails (for example a missing
-    # Vulkan ICD) must not leave a bare compositor behind.
-    container_ended=0
-    while kill -0 "$child" 2>/dev/null; do
-        if [ -n "${container:-}" ] && ! kill -0 "$container" 2>/dev/null; then
-            wait "$container"
-            code=$?
-            container_ended=1
-            log "The container session exited with status $code"
-            if [ -f "$XDG_RUNTIME_DIR_HOST/plasma-container.log" ]; then
-                log "--- plasma-container.log (tail) ---"
-                tail -n 80 "$XDG_RUNTIME_DIR_HOST/plasma-container.log" | tee -a "$DESKTOP_LOG_FILE"
-            fi
-            kill -TERM "$child" 2>/dev/null
-            sleep 1
-            kill -KILL "$child" 2>/dev/null
-            break
-        fi
-        sleep 1
-    done
-    if [ "$container_ended" -eq 0 ]; then
-        wait "$child"
-        code=$?
-    fi
-    [ -z "${container:-}" ] || kill -TERM "$container" 2>/dev/null
-    rm -f "$CONTAINER_PID_FILE"
 else
     command_name="$PREFIX/libexec/termux-desktop/start-plasma"
     "$PREFIX/bin/bash" "$command_name" >> "$DESKTOP_LOG_FILE.out" 2>&1 &

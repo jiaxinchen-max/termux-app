@@ -204,6 +204,18 @@ public final class DesktopEnvironment {
             && Long.toString(currentPid).equals(head(marker, 32).trim());
     }
 
+    /** The random session token also prevents a recycled supervisor PID accepting old evidence. */
+    public static boolean plasmaReadyMarkerMatches(File pidFile, long currentPid) {
+        if (currentPid <= 0) return false;
+        File session = new File(pidFile.getPath() + ".plasma-session");
+        File marker = new File(pidFile.getPath() + ".plasma-ready");
+        if (!session.isFile() || !marker.isFile() || session.length() > 128 || marker.length() > 128)
+            return false;
+        String expected = head(session, 128).trim();
+        return expected.matches(Long.toString(currentPid) + ":[a-f0-9]{32}")
+            && expected.equals(head(marker, 128).trim());
+    }
+
     /** A stale marker from an earlier launcher must not mark a new process ready. */
     public static boolean gnomeReadyMarkerMatches(File pidFile,long currentPid) {
         if (currentPid<=0) return false;

@@ -78,7 +78,9 @@ public class DesktopCreationCatalogTest {
         assertTrue(DesktopCreationCatalog.nativeOptions(Collections.emptyList()).contains(DesktopDe.UBUNTU_GNOME));
         assertEquals("ubuntu:noble", DesktopCreationCatalog.containerImage(DesktopDe.UBUNTU_GNOME));
         assertEquals("debian:trixie", DesktopCreationCatalog.containerImage(DesktopDe.GNOME));
-        assertEquals("debian:forky", DesktopCreationCatalog.containerImage(DesktopDe.KWIN_PLASMA));
+        assertEquals("ubuntu:resolute", DesktopCreationCatalog.containerImage(DesktopDe.KWIN_PLASMA));
+        assertEquals("ubuntu-kwin-plasma-1", DesktopCreationCatalog.nextInstanceAlias(Collections.emptyList(),
+            DesktopCreationCatalog.containerBase(DesktopDe.KWIN_PLASMA), DesktopDe.KWIN_PLASMA));
         assertEquals("ubuntu-ubuntu-gnome-1", DesktopCreationCatalog.nextInstanceAlias(Collections.emptyList(),
             DesktopCreationCatalog.containerBase(DesktopDe.UBUNTU_GNOME), DesktopDe.UBUNTU_GNOME));
         assertTrue(DesktopDe.XFCE4.isCreatable());

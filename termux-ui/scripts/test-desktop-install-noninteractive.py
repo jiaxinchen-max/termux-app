@@ -111,7 +111,7 @@ elif name == os.environ['FIXTURE_TARGET'] and args[0] == os.environ['FIXTURE_STA
                       DESKTOP_LOG_FILE=str(self.base / "install.log"),
                       DESKTOP_PID_FILE=str(self.base / "pid"),
                       DESKTOP_STATUS_FILE=str(self.base / "status"),
-                      DESKTOP_RELEASE_TAG="termux-hwaccel-6.6-r28")
+                      DESKTOP_RELEASE_TAG="termux-hwaccel-6.7-r4")
         spec.write_text("".join(key + "='" + value + "'\n" for key, value in values.items()))
         command = ["sh", str(ASSETS / "desktop_install.sh"), str(spec), "--operation=" + operation]
         if operation == "host-prerequisites":

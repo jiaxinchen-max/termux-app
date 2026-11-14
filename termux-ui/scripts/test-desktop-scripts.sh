@@ -58,7 +58,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/test.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/test.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/test.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r28
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.7-r4
 SPEC
 }
 
@@ -350,7 +350,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/inst.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/inst.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/inst.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r28
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.7-r4
 SPEC
 INST_LOG="$TEST_ROOT/inst-calls"
 INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-distro/containers"
@@ -441,7 +441,7 @@ rm -f "$ROOTFS/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json" "$ROOTFS/usr/l
 FAKE_CURL_URLS="$TURNIP_ROOT/urls" FAKE_CURL_PAYLOAD="$TURNIP_ROOT/turnip.tar.gz" \
     PATH="$TURNIP_ROOT/bin:$PATH" sh "$TURNIP_ROOT/run.sh" || fail "ensure_turnip_icd failed for a forky container"
 tail -n 1 "$TURNIP_ROOT/urls" | grep -q 'debian_trixie_arm64.tar.gz' || fail "forky container did not map to the trixie Turnip asset"
-grep -q 'default_base="debian:forky"' "$ASSETS/desktop_install.sh" || fail "Plasma container is not created from forky"
+grep -q 'default_base="ubuntu:resolute"' "$ASSETS/desktop_install.sh" || fail "Plasma container is not created from Ubuntu 26.04"
 grep -q 'KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 start-plasma --compositor-only' "$ASSETS/desktop_start.sh" \
     || fail "container Plasma must start the compositor with the permission checks off"
 
@@ -617,7 +617,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/dlfail.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/dlfail.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/dlfail.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.6-r28
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.7-r4
 SPEC
 rm -rf "$FAIL_ROOT/usr/tmp"/desktop-debs-* "$TEST_ROOT/tmp"/desktop-debs-* 2>/dev/null || true
 : > "$FAIL_ROOT/calls"

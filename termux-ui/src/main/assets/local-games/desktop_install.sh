@@ -122,8 +122,8 @@ if [ "$DESKTOP_MODE:$DESKTOP_DE" = proot:kwin_plasma ] &&
 fi
 
 BASE_URL="https://github.com/jiaxinchen-max/kwin/releases/download/$DESKTOP_RELEASE_TAG"
-# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.6-r28).
-if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.6-r28" ]; then
+# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.7-r4).
+if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.7-r4" ]; then
     log "Unsupported desktop release $DESKTOP_RELEASE_TAG"
     exit 65
 fi
@@ -150,7 +150,8 @@ termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00
 DEBS="
 libandroid-stub_30-3_aarch64.deb 88c7f4ba78a5eb57eafc2f1102ceea562a156fe7346528ca35c771eb0927fefc
 gl4es_1.1.7.20260927_aarch64.deb eb0ba70d084c87b84b144ef2ce6ad415ca3810dcb356d77e4e8cefe962157913
-kwin_6.6.0-28_aarch64.deb d6b97467522ce0736d0f142baddd333072da76208c1bca985685b4a2b2d82cdf
+kwin_6.7.5-4_aarch64.deb cd29a2fbefcf81930ac740b1ac3fef71bed29620164d28ff41b9c937936aa4c4
+libei_1.6.0_aarch64.deb be94458e11fe2f0eceec657a67d3da0f2286ff1f92ecc49775a8382c5f1a7b8b
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 qt6-qtbase-cross-tools_6.12.0-1+termuxkwin1_all.deb 07b9a9ae857225a814e85c74fdc613cc0720c328d3b2f4f5270a47b67169bf5f
 qt6-qtbase-gtk-platformtheme_6.12.0-1+termuxkwin1_aarch64.deb 88174bce8ca6f5f5034c6a9b14360e1d1bc7f8e5af014cfbcd2440840897c622
@@ -391,6 +392,12 @@ ensure_turnip_icd() { # alias
 # Required runtime files, with release digests retained as publication metadata.
 # Installation checks package status, version and file presence without digest verification.
 HOST_FILES='
+libei lib/libei.so a1c1d1479afffd912b2e6cbe5272e7d774270018c0e59c1d699f245e5cd9e09a
+libei lib/libei.so.1 a1c1d1479afffd912b2e6cbe5272e7d774270018c0e59c1d699f245e5cd9e09a
+libei lib/libei.so.1.6.0 a1c1d1479afffd912b2e6cbe5272e7d774270018c0e59c1d699f245e5cd9e09a
+libei lib/libeis.so ce9b4d9760b1ddbd79ed14134ffbd514b6ae5ab22e6c1f911ffb0fb0434a8528
+libei lib/libeis.so.1 ce9b4d9760b1ddbd79ed14134ffbd514b6ae5ab22e6c1f911ffb0fb0434a8528
+libei lib/libeis.so.1.6.0 ce9b4d9760b1ddbd79ed14134ffbd514b6ae5ab22e6c1f911ffb0fb0434a8528
 mutter lib/libmutter-16.so.0.0.0 dd001f7aeb271f7b915fadf80dd5cf74c3966322bfa89e3061a3cba128562094
 gjs bin/gjs-console 942cdbf442a9d45c395703ca358664195300179e6a220234d9cda099b8e43316
 gnome-session bin/gnome-session 3171e8d06aac98e0de4b0450e2d6224254c82b4f24ebee881c319c6fea360f90
@@ -440,14 +447,14 @@ termux-usb-bridge share/termux-usb-bridge/broker.py efcfd2e16860af6b545255e45a63
 termux-usb-bridge share/termux-usb-bridge/camera2.py d9f41ba9efad0d6f08e5d4c8ad054a0f356365b66dd56b63807e0d297c24bb6e
 termux-usb-bridge share/termux-usb-bridge/desktop.py 1e739c2b1c196dcb7b69e176472a3fb1835fa31ca2bdd4f1ad3db3144c2f8542
 termux-usb-bridge share/termux-usb-bridge/filesystem.py 9271333b47c1801e5dee6e6a53293a6540acf46e30afcc32bcf5890c708379a0
-kwin bin/kwin_wayland 8ccb4e3bd40ca9dfd9426e49056fcd8167dca54900ac01c54fa33775844bbd36
+kwin bin/kwin_wayland 607bdf70293405e79432dc04cddbd4c806339e31928198f2207e47ad1fc32428
 kwin bin/start-plasma 366c1300a6b3c255e401b13d358778b2536300a4a92fe96117887ed9431e6de0
 kwin bin/kwin-android-rendering-env c00cef0311e4829e8229059837cb8ee177751345856c159294b15494572c42da
-kwin bin/kwin-qt-client-renderer-probe 2f56beabb6caeea4e0d44f9300227bf02d14c9137326868f7c7daabc16d3c3bb
-kwin lib/libkwin.so.6.6.7 eee1bfc582e045ec44d8a9216ff787e435a8409a3ce4afbb0cd2114f131c4c87
-kwin lib/qt6/plugins/wayland-graphics-integration-client/libqt-plugin-termux-ahardware-buffer.so ad6533bb6a2ddbb7bc1333d60cfb262261454b6650ee105c04a0f31eddccdf69
-kwin lib/qt6/termux-system-egl/libEGL.so.1 d5e14819eff485aef4cb3373a713ff6c2eb6da8de9fe976ae7874990295b77d1
-kwin lib/qt6/termux-system-egl/libEGL.so d5e14819eff485aef4cb3373a713ff6c2eb6da8de9fe976ae7874990295b77d1
+kwin bin/kwin-qt-client-renderer-probe 6a3839f89da5717af765622b29cc5a3601997789699dbc78c6722c827b98d5a5
+kwin lib/libkwin.so.6.7.5 cdd9076305fdaaf6b4903b029b28bfd4272803eb9a7f4b3f2a95995cd3d4f8e4
+kwin lib/qt6/plugins/wayland-graphics-integration-client/libqt-plugin-termux-ahardware-buffer.so cf16443e4e24941e11a5052f3e182d2bb07df47eecf8b4d29f592501864c02b8
+kwin lib/qt6/termux-system-egl/libEGL.so.1 2f20863549ee9c552985f1d9dda6cab4635b43c4cf00288288d962ca264d293b
+kwin lib/qt6/termux-system-egl/libEGL.so 2f20863549ee9c552985f1d9dda6cab4635b43c4cf00288288d962ca264d293b
 qt6-qtbase lib/qt6/plugins/wayland-shell-integration/libxdg-shell.so 73e1b5cd7181cc3aa05424f54efaa09c6830ec3f8282027cae6935d22f8f9985
 qt6-qtbase-gtk-platformtheme lib/qt6/plugins/platformthemes/libqgtk3.so af3ae4b58f51c13ccc74c510860cc2f6aa288a35fd49974755bbf9be74fd7fe8
 qt6-qtbase-cross-tools opt/qt6/cross/lib/qt6/moc 7bdd400ea3e8eb2d888774f92505894502fa45828ba6531cd4ba898a1dc555e5
@@ -748,18 +755,16 @@ else
         [ "$DESKTOP_HOST_GL_MODE" != zink ] || host_packages="$host_packages mesa mesa-vulkan-icd-freedreno vulkan-loader"
     fi
     run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS $host_packages || fail "apt install"
-    # The container's Plasma must be about as new as the native KWin (6.6): Debian trixie's Plasma
-    # 6.3 hits protocol mismatches (kde_output_device_mode_v2 events) and shows a black screen, while
-    # forky's 6.7 renders. XFCE has no such coupling and stays on the stable image.
+    # Plasma clients use Ubuntu 26.04; the compositor stays on the native host.
     case "$DESKTOP_DE" in
-        kwin_plasma) default_base="debian:forky" ;;
+        kwin_plasma) default_base="ubuntu:resolute" ;;
         ubuntu_gnome) default_base="ubuntu:noble" ;;
         *) default_base="debian:trixie" ;;
     esac
     ensure_container_instance "$DESKTOP_PROOT_DISTRO" "${DESKTOP_CONTAINER_BASE:-$default_base}"
     rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
     case "$DESKTOP_DE" in
-        kwin_plasma) expected_distribution=debian:forky ;;
+        kwin_plasma) expected_distribution=ubuntu:resolute ;;
         ubuntu_gnome) expected_distribution=ubuntu:noble ;;
         *) expected_distribution=debian:trixie ;;
     esac
@@ -777,7 +782,7 @@ else
         gnome) container_packages="gjs mesa-utils-bin gnome-shell gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils"
             [ "$DESKTOP_COMPONENT_RENDERER" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm19 libdrm2"
             ;;
-        *) container_packages="qt6-wayland mesa-utils-bin plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit polkitd libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2"
+        *) container_packages="kubuntu-settings-desktop python3 qt6-wayland mesa-utils-bin plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit polkitd libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2"
            [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || container_packages="$container_packages libvulkan-dev mesa-vulkan-drivers" ;;
     esac
     container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
@@ -788,7 +793,7 @@ else
     recommend_option=''
     { [ "$DESKTOP_DE" != gnome ] && [ "$DESKTOP_DE" != ubuntu_gnome ]; } || recommend_option=--no-install-recommends
     [ "$DESKTOP_DE" != ubuntu_gnome ] || recommend_option="--no-install-recommends --reinstall"
-    # A prior Turnip overlay can leave Debian EGL linked to an absent LLVM ABI.
+    # A prior Turnip overlay can leave distro EGL linked to an absent LLVM ABI.
     # Reinstall matching distro Mesa on emulators; preserve existing apt hold selections.
     if [ "$PLASMA_EMULATOR" = 1 ]; then
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \

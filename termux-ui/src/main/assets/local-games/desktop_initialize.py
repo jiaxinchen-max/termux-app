@@ -224,6 +224,13 @@ kwin_android_select_rendering() {
         temporary.replace(path)
 
 
+def prepare_plasma_cache(guest, env):
+    """Match the root login HOME and XDG search path of the container session."""
+    subprocess.run(guest + ['XDG_DATA_DIRS=/usr/share:/usr/local/share',
+                   'XDG_MENU_PREFIX=plasma-', 'kbuildsycoca6', '--noincremental'],
+                   env=env, check=True, timeout=120)
+
+
 def initialize(args):
     prefix = args.prefix
     root = prefix
@@ -235,8 +242,8 @@ def initialize(args):
         root = prefix / 'var/lib/proot-distro/containers' / args.alias / 'rootfs'
         release = dict(line.split('=', 1) for line in (root / 'etc/os-release').read_text().splitlines()
                        if '=' in line)
-        wanted = ('ubuntu', 'noble') if args.de == 'ubuntu_gnome' else (
-            'debian', 'forky' if args.de == 'kwin_plasma' else 'trixie')
+        wanted = {'ubuntu_gnome': ('ubuntu', 'noble'),
+                  'kwin_plasma': ('ubuntu', 'resolute')}.get(args.de, ('debian', 'trixie'))
         if tuple(release.get(k, '').strip('"\'') for k in ('ID', 'VERSION_CODENAME')) != wanted:
             raise RuntimeError('Desktop rootfs must be ' + ':'.join(wanted))
         executable(prefix / 'bin/proot-distro')
@@ -319,6 +326,7 @@ def initialize(args):
                        env=dict(env, KWIN_ANDROID_GL_MODE=args.host_gl_mode), check=True, timeout=30)
         prepare_plasma(prefix)
         if plasma_proot:
+            prepare_plasma_cache(guest, env)
             plasma_rendering(args, root, guest, env)
     if guest and args.de != 'kwin_plasma' and (args.de in ('gnome', 'ubuntu_gnome') or args.guest_gl_mode == 'zink'):
         mode = args.guest_gl_mode

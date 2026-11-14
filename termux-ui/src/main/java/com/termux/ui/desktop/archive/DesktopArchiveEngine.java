@@ -1,5 +1,6 @@
 package com.termux.ui.desktop.archive;
 
+import com.termux.ui.desktop.runtime.DesktopCreationCatalog;
 import com.termux.ui.desktop.domain.DesktopDistro;
 
 import org.apache.commons.compress.archivers.tar.*;
@@ -404,7 +405,7 @@ public final class DesktopArchiveEngine {
                     if (fields.put(line.substring(0,eq),value)!=null) throw failure("archive_os_release_invalid");
                 }
             }
-            if (!"debian".equals(fields.get("ID")) || !metadata.getCodename().equals(fields.get("VERSION_CODENAME")))
+            if (!DesktopCreationCatalog.containerBase(metadata.getDesktop().getDe()).equals(fields.get("ID")) || !metadata.getCodename().equals(fields.get("VERSION_CODENAME")))
                 throw failure("archive_distribution_mismatch");
         }
         File destination(String name) throws IOException {

@@ -15,6 +15,11 @@ log() {
 
 # Shared Termux server: never kill an existing Wine/terminal audio session.
 # Containers connect over loopback; neither a container daemon nor a null sink is audio output.
+# Every audio request, including connection/authentication, has a hard deadline.
+desktop_audio_run() {
+    timeout -k 1 3 "$@"
+}
+
 start_desktop_audio() {
     [ "${1:-}" = host-pulseaudio ] || {
         log 'Explicit DESKTOP_AUDIO_MODE=host-pulseaudio is required.'
@@ -24,10 +29,13 @@ start_desktop_audio() {
     # After a package upgrade the live daemon may still use the replaced executable.
     # --check then rejects its PID even though the requested endpoint is healthy.
     # Probe that endpoint first so installing another desktop never starts a duplicate daemon.
-    if ! "$PREFIX/bin/pactl" --server="$desktop_pulse_server" info >/dev/null 2>&1 &&
-        ! env -u PULSE_SERVER "$PREFIX/bin/pulseaudio" --check >/dev/null 2>&1; then
+    if ! desktop_audio_run "$PREFIX/bin/pactl" --server="$desktop_pulse_server" info >/dev/null 2>&1 &&
+        ! desktop_audio_run env -u PULSE_SERVER "$PREFIX/bin/pulseaudio" --check >/dev/null 2>&1; then
         log 'Starting host PulseAudio with a loopback-only container endpoint.'
-        env -u PULSE_SERVER "$PREFIX/bin/pulseaudio" --start --exit-idle-time=-1 \
+        mkdir -p "$HOME/.termux" || return 70
+        log "PulseAudio server log: $HOME/.termux/desktop-pulseaudio.log"
+        desktop_audio_run env -u PULSE_SERVER "$PREFIX/bin/pulseaudio" --start --exit-idle-time=-1 \
+            --log-target="file:$HOME/.termux/desktop-pulseaudio.log" \
             --load='module-native-protocol-tcp listen=127.0.0.1 port=4713 auth-anonymous=1' \
             >> "$DESKTOP_LOG_FILE" 2>&1 || {
             log 'Host PulseAudio failed to start; desktop audio is required.'
@@ -35,25 +43,25 @@ start_desktop_audio() {
         }
     fi
     # --start does not add modules to an already-running local-only daemon.
-    if ! "$PREFIX/bin/pactl" --server="$desktop_pulse_server" info >/dev/null 2>&1; then
-        env -u PULSE_SERVER "$PREFIX/bin/pactl" load-module module-native-protocol-tcp \
+    if ! desktop_audio_run "$PREFIX/bin/pactl" --server="$desktop_pulse_server" info >/dev/null 2>&1; then
+        desktop_audio_run env -u PULSE_SERVER "$PREFIX/bin/pactl" load-module module-native-protocol-tcp \
             listen=127.0.0.1 port=4713 auth-anonymous=1 >> "$DESKTOP_LOG_FILE" 2>&1 || {
             log 'Cannot expose the host PulseAudio server to desktop clients.'
             return 70
         }
     fi
-    "$PREFIX/bin/pactl" --server="$desktop_pulse_server" info >> "$DESKTOP_LOG_FILE" 2>&1 || {
+    desktop_audio_run "$PREFIX/bin/pactl" --server="$desktop_pulse_server" info >> "$DESKTOP_LOG_FILE" 2>&1 || {
         log 'Host PulseAudio endpoint is unavailable; desktop session was not started.'
         return 70
     }
-    desktop_sinks=$("$PREFIX/bin/pactl" --server="$desktop_pulse_server" list short sinks) || return 70
+    desktop_sinks=$(desktop_audio_run "$PREFIX/bin/pactl" --server="$desktop_pulse_server" list short sinks) || return 70
     desktop_android_sink=$(printf '%s\n' "$desktop_sinks" |
         awk '$3 ~ /module-(sles|aaudio)-sink/ { print $2; exit }')
     [ -n "$desktop_android_sink" ] || {
         log 'Host PulseAudio has no Android output sink; refusing a silent desktop session.'
         return 70
     }
-    "$PREFIX/bin/pactl" --server="$desktop_pulse_server" set-default-sink "$desktop_android_sink" \
+    desktop_audio_run "$PREFIX/bin/pactl" --server="$desktop_pulse_server" set-default-sink "$desktop_android_sink" \
         >> "$DESKTOP_LOG_FILE" 2>&1 || return 70
     export PULSE_SERVER="$desktop_pulse_server"
     unset PULSE_SINK PULSE_SOURCE

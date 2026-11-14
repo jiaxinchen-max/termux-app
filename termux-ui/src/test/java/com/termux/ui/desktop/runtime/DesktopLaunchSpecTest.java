@@ -61,7 +61,7 @@ public class DesktopLaunchSpecTest {
 
     @Test
     public void encodesEverythingTheScriptsNeed() {
-        DesktopDistro distro = new DesktopDistro("p-1", "Debian KDE", DesktopRunMode.PROOT, "debian", DesktopDe.KWIN_PLASMA, DesktopGlMode.ZINK, DesktopGuestGlMode.ZINK, "1920x1080", 60, DesktopUsbStorageMode.OFF);
+        DesktopDistro distro = new DesktopDistro("p-1", "Kubuntu", DesktopRunMode.PROOT, "ubuntu-kwin-plasma-1", DesktopDe.KWIN_PLASMA, DesktopGlMode.ZINK, DesktopGuestGlMode.ZINK, "1920x1080", 60, DesktopUsbStorageMode.OFF);
         Map<String, String> spec = parse(DesktopLaunchSpec.encode(distro,
             "/files/state/p-1.pid", "/files/state/p-1.status", "/files/logs/p-1.log"));
         assertEquals("3", spec.get("DESKTOP_SPEC_VERSION"));
@@ -70,7 +70,9 @@ public class DesktopLaunchSpecTest {
         assertEquals("host-pulseaudio", spec.get("DESKTOP_AUDIO_MODE"));
         assertEquals("proot-distro", spec.get("DESKTOP_REMOVE_METHOD"));
         assertEquals("zink", spec.get("DESKTOP_HOST_GL_MODE"));
-        assertEquals("debian", spec.get("DESKTOP_PROOT_DISTRO"));
+        assertEquals("ubuntu-kwin-plasma-1", spec.get("DESKTOP_PROOT_DISTRO"));
+        assertEquals("ubuntu:resolute", spec.get("DESKTOP_CONTAINER_BASE"));
+        assertEquals("resolute", spec.get("DESKTOP_CONTAINER_CODENAME"));
         assertEquals("1920", spec.get("DESKTOP_WIDTH"));
         assertEquals("1080", spec.get("DESKTOP_HEIGHT"));
         assertEquals("60", spec.get("DESKTOP_REFRESH_RATE"));
