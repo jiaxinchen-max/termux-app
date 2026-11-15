@@ -655,7 +655,8 @@
     <string name="desktop_archive_running">Container archive in progress</string>
     <string name="desktop_archive_exporting">Exporting container…</string>
     <string name="desktop_archive_validating">Checking container archive…</string>
-    <string name="desktop_archive_installing_prerequisites">Installing required host components…</string>
+    <string name="desktop_archive_installing_prerequisites">Checking required host components…</string>
+    <string name="desktop_archive_initializing">Preparing restored desktop locally…</string>
     <string name="desktop_archive_importing">Importing container…</string>
     <string name="desktop_archive_succeeded">Container archive completed</string>
     <string name="desktop_archive_failed">Container archive failed</string>

@@ -115,6 +115,13 @@ final class DesktopArchiveFlow {
 
     void startImport() {
         Activity activity = host;
+        if (activity != null) com.termux.ui.platform.ExternalStorageAccess.ensure(activity, () -> {
+            if (host == activity) startImportReady();
+        });
+    }
+
+    private void startImportReady() {
+        Activity activity = host;
         if (activity == null || refuseBusy()) return;
         chooser = SharedStorageChooserDialog.chooseArchive(activity,
             Environment.getExternalStorageDirectory(), EXTENSION, file -> {
@@ -132,6 +139,18 @@ final class DesktopArchiveFlow {
     }
 
     void startExport(DesktopDistro distro, boolean active) {
+        Activity activity = host;
+        if (activity == null) return;
+        if (active || distro.getRunMode() != DesktopRunMode.PROOT) {
+            toast(R.string.desktop_archive_running_forbidden);
+            return;
+        }
+        com.termux.ui.platform.ExternalStorageAccess.ensure(activity, () -> {
+            if (host == activity) startExportReady(distro, active);
+        });
+    }
+
+    private void startExportReady(DesktopDistro distro, boolean active) {
         Activity activity = host;
         if (activity == null) return;
         if (active || distro.getRunMode() != DesktopRunMode.PROOT) {

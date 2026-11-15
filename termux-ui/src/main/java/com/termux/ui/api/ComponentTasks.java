@@ -164,6 +164,13 @@ public final class ComponentTasks {
     }
 
     private static void start(Context context, Intent intent) {
+        if (context instanceof android.app.Activity) {
+            com.termux.ui.platform.ExternalStorageAccess.ensure((android.app.Activity) context,
+                () -> startApproved(context.getApplicationContext(), intent));
+        } else startApproved(context, intent);
+    }
+
+    private static void startApproved(Context context, Intent intent) {
         Context application = context.getApplicationContext();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             application.startForegroundService(intent);

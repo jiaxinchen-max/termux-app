@@ -43,10 +43,53 @@ class UbuntuPlasmaInstallTests(unittest.TestCase):
         self.assertIn('ubuntu-kwin-plasma-1', install)
         package_calls = [c for c in calls if '/tmp/desktop_container_plasma_apt.sh' in c]
         self.assertTrue(any(all(p in c for p in ('kubuntu-settings-desktop', 'plasma-desktop',
-            'plasma-workspace', 'dolphin', 'konsole', 'python3')) for c in package_calls), package_calls)
+            'plasma-workspace', 'dolphin', 'konsole', 'python3', 'appstream')) for c in package_calls), package_calls)
         self.assertTrue((self.base / 'usr/var/lib/proot-distro/containers/ubuntu-kwin-plasma-1/.desktop-de-kwin_plasma').exists())
         ca = self.base / 'usr/var/lib/proot-distro/containers/ubuntu-kwin-plasma-1/rootfs/etc/ssl/certs/ca-certificates.crt'
         self.assertEqual((self.base / 'usr/etc/tls/cert.pem').read_bytes(), ca.read_bytes())
+
+    def test_catalog_is_prepared_after_packages_before_initialization(self):
+        result, calls = self.install()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        catalog = next(i for i, c in enumerate(calls) if '/tmp/desktop_container_discover_catalog.sh' in c)
+        packages = [i for i, c in enumerate(calls) if '/tmp/desktop_container_plasma_apt.sh' in c]
+        initialize = next(i for i, c in enumerate(calls) if any('desktop_initialize.py' in a for a in c))
+        self.assertLess(max(packages), catalog)
+        self.assertLess(catalog, initialize)
+        self.assertTrue((self.base / 'usr/tmp/desktop_container_discover_catalog.sh').is_file())
+
+    def test_catalog_failure_preserves_error_and_blocks_success(self):
+        marker = self.base / 'usr/var/lib/proot-distro/containers/ubuntu-kwin-plasma-1/.desktop-de-kwin_plasma'
+        marker.parent.mkdir(parents=True)
+        release = marker.parent / 'rootfs/etc/os-release'
+        release.parent.mkdir(parents=True)
+        release.write_text('ID=ubuntu\nVERSION_CODENAME=resolute\n')
+        marker.touch()  # A retry must not retain an earlier success marker.
+        result, calls = self.install(container_catalog_error=73)
+        self.assertEqual(result.returncode, 73, result.stdout)
+        self.assertEqual((self.base / 'state/status').read_text(), 'exit:73\n')
+        self.assertFalse(marker.exists())
+        self.assertFalse(any(any('desktop_initialize.py' in a for a in c) for c in calls))
+
+    def test_package_failure_does_not_prepare_catalog(self):
+        result, calls = self.install(container_apt_error=100)
+        self.assertEqual(result.returncode, 100, result.stdout)
+        self.assertFalse(any('/tmp/desktop_container_discover_catalog.sh' in c for c in calls))
+
+    def test_native_plasma_does_not_prepare_discover_catalog(self):
+        result, calls = self.fixture.run_install(de='kwin_plasma', mode='native', overrides={
+            'DESKTOP_GL_MODE': None, 'DESKTOP_SPEC_VERSION': '3',
+            'DESKTOP_HOST_GL_MODE': 'system', 'DESKTOP_GUEST_GL_MODE': 'none',
+            'DESKTOP_CONTAINER_CODENAME': None})
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertFalse(any('/tmp/desktop_container_discover_catalog.sh' in c for c in calls))
+
+    def test_xfce_does_not_prepare_discover_catalog(self):
+        result, calls = self.fixture.run_install(de='xfce4', mode='proot', overrides={
+            'DESKTOP_GL_MODE': None, 'DESKTOP_SPEC_VERSION': '3',
+            'DESKTOP_HOST_GL_MODE': 'system', 'DESKTOP_GUEST_GL_MODE': 'default'})
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertFalse(any('/tmp/desktop_container_discover_catalog.sh' in c for c in calls))
 
     def test_missing_optional_base_uses_ubuntu_default(self):
         result, calls = self.fixture.run_install(de='kwin_plasma', mode='proot', overrides={

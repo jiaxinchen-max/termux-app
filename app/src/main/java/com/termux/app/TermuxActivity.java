@@ -1058,13 +1058,11 @@ public class TermuxActivity extends AppCompatActivity implements ServiceConnecti
     @Override
     public void backupTermux() {
         getDrawer().closeDrawers();
-        String command = "tar -zcf /sdcard/termux-backup.tar.gz -C /data/data/com.termux/files ./home ./usr \n";
-        File storage = new File(getFilesDir(), "home/storage");
-        if (!storage.exists()) {
-            command = "termux-setup-storage;sleep 5s;" + command;
-        }
-        mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, "termux-backup");
-        showTerminalSurface();
+        com.termux.ui.platform.ExternalStorageAccess.ensure(this, () -> {
+            String command = "tar -zcf /sdcard/termux-backup.tar.gz -C /data/data/com.termux/files ./home ./usr \n";
+            mTermuxTerminalSessionActivityClient.addNewAutoCloseSessionAndRunCommand(command, "termux-backup");
+            showTerminalSurface();
+        });
     }
 
     private void closeTerminalSessionListView() {

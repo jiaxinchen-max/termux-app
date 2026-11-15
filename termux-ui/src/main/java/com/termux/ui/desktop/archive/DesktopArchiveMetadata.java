@@ -34,8 +34,7 @@ public final class DesktopArchiveMetadata {
             throw new IllegalArgumentException("archive_requires_usb_storage_off");
         if (desktop.getHostGlMode() == DesktopGlMode.AUTO || desktop.getGuestGlMode() == DesktopGuestGlMode.UNRESOLVED)
             throw new IllegalArgumentException("archive_requires_explicit_renderer");
-        if (!(desktop.getDe() == DesktopDe.XFCE4 && "trixie".equals(codename))
-                && !(desktop.getDe() == DesktopDe.KWIN_PLASMA && "resolute".equals(codename)))
+        if (!DesktopArchiveDistribution.supports(desktop.getDe(), codename))
             throw new IllegalArgumentException("unsupported_archive_desktop_distribution");
         DesktopRendererPolicy.requireSupported(desktop);
         if (touchMode != null && !Arrays.asList("1", "2", "3").contains(touchMode))

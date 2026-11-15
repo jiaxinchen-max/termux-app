@@ -31,7 +31,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
-import com.termux.shared.android.PermissionUtils;
 import com.termux.ui.R;
 import com.termux.ui.api.AppExperienceMode;
 import com.termux.ui.api.ComponentTasks;
@@ -123,13 +122,6 @@ public final class LocalGamesActivity extends AppUiActivity {
     private static final int GAME_ACTION_REMOVE = 5;
     /** The launch sheet is a compact card; wider windows do not stretch it. */
     private static final int LAUNCH_SHEET_MAX_WIDTH_DP = 440;
-    // External storage (MANAGE_EXTERNAL_STORAGE on API 30+) is requested lazily, only the first
-    // time the user actually touches Backup/Restore -- not at app startup -- since nothing else
-    // on this screen needs it. The request can route through a system Settings screen (API 30+)
-    // or a runtime permission dialog (below API 30), both of which return asynchronously via the
-    // overrides below; pendingBackupStorageAction is what to resume once that result arrives.
-    private static final int REQUEST_BACKUP_STORAGE_PERMISSION = 8401;
-
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService libraryExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "GamesLibrary"));
@@ -140,6 +132,15 @@ public final class LocalGamesActivity extends AppUiActivity {
     private GameLibraryRepository libraryRepository;
     private GameArtworkLoader artworkLoader;
     private LocalGamesHost appHost;
+    private boolean storageChecked;
+    private final android.content.BroadcastReceiver storageSetupReceiver = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(android.content.Context context, Intent intent) {
+            if ("com.termux.app.request_storage_permissions".equals(intent.getAction())
+                    || "storage".equals(intent.getStringExtra("com.termux.app.reload_style"))) {
+                com.termux.ui.platform.ExternalStorageAccess.checkOnEntry(LocalGamesActivity.this);
+            }
+        }
+    };
     private boolean started;
     private int selectedTab;
     private int libraryGeneration;
@@ -149,7 +150,6 @@ public final class LocalGamesActivity extends AppUiActivity {
     @Nullable private List<GameLibraryItem> renderedLibraryItems;
     private int renderedGridWidth;
     @Nullable private PopupWindow moreMenuPopup;
-    private Runnable pendingBackupStorageAction;
     private Map<String, BuildingTask> buildingGameTasks = Collections.emptyMap();
     private Map<String, GameRuntimeBackendType> libraryBackends = Collections.emptyMap();
     private Map<String, String> libraryWines = Collections.emptyMap();
@@ -180,6 +180,7 @@ public final class LocalGamesActivity extends AppUiActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        storageChecked = savedInstanceState != null && savedInstanceState.getBoolean("external_storage_checked");
         binding = ActivityLocalGamesBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         navigation = UiNavigation.install(this, R.id.local_games_navigation_library,
@@ -307,6 +308,10 @@ public final class LocalGamesActivity extends AppUiActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        android.content.IntentFilter storageFilter = new android.content.IntentFilter("com.termux.app.request_storage_permissions");
+        storageFilter.addAction("com.termux.app.reload_style");
+        androidx.core.content.ContextCompat.registerReceiver(this, storageSetupReceiver, storageFilter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
         started = true;
         if (selectedTab == TAB_LIBRARY) loadLibraryAsync();
         else renderAppExperience();
@@ -318,10 +323,15 @@ public final class LocalGamesActivity extends AppUiActivity {
         // A reset runs behind RuntimeSetupConsoleDialog and control returns here once it
         // finishes -- re-check both environments so the Settings entries show the new state.
         renderRuntimeStatus();
+        if (!storageChecked) {
+            storageChecked = true;
+            com.termux.ui.platform.ExternalStorageAccess.checkOnEntry(this);
+        }
     }
 
     @Override
     protected void onStop() {
+        unregisterReceiver(storageSetupReceiver);
         resetExitConfirmation();
         started = false;
         mainHandler.removeCallbacks(buildingPoll);
@@ -329,47 +339,13 @@ public final class LocalGamesActivity extends AppUiActivity {
         super.onStop();
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                                           int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_BACKUP_STORAGE_PERMISSION) resumePendingBackupStorageAction();
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_BACKUP_STORAGE_PERMISSION) resumePendingBackupStorageAction();
-    }
-
-    /** Runs {@code action} once external storage permission is confirmed granted -- either
-     *  immediately (already granted) or after a round trip through the system permission/Settings
-     *  UI (see onRequestPermissionsResult/onActivityResult above, which resume here). Backup and
-     *  Restore are the only features on this screen that ever touch storage outside the app's own
-     *  private files dir, so this is requested lazily here rather than at app startup. */
     private void ensureBackupStoragePermission(Runnable action) {
-        if (PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
-                this, -1, false)) {
-            action.run();
-            return;
-        }
-        pendingBackupStorageAction = action;
-        PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
-            this, REQUEST_BACKUP_STORAGE_PERMISSION, true);
-    }
-
-    private void resumePendingBackupStorageAction() {
-        Runnable action = pendingBackupStorageAction;
-        pendingBackupStorageAction = null;
-        if (action == null) return;
-        if (PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
-                this, -1, true)) {
-            action.run();
-        }
+        com.termux.ui.platform.ExternalStorageAccess.ensure(this, action);
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
+        outState.putBoolean("external_storage_checked", storageChecked);
         outState.putInt(STATE_SELECTED_TAB, selectedTab);
         outState.putInt(STATE_SETTINGS_PAGE, settingsPage.ordinal());
         super.onSaveInstanceState(outState);
@@ -1449,6 +1425,10 @@ public final class LocalGamesActivity extends AppUiActivity {
     }
 
     private void installGlibcRuntime() {
+        com.termux.ui.platform.ExternalStorageAccess.ensure(this, this::installGlibcRuntimeReady);
+    }
+
+    private void installGlibcRuntimeReady() {
         String taskId = ComponentTasks.enqueue(this, TERMUX_GLIBC_ID);
         RuntimeSetupConsoleDialog.showComponent(this, taskId, R.string.local_games_component_console_title)
             .setOnDismissListener(dialog -> renderRuntimeStatus());
@@ -1568,6 +1548,10 @@ public final class LocalGamesActivity extends AppUiActivity {
     }
 
     private void installRootfsRuntime() {
+        com.termux.ui.platform.ExternalStorageAccess.ensure(this, this::installRootfsRuntimeReady);
+    }
+
+    private void installRootfsRuntimeReady() {
         // Shared environment setup has no game context. enqueueBaseOnly requires a real, non-DEFAULT_ID
         // containerId even though a BASE_ONLY build never creates a container under it. Use a
         // disposable id instead of forcing a game context here.

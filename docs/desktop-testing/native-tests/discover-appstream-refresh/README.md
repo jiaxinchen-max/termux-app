@@ -16,3 +16,13 @@
 退休资源从活动索引移除，仍由 backend 持有至其析构，保证已有详情和流的引用有效。长会话多次 metadata 变化会增加退休对象占用；后续安全回收需明确跟踪 UI/事务/流引用，不能直接 deleteLater。
 
 最终 ELF 验证记录实际加载映射，并同时要求退出码及明确的断言完成标记；不将 proot exit0 单独视为通过。测试的已知 AppStream 源/cache、HOME、XDG runtime 和总线目标独立；裸 guest `/tmp`、`/run` 未另行 bind。并行旧基线崩溃保留为未归因证据，串行同 binary 的 stale 复现独立记录。
+
+## 安装前置目录方案的轻量验证
+
+在安装了 `libappstream.so.5` 和 Python 3 的 Ubuntu 容器中运行：
+
+```sh
+python3 pool-lifecycle.py
+```
+
+该脚本直接调用发行版 AppStream C 库，关闭标准数据路径，只读写临时目录中的合成 catalog 和缓存。断言“初始池=0、发布缓存后旧池=0、准备目录后首个新池=1”。不需要 Qt 开发包，不使用 Discover `--test`，不接触实际 PackageKit 或桌面缓存；它验证池生命周期，不代表真实 GUI 或网络验收。

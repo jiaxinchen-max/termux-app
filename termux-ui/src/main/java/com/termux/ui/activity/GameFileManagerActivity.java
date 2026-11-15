@@ -56,7 +56,6 @@ public final class GameFileManagerActivity extends AppUiActivity {
     public static final String EXTRA_IMPORT_BACKEND = "com.termux.ui.extra.IMPORT_BACKEND";
     @Nullable private GameRuntimeBackendType importBackend;
 
-    private static final int REQUEST_SHARED_STORAGE_PERMISSION = 8402;
     private static final String STATE_BROWSED_DIRECTORY = "browsed_directory";
     private static final int TILE_MARGIN_DP = 1;
     private static final int TILE_HEIGHT_DP = 80;
@@ -83,7 +82,6 @@ public final class GameFileManagerActivity extends AppUiActivity {
     private File sharedStorageRoot;
     private File localCurrent;
     private FileManagerViewMode viewMode = FileManagerViewMode.GRID;
-    @Nullable private Runnable pendingSharedStorageAction;
     @Nullable private FileObserver directoryObserver;
     @Nullable private File watchedDirectory;
     private boolean resumed;
@@ -182,7 +180,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
         super.onConfigurationChanged(newConfig);
         navigation.updateConfiguration();
         if (binding == null) return;
-        // Keeps localCurrent (showLocal re-canonicalises it) and pendingSharedStorageAction.
+        // Keeps localCurrent (showLocal re-canonicalises it) and the clipboard.
         File current = localCurrent;
         if (current != null) showLocal(current);
         else showHome();
@@ -209,19 +207,6 @@ public final class GameFileManagerActivity extends AppUiActivity {
     public void onBackPressed() {
         if (isHome()) super.onBackPressed();
         else navigateUp();
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                                           int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_SHARED_STORAGE_PERMISSION) resumePendingSharedStorageAction();
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_SHARED_STORAGE_PERMISSION) resumePendingSharedStorageAction();
     }
 
     @Override
@@ -276,36 +261,20 @@ public final class GameFileManagerActivity extends AppUiActivity {
         addEntry(getString(R.string.local_game_file_manager_private_files), null, true,
             view -> showLocal(filesRoot), null);
         addEntry(getString(R.string.local_game_file_manager_shared_storage), null, true,
-            view -> ensureSharedStoragePermission(() -> showLocal(sharedStorageRoot)), null);
+            view -> showLocal(sharedStorageRoot), null);
     }
 
-    /** Request #4: games may only be imported from the app's own private storage or, once
-     *  granted, the mounted shared/external storage tree -- gated the same way
-     *  LocalGamesActivity.ensureBackupStoragePermission() gates Backup/Restore's own
-     *  MANAGE_EXTERNAL_STORAGE need (check -> request -> resume from the activity-result
-     *  callback). */
     private void ensureSharedStoragePermission(Runnable action) {
-        if (PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
-                this, -1, false)) {
-            action.run();
-            return;
-        }
-        pendingSharedStorageAction = action;
-        PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
-            this, REQUEST_SHARED_STORAGE_PERMISSION, true);
-    }
-
-    private void resumePendingSharedStorageAction() {
-        Runnable action = pendingSharedStorageAction;
-        pendingSharedStorageAction = null;
-        if (action == null) return;
-        if (PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
-                this, -1, true)) {
-            action.run();
-        }
+        com.termux.ui.platform.ExternalStorageAccess.ensure(this, action);
     }
 
     private void showLocal(File directory) {
+        if (isWithin(sharedStorageRoot, directory)) {
+            ensureSharedStoragePermission(() -> showLocalReady(directory));
+        } else showLocalReady(directory);
+    }
+
+    private void showLocalReady(File directory) {
         try {
             File canonical = directory.getCanonicalFile();
             File root = rootFor(canonical);
@@ -353,7 +322,12 @@ public final class GameFileManagerActivity extends AppUiActivity {
         if (destroyed || operating || binding == null || localCurrent == null) return;
         int scrollY = binding.localGameFileManagerScroll.getScrollY();
         File directory = localCurrent;
-        showLocal(directory);
+        if (isWithin(sharedStorageRoot, directory)
+                && !com.termux.ui.platform.ExternalStorageAccess.hasPermission(this)) {
+            showHome();
+            return;
+        }
+        showLocalReady(directory);
         binding.localGameFileManagerScroll.post(() -> {
             if (!destroyed && binding != null && directory.equals(localCurrent)) {
                 binding.localGameFileManagerScroll.scrollTo(0, scrollY);
@@ -521,6 +495,12 @@ public final class GameFileManagerActivity extends AppUiActivity {
     }
 
     private void openExternally(File target) {
+        if (isWithin(sharedStorageRoot, target)) {
+            ensureSharedStoragePermission(() -> openExternallyReady(target));
+        } else openExternallyReady(target);
+    }
+
+    private void openExternallyReady(File target) {
         try {
             startActivity(Intent.createChooser(BrowserDocumentsProvider.openIntent(this, target),
                 getString(R.string.browser_open_with)));
@@ -557,6 +537,13 @@ public final class GameFileManagerActivity extends AppUiActivity {
     private interface FileOperation { File run() throws IOException; }
 
     private void runFileOperation(FileOperation operation, Runnable success) {
+        if ((localCurrent != null && isWithin(sharedStorageRoot, localCurrent))
+                || (clipboardSource != null && isWithin(sharedStorageRoot, clipboardSource))) {
+            ensureSharedStoragePermission(() -> runFileOperationReady(operation, success));
+        } else runFileOperationReady(operation, success);
+    }
+
+    private void runFileOperationReady(FileOperation operation, Runnable success) {
         if (operating || importing || destroyed) return;
         operating = true;
         stopWatchingDirectory();
@@ -604,6 +591,12 @@ public final class GameFileManagerActivity extends AppUiActivity {
     }
 
     private void importConfiguration(File file, GameRuntimeBackendType backend) {
+        if (isWithin(sharedStorageRoot, file)) {
+            ensureSharedStoragePermission(() -> importConfigurationReady(file, backend));
+        } else importConfigurationReady(file, backend);
+    }
+
+    private void importConfigurationReady(File file, GameRuntimeBackendType backend) {
         if (destroyed || importing || operating) return;
         importing = true;
         updateFileActions();

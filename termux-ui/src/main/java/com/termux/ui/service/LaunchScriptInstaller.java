@@ -64,7 +64,7 @@ public final class LaunchScriptInstaller {
         "local-games/desktop_container_plasma_apt.sh";
     private static final String[] DESKTOP_CONTAINER_SETUP_ASSETS = {
         "desktop_container_statx_setup.sh", "desktop_container_run_config.sh", "desktop_container_statx_aarch64.bin",
-        "desktop_container_apt_sources.sh"};
+        "desktop_container_apt_sources.sh", "desktop_container_discover_catalog.sh"};
     private static final String[] DESKTOP_SESSION_ASSETS = {
         "desktop_plasma_session.py", "desktop_initialize.py", "desktop_hyprland.py", "desktop_hyprland_gpu.py", "desktop_hyprland_shell.py", "desktop_hyprland_theme.py", "desktop_hyprland_components.py", "hyprland-components.json", "hyprland-components.sh", "desktop_hyprland_action.sh", "desktop_gnome_launch.py", "desktop_ubuntu_gnome.py", "desktop_native_ubuntu.py", "desktop_xfce_session.py", "desktop_usb_storage.py", "desktop_install_gio.py", "desktop_install_mesa.py"};
 

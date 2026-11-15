@@ -87,11 +87,27 @@ public final class RuntimeBackupFlow {
     public void createArchive(String defaultName, java.util.function.Consumer<File> onChosen) {
         Activity activity = host;
         if (activity == null) return;
+        com.termux.ui.platform.ExternalStorageAccess.ensure(activity, () -> {
+            if (host == activity) createArchiveReady(defaultName, onChosen);
+        });
+    }
+
+    private void createArchiveReady(String defaultName, java.util.function.Consumer<File> onChosen) {
+        Activity activity = host;
+        if (activity == null) return;
         try { onChosen.accept(ExternalBackupLocation.newArchive(activity, defaultName)); }
         catch (IOException error) { showFailure(error); }
     }
 
     public void pickArchive(String extension, java.util.function.Consumer<File> onChosen) {
+        Activity activity = host;
+        if (activity == null) return;
+        com.termux.ui.platform.ExternalStorageAccess.ensure(activity, () -> {
+            if (host == activity) pickArchiveReady(extension, onChosen);
+        });
+    }
+
+    private void pickArchiveReady(String extension, java.util.function.Consumer<File> onChosen) {
         Activity activity = host;
         if (activity == null) return;
         if (chooser != null) chooser.dismiss();

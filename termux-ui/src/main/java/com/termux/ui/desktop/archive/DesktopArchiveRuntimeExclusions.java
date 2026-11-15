@@ -10,6 +10,8 @@ final class DesktopArchiveRuntimeExclusions {
         "rootfs/plat_property_contexts", "rootfs/property_contexts");
     private static final List<String> ROOTS=Arrays.asList(
         "shm", "rootfs/proc", "rootfs/sys", "rootfs/dev", "rootfs/run", "rootfs/tmp",
+        // snapd's intentionally unlistable empty bind-mount target (normally mode 0111).
+        "rootfs/var/lib/snapd/void",
         "rootfs/mnt/sdcard", "rootfs/sdcard", "rootfs/storage/emulated/0",
         "rootfs/storage/self/primary", "rootfs/data/app", "rootfs/data/dalvik-cache",
         "rootfs/data/misc/apexdata/com.android.art/dalvik-cache", "rootfs/apex", "rootfs/odm",

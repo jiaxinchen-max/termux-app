@@ -38,6 +38,12 @@ public final class WineCDriveBackupFlow {
                 (dialog, which) -> choose(configuration, which == 0)).show();
     }
     private void choose(Game configuration, boolean backup) {
+        Activity activity = this.activity;
+        if (activity == null) return;
+        com.termux.ui.platform.ExternalStorageAccess.ensure(activity, () -> chooseReady(configuration, backup));
+    }
+
+    private void chooseReady(Game configuration, boolean backup) {
         try {
             if (backup) {
                 String name = "cdrive-" + configuration.getName().replaceAll("[^A-Za-z0-9._-]", "_") + "-"

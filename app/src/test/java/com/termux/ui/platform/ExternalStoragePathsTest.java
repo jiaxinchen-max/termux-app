@@ -20,9 +20,15 @@ import org.robolectric.annotation.Config;
 import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(sdk = 28)
+@Config(sdk = 28, shadows = StorageTestOs.class)
 public class ExternalStoragePathsTest {
     private Context context() { return RuntimeEnvironment.getApplication(); }
+    @org.junit.Before public void authorizeStorageFixture() throws Exception {
+        org.robolectric.Shadows.shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(
+            android.Manifest.permission.READ_EXTERNAL_STORAGE, android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        SharedStorageSetup.prepare(context());
+        ExternalStorageAccess.complete(true);
+    }
     @Test public void pathsAreShallowAndComponentDefaultUsesPublicDownloads() {
         File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
         assertEquals(new File(downloads, "Termux/components"), ExternalStoragePaths.components());

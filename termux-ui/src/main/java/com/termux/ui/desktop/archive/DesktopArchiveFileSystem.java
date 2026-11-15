@@ -29,6 +29,8 @@ public interface DesktopArchiveFileSystem {
     }
     /** null only for ENOENT; other failures must be reported. */
     Stat lstat(File file) throws IOException;
+    /** null when the directory cannot be enumerated, matching File.listFiles(). */
+    default File[] listDirectory(File directory) throws IOException { return directory.listFiles(); }
     InputStream openRegular(File file, Stat expected) throws IOException;
     /** Creates the final target once; an existing path MUST fail without changing it. */
     ExclusiveOutput createExclusiveFile(File target) throws IOException;

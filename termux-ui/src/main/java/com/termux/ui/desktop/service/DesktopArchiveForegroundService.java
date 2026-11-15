@@ -39,6 +39,11 @@ public final class DesktopArchiveForegroundService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
+        if (com.termux.ui.platform.ExternalStorageAccess.deferServiceIfNeeded(this, intent)) {
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
+
         latestStartId = startId;
         String task = intent == null ? null : intent.getStringExtra("taskId");
         if (task == null) {

@@ -374,7 +374,8 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
                 pendingCustomId = row.custom.getId();
                 filePicker.launch(new String[]{"application/octet-stream", "application/x-xz", "application/x-tar", "application/zstd", "application/gzip"});
             } else if (action.getItemId() == 2) {
-                ComponentTaskConsoleDialog.show(this, ComponentTasks.install(this, row.descriptor.getId(), true));
+                com.termux.ui.platform.ExternalStorageAccess.ensure(this, () ->
+                    ComponentTaskConsoleDialog.show(this, ComponentTasks.install(this, row.descriptor.getId(), true)));
             } else install(row);
             return true;
         });
@@ -382,6 +383,10 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
     }
 
     private void uninstall(Row row) {
+        com.termux.ui.platform.ExternalStorageAccess.ensure(this, () -> uninstallReady(row));
+    }
+
+    private void uninstallReady(Row row) {
         Toast.makeText(this, R.string.component_actions_removing, Toast.LENGTH_SHORT).show();
         ComponentTasks.uninstall(this, row.id, new android.os.ResultReceiver(handler) {
             @Override protected void onReceiveResult(int result, Bundle data) {
@@ -401,6 +406,10 @@ public final class RuntimeComponentVersionsActivity extends AppUiActivity {
     }
 
     private void install(Row row) {
+        com.termux.ui.platform.ExternalStorageAccess.ensure(this, () -> installReady(row));
+    }
+
+    private void installReady(Row row) {
         try {
             String taskId;
             if (row.task != null && row.task.getState().shouldRecoverAutomatically()) taskId = row.task.getTaskId();

@@ -786,7 +786,7 @@ else
         gnome) container_packages="gjs mesa-utils-bin gnome-shell gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils"
             [ "$DESKTOP_COMPONENT_RENDERER" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm19 libdrm2"
             ;;
-        *) container_packages="kubuntu-settings-desktop python3 qt6-wayland mesa-utils-bin plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit polkitd libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2"
+        *) container_packages="kubuntu-settings-desktop python3 qt6-wayland mesa-utils-bin plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit appstream polkitd libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2"
            [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || container_packages="$container_packages libvulkan-dev mesa-vulkan-drivers" ;;
     esac
     container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
@@ -794,6 +794,9 @@ else
     for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
         cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "cannot stage container helper $helper"
     done
+    if [ "$DESKTOP_DE" = kwin_plasma ]; then
+        cp "$(dirname "$0")/desktop_container_discover_catalog.sh" "$PREFIX/tmp/desktop_container_discover_catalog.sh" || fail 'staging Discover catalog helper'
+    fi
     recommend_option=''
     { [ "$DESKTOP_DE" != gnome ] && [ "$DESKTOP_DE" != ubuntu_gnome ]; } || recommend_option=--no-install-recommends
     [ "$DESKTOP_DE" != ubuntu_gnome ] || recommend_option="--no-install-recommends --reinstall"
@@ -808,6 +811,10 @@ else
     # shellcheck disable=SC2086
     run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
         --statx-backend=proc-fdinfo $recommend_option $container_packages || fail "container apt install $DESKTOP_DE"
+    if [ "$DESKTOP_DE" = kwin_plasma ]; then
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_discover_catalog.sh \
+            --statx-backend=proc-fdinfo || fail 'preparing Discover application catalog'
+    fi
     # Idempotent and independent of the marker: a container created before this step still gets it.
     [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$PLASMA_EMULATOR" = 1 ] || [ "$DESKTOP_GUEST_GL_MODE" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
     [ "$DESKTOP_DE:$DESKTOP_COMPONENT_RENDERER" != gnome:zink ] || ensure_gnome_turnip_icd "$DESKTOP_PROOT_DISTRO"

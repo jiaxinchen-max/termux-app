@@ -5,6 +5,10 @@ import java.io.IOException;
 public final class DesktopArchiveException extends IOException {
     private final String code;
     public DesktopArchiveException(String code) { super(code); this.code = code; }
+    public DesktopArchiveException(String code, String relativePath) {
+        super(code + ": " + relativePath.replace("\n", "\\n").replace("\r", "\\r"));
+        this.code = code;
+    }
     public DesktopArchiveException(String code, Throwable cause) {
         super(code, cause); this.code = code;
     }

@@ -16,6 +16,7 @@ public final class ExternalStoragePaths {
         return new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Termux/backups");
     }
     public static File requireWritable(Context context, File directory) throws IOException {
+        ExternalStorageAccess.requirePermission(context);
         try {
             if ((directory.isDirectory() || directory.mkdirs()) && directory.canWrite()) {
                 File probe = File.createTempFile(".write-", ".tmp", directory);

@@ -24,6 +24,11 @@ public final class WineCDriveBackupService extends Service {
             .setOngoing(true).setProgress(0, 0, true).build());
     }
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
+        if (com.termux.ui.platform.ExternalStorageAccess.deferServiceIfNeeded(this, intent)) {
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
+
         latestStart = startId;
         String task = intent == null ? null : intent.getStringExtra("taskId");
         if (task == null) { if (pending == 0) stopSelf(startId); return START_NOT_STICKY; }

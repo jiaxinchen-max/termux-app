@@ -256,8 +256,9 @@ public final class DesktopArchiveEngine {
         } else state.copyEntry(entry,new ByteArrayInputStream(new byte[0]),null);
         tar.closeArchiveEntry();
         if (type==TarConstants.LF_DIR && !DesktopArchiveRuntimeExclusions.root(relative,state.metadata.getAppPackage())) {
-            File[] children=file.listFiles();
-            if (children==null) throw failure("archive_source_unreadable");
+            File[] children=fs.listDirectory(file);
+            if (children==null) throw new DesktopArchiveException("archive_source_unreadable",
+                relative.isEmpty() ? "." : relative);
             Arrays.sort(children,Comparator.comparing(File::getName));
             for (File child:children) writeTree(tar,anchor,child,
                 relative.isEmpty()?child.getName():relative+"/"+child.getName(),state,hardlinks);

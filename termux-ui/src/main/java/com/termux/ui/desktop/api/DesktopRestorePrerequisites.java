@@ -45,6 +45,7 @@ public final class DesktopRestorePrerequisites {
         public String getTaskId() { return taskId; }
         public File getLogFile() { return logFile; }
         public File getResultFile() { return resultFile; }
+        public File getRenderingFile() { return new File(logFile.getParentFile(), "rendering.env"); }
     }
 
     private final Context context;
@@ -100,6 +101,19 @@ public final class DesktopRestorePrerequisites {
     public Result ensure(DesktopDistro distro, String taskId, long timeoutMillis,
                          ProgressListener listener)
         throws IOException, LaunchHostException, InterruptedException {
+        return run(distro, taskId, timeoutMillis, listener, false);
+    }
+
+    /** Restores machine-local state only. This path never enters the package installer. */
+    public Result initializeRestored(DesktopDistro distro, String taskId, long timeoutMillis,
+                                     ProgressListener listener)
+        throws IOException, LaunchHostException, InterruptedException {
+        return run(distro, taskId, timeoutMillis, listener, true);
+    }
+
+    private Result run(DesktopDistro distro, String taskId, long timeoutMillis,
+                       ProgressListener listener, boolean restoring)
+        throws IOException, LaunchHostException, InterruptedException {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             throw new IllegalStateException("desktop_prerequisites_worker_required");
         }
@@ -127,9 +141,16 @@ public final class DesktopRestorePrerequisites {
             new LaunchScriptInstaller(context, paths).installDesktopScripts();
         write(spec, DesktopLaunchSpec.encode(distro, new File(directory, "pid").getPath(),
             new File(directory, "status").getPath(), log.getPath()), false);
-        write(wrapper, "#!/data/data/com.termux/files/usr/bin/sh\nexec "
-            + quote(scripts.rawInstall.getPath()) + " \"$1\" --operation=host-prerequisites "
-            + "--task-id=" + quote(taskId) + " --result-file=" + quote(result.getPath()) + "\n", true);
+        String operation = restoring ? "restore-initialize" : "host-prerequisites";
+        if (restoring) {
+            String initializer = new File(scripts.rawInstall.getParentFile(), "desktop_initialize.py").getPath();
+            write(wrapper, restoreWrapper(new File(context.getFilesDir(), "usr/bin/python3"),
+                initializer, log, result, taskId, distro), true);
+        } else {
+            write(wrapper, "#!/data/data/com.termux/files/usr/bin/sh\nexec "
+                + quote(scripts.rawInstall.getPath()) + " \"$1\" --operation=host-prerequisites "
+                + "--task-id=" + quote(taskId) + " --result-file=" + quote(result.getPath()) + "\n", true);
+        }
         LocalGamesHost host = LocalGames.requireHost(context);
         write(new File(directory, "request.properties"), "taskId=" + taskId
             + "\nsubmittedAtMillis=" + System.currentTimeMillis() + "\n", false);
@@ -138,34 +159,58 @@ public final class DesktopRestorePrerequisites {
         long started = SystemClock.elapsedRealtime();
         TerminalSession terminal = null;
         String previousLog = null;
-        while (true) {
-            if (Thread.currentThread().isInterrupted()) throw new InterruptedException();
-            if (terminal == null) terminal = host.getRuntimeSetupTerminal(taskId);
-            String tail = DesktopEnvironment.tail(log, 16384);
-            if (listener != null && !tail.equals(previousLog)) {
-                listener.onProgress(taskId, tail);
-                previousLog = tail;
+        try {
+            while (true) {
+                if (Thread.currentThread().isInterrupted()) throw new InterruptedException();
+                if (terminal == null) terminal = host.getRuntimeSetupTerminal(taskId);
+                String tail = DesktopEnvironment.tail(log, 16384);
+                if (listener != null && !tail.equals(previousLog)) {
+                    listener.onProgress(taskId, tail);
+                    previousLog = tail;
+                }
+                if (terminal != null && !terminal.isRunning() && terminal.getExitStatus() != 0) {
+                    throw new IOException("desktop_prerequisites_terminal_exit:" + terminal.getExitStatus()
+                        + ":" + log.getPath());
+                }
+                if (result.exists()) {
+                    validateResult(result, taskId, operation);
+                    // The atomic EXIT result also covers a task that finishes before its terminal
+                    // registry entry can be observed. A captured terminal must independently exit 0.
+                    if (terminal == null || !terminal.isRunning()) return new Result(taskId, log, result);
+                } else if (terminal != null && !terminal.isRunning()) {
+                    throw new IOException("desktop_prerequisites_result_missing:" + log.getPath());
+                }
+                if (SystemClock.elapsedRealtime() - started >= timeoutMillis) {
+                    throw new IOException("desktop_prerequisites_timeout:" + taskId + ":" + log.getPath());
+                }
+                Thread.sleep(200);
             }
-            if (terminal != null && !terminal.isRunning() && terminal.getExitStatus() != 0) {
-                throw new IOException("desktop_prerequisites_terminal_exit:" + terminal.getExitStatus()
-                    + ":" + log.getPath());
+        } catch (IOException | InterruptedException | RuntimeException error) {
+            if (restoring) {
+                try { host.forceStopRuntimeProcesses(java.util.Collections.singletonList(directory.getPath())); }
+                catch (Exception stop) { error.addSuppressed(stop); }
             }
-            if (result.exists()) {
-                validateResult(result, taskId);
-                // The atomic EXIT result also covers a task that finishes before its terminal
-                // registry entry can be observed. A captured terminal must independently exit 0.
-                if (terminal == null || !terminal.isRunning()) return new Result(taskId, log, result);
-            } else if (terminal != null && !terminal.isRunning()) {
-                throw new IOException("desktop_prerequisites_result_missing:" + log.getPath());
-            }
-            if (SystemClock.elapsedRealtime() - started >= timeoutMillis) {
-                throw new IOException("desktop_prerequisites_timeout:" + taskId + ":" + log.getPath());
-            }
-            Thread.sleep(200);
+            throw error;
         }
     }
 
-    private static void validateResult(File result, String taskId) throws IOException {
+    static String restoreWrapper(File python, String initializer, File log, File result,
+                                 String taskId, DesktopDistro distro) {
+        String command = quote(python.getPath())
+            + " -I -B " + quote(initializer) + " restore --de " + quote(distro.getDe().getStorageValue())
+            + " --run-mode proot --alias " + quote(distro.getProotDistro())
+            + " --host-gl-mode " + quote(distro.getHostGlMode().getStorageValue())
+            + " --guest-gl-mode " + quote(distro.getGuestGlMode().getStorageValue())
+            + " --usb-storage off --rendering-output " + quote(new File(result.getParentFile(), "rendering.env").getPath());
+        return "#!/data/data/com.termux/files/usr/bin/sh\n"
+            + command + " > " + quote(log.getPath()) + " 2>&1\ncode=$?\n"
+            + "temporary=" + quote(result.getPath()) + ".tmp.$$\n"
+            + "(set -C; printf 'schemaVersion=1\ntaskId=%s\noperation=restore-initialize\nstate=%s\nexitCode=%s\n' "
+            + quote(taskId) + " \"$([ \"$code\" -eq 0 ] && echo succeeded || echo failed)\" \"$code\" > \"$temporary\")"
+            + " && mv \"$temporary\" " + quote(result.getPath()) + " || exit 74\nexit \"$code\"\n";
+    }
+
+    static void validateResult(File result, String taskId, String operation) throws IOException {
         if (!result.isFile() || result.length() > 4096) {
             throw new IOException("desktop_prerequisites_result_invalid");
         }
@@ -177,7 +222,7 @@ public final class DesktopRestorePrerequisites {
         }
         if (properties.size() != 5 || !"1".equals(properties.getProperty("schemaVersion"))
             || !taskId.equals(properties.getProperty("taskId"))
-            || !"host-prerequisites".equals(properties.getProperty("operation"))) {
+            || !operation.equals(properties.getProperty("operation"))) {
             throw new IOException("desktop_prerequisites_result_invalid");
         }
         if (!"succeeded".equals(properties.getProperty("state"))

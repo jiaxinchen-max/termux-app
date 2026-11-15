@@ -50,6 +50,10 @@ elif cmd == 'proot-distro':
     # before parsing help. No host prerequisite path may enter it.
     sys.exit(91)
 elif cmd == 'python3':
+    # The host preflight also derives trusted launch scripts; its transformation is
+    # exercised by test_desktop_restore_local.py, not this package-manager fixture.
+    if len(args) == 4 and args[:2] == ['-I','-B'] and pathlib.Path(args[2]).name == 'desktop_initialize.py' and args[3] == 'prepare-plasma':
+        sys.exit(0)
     import importlib.metadata
     assert len(args) == 5 and args[:3] == ['-I','-B','-c'], args
     assert os.environ['PREFIX'] == str(base/'usr')

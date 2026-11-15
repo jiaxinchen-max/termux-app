@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="storage_access_title">访问共享存储</string>
+    <string name="storage_access_waiting">点击授予存储访问权限，继续等待中的操作。</string>
+    <string name="storage_link_conflict">无法创建存储链接，此位置已有文件或目录：%1$s。已有文件已保留，请移动或重命名后重试。</string>
+</resources>

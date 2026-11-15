@@ -250,7 +250,7 @@ public final class DesktopArchiveTasks {
                 X11SessionOverrides settings = new X11SessionOverrides(context);
                 OrientationPreference orientation = settings.getOrientation(distro.getId());
                 DesktopArchiveMetadata metadata = DesktopArchiveMetadata.create(context.getPackageName(),
-                    "aarch64", codename(container), distro, settings.getTouchMode(distro.getId()),
+                    "aarch64", codename(container, distro), distro, settings.getTouchMode(distro.getId()),
                     orientation == null ? null : orientation.getStorageValue());
                 update(job, "desktop_archive_exporting", "", progress);
                 job.setProperty("cleanupPending", "true");
@@ -280,6 +280,18 @@ public final class DesktopArchiveTasks {
                 if (!new File(imported.getContainerDirectory(), ".desktop-de-"
                     + imported.getDesktop().getDe().getStorageValue()).isFile()) {
                     throw new IOException("desktop_archive_install_marker_missing");
+                }
+                update(job, "desktop_archive_initializing", "", progress);
+                DesktopRestorePrerequisites.Result initialized = new DesktopRestorePrerequisites(context)
+                    .initializeRestored(imported.getDesktop(), "initialize-" + job.getProperty("taskId"),
+                        5 * 60 * 1000L,
+                        (id, tail) -> update(job, "desktop_archive_initializing", tail, progress));
+                if (imported.getDesktop().getDe() == com.termux.ui.desktop.domain.DesktopDe.KWIN_PLASMA) {
+                    publishRendering(job, initialized.getRenderingFile(), imported.getDesktop());
+                }
+                if (!new com.termux.ui.desktop.runtime.DesktopEnvironment(context.getFilesDir())
+                        .isInstalled(imported.getDesktop())) {
+                    throw new IOException("desktop_archive_restored_environment_incomplete");
                 }
                 // Persist publication phase before creating the inventory record.
                 job.setProperty("published", "true");
@@ -322,6 +334,27 @@ public final class DesktopArchiveTasks {
                 worker = null;
                 DesktopOperationGate.releaseArchive();
             }
+        }
+    }
+
+    private void publishRendering(Properties job, File temporary, DesktopDistro desktop) throws IOException {
+        File directory = new File(context.getFilesDir(), "usr/var/lib/termux-desktop/rendering");
+        if (!directory.isDirectory() && !directory.mkdirs())
+            throw new IOException("desktop_archive_rendering_directory_failed");
+        String name = desktop.getProotDistro() + "." + desktop.getHostGlMode().getStorageValue()
+            + "." + desktop.getGuestGlMode().getStorageValue() + ".env";
+        try {
+            android.system.StructStat stat = Os.lstat(temporary.getPath());
+            if (!OsConstants.S_ISREG(stat.st_mode) || stat.st_size > 4096)
+                throw new IOException("desktop_archive_rendering_invalid");
+            job.setProperty("renderingName", name);
+            job.setProperty("renderingDevice", Long.toString(stat.st_dev));
+            job.setProperty("renderingInode", Long.toString(stat.st_ino));
+            job.setProperty("renderingOwned", "true");
+            save(job);
+            com.termux.shared.file.AtomicFilePublisher.moveNoReplace(temporary, new File(directory, name));
+        } catch (android.system.ErrnoException error) {
+            throw new IOException("desktop_archive_rendering_invalid", error);
         }
     }
 
@@ -373,13 +406,14 @@ public final class DesktopArchiveTasks {
     }
 
     private void requireSharedArchive(File archive) throws IOException {
+        com.termux.ui.platform.ExternalStorageAccess.requirePermission(context);
         if (!archive.getName().endsWith(".desktop.tar.gz")
             || !RuntimeBackupSharedStorage.isWithin(Environment.getExternalStorageDirectory(), archive)) {
             throw new IOException("desktop_archive_shared_path_required");
         }
     }
 
-    private String codename(File container) throws IOException {
+    private String codename(File container, DesktopDistro distro) throws IOException {
         File rootfs = new File(container, "rootfs");
         File file = new File(rootfs, "etc/os-release");
         try {
@@ -404,14 +438,8 @@ public final class DesktopArchiveTasks {
         File canonical = file.getCanonicalFile();
         if (!RuntimeBackupSharedStorage.isWithin(rootfs, canonical)
             || canonical.length() > 16384) throw new IOException("desktop_archive_os_release_invalid");
-        String text = readSmallText(canonical);
-        String id = null, code = null;
-        for (String line : text.split("\n")) {
-            if (line.startsWith("ID=")) id = line.substring(3).replace("\"", "").replace("'", "");
-            if (line.startsWith("VERSION_CODENAME=")) code = line.substring(17).replace("\"", "").replace("'", "");
-        }
-        if (!"debian".equals(id) || code == null) throw new IOException("desktop_archive_distribution_unsupported");
-        return code;
+        return com.termux.ui.desktop.archive.DesktopArchiveDistribution.codename(
+            distro.getDe(), readSmallText(canonical));
     }
 
     private static String readSmallText(File file) throws IOException {
@@ -434,12 +462,23 @@ public final class DesktopArchiveTasks {
             throw new IOException("desktop_archive_journal_invalid");
         }
         if ("import".equals(job.getProperty("operation"))) {
+            // A timed-out/cancelled initializer must stop before its target is reclaimed.
+            DesktopRestorePrerequisites.requireIdle(context);
             IOException failure = null;
+            if ("true".equals(job.getProperty("renderingOwned"))) {
+                String name = job.getProperty("renderingName", "");
+                if (!name.matches(java.util.regex.Pattern.quote(alias)
+                        + "\\.(system|zink|llvmpipe)\\.(zink|llvmpipe)\\.env"))
+                    throw new IOException("desktop_archive_journal_invalid");
+                try { deleteIfOwned(new File(context.getFilesDir(),
+                    "usr/var/lib/termux-desktop/rendering/" + name), job, "rendering", false); }
+                catch (IOException error) { failure = error; }
+            }
             File stage = new File(containers, ".desktop-import-" + alias);
             File target = new File(containers, alias);
             File inventory = new File(paths.getDesktopDistrosDirectory(), id + ".properties");
             try { deleteIfOwned(stage, job, "import", true); }
-            catch (IOException error) { failure = error; }
+            catch (IOException error) { if (failure == null) failure = error; else failure.addSuppressed(error); }
             try {
                 if ("true".equals(job.getProperty("inventoryOwned"))) {
                     String temporary = job.getProperty("inventoryTemporary", "");

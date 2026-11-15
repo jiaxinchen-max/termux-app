@@ -119,6 +119,29 @@ public final class GameLaunchActivity extends AppUiActivity {
     }
 
     private void createOrReuseTask() {
+        ioExecutor.execute(() -> {
+            try {
+                Optional<Game> game = gameRepository.find(gameId);
+                boolean shared = false;
+                if (game.isPresent()) {
+                    android.net.Uri uri = android.net.Uri.parse(game.get().getRootUri());
+                    if ("file".equals(uri.getScheme()) && uri.getPath() != null) {
+                        java.io.File root = new java.io.File(uri.getPath()).getCanonicalFile();
+                        java.io.File privateRoot = getFilesDir().getCanonicalFile();
+                        shared = !root.equals(privateRoot) && !root.getPath().startsWith(privateRoot.getPath() + "/");
+                    } else shared = "com.android.externalstorage.documents".equals(uri.getAuthority());
+                }
+                boolean needsStorage = shared;
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    if (needsStorage) com.termux.ui.platform.ExternalStorageAccess.ensure(this, this::createOrReuseTaskReady);
+                    else createOrReuseTaskReady();
+                });
+            } catch (IOException | RuntimeException error) { showFailure("game_root_not_posix_accessible"); }
+        });
+    }
+
+    private void createOrReuseTaskReady() {
         setLoading(true);
         ioExecutor.execute(() -> {
             try {

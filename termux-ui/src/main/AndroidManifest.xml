@@ -7,6 +7,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application>
+        <activity
+            android:name="com.termux.ui.platform.ExternalStoragePermissionActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <provider
             android:name="com.termux.ui.files.BrowserDocumentsProvider"
             android:authorities="${applicationId}.game-browser.documents"

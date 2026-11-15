@@ -106,6 +106,8 @@ public final class BrowserDocumentsProvider extends DocumentsProvider {
         if (id == null || !id.startsWith("/")) throw new IOException("Invalid document id");
         File file = new File(id);
         File canonical = file.getCanonicalFile();
+        if (BrowserFileOperations.contains(Environment.getExternalStorageDirectory().getCanonicalFile(), canonical))
+            com.termux.ui.platform.ExternalStorageAccess.requirePermission(context);
         // Grants identify this path. A replaced link must not silently redirect that grant.
         if (!id.equals(canonical.getPath())) throw new IOException("Non-canonical document");
         File[] roots = { context.getFilesDir(), new GameStoragePaths(context.getFilesDir()).getImportedGamesDirectory(),

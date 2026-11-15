@@ -637,7 +637,8 @@
     <string name="desktop_archive_running">正在处理容器归档</string>
     <string name="desktop_archive_exporting">正在导出容器…</string>
     <string name="desktop_archive_validating">正在检查容器归档…</string>
-    <string name="desktop_archive_installing_prerequisites">正在安装所需宿主组件…</string>
+    <string name="desktop_archive_installing_prerequisites">正在检查所需宿主组件…</string>
+    <string name="desktop_archive_initializing">正在准备已还原桌面的本地状态…</string>
     <string name="desktop_archive_importing">正在导入容器…</string>
     <string name="desktop_archive_succeeded">容器归档已完成</string>
     <string name="desktop_archive_failed">容器归档失败</string>

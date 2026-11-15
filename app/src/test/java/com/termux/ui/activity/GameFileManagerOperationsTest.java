@@ -258,12 +258,31 @@ public class GameFileManagerOperationsTest {
         }
     }
 
-    @Test public void homeHidesCreateAndAllThreeRootsAllowCreatingChildren() throws Exception {
+    @Test @Config(shadows = com.termux.ui.platform.StorageTestOs.class)
+    public void homeHidesCreateAndAllThreeRootsAllowCreatingChildren() throws Exception {
         try(ActivityController<GameFileManagerActivity> c=Robolectric.buildActivity(GameFileManagerActivity.class).setup().visible()) {
             GameFileManagerActivity a=c.get();assertFalse(toolbar(a).getMenu().findItem(R.id.browser_new).isVisible());
             assertFalse(toolbar(a).getMenu().findItem(R.id.browser_new_file).isEnabled());
             for(File root:new File[]{a.getFilesDir(),new GameStoragePaths(a.getFilesDir()).getImportedGamesDirectory(),android.os.Environment.getExternalStorageDirectory()}) {
-                root.mkdirs();browse(a,root);assertTrue(toolbar(a).getMenu().findItem(R.id.browser_new).isVisible());
+                root.mkdirs();
+                boolean shared = root.equals(android.os.Environment.getExternalStorageDirectory());
+                if (shared) Shadows.shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(
+                    android.Manifest.permission.READ_EXTERNAL_STORAGE, android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                browse(a,root);
+                if (shared) {
+                    Intent approval = Shadows.shadowOf(a).getNextStartedActivity();
+                    assertNotNull(approval);
+                    try (ActivityController<com.termux.ui.platform.ExternalStoragePermissionActivity> broker =
+                            Robolectric.buildActivity(com.termux.ui.platform.ExternalStoragePermissionActivity.class, approval).setup()) {
+                        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                        while (!broker.get().isFinishing() && System.nanoTime() < deadline) {
+                            Shadows.shadowOf(Looper.getMainLooper()).idle();
+                            Thread.sleep(10);
+                        }
+                        assertTrue(broker.get().isFinishing());
+                    }
+                }
+                assertTrue(toolbar(a).getMenu().findItem(R.id.browser_new).isVisible());
                 submitName(createDialog(a,false),"created-child");flush(a);
                 assertTrue(new File(root,"created-child").isFile());
             }

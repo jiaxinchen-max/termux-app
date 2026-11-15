@@ -75,6 +75,11 @@ public final class RootfsBackupForegroundService extends Service {
 
     @Override
     public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
+        if (com.termux.ui.platform.ExternalStorageAccess.deferServiceIfNeeded(this, intent)) {
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
+
         receivedStart = true;
         if (intent == null || intent.getAction() == null) return START_STICKY;
         String action = intent.getAction();

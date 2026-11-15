@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="storage_access_title">Shared storage access</string>
+    <string name="storage_access_waiting">Tap to grant storage access and continue the waiting operation.</string>
+    <string name="storage_link_conflict">Cannot create a storage link because this file or folder already exists: %1$s. Your files have been preserved. Move or rename it, then retry.</string>
+</resources>

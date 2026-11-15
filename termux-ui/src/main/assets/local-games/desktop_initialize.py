@@ -3,6 +3,9 @@
 """Installation-only desktop validation. Never called by ordinary session launchers."""
 import argparse
 import hashlib
+import ipaddress
+import posixpath
+import stat
 import json
 import os
 from pathlib import Path
@@ -95,14 +98,66 @@ def plasma_icd(root, guest, software):
     return '/' + str(path.relative_to(root)) if guest else str(path)
 
 
+def restore_network(prefix, root):
+    """Recreate resolver state lost with /run; never write through an archived symlink."""
+    root = root.resolve(strict=True)
+    directory = root / 'etc'
+    if directory.is_symlink() or not directory.is_dir():
+        raise RuntimeError('Restored resolver parent must be a real etc directory')
+    target = directory / 'resolv.conf'
+
+    def usable(text):
+        addresses = []
+        for line in text.splitlines():
+            fields = line.split()
+            if len(fields) >= 2 and fields[0] == 'nameserver':
+                address = ipaddress.ip_address(fields[1])
+                if not address.is_loopback and not address.is_unspecified:
+                    addresses.append(str(address))
+        return addresses
+
+    if target.is_symlink():
+        link = os.readlink(target)
+        destination = posixpath.normpath(posixpath.join('/etc', link))
+        if not destination.startswith('/run/'):
+            raise RuntimeError('Unsupported restored resolver symlink: ' + link)
+    elif target.exists():
+        info = target.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_size > 16384:
+            raise RuntimeError('Invalid restored resolver file')
+        if usable(target.read_text()):
+            print('Restored custom DNS configuration preserved', flush=True)
+            return
+    host = prefix / 'etc/resolv.conf'
+    if host.stat().st_size > 16384:
+        raise RuntimeError('Host DNS configuration is too large')
+    addresses = usable(host.read_text())
+    if not addresses:
+        raise RuntimeError('No usable host DNS configuration')
+    temporary = target.with_name('resolv.conf.restore.' + str(os.getpid()))
+    created = False
+    try:
+        with temporary.open('x') as output:
+            created = True
+            output.write(''.join('nameserver ' + address + '\n' for address in addresses))
+            output.flush()
+            os.fsync(output.fileno())
+        temporary.chmod(0o644)
+        temporary.replace(target)
+    finally:
+        if created:
+            temporary.unlink(missing_ok=True)
+    print('Restored runtime DNS from current host; no packages changed', flush=True)
+
+
 def plasma_rendering(args, root, guest, env):
     """Verify both layers, then publish only this pair's trusted startup environment."""
     if (args.host_gl_mode not in ('system', 'zink', 'llvmpipe')
             or args.guest_gl_mode not in ('zink', 'llvmpipe')
             or (args.host_gl_mode == 'llvmpipe' and args.guest_gl_mode != 'llvmpipe')):
         raise RuntimeError('Unsupported Plasma renderer pair')
-    destination = args.prefix / 'var/lib/termux-desktop/rendering' / (
-        args.alias + '.' + args.host_gl_mode + '.' + args.guest_gl_mode + '.env')
+    destination = getattr(args, 'rendering_output', None) or (args.prefix / 'var/lib/termux-desktop/rendering' / (
+        args.alias + '.' + args.host_gl_mode + '.' + args.guest_gl_mode + '.env'))
     destination.unlink(missing_ok=True)
     software = is_emulator()
     values = {'DESKTOP_PLASMA_RENDERING': '1',
@@ -247,6 +302,8 @@ def initialize(args):
         if tuple(release.get(k, '').strip('"\'') for k in ('ID', 'VERSION_CODENAME')) != wanted:
             raise RuntimeError('Desktop rootfs must be ' + ':'.join(wanted))
         executable(prefix / 'bin/proot-distro')
+        if getattr(args, 'command', None) == 'restore':
+            restore_network(prefix, root)
         guest = [str(prefix / 'bin/proot-distro'), 'login', args.alias, '--', 'env']
     for name in ('python3', 'pulseaudio', 'pactl'):
         executable(prefix / 'bin' / name)
@@ -343,21 +400,28 @@ def main():
     sub = parser.add_subparsers(dest='command', required=True)
     prepare = sub.add_parser('prepare-plasma', help='Prepare host scripts without modifying an imported rootfs')
     prepare.add_argument('--prefix', type=Path, default=Path(os.environ['PREFIX']))
-    install = sub.add_parser('initialize')
-    install.add_argument('--prefix', type=Path, default=Path(os.environ['PREFIX']))
-    install.add_argument('--de', choices=('xfce4', 'gnome', 'ubuntu_gnome', 'hyprland', 'kwin_plasma'), required=True)
-    install.add_argument('--run-mode', choices=('native', 'proot'), required=True)
-    install.add_argument('--alias')
-    install.add_argument('--runtime-id')
-    install.add_argument('--theme-id')
-    install.add_argument('--host-gl-mode', choices=('system', 'zink', 'llvmpipe'), required=True)
-    install.add_argument('--guest-gl-mode', choices=('none', 'default', 'zink', 'llvmpipe'), required=True)
-    install.add_argument('--usb-storage', choices=('off', 'read-only'), required=True)
+    for command in ('initialize', 'restore'):
+        install = sub.add_parser(command)
+        install.add_argument('--prefix', type=Path, default=Path(os.environ['PREFIX']))
+        install.add_argument('--de', choices=('xfce4', 'gnome', 'ubuntu_gnome', 'hyprland', 'kwin_plasma'), required=True)
+        install.add_argument('--run-mode', choices=('native', 'proot'), required=True)
+        install.add_argument('--alias')
+        install.add_argument('--runtime-id')
+        install.add_argument('--theme-id')
+        install.add_argument('--host-gl-mode', choices=('system', 'zink', 'llvmpipe'), required=True)
+        install.add_argument('--guest-gl-mode', choices=('none', 'default', 'zink', 'llvmpipe'), required=True)
+        install.add_argument('--usb-storage', choices=('off', 'read-only'), required=True)
+        if command == 'restore':
+            install.add_argument('--rendering-output', type=Path, required=True)
     args = parser.parse_args()
     if args.command == 'prepare-plasma':
         prepare_plasma(args.prefix)
     else:
+        if args.command == 'restore' and (args.run_mode != 'proot' or args.de not in ('kwin_plasma', 'xfce4') or args.usb_storage != 'off'):
+            parser.error('Restore requires a supported container archive with USB off')
         initialize(args)
+        if args.command == 'restore':
+            print('Restored desktop initialized locally; no package installation or download', flush=True)
 
 
 if __name__ == '__main__':

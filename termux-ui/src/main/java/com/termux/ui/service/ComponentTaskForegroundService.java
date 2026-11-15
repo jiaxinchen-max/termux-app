@@ -103,6 +103,11 @@ public final class ComponentTaskForegroundService extends Service {
 
     @Override
     public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
+        if (com.termux.ui.platform.ExternalStorageAccess.deferServiceIfNeeded(this, intent)) {
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
+
         latestStartId = startId;
         // A new command can reach this instance after its previous idle transition.
         startForeground(NOTIFICATION_ID, buildPreparingNotification());
@@ -618,8 +623,10 @@ public final class ComponentTaskForegroundService extends Service {
         Intent intent = ComponentTasks.createCommandIntent(this, action, taskId);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
-        PendingIntent pendingIntent = PendingIntent.getService(this,
-            (action + taskId).hashCode(), intent, flags);
+        PendingIntent pendingIntent = (ComponentTasks.ACTION_RESUME.equals(action) || ComponentTasks.ACTION_RETRY.equals(action))
+            ? PendingIntent.getActivity(this, (action + taskId).hashCode(),
+                com.termux.ui.platform.ExternalStorageAccess.serviceApprovalIntent(this, intent), flags)
+            : PendingIntent.getService(this, (action + taskId).hashCode(), intent, flags);
         return new Notification.Action.Builder(R.drawable.local_games_ic_component,
             getString(title), pendingIntent).build();
     }

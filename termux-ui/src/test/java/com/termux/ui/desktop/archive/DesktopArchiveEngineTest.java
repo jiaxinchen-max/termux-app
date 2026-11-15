@@ -114,6 +114,54 @@ public class DesktopArchiveEngineTest {
         File file=archive();DesktopArchiveImportResult imported=restore(file,inspect(file));
         for(String p:paths)assertEquals(p,0,((Number)Files.getAttribute(imported.getContainerDirectory().toPath().resolve(p),"unix:mode")).intValue()&07777);
     }
+    @Test public void snapdVoidIsNeverEnumeratedAndRoundTripsWithOriginalMode()throws Exception {
+        String placeholder="rootfs/var/lib/snapd/void";
+        write(placeholder+"/mounted-runtime-data","not persistent");
+        write("rootfs/var/lib/snapd/state.json","persistent-snap-state");
+        Files.setAttribute(source.resolve(placeholder),"unix:mode",0111);
+        NioFs restricted=new NioFs(){@Override public File[] listDirectory(File directory)throws IOException {
+            if(directory.toPath().equals(source.resolve(placeholder)))
+                throw new AssertionError("snapd empty runtime target must not be enumerated");
+            return super.listDirectory(directory);
+        }};
+        File file=temporary.resolve("snapd.tar.gz").toFile();
+        new DesktopArchiveEngine(restricted,limits()).exportArchive(source.toFile(),file,metadata,
+            DesktopArchiveExportMode.DIRECT_EXCLUSIVE,DesktopArchiveControl.NONE);
+        DesktopArchiveImportResult imported=restore(file,inspect(file));
+        Path root=imported.getContainerDirectory().toPath();
+        assertEquals(0111,((Number)Files.getAttribute(root.resolve(placeholder),"unix:mode")).intValue()&07777);
+        assertEquals(0111,((Number)Files.getAttribute(source.resolve(placeholder),"unix:mode")).intValue()&07777);
+        // Inspect the tar directly: the test also runs as root, where mode 0111 is still listable.
+        try(TarArchiveInputStream tar=new TarArchiveInputStream(new GZIPInputStream(new FileInputStream(file)))) {
+            TarArchiveEntry entry;
+            while((entry=tar.getNextTarEntry())!=null)
+                assertFalse(entry.getName(),entry.getName().startsWith("payload/container/"+placeholder+"/") && !entry.isDirectory());
+        }
+        Files.setAttribute(root.resolve(placeholder),"unix:mode",0700);
+        assertEquals(0,root.resolve(placeholder).toFile().list().length);
+        assertEquals("persistent-snap-state",new String(Files.readAllBytes(root.resolve("rootfs/var/lib/snapd/state.json")),"UTF-8"));
+    }
+    @Test public void unrelatedUnreadableDirectoryFailsWithPathAndRemovesPartialOutput()throws Exception {
+        write("rootfs/root/private-data/file","must never silently disappear");
+        NioFs restricted=new NioFs(){@Override public File[] listDirectory(File directory)throws IOException {
+            if(directory.toPath().equals(source.resolve("rootfs/root/private-data")))return null;
+            return super.listDirectory(directory);
+        }};
+        File file=temporary.resolve("unreadable.tar.gz").toFile();
+        IOException failure=rejected(()->new DesktopArchiveEngine(restricted,limits()).exportArchive(
+            source.toFile(),file,metadata,DesktopArchiveExportMode.DIRECT_EXCLUSIVE,DesktopArchiveControl.NONE));
+        assertEquals("archive_source_unreadable",((DesktopArchiveException)failure).getCode());
+        assertEquals("archive_source_unreadable: rootfs/root/private-data",failure.getMessage());
+        assertFalse(file.exists());
+        assertTrue(Files.exists(source.resolve("rootfs/root/private-data/file")));
+    }
+    @Test public void snapdVoidContentsCannotBeSmuggledIntoImportedArchive()throws Exception {
+        File file=evil(Arrays.asList(dir("payload/container"),dir("payload/container/rootfs"),
+            dir("payload/container/rootfs/var"),dir("payload/container/rootfs/var/lib"),
+            dir("payload/container/rootfs/var/lib/snapd"),dir("payload/container/rootfs/var/lib/snapd/void"),
+            new TarArchiveEntry("payload/container/rootfs/var/lib/snapd/void/injected")));
+        assertEquals("archive_excluded_path",((DesktopArchiveException)rejected(()->inspect(file))).getCode());
+    }
     @Test public void unknownArchitecturePackageAndModesAreRejected()throws Exception {
         File file=archive();rejected(()->engine.readMetadata(file,"com.other","aarch64"));rejected(()->engine.readMetadata(file,"com.termux","x86_64"));
         try{DesktopArchiveMetadata.create("com.termux","aarch64","trixie",metadata.getDesktop().withRenderers(DesktopGlMode.AUTO,DesktopGuestGlMode.UNRESOLVED),null,null);fail();}
