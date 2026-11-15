@@ -61,5 +61,38 @@ class AptSources(unittest.TestCase):
         self.configure()
         self.assertFalse(Path(str(path) + '.desktop-http.bak').exists())
 
+    def bootstrap(self, ca_source):
+        return subprocess.run(['sh', '-eu', '-c',
+            '. "$1"; bootstrap_ubuntu_ca_certificates "$2" "$3"',
+            'test', str(HELPER), str(self.root), str(ca_source)], capture_output=True)
+
+    def test_fresh_ubuntu_seeds_host_trust_and_preserves_existing_bundle(self):
+        source = self.root / 'host-ca.pem'
+        source.write_bytes(Path('/etc/ssl/certs/ca-certificates.crt').read_bytes())
+        target = self.root / 'etc/ssl/certs/ca-certificates.crt'
+        result = self.bootstrap(source)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(source.read_bytes(), target.read_bytes())
+        self.assertEqual(0o644, target.stat().st_mode & 0o777)
+        source.write_text('changed host bundle')
+        original = target.read_bytes()
+        self.assertEqual(0, self.bootstrap(source).returncode)
+        self.assertEqual(original, target.read_bytes())
+        self.assertFalse(list(self.root.rglob('.desktop-ca.*')))
+
+    def test_missing_or_invalid_host_trust_fails_without_creating_guest_bundle(self):
+        source = self.root / 'host-ca.pem'
+        for content in (None, '', 'invalid certificate'):
+            if content is not None:
+                source.write_text(content)
+            result = self.bootstrap(source)
+            self.assertEqual(66, result.returncode, result.stderr)
+            self.assertFalse((self.root / 'etc/ssl/certs/ca-certificates.crt').exists())
+
+    def test_non_ubuntu_does_not_require_or_copy_host_trust(self):
+        (self.root / 'etc/os-release').write_text('ID=debian\n')
+        self.assertEqual(0, self.bootstrap(self.root / 'absent').returncode)
+        self.assertFalse((self.root / 'etc/ssl').exists())
+
 if __name__ == '__main__':
     unittest.main()

@@ -39,14 +39,26 @@ APT_SOURCES_SETUP="$(dirname "$0")/desktop_container_apt_sources.sh"
 [ -r "$APT_SOURCES_SETUP" ] || { echo "ERROR: container apt sources setup asset is missing" >&2; exit 66; }
 . "$APT_SOURCES_SETUP"
 configure_ubuntu_apt_sources || exit "$?"
+APT_CA_OPTION=''
+if [ "${apt_distro:-}" = ubuntu ]; then
+    set -- ca-certificates "$@"
+    # Before openssl/ca-certificates are installed the default OpenSSL cert.pem path
+    # does not exist, even after seeding the bundle. Use that bundle for this invocation.
+    if [ ! -s /usr/lib/ssl/cert.pem ]; then
+        [ -s /etc/ssl/certs/ca-certificates.crt ] || {
+            echo 'ERROR: initial Ubuntu HTTPS trust has not been prepared' >&2; exit 66;
+        }
+        APT_CA_OPTION=-oAcquire::https::CaInfo=/etc/ssl/certs/ca-certificates.crt
+    fi
+fi
 
-run_proot_config proc-fdinfo apt-get update
+run_proot_config proc-fdinfo apt-get update --error-on=any $APT_CA_OPTION
 code=$?
 [ "$code" -eq 0 ] || exit "$code"
 if [ "$NO_INSTALL_RECOMMENDS" -eq 1 ]; then
-    run_proot_config proc-fdinfo apt-get install -y --no-remove $REINSTALL_OPTION $HELD_OPTION --no-install-recommends -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef "$@"
+    run_proot_config proc-fdinfo apt-get install -y --no-remove $REINSTALL_OPTION $HELD_OPTION $APT_CA_OPTION --no-install-recommends -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef "$@"
 else
-    run_proot_config proc-fdinfo apt-get install -y --no-remove $REINSTALL_OPTION $HELD_OPTION -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef "$@"
+    run_proot_config proc-fdinfo apt-get install -y --no-remove $REINSTALL_OPTION $HELD_OPTION $APT_CA_OPTION -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef "$@"
 fi
 code=$?
 if [ "$code" -ne 0 ]; then

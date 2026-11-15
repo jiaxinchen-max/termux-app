@@ -14,3 +14,6 @@
 
 ## 环境限制
 缺少 openspec CLI、Harness bootstrap 与 strict-run 脚本，使用仓库现有规范格式手工记录；实际验证与不可执行门禁分别记录，不声称严格流程通过。
+
+## 已批准 HTTPS 安装任务的新装回归修正
+全新 OCI Ubuntu 不含 ca-certificates，证书 bundle 也不存在；之前只在已有容器验证，遗漏首次 TLS 信任初始化。宿主系统 CA 通过只读绑定后，实际 apt-helper 成功下载同一个 HTTPS InRelease，证实缺失信任链是本次根因。继续已批准任务 2：仅在 Ubuntu 缺少非空 CA bundle 时，以宿主已有系统 CA 文件在 guest rootfs 中原子初始化，保留已有信任配置；当 OpenSSL 默认 cert.pem 路径尚未生成时，仅本次 APT update/install 显式使用已初始化的 CA bundle；APT 正常安装发行版 ca-certificates 接管维护。源、TLS 校验、包签名均不放宽，不内置证书资产。APT update 使用 --error-on=any，让索引失败在安装前原样返回。

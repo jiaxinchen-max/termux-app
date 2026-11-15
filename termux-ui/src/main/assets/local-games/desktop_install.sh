@@ -772,6 +772,10 @@ else
     codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" | tr -d '\"')
     distro_id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" | tr -d '\"')
     [ "$distro_id:$codename" = "$expected_distribution" ] || fail "container requires $expected_distribution, got $distro_id:$codename"
+    # Minimal Ubuntu OCI images have no CA package. Seed HTTPS trust before the first update;
+    # the container's ca-certificates package takes over normal certificate maintenance.
+    . "$(dirname "$0")/desktop_container_apt_sources.sh" || fail 'loading container HTTPS setup'
+    bootstrap_ubuntu_ca_certificates "$rootfs" "$PREFIX/etc/tls/cert.pem" || fail 'initializing container HTTPS trust'
     de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE"
     # The container helper configures service-start policy before apt. Installation failure
     # is returned unchanged; package maintainer scripts are never replaced.

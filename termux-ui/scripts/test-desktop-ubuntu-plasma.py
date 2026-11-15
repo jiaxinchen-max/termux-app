@@ -14,6 +14,9 @@ class UbuntuPlasmaInstallTests(unittest.TestCase):
         self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
         self.base = self.fixture.base
+        ca = self.base / 'usr/etc/tls/cert.pem'
+        ca.parent.mkdir(parents=True, exist_ok=True)
+        ca.write_bytes(Path('/etc/ssl/certs/ca-certificates.crt').read_bytes())
         embedded = self.base / 'usr/share/embedded-api/termux-api.deb'
         embedded.parent.mkdir(parents=True)
         embedded.touch()
@@ -42,6 +45,8 @@ class UbuntuPlasmaInstallTests(unittest.TestCase):
         self.assertTrue(any(all(p in c for p in ('kubuntu-settings-desktop', 'plasma-desktop',
             'plasma-workspace', 'dolphin', 'konsole', 'python3')) for c in package_calls), package_calls)
         self.assertTrue((self.base / 'usr/var/lib/proot-distro/containers/ubuntu-kwin-plasma-1/.desktop-de-kwin_plasma').exists())
+        ca = self.base / 'usr/var/lib/proot-distro/containers/ubuntu-kwin-plasma-1/rootfs/etc/ssl/certs/ca-certificates.crt'
+        self.assertEqual((self.base / 'usr/etc/tls/cert.pem').read_bytes(), ca.read_bytes())
 
     def test_missing_optional_base_uses_ubuntu_default(self):
         result, calls = self.fixture.run_install(de='kwin_plasma', mode='proot', overrides={

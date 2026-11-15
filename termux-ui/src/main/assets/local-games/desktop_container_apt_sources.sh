@@ -1,6 +1,27 @@
 #!/bin/sh
 # Configure only official Ubuntu sources; keep suites, signatures and third-party URIs intact.
 # The optional root is used by the isolated filesystem contract tests.
+bootstrap_ubuntu_ca_certificates() {
+    ca_root="$1"
+    ca_source="$2"
+    [ -r "$ca_root/etc/os-release" ] || return 0
+    ca_distro=$(sed -n 's/^ID=//p' "$ca_root/etc/os-release" | tr -d "\"'")
+    [ "$ca_distro" = ubuntu ] || return 0
+    ca_target="$ca_root/etc/ssl/certs/ca-certificates.crt"
+    [ ! -s "$ca_target" ] || return 0
+    if [ ! -s "$ca_source" ] || ! grep -q '^-----BEGIN CERTIFICATE-----$' "$ca_source"; then
+        echo 'ERROR: trusted host CA bundle is required for initial Ubuntu HTTPS access' >&2
+        return 66
+    fi
+    mkdir -p "$ca_root/etc/ssl/certs" || return 1
+    ca_temporary=$(mktemp "$ca_root/etc/ssl/certs/.desktop-ca.XXXXXX") || return 1
+    if ! cp "$ca_source" "$ca_temporary" || ! chmod 644 "$ca_temporary" || ! mv -f "$ca_temporary" "$ca_target"; then
+        rm -f "$ca_temporary"
+        return 1
+    fi
+    echo 'Initialized Ubuntu HTTPS trust from the existing host CA bundle'
+}
+
 configure_ubuntu_apt_sources() {
     apt_root="${1:-}"
     [ -r "$apt_root/etc/os-release" ] || return 0

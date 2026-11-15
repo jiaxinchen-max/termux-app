@@ -424,6 +424,7 @@ base=pathlib.Path(os.environ['HELPER_FIXTURE']);command=pathlib.Path(sys.argv[0]
 with (base/'calls.jsonl').open('a') as out:out.write(json.dumps([command,*args])+'\n')
 state=json.loads((base/'fixture.json').read_text())
 if command=='apt-get' and args[0]=='install':sys.exit(state.get('apt_error',0))
+if command=='apt-get' and args[0]=='update':sys.exit(state.get('update_error',0))
 if command=='dpkg':
     print('Status: '+state.get('package_statuses',{}).get(args[-1],state.get('package_status','install ok installed')))
     sys.exit(state.get('dpkg_error',0))
@@ -453,15 +454,48 @@ class ContainerAptContract(unittest.TestCase):
         source=source.replace('/usr/bin/systemd-sysusers',str(self.base/'bin/systemd-sysusers'))
         (self.base/'helper.sh').write_text(source)
 
-    def run_helper(self,*args,apt_error=0,package_status='install ok installed',dpkg_error=0,preserve_state=False):
+    def run_helper(self,*args,apt_error=0,update_error=0,package_status='install ok installed',dpkg_error=0,preserve_state=False):
         (self.base/'calls.jsonl').write_text('')
         if not preserve_state:
-            (self.base/'fixture.json').write_text(json.dumps({'apt_error':apt_error,'package_status':package_status,'dpkg_error':dpkg_error}))
+            (self.base/'fixture.json').write_text(json.dumps({'apt_error':apt_error,'update_error':update_error,'package_status':package_status,'dpkg_error':dpkg_error}))
         env=dict(os.environ,HELPER_FIXTURE=str(self.base))
         result=subprocess.run(['sh',str(self.base/'helper.sh'),*args],env=env,text=True,
             stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=15)
         calls=[json.loads(line) for line in (self.base/'calls.jsonl').read_text().splitlines()]
         return result,calls
+
+    def test_index_download_failure_stops_before_install_or_package_status_queries(self):
+        result,calls=self.run_helper('--statx-backend=proc-fdinfo','mesa-vulkan-drivers',update_error=100)
+        self.assertEqual(100,result.returncode,result.stdout)
+        self.assertIn(['apt-get','update','--error-on=any'],calls)
+        self.assertFalse(any(call[:2]==['apt-get','install'] or call[0]=='dpkg' for call in calls),calls)
+
+    def test_ubuntu_installs_and_verifies_distro_ca_package(self):
+        release=self.base/'os-release'
+        release.write_text('ID=ubuntu\n')
+        helper=self.base/'desktop_container_apt_sources.sh'
+        helper.write_text(helper.read_text().replace('/etc/os-release',str(release)).replace('/etc/apt',str(self.base/'apt')))
+        result,calls=self.run_helper('--statx-backend=proc-fdinfo','mesa-vulkan-drivers')
+        self.assertEqual(0,result.returncode,result.stdout)
+        install=next(call for call in calls if call[:2]==['apt-get','install'])
+        self.assertEqual(['ca-certificates','mesa-vulkan-drivers'],install[-2:])
+        self.assertIn(['dpkg','-s','ca-certificates'],calls)
+
+    def test_fresh_ubuntu_uses_seeded_ca_for_both_https_index_and_package_downloads(self):
+        release=self.base/'os-release';release.write_text('ID=ubuntu\n')
+        sources=self.base/'desktop_container_apt_sources.sh'
+        sources.write_text(sources.read_text().replace('/etc/os-release',str(release)).replace('/etc/apt',str(self.base/'apt')))
+        ca=self.base/'seed-ca.pem';ca.write_bytes(Path('/etc/ssl/certs/ca-certificates.crt').read_bytes())
+        helper=self.base/'helper.sh'
+        helper.write_text(helper.read_text().replace('/usr/lib/ssl/cert.pem',str(self.base/'absent-default.pem'))
+                          .replace('/etc/ssl/certs/ca-certificates.crt',str(ca)))
+        result,calls=self.run_helper('--statx-backend=proc-fdinfo','mesa-vulkan-drivers')
+        self.assertEqual(0,result.returncode,result.stdout)
+        apt_calls=[call for call in calls if call[0]=='apt-get']
+        self.assertEqual(2,len(apt_calls))
+        for call in apt_calls:
+            self.assertIn('-oAcquire::https::CaInfo='+str(ca),call)
+            self.assertFalse(any('Verify-Peer' in arg or 'AllowInsecure' in arg for arg in call))
 
     def test_explicit_no_recommends_reaches_apt_but_never_package_verification(self):
         packages=['gnome-shell','gnome-session','gvfs-backends']

@@ -50,3 +50,12 @@
 - APK 保持文件名 `termux-app_apt-android-7-debug_arm64-v8a.apk`，约 45.36 MB（43.26 MiB）；v1/v2 签名验证通过，无 testOnly 标记，仅包含 arm64-v8a 原生库。
 - 四个修复脚本与源码逐字节一致；无主题压缩包和 termux-api.deb，API 配套包可复现校验通过。
 - 构建日志与最终下载文件、SHA-256、签名检查证据位于 workspace/artifacts，设备验收仍保持 Pending。
+
+## 全新 Ubuntu CA 初始化回归修正
+
+- 本次新装 desktop-f2171a8d / ubuntu-kwin-plasma-1 不含 ca-certificates，且 OpenSSL 默认 /usr/lib/ssl/cert.pem 路径不存在；首次 HTTPS 刷新证书校验失败，导致随后无法定位 Mesa 包。这是此前 HTTPS 修复遗漏的新底包初始化条件。
+- 已在首次更新前原子初始化宿主可信 CA，并在默认路径尚未生成时为本次 APT 调用明确指定 CA 文件；正常安装发行版 ca-certificates 接管维护。保留非空已有信任库，不内置证书，不关闭 TLS 或包签名校验。APT 索引任一失败即返回，阻止继续安装。
+- 20 项定向验证通过：CA/源 6、Ubuntu Plasma 安装 4、APT 调用与失败传播 10；shell 语法与 diff 检查通过。
+- 真实容器完整刷新 HTTPS 索引 27.6 MB，安装 ca-certificates、OpenSSL、六个请求的 Mesa 包及依赖，隔离 helper 最终 exit 0。设备已有容器无需删除，可继续原桌面的安装。完整桌面安装和可见桌面仍待验收。
+- force-stop 与残留检查已执行；本次 UiLauncher 的 am start -W 等待 20 秒超时，不声称 UI 冷启动通过。
+- 修正后的 APK clean build 成功，45,360,501 字节，签名通过，无 testOnly；交付文件和哈希见 workspace/artifacts/apk-download/ca-bootstrap/verification.json。用户已通过“推送代码”授权提交并推送本次修正；具体提交以 Git 历史及 run-local 推送记录为准。新 APK 尚未安装到设备。
