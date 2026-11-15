@@ -78,3 +78,6 @@
 #### Scenario: 全新安装恢复
 - **当** 宿主依赖引入上游 API 或尚未登记 API
 - **那么** 使用已验证的本地定制 DEB 登记、核验并 hold，无需下载容器软件。
+
+## 导入后宿主 KWin 主题初始化崩溃回归
+用户报告导入容器无法启动，沿用恢复后可启动的修复授权。现场导入 SUCCEEDED，宿主 KWin 在 Qt QKdeTheme::createKdeTheme/handleThemeChanged 空指针崩溃；受控 A/B 仅设置 QT_QPA_PLATFORMTHEME=generic 即越过该崩溃。仅为 PRoot Plasma 的宿主合成器构造独立环境，保留传给容器的原主题变量和父环境，不更改容器文件、主题、渲染模式或 Native 桌面流程。回退撤销合成器环境副本。api_docs=N/A（无 HTTP 契约），product_docs 继续 Required/Pending，完整验收前不归档。

@@ -34,3 +34,16 @@ host_package_registration_followup:
     - 宿主恢复预检 54 个夹具全部通过
     - 恢复本地初始化 9 项通过
     - shell 语法与 git diff 检查通过
+
+kwin_theme_followup:
+  reviewer: 实施代理直接源代码自审，非独立评审
+  findings: []
+  evidence:
+    - 现场导入成功，宿主 QKdeTheme 创建路径崩溃，受控 A/B generic 越过崩溃点
+    - 主题仅覆盖 compositor Popen 的 env 副本，不修改父环境或容器环境
+    - 旧代码主题隔离复现失败，修复后会话 10 项全部通过
+    - clean APK 签名及 HTTP 哈希核对通过，43.28 MiB，无 testOnly
+  limitations:
+    - 完整 UI 可视验收未完成
+    - 初始化大套件存在缺 CA 和缺主题归档的夹具失败，未宣称全绿
+    - Harness 严格门禁缺失

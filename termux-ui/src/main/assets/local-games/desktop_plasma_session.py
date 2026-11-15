@@ -106,7 +106,11 @@ def supervise(compositor_command, container_command, runtime, pid_file, env, aud
         for path in (ready_file, session_file, container_pid_file, guest_ready):
             path.unlink(missing_ok=True)
         atomic_write(session_file, session_identity)
-        compositor = subprocess.Popen(compositor_command, env=env, start_new_session=True)
+        # Qt's built-in KDE platform theme can send theme changes before KWin's
+        # Android QPA application is initialized. Keep that path out of the host
+        # compositor; the guest retains its own desktop theme and environment.
+        compositor_env = dict(env, QT_QPA_PLATFORMTHEME='generic')
+        compositor = subprocess.Popen(compositor_command, env=compositor_env, start_new_session=True)
         processes.append(compositor)
         while not is_socket(runtime / 'wayland-0'):
             require_alive(compositor, 'KWin')

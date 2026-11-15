@@ -48,3 +48,14 @@ copy 排查：桌面安装脚本复制数个容器 apt/statx/Discover/USB 辅助
 Ubuntu/Plasma 专用完整安装 9 项通过，明确验证最后 apt < 定制包登记 < 初始化派发、API hold；合计本轮 72 项聚焦检查通过（54+9+9）。本轮未构建新 APK。
 
 额外重复实机登记尝试因 ADB shell 60 秒未返回而超时，未获得可判定结果，不计入通过项；不据此推断包管理失败或宣称实机重试通过。首次实机登记/hold/audit 的完整 exit 0 日志已保存。
+
+## 导入后 KWin 主题崩溃
+用户新导入任务 002202d7-3cdb-4d25-9ef7-1e33c87292c4 已 SUCCEEDED、published=true，宿主与容器渲染初始化成功。启动失败来自宿主 kwin_wayland SIGSEGV；Android crash buffer 两次栈一致。用设备 llvm-symbolizer 还原关键帧为 QGuiApplicationPrivate::handleThemeChanged、QApplicationPrivate::handleThemeChanged、QKdeTheme::createKdeTheme、createPlatformIntegration、KWin::Application 构造。
+
+先强制停止 App，使用独立诊断 runtime 对实际 start-plasma 做 A/B：原环境每次在 kwin_wayland 主题初始化处段错误，QT_QPA_PLATFORMTHEME=generic 后进入 Android backend、发布 Wayland socket 并尝试连接显示服务。由于该隔离试验没有启动 App 显示服务，连接被拒绝并由 timeout 结束；此项仅证明绕过原崩溃，不代表桌面渲染成功。
+
+实现只对 desktop_plasma_session.py 的 compositor Popen 构造 env 副本并设 generic；传给容器和父环境的主题保持不变，Native 启动流程不变。命令行会话测试在旧代码明确失败（期望 generic，实际 kde），修复后含两次启动/停止、容器主题隔离、父环境不变及既有就绪/清理的 10 项全部通过。初始化大套件 24 项执行，其中旧夹具 4 个子场景缺宿主 CA，另 1 项缺 Hyprland 主题 tgz，不能宣称全绿；未修改对应初始化实现。
+
+clean arm64 APK 构建成功，签名、非 testOnly、仅 arm64 ABI、无 pycache、打包源码一致及 HTTP 下载哈希通过，43.28 MiB；位置 artifacts/apk-download/kwin-theme-fix/termux-app_apt-android-7-debug_arm64-v8a.apk。完整显示和 UI 导入后冷启动仍待最终验证；未删除备份或重装容器，未归档。
+
+额外 UI 验证尝试：系统 dex speed 编译成功，应用冷启动到 TermuxActivity 可见且进程存活，但截图、UI 自动化以及诊断 Activity 派发多次超时。读取会话日志仍为原失败状态，未观察到新会话 ready。没有把诊断脚本发送成功或超时当作 UI 启动成功；不再重复大文件 ADB 传输。

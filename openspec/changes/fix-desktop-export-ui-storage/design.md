@@ -34,3 +34,6 @@
 
 ## 2026-11-15 定制宿主组件登记补全（用户已授权“完善”）
 恢复预检与完整安装统一在最后一次宿主 apt 操作后用 dpkg 登记 APK 匹配的 termux-api，已安装 UPower 时同样重装定制包；核对 DEB 与已安装版本并 hold，防止普通升级覆盖。仅改宿主包管理，不重装容器或复制容器。失败阻止成功标记，重试可恢复；回退撤销辅助函数并显式 unhold 对应包。无 HTTP 契约变更，api_docs=N/A；product_docs 沿用 Required/Pending，等待用户验收。
+
+## 导入后宿主 KWin 主题初始化崩溃回归
+用户报告导入容器无法启动，沿用恢复后可启动的修复授权。现场导入 SUCCEEDED，宿主 KWin 在 Qt QKdeTheme::createKdeTheme/handleThemeChanged 空指针崩溃；受控 A/B 仅设置 QT_QPA_PLATFORMTHEME=generic 即越过该崩溃。仅为 PRoot Plasma 的宿主合成器构造独立环境，保留传给容器的原主题变量和父环境，不更改容器文件、主题、渲染模式或 Native 桌面流程。回退撤销合成器环境副本。api_docs=N/A（无 HTTP 契约），product_docs 继续 Required/Pending，完整验收前不归档。

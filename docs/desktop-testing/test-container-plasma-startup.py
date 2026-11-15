@@ -140,6 +140,7 @@ class PlasmaStartup(unittest.TestCase):
         child_code = ('import os,socket,time; from pathlib import Path; '
                       'r=Path(os.environ["TEST_RUNTIME"]); '
                       '(r/"compositor.pid").write_text(str(os.getpid())); '
+                      '(r/"compositor.theme").write_text(os.environ.get("QT_QPA_PLATFORMTHEME","unset")); '
                       's=socket.socket(socket.AF_UNIX); s.bind(str(r/"wayland-0")); time.sleep(30)')
         launcher.write_text('#!/bin/sh\nexec ' + shlex.join([sys.executable, '-c', child_code]) + '\n')
         proot = binary / 'proot-distro'
@@ -147,6 +148,7 @@ class PlasmaStartup(unittest.TestCase):
                          'import os,sys,time\nfrom pathlib import Path\n'
                          'r=Path(os.environ["TEST_RUNTIME"])\n'
                          '(r/"guest.pid").write_text(str(os.getpid()))\n'
+                         '(r/"guest.theme").write_text(os.environ.get("QT_QPA_PLATFORMTHEME","unset"))\n'
                          'token=next(x.split("=",1)[1] for x in sys.argv if x.startswith("DESKTOP_PLASMA_SESSION_TOKEN="))\n'
                          '(r/"plasma-container.ready").write_text(token)\n'
                          'time.sleep(30)\n')
@@ -155,7 +157,7 @@ class PlasmaStartup(unittest.TestCase):
         pactl.write_text('#!/bin/sh\necho "0 Android module-sles-sink.c"\n')
         pactl.chmod(0o755)
         env = dict(os.environ, PREFIX=str(self.root), TEST_RUNTIME=str(self.root),
-                   PULSE_SERVER='tcp:127.0.0.1:4713')
+                   PULSE_SERVER='tcp:127.0.0.1:4713', QT_QPA_PLATFORMTHEME='kde')
         identities = []
         for _ in range(2):
             process = subprocess.Popen([sys.executable, str(ASSETS / 'desktop_plasma_session.py'),
@@ -169,6 +171,9 @@ class PlasmaStartup(unittest.TestCase):
                     time.sleep(.05)
                 self.assertTrue(marker.exists())
                 identities.append(marker.read_text())
+                self.assertEqual('generic', (self.root / 'compositor.theme').read_text())
+                self.assertEqual('kde', (self.root / 'guest.theme').read_text())
+                self.assertEqual('kde', env['QT_QPA_PLATFORMTHEME'])
                 process.send_signal(signal.SIGTERM)
                 output, _ = process.communicate(timeout=4)
                 self.assertEqual(143, process.returncode, output)
@@ -177,8 +182,8 @@ class PlasmaStartup(unittest.TestCase):
                     self.assertFalse(Path('/proc/' + (self.root / name).read_text()).exists())
             finally:
                 if process.poll() is None:
-                    process.kill()
-                process.communicate()
+                    process.send_signal(signal.SIGTERM)
+                process.communicate(timeout=5)
         self.assertNotEqual(identities[0], identities[1])
 
 
