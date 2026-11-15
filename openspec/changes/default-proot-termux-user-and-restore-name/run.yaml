@@ -21,3 +21,8 @@ verification:
   apk_build: Passed
   discover_authorization: Failed
   graphical_acceptance: Pending
+publication:
+  implementation_commit: bb178cf413f0538b0fc89c328a97724dcabe009f
+  branch: master-x11-submodule-tmp
+  remote_verified: true
+  acceptance: Pending
