@@ -1,0 +1,8 @@
+status: PENDING
+findings:
+  - id: account-service-boundary
+    severity: high
+    detail: 实现前确认管理服务与普通桌面会话边界；实现后必须验证 Discover 授权与 D-Bus 凭据。
+  - id: planning-confirmation
+    severity: blocking
+    detail: 规划产物等待用户确认，未修改业务代码。

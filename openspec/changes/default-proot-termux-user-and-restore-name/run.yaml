@@ -1,0 +1,19 @@
+change_id: default-proot-termux-user-and-restore-name
+stage: requirement-design-review
+approval:
+  requirements: 用户已明确功能需求，规划产物待确认
+  implementation: Pending
+  git: 用户此前明确要求任务结束推送进度
+api_docs:
+  status: N/A
+  reason: 不涉及 HTTP API 合同
+product_docs:
+  status: Required
+  documents: [docs/product/desktop-management.md]
+consistency:
+  status: Pending
+  evidence: openspec/changes/default-proot-termux-user-and-restore-name/verification.md
+  findings: openspec/changes/default-proot-termux-user-and-restore-name/review-findings.yaml
+verification:
+  strict_gate: unavailable
+  reason: 仓库缺少 Harness 严格验证脚本与 OpenSpec CLI
