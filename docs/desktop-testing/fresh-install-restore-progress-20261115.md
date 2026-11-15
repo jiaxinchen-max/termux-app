@@ -59,3 +59,10 @@ Ubuntu/Plasma 专用完整安装 9 项通过，明确验证最后 apt < 定制�
 clean arm64 APK 构建成功，签名、非 testOnly、仅 arm64 ABI、无 pycache、打包源码一致及 HTTP 下载哈希通过，43.28 MiB；位置 artifacts/apk-download/kwin-theme-fix/termux-app_apt-android-7-debug_arm64-v8a.apk。完整显示和 UI 导入后冷启动仍待最终验证；未删除备份或重装容器，未归档。
 
 额外 UI 验证尝试：系统 dex speed 编译成功，应用冷启动到 TermuxActivity 可见且进程存活，但截图、UI 自动化以及诊断 Activity 派发多次超时。读取会话日志仍为原失败状态，未观察到新会话 ready。没有把诊断脚本发送成功或超时当作 UI 启动成功；不再重复大文件 ADB 传输。
+
+## Discover 安装的 VLC 无法启动：诊断
+功能探测前已 force-stop App。在当前导入容器中直接执行 id、dpkg-query 与 vlc --version：会话为 uid=0(root)，vlc、vlc-bin 和 vlc-plugin-qt:arm64 均已安装，版本 3.0.23-1。VLC 输出 “VLC is not supposed to be run as root. Sorry.” 并以 1 退出；桌面入口直接调用 /usr/bin/vlc --started-from-file %U，因此会触发相同 root 检查。已确认的启动阻断点是 VLC 拒绝 root，尚未执行普通用户下的图形播放验证，不能据此保证后续图形/音频无其他问题。
+
+建议后续评估容器普通用户应用会话及其 Wayland、D-Bus、音频和文件访问权限。本次仅诊断，未修改桌面账户、VLC 二进制或启动器，未构建新 APK。原始证据位于工作区 artifacts/vlc-start-failure/vlc-probe.log。
+
+本次读取最新桌面日志可见 compositor-socket elapsed_ms=201、Plasma started successfully、container-responsive elapsed_ms=5288，表明先前 KWin 主题崩溃修复后的真实会话已进入容器响应阶段；不将服务就绪等同于完整视觉验收。
