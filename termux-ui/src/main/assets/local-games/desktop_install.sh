@@ -641,7 +641,7 @@ if [ "$DESKTOP_DE" = hyprland ]; then
         grep -q '^VERSION_CODENAME=trixie$' "$rootfs/etc/os-release" || fail 'Hyprland clients require Debian trixie'
         de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-hyprland"
         rm -f "$de_marker" "$de_marker-zink" || fail 'resetting Hyprland client install marker'
-        for helper in desktop_container_plasma_apt.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
+        for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
             cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "staging client helper $helper"
         done
         zink_packages=''
@@ -787,7 +787,7 @@ else
     esac
     container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
     [ -r "$container_apt" ] || fail "missing $container_apt"
-    for helper in desktop_container_plasma_apt.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
+    for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
         cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "cannot stage container helper $helper"
     done
     recommend_option=''
@@ -809,7 +809,7 @@ else
     [ "$DESKTOP_DE:$DESKTOP_COMPONENT_RENDERER" != gnome:zink ] || ensure_gnome_turnip_icd "$DESKTOP_PROOT_DISTRO"
     if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
         # The guest must load glibc GIO code. Never bind a host Bionic module into it.
-        for helper in desktop_container_plasma_apt.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
+        for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
             cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "staging USB container helper $helper"
         done
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \

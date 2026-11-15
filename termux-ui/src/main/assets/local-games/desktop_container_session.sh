@@ -96,15 +96,26 @@ trap 'exit 143' TERM
 trap 'exit 130' INT
 unset DBUS_SESSION_BUS_ADDRESS DBUS_SESSION_BUS_PID DBUS_SYSTEM_BUS_ADDRESS
 
-# A private system bus permits service activation without systemd. All container processes have
-# the same Android UID under proot; the containing directory restricts access to that UID.
+# Only publish system services that this PRoot session supports. The distro's full directory
+# also activates hardware daemons (fwupd, ModemManager, UDisks, UPower, wpa_supplicant)
+# which cannot manage Android hardware and consume Android's limited child-process budget.
+SYSTEM_SERVICES="$BUS_DIR/system-services"
+mkdir -p "$SYSTEM_SERVICES" || exit 1
+for service_file in org.freedesktop.PackageKit.service org.freedesktop.PolicyKit1.service; do
+    service_source="/usr/share/dbus-1/system-services/$service_file"
+    [ -f "$service_source" ] || continue
+    ln -sf "$service_source" "$SYSTEM_SERVICES/$service_file" || exit 1
+done
+
+# A private system bus permits supported service activation without systemd. All container
+# processes have the same Android UID; the containing directory restricts access to that UID.
 cat > "$BUS_DIR/system.conf" <<CONF
 <!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
 <busconfig>
   <type>system</type>
   <listen>unix:path=$BUS_DIR/system_bus_socket</listen>
   <auth>EXTERNAL</auth>
-  <standard_system_servicedirs/>
+  <servicedir>$SYSTEM_SERVICES</servicedir>
   <policy context="default">
     <!-- Standard system-bus connection permission, including the polkitd service UID. -->
     <allow user="*"/>

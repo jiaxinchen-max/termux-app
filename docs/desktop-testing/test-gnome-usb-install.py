@@ -446,6 +446,7 @@ class ContainerAptContract(unittest.TestCase):
             'run_proot_config() { shift; "$@"; }\n'
             'restore_legacy_postinsts() { printf restored > "$HELPER_FIXTURE/restored"; }\n'
             'validate_polkit_identity() { return 0; }\n')
+        shutil.copyfile(ASSETS/'desktop_container_apt_sources.sh', self.base/'desktop_container_apt_sources.sh')
         source=(ASSETS/'desktop_container_plasma_apt.sh').read_text()
         source=source.replace('export PATH=', 'export PATH='+str(self.base/'bin')+':',1)
         source=source.replace('/usr/sbin/policy-rc.d',str(self.base/'policy-rc.d'))

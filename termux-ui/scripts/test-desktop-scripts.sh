@@ -484,6 +484,7 @@ exit 0
 FAKE_DPKG
 chmod +x "$APT_ROOT/bin/apt-get" "$APT_ROOT/bin/dpkg"
 cp "$ASSETS/desktop_container_statx_setup.sh" "$APT_ROOT/desktop_container_statx_setup.sh"
+cp "$ASSETS/desktop_container_apt_sources.sh" "$APT_ROOT/desktop_container_apt_sources.sh"
 cat >> "$APT_ROOT/desktop_container_statx_setup.sh" <<'MOCK'
 configure_proot_statx() {
     [ "$1" = proc-fdinfo ] || return 64

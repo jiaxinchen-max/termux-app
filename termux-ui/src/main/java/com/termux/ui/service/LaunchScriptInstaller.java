@@ -62,8 +62,9 @@ public final class LaunchScriptInstaller {
         "local-games/desktop_container_session.sh";
     private static final String DESKTOP_CONTAINER_PLASMA_APT_ASSET =
         "local-games/desktop_container_plasma_apt.sh";
-    private static final String[] DESKTOP_CONTAINER_STATX_ASSETS = {
-        "desktop_container_statx_setup.sh", "desktop_container_run_config.sh", "desktop_container_statx_aarch64.bin"};
+    private static final String[] DESKTOP_CONTAINER_SETUP_ASSETS = {
+        "desktop_container_statx_setup.sh", "desktop_container_run_config.sh", "desktop_container_statx_aarch64.bin",
+        "desktop_container_apt_sources.sh"};
     private static final String[] DESKTOP_SESSION_ASSETS = {
         "desktop_plasma_session.py", "desktop_initialize.py", "desktop_hyprland.py", "desktop_hyprland_gpu.py", "desktop_hyprland_shell.py", "desktop_hyprland_theme.py", "desktop_hyprland_components.py", "hyprland-components.json", "hyprland-components.sh", "desktop_hyprland_action.sh", "desktop_gnome_launch.py", "desktop_ubuntu_gnome.py", "desktop_native_ubuntu.py", "desktop_xfce_session.py", "desktop_usb_storage.py", "desktop_install_gio.py", "desktop_install_mesa.py"};
 
@@ -213,7 +214,7 @@ public final class LaunchScriptInstaller {
             new File(runtimeDirectory, "desktop_container_session.sh"));
         installAsset(DESKTOP_CONTAINER_PLASMA_APT_ASSET,
             new File(runtimeDirectory, "desktop_container_plasma_apt.sh"));
-        for (String name : DESKTOP_CONTAINER_STATX_ASSETS) {
+        for (String name : DESKTOP_CONTAINER_SETUP_ASSETS) {
             installAsset("local-games/" + name, new File(runtimeDirectory, name));
         }
         for (String name : DESKTOP_SESSION_ASSETS) {

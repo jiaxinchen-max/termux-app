@@ -141,7 +141,7 @@ class UbuntuInstallTests(unittest.TestCase):
             uname = prefix / 'bin/uname'; uname.write_text('#!/bin/sh\nprintf aarch64\n'); uname.chmod(0o755)
             scripts = base / 'scripts'; scripts.mkdir()
             for name in ('desktop_common.sh', 'desktop_rendering.sh', 'desktop_gnome_launch.py',
-                         'desktop_ubuntu_gnome.py', 'desktop_usb_storage.py', 'desktop_container_plasma_apt.sh',
+                         'desktop_ubuntu_gnome.py', 'desktop_usb_storage.py', 'desktop_container_plasma_apt.sh', 'desktop_container_apt_sources.sh',
                          'desktop_container_statx_setup.sh', 'desktop_container_run_config.sh', 'desktop_container_statx_aarch64.bin'):
                 shutil.copy(ASSETS / name, scripts / name)
             container = prefix / 'var/lib/proot-distro/containers/ubuntu-ubuntu-gnome-1'

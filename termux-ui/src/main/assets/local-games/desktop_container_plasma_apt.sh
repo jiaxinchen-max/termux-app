@@ -35,6 +35,11 @@ getent passwd messagebus >/dev/null 2>&1 || \
     useradd --system --gid messagebus --home-dir /nonexistent --no-create-home \
         --shell /usr/sbin/nologin messagebus || exit $?
 
+APT_SOURCES_SETUP="$(dirname "$0")/desktop_container_apt_sources.sh"
+[ -r "$APT_SOURCES_SETUP" ] || { echo "ERROR: container apt sources setup asset is missing" >&2; exit 66; }
+. "$APT_SOURCES_SETUP"
+configure_ubuntu_apt_sources || exit "$?"
+
 run_proot_config proc-fdinfo apt-get update
 code=$?
 [ "$code" -eq 0 ] || exit "$code"
