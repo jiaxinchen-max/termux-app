@@ -296,14 +296,20 @@ public final class DesktopArchiveTasks {
                 // Persist publication phase before creating the inventory record.
                 job.setProperty("published", "true");
                 save(job);
-                new FileDesktopDistroRepository(paths.getDesktopDistrosDirectory()).saveNew(imported.getDesktop(),
-                    (temporary, device, inode) -> {
-                        job.setProperty("inventoryTemporary", temporary.getName());
-                        job.setProperty("inventoryDevice", Long.toString(device));
-                        job.setProperty("inventoryInode", Long.toString(inode));
-                        job.setProperty("inventoryOwned", "true");
-                        save(job); // Identity is durable before the no-replace inventory rename.
-                    });
+                synchronized (DesktopOperationGate.LOCK) {
+                    FileDesktopDistroRepository repository = new FileDesktopDistroRepository(paths.getDesktopDistrosDirectory());
+                    DesktopDistro restored = imported.getDesktop().withName(
+                        com.termux.ui.desktop.domain.DesktopRestoreNames.choose(
+                            imported.getDesktop().getName(), repository.list()));
+                    repository.saveNew(restored,
+                        (temporary, device, inode) -> {
+                            job.setProperty("inventoryTemporary", temporary.getName());
+                            job.setProperty("inventoryDevice", Long.toString(device));
+                            job.setProperty("inventoryInode", Long.toString(inode));
+                            job.setProperty("inventoryOwned", "true");
+                            save(job); // Identity is durable before the no-replace inventory rename.
+                        });
+                }
                 // Only a successfully reserved new inventory identity may receive overrides.
                 X11SessionOverrides settings = new X11SessionOverrides(context);
                 job.setProperty("settingsPublishing", "true");

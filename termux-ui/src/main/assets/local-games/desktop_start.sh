@@ -213,7 +213,7 @@ fi
 
 if [ "$DESKTOP_DE" != gnome ] && [ "$DESKTOP_DE" != ubuntu_gnome ]; then
     if [ "$DESKTOP_MODE" = proot ]; then
-        usb_user_config="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs/root/.config"
+        usb_user_config="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs/home/termux/.config"
     else
         usb_user_config="${XDG_CONFIG_HOME:-$HOME/.config}"
     fi
@@ -243,7 +243,7 @@ if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
         rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
         set -- "$@" --x11-display-gl-mode "$DESKTOP_GNOME_DISPLAY_GL_MODE" \
             --x11-display-buffer-mode "$DESKTOP_GNOME_DISPLAY_BUFFER_MODE" \
-            --rootfs "$rootfs" --work "$rootfs/root/.local/share/termux-gnome"
+            --rootfs "$rootfs" --work "$rootfs/home/termux/.local/share/termux-gnome"
     else
         set -- "$@" --work "$HOME/.termux/gnome-$DESKTOP_ID"
     fi
@@ -354,7 +354,7 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
         [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
         "$PREFIX/bin/python3" -I -B "$XFCE_LAUNCHER" "$@" >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     elif [ "$DESKTOP_MODE" = "proot" ]; then
-        proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- env DISPLAY=:0 PULSE_SERVER="$PULSE_SERVER" \
+        proot-distro login "$DESKTOP_PROOT_DISTRO" --user termux --shared-tmp -- env DISPLAY=:0 PULSE_SERVER="$PULSE_SERVER" \
             sh -c 'export XDG_RUNTIME_DIR=/tmp/xdg; mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"; exec dbus-run-session -- xfce4-session' \
             >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     else

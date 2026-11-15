@@ -75,7 +75,7 @@ exec xfce4-session
         rootfs = prefix / 'var/lib/proot-distro/containers' / args.alias / 'rootfs'
         (rootfs / str(parent).lstrip('/')).mkdir(parents=True, exist_ok=True)
     base = [] if args.run_mode == 'native' else [
-        'proot-distro', 'login', args.alias, '--shared-tmp', '--bind', str(parent) + ':' + str(parent),
+        'proot-distro', 'login', args.alias, '--user', 'termux', '--shared-tmp', '--bind', str(parent) + ':' + str(parent),
         '--', 'env', '-u', 'DBUS_SESSION_BUS_ADDRESS', '-u', 'DBUS_SESSION_BUS_PID',
         '-u', 'SESSION_MANAGER'] + guest_values
     command = base + ['dbus-run-session', '--config-file=' + str(config), '--',

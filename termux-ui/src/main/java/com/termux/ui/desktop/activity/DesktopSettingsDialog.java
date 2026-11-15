@@ -53,6 +53,8 @@ final class DesktopSettingsDialog {
                     + activity.getString(R.string.desktop_tab_native))));
         if (container) sheet.desktopSettingsHint.append("\n" + activity.getString(
             DesktopCreateActivity.renderingHint(activity, distro.getRunMode(), distro.getDe())));
+        if (container) sheet.desktopSettingsHint.append("\n" + activity.getString(
+            R.string.desktop_container_account_hint));
         sheet.desktopSettingsNameLayout.setVisibility(container ? View.VISIBLE : View.GONE);
         sheet.desktopSettingsNameNote.setVisibility(container ? View.GONE : View.VISIBLE);
         if (container) sheet.desktopSettingsName.setText(distro.getName());

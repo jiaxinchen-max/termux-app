@@ -340,19 +340,19 @@ ensure_trixie_turnip_icd() { # alias [backup directory]; never infer a driver fr
         [ ! -L "$backup_dir/package-holds-before.txt" ] || fail 'unsafe package holds backup'
         if [ ! -f "$backup_dir/package-holds-before.txt" ]; then
             holds_temporary="$backup_dir/package-holds-before.tmp.$$"
-            (set -C; run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- apt-mark showhold > "$holds_temporary") || fail 'recording package holds'
+            (set -C; run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- apt-mark showhold > "$holds_temporary") || fail 'recording package holds'
             mv "$holds_temporary" "$backup_dir/package-holds-before.txt" || fail 'saving package holds'
         fi
     fi
     run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_install_mesa.py" \
         --archive "$1" --rootfs "$rootfs" --codename trixie --gl-mode zink || fail 'installing verified trixie Zink Mesa/Turnip'
-    run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh -eu -c '
+    run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh -eu -c '
         for library in /usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so /usr/lib/aarch64-linux-gnu/libgallium-27.0.0-devel.so /usr/lib/aarch64-linux-gnu/libGLX_mesa.so.0; do
             dependencies=$(ldd "$library")
             printf "%s\n" "$dependencies"
             case "$dependencies" in *"not found"*) exit 1 ;; esac
         done' || fail 'resolving container Mesa/Turnip libraries'
-    run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- apt-mark hold \
+    run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- apt-mark hold \
         mesa-vulkan-drivers libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 \
         || fail 'holding the explicit container Mesa/Turnip build'
 }
@@ -385,7 +385,7 @@ ensure_turnip_icd() { # alias
     fi
     # Debian's mesa-vulkan-drivers ships a Turnip without the KGSL backend under the same file names;
     # keep a later apt upgrade from overwriting the one just unpacked.
-    run proot-distro login "$1" --shared-tmp -- apt-mark hold mesa-vulkan-drivers libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 \
+    run proot-distro login "$1" --user root --shared-tmp -- apt-mark hold mesa-vulkan-drivers libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 \
         || fail "holding the container Turnip packages"
 }
 
@@ -674,17 +674,21 @@ if [ "$DESKTOP_DE" = hyprland ]; then
             zink_packages='libvulkan1 vulkan-tools libllvm19 libdrm2 libgbm1 libegl1 libgles2 libgl1-mesa-dri libegl-mesa0 libglx-mesa0 mesa-vulkan-drivers python3 python3-gi gir1.2-gtk-3.0 libepoxy0 mesa-utils-bin'
         fi
         # shellcheck disable=SC2086
-        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
-            --statx-backend=proc-fdinfo --no-install-recommends xfce4-terminal thunar dbus-x11 adwaita-icon-theme $zink_packages || fail 'Hyprland container clients'
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+            --statx-backend=proc-fdinfo --no-install-recommends xfce4-terminal thunar dbus-x11 adwaita-icon-theme passwd sudo $zink_packages || fail 'Hyprland container clients'
         if [ "$DESKTOP_COMPONENT_RENDERER" = zink ]; then
             ensure_trixie_turnip_icd "$DESKTOP_PROOT_DISTRO" "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.hyprland-mesa-backup"
-            run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- python3 -I -c \
+            run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- python3 -I -c \
                 "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk" || fail 'container GPU test dependencies'
         fi
         run proot-distro login "$DESKTOP_PROOT_DISTRO" -- test -x /usr/bin/xfce4-terminal || fail 'missing container terminal'
         run proot-distro login "$DESKTOP_PROOT_DISTRO" -- test -x /usr/bin/thunar || fail 'missing container file manager'
     else
         [ -x "$PREFIX/bin/xfce4-terminal" ] && [ -x "$PREFIX/bin/thunar" ] || fail 'missing native clients'
+    fi
+    if [ "$DESKTOP_MODE" = proot ]; then
+        cp "$(dirname "$0")/desktop_container_user.sh" "$PREFIX/tmp/desktop_container_user.sh" || fail 'staging container account setup'
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_user.sh || fail 'creating container user'
     fi
     initialize_desktop
     audit=$(dpkg --audit 2>&1) || fail 'dpkg audit'
@@ -811,9 +815,10 @@ else
         gnome) container_packages="gjs mesa-utils-bin gnome-shell gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils"
             [ "$DESKTOP_COMPONENT_RENDERER" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm19 libdrm2"
             ;;
-        *) container_packages="kubuntu-settings-desktop python3 qt6-wayland mesa-utils-bin plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit appstream polkitd libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2"
+        *) container_packages="kubuntu-settings-desktop python3 qt6-wayland mesa-utils-bin plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit appstream polkitd python3-gi gir1.2-polkit-1.0 kdialog libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2"
            [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || container_packages="$container_packages libvulkan-dev mesa-vulkan-drivers" ;;
     esac
+    container_packages="$container_packages passwd sudo"
     container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
     [ -r "$container_apt" ] || fail "missing $container_apt"
     for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
@@ -828,18 +833,20 @@ else
     # A prior Turnip overlay can leave distro EGL linked to an absent LLVM ABI.
     # Reinstall matching distro Mesa on emulators; preserve existing apt hold selections.
     if [ "$PLASMA_EMULATOR" = 1 ]; then
-        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
             --statx-backend=proc-fdinfo --reinstall --allow-change-held-packages \
             libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 mesa-vulkan-drivers \
             || fail 'restoring matching emulator Mesa packages'
     fi
     # shellcheck disable=SC2086
-    run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+    run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
         --statx-backend=proc-fdinfo $recommend_option $container_packages || fail "container apt install $DESKTOP_DE"
     if [ "$DESKTOP_DE" = kwin_plasma ]; then
-        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_discover_catalog.sh \
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_discover_catalog.sh \
             --statx-backend=proc-fdinfo || fail 'preparing Discover application catalog'
     fi
+    cp "$(dirname "$0")/desktop_container_user.sh" "$PREFIX/tmp/desktop_container_user.sh" || fail 'staging container account setup'
+    run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_user.sh || fail 'creating container user'
     # Idempotent and independent of the marker: a container created before this step still gets it.
     [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$PLASMA_EMULATOR" = 1 ] || [ "$DESKTOP_GUEST_GL_MODE" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
     [ "$DESKTOP_DE:$DESKTOP_COMPONENT_RENDERER" != gnome:zink ] || ensure_gnome_turnip_icd "$DESKTOP_PROOT_DISTRO"
@@ -848,7 +855,7 @@ else
         for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
             cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "staging USB container helper $helper"
         done
-        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
             --statx-backend=proc-fdinfo --no-install-recommends gvfs-backends libglib2.0-bin || fail 'container GIO prerequisites'
         gio_archive=$(fetch_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$USB_GLIBC_ARTIFACT") || fail 'downloading glibc GIO artifact'
         gio_archive="${gio_archive# }"
@@ -856,7 +863,7 @@ else
         canonical_rootfs=$(readlink -f "$rootfs") || fail 'resolving GIO rootfs path'
         run python3 -I -B "$(dirname "$0")/desktop_install_gio.py" --archive "$gio_archive" \
             --rootfs "$canonical_rootfs" --codename trixie --bridge-version 0.4.1 || fail 'installing glibc GIO payloads'
-        run proot-distro login "$DESKTOP_PROOT_DISTRO" --shared-tmp -- gio-querymodules \
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- gio-querymodules \
             /usr/local/lib/termux-usb-bridge/gio/modules || fail 'registering container GIO module'
     fi
 fi

@@ -20,7 +20,7 @@ def wait():
  while True: time.sleep(.1)
 if name in ('proot','proot-distro'):
  maps=[]
- if name=='proot': maps.append(('/root',str(pathlib.Path(args[args.index('-r')+1])/'root')))
+ if name=='proot': maps.append(('/home/termux',str(pathlib.Path(args[args.index('-r')+1])/'home/termux')))
  for i,arg in enumerate(args):
   if arg in ('-b','--bind'):
    value=args[i+1]; src,sep,dst=value.partition(':'); maps.append((dst if sep else src,src))
@@ -92,7 +92,7 @@ def wait_for(predicate, process=None):
 with tempfile.TemporaryDirectory(prefix='gn-',dir='/tmp') as temporary:
  base=pathlib.Path(temporary)
  count=0
- def case(name,mode='native',backend='android',gl='system',hz=60,codename='trixie',success=False,usb=False,cleanup_failure=False,display_gl='by-backend',display_buffer='by-backend',probe_renderer='llvmpipe (LLVM fixture)',probe_code=0,expected_code=2,startup='direct',guest_icd='valid',host_icd='valid',probe_accelerated='yes',profile='gnome',missing_asset=None,extension_state='1'):
+ def case(name,mode='native',backend='android',gl='system',hz=60,codename='trixie',success=False,usb=False,cleanup_failure=False,display_gl='by-backend',display_buffer='by-backend',probe_renderer='llvmpipe (LLVM fixture)',probe_code=0,expected_code=2,startup='direct',guest_icd='valid',host_icd='valid',probe_accelerated='yes',profile='gnome',missing_asset=None,extension_state='1',account='termux:x:1001:1002::/home/termux:/bin/bash\n'):
   global count
   count+=1; folder=base/name; prefix=folder/'p'; (prefix/'bin').mkdir(parents=True); (prefix/'tmp').mkdir(); (folder/'calls').touch()
   for command in ('proot','dbus-daemon','dbus-run-session','gsettings','dbus-update-activation-environment','dbus-send','xdpyinfo','glxinfo','Xlorie','gnome-shell','gnome-session','gdbus','gsd-xsettings','gjs','gnome-control-center','gnome-calculator','gnome-clocks','eog'):
@@ -161,6 +161,7 @@ while True: time.sleep(.1)
    if missing_asset: (prefix/missing_asset).unlink()
   if mode=='proot':
    rootfs=folder/'root'; (rootfs/'etc').mkdir(parents=True); (rootfs/'usr/bin').mkdir(parents=True)
+   (rootfs/'etc/passwd').write_text(account)
    (rootfs/'etc/os-release').write_text('ID='+('ubuntu' if profile=='ubuntu' else 'debian')+'\nVERSION_CODENAME='+codename+'\n'); (rootfs/'usr/bin/gnome-shell').touch(); (rootfs/'usr/bin/gnome-shell').chmod(0o700)
    if usb:
     (rootfs/'usr/local/lib/termux-usb-bridge/gio/modules').mkdir(parents=True)
@@ -210,14 +211,20 @@ while True: time.sleep(.1)
     assert all(row[2]['VK_ICD_FILENAMES'] is None and row[2]['LIBGL_KOPPER_DRI2'] is None and row[2]['MESA_VK_DEVICE_SELECT'] is None and row[2]['DRI_PRIME'] is None for row in calls), 'inherited renderer/Vulkan selection leaked'
     assert all(not row[2]['KWIN_ENV'] and row[2]['PLASMA_LOG'] is None for row in calls), 'KWin mode aliases leaked into GNOME children'
     if mode=='proot':
+     assert all(row[1][row[1].index('-i')+1]=='1001:1002' for row in calls if row[0]=='proot'), 'GNOME did not select ordinary credentials'
      xlorie=next(row for row in calls if row[0]=='Xlorie')
      assert xlorie[1][xlorie[1].index('-framerate')+1]==str(hz)
      assert xlorie[1][xlorie[1].index('-screen')+2]=='800x600x24'
      assert xlorie[2]['XLORIE_GL_MODE']==display_gl and xlorie[2]['XLORIE_GLX']=='1'
      assert xlorie[2]['TERMUX_RENDER_AHB_RECEIVE']==display_buffer
-     assert probe_renderer in (work/'renderer-check.log').read_text()
-     glx=next(row for row in calls if row[0]=='glxinfo')
-     assert glx[1]==['-B'] and glx[2]['GALLIUM_DRIVER']==gl
+     if os.environ.get('DESKTOP_ACCOUNT_FOCUSED')=='1':
+      # Renderer probing moved to explicit initialization; check the actual Shell environment.
+      glx=next(row for row in calls if row[0]=='gnome-shell' and '--version' not in row[1])
+     else:
+      assert probe_renderer in (work/'renderer-check.log').read_text()
+      glx=next(row for row in calls if row[0]=='glxinfo')
+      assert glx[1]==['-B']
+     assert glx[2]['GALLIUM_DRIVER']==gl
      assert glx[2]['COGL_DRIVER']=='gl3' and glx[2]['CLUTTER_DRIVER']=='gl3'
      assert xlorie[2]['COGL_DRIVER'] is None and xlorie[2]['CLUTTER_DRIVER'] is None
      assert glx[2]['LIBGL_ALWAYS_SOFTWARE']==('1' if gl=='llvmpipe' else None)
@@ -244,7 +251,7 @@ while True: time.sleep(.1)
     finally:
      sentinel.terminate(); sentinel.wait()
     if usb: assert (folder/'storage-cleanup').read_text()=='session-alive'
-    user_home = rootfs.resolve()/'root' if mode=='proot' else work.resolve()/'home' if profile=='native-ubuntu' else termux_home
+    user_home = rootfs.resolve()/'home/termux' if mode=='proot' else work.resolve()/'home' if profile=='native-ubuntu' else termux_home
     config_home = user_home/'.config' if mode=='proot' else work.resolve()/'config'
     assert (user_home/'user-created.txt').read_text()=='user data'
     assert not (work/'user-created.txt').exists(), 'user data leaked into launcher workspace'
@@ -266,7 +273,7 @@ while True: time.sleep(.1)
      assert '--wayland' not in shell[1]
      assert shell[2]['COGL_DRIVER']=='gl3' and shell[2]['CLUTTER_DRIVER']=='gl3'
      proot_args = next(row[1] for row in calls if row[0]=='proot')
-     for assignment in ('HOME=/root','XDG_CONFIG_HOME=/root/.config','XDG_CACHE_HOME=/root/.cache','XDG_DATA_HOME=/root/.local/share'):
+     for assignment in ('HOME=/home/termux','XDG_CONFIG_HOME=/home/termux/.config','XDG_CACHE_HOME=/home/termux/.cache','XDG_DATA_HOME=/home/termux/.local/share'):
       assert assignment in proot_args
      assert ('GALLIUM_DRIVER='+gl) in proot_args
      assert 'COGL_DRIVER=gl3' in proot_args and 'CLUTTER_DRIVER=gl3' in proot_args
@@ -294,8 +301,8 @@ while True: time.sleep(.1)
      assert shell[2]['GNOME_SHELL_SESSION_MODE']=='ubuntu'
      assert any(row[0]=='gsd-xsettings' for row in calls)
      assert len([row for row in calls if row[0]=='gdbus'])==6
-     assert (rootfs/'root/.config/.termux-ubuntu-profile-v1').is_file()
-     assert (rootfs/'root/Desktop').is_dir()
+     assert (rootfs/'home/termux/.config/.termux-ubuntu-profile-v1').is_file()
+     assert (rootfs/'home/termux/Desktop').is_dir()
     if usb:
      storage_args=json.loads((folder/'storage-args').read_text())
      assert storage_args[storage_args.index('--termux-usb')+1]==str(prefix/'libexec/termux-usb-app')
@@ -316,53 +323,61 @@ while True: time.sleep(.1)
   finally:
    if process.poll() is None: process.kill(); process.wait()
    output.close(); sock.close()
- case('native-30',hz=30)
- case('native-software',gl='llvmpipe')
- case('native-zink',gl='zink')
- case('native-forbidden-x11-buffer',display_buffer='native')
- case('native-x11',backend='x11')
- case('proot-system',mode='proot',backend='x11',gl='system')
- case('proot-forky',mode='proot',backend='x11',gl='llvmpipe',codename='forky')
- case('native-forbidden-x11-display',display_gl='system')
- case('proot-display-missing',mode='proot',backend='x11',gl='llvmpipe',display_gl=None)
- case('proot-display-software',mode='proot',backend='x11',gl='llvmpipe',display_gl='llvmpipe')
- case('proot-guest-hardware',mode='proot',backend='x11',gl='llvmpipe',probe_renderer='Adreno GPU',expected_code=1)
- case('proot-glx-failed',mode='proot',backend='x11',gl='llvmpipe',probe_code=1,expected_code=1)
- case('native-startup-missing',startup=None)
- case('proot-startup-systemd',mode='proot',backend='x11',gl='llvmpipe',startup='systemd')
- case('proot-buffer-missing',mode='proot',backend='x11',gl='llvmpipe',display_buffer=None)
- case('proot-buffer-mismatch',mode='proot',backend='x11',gl='llvmpipe',display_buffer='dmabuf')
- case('zink-display-mismatch',mode='proot',backend='x11',gl='zink',display_gl='system')
- case('zink-buffer-mismatch',mode='proot',backend='x11',gl='zink',display_buffer='native')
- for part in ('missing','wrong-driver','malformed','missing-library'):
-  case('zink-guest-icd-'+part,mode='proot',backend='x11',gl='zink',guest_icd=part)
-  case('zink-host-icd-'+part,mode='proot',backend='x11',gl='zink',host_icd=part)
- for index,renderer in enumerate(('llvmpipe (LLVM)', 'zink (Vulkan llvmpipe)', 'zink (Intel GPU)', 'Adreno (TM) 660', 'zink (Adreno software)', '')):
-  case('zink-invalid-renderer-'+str(index),mode='proot',backend='x11',gl='zink',probe_renderer=renderer,expected_code=1)
- case('zink-not-accelerated',mode='proot',backend='x11',gl='zink',probe_renderer='zink Turnip Adreno 660',probe_accelerated='no',expected_code=1)
- case('zink-acceleration-unknown',mode='proot',backend='x11',gl='zink',probe_renderer='zink Turnip Adreno 660',probe_accelerated='',expected_code=1)
- case('zink-glx-failed',mode='proot',backend='x11',gl='zink',probe_renderer='zink Vulkan Turnip Adreno 660',probe_code=1,expected_code=1)
- case('zink-ready',mode='proot',backend='x11',gl='zink',probe_renderer='zink Vulkan Turnip Adreno 660',success=True)
- case('zink-usb',mode='proot',backend='x11',gl='zink',probe_renderer='zink (Adreno (TM) 660)',success=True,usb=True)
- case('native-ubuntu-initializing',profile='native-ubuntu',success=True,extension_state='initializing')
- case('native-ubuntu-ready',profile='native-ubuntu',success=True)
- case('native-ubuntu-broken-dock',profile='native-ubuntu',extension_state='3',expected_code=1)
- case('native-ubuntu-missing-theme',profile='native-ubuntu',missing_asset='share/gnome-shell/theme/Yaru/gnome-shell-theme.gresource')
- case('native-ubuntu-invalid-proot',profile='native-ubuntu',mode='proot',backend='x11',gl='llvmpipe')
- case('native-ubuntu-invalid-usb',profile='native-ubuntu',usb=True)
- case('native-ubuntu-invalid-hz',profile='native-ubuntu',hz=30)
- case('native-ready',success=True)
- case('proot-ready',mode='proot',backend='x11',gl='llvmpipe',hz=30,success=True)
- case('native-usb',success=True,usb=True)
- case('native-usb-cleanup-fail',success=True,usb=True,cleanup_failure=True)
- case('proot-usb',mode='proot',backend='x11',gl='llvmpipe',hz=30,success=True,usb=True)
- case('ubuntu-ready',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',success=True)
- case('ubuntu-wrong-base',mode='proot',backend='x11',gl='llvmpipe',profile='ubuntu')
- case('ubuntu-native',profile='ubuntu')
- case('ubuntu-zink',mode='proot',backend='x11',gl='zink',codename='noble',profile='ubuntu')
- case('ubuntu-usb',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',usb=True)
- case('ubuntu-missing-dock',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',missing_asset='usr/share/gnome-shell/extensions/ubuntu-dock@ubuntu.com/extension.js')
- case('ubuntu-broken-dock',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',extension_state='3',expected_code=1)
+ if os.environ.get('DESKTOP_ACCOUNT_FOCUSED')=='1':
+  case('account-gnome',mode='proot',backend='x11',gl='llvmpipe',success=True)
+  case('account-ubuntu',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',success=True)
+  case('account-missing',mode='proot',backend='x11',gl='llvmpipe',account='')
+  case('account-root',mode='proot',backend='x11',gl='llvmpipe',account='termux:x:0:0::/home/termux:/bin/bash\n')
+  print('PASS: ordinary GNOME/Ubuntu identity, HOME, readiness/cleanup and invalid account fixtures')
+  sys.exit(0)
+ if os.environ.get('DESKTOP_XFCE_FOCUSED')!='1':
+  case('native-30',hz=30)
+  case('native-software',gl='llvmpipe')
+  case('native-zink',gl='zink')
+  case('native-forbidden-x11-buffer',display_buffer='native')
+  case('native-x11',backend='x11')
+  case('proot-system',mode='proot',backend='x11',gl='system')
+  case('proot-forky',mode='proot',backend='x11',gl='llvmpipe',codename='forky')
+  case('native-forbidden-x11-display',display_gl='system')
+  case('proot-display-missing',mode='proot',backend='x11',gl='llvmpipe',display_gl=None)
+  case('proot-display-software',mode='proot',backend='x11',gl='llvmpipe',display_gl='llvmpipe')
+  case('proot-guest-hardware',mode='proot',backend='x11',gl='llvmpipe',probe_renderer='Adreno GPU',expected_code=1)
+  case('proot-glx-failed',mode='proot',backend='x11',gl='llvmpipe',probe_code=1,expected_code=1)
+  case('native-startup-missing',startup=None)
+  case('proot-startup-systemd',mode='proot',backend='x11',gl='llvmpipe',startup='systemd')
+  case('proot-buffer-missing',mode='proot',backend='x11',gl='llvmpipe',display_buffer=None)
+  case('proot-buffer-mismatch',mode='proot',backend='x11',gl='llvmpipe',display_buffer='dmabuf')
+  case('zink-display-mismatch',mode='proot',backend='x11',gl='zink',display_gl='system')
+  case('zink-buffer-mismatch',mode='proot',backend='x11',gl='zink',display_buffer='native')
+  for part in ('missing','wrong-driver','malformed','missing-library'):
+   case('zink-guest-icd-'+part,mode='proot',backend='x11',gl='zink',guest_icd=part)
+   case('zink-host-icd-'+part,mode='proot',backend='x11',gl='zink',host_icd=part)
+  for index,renderer in enumerate(('llvmpipe (LLVM)', 'zink (Vulkan llvmpipe)', 'zink (Intel GPU)', 'Adreno (TM) 660', 'zink (Adreno software)', '')):
+   case('zink-invalid-renderer-'+str(index),mode='proot',backend='x11',gl='zink',probe_renderer=renderer,expected_code=1)
+  case('zink-not-accelerated',mode='proot',backend='x11',gl='zink',probe_renderer='zink Turnip Adreno 660',probe_accelerated='no',expected_code=1)
+  case('zink-acceleration-unknown',mode='proot',backend='x11',gl='zink',probe_renderer='zink Turnip Adreno 660',probe_accelerated='',expected_code=1)
+  case('zink-glx-failed',mode='proot',backend='x11',gl='zink',probe_renderer='zink Vulkan Turnip Adreno 660',probe_code=1,expected_code=1)
+  case('zink-ready',mode='proot',backend='x11',gl='zink',probe_renderer='zink Vulkan Turnip Adreno 660',success=True)
+  case('zink-usb',mode='proot',backend='x11',gl='zink',probe_renderer='zink (Adreno (TM) 660)',success=True,usb=True)
+  case('native-ubuntu-initializing',profile='native-ubuntu',success=True,extension_state='initializing')
+  case('native-ubuntu-ready',profile='native-ubuntu',success=True)
+  case('native-ubuntu-broken-dock',profile='native-ubuntu',extension_state='3',expected_code=1)
+  case('native-ubuntu-missing-theme',profile='native-ubuntu',missing_asset='share/gnome-shell/theme/Yaru/gnome-shell-theme.gresource')
+  case('native-ubuntu-invalid-proot',profile='native-ubuntu',mode='proot',backend='x11',gl='llvmpipe')
+  case('native-ubuntu-invalid-usb',profile='native-ubuntu',usb=True)
+  case('native-ubuntu-invalid-hz',profile='native-ubuntu',hz=30)
+  case('native-ready',success=True)
+  case('proot-ready',mode='proot',backend='x11',gl='llvmpipe',hz=30,success=True)
+  case('native-usb',success=True,usb=True)
+  case('native-usb-cleanup-fail',success=True,usb=True,cleanup_failure=True)
+  case('proot-usb',mode='proot',backend='x11',gl='llvmpipe',hz=30,success=True,usb=True)
+  case('ubuntu-ready',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',success=True)
+  case('ubuntu-wrong-base',mode='proot',backend='x11',gl='llvmpipe',profile='ubuntu')
+  case('ubuntu-native',profile='ubuntu')
+  case('ubuntu-zink',mode='proot',backend='x11',gl='zink',codename='noble',profile='ubuntu')
+  case('ubuntu-usb',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',usb=True)
+  case('ubuntu-missing-dock',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',missing_asset='usr/share/gnome-shell/extensions/ubuntu-dock@ubuntu.com/extension.js')
+  case('ubuntu-broken-dock',mode='proot',backend='x11',gl='llvmpipe',codename='noble',profile='ubuntu',extension_state='3',expected_code=1)
  def xfce_case(name,mode='native',cleanup_failure=False):
   global count
   count+=1; folder=base/name; prefix=folder/'p'; (prefix/'bin').mkdir(parents=True); (prefix/'tmp').mkdir(); (folder/'calls').touch()
@@ -370,7 +385,21 @@ while True: time.sleep(.1)
    target=prefix/'bin'/command; target.write_text(mock); target.chmod(0o700)
   (prefix/'bin/sh').symlink_to('/bin/sh'); (prefix/'bin/python3').symlink_to(sys.executable)
   launcher=folder/'desktop_xfce_session.py'; shutil.copy(assets/launcher.name,launcher)
-  shutil.copy(base/'native-usb/desktop_usb_storage.py',folder/'desktop_usb_storage.py')
+  helper=folder/'desktop_usb_storage.py'
+  helper.write_text('#!'+sys.executable+'\n'+r'''
+import json,os,pathlib,signal,socket,sys,time
+base=pathlib.Path(os.environ['FIXTURE']); (base/'storage-args').write_text(json.dumps(sys.argv[1:])); runtime=pathlib.Path(sys.argv[sys.argv.index('--runtime')+1]); runtime.mkdir(parents=True)
+if '--gio-command-json' in sys.argv: (base/'gio-command').write_text(sys.argv[sys.argv.index('--gio-command-json')+1])
+sock=socket.socket(socket.AF_UNIX); sock.bind(str(runtime/'control.sock'))
+def stop(signum,frame):
+ pid=int((base/'shell-running').read_text()); os.kill(pid,0)
+ (base/'storage-cleanup').write_text('session-alive')
+ (base/'storage-bus').write_text(os.environ['DBUS_SESSION_BUS_ADDRESS'])
+ time.sleep(.2)
+ sys.exit(1 if (base/'cleanup-failure').exists() else 0)
+signal.signal(signal.SIGTERM,stop)
+while True: time.sleep(.1)
+''')
   if cleanup_failure: (folder/'cleanup-failure').touch()
   if mode=='native': modules=prefix/'lib/gio/modules'
   else:
@@ -389,6 +418,9 @@ while True: time.sleep(.1)
    wait_for(lambda:(parent/'desktop/control.sock').is_socket(),process)
    process.terminate(); assert process.wait(timeout=10)==(1 if cleanup_failure else 130)
    calls=[json.loads(line) for line in (folder/'calls').read_text().splitlines()]
+   if mode=='proot':
+    login=next(row[1] for row in calls if row[0]=='proot-distro')
+    assert login[login.index('--user')+1]=='termux'
    shell=next(row for row in calls if row[0]=='xfce4-session')
    assert shell[2]['PULSE_SERVER']=='tcp:127.0.0.1:4713'
    assert (folder/'storage-cleanup').read_text()=='session-alive'

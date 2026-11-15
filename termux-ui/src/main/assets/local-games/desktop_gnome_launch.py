@@ -104,11 +104,11 @@ def main():
     if not Path(termux_home).is_absolute() or not Path(termux_home).is_dir():
         ap.error('the parent Termux HOME must be an existing absolute directory')
     if args.rootfs:
-        user_home = args.rootfs.resolve() / 'root'
+        user_home = args.rootfs.resolve() / 'home/termux'
         config_home, cache_home, data_home = (user_home / '.config', user_home / '.cache',
                                             user_home / '.local/share')
-        session_home = '/root'
-        session_config, session_cache, session_data = '/root/.config', '/root/.cache', '/root/.local/share'
+        session_home = '/home/termux'
+        session_config, session_cache, session_data = '/home/termux/.config', '/home/termux/.cache', '/home/termux/.local/share'
     else:
         config_home, cache_home, data_home = w / 'config', w / 'cache', w / 'data'
         session_home = str(w / 'home') if native_ubuntu else termux_home
@@ -162,7 +162,11 @@ def main():
             (root / d).mkdir(parents=True, exist_ok=True)
         gw, gr = '/tusb-gnome', '/run/tusb-gnome'
         guest.pop('LD_PRELOAD', None)
-        base = ['proot', '--link2symlink', '--sysvipc', '-r', str(root), '-b', '/dev',
+        account = next((line.split(':') for line in (root / 'etc/passwd').read_text().splitlines()
+                        if line.startswith('termux:')), None)
+        if not account or len(account) != 7 or not account[2].isdigit() or not account[3].isdigit() or int(account[2]) == 0 or account[5] != '/home/termux':
+            ap.error('container requires the ordinary termux account; create a new container')
+        base = ['proot', '-i', account[2] + ':' + account[3], '--link2symlink', '--sysvipc', '-r', str(root), '-b', '/dev',
                 '-b', '/proc', '-b', '/sys', '-b', str(w) + ':' + gw,
                 '-b', str(w) + ':' + str(w),
                 '-b', str(runtime) + ':' + gr,
@@ -170,7 +174,7 @@ def main():
         if args.usb_storage == 'read-only':
             (root / str(usb_parent).lstrip('/')).mkdir(parents=True, exist_ok=True)
             base += ['-b', str(usb_parent) + ':' + str(usb_parent)]
-        base += ['-w', '/', '/usr/bin/env', '-i']
+        base += ['-w', '/home/termux', '/usr/bin/env', '-i']
     values = dict(HOME=session_home, DISPLAY=args.display, XDG_RUNTIME_DIR=gr,
                   PULSE_SERVER=os.environ['PULSE_SERVER'],
                   XCURSOR_PATH='/usr/share/icons' if args.rootfs else str(prefix / 'share/icons'),
@@ -206,7 +210,8 @@ def main():
         # winsys is GLX; restrict Clutter's list too so it cannot try GLES/EGL
         # or retry with its default "any" driver after GLX initialization fails.
         values.update(COGL_DRIVER='gl3', CLUTTER_DRIVER='gl3')
-        values.update(PATH='/usr/sbin:/usr/bin:/sbin:/bin',
+        values.update(USER='termux', LOGNAME='termux', SHELL='/bin/bash',
+                      PATH='/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
                       XDG_DATA_DIRS=('/usr/share/ubuntu:/usr/local/share:/usr/share' if ubuntu else '/usr/local/share:/usr/share'), XDG_CONFIG_DIRS='/etc/xdg')
         if args.usb_storage == 'read-only':
             values['GIO_EXTRA_MODULES'] = '/usr/local/lib/termux-usb-bridge/gio/modules'

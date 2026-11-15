@@ -89,6 +89,7 @@ public class DesktopArchiveEngineTest {
         assertEquals("horizontal",checked.getOrientation());assertEquals(64,checked.getArchiveSha256().length());
         assertTrue(checked.getEntryCount()>10);assertTrue(checked.getExpandedBytes()>checked.getEntryCount()*4096L);
         DesktopArchiveImportResult imported=restore(file,checked);Path root=imported.getContainerDirectory().toPath();
+        assertEquals("工作桌面",imported.getDesktop().getName());
         assertEquals("new-id",imported.getDesktop().getId());assertEquals("new-container",imported.getDesktop().getProotDistro());
         assertEquals(DesktopGlMode.SYSTEM,imported.getDesktop().getHostGlMode());
         assertEquals(DesktopGuestGlMode.DEFAULT,imported.getDesktop().getGuestGlMode());assertEquals(60,imported.getDesktop().getRefreshRate());

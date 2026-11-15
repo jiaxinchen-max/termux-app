@@ -6,6 +6,16 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # proot-distro's non-login command environment omits SHELL. Konsole otherwise
 # receives an empty command and selects its own fallback shell.
 export SHELL=/bin/bash
+case "${1:-}" in
+    '') SESSION_ROLE=manager
+        [ "$(id -u)" = 0 ] || exit 77
+        [ "$(id -u termux)" != 0 ] && getent passwd termux >/dev/null || {
+            echo 'ERROR: missing ordinary termux user; create a new container' >&2; exit 77;
+        } ;;
+    --user-session) SESSION_ROLE=user
+        [ "$(id -un)" = termux ] && [ "$(id -u)" != 0 ] && [ "$HOME" = /home/termux ] || exit 77 ;;
+    *) exit 64 ;;
+esac
 
 # This launcher supports one explicit session policy. Choose services before launching them.
 case "${DESKTOP_KDE_SERVICE_POLICY:-}:${QT_QPA_PLATFORM:-}:${XDG_SESSION_TYPE:-}" in
@@ -55,10 +65,10 @@ if [ "${PLASMA_CONTAINER_DEBUG:-0}" = "1" ]; then
 fi
 
 LOG="${PLASMA_CONTAINER_LOG:-$XDG_RUNTIME_DIR/plasma-container.log}"
-READY_FILE="$XDG_RUNTIME_DIR/plasma-container.ready"
+READY_FILE="${DESKTOP_PLASMA_READY_FILE:-$XDG_RUNTIME_DIR/plasma-container.ready}"
 SESSION_TOKEN="${DESKTOP_PLASMA_SESSION_TOKEN:?Explicit session token is required}"
 case "$SESSION_TOKEN" in ''|*[!a-zA-Z0-9-]*) exit 64 ;; esac
-exec >"$LOG" 2>&1
+[ "$SESSION_ROLE" != manager ] || exec >"$LOG" 2>&1
 echo "=== Plasma container session (renderer=$DESKTOP_GUEST_GL_MODE, fallback=disabled) $(date) ==="
 rm -f "$READY_FILE"
 monotonic_cs() {
@@ -83,18 +93,34 @@ cleanup() {
     trap - EXIT TERM INT
     rm -f "$READY_FILE" "$READY_FILE.$$"
     for pid in $SESSION_PIDS; do kill -TERM "$pid" 2>/dev/null || true; done
-    sleep 1
+    if [ "$SESSION_ROLE" = manager ]; then sleep 3; else sleep 1; fi
     for pid in $SESSION_PIDS; do kill -KILL "$pid" 2>/dev/null || true; done
     for pid in $SESSION_PIDS; do wait "$pid" 2>/dev/null || true; done
+    if [ "$SESSION_ROLE" = manager ] && [ "$(readlink /run/dbus/system_bus_socket 2>/dev/null)" = "$BUS_DIR/system_bus_socket" ]; then
+        rm -f /run/dbus/system_bus_socket
+    fi
     rm -rf "$BUS_DIR"
 }
-BUS_DIR="$XDG_RUNTIME_DIR/container-dbus"
+case "$SESSION_ROLE" in manager) BUS_DIR="$XDG_RUNTIME_DIR/bm" ;; user) BUS_DIR="$XDG_RUNTIME_DIR/bs" ;; esac
 mkdir -p "$BUS_DIR" || exit 1
 chmod 700 "$BUS_DIR" || exit 1
 trap cleanup EXIT
 trap 'exit 143' TERM
 trap 'exit 130' INT
-unset DBUS_SESSION_BUS_ADDRESS DBUS_SESSION_BUS_PID DBUS_SYSTEM_BUS_ADDRESS
+unset DBUS_SESSION_BUS_ADDRESS DBUS_SESSION_BUS_PID
+
+if [ "$SESSION_ROLE" = manager ]; then
+unset DBUS_SYSTEM_BUS_ADDRESS
+# PAM's setuid helper clears bus environment variables. Give it the standard
+# container-local endpoint, pointing to this same private bus.
+mkdir -p /run/dbus || exit 1
+if [ -e /run/dbus/system_bus_socket ] || [ -L /run/dbus/system_bus_socket ]; then
+    [ "$(readlink /run/dbus/system_bus_socket 2>/dev/null)" = "$BUS_DIR/system_bus_socket" ] || {
+        echo 'ERROR: foreign container system bus socket'; exit 1;
+    }
+else
+    ln -s "$BUS_DIR/system_bus_socket" /run/dbus/system_bus_socket || exit 1
+fi
 
 # Only publish system services that this PRoot session supports. The distro's full directory
 # also activates hardware daemons (fwupd, ModemManager, UDisks, UPower, wpa_supplicant)
@@ -131,6 +157,8 @@ CONF
 }
 SESSION_PIDS="$(cat "$BUS_DIR/system.pid")"
 export DBUS_SYSTEM_BUS_ADDRESS="$(cat "$BUS_DIR/system.address")"
+else
+: "${DBUS_SYSTEM_BUS_ADDRESS:?Container manager must provide the system bus}"
 # Keep the physical socket in the short runtime bind. A default /tmp socket exceeds
 # sun_path after rootfs translation, so PRoot moves it into Termux's exit-cleaned TMPDIR.
 /usr/bin/dbus-daemon --session --address="unix:path=$BUS_DIR/session.sock" \
@@ -138,7 +166,7 @@ export DBUS_SYSTEM_BUS_ADDRESS="$(cat "$BUS_DIR/system.address")"
     > "$BUS_DIR/session.address" 3> "$BUS_DIR/session.pid" || {
     echo "ERROR: container session D-Bus failed to start"; exit 1;
 }
-SESSION_PIDS="$SESSION_PIDS $(cat "$BUS_DIR/session.pid")"
+SESSION_PIDS="$(cat "$BUS_DIR/session.pid")"
 export DBUS_SESSION_BUS_ADDRESS="$(cat "$BUS_DIR/session.address")"
 /usr/bin/dbus-send --bus="$DBUS_SESSION_BUS_ADDRESS" --print-reply --reply-timeout=3000 \
     --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.Peer.Ping || {
@@ -148,6 +176,7 @@ export DBUS_SESSION_BUS_ADDRESS="$(cat "$BUS_DIR/session.address")"
 }
 echo "Started private container system and session D-Bus"
 stage buses-ready
+fi
 
 # kill -0 also succeeds for zombies; distinguish an exited child before waiting.
 require_service_alive() {
@@ -206,6 +235,7 @@ wait_for_service() { # pid --system|--session name object-path
 
 # Keep PolicyKit's packaged authentication and rules. Explicit startup is required because this
 # private system bus has no privileged activation helper. Do not pass --no-debug: it hides stderr.
+if [ "$SESSION_ROLE" = manager ]; then
 [ -x /usr/lib/polkit-1/polkitd ] || {
     echo "ERROR: PolicyKit daemon is missing after dependency installation"; exit 1;
 }
@@ -228,6 +258,33 @@ if [ -n "$PACKAGEKIT_DAEMON" ]; then
     packagekit_pid=$!
     SESSION_PIDS="$SESSION_PIDS $packagekit_pid"
     wait_for_service "$packagekit_pid" --system org.freedesktop.PackageKit /org/freedesktop/PackageKit || exit "$?"
+fi
+
+
+# Only the manager owns privileged guest services. KDE and applications inherit ordinary credentials.
+user_runtime="$XDG_RUNTIME_DIR/user"
+mkdir -p "$user_runtime" || exit 1
+chmod 700 "$user_runtime" || exit 1
+chown "termux:$(id -gn termux)" "$user_runtime" || exit 1
+case "$WAYLAND_DISPLAY" in /*) user_display="$WAYLAND_DISPLAY" ;; *) user_display="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ;; esac
+# Register process subjects from the manager: Android /proc reports physical ownership,
+# which differs from the ordinary guest UID. PolicyKit explicitly permits root registration.
+env XDG_RUNTIME_DIR="$user_runtime" WAYLAND_DISPLAY="$user_display" \
+    /usr/bin/python3 /tmp/desktop_container_polkit_agent.py &
+SESSION_PIDS="$SESSION_PIDS $!"
+runuser -u termux -- env XDG_RUNTIME_DIR="$user_runtime" WAYLAND_DISPLAY="$user_display" \
+    DESKTOP_PLASMA_READY_FILE="$READY_FILE" HOME=/home/termux USER=termux LOGNAME=termux SHELL=/bin/bash \
+    XDG_CONFIG_HOME=/home/termux/.config XDG_CACHE_HOME=/home/termux/.cache \
+    XDG_DATA_HOME=/home/termux/.local/share \
+    sh -c 'cd "$HOME" && exec sh "$@"' sh "$0" --user-session &
+user_pid=$!
+SESSION_PIDS="$SESSION_PIDS $user_pid"
+while :; do
+    for managed_pid in $SESSION_PIDS; do
+        require_service_alive "$managed_pid" "manager-pid-$managed_pid" || exit "$?"
+    done
+    sleep 1
+done
 fi
 
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then

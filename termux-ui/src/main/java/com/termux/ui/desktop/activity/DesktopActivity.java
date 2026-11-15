@@ -325,7 +325,7 @@ public final class DesktopActivity extends AppUiActivity {
                           DesktopSessionState state, List<DesktopDistro> all) {
         String label = DesktopCreateActivity.labelOf(this, distro.getDe());
         if (distro.getRunMode() == DesktopRunMode.PROOT) {
-            label += " " + DesktopCreationCatalog.instanceLabel(distro, all);
+            label = distro.getName();
         }
         card.desktopName.setText(label);
         card.desktopModeBadge.setText(distro.getRunMode() == DesktopRunMode.NATIVE

@@ -280,7 +280,7 @@ kwin_android_select_rendering() {
 
 
 def prepare_plasma_cache(guest, env):
-    """Match the root login HOME and XDG search path of the container session."""
+    """Match the ordinary user login HOME and XDG search path of the container session."""
     subprocess.run(guest + ['XDG_DATA_DIRS=/usr/share:/usr/local/share',
                    'XDG_MENU_PREFIX=plasma-', 'kbuildsycoca6', '--noincremental'],
                    env=env, check=True, timeout=120)
@@ -304,7 +304,7 @@ def initialize(args):
         executable(prefix / 'bin/proot-distro')
         if getattr(args, 'command', None) == 'restore':
             restore_network(prefix, root)
-        guest = [str(prefix / 'bin/proot-distro'), 'login', args.alias, '--', 'env']
+        guest = [str(prefix / 'bin/proot-distro'), 'login', args.alias, '--user', 'termux', '--', 'env']
     for name in ('python3', 'pulseaudio', 'pactl'):
         executable(prefix / 'bin' / name)
     commands = {

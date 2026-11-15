@@ -15,7 +15,7 @@ class InstallTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary); prefix = base / 'usr'; (prefix / 'bin').mkdir(parents=True); (prefix / 'tmp').mkdir()
             assets = base / 'assets'; assets.mkdir()
-            for name in ['desktop_common.sh', 'desktop_rendering.sh', 'hyprland-components.sh', 'desktop_container_plasma_apt.sh', 'desktop_container_apt_sources.sh', 'desktop_container_statx_setup.sh', 'desktop_container_run_config.sh', 'desktop_container_statx_aarch64.bin']:
+            for name in ['desktop_container_user.sh', 'desktop_common.sh', 'desktop_rendering.sh', 'hyprland-components.sh', 'desktop_container_plasma_apt.sh', 'desktop_container_apt_sources.sh', 'desktop_container_statx_setup.sh', 'desktop_container_run_config.sh', 'desktop_container_statx_aarch64.bin']:
                 shutil.copyfile(ASSETS / name, assets / name)
             container = prefix / 'var/lib/proot-distro/containers/debian-1'; rootfs = container / 'rootfs'
             (rootfs / 'etc').mkdir(parents=True); (rootfs / 'etc/os-release').write_text('ID=debian\nVERSION_CODENAME=trixie\n')

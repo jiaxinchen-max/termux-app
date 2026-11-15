@@ -744,4 +744,5 @@
     <string name="desktop_create_save_failed">Could not save the desktop. Please try again.</string>
     <string name="desktop_state_installing">Installing…</string>
     <string name="desktop_action_view_install">View installation</string>
+    <string name="desktop_container_account_hint">Default user: termux · Initial password: termux\nUse passwd to change the password; use sudo for administration.\nApplies to new containers; recreate older containers.</string>
 </resources>

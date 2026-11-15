@@ -1,8 +1,8 @@
 change_id: default-proot-termux-user-and-restore-name
-stage: requirement-design-review
+stage: verification_incomplete
 approval:
-  requirements: 用户已明确功能需求，规划产物待确认
-  implementation: Pending
+  requirements: 用户本轮“批准，所有容器都这么逻辑”确认全部规划范围
+  implementation: Approved
   git: 用户此前明确要求任务结束推送进度
 api_docs:
   status: N/A
@@ -17,3 +17,7 @@ consistency:
 verification:
   strict_gate: unavailable
   reason: 仓库缺少 Harness 严格验证脚本与 OpenSpec CLI
+  focused_tests: Passed
+  apk_build: Passed
+  discover_authorization: Failed
+  graphical_acceptance: Pending

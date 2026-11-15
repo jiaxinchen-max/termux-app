@@ -169,9 +169,9 @@ def main():
     (args.runtime / 'wayland-0').unlink(missing_ok=True)
 
     def container_command(token, started_cs):
-        command = [str(prefix / 'bin/proot-distro'), 'login', args.alias,
+        command = [str(prefix / 'bin/proot-distro'), 'login', args.alias, '--user', 'root',
                    '--bind', str(args.runtime) + ':/run/wl']
-        for name in ('desktop_container_session.sh', 'desktop_container_statx_setup.sh',
+        for name in ('desktop_container_session.sh', 'desktop_container_polkit_agent.py', 'desktop_container_statx_setup.sh',
                      'desktop_container_run_config.sh', 'desktop_container_statx_aarch64.bin'):
             command += ['--bind', str(assets / name) + ':/tmp/' + name]
         return command + ['--', 'env', 'DESKTOP_GUEST_GL_MODE=' + args.guest_mode,

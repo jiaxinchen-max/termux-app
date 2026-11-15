@@ -224,7 +224,7 @@ def container_command(work, alias, client_mode, program, token):
                       'LIBGL_ALWAYS_SOFTWARE=0', 'EGL_PLATFORM=wayland',
                       'QSG_RHI_BACKEND=vulkan', 'QT_OPENGL=desktop',
                       'QT_WAYLAND_CLIENT_BUFFER_INTEGRATION=wayland-egl']
-    return [str(PREFIX / 'bin/env'), *clean, str(PREFIX / 'bin/proot-distro'), 'login', alias,
+    return [str(PREFIX / 'bin/env'), *clean, str(PREFIX / 'bin/proot-distro'), 'login', alias, '--user', 'termux',
             '--shared-tmp', '--bind', str(work / 'runtime') + ':/tmp/hyprland-runtime',
             '--bind', str(helper) + ':/tmp/hyprland-gpu-check.py', '--',
             'env', *clean, *guest_env, *program]

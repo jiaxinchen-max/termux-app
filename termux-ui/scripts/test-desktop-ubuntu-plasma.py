@@ -63,6 +63,22 @@ class UbuntuPlasmaInstallTests(unittest.TestCase):
         self.assertIn(['apt-mark', 'hold', 'termux-api'], calls)
         self.assertTrue((self.base / 'usr/tmp/desktop_container_discover_catalog.sh').is_file())
 
+    def test_account_is_provisioned_as_root_after_packages_before_initialization(self):
+        result, calls = self.install()
+        self.assertEqual(0, result.returncode, result.stdout)
+        account = next(i for i, c in enumerate(calls) if '/tmp/desktop_container_user.sh' in c)
+        self.assertEqual(['--user', 'root'], calls[account][3:5])
+        packages = [i for i, c in enumerate(calls) if '/tmp/desktop_container_plasma_apt.sh' in c]
+        self.assertLess(max(packages), account)
+        self.assertTrue(any('sudo' in calls[i] and 'passwd' in calls[i] for i in packages))
+        self.assertLess(account, next(i for i,c in enumerate(calls) if any('desktop_initialize.py' in a for a in c)))
+
+    def test_failed_account_setup_prevents_success_marker(self):
+        result, calls = self.install(container_user_error=77)
+        self.assertEqual(77, result.returncode, result.stdout)
+        self.assertFalse((self.base / 'usr/var/lib/proot-distro/containers/ubuntu-kwin-plasma-1/.desktop-de-kwin_plasma').exists())
+        self.assertFalse(any(any('desktop_initialize.py' in a for a in c) for c in calls))
+
     def test_catalog_failure_preserves_error_and_blocks_success(self):
         marker = self.base / 'usr/var/lib/proot-distro/containers/ubuntu-kwin-plasma-1/.desktop-de-kwin_plasma'
         marker.parent.mkdir(parents=True)

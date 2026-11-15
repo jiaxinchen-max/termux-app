@@ -97,6 +97,7 @@ elif command=='proot-distro':
         (root/'etc').mkdir(parents=True,exist_ok=True)
         (root/'etc/os-release').write_text('ID='+state.get('actual_distro_id',args[-1].split(':')[0])+'\nVERSION_CODENAME='+state.get('actual_codename',release)+'\n')
     elif args and args[0]=='login':
+        if '/tmp/desktop_container_user.sh' in args: sys.exit(state.get('container_user_error',0))
         if '/tmp/desktop_container_discover_catalog.sh' in args: sys.exit(state.get('container_catalog_error',0))
         sys.exit(state.get('container_apt_error',0))
 elif command=='tar':

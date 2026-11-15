@@ -728,4 +728,5 @@
     <string name="desktop_create_save_failed">无法保存桌面，请重试。</string>
     <string name="desktop_state_installing">正在安装…</string>
     <string name="desktop_action_view_install">查看安装进度</string>
+    <string name="desktop_container_account_hint">默认用户：termux · 初始密码：termux\n可在容器终端使用 passwd 修改密码，使用 sudo 执行管理操作。\n仅对新建容器生效，旧容器请重新创建。</string>
 </resources>
