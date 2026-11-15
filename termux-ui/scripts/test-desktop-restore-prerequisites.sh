@@ -32,7 +32,18 @@ elif cmd == 'dpkg-query':
     package = args[-1]
     if package not in state['versions']: sys.exit(1)
     print('install ok installed' if args[1] == '-f=${Status}' else state['versions'][package], end='')
+elif cmd == 'dpkg-deb':
+    package = pathlib.Path(args[1]).stem
+    print(package if args[2] == 'Package' else '0.60.0-1+embedded.1')
+elif cmd == 'apt-mark':
+    if state.get('hold_failure'): sys.exit(42)
 elif cmd == 'dpkg':
+    if args[0] == '-i':
+        if state.get('registration_failure'): sys.exit(43)
+        if not state.get('registration_ineffective'):
+            state['versions'][pathlib.Path(args[1]).stem] = '0.60.0-1+embedded.1'; save()
+    if args[0] == '--audit' and state.get('audit_failure'): print('not configured')
+
     if args[0] == '--compare-versions':
         def version(v): return tuple(int(x) for x in re.findall('[0-9]+', v))
         left, op, right = args[1:]
@@ -115,7 +126,7 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
         data = {'versions':dict(versions), 'files':files, 'manifests':manifests}
         if mutate: mutate(data, case)
         (case/'state.json').write_text(json.dumps(data))
-        for command in ('uname','dpkg-query','dpkg','sha256sum','proot','proot-distro','python3','curl','apt','pkg','apt-mark','pulseaudio','pactl','eglinfo'):
+        for command in ('uname','dpkg-query','dpkg','dpkg-deb','sha256sum','proot','proot-distro','python3','curl','apt','pkg','apt-mark','pulseaudio','pactl','eglinfo'):
             if command in data.get('missing_binaries', []): continue
             target = case/'usr/bin'/command
             target.write_text(mock)
@@ -124,6 +135,10 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
             file = case/'usr'/relative
             file.parent.mkdir(parents=True, exist_ok=True)
             file.touch()
+        embedded = case/'usr/share/embedded-api'
+        embedded.mkdir(parents=True, exist_ok=True)
+        for package in ('termux-api', 'upower'):
+            if package not in data.get('missing_embedded', []): (embedded/(package+'.deb')).touch()
         for asset in ('desktop_install.sh','desktop_common.sh','desktop_rendering.sh'):
             shutil.copy(assets/asset, case/asset)
         spec = dict(DESKTOP_MODE='proot', DESKTOP_DE=de,
@@ -150,6 +165,25 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
             assert 'exitCode='+str(code)+'\n' in result
             assert 'state='+('succeeded' if code == 0 else 'failed')+'\n' in result
         return case, calls
+    case, calls = run('fresh-api-registration')
+    assert 'dpkg -i '+str(case/'usr/share/embedded-api/termux-api.deb') in calls
+    assert 'apt-mark hold termux-api' in calls
+    assert not re.search(r'^(pkg|curl|apt) ', calls, re.M)
+    for name, changes, code in [
+        ('registration-failure', {'registration_failure':True},43),
+        ('registration-ineffective', {'registration_ineffective':True},1),
+        ('hold-failure', {'hold_failure':True},42),
+        ('audit-failure', {'audit_failure':True},1),
+        ('missing-api-deb', {'missing_embedded':['termux-api']},1),
+    ]:
+        run(name, lambda data,case,c=changes: data.update(c), code=code)
+    def upstream(data, case):
+        data['versions'].update({'termux-api':'0.60.0', 'upower':'1.91.5'})
+        data['missing_binaries'] = ['eglinfo']
+    case, calls = run('upstream-api-and-upower', upstream)
+    assert calls.index('apt install') < calls.index('dpkg -i ')
+    assert 'apt-mark hold upower' in calls
+    assert json.loads((case/'state.json').read_text())['versions']['termux-api'] == '0.60.0-1+embedded.1'
     case, calls = run('satisfied')
     assert not re.search(r'^(pkg|curl|apt) ', calls, re.M), calls
     case, calls = run('xfce-satisfied', de='xfce4')

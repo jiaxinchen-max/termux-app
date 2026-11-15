@@ -14,3 +14,23 @@ evidence:
 limitations:
   - 新 APK 完整 UI 导入仍待验收
   - 严格 Harness 脚本缺失
+
+host_package_registration_followup:
+  authorization: 用户明确要求完善定制 API 包管理；沿用任务完成后推送保存进度授权
+  reviewer: 实施代理直接源代码自审，非独立评审
+  findings: []
+  checks:
+    - 恢复与完整安装使用同一函数，且均位于最后一次 apt 操作之后
+    - 本地 DEB 包名与安装后 configured 状态和版本核验，hold 失败阻断
+    - 已经 hold 的 UPower 仍被识别，支持 App 后续定制包更新
+    - 未改变容器安装、归档解包、安全路径或用户文件
+    - 实际设备强制停止 App 后定制 API 与 UPower 登记成功、hold 生效、dpkg audit 无输出
+  limitations:
+    - hold 可被用户 unhold 或显式允许改变 held 包覆盖；入口事务修复继续保留
+    - 完整 UI 导入未验收；未安装新 APK
+    - 旧 GNOME 套件 42 项中存在 33 项旧渲染参数失败，HEAD 基线复跑同样失败
+    - Harness 严格门禁缺失
+  local_verification:
+    - 宿主恢复预检 54 个夹具全部通过
+    - 恢复本地初始化 9 项通过
+    - shell 语法与 git diff 检查通过

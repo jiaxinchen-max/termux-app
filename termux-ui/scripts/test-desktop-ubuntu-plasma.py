@@ -56,6 +56,11 @@ class UbuntuPlasmaInstallTests(unittest.TestCase):
         initialize = next(i for i, c in enumerate(calls) if any('desktop_initialize.py' in a for a in c))
         self.assertLess(max(packages), catalog)
         self.assertLess(catalog, initialize)
+        register = next(i for i, c in enumerate(calls) if c[:2] == ['dpkg', '-i']
+                        and c[-1].endswith('/termux-api.deb'))
+        self.assertLess(max(i for i, c in enumerate(calls) if c[:2] == ['apt', 'install']), register)
+        self.assertLess(register, initialize)
+        self.assertIn(['apt-mark', 'hold', 'termux-api'], calls)
         self.assertTrue((self.base / 'usr/tmp/desktop_container_discover_catalog.sh').is_file())
 
     def test_catalog_failure_preserves_error_and_blocks_success(self):

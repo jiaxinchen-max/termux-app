@@ -33,3 +33,16 @@ ADB 已获授权。任务 cae5c744-d667-42ee-a449-dc109a97e452 的 host-only 阶
 先 force-stop App，在既有失败宿主用此次源码编译的小型 dex 调用真实 RuntimeApiComponents（Android Os 平台实现，已安装 APK 提供归档依赖）。使用现有缓存并禁止 Downloader 联网，结果 BEFORE_MATCH=false、AFTER_MATCH=true、exit 0；确认该入口冲突可由补丁安全修复，不需要卸载或重建容器。之后运行原失败任务尚未派发的 restore-initialize 包装脚本，结果另行记录。完整 UI 新导入尚未重新执行。
 
 原任务 restore-initialize 实际运行成功：宿主 Android System EGL、容器 llvmpipe LLVM 21.1.8 验证通过，result.properties 为 state=succeeded / exitCode=0，日志明确 no package installation or download。验证只覆盖真实 API 修复与原失败恢复的后续初始化，未把手工运行子任务等同于 UI 整体导入成功；未发布桌面记录或伪造归档任务成功状态。原归档仍保留，待新 APK UI 完整导入验收。
+
+## 定制包管理补全（用户授权“完善”）
+恢复宿主预检与完整桌面安装统一调用 register_embedded_host_packages；完整安装将该步骤移到初始化工具 apt 之后。检查本地 DEB 包名、版本，dpkg 安装后核对 configured 状态和版本，再 apt-mark hold，已有 UPower（包括 hold 状态）也恢复定制包。明确由 APK 更新流程替换定制 DEB；普通软件源升级不再替换。手动 unhold 或显式允许改变 hold 仍可覆盖，后续安装/恢复重新登记；原 API 最终链接事务修复继续作为防线。
+
+实际设备先 force-stop App，再运行从生产脚本提取的真实辅助函数：termux-api 从 0.60.0 登记为 0.60.0-1+embedded.1，upower 从 1.91.5 登记为 1.91.5-1；两者 showhold 可见，dpkg --audit 无输出，API 入口为 21016 字节普通文件，exit 0。未安装新 APK，未完整执行 UI 导入，未修改原备份/容器数据。
+
+copy 排查：桌面安装脚本复制数个容器 apt/statx/Discover/USB 辅助文件到宿主 $PREFIX/tmp（容器通过 --shared-tmp 使用）；GNOME 启动脚本写入 $PREFIX/libexec/termux-gnome；CA 证书和软件源配置也有小范围复制。PRoot install.py 明确使用 archive rootfs extraction。归档引擎 copyEntry 将解压流写入新 rootfs；API 安装先解压到事务目录，校验后 rename 发布。未发现桌面安装时复制完整容器的步骤。现存失败任务日志未含用户所指 copy 行，因此不能把这些代码位置当成该行日志的逐项确认。
+
+验证边界：恢复本地初始化 9 项通过；旧 GNOME 大套件 42 项有 33 个失败，都是旧渲染参数不满足当前入口要求。用 HEAD 原安装脚本复跑同套件，42 项同样有 33 个失败，非本轮新增失败；本轮只使用有效 v3 模式的专用测试作为验收依据。严格 Harness 脚本与 OpenSpec CLI 均缺失，未宣称对应门禁通过。
+
+宿主恢复预检 54 个夹具全部通过，包含 7 个新增定制包登记/失败路径与原 47 个预检回归。
+
+Ubuntu/Plasma 专用完整安装 9 项通过，明确验证最后 apt < 定制包登记 < 初始化派发、API hold；合计本轮 72 项聚焦检查通过（54+9+9）。本轮未构建新 APK。

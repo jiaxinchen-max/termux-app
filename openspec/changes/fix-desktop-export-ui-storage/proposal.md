@@ -27,3 +27,6 @@
 
 ## 现场确认：API 入口被宿主装包覆盖
 任务 cae5c744 的宿主前检成功、解包完成，但派发 initialize 任务时抛 api_component_initialization_failed。设备 termux-api 0.60.0 的 libexec/termux-api 为指向 termux-api-broadcast 的符号链接；APK 清单要求普通 ELF 文件，RuntimeApiComponents.safe 拒绝最终链接，故未执行离线初始化。延续已批准恢复可用性修复，允许安装器安全替换此唯一 API 入口的最终链接，不放宽父目录和归档成员链接限制，也不改容器内容或备份格式。
+
+## 2026-11-15 定制宿主组件登记补全（用户已授权“完善”）
+恢复预检与完整安装统一在最后一次宿主 apt 操作后用 dpkg 登记 APK 匹配的 termux-api，已安装 UPower 时同样重装定制包；核对 DEB 与已安装版本并 hold，防止普通升级覆盖。仅改宿主包管理，不重装容器或复制容器。失败阻止成功标记，重试可恢复；回退撤销辅助函数并显式 unhold 对应包。无 HTTP 契约变更，api_docs=N/A；product_docs 沿用 Required/Pending，等待用户验收。

@@ -519,6 +519,28 @@ except (Exception, SystemExit):
 sys.exit(0 if valid else 1)
 ' "${current%%-*}"
 }
+register_embedded_host_packages() {
+    # The runtime payload has already been verified against the APK inventory.
+    # Register it after the LAST apt transaction, including fresh restore preflight.
+    embedded_packages=termux-api
+    if package_version upower >/dev/null; then
+        embedded_packages="$embedded_packages upower"
+    fi
+    for embedded_package in $embedded_packages; do
+        embedded_deb="$PREFIX/share/embedded-api/$embedded_package.deb"
+        [ -f "$embedded_deb" ] || fail "custom host package missing: $embedded_package; retry runtime initialization"
+        embedded_name=$(dpkg-deb -f "$embedded_deb" Package) || fail 'reading custom package name'
+        [ "$embedded_name" = "$embedded_package" ] || fail 'custom host package identity mismatch'
+        embedded_version=$(dpkg-deb -f "$embedded_deb" Version) || fail 'reading custom package version'
+        [ -n "$embedded_version" ] || fail 'empty custom host package version'
+        log "Registering APK-matched host package: $embedded_package $embedded_version"
+        run dpkg -i "$embedded_deb" || fail "custom host package registration: $embedded_package"
+        installed_embedded_version=$(package_version "$embedded_package") || fail "custom host package not configured: $embedded_package"
+        [ "$installed_embedded_version" = "$embedded_version" ] || fail "custom host package version mismatch: $embedded_package"
+        run apt-mark hold "$embedded_package" || fail "protecting custom host package: $embedded_package"
+    done
+}
+
 check_host_prerequisites() {
     missing_debs=''
     manifest="$DEBS"
@@ -582,6 +604,7 @@ $name $digest"
     proot_valid || fail 'proot verification failed'
     proot_distro_valid || fail 'proot-distro new containers layout verification failed (requires 5.10.3 <= version < 6 and --name)'
     [ -x "$PREFIX/bin/pulseaudio" ] && [ -x "$PREFIX/bin/pactl" ] || fail 'host PulseAudio support is missing'
+    register_embedded_host_packages
     audit=$(dpkg --audit 2>&1) || fail 'dpkg --audit failed'
     [ -z "$audit" ] || fail "dpkg --audit reported problems: $audit"
     if [ "$DESKTOP_DE" = xfce4 ]; then
@@ -595,15 +618,9 @@ $name $digest"
 }
 
 initialize_desktop() {
-    # Reapply the APK-matched package after apt dependencies, before validating initialization.
-    [ -f "$PREFIX/share/embedded-api/termux-api.deb" ] || fail 'Android API companion package missing; retry runtime initialization'
-    run dpkg -i "$PREFIX/share/embedded-api/termux-api.deb" || fail 'Android API companion package installation'
-    if dpkg-query -W -f='${Status}' upower 2>/dev/null | grep -q 'install ok installed'; then
-        [ -f "$PREFIX/share/embedded-api/upower.deb" ] || fail 'asynchronous UPower component missing'
-        run dpkg -i "$PREFIX/share/embedded-api/upower.deb" || fail 'asynchronous UPower installation'
-    fi
-    # EGL diagnostics are initialization-only and never invoked by the session entrypoints.
+    # EGL diagnostics are initialization-only and never invoked by session entrypoints.
     run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold python mesa-demos || fail 'initialization tools'
+    register_embedded_host_packages
     set -- --de "$DESKTOP_DE" --run-mode "$DESKTOP_MODE" \
         --host-gl-mode "$DESKTOP_HOST_GL_MODE" --guest-gl-mode "$DESKTOP_GUEST_GL_MODE" \
         --usb-storage "$DESKTOP_USB_STORAGE"

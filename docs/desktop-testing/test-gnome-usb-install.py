@@ -61,7 +61,14 @@ elif command=='dpkg-query':
     if any('${Status}' in arg for arg in args):
         value=state.get('package_statuses',{}).get(package,'install ok installed')
     print(value,end='')
+elif command=='dpkg-deb':
+    package=pathlib.Path(args[1]).stem
+    print(package if args[2]=='Package' else '0.60.0-1+embedded.1')
 elif command=='dpkg':
+    if args[0]=='-i':
+        state['versions'][pathlib.Path(args[1]).stem]='0.60.0-1+embedded.1'
+        (case/'fixture.json').write_text(json.dumps(state))
+
     if args[0]=='--audit':
         if state.get('audit_output'): print(state['audit_output'])
         sys.exit(state.get('audit_error',0))
@@ -120,7 +127,7 @@ class InstallContract(unittest.TestCase):
         self.state = dict(digests=digests, versions=versions, host_files=host_files)
         for path in ASSETS.glob('desktop_*'):
             if path.is_file(): shutil.copy2(path, self.base/path.name)
-        for name in ('uname','curl','sha256sum','pkg','apt','dpkg','dpkg-query','apt-mark','proot','proot-distro','python3','tar','pulseaudio','pactl'):
+        for name in ('uname','curl','sha256sum','pkg','apt','dpkg','dpkg-deb','dpkg-query','apt-mark','proot','proot-distro','python3','tar','pulseaudio','pactl'):
             target = self.base/'usr/bin'/name
             target.write_text('#!'+sys.executable+'\n'+MOCK)
             target.chmod(0o700)
