@@ -1,0 +1,8 @@
+schema: review_findings_v1
+change_id: simplify-desktop-delete-confirmation
+reviewer: 实施代理直接源代码自审，非独立评审
+findings: []
+limitations:
+  - 完整桌面脚本套件启动夹具等待 PID 超时
+  - 未执行实机删除及对话框交互验收
+  - 指定严格 Harness 脚本缺失

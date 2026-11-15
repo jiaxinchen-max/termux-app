@@ -578,8 +578,8 @@
     <string name="desktop_settings_save">Save</string>
     <string name="desktop_settings_cancel">Cancel</string>
     <string name="desktop_delete_title">Delete “%1$s”?</string>
-    <string name="desktop_delete_message">This desktop will be stopped and its entry and session state deleted.</string>
-    <string name="desktop_delete_container_check">Also delete the container instance %1$s and all data inside it</string>
+    <string name="desktop_delete_message">This desktop will be stopped and its configuration and session state deleted. Installed host software and files will be kept.</string>
+    <string name="desktop_delete_container_message">This desktop will be stopped and deleted together with container %1$s and all data inside it. This cannot be undone. Exported backup files will be kept.</string>
     <string name="desktop_action_settings">Settings</string>
     <string name="desktop_mode_container_badge">Container · %1$s</string>
     <string name="desktop_card_detail_de">%1$s · %2$s · %3$s · %4$d Hz</string>

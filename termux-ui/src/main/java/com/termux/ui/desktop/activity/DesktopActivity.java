@@ -9,7 +9,6 @@ import android.os.Looper;
 import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CheckBox;
 import android.widget.GridLayout;
 import android.widget.PopupMenu;
 import android.widget.ScrollView;
@@ -518,21 +517,17 @@ public final class DesktopActivity extends AppUiActivity {
     }
 
     private void confirmDelete(DesktopDistro distro) {
-        FrostedDialogBuilder builder = new FrostedDialogBuilder(this);
-        builder.setTitle(getString(R.string.desktop_delete_title, distro.getName()));
-        builder.setMessage(R.string.desktop_delete_message);
-        builder.setNegativeButton(android.R.string.cancel, null);
-        if (distro.getRunMode() == DesktopRunMode.PROOT) {
-            CheckBox check = new CheckBox(this);
-            check.setText(getString(R.string.desktop_delete_container_check,
-                distro.getProotDistro()));
-            check.setTextSize(12);
-            check.setPadding(dp(20), dp(4), dp(20), dp(4));
-            builder.setView(check);
-            builder.setPositiveButton(R.string.desktop_action_delete, (dialog, which) ->
+        boolean removeContainer = distro.getRunMode() == DesktopRunMode.PROOT;
+        new FrostedDialogBuilder(this)
+            .setTitle(getString(R.string.desktop_delete_title, distro.getName()))
+            .setMessage(removeContainer
+                ? getString(R.string.desktop_delete_container_message, distro.getProotDistro())
+                : getString(R.string.desktop_delete_message))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.desktop_action_delete, (dialog, which) ->
                 ioExecutor.execute(() -> {
                     try {
-                        if (check.isChecked()) tasks.deleteAndRemoveContainer(distro);
+                        if (removeContainer) tasks.deleteAndRemoveContainer(distro);
                         else tasks.delete(distro);
                     } catch (IOException error) {
                         toastOnUi(getString(R.string.desktop_error, "desktop_delete_failed"));
@@ -540,19 +535,8 @@ public final class DesktopActivity extends AppUiActivity {
                         toastOnUi(getString(R.string.desktop_error, error.getErrorCode()));
                     }
                     runOnUiThread(this::refresh);
-                }));
-        } else {
-            builder.setPositiveButton(R.string.desktop_action_delete, (dialog, which) ->
-                ioExecutor.execute(() -> {
-                    try {
-                        tasks.delete(distro);
-                    } catch (IOException error) {
-                        toastOnUi(getString(R.string.desktop_error, "desktop_delete_failed"));
-                    }
-                    runOnUiThread(this::refresh);
-                }));
-        }
-        builder.show();
+                }))
+            .show();
     }
 
     private void showLogs(DesktopDistro distro) {

@@ -1,0 +1,14 @@
+change_id: simplify-desktop-delete-confirmation
+approval:
+  requirements: 用户本轮“是的，就这么整”确认前轮明确方案
+  git: 用户此前要求任务结束推送代码保存进度
+api_docs:
+  status: N/A
+  reason: 不修改 HTTP API
+product_docs:
+  status: Required
+  paths: [docs/product/desktop-management.md]
+consistency:
+  status: Pending
+  evidence: openspec/changes/simplify-desktop-delete-confirmation/verification.md
+  findings: openspec/changes/simplify-desktop-delete-confirmation/review-findings.yaml

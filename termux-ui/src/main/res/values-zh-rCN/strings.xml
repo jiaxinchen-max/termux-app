@@ -557,8 +557,8 @@
     <string name="desktop_settings_save">保存</string>
     <string name="desktop_settings_cancel">取消</string>
     <string name="desktop_delete_title">删除“%1$s”?</string>
-    <string name="desktop_delete_message">将停止此桌面并删除其条目和会话状态。</string>
-    <string name="desktop_delete_container_check">同时删除容器实例 %1$s 及其全部数据</string>
+    <string name="desktop_delete_message">将停止此桌面并删除其配置和会话状态，保留宿主已安装的软件和文件。</string>
+    <string name="desktop_delete_container_message">将停止并删除此桌面，以及容器 %1$s 内的全部数据。此操作不可恢复，已导出的备份文件会保留。</string>
     <string name="desktop_action_settings">设置</string>
     <string name="desktop_mode_container_badge">容器 · %1$s</string>
     <string name="desktop_card_detail_de">%1$s · %2$s · %3$s · %4$d Hz</string>
