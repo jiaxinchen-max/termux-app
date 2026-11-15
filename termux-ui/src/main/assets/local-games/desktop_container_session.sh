@@ -92,6 +92,10 @@ SESSION_PIDS=""
 cleanup() {
     trap - EXIT TERM INT
     rm -f "$READY_FILE" "$READY_FILE.$$"
+    if [ "$SESSION_ROLE" = manager ] && [ "${auth_running:-0}" = 1 ]; then
+        kill -TERM "$auth_pid" 2>/dev/null || true
+        SESSION_PIDS="$SESSION_PIDS $auth_pid"
+    fi
     for pid in $SESSION_PIDS; do kill -TERM "$pid" 2>/dev/null || true; done
     if [ "$SESSION_ROLE" = manager ]; then sleep 3; else sleep 1; fi
     for pid in $SESSION_PIDS; do kill -KILL "$pid" 2>/dev/null || true; done
@@ -271,7 +275,10 @@ case "$WAYLAND_DISPLAY" in /*) user_display="$WAYLAND_DISPLAY" ;; *) user_displa
 # which differs from the ordinary guest UID. PolicyKit explicitly permits root registration.
 env XDG_RUNTIME_DIR="$user_runtime" WAYLAND_DISPLAY="$user_display" \
     /usr/bin/python3 /tmp/desktop_container_polkit_agent.py &
-SESSION_PIDS="$SESSION_PIDS $!"
+auth_pid=$!
+# Authentication is auxiliary: its failure must not destroy an otherwise healthy desktop.
+auth_restarts=0
+auth_running=1
 runuser -u termux -- env XDG_RUNTIME_DIR="$user_runtime" WAYLAND_DISPLAY="$user_display" \
     DESKTOP_PLASMA_READY_FILE="$READY_FILE" HOME=/home/termux USER=termux LOGNAME=termux SHELL=/bin/bash \
     XDG_CONFIG_HOME=/home/termux/.config XDG_CACHE_HOME=/home/termux/.cache \
@@ -280,6 +287,19 @@ runuser -u termux -- env XDG_RUNTIME_DIR="$user_runtime" WAYLAND_DISPLAY="$user_
 user_pid=$!
 SESSION_PIDS="$SESSION_PIDS $user_pid"
 while :; do
+    if [ "$auth_running" = 1 ] && ! require_service_alive "$auth_pid" container-auth-agent; then
+        auth_running=0
+        if [ "$auth_restarts" -lt 2 ]; then
+            auth_restarts=$((auth_restarts + 1))
+            echo "WARNING: restarting authentication agent (attempt $auth_restarts); desktop remains running"
+            env XDG_RUNTIME_DIR="$user_runtime" WAYLAND_DISPLAY="$user_display" \
+                /usr/bin/python3 /tmp/desktop_container_polkit_agent.py &
+            auth_pid=$!
+            auth_running=1
+        else
+            echo 'WARNING: authentication unavailable; desktop remains running'
+        fi
+    fi
     for managed_pid in $SESSION_PIDS; do
         require_service_alive "$managed_pid" "manager-pid-$managed_pid" || exit "$?"
     done

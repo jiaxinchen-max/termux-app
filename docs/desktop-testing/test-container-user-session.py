@@ -29,11 +29,12 @@ elif name=='dbus-daemon':
  print('unix:path=/fixture/'+uid)
  os.write(3,str(p.pid).encode())
 elif name=='dbus-update-activation-environment': pass
+elif name=='password-agent' and os.getenv('ROLE_FAIL_AGENT')=='1': sys.exit(139)
 elif name=='packagekitd' and os.getenv('ROLE_FAIL_SERVICE')=='1': sys.exit(9)
 else: os.execl('/bin/sleep','sleep','30')
 '''
 class UserSession(unittest.TestCase):
-    def run_case(self, injected_uid='1000', fail_service=False, foreign_bus=False):
+    def run_case(self, injected_uid='1000', fail_service=False, foreign_bus=False, fail_agent=False):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);binary=root/'bin';binary.mkdir();home=root/'home';home.mkdir()
             runtime=root/'runtime';runtime.mkdir();trace=root/'trace';trace.touch()
@@ -51,7 +52,7 @@ class UserSession(unittest.TestCase):
                 ('/run/dbus',str(root/'dbus')),('/home/termux',str(home))]:source=source.replace(original,replacement)
             script=root/'session.sh';script.write_text(source)
             env=dict(os.environ,PATH=str(binary)+':/usr/bin:/bin',HOME=str(root),ROLE_TRACE=str(trace),
-                ROLE_HOME=str(home),ROLE_INJECT_UID=injected_uid,ROLE_FAIL_SERVICE='1' if fail_service else '0',
+                ROLE_FAIL_AGENT='1' if fail_agent else '0',ROLE_HOME=str(home),ROLE_INJECT_UID=injected_uid,ROLE_FAIL_SERVICE='1' if fail_service else '0',
                 DESKTOP_KDE_SERVICE_POLICY='kwin-wayland',QT_QPA_PLATFORM='wayland',XDG_SESSION_TYPE='wayland',
                 DESKTOP_GUEST_GL_MODE='llvmpipe',PULSE_SERVER='tcp:127.0.0.1:4713',
                 DESKTOP_PLASMA_SESSION_TOKEN='fixture-token',XDG_RUNTIME_DIR=str(runtime),KDE_LIBEXEC=str(binary))
@@ -61,7 +62,13 @@ class UserSession(unittest.TestCase):
                 while not ready.exists() and process.poll() is None and time.monotonic()<deadline:time.sleep(.03)
                 if injected_uid=='1000' and not fail_service and not foreign_bus:
                     self.assertTrue(ready.exists(),(runtime/'plasma-container.log').read_text())
-                    self.assertEqual('fixture-token',ready.read_text().strip());process.terminate()
+                    self.assertEqual('fixture-token',ready.read_text().strip())
+                    if fail_agent:
+                        time.sleep(4)
+                        self.assertIsNone(process.poll())
+                        self.assertTrue(ready.exists())
+                        self.assertIn('authentication unavailable; desktop remains running',(runtime/'plasma-container.log').read_text())
+                    process.terminate()
                     self.assertEqual(143,process.wait(timeout=7))
                 else:self.assertEqual(1 if foreign_bus else 9 if fail_service else 77,process.wait(timeout=7))
                 self.assertFalse(ready.exists())
@@ -82,8 +89,9 @@ class UserSession(unittest.TestCase):
                 if process.poll() is None:process.terminate();process.wait(timeout=7)
                 try:os.killpg(process.pid,signal.SIGKILL)
                 except ProcessLookupError:pass
+    def test_auth_agent_repeated_crash_does_not_stop_desktop(self):self.run_case(fail_agent=True)
     def test_foreign_system_bus_is_preserved_and_blocks_start(self):self.run_case(foreign_bus=True)
-    def test_manager_stays_root_but_kde_and_agent_are_ordinary_and_stop_cleanly(self):self.run_case()
+    def test_manager_and_broker_stay_root_but_kde_is_ordinary_and_stops_cleanly(self):self.run_case()
     def test_failed_identity_switch_never_starts_kde_or_publishes_ready(self):self.run_case(injected_uid='0')
     def test_failed_privileged_service_prevents_user_start_and_ready(self):self.run_case(fail_service=True)
 

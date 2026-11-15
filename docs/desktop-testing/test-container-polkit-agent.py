@@ -75,49 +75,58 @@ class AgentTests(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()):agent.attach(':gone')
         self.assertFalse(agent.names);self.assertFalse(agent.listeners)
 
-    def request(self):
-        listener=self.m.PasswordConversation(self.m.os.getuid());identity=self.polkit.UnixUser();identity.get_uid=lambda:self.m.os.getuid()
-        task=Mock();self.gio.Task.new.return_value=task
-        session=Mock();self.pka.Session.new.return_value=session
-        callbacks={};session.connect.side_effect=lambda name,fn:callbacks.update({name:fn})
-        listener.do_initiate_authentication('action','Permission required','',None,'cookie',[identity],None,Mock())
-        session.cancel.side_effect=lambda:callbacks['completed'](session,False)
-        return listener,session,callbacks,task
+    def request(self, cookie='private-cookie', users=None):
+        listener=self.m.Listener(1000);listener.authority=Mock()
+        listener.authority.get_owner.return_value=':authority'
+        values=types.SimpleNamespace(unpack=lambda:('install','Permission','',{},cookie,
+            [('unix-user',{'uid':1000})] if users is None else users))
+        invocation=Mock();worker=Mock();self.gio.Subprocess.new.return_value=worker
+        listener.method_call(None,':authority','/agent','interface','BeginAuthentication',values,invocation)
+        return listener,worker,invocation,values
 
-    def test_password_is_only_a_helper_response_and_failure_is_not_a_grant(self):
-        listener,session,callbacks,task=self.request();process=Mock()
-        self.gio.Subprocess.new.return_value=process
-        callbacks['request'](session,'Password:',False)
-        process.communicate_utf8_finish.return_value=(True,'private-password\n','')
-        process.get_successful.return_value=True
-        callback=process.communicate_utf8_async.call_args.args[2];callback(process,Mock())
-        session.response.assert_called_once_with('private-password')
-        self.assertNotIn('private-password',str(self.gio.Subprocess.new.call_args))
-        self.assertEqual('/usr/bin/env',self.gio.Subprocess.new.call_args.args[0][0])
-        task.return_boolean.assert_not_called()
-        callbacks['completed'](session,False)
-        self.assertFalse(listener.requests)
-        self.assertFalse(hasattr(listener,'AuthenticationAgentResponse'))
-
-    def test_root_registration_routes_cookie_on_stdin_to_normal_user_worker(self):
-        listener=self.m.Listener(1000);identity=self.polkit.UnixUser();identity.get_uid=lambda:1000
-        worker=Mock();self.gio.Subprocess.new.return_value=worker
-        listener.do_initiate_authentication('install','Permission','',None,'private-cookie',[identity],None,Mock())
+    def test_root_routes_cookie_on_stdin_to_normal_user_worker(self):
+        listener,worker,invocation,values=self.request()
         argv=self.gio.Subprocess.new.call_args.args[0]
         self.assertEqual(['/usr/sbin/runuser','-u','termux','--'],argv[:4])
         self.assertNotIn('private-cookie',argv)
-        payload=worker.communicate_utf8_async.call_args.args[0]
-        self.assertEqual(['install','Permission','private-cookie',[1000]],json.loads(payload))
+        self.assertEqual(['install','Permission','private-cookie',[1000]],
+            json.loads(worker.communicate_utf8_async.call_args.args[0]))
+        invocation.return_value.assert_not_called()
         listener.stop();worker.send_signal.assert_called_once()
+        invocation.return_dbus_error.assert_called_once()
 
-    def test_dialog_failure_cancels_and_releases_request(self):
-        listener,session,callbacks,task=self.request()
-        self.gio.Subprocess.new.side_effect=Error('missing display')
-        callbacks['request'](session,'Password:',False)
-        session.cancel.assert_called_once();self.assertFalse(listener.requests)
+    def test_worker_completion_replies_exactly_once_without_gi_virtual_task(self):
+        listener,worker,invocation,values=self.request()
+        callback=worker.communicate_utf8_async.call_args.args[2]
+        worker.get_successful.return_value=True
+        callback(worker,Mock());callback(worker,Mock())
+        invocation.return_value.assert_called_once_with(None)
+        self.assertFalse(listener.requests)
+        self.gio.Task.new.assert_not_called()
 
-    def test_shutdown_cancels_pending_authentication(self):
-        listener,session,callbacks,task=self.request();listener.stop()
-        session.cancel.assert_called_once();self.assertFalse(listener.requests)
+    def test_worker_failure_returns_error_without_stopping_broker(self):
+        listener,worker,invocation,values=self.request()
+        callback=worker.communicate_utf8_async.call_args.args[2]
+        worker.get_successful.return_value=False;callback(worker,Mock())
+        invocation.return_dbus_error.assert_called_once();self.assertFalse(listener.requests)
+        invocation.return_value.assert_not_called()
+
+    def test_cancel_targets_only_requested_cookie(self):
+        listener,worker,invocation,values=self.request();cancel_reply=Mock()
+        listener.method_call(None,':authority','/agent','interface','CancelAuthentication',
+            types.SimpleNamespace(unpack=lambda:('private-cookie',)),cancel_reply)
+        worker.send_signal.assert_called_once();cancel_reply.return_value.assert_called_once_with(None)
+
+    def test_untrusted_sender_cannot_prompt_or_cancel(self):
+        listener=self.m.Listener(1000);listener.authority=Mock()
+        listener.authority.get_owner.return_value=':authority';invocation=Mock()
+        listener.method_call(None,':imposter','/agent','interface','BeginAuthentication',None,invocation)
+        invocation.return_dbus_error.assert_called_once();self.gio.Subprocess.new.assert_not_called()
+
+    def test_stop_and_late_completion_do_not_reply_twice(self):
+        listener,worker,invocation,values=self.request()
+        callback=worker.communicate_utf8_async.call_args.args[2]
+        listener.stop();callback(worker,Mock());listener.stop()
+        invocation.return_dbus_error.assert_called_once();invocation.return_value.assert_not_called()
 
 if __name__=='__main__':unittest.main()

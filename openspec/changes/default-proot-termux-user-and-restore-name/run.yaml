@@ -1,5 +1,5 @@
 change_id: default-proot-termux-user-and-restore-name
-stage: verification_incomplete
+stage: graphical_acceptance_pending
 approval:
   requirements: 用户本轮“批准，所有容器都这么逻辑”确认全部规划范围
   implementation: Approved
@@ -19,7 +19,7 @@ verification:
   reason: 仓库缺少 Harness 严格验证脚本与 OpenSpec CLI
   focused_tests: Passed
   apk_build: Passed
-  discover_authorization: Failed
+  discover_authorization: Passed_backend_correct_wrong_cancel
   graphical_acceptance: Pending
 publication:
   implementation_commit: bb178cf413f0538b0fc89c328a97724dcabe009f

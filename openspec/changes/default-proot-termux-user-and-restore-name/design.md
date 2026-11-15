@@ -20,3 +20,6 @@ DesktopArchiveMetadata.encode 已保存 desktop.name，DesktopArchiveEngine.impo
 
 ## 工具边界
 当前仓库缺少要求的 .harness 指令/strict gate 脚本、OpenSpec CLI、openspec/specs 和 docs/product 基线目录；本次依据源码手工编写方案，不宣称严格流程门禁通过。
+
+## 授权崩溃修复
+实机日志显示管理代理退出 139 导致 manager 全量清理。移除 Python PolkitAgent.Listener/GTask 虚函数跨 C 回调，使用 Gio D-Bus 明确实现认证代理接口；普通用户工作进程直接驱动 PolkitAgent.Session。管理端只接收真实 PolicyKit daemon 请求，保留 PAM/cookie 校验。授权代理单独监督，有界重启，失败不关闭普通用户桌面；不降低授权规则。

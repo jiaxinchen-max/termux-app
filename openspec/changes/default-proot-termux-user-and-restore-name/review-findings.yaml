@@ -1,18 +1,23 @@
 schema: review_findings_v1
-status: CHANGES_REQUIRED
+status: APPROVED_WITH_LIMITATIONS
 findings:
   - id: discover-auth-not-verified
     severity: high
-    status: open
-    detail: 正确密码的实机 PolicyKit 诊断仍未得到授权；不能将普通用户 Discover 安装流程标记完成。
+    status: resolved
+    detail: 真实 PolicyKit/PAM 验证正确密码获准、错误密码与取消拒绝，三轮代理存活且正常退出；图形输入由诊断副本替代，未声称完整 UI 验收。
+    evidence: verification.md
+  - id: auth-crash-desktop-cascade
+    severity: high
+    status: resolved
+    detail: 移除 GI Listener/GTask 虚函数回调；显式 D-Bus 单次回应，限定 authority sender；代理有界重启不关闭 KDE，注入反复退出 139 回归通过。
     evidence: verification.md
   - id: desktop-ui-acceptance
     severity: medium
     status: open
-    detail: 模拟器随后缺少 com.termux，未完成新容器冷启动、VLC 图形和全部桌面验收。
+    detail: 尚未完成新 APK 中 Discover 图形安装及全部桌面完整验收，保持产品一致性 Pending，不归档。
     evidence: verification.md
   - id: private-bus-boundary
     severity: high
     status: resolved
-    detail: 系统服务保留容器 root；桌面普通 UID；代理按私有总线 UID/PID 过滤，未修改授权规则，foreign socket 拒绝覆盖。
+    detail: 系统服务保留容器 root；桌面及 PAM 工作进程普通 UID；不修改授权规则，foreign socket 拒绝覆盖。
     evidence: verification.md
