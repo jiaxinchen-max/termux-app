@@ -4,7 +4,7 @@
 
 - 新增 Ubuntu 官方源 HTTPS 配置 helper，在 APT update 前执行，覆盖传统 list/Deb822，保持 suites、组件、Signed-By、第三方源与非 Ubuntu 源；首次修改保留 `.desktop-http.bak`，重复执行不覆盖备份。
 - LaunchScriptInstaller 以及所有容器安装 helper 分发入口（含 Hyprland/USB 分支）已同步；测试夹具同步辅助文件清单。
-- Proot Plasma 私有系统总线仅发布真实 PackageKit/PolicyKit 激活文件，不再自动拉起无硬件能力的系统服务；会话总线和原生桌面不变。这项 App 代码尚未打入新 APK、未部署到设备。
+- Proot Plasma 私有系统总线仅发布真实 PackageKit/PolicyKit 激活文件，不再自动拉起无硬件能力的系统服务；会话总线和原生桌面不变。这项 App 代码已打入本次 APK，尚未部署到设备。
 - 既有状态解析已正确将“启动 PID 消失、残留 starting”解析为 FAILED，本轮不增加磁盘状态补写竞态。
 
 ## 当前模拟器已执行
@@ -42,3 +42,11 @@
 源回滚：将 ubuntu.sources.desktop-http.bak 恢复到 ubuntu.sources。系统设置回滚：`adb -s 120.24.191.156:8057 shell settings delete global settings_enable_monitor_phantom_procs`（原值 null）。新 helper 与会话策略可逐文件回退，不删除容器或用户配置。用户随后明确授权“推送代码编译出apk给我”，允许本次提交、推送及 APK 构建交付；构建和交付证据另记于构建日志。产品文档与归档保持 Pending，等待设备验收和用户最终接受。
 
 原始证据目录：`/home/user/workspace/artifacts/proot-network-check/`。
+
+## APK 构建交付
+
+- 修复代码提交 `22f88944` 已推送至 `origin/master-x11-submodule-tmp`，远端查询确认一致。
+- Linux 上使用项目 Gradle 8.7、JDK 17、SDK 34、NDK 25.1.8937393 与 CMake 3.22.1，补齐宿主 Bison/Flex；`:app:assembleDebug -Pandroid.injected.build.abi=arm64-v8a -Pandroid.injected.testOnly=false` 构建成功。
+- APK 保持文件名 `termux-app_apt-android-7-debug_arm64-v8a.apk`，约 45.36 MB（43.26 MiB）；v1/v2 签名验证通过，无 testOnly 标记，仅包含 arm64-v8a 原生库。
+- 四个修复脚本与源码逐字节一致；无主题压缩包和 termux-api.deb，API 配套包可复现校验通过。
+- 构建日志与最终下载文件、SHA-256、签名检查证据位于 workspace/artifacts，设备验收仍保持 Pending。
