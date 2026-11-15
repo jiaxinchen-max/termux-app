@@ -151,6 +151,68 @@ public class RuntimeApiComponentsTest {
         File outside=temp.newFolder("outside"); Files.createSymbolicLink(new File(prefix,"libexec").toPath(),outside.toPath());
         expectFailure(installer()); assertEquals(0,outside.list().length);
     }
+    private File upstreamLink(java.nio.file.Path destination) throws Exception {
+        installer().install(prefix,component);
+        File entry = new File(prefix,"libexec/termux-api");
+        assertTrue(entry.delete()); Files.createSymbolicLink(entry.toPath(),destination);
+        return entry;
+    }
+    @Test public void upstreamApiSymlinkIsReplacedOfflineWithoutFollowingTarget() throws Exception {
+        File broadcast = new File(prefix,"libexec/termux-api-broadcast");
+        File entry = upstreamLink(java.nio.file.Paths.get("termux-api-broadcast"));
+        Files.write(broadcast.toPath(),"upstream-broadcast".getBytes());
+        assertFalse(offline().matches(prefix,component));
+        offline().install(prefix,component);
+        assertFalse(Files.isSymbolicLink(entry.toPath()));
+        assertTrue(offline().matches(prefix,component));
+        assertArrayEquals("upstream-broadcast".getBytes(),Files.readAllBytes(broadcast.toPath()));
+        assertEquals(1,downloads.get());
+    }
+    @Test public void danglingApiSymlinkIsReplacedWithoutCreatingItsTarget() throws Exception {
+        File outside = new File(temp.getRoot(),"missing-target");
+        File entry = upstreamLink(outside.toPath());
+        offline().install(prefix,component);
+        assertFalse(outside.exists()); assertFalse(Files.isSymbolicLink(entry.toPath()));
+        assertTrue(offline().matches(prefix,component));
+    }
+    @Test public void externalApiSymlinkNeverChangesExternalFile() throws Exception {
+        File outside = temp.newFile("external"); Files.write(outside.toPath(),"keep".getBytes());
+        File entry = upstreamLink(outside.toPath());
+        offline().install(prefix,component);
+        assertArrayEquals("keep".getBytes(),Files.readAllBytes(outside.toPath()));
+        assertFalse(Files.isSymbolicLink(entry.toPath()));
+    }
+    @Test public void failedActivationRestoresOriginalDanglingSymlink() throws Exception {
+        java.nio.file.Path destination = java.nio.file.Paths.get("termux-api-broadcast");
+        File entry = upstreamLink(destination);
+        RuntimeApiComponents failing = new RuntimeApiComponents(platform,(url,target,size) -> { throw new IOException("offline"); }) {
+            protected void move(File source,File target) throws IOException {
+                if (source.getPath().contains("/staged/libexec/termux-api")) throw new IOException("disk full");
+                super.move(source,target);
+            }
+        };
+        expectFailure(failing);
+        assertTrue(Files.isSymbolicLink(entry.toPath()));
+        assertEquals(destination,Files.readSymbolicLink(entry.toPath()));
+        assertFalse(new File(prefix,".runtime-api/pending").exists());
+        offline().install(prefix,component); assertTrue(offline().matches(prefix,component));
+    }
+    @Test public void processDeathRollsBackOriginalSymlinkBeforeFailedRetryDownload() throws Exception {
+        java.nio.file.Path destination = java.nio.file.Paths.get("termux-api-broadcast");
+        File entry = upstreamLink(destination);
+        RuntimeApiComponents crashing = new RuntimeApiComponents(platform,(url,target,size) -> { throw new IOException("offline"); }) {
+            protected void move(File source,File target) throws IOException {
+                if (source.getPath().contains("/staged/libexec/termux-api")) throw new AssertionError("process death");
+                super.move(source,target);
+            }
+        };
+        try { crashing.install(prefix,component); fail(); } catch (AssertionError expected) { }
+        assertTrue(new File(prefix,".runtime-api/pending/plan.json").exists());
+        assertTrue(new File(prefix,".runtime-api/cache/"+component.getString("sha256")+".zip").delete());
+        expectFailure(offline());
+        assertTrue(Files.isSymbolicLink(entry.toPath()));
+        assertEquals(destination,Files.readSymbolicLink(entry.toPath()));
+    }
     @Test public void installationFailureRollsBackEveryOriginalFile() throws Exception {
         installer().install(prefix,component); byte[] original=content("bin/termux-battery-status");
         files.put("bin/termux-battery-status","updated".getBytes()); rebuild();

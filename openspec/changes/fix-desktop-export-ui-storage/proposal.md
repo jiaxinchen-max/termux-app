@@ -24,3 +24,6 @@
 
 ## 全新安装恢复回归补充
 用户反馈全新安装 APK 后导入历史备份失败。设备 ADB 当前 unauthorized，现场原因尚待日志确认；代码检查及宿主夹具可复现独立缺口：host-prerequisites 未检查 eglinfo，Zink/llvmpipe 初始化随后必须运行此工具，旧宿主可能因先前完整安装已有 mesa-demos 而掩盖问题。延续已批准的恢复前补齐必要宿主依赖范围，按显式宿主渲染模式补齐 mesa-demos 并验证工具，不能重装容器或更改备份格式。此补丁不等于已确认现场原因。
+
+## 现场确认：API 入口被宿主装包覆盖
+任务 cae5c744 的宿主前检成功、解包完成，但派发 initialize 任务时抛 api_component_initialization_failed。设备 termux-api 0.60.0 的 libexec/termux-api 为指向 termux-api-broadcast 的符号链接；APK 清单要求普通 ELF 文件，RuntimeApiComponents.safe 拒绝最终链接，故未执行离线初始化。延续已批准恢复可用性修复，允许安装器安全替换此唯一 API 入口的最终链接，不放宽父目录和归档成员链接限制，也不改容器内容或备份格式。

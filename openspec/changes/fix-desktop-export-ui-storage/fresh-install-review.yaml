@@ -1,13 +1,16 @@
 schema: review_findings_v1
-scope: 全新宿主恢复 EGL 诊断依赖补齐
+scope: 全新宿主恢复时 API 入口被软件源包替换为符号链接
 reviewer: 实施代理直接源代码自审，非独立评审
 findings: []
 evidence:
-  - 47 个宿主依赖夹具通过
-  - 9 项恢复本地初始化测试通过
-  - 新增缺工具夹具在旧代码失败，修复后通过
-  - clean arm64 APK 构建、签名及资产核对通过
+  - 现场归档任务确认 host-only 成功，初始化派发 API 校验失败
+  - 设备 termux-api 0.60.0 的入口指向 termux-api-broadcast
+  - 5 项新增复现测试在原代码全部失败
+  - API 安装器 20 项及恢复派发 3 项回归通过
+  - 检查匹配不读取链接目标，替换和回滚 rename 链接本身，临时清理仅 unlink
+  - 父目录链接、其他 API 路径及归档成员链接继续拒绝
+  - 真实宿主离线 API 安装器 BEFORE_MATCH=false / AFTER_MATCH=true / exit 0
+  - 原失败任务离线恢复初始化 state=succeeded / exitCode=0，无装包或下载
 limitations:
-  - ADB unauthorized，现场失败原因尚未确认
-  - 尚未执行真实历史备份恢复回归
+  - 新 APK 完整 UI 导入仍待验收
   - 严格 Harness 脚本缺失

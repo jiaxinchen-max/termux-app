@@ -106,9 +106,9 @@ public class RuntimeApiComponents {
                     JSONArray plan = new JSONArray();
                     List<String> names = new ArrayList<>(); names.add(RECEIPT); names.addAll(keys(component.getJSONObject("files")));
                     for (String name : names) {
-                        File target = safe(prefix, name);
-                        if (target.exists() && !target.isFile()) throw new IOException("API target is not a regular file: " + name);
-                        plan.put(new JSONObject().put("path", name).put("original", target.exists()));
+                        File target = activeTarget(prefix, name);
+                        if (target.exists() && !platform.isSymlink(target) && !target.isFile()) throw new IOException("API target is not a regular file: " + name);
+                        plan.put(new JSONObject().put("path", name).put("original", exists(target)));
                     }
                     File planTemporary = safe(pending, "plan.tmp");
                     write(planTemporary, plan.toString().getBytes(StandardCharsets.UTF_8));
@@ -117,9 +117,9 @@ public class RuntimeApiComponents {
                     write(stagedReceipt, receipt(component));
                     for (String name : names) {
                         interrupted();
-                        File target = safe(prefix, name); mkdir(target.getParentFile());
-                        if (target.exists()) {
-                            File backup = safe(pending, "backup/" + name); mkdir(backup.getParentFile());
+                        File target = activeTarget(prefix, name); mkdir(target.getParentFile());
+                        if (exists(target)) {
+                            File backup = backupTarget(pending, name); mkdir(backup.getParentFile());
                             move(target, backup);
                         }
                         File source = safe(staged, name);
@@ -153,17 +153,17 @@ public class RuntimeApiComponents {
                     JSONObject entry = plan.getJSONObject(i); String name = entry.getString("path");
                     if ((!name.equals(RECEIPT) && !component.getJSONObject("files").has(name)) || !seen.add(name))
                         throw new IOException("Unsafe API recovery plan");
-                    entry.getBoolean("original"); safe(prefix, name); safe(pending, "backup/" + name);
+                    entry.getBoolean("original"); activeTarget(prefix, name); backupTarget(pending, name);
                 }
                 for (int i = 0; i < plan.length(); i++) {
                     JSONObject entry = plan.getJSONObject(i); String name = entry.getString("path");
-                    File target = safe(prefix, name); File backup = safe(pending, "backup/" + name);
+                    File target = activeTarget(prefix, name); File backup = backupTarget(pending, name);
                     if (entry.getBoolean("original")) {
-                        if (backup.exists()) {
-                            if (target.exists() && !target.delete()) throw new IOException("Cannot roll back API file");
+                        if (exists(backup)) {
+                            if (exists(target) && !target.delete()) throw new IOException("Cannot roll back API file");
                             mkdir(target.getParentFile()); move(backup, target);
                         }
-                    } else if (target.exists() && !target.delete()) throw new IOException("Cannot remove incomplete API file");
+                    } else if (exists(target) && !target.delete()) throw new IOException("Cannot remove incomplete API file");
                 }
             } catch (org.json.JSONException error) { throw new IOException("Invalid API recovery journal", error); }
         }
@@ -201,8 +201,8 @@ public class RuntimeApiComponents {
         try {
             JSONObject files = component.getJSONObject("files");
             for (String name : keys(files)) {
-                File path = safe(root, name);
-                if (!matchesFile(path, files.getJSONObject(name))
+                File path = activeTarget(root, name);
+                if (platform.isSymlink(path) || !matchesFile(path, files.getJSONObject(name))
                         || (files.getJSONObject(name).getBoolean("executable") && !path.canExecute())) return false;
             }
             return true;
@@ -217,13 +217,30 @@ public class RuntimeApiComponents {
     private static byte[] receipt(JSONObject c) throws org.json.JSONException {
         return (c.getString("abi") + "\n" + c.getString("contract") + "\n" + c.getString("sha256") + "\n").getBytes(StandardCharsets.UTF_8);
     }
+    private boolean exists(File file) throws IOException {
+        return platform.isSymlink(file) || file.exists();
+    }
+    private File activeTarget(File root, String name) throws IOException {
+        // Upstream termux-api installs this leaf as a broadcast symlink. Rename the
+        // link itself during replacement/rollback; never resolve or open its target.
+        return safe(root, name, "libexec/termux-api".equals(name));
+    }
+    private File backupTarget(File pending, String name) throws IOException {
+        return safe(pending, "backup/" + name, "libexec/termux-api".equals(name));
+    }
     private File safe(File root, String relative) throws IOException {
+        return safe(root, relative, false);
+    }
+    private File safe(File root, String relative, boolean allowLeafSymlink) throws IOException {
         if (relative.isEmpty() || relative.startsWith("/") || relative.contains("\\")) throw new IOException("Unsafe API path");
         File current = root.getCanonicalFile();
         if (platform.isSymlink(root)) throw new IOException("Unsafe API directory");
-        for (String part : relative.split("/", -1)) {
+        String[] parts = relative.split("/", -1);
+        for (int index = 0; index < parts.length; index++) {
+            String part = parts[index];
             if (part.isEmpty() || part.equals(".") || part.equals("..")) throw new IOException("Unsafe API path");
             current = new File(current, part);
+            if (allowLeafSymlink && index == parts.length - 1 && platform.isSymlink(current)) return current;
             if (platform.isSymlink(current) || !current.getCanonicalFile().equals(current.getAbsoluteFile()))
                 throw new IOException("Symlink in API path: " + relative);
         }
@@ -231,7 +248,10 @@ public class RuntimeApiComponents {
     }
     private void remove(File path) throws IOException {
         if (!path.exists() && !platform.isSymlink(path)) return;
-        if (platform.isSymlink(path)) throw new IOException("Unsafe API temporary directory");
+        if (platform.isSymlink(path)) {
+            if (!path.delete()) throw new IOException("Cannot unlink API temporary file");
+            return;
+        }
         if (path.isDirectory()) {
             File[] children = path.listFiles(); if (children == null) throw new IOException("Cannot list " + path);
             for (File child : children) remove(child);

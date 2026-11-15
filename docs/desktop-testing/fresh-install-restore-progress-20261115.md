@@ -19,3 +19,17 @@ host-prerequisites 只核对固定组件、PulseAudio、proot 和 proot-distro�
 
 ## 待完成
 读取 archive-task.properties 和 restore-prerequisites 下本次任务 install.log/result.properties，确认失败位于元数据检查、宿主装包、解包或离线初始化。ADB 恢复授权后，功能验证前强制停止 App，从 UiLauncher 干净启动；任何恢复重试须使用新身份，不覆盖原备份/容器。此项未验收、未归档。
+
+## 现场后续确认：API 入口被覆盖（本次根因）
+ADB 已获授权。任务 cae5c744-d667-42ee-a449-dc109a97e452 的 host-only 阶段 result 成功、日志以 Host prerequisites finished 结束，容器已解包；initialize 子目录只有脚本/spec/request，无 result/install.log。归档任务记录 api_component_initialization_failed，清理初期又被 dispatch_pending 阻塞。
+
+设备 dpkg-query 显示 termux-api 0.60.0，上游 libexec/termux-api -> termux-api-broadcast；APK 清单要求该入口为 21016 字节普通 ELF，SHA-256 e21c22eff39058ac3d4b3865dda87d52b36a0cb6386e264441537979b17d59ff。宿主依赖装包把原 APK 入口替换成链接，下一次初始化派发前 EmbeddedApiInstaller 的安全路径检查直接拒绝，故 Python 恢复初始化没有启动。此前 mesa-demos 缺口是独立修复，不能解释此错误码。
+
+修复只允许 libexec/termux-api 的最终链接作为事务原文件存在；检查不读链接目标，发布及回滚均 rename 链接本身，临时备份清理仅 unlink；父目录、其他 API 路径和归档链接限制保持。5 项新复现用例在旧实现全部失败，补丁后 API 安装器 20 项回归（含全部 ABI 已发布组件）及恢复派发 3 项回归全部通过，clean arm64 APK 构建及签名通过，体积 43.28 MiB。
+
+设备已先 force-stop 再开始功能验证；旧 APK 冷启动出现 ANR，正在处理启动阻塞，尚未宣称新 APK 完整历史备份导入验收通过。原备份未改动，没有清除 App 数据或删除用户容器。
+
+### 修复后真实宿主离线验证
+先 force-stop App，在既有失败宿主用此次源码编译的小型 dex 调用真实 RuntimeApiComponents（Android Os 平台实现，已安装 APK 提供归档依赖）。使用现有缓存并禁止 Downloader 联网，结果 BEFORE_MATCH=false、AFTER_MATCH=true、exit 0；确认该入口冲突可由补丁安全修复，不需要卸载或重建容器。之后运行原失败任务尚未派发的 restore-initialize 包装脚本，结果另行记录。完整 UI 新导入尚未重新执行。
+
+原任务 restore-initialize 实际运行成功：宿主 Android System EGL、容器 llvmpipe LLVM 21.1.8 验证通过，result.properties 为 state=succeeded / exitCode=0，日志明确 no package installation or download。验证只覆盖真实 API 修复与原失败恢复的后续初始化，未把手工运行子任务等同于 UI 整体导入成功；未发布桌面记录或伪造归档任务成功状态。原归档仍保留，待新 APK UI 完整导入验收。
