@@ -9,3 +9,5 @@
 - 指定 Harness 脚本与规则文件、OpenSpec CLI 缺失，未执行严格门禁。
 
 原始日志：/home/user/workspace/artifacts/build-restore-apk/delete-confirmation-build.log、delete-confirmation-scripts.log、delete-removal-fixture.log。
+
+代码提交 a4e25e19 已推送 master-x11-submodule-tmp；新 APK 构建可供人工验证。
