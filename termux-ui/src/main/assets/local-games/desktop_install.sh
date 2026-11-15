@@ -547,6 +547,11 @@ $name $digest"
     fi
     proot_valid || standard_packages="$standard_packages proot"
     proot_distro_valid || standard_packages="$standard_packages proot-distro"
+    # Fresh restores do not run initialize_desktop(), which normally installs mesa-demos.
+    # Only Mesa host modes execute eglinfo during local restoration initialization.
+    if [ "$DESKTOP_HOST_GL_MODE" != system ] && [ ! -x "$PREFIX/bin/eglinfo" ]; then
+        standard_packages="$standard_packages mesa-demos"
+    fi
     if [ -n "$missing_debs" ] || [ -n "$standard_packages" ]; then
         log "Installing explicitly requested host prerequisites only ($DESKTOP_DE/$DESKTOP_COMPONENT_RENDERER)"
         run pkg install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold x11-repo || fail 'x11-repo'
@@ -571,6 +576,9 @@ $name $digest"
         pinned_package_valid "$package" "$version" || fail "host prerequisite verification failed: $package $version"
     done < "$host_manifest"
     rm -f "$host_manifest"
+    if [ "$DESKTOP_HOST_GL_MODE" != system ] && [ ! -x "$PREFIX/bin/eglinfo" ]; then
+        fail 'host EGL diagnostics are missing (mesa-demos/eglinfo)'
+    fi
     proot_valid || fail 'proot verification failed'
     proot_distro_valid || fail 'proot-distro new containers layout verification failed (requires 5.10.3 <= version < 6 and --name)'
     [ -x "$PREFIX/bin/pulseaudio" ] && [ -x "$PREFIX/bin/pactl" ] || fail 'host PulseAudio support is missing'

@@ -1,0 +1,13 @@
+schema: review_findings_v1
+scope: 全新宿主恢复 EGL 诊断依赖补齐
+reviewer: 实施代理直接源代码自审，非独立评审
+findings: []
+evidence:
+  - 47 个宿主依赖夹具通过
+  - 9 项恢复本地初始化测试通过
+  - 新增缺工具夹具在旧代码失败，修复后通过
+  - clean arm64 APK 构建、签名及资产核对通过
+limitations:
+  - ADB unauthorized，现场失败原因尚未确认
+  - 尚未执行真实历史备份恢复回归
+  - 严格 Harness 脚本缺失

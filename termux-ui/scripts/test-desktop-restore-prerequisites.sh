@@ -83,6 +83,9 @@ elif cmd == 'apt':
         if arg.endswith('.deb'):
             package, version, abi = pathlib.Path(arg).name.split('_')
             state['versions'][package] = version
+        elif arg == 'mesa-demos' and not state.get('keep_missing_eglinfo'):
+            target = base/'usr/bin/eglinfo'
+            target.write_text(pathlib.Path(sys.argv[0]).read_text()); target.chmod(0o700)
         elif arg in ('proot','proot-distro') and not state.get('keep_old'):
             state['versions'][arg] = '5.1.107' if arg == 'proot' else '5.10.3'
             if arg == 'proot-distro':
@@ -112,11 +115,11 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
         data = {'versions':dict(versions), 'files':files, 'manifests':manifests}
         if mutate: mutate(data, case)
         (case/'state.json').write_text(json.dumps(data))
-        for command in ('uname','dpkg-query','dpkg','sha256sum','proot','proot-distro','python3','curl','apt','pkg','apt-mark','pulseaudio','pactl'):
+        for command in ('uname','dpkg-query','dpkg','sha256sum','proot','proot-distro','python3','curl','apt','pkg','apt-mark','pulseaudio','pactl','eglinfo'):
             if command in data.get('missing_binaries', []): continue
             target = case/'usr/bin'/command
             target.write_text(mock)
-            target.chmod(0o700)
+            target.chmod(0o600 if command in data.get('non_executable_binaries', []) else 0o700)
         for package, relative, digest in files:
             file = case/'usr'/relative
             file.parent.mkdir(parents=True, exist_ok=True)
@@ -154,6 +157,28 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
     assert 'apt-mark hold xorg-server' in calls
     case, calls = run('dpkg-revision-satisfied', lambda data,case: data['versions'].update({'proot-distro':'5.10.3-2'}))
     assert not re.search(r'^(pkg|curl|apt) ', calls, re.M), calls
+    # Fresh hosts must have initialization diagnostics before extraction. Exercise both
+    # supported archive desktops and modes, without installing any guest packages.
+    for de in ('kwin_plasma', 'xfce4'):
+        for mode in ('zink', 'llvmpipe'):
+            def no_egl(data, case, mode=mode, de=de):
+                data.update(missing_binaries=['eglinfo'], spec={
+                    'DESKTOP_HOST_GL_MODE':mode,
+                    'DESKTOP_GUEST_GL_MODE':'llvmpipe' if de=='kwin_plasma' else 'default'})
+            case, calls = run(de+'-'+mode+'-missing-eglinfo', no_egl, de=de)
+            assert re.search(r'^apt install .* mesa-demos$', calls, re.M), calls
+            assert (case/'usr/bin/eglinfo').is_file()
+            assert not re.search(r'^curl ', calls, re.M), calls
+        def system_no_egl(data, case):
+            data.update(missing_binaries=['eglinfo'], spec={'DESKTOP_HOST_GL_MODE':'system'})
+        case, calls = run(de+'-system-no-eglinfo', system_no_egl, de=de)
+        assert not re.search(r'^(pkg|apt|curl) ', calls, re.M), calls
+    case, calls = run('eglinfo-not-executable', lambda data,case:
+        data.update(non_executable_binaries=['eglinfo']))
+    assert re.search(r'^apt install .* mesa-demos$', calls, re.M), calls
+    case, calls = run('eglinfo-repair-ineffective', lambda data,case:
+        data.update(missing_binaries=['eglinfo'], keep_missing_eglinfo=True), code=1)
+    assert 'host EGL diagnostics are missing' in (case/'install.log').read_text()
     # Execute the production probe against mismatched module metadata, runtime paths,
     # and parser contracts. Reinstallation must repair each or report failure.
     for name, changes in [
