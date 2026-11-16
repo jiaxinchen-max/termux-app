@@ -108,12 +108,12 @@ class UbuntuPlasmaInstallTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertFalse(any('/tmp/desktop_container_discover_catalog.sh' in c for c in calls))
 
-    def test_xfce_does_not_prepare_discover_catalog(self):
+    def test_xfce_prepares_the_shared_appstream_catalog_for_its_software_center(self):
         result, calls = self.fixture.run_install(de='xfce4', mode='proot', overrides={
             'DESKTOP_GL_MODE': None, 'DESKTOP_SPEC_VERSION': '3',
             'DESKTOP_HOST_GL_MODE': 'system', 'DESKTOP_GUEST_GL_MODE': 'default'})
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertFalse(any('/tmp/desktop_container_discover_catalog.sh' in c for c in calls))
+        self.assertTrue(any('/tmp/desktop_container_discover_catalog.sh' in c for c in calls))
 
     def test_missing_optional_base_uses_ubuntu_default(self):
         result, calls = self.fixture.run_install(de='kwin_plasma', mode='proot', overrides={

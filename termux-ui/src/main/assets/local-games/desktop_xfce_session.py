@@ -148,7 +148,8 @@ def main():
             if base:
                 gio_command = base + ['DBUS_SESSION_BUS_ADDRESS=' + guest_address,
                                      '/usr/local/libexec/tusb-gio-mount']
-                command += ['--gio-command-json', json.dumps(gio_command)]
+                command += ['--gio-command-json', json.dumps(gio_command),
+                            '--guest-runtime', str(guest_parent / 'desktop')]
             storage = start('usb-storage', command)
             deadline = time.monotonic() + 30
             while not (usb_runtime / 'control.sock').is_socket():

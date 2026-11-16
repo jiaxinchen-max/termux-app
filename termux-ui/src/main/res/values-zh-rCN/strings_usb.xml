@@ -1,6 +1,6 @@
 <resources>
     <string name="desktop_usb_title">外接存储</string>
-    <string name="desktop_usb_scope">将已授权 USB 存储以只读 GIO/GVfs 卷提供给支持的桌面文件管理器。不会创建内核挂载或 /dev/sdX。请求 Android USB 授权时须保持 App 在前台。</string>
+    <string name="desktop_usb_scope">只读浏览已授权的 FAT/exFAT USB 存储，可将文件复制到容器。请求 Android USB 授权时请保持 App 在前台。</string>
     <string name="desktop_usb_enable_read_only">启用 USB 存储（只读）</string>
     <string name="desktop_usb_plasma_unsupported">Plasma Dolphin 使用 Solid/UDisks2；本 GIO 桥接不支持其设备侧栏，此桌面不能启用 USB 存储。</string>
     <string name="desktop_usb_loading">正在读取 USB 状态…</string>
@@ -32,4 +32,6 @@
     <string name="desktop_usb_hyprland_unsupported">当前 Hyprland 会话未提供 USB 卷服务，不能在此启用；可使用支持此功能的 XFCE 桌面。</string>
     <string name="desktop_usb_ubuntu_gnome_unsupported">当前 Ubuntu GNOME 会话不支持 USB 存储集成；可使用支持此功能的 XFCE 桌面。</string>
     <string name="desktop_usb_status_failed">读取 USB 状态失败：%1$s。点击“刷新设备”重试。</string>
+    <string name="desktop_usb_native_unsupported">此原生桌面暂不支持 USB 存储，请使用支持的 PRoot 桌面。</string>
+    <string name="desktop_usb_plasma_files">在应用菜单打开“USB 文件”即可浏览外接存储。</string>
 </resources>

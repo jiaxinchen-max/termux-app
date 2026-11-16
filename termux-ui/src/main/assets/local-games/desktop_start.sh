@@ -97,8 +97,8 @@ case "${DESKTOP_USB_STORAGE:-off}" in off|read-only) ;; *)
     log 'Unsupported USB storage policy; select off or read-only explicitly.'
     printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
 esac
-if [ "${DESKTOP_DE:-kwin_plasma}:${DESKTOP_USB_STORAGE:-off}" = kwin_plasma:read-only ]; then
-    log 'Plasma Dolphin does not support the GIO USB storage integration.'
+if [ "$DESKTOP_MODE:${DESKTOP_USB_STORAGE:-off}" = native:read-only ] && [ "${DESKTOP_DE:-}" != xfce4 ]; then
+    log 'USB storage in this Native desktop is unsupported.'
     printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
 fi
 if [ "${DESKTOP_DE:-}" = gnome ] || [ "${DESKTOP_DE:-}" = ubuntu_gnome ]; then
@@ -130,8 +130,8 @@ if [ "${DESKTOP_DE:-}" = gnome ] || [ "${DESKTOP_DE:-}" = ubuntu_gnome ]; then
     esac
 fi
 if [ "${DESKTOP_DE:-}" = hyprland ]; then
-    [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:system ] || {
-        log 'Hyprland requires its pinned Android/System EGL host and USB off.'
+    [ "${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = android:system ] || {
+        log 'Hyprland requires its pinned Android/System EGL host.'
         printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
     }
     . "$(dirname "$0")/hyprland-components.sh"
@@ -192,7 +192,7 @@ if [ "$DESKTOP_DE" = hyprland ]; then
     rm -f "$DESKTOP_PID_FILE.hyprland-ready"
     printf 'hyprland\n' > "$DESKTOP_PID_FILE.owned-session" || { code=74; finish_desktop; }
     set -- session --runtime-id "$DESKTOP_HYPRLAND_RUNTIME_ID" --theme-id "$DESKTOP_HYPRLAND_THEME_ID" --desktop-id "$DESKTOP_ID" --ready-file "$DESKTOP_PID_FILE.hyprland-ready" \
-        --run-mode "$DESKTOP_MODE" --client-gl-mode "${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" --width "$DESKTOP_WIDTH" --height "$DESKTOP_HEIGHT" --refresh "$DESKTOP_REFRESH_RATE"
+        --run-mode "$DESKTOP_MODE" --usb-storage "$DESKTOP_USB_STORAGE" --client-gl-mode "${DESKTOP_HYPRLAND_CLIENT_GL_MODE:-default}" --width "$DESKTOP_WIDTH" --height "$DESKTOP_HEIGHT" --refresh "$DESKTOP_REFRESH_RATE"
     [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
     "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" "$@" >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     child=$!
@@ -373,6 +373,7 @@ if [ "$DESKTOP_MODE" = "proot" ]; then
     "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_plasma_session.py" \
         --runtime "$XDG_RUNTIME_DIR_HOST" --pid-file "$DESKTOP_PID_FILE" \
         --alias "$DESKTOP_PROOT_DISTRO" --guest-mode "$DESKTOP_GUEST_GL_MODE" \
+        --desktop-id "$DESKTOP_ID" --usb-storage "$DESKTOP_USB_STORAGE" \
         --guest-icd "$DESKTOP_PLASMA_GUEST_ICD" --guest-software "$DESKTOP_PLASMA_GUEST_SOFTWARE" \
         >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     child=$!

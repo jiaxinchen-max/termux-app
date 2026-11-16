@@ -15,6 +15,11 @@ import java.util.List;
 public final class DesktopRendererPolicy {
     private DesktopRendererPolicy() { }
 
+    public static boolean supportsUsb(DesktopDistro distro) {
+        return distro.getDe().isCreatable() && (distro.getRunMode() == DesktopRunMode.PROOT
+            || distro.getDe() == DesktopDe.XFCE4);
+    }
+
     public static List<DesktopGlMode> hostModes(DesktopRunMode mode, DesktopDe de) {
         if (mode == null || de == null || !de.isCreatable()) return Collections.emptyList();
         if (mode == DesktopRunMode.NATIVE) {
@@ -65,7 +70,7 @@ public final class DesktopRendererPolicy {
         if (!distro.getDe().isCreatable())
             throw new IllegalArgumentException("Independent GNOME is retired; create Ubuntu GNOME instead. Existing records can still be deleted.");
         if (distro.getUsbStorage()==DesktopUsbStorageMode.READ_ONLY
-                && distro.getDe()!=DesktopDe.GNOME && distro.getDe()!=DesktopDe.XFCE4)
+                && !supportsUsb(distro))
             throw new IllegalArgumentException("desktop_usb_storage_requires_gio_sidebar");
         if (!supports(distro.getRunMode(),distro.getDe(),distro.getHostGlMode(),distro.getGuestGlMode()))
             throw new IllegalArgumentException("desktop_renderer_explicit_required");

@@ -73,8 +73,8 @@ case "${DESKTOP_MODE:-}" in native|proot) ;; *) log 'Explicit desktop run mode r
 case "${DESKTOP_DE:-}" in xfce4|kwin_plasma|ubuntu_gnome|hyprland) ;; *) log 'Unsupported desktop environment'; exit 64 ;; esac
 case "${DESKTOP_COMPONENT_RENDERER:-}" in system|zink|llvmpipe) ;; *) log 'Explicit system, zink or llvmpipe renderer required'; exit 64 ;; esac
 if [ "$DESKTOP_DE" = hyprland ]; then
-    [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:system ] || {
-        log 'Hyprland requires its pinned Android/System EGL host and USB off.'; exit 64
+    [ "${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = android:system ] || {
+        log 'Hyprland requires its pinned Android/System EGL host.'; exit 64
     }
     . "$(dirname "$0")/hyprland-components.sh"
     hyprland_resolve_components || { log 'Unknown or incompatible Hyprland compositor/theme selection'; exit 64; }
@@ -90,10 +90,10 @@ if [ "$OPERATION" = host-prerequisites ] && [ "${DESKTOP_USB_STORAGE:-off}" != o
     log 'Container archive prerequisites require USB storage off'; exit 64
 fi
 case "${DESKTOP_USB_STORAGE:-}" in off|read-only) ;; *) log 'Explicit USB storage mode off|read-only required'; exit 64 ;; esac
-if [ "$DESKTOP_USB_STORAGE" = read-only ] && [ "$DESKTOP_DE" = kwin_plasma ]; then
-    log 'USB GIO volumes are supported by GNOME/Files and XFCE/Thunar; Dolphin/Solid is not supported.'
-    exit 64
+if [ "$DESKTOP_MODE" = native ] && [ "$DESKTOP_USB_STORAGE" = read-only ] && [ "$DESKTOP_DE" != xfce4 ]; then
+    log 'USB storage in this Native desktop is unsupported.'; exit 64
 fi
+
 if [ "$DESKTOP_DE" = gnome ]; then
     case "$DESKTOP_MODE:$DESKTOP_COMPONENT_RENDERER:${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}" in
         native:system:android:system)
@@ -104,13 +104,13 @@ if [ "$DESKTOP_DE" = gnome ]; then
 fi
 
 # Invalidate the previous completion before initialization; failure must leave no success marker.
-if [ "$OPERATION" = install ] && [ "${DESKTOP_PREPARE_ONLY:-0}" != 1 ] && [ "${DESKTOP_MODE:-}" = proot ] && [ "${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" != 1 ]; then
+if [ "$OPERATION" = install ] && [ "${DESKTOP_PREPARE_ONLY:-0}" != 1 ] && [ "${DESKTOP_USB_CONFIGURE_ONLY:-0}" != 1 ] && [ "${DESKTOP_MODE:-}" = proot ] && [ "${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" != 1 ]; then
     rm -f "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE" \
         "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE-zink" || exit 74
 fi
 
 # An unsuccessful retry must also invalidate the exact pair's old initialization receipt.
-if [ "${DESKTOP_PREPARE_ONLY:-0}" != 1 ] && [ "$OPERATION:$DESKTOP_MODE:$DESKTOP_DE" = install:proot:kwin_plasma ]; then
+if [ "${DESKTOP_PREPARE_ONLY:-0}" != 1 ] && [ "${DESKTOP_USB_CONFIGURE_ONLY:-0}" != 1 ] && [ "$OPERATION:$DESKTOP_MODE:$DESKTOP_DE" = install:proot:kwin_plasma ]; then
     rm -f "$PREFIX/var/lib/termux-desktop/rendering/$DESKTOP_PROOT_DISTRO.$DESKTOP_HOST_GL_MODE.$DESKTOP_GUEST_GL_MODE.env" || exit 74
 fi
 
@@ -719,16 +719,15 @@ initialize_desktop() {
     [ "${DESKTOP_PREPARE_ONLY:-0}" = 1 ] || register_embedded_host_packages
     set -- --de "$DESKTOP_DE" --run-mode "$DESKTOP_MODE" \
         --host-gl-mode "$DESKTOP_HOST_GL_MODE" --guest-gl-mode "$DESKTOP_GUEST_GL_MODE" \
-        --usb-storage "$DESKTOP_USB_STORAGE"
+        --usb-storage "$DESKTOP_USB_STORAGE" --desktop-id "$DESKTOP_ID"
     [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
     case "$DESKTOP_DE" in gnome|ubuntu_gnome|hyprland)
         ready_suffix=gnome
         [ "$DESKTOP_DE" != hyprland ] || ready_suffix=hyprland
-        set -- "$@" --desktop-id "$DESKTOP_ID" --ready-file "$DESKTOP_PID_FILE.$ready_suffix-ready" \
+        set -- "$@" --ready-file "$DESKTOP_PID_FILE.$ready_suffix-ready" \
             --size "${DESKTOP_WIDTH}x${DESKTOP_HEIGHT}" --refresh-rate "$DESKTOP_REFRESH_RATE" \
             --render-socket "$DESKTOP_RENDER_SOCKET" ;;
     esac
-    [ "$DESKTOP_DE" != xfce4 ] || set -- "$@" --desktop-id "$DESKTOP_ID"
     [ "$DESKTOP_DE" != hyprland ] || set -- "$@" --runtime-id "$DESKTOP_HYPRLAND_RUNTIME_ID" --theme-id "$DESKTOP_HYPRLAND_THEME_ID"
     if [ "$DESKTOP_MODE" = proot ]; then
         usb_user_config="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs/home/termux/.config"
@@ -742,9 +741,47 @@ initialize_desktop() {
     run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_initialize.py" initialize "$@" || fail 'desktop initialization verification'
 }
 
+install_usb_host() {
+    [ "$DESKTOP_USB_STORAGE" = read-only ] || return 0
+    usb_paths=$(fetch_verified_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$USB_DEBS") || fail 'downloading USB storage bridge'
+    run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold $usb_paths || fail 'installing USB bridge'
+}
+
+install_usb_guest() {
+    [ "$DESKTOP_MODE:$DESKTOP_USB_STORAGE" = proot:read-only ] || return 0
+    usb_browser_packages=''
+    [ "$DESKTOP_DE" != kwin_plasma ] || usb_browser_packages=thunar
+        # The guest must load glibc GIO code. Never bind a host Bionic module into it.
+        for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
+            cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "staging USB container helper $helper"
+        done
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+            --statx-backend=proc-fdinfo --no-install-recommends gvfs-backends libglib2.0-bin $usb_browser_packages || fail 'container GIO prerequisites'
+        gio_archive=$(fetch_verified_debs "$GNOME_RESOLUTE_TAG" "$GNOME_RESOLUTE_URL" "$USB_GLIBC_ARTIFACT") || fail 'downloading glibc GIO artifact'
+        gio_archive="${gio_archive# }"
+        gio_archive=$(readlink -f "$gio_archive") || fail 'resolving GIO archive path'
+        canonical_rootfs=$(readlink -f "$rootfs") || fail 'resolving GIO rootfs path'
+        run python3 -I -B "$(dirname "$0")/desktop_install_gio.py" --archive "$gio_archive" \
+            --rootfs "$canonical_rootfs" --codename resolute --bridge-version 0.4.1 || fail 'installing glibc GIO payloads'
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- gio-querymodules \
+            /usr/local/lib/termux-usb-bridge/gio/modules || fail 'registering container GIO module'
+}
+
 # Saving an existing desktop prepares it locally. No network, apt or repair.
 if [ "${DESKTOP_PREPARE_ONLY:-0}" = 1 ]; then
     [ "$OPERATION" = install ] || exit 64
+    initialize_desktop
+    INSTALL_DONE=1
+    exit 0
+fi
+
+# USB settings are prepared as a candidate, without reinstalling a desktop or its catalog.
+if [ "${DESKTOP_USB_CONFIGURE_ONLY:-0}" = 1 ]; then
+    install_usb_host
+    rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
+    install_usb_guest
+    case "$DESKTOP_DE" in gnome|ubuntu_gnome) install_gnome_launchers ;; esac
+    DESKTOP_PREPARE_ONLY=1
     initialize_desktop
     INSTALL_DONE=1
     exit 0
@@ -802,6 +839,8 @@ if [ "$DESKTOP_DE" = hyprland ]; then
         cp "$(dirname "$0")/desktop_container_user.sh" "$PREFIX/tmp/desktop_container_user.sh" || fail 'staging container account setup'
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_user.sh || fail 'creating container user'
     fi
+    install_usb_host
+    install_usb_guest
     initialize_desktop
     audit=$(dpkg --audit 2>&1) || fail 'dpkg audit'
     [ -z "$audit" ] || fail "$audit"
@@ -848,7 +887,7 @@ if [ "$DESKTOP_MODE:$DESKTOP_DE" = native:ubuntu_gnome ]; then
     DEB_PATHS="$DEB_PATHS $native_app_paths"
 fi
 if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
-    USB_PATHS=$(fetch_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$USB_DEBS") || fail 'downloading USB storage bridge'
+    USB_PATHS=$(fetch_verified_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$USB_DEBS") || fail 'downloading USB storage bridge'
     DEB_PATHS="$DEB_PATHS $USB_PATHS"
 fi
 if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
@@ -947,22 +986,7 @@ else
     fi
     # Idempotent and independent of the marker: a container created before this step still gets it.
     [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$PLASMA_EMULATOR" = 1 ] || [ "$DESKTOP_GUEST_GL_MODE" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
-    if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
-        # The guest must load glibc GIO code. Never bind a host Bionic module into it.
-        for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
-            cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "staging USB container helper $helper"
-        done
-        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
-            --statx-backend=proc-fdinfo --no-install-recommends gvfs-backends libglib2.0-bin || fail 'container GIO prerequisites'
-        gio_archive=$(fetch_verified_debs "$GNOME_RESOLUTE_TAG" "$GNOME_RESOLUTE_URL" "$USB_GLIBC_ARTIFACT") || fail 'downloading glibc GIO artifact'
-        gio_archive="${gio_archive# }"
-        gio_archive=$(readlink -f "$gio_archive") || fail 'resolving GIO archive path'
-        canonical_rootfs=$(readlink -f "$rootfs") || fail 'resolving GIO rootfs path'
-        run python3 -I -B "$(dirname "$0")/desktop_install_gio.py" --archive "$gio_archive" \
-            --rootfs "$canonical_rootfs" --codename resolute --bridge-version 0.4.1 || fail 'installing glibc GIO payloads'
-        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- gio-querymodules \
-            /usr/local/lib/termux-usb-bridge/gio/modules || fail 'registering container GIO module'
-    fi
+    install_usb_guest
 fi
 
 audit=$(dpkg --audit 2>&1) || fail 'dpkg --audit failed'

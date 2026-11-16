@@ -441,6 +441,17 @@ def initialize(args):
                  'libtusb-volume-monitor.so')
         if guest:
             executable(root / 'usr/local/libexec/tusb-gio-mount')
+            executable(root / 'usr/bin' / ('nautilus' if args.de == 'ubuntu_gnome' else 'thunar'))
+            usb_module = runpy.run_path(str(ASSETS / 'desktop_usb_storage.py'))
+            _, guest_parent = usb_module['paths'](prefix, args.desktop_id)
+            usb_module['prepare_guest_mount'](root, guest_parent)
+            if args.de == 'kwin_plasma':
+                entry = root / 'usr/local/share/applications/termux-usb-files.desktop'
+                entry.parent.mkdir(parents=True, exist_ok=True)
+                entry.write_text('[Desktop Entry]\nType=Application\nName=USB Files\nName[zh_CN]=USB 文件\n'
+                    'Exec=thunar\nIcon=drive-removable-media-usb\nCategories=System;FileTools;\n')
+    if args.de == 'kwin_plasma' and guest and args.usb_storage == 'off':
+        (root / 'usr/local/share/applications/termux-usb-files.desktop').unlink(missing_ok=True)
     plasma_proot = args.de == 'kwin_plasma' and bool(guest)
     if args.host_gl_mode == 'zink' and not plasma_proot:
         library = str(prefix / 'lib/libvulkan_freedreno.so')
@@ -508,7 +519,7 @@ def initialize(args):
         width, height = map(int, args.size.split('x'))
         module['prepare'](SimpleNamespace(runtime_id=args.runtime_id, theme_id=args.theme_id,
             desktop_id=args.desktop_id, ready_file=args.ready_file, run_mode=args.run_mode,
-            alias=args.alias, client_gl_mode=args.guest_gl_mode if guest else 'default',
+            alias=args.alias, client_gl_mode=args.guest_gl_mode if guest else 'default', usb_storage=args.usb_storage,
             width=width, height=height, refresh=args.refresh_rate))
     elif args.de == 'xfce4' and (guest or args.usb_storage == 'read-only'):
         from types import SimpleNamespace

@@ -2,6 +2,7 @@
 """Supervise the native KWin + PRoot Plasma pair without equating their readiness."""
 import argparse
 import os
+import runpy
 from pathlib import Path
 import signal
 import stat
@@ -84,7 +85,7 @@ def check_audio(prefix):
 
 
 def supervise(compositor_command, container_command, runtime, pid_file, env, audio_check,
-              startup_timeout=60, audio_interval=5):
+              startup_timeout=60, audio_interval=5, usb=None):
     """Commands are argv arrays. Both children own new process groups for bounded cleanup."""
     started = clock()
     processes = []
@@ -134,12 +135,16 @@ def supervise(compositor_command, container_command, runtime, pid_file, env, aud
                 audio_check()
                 next_audio = clock() + audio_interval
             if guest_responsive and not ready:
+                if usb is not None:
+                    usb.start()
                 deadline()
                 require_alive(compositor, 'KWin')
                 require_alive(container, 'container session')
                 atomic_write(ready_file, session_identity)
                 ready = True
                 stage('container-responsive')  # Service response, NOT a rendered first frame.
+            if usb is not None:
+                usb.require_alive()
             time.sleep(0.1 if not ready else 0.5)
     finally:
         # Revoke readiness before terminating any process. Shared PulseAudio is not owned here.
@@ -148,7 +153,11 @@ def supervise(compositor_command, container_command, runtime, pid_file, env, aud
                 path.unlink(missing_ok=True)
         finally:
             try:
-                stop_groups(processes)
+                try:
+                    if usb is not None:
+                        usb.stop()
+                finally:
+                    stop_groups(processes)
             finally:
                 guest_ready.unlink(missing_ok=True)
 
@@ -161,12 +170,30 @@ def main():
     parser.add_argument('--guest-mode', choices=('llvmpipe', 'zink'), required=True)
     parser.add_argument('--guest-icd', required=True)
     parser.add_argument('--guest-software', required=True)
+    parser.add_argument('--desktop-id', required=True)
+    parser.add_argument('--usb-storage', choices=('off', 'read-only'), required=True)
     args = parser.parse_args()
     prefix = Path(os.environ['PREFIX'])
     assets = Path(__file__).resolve().parent
     env = dict(os.environ, KWIN_WAYLAND_NO_PERMISSION_CHECKS='1')
     args.runtime.mkdir(parents=True, exist_ok=True)
     (args.runtime / 'wayland-0').unlink(missing_ok=True)
+    usb = None
+    usb_module = runpy.run_path(str(assets / 'desktop_usb_storage.py'))
+    usb_parent, guest_usb_parent = usb_module['paths'](prefix, args.desktop_id)
+    if args.usb_storage == 'read-only':
+        usb_parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        usb_parent.chmod(0o700)
+        gio_command = [str(prefix / 'bin/proot-distro'), 'login', args.alias, '--user', 'termux',
+            '--bind', str(args.runtime) + ':/run/wl',
+            '--bind', str(usb_parent) + ':' + str(guest_usb_parent), '--', 'env',
+            'XDG_RUNTIME_DIR=/run/wl/user', 'DBUS_SESSION_BUS_ADDRESS=unix:path=/run/wl/user/bs/session.sock',
+            'TERMUX_USB_DESKTOP_DIR=' + str(guest_usb_parent / 'desktop'),
+            'GIO_EXTRA_MODULES=/usr/local/lib/termux-usb-bridge/gio/modules',
+            '/usr/local/libexec/tusb-gio-mount']
+        usb = usb_module['Session'](prefix, args.desktop_id,
+            dict(env, DBUS_SESSION_BUS_ADDRESS='unix:path=' + str(args.runtime / 'user/bs/session.sock')),
+            gio_command, args.runtime / 'usb-storage.log')
 
     def container_command(token, started_cs):
         command = [str(prefix / 'bin/proot-distro'), 'login', args.alias, '--user', 'root',
@@ -174,7 +201,11 @@ def main():
         for name in ('desktop_container_session.sh', 'desktop_container_polkit_agent.py', 'desktop_container_statx_setup.sh',
                      'desktop_container_run_config.sh', 'desktop_container_statx_aarch64.bin'):
             command += ['--bind', str(assets / name) + ':/tmp/' + name]
+        if usb is not None:
+            command += ['--bind', str(usb_parent) + ':' + str(guest_usb_parent)]
         return command + ['--', 'env', 'DESKTOP_GUEST_GL_MODE=' + args.guest_mode,
+                          'DESKTOP_USB_STORAGE=' + args.usb_storage,
+                          'TERMUX_USB_DESKTOP_DIR=' + str(guest_usb_parent / 'desktop'),
                           'DESKTOP_PLASMA_GUEST_ICD=' + args.guest_icd,
                           'DESKTOP_PLASMA_GUEST_SOFTWARE=' + args.guest_software,
                           'DESKTOP_PLASMA_SESSION_TOKEN=' + token,
@@ -194,8 +225,8 @@ def main():
     try:
         supervise([str(prefix / 'bin/bash'), str(prefix / 'libexec/termux-desktop/start-plasma'),
                    '--compositor-only'], container_command, args.runtime, args.pid_file, env,
-                  lambda: check_audio(prefix))
-    except (OSError, SessionFailure) as error:
+                  lambda: check_audio(prefix), usb=usb)
+    except (OSError, RuntimeError, SessionFailure) as error:
         print('ERROR: ' + str(error), flush=True)
         return getattr(error, 'code', 70)
     return 0

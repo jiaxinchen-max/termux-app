@@ -34,6 +34,12 @@ export XDG_SESSION_TYPE
 export PULSE_SERVER="${PULSE_SERVER:?Explicit host PulseAudio endpoint is required}"
 export XDG_DATA_DIRS="${XDG_DATA_DIRS:-/usr/share:/usr/local/share}"
 export XDG_MENU_PREFIX="${XDG_MENU_PREFIX:-plasma-}"
+case "${DESKTOP_USB_STORAGE:-off}" in
+    read-only) export GIO_EXTRA_MODULES=/usr/local/lib/termux-usb-bridge/gio/modules
+        export TERMUX_USB_DESKTOP_DIR ;;
+    off) unset GIO_EXTRA_MODULES TERMUX_USB_DESKTOP_DIR ;;
+    *) exit 64 ;;
+esac
 unset DISPLAY
 
 # Clear inherited renderer settings before applying the requested mode exactly.

@@ -1,20 +1,30 @@
 schema: review_findings_v1
 change_id: add-proot-usb-storage
-stage: requirement_review
-status: REVIEWED_AWAITING_SCOPE_CONFIRMATION
-method: 主代理直接源码与资料自审；未使用独立代理
+stage: implementation_review
+status: APPROVED_FOR_PROGRESS_AND_MANUAL_TESTING
+method: 主代理按 expert-reviewer 与 stellios-code-review 直接源码自审，无独立代理
 findings: []
-pending_decisions:
-  - 用户实际设备类别及是否采用只读存储首期
-  - Plasma 使用配套 Thunar 的专门 USB 文件入口是否符合期望
+resolved_findings:
+  - id: usb-config-marker
+    severity: MUST_FIX
+    status: resolved
+    summary: USB 单独配置不再撤销已有安装完成标记和渲染 receipt
+    evidence: termux-ui/scripts/test-desktop-usb-install.py
+  - id: plasma-preparation-rollback
+    severity: MUST_FIX
+    status: resolved
+    summary: Plasma 精确 renderer pair receipt 纳入失败快照
+    evidence: termux-ui/src/main/java/com/termux/ui/desktop/api/DesktopTasks.java
 checks:
   planning_structure: passed
   whitespace: passed
-  current_source_consistency: manually_reviewed
-  yaml_fields: manually_reviewed_only
-  implementation: not_started
+  source_review: passed_self_review
+  transaction_and_matrix_tests: passed
+  shell_configuration_combinations: 8_passed
+  apk_build: passed
+  harness_strict: unavailable
 limitations:
-  - 无 Harness 严格门禁脚本与 OpenSpec CLI，不能声称 strict-run 通过
-  - 无物理 USB 验证，候选支持边界不能替代实物验收
-  - 需求未确认，禁止进入业务实现
-review_document: openspec/changes/add-proot-usb-storage/planning-review.md
+  - 物理 USB 的授权、热拔出、设备占用与四桌面 GUI 验收未执行
+  - Harness 严格门禁脚本与 OpenSpec CLI 缺失
+  - 产品最终验收未完成，一致性 Pending，不归档
+review_document: .harness/runs/add-proot-usb-storage/code-review.md

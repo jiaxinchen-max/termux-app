@@ -1,3 +1,5 @@
+> 历史规划审查记录。用户已于 2026-11-16 批准本范围并进入实施；当前结果见 run 台账的 evidence.md、review-findings.yaml 和 summary.md。下文“待确认/未实现”均指批准前状态。
+
 # 规划与提交前审查
 
 审查方式：主代理直接核对源码和候选规划，使用 expert-reviewer / stellios-code-review 清单；没有独立审查代理。本次只审查调研资料，不等于业务代码审查通过。

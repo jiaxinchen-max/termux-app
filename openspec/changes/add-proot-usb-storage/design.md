@@ -1,6 +1,6 @@
-# 设计（待需求确认）
+# 设计（用户已批准执行）
 
-## 现状与证据
+## 实施前现状与证据
 
 主 APK 的 `termux-usb/EmbeddedUsbApi` 已通过 Android UsbManager 枚举、授权并向同 UID 客户端传递 FD，无需另装 Termux:API APK。`DesktopUsbStorageTasks.supported()` 目前仅允许 XFCE 与已废弃的独立 GNOME；Java renderer policy、shell 安装/启动及 Ubuntu GNOME launcher 还有独立限制，不能只放开 UI。
 

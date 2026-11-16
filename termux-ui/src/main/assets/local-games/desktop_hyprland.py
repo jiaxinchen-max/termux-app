@@ -203,10 +203,11 @@ CLIENT_CLEAN_KEYS = (
     'GDK_GL', 'GSK_RENDERER', 'LIBGL_ALWAYS_INDIRECT', 'WRAPPER_VULKAN_PATH',
     'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_DATA_DIRS', 'XDG_CACHE_HOME',
     'DBUS_SESSION_BUS_ADDRESS', 'DBUS_SYSTEM_BUS_ADDRESS', 'DISPLAY',
+    'GIO_EXTRA_MODULES', 'TERMUX_USB_DESKTOP_DIR',
 )
 
 
-def container_command(work, alias, client_mode, program, token):
+def container_command(work, alias, client_mode, program, token, usb_storage='off'):
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', alias or ''):
         raise ValueError('Invalid container alias')
     if client_mode not in ('default', 'zink'):
@@ -226,9 +227,18 @@ def container_command(work, alias, client_mode, program, token):
                       'LIBGL_ALWAYS_SOFTWARE=0', 'EGL_PLATFORM=wayland',
                       'QSG_RHI_BACKEND=vulkan', 'QT_OPENGL=desktop',
                       'QT_WAYLAND_CLIENT_BUFFER_INTEGRATION=wayland-egl']
+    binds = []
+    if usb_storage == 'read-only':
+        desktop_id = work.name[len('hyprland-'):]
+        usb = runpy.run_path(str(Path(__file__).with_name('desktop_usb_storage.py')))
+        parent, guest_parent = usb['paths'](PREFIX, desktop_id)
+        binds = ['--bind', str(parent) + ':' + str(guest_parent)]
+        guest_env += ['DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/hyprland-runtime/guest-session-bus',
+                      'GIO_EXTRA_MODULES=/usr/local/lib/termux-usb-bridge/gio/modules',
+                      'TERMUX_USB_DESKTOP_DIR=' + str(guest_parent / 'desktop')]
     return [str(PREFIX / 'bin/env'), *clean, str(PREFIX / 'bin/proot-distro'), 'login', alias, '--user', 'termux',
             '--shared-tmp', '--bind', str(work / 'runtime') + ':/tmp/hyprland-runtime',
-            '--bind', str(helper) + ':/tmp/hyprland-gpu-check.py', '--',
+            '--bind', str(helper) + ':/tmp/hyprland-gpu-check.py', *binds, '--',
             'env', *clean, *guest_env, *program]
 
 
@@ -360,7 +370,8 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
         executable = [str(PREFIX / "bin/env"), "-u", "LD_LIBRARY_PATH", "-u", "LD_PRELOAD", *program]
         if args.run_mode == 'proot':
             executable = container_command(work, args.alias, client_mode,
-                ['dbus-run-session', '--', *program], '__LIVE_SESSION_TOKEN__')
+                program if getattr(args, 'usb_storage', 'off') == 'read-only' else ['dbus-run-session', '--', *program],
+                '__LIVE_SESSION_TOKEN__', getattr(args, 'usb_storage', 'off'))
         wrapper = bin_dir / ('termux-hyprland-' + action)
         wrapper.write_text('#!' + str(PREFIX / 'bin/sh') + '\nexec ' + shlex.join(executable).replace('TERMUX_HYPRLAND_SESSION=__LIVE_SESSION_TOKEN__', '"TERMUX_HYPRLAND_SESSION=${TERMUX_HYPRLAND_SESSION:?}"') + ' "$@"\n')
         wrapper.chmod(0o700)
@@ -379,6 +390,8 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
 
 
 def session(args):
+    if args.run_mode != 'proot' and args.usb_storage != 'off':
+        raise ValueError('Native Hyprland does not support USB storage')
     client_mode = getattr(args, 'client_gl_mode', 'default')
     if client_mode not in ('default', 'zink') or (client_mode == 'zink' and args.run_mode != 'proot'):
         raise ValueError('Experimental Zink is supported only for PRoot Hyprland clients')
@@ -419,6 +432,8 @@ def _session_locked(args, work, client_mode, prepared):
     process = None
     bus = None
     packages = None
+    usb = None
+    cleanup_error = None
     service_clients = []
     clients = []
     def stop(signum, frame):
@@ -478,6 +493,29 @@ def _session_locked(args, work, client_mode, prepared):
                     stderr=subprocess.STDOUT, start_new_session=True)
                 service_clients.append(packages)
                 software['wait_ready'](packages, runtime)
+                if args.usb_storage == 'read-only':
+                    usb_module = runpy.run_path(str(Path(__file__).with_name('desktop_usb_storage.py')))
+                    usb_parent, _ = usb_module['paths'](PREFIX, args.desktop_id)
+                    usb_parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                    usb_parent.chmod(0o700)
+                    guest_bus_command = container_command(work, args.alias, client_mode,
+                        ['dbus-daemon', '--session', '--nofork', '--nopidfile',
+                         '--address=unix:path=/tmp/hyprland-runtime/guest-session-bus'],
+                        env['TERMUX_HYPRLAND_SESSION'], 'read-only')
+                    guest_bus = subprocess.Popen(guest_bus_command, env=env, stdout=log,
+                        stderr=subprocess.STDOUT, start_new_session=True)
+                    service_clients.append(guest_bus)
+                    bus_deadline = time.monotonic() + 10
+                    while not (runtime / 'guest-session-bus').is_socket():
+                        if guest_bus.poll() is not None or time.monotonic() >= bus_deadline:
+                            raise RuntimeError('Hyprland guest session D-Bus failed to start')
+                        time.sleep(.05)
+                    gio_command = container_command(work, args.alias, client_mode,
+                        ['/usr/local/libexec/tusb-gio-mount'], env['TERMUX_HYPRLAND_SESSION'], 'read-only')
+                    usb = usb_module['Session'](PREFIX, args.desktop_id,
+                        dict(env, DBUS_SESSION_BUS_ADDRESS='unix:path=' + str(runtime / 'guest-session-bus')),
+                        gio_command, runtime / 'usb-storage.log')
+                    usb.start()
             # Host GTK clients must use the installed libraries, not compositor-private ones.
             client_env = env.copy()
             client_env.pop('LD_LIBRARY_PATH', None)
@@ -519,6 +557,10 @@ def _session_locked(args, work, client_mode, prepared):
             temporary.replace(args.ready_file)
             print('Hyprland Android output and IPC ready; visual/input validation pending', flush=True)
             while process.poll() is None:
+                if usb is not None:
+                    usb.require_alive()
+                if any(client.poll() is not None for client in service_clients):
+                    raise RuntimeError('Hyprland guest session service exited; inspect session.log')
                 if packages is not None and packages.poll() is not None:
                     raise RuntimeError('Hyprland guest package services exited; inspect session.log')
                 if bus.poll() is not None:
@@ -530,8 +572,15 @@ def _session_locked(args, work, client_mode, prepared):
     except KeyboardInterrupt:
         return 0
     finally:
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
         args.ready_file.unlink(missing_ok=True)
         (work / 'session.json').unlink(missing_ok=True)
+        if usb is not None:
+            try:
+                usb.stop()
+            except (OSError, RuntimeError) as error:
+                cleanup_error = error
         for client in clients + service_clients:
             try:
                 os.killpg(client.pid, signal.SIGTERM)
@@ -586,6 +635,8 @@ def _session_locked(args, work, client_mode, prepared):
         # Preserve config, data and logs, remove only this session's IPC directory.
         shutil.rmtree(runtime)
         runtime.mkdir(mode=0o700)
+        if cleanup_error is not None:
+            raise cleanup_error
 
 
 def action(args):
@@ -619,6 +670,7 @@ def main():
     p.add_argument('--desktop-id', required=True); p.add_argument('--ready-file', type=Path, required=True)
     p.add_argument('--run-mode', choices=['native','proot'], required=True); p.add_argument('--alias')
     p.add_argument('--client-gl-mode', choices=['default','zink'], default='default')
+    p.add_argument('--usb-storage', choices=['off', 'read-only'], required=True)
     p.add_argument('--width', type=int, required=True); p.add_argument('--height', type=int, required=True)
     p.add_argument('--refresh', type=int, required=True)
     p = sub.add_parser('action')

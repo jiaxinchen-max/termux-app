@@ -49,7 +49,7 @@ class StoragePolicyTest(unittest.TestCase):
             argv = [str(HELPER), '--mode', 'read-only', '--run-mode', mode,
                 '--runtime', str(root / 'desktop'), '--broker-socket', str(root / 'broker.sock'),
                 '--termux-usb', str(client)]
-            if gio is not None: argv += ['--gio-command-json', json.dumps(gio)]
+            if gio is not None: argv += ['--gio-command-json', json.dumps(gio), '--guest-runtime', '/tmp/guest-usb/desktop']
             with patch.dict(sys.modules, {'desktop': desktop}), patch.object(sys, 'argv', argv), patch.dict(os.environ,
                 PREFIX=str(root / 'prefix'), DBUS_SESSION_BUS_ADDRESS='unix:path=' + str(root / 'bus'),
                 XDG_RUNTIME_DIR=str(root), PATH=os.environ.get('PATH', '')):
@@ -59,7 +59,7 @@ class StoragePolicyTest(unittest.TestCase):
         def check(manager, settings, root):
             self.assertTrue(settings.no_camera); self.assertTrue(settings.no_gamepad)
             self.assertFalse(settings.read_write); self.assertIsNone(settings.test_manifest)
-            self.assertTrue(settings.request_permission)
+            self.assertFalse(settings.request_permission)
             self.assertEqual('read-only', json.loads(manager.action('health', ''))['storageMode'])
         self.run_helper(check)
 
@@ -80,9 +80,28 @@ class StoragePolicyTest(unittest.TestCase):
         command = ['/usr/bin/proot', '--rootfs=/private/container', '/usr/local/libexec/tusb-gio-mount']
         def check(manager, settings, root):
             stored = root / 'desktop/host-wrappers/gio-command.json'
-            self.assertEqual(command, json.loads(stored.read_text()))
+            self.assertEqual(command, json.loads(stored.read_text())["command"])
             self.assertEqual(0o600, stored.stat().st_mode & 0o777)
             self.assertEqual('proot', json.loads(manager.action('health', ''))['runMode'])
+        self.run_helper(check, mode='proot', gio=command)
+
+    def test_guest_mount_receives_guest_token_path_and_unmount_has_no_translation(self):
+        import subprocess
+        command = [sys.executable, '-c', 'import json,sys; print(json.dumps(sys.argv[1:]))']
+        def check(manager, settings, root):
+            wrapper = root / 'desktop/host-wrappers/tusb-gio-mount'
+            token = root / 'desktop/0123abcdef.token'
+            token.write_text('private-password')
+            result = subprocess.run([str(wrapper), 'mount', 'dav://tusb@127.0.0.1:1234/', str(token)],
+                capture_output=True, text=True, check=True)
+            self.assertEqual(['mount', 'dav://tusb@127.0.0.1:1234/', '/tmp/guest-usb/desktop/0123abcdef.token'],
+                json.loads(result.stdout))
+            self.assertNotIn('private-password', result.stdout)
+            for path in (root / 'outside.token', root / 'desktop/../escape.token'):
+                result = subprocess.run([str(wrapper), 'mount', 'dav://host/', str(path)], capture_output=True)
+                self.assertNotEqual(0, result.returncode)
+            result = subprocess.run([str(wrapper), 'unmount', 'dav://host/'], capture_output=True, text=True, check=True)
+            self.assertEqual(['unmount', 'dav://host/'], json.loads(result.stdout))
         self.run_helper(check, mode='proot', gio=command)
 
     def test_authorization_uses_only_the_explicit_embedded_client(self):

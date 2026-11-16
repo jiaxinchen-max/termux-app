@@ -73,10 +73,7 @@ final class DesktopUsbStorageDialog {
         enabled.setOnCheckedChangeListener((view, checked) -> {
             if (rendering || busy || closed) return;
             work(() -> {
-                usb.setEnabled(this.distro, checked);
-                this.distro = this.distro.withUsbStorage(checked ? DesktopUsbStorageMode.READ_ONLY : DesktopUsbStorageMode.OFF);
-                if (checked) initializeDesktop();
-                else activity.runOnUiThread(() -> { if (usable()) changed.run(); });
+                showTask(usb.setEnabled(this.distro, checked));
             });
         });
     }
@@ -86,9 +83,7 @@ final class DesktopUsbStorageDialog {
             activity, R.color.desktop_usb_dialog_surface, FrostedWindow.PANEL_RADIUS_DP));
     }
     private int unsupportedReason() {
-        if (distro.getDe() == DesktopDe.KWIN_PLASMA) return R.string.desktop_usb_plasma_unsupported;
-        if (distro.getDe() == DesktopDe.HYPRLAND) return R.string.desktop_usb_hyprland_unsupported;
-        return R.string.desktop_usb_ubuntu_gnome_unsupported;
+        return R.string.desktop_usb_native_unsupported;
     }
     private void setControlsEnabled(boolean value) {
         enabled.setEnabled(value); install.setEnabled(value); refresh.setEnabled(value);
@@ -149,6 +144,8 @@ final class DesktopUsbStorageDialog {
         rendering = true; enabled.setChecked(on); enabled.setEnabled(supported && !active && !busy); rendering = false;
         install.setEnabled(supported && on && !active && !busy); refresh.setEnabled(!busy);
         StringBuilder summary = new StringBuilder();
+        if (distro.getDe() == DesktopDe.KWIN_PLASMA)
+            summary.append(activity.getString(R.string.desktop_usb_plasma_files)).append('\n');
         if (state == DesktopSessionState.STOPPING)
             summary.append(activity.getString(R.string.desktop_state_stopping)).append('\n');
         if (active) summary.append(activity.getString(R.string.desktop_usb_stop_to_change)).append('\n');
@@ -195,8 +192,10 @@ final class DesktopUsbStorageDialog {
         }
         return activity.getString(resource);
     }
-    private void initializeDesktop() throws com.termux.ui.api.LaunchHostException {
-        String taskId = desktops.install(this.distro);
+    private void initializeDesktop() throws Exception {
+        showTask(desktops.configureUsb(this.distro, distro.getUsbStorage()));
+    }
+    private void showTask(String taskId) {
         activity.runOnUiThread(() -> {
             if (usable()) {
                 dialog.dismiss();

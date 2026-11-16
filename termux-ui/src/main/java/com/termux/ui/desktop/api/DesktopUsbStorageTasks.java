@@ -56,7 +56,7 @@ public final class DesktopUsbStorageTasks {
         prefix = new File(this.context.getFilesDir(), "usr");
     }
     public static boolean supported(DesktopDistro distro) {
-        return distro.getDe() == DesktopDe.GNOME || distro.getDe() == DesktopDe.XFCE4;
+        return com.termux.ui.desktop.runtime.DesktopRendererPolicy.supportsUsb(distro);
     }
     public File runtime(DesktopDistro distro) throws IOException {
         try {
@@ -85,10 +85,10 @@ public final class DesktopUsbStorageTasks {
         }
         return new Dependencies(api, missing);
     }
-    public void setEnabled(DesktopDistro distro, boolean enabled) throws IOException {
+    public String setEnabled(DesktopDistro distro, boolean enabled) throws IOException, com.termux.ui.api.LaunchHostException {
         if (enabled && !supported(distro)) throw new IOException("desktop_usb_environment_unsupported");
-        new DesktopTasks(context).save(distro.withUsbStorage(enabled
-            ? DesktopUsbStorageMode.READ_ONLY : DesktopUsbStorageMode.OFF));
+        return new DesktopTasks(context).configureUsb(distro, enabled
+            ? DesktopUsbStorageMode.READ_ONLY : DesktopUsbStorageMode.OFF);
     }
     public Health health(DesktopDistro distro) throws IOException {
         try {

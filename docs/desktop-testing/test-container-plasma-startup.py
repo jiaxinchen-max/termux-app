@@ -28,7 +28,7 @@ class PlasmaStartup(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.m = module('desktop_plasma_session')
 
-    def run_session(self, marker=True, audio_failure=False, compositor_exit=None, container_exit=None):
+    def run_session(self, marker=True, audio_failure=False, compositor_exit=None, container_exit=None, usb=None):
         compositor_code = ('import socket,time,sys; from pathlib import Path; '
                            'Path(sys.argv[1]+"/compositor.pid").write_text(str(__import__("os").getpid())); ')
         if compositor_exit is None:
@@ -59,7 +59,7 @@ class PlasmaStartup(unittest.TestCase):
                 raise self.m.SessionFailure('injected startup audio failure')
         with self.assertRaises(self.m.SessionFailure) as raised:
             self.m.supervise(compositor, container, self.root, self.root / 'session.pid',
-                             dict(os.environ), audio, startup_timeout=.9, audio_interval=.05)
+                             dict(os.environ), audio, startup_timeout=.9, audio_interval=.05, usb=usb)
         for path in ('session.pid.plasma-ready', 'session.pid.plasma-session',
                      'session.pid.container', 'plasma-container.ready'):
             self.assertFalse((self.root / path).exists(), path)
@@ -74,6 +74,20 @@ class PlasmaStartup(unittest.TestCase):
         self.assertTrue(self.before_ready)
         self.assertTrue(self.observed_ready)
         self.assertIn('runtime audio loss', str(error))
+
+    def test_usb_stops_before_the_guest_bus_owner(self):
+        events = []
+        root = self.root
+        class Usb:
+            def start(self): events.append('start')
+            def require_alive(self): pass
+            def stop(self):
+                pid = int((root/'guest.pid').read_text())
+                os.kill(pid, 0) # the owner of the guest bus must still be alive
+                events.append('stop')
+        self.run_session(usb=Usb())
+        self.assertEqual(['start', 'stop'], events)
+        self.assertTrue(self.observed_ready)
 
     def test_bare_compositor_and_stale_evidence_cannot_be_ready(self):
         (self.root / 'session.pid.plasma-ready').write_text('old')
@@ -162,7 +176,7 @@ class PlasmaStartup(unittest.TestCase):
         for _ in range(2):
             process = subprocess.Popen([sys.executable, str(ASSETS / 'desktop_plasma_session.py'),
                 '--runtime', str(self.root), '--pid-file', str(self.root / 'session.pid'),
-                '--alias', 'test', '--guest-mode', 'llvmpipe', '--guest-icd', '', '--guest-software', '0'],
+                '--desktop-id', 'desktop-plasma', '--usb-storage', 'off', '--alias', 'test', '--guest-mode', 'llvmpipe', '--guest-icd', '', '--guest-software', '0'],
                 env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             try:
                 deadline = time.monotonic() + 5

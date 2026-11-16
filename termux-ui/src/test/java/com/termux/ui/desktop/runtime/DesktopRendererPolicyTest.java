@@ -10,6 +10,16 @@ import java.util.Collections;
 import static org.junit.Assert.*;
 
 public class DesktopRendererPolicyTest {
+    @Test public void allCurrentProotDesktopsAllowReadOnlyUsb() {
+        for (DesktopDe de : new DesktopDe[] {DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA,
+                DesktopDe.UBUNTU_GNOME, DesktopDe.HYPRLAND}) {
+            DesktopDistro desktop = new DesktopDistro("usb", "USB", DesktopRunMode.PROOT, "ubuntu-usb-1", de,
+                DesktopGlMode.SYSTEM, DesktopRendererPolicy.guestModes(DesktopRunMode.PROOT, de).get(0),
+                "1280x720", 60, DesktopUsbStorageMode.READ_ONLY);
+            DesktopRendererPolicy.requireSupported(desktop);
+            assertTrue(DesktopRendererPolicy.supportsUsb(desktop));
+        }
+    }
     @Test public void usbReadOnlyRequiresSupportedGioDesktopSidebar() {
         for(DesktopDe de:DesktopDe.values()) {
             DesktopDistro desktop=new DesktopDistro("usb", "USB", DesktopRunMode.NATIVE, "", de, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 60, DesktopUsbStorageMode.OFF).withUsbStorage(DesktopUsbStorageMode.READ_ONLY);

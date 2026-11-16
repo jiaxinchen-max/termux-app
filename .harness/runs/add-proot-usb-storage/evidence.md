@@ -1,29 +1,57 @@
-# 调研证据（2026-11-16）
+# USB 存储实施证据（2026-11-16）
 
-## 当前源码观察
+分支 `master-x11-submodule-tmp`，规划基点 `aa779c66`；用户已批准四类 Ubuntu 26.04 PRoot 只读存储范围及 Plasma Thunar 入口。七个已有 dirty C/C++ 子模块未修改、未暂存。当前证据描述实现验证，不替代最终产品验收。
 
-本轮检查基于 `master-x11-submodule-tmp`、业务代码基点 `37022d88`。不修改已有七个 dirty C/C++ 子模块。
+## 实现对应关系
 
-| 来源 | 可直接核对的观察 |
+| 需求 | 实现符号/路径 | 验证 |
+| --- | --- | --- |
+| 四类 PRoot 可启用，Native 限制 | `DesktopRendererPolicy.supportsUsb`、`DesktopUsbStorageTasks.supported`、`DesktopUsbStorageDialog`、`desktop_rendering.sh` | Java renderer 矩阵；shell 配置八组合 |
+| 成功准备后发布，失败保留可用配置 | `DesktopTasks.configureUsb`、`usbManagedFiles`、`HyprlandSelectionTransaction`、`PreparedDesktopBackup` | 四类 candidate commit/rollback；原字节/新文件/符号链接保护 |
+| 组件留在资产库、保存期安装 | `desktop_install.sh/install_usb_host/install_usb_guest`、`DESKTOP_USB_CONFIGURE_ONLY` | 真 shell 入口夹具验证不重新安装桌面/目录且保留 marker；host bridge 与 guest GIO 下载经 SHA 校验 |
+| 000 host PREFIX 与 guest 短路径 | `desktop_usb_storage.py/prepare_guest_mount/paths`、GNOME prepare | 文件系统夹具断言 000 不变、拒绝 guest tmp symlink；下面记录 Android 实测边界 |
+| guest token 参数与 ABI 隔离 | `desktop_usb_storage.py/main` 生成 helper wrapper | 实际生成 wrapper 子进程测试映射及越界拒绝；guest 固定 glibc 模块 |
+| 四会话总线/入口 | `desktop_xfce_session.py`、`desktop_gnome_launch.py`、`desktop_hyprland.py/container_command`、`desktop_plasma_session.py/main` | session 参数契约；Hyprland helper/client 共用 guest bus；Plasma USB Files 由保存期生成 |
+| 不等待枚举/授权、必要服务退出 | `desktop_usb_storage.py/Session`、`desktop_plasma_session.py/supervise`、Hyprland supervision | 真子进程 IPC 就绪后硬件线程延迟 90 秒仍立即就绪；服务死亡为错误；无关进程保留；Plasma USB 先于 guest 清理 |
+| 显式 Android 授权与设备状态 | `AppStorageManager.classify/poll/action` | 控制测试 `request_permission=False`，只读策略；物理授权/拔插未测 |
+| 原导出限制 | 既有归档入口仍要求 USB off | 本次未改归档合约，不保存授权/口令/socket；不声称带 USB 的导出已验证 |
+
+## 本地执行结果
+
+最终命令及原始日志 SHA256 见 `verification.json`，日志原件位于 `/home/user/workspace/artifacts/proot-usb-storage-20261116/`。
+
+| 验证组 | 结果 |
 | --- | --- |
-| `termux-usb/README.md`、`termux-usb/src/main/java/com/termux/usb/EmbeddedUsbApi.java` | 主 APK 内置枚举/Android 系统授权/同 UID FD 传递；授权要求 App 可见。 |
-| `termux-ui/src/main/java/com/termux/ui/desktop/api/DesktopUsbStorageTasks.java` | supported 仅允许 XFCE/旧 GNOME；检查 host 与 guest GIO 依赖；控制操作为 authorize/mount/unmount/eject。 |
-| `termux-ui/src/main/java/com/termux/ui/desktop/runtime/DesktopRendererPolicy.java` | Java 配置还有独立 USB 支持限制。 |
-| `termux-ui/src/main/assets/local-games/desktop_install.sh`、`desktop_start.sh`、`desktop_rendering.sh` | Plasma/Ubuntu GNOME/Hyprland 有不同早期限制，Hyprland 安装为单独分支，不能仅修改 UI。 |
-| `termux-ui/src/main/assets/local-games/desktop_usb_storage.py` | App 专属只读协调器、关闭相机/手柄、guest helper 参数、同会话运行及先卸载再清理；当前轮询允许自动请求授权，候选方案改为显式用户操作。 |
-| `termux-ui/src/main/assets/local-games/desktop_install_gio.py` | 安装并验证固定 Resolute AArch64 glibc GIO 产物，不可让 Bionic 模块进 guest。 |
-| `termux-ui/src/main/assets/local-games/desktop_xfce_session.py` | 短 host/guest IPC bind 和分开的总线地址；guest helper 的口令参数仍需实际挂载验证。 |
-| `termux-ui/src/main/assets/local-games/desktop_gnome_launch.py` | Ubuntu profile 强制 USB off；旧 USB 分支在 host PREFIX 对应 rootfs 路径下 mkdir，须替换。 |
-| `termux-ui/src/main/assets/local-games/desktop_hyprland.py` | guest Thunar 客户端存在，每个 wrapper 当前另起 dbus-run-session；需要一致 guest USB 会话总线。 |
-| `tools/termux-usb-bridge/README.md`、`desktop.py` | BOT/SCSI FAT/exFAT 用户态文件服务、鉴权 WebDAV 与 GIO；Solid/UDisks2 不在模块覆盖范围；相机/SDL 各有专门桥接。 |
-| `docs/desktop-testing/desktop-path-permission-audit-20261116.md` | 已记录当前桌面的 PRoot 隔离路径和待启用 GNOME USB 的 mkdir 风险。 |
+| `:termux-ui:testDebugUnitTest` 指定 RendererPolicy、PreparedDesktopBackup、UsbSelectionTransaction、HyprlandComponentsRepository | 15 tests，0 failures |
+| `test-desktop-usb-control.py` | 7 passed |
+| `test-desktop-usb-sessions.py` | 4 passed |
+| `test-desktop-usb-install.py` | 1 参数化测试、8 个组合 passed |
+| `test-desktop-hyprland.py` | 13 passed |
+| `test-desktop-gnome-session.py` | 15 passed |
+| `test-desktop-rendering.py` | 5 passed |
+| `test-container-plasma-startup.py` | 11 passed |
+| `test-desktop-ubuntu-plasma.py` | 11 passed |
+| `test-desktop-install-gio.py` | 11 passed |
+| 变更 Python AST、shell `sh -n`、`git diff --check` | passed |
+| `:app:assembleDebug` | passed |
 
-bridge README 开头仍面向独立使用 Termux:API 的用法；App 实际路径以 EmbeddedUsbApi 与显式 termux-usb-app 参数为准。旧 GNOME 验证资料含过时发行版，不宣称当前四类桌面已完成实物 USB 验证。
+安装夹具中的外部 APT/下载命令为隔离替身，只证明安装路径/顺序/错误传播，不冒充镜像文件服务或物理硬件测试。镜像测试同样不能代替真实 OTG。
 
-## 工具和验证边界
+## Android 验证条件
 
-已直接确认仓库无 `.harness/agents/application-owner.md`、`.harness/workflows/HARNESS_WORKFLOW.md`、`.harness/rules/agent-rules.md`、`.codex/skills/codex-owner/SKILL.md`、`.harness/scripts/verify.sh`，环境无 openspec CLI。仓库 `openspec/config.yaml` 指定 spec-driven，规划按现有目录结构人工创建。
+目标模拟器 `120.24.191.156:8057`。测试前 force-stop `com.termux`，确认无 App PID，再启动默认 Activity，未修改默认 UI 模式。测试组件通过 App 自身 TermuxService 下载，不从工作站 ADB 传包；`--user 0` 为正确 Android 当前用户，无权限绕过。未使用 `adb install -t`，未安装新 APK 到用户设备。
 
-`openspec/specs/`、`docs/product/`、`docs/product/README.md` 当前不存在。新能力资料只登记为规划目标，不冒充已存在产品基线。本轮未运行桌面、未接入物理 USB、未修改 App 或 guest，也不构建/分发新 APK。
+复用已发布资源，并在设备核验 SHA256：
 
-已检查四份中文规划、每项 Requirement 的 MUST/Scenario/WHEN/THEN 结构、8 个待办任务及资料空白，结果通过。实际为 4 项需求和 10 个场景；初次检查脚本误写数量，已纠正检查逻辑。没有本地 YAML 解析库，字段仅人工核对，不冒充解析/strict 验证。
+- `gnome-usb-20261030-r1/termux-usb-bridge_0.4.1_aarch64.deb`：`d00381ecca8285e502bcd00f3491032d25f14d499454bccbb1cb1dab3964770c`。
+- `gnome-50-resolute-20261116-r1/termux-usb-gio-resolute-aarch64-0.4.1.tar.gz`：`a843a28f1821c1e598d8c653ea0db7e6540d188d42296cc5a305bd4a838982ea`。
+
+解压仅到 App HOME 的独立 `.cache/proot-usb-check-20261116/`；GVfs 前置依赖安装到独立 `software-center-check-20261116` 测试容器。未向现有 `ubuntu-xfce4-1`、`ubuntu-kwin-plasma-1` 写入测试组件或改变其 guest 配置。没有新 DEB 编译或组件发布。
+
+## 工具缺口与验收边界
+
+已直接核对缺少 `.harness/agents/application-owner.md`、`.harness/workflows/HARNESS_WORKFLOW.md`、`.harness/rules/agent-rules.md`、`.codex/skills/codex-owner/SKILL.md`、`.harness/scripts/verify.sh`，环境没有 openspec CLI。`.harness/scripts/verify.sh --change-id add-proot-usb-storage --strict-run` 无法执行；人工和本地测试不等于严格门禁通过。
+
+`openspec/specs/`、`docs/product/` 目前不存在。产品文档目标已登记为 `docs/product/desktop-external-devices.md`，一致性保持 Pending；未最终编写、未同步基线、未归档。
+
+无可操作的物理 USB 设备，因此 Android 授权拒绝/超时、真实磁盘文件系统、Android 占用、热插拔、四类完整 GUI 的实物验收仍待完成。

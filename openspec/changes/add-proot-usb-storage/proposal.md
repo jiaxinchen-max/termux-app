@@ -1,8 +1,8 @@
 # 四类 PRoot 桌面的外接 USB 存储
 
-## 目标与待确认范围
+## 已确认目标与范围
 
-用户提出“这些容器能支持一下外部 USB 设备么”。设备类别尚待答复，本提案先按候选首期范围规划：Ubuntu 26.04 的 XFCE、Plasma、Ubuntu GNOME、Hyprland PRoot 支持外接 USB 存储只读浏览。当前为待确认方案，不代表用户已选择存储，也不代表功能已经实现。
+用户提出“这些容器能支持一下外部 USB 设备么”。用户于 2026-11-16“批准执行”，确认首期范围：Ubuntu 26.04 的 XFCE、Plasma、Ubuntu GNOME、Hyprland PRoot 支持外接 USB 存储只读浏览。实施及验证进度见 tasks 和 run 台账。
 
 复用主 APK 内置 Android USB 授权与现有 USB bridge。设备须由 Android USB Host 枚举并获得用户授权；首期限现有解析器支持的 BOT/SCSI、FAT/exFAT 存储。只读卷可浏览并将文件复制进容器，不能写回设备。
 

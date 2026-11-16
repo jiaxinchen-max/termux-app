@@ -73,8 +73,8 @@ def main():
     if ubuntu:
         if native_ubuntu and ((args.run_mode, args.backend, args.gl_mode, args.usb_storage) != ('native', 'android', 'system', 'off') or args.rootfs):
             ap.error('Native Ubuntu GNOME requires native Android/System EGL, USB off and no rootfs')
-        if not native_ubuntu and ((args.run_mode, args.backend, args.gl_mode, args.usb_storage) != ('proot', 'android', 'system', 'off') or not args.rootfs):
-            ap.error('Ubuntu GNOME requires Resolute PRoot, Android/System EGL and USB off')
+        if not native_ubuntu and ((args.run_mode, args.backend, args.gl_mode) != ('proot', 'android', 'system') or not args.rootfs):
+            ap.error('Ubuntu GNOME requires Resolute PRoot and Android/System EGL')
         # -I excludes the script directory from sys.path. Load only the adjacent shipped asset.
         import importlib.util
         module_spec = importlib.util.spec_from_file_location(
@@ -218,8 +218,9 @@ def main():
         else:
             raise RuntimeError('Android linker configuration is unavailable for the native compositor')
         if args.usb_storage == 'read-only':
-            (root / str(usb_parent).lstrip('/')).mkdir(parents=True, exist_ok=True)
-            base += ['-b', str(usb_parent) + ':' + str(usb_parent)]
+            guest_usb_parent = Path('/tmp') / usb_parent.name
+            runpy.run_path(str(Path(__file__).with_name('desktop_usb_storage.py')))['prepare_guest_mount'](root, guest_usb_parent)
+            base += ['-b', str(usb_parent) + ':' + str(guest_usb_parent)]
         base += ['-w', '/home/termux', '/usr/bin/env', '-i']
     values = dict(HOME=session_home, DISPLAY=args.display, XDG_RUNTIME_DIR=gr,
                   PULSE_SERVER=os.environ['PULSE_SERVER'],
@@ -255,6 +256,7 @@ def main():
                       XDG_DATA_DIRS=('/usr/share/ubuntu:/usr/local/share:/usr/share' if ubuntu else '/usr/local/share:/usr/share'), XDG_CONFIG_DIRS='/etc/xdg')
         if args.usb_storage == 'read-only':
             values['GIO_EXTRA_MODULES'] = '/usr/local/lib/termux-usb-bridge/gio/modules'
+            values['TERMUX_USB_DESKTOP_DIR'] = str(guest_usb_parent / 'desktop')
         base += [k + '=' + v for k, v in values.items()]
     else:
         values.update(XDG_DATA_DIRS=str(prefix / 'share'),
@@ -509,7 +511,8 @@ def run_prepared(args):
                 gio_command = base + ['/bin/sh', '-c',
                     '. ' + shlex.quote(gw + '/session.env') + '; exec "$@"',
                     'gnome-usb-gio', '/usr/local/libexec/tusb-gio-mount']
-                command += ['--gio-command-json', json.dumps(gio_command)]
+                command += ['--gio-command-json', json.dumps(gio_command),
+                            '--guest-runtime', str(Path('/tmp') / usb_parent.name / 'desktop')]
             storage = start('usb-storage', command, host)
             optional.append(('USB storage', storage))
             deadline = time.monotonic() + 30

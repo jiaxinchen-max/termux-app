@@ -1,0 +1,110 @@
+{
+  "local_checks": [
+    {
+      "command": "python3 -B termux-ui/scripts/test-desktop-usb-control.py",
+      "log": "control-tests.log",
+      "sha256": "9688d5da357e5213d50229138e28ff711ec4eb240d0bc5fde29401584a452115",
+      "passed": true,
+      "tests": 7
+    },
+    {
+      "command": "python3 -B termux-ui/scripts/test-desktop-usb-sessions.py",
+      "log": "session-tests.log",
+      "sha256": "545c184554167433f81147c631fb964203a8269a0d3c9f2bbfc780802784067e",
+      "passed": true,
+      "tests": 4
+    },
+    {
+      "command": "python3 -B termux-ui/scripts/test-desktop-usb-install.py",
+      "log": "usb-install-final.log",
+      "sha256": "c67d18f9d7c92e58a84a32227ec63590bb6e7cfc362aba617316036b150315e4",
+      "passed": true,
+      "tests": 1
+    },
+    {
+      "command": "python3 -B termux-ui/scripts/test-desktop-hyprland.py",
+      "log": "hyprland-tests.log",
+      "sha256": "fa5a7c9182de49eb5da65d57416f59bf53068c34c9b6680ed56646b9618319fa",
+      "passed": true,
+      "tests": 13
+    },
+    {
+      "command": "python3 -B termux-ui/scripts/test-desktop-gnome-session.py",
+      "log": "gnome-session-tests.log",
+      "sha256": "98ebbcf325f22bcd43ac04c2b04be5c0b95ed05fef98ac3e549e7884a4e5b1a9",
+      "passed": true,
+      "tests": 15
+    },
+    {
+      "command": "python3 -B termux-ui/scripts/test-desktop-rendering.py",
+      "log": "rendering-tests.log",
+      "sha256": "15e7b32d8c770db5939b0189997c241828433048d26f91fd0305316ee1afb5c4",
+      "passed": true,
+      "tests": 5
+    },
+    {
+      "command": "python3 -B docs/desktop-testing/test-container-plasma-startup.py",
+      "log": "plasma-tests.log",
+      "sha256": "8b0d4b3c4534328fec310a3efd51ac209862e03f655abc56b3d0cbd597829481",
+      "passed": true,
+      "tests": 11
+    },
+    {
+      "command": "python3 -B termux-ui/scripts/test-desktop-ubuntu-plasma.py",
+      "log": "install-tests.log",
+      "sha256": "3e8040ad1f9eb9409e5f898802da5f275c5f835856487b6cdc294a11bd285c3f",
+      "passed": true,
+      "tests": 11
+    },
+    {
+      "command": "python3 -B termux-ui/scripts/test-desktop-install-gio.py",
+      "log": "gio-installer-tests.log",
+      "sha256": "8bad129fa3caa7682945bdbbfc2708a7aa27d930a561fc6b266437bafbeefc84",
+      "passed": true,
+      "tests": 11
+    },
+    {
+      "command": ":termux-ui:testDebugUnitTest (4 targeted classes)",
+      "log": "java-tests.log",
+      "sha256": "f105edc080e22a1e969414e4b690b5b58d836322925303511279bb51fa26a58c",
+      "passed": true,
+      "tests": null
+    },
+    {
+      "command": ":app:assembleDebug",
+      "log": "build.log",
+      "sha256": "69fdea20890ecf6e744ff85d613788b9b06fdc07233486c7e4b47891a11672cb",
+      "passed": true,
+      "tests": null
+    }
+  ],
+  "java_results": [
+    {
+      "name": "com.termux.ui.desktop.data.UsbSelectionTransactionTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.termux.ui.desktop.data.PreparedDesktopBackupTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.termux.ui.desktop.data.HyprlandComponentsRepositoryTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.termux.ui.desktop.runtime.DesktopRendererPolicyTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0"
+    }
+  ],
+  "harness_strict": "Unavailable: repository script absent",
+  "physical_usb": "Not run",
+  "four_desktop_gui": "Not run"
+}

@@ -1,13 +1,15 @@
 change_id: add-proot-usb-storage
-stage: requirement_review
-status: awaiting_scope_confirmation
-planning_artifacts: complete_provisional
-implementation: not_started
+stage: verification
+status: in_progress
+planning_artifacts: confirmed
+implementation: completed
 last_update: 2026-11-16
-next_action: 待用户说明设备类别并确认候选范围；如果不是只读存储则先修订规划
+next_action: 完成模拟器 GIO 镜像验证、签名分发 APK 并推送；实物 USB 验收保留待办
 verification:
-  source_review: completed
+  source_review: completed_self_review
   planning_structure: passed
-  planning_review: reviewed_awaiting_scope_confirmation
+  planning_review: approved_by_user
+  local_tests: passed
+  apk_build: passed
   harness_strict: unavailable
   physical_usb: not_run

@@ -124,7 +124,7 @@ class ComponentTests(unittest.TestCase):
         terminal=h.PREFIX/'bin/xfce4-terminal'
         terminal.write_text('#!/usr/bin/python3\nimport os,time\nfrom pathlib import Path\nPath('+repr(str(self.root/'client-environment'))+').write_text(repr((os.getenv("LD_LIBRARY_PATH"),os.getenv("LD_PRELOAD"))))\ntime.sleep(30)\n')
         ready=self.root/'ready';work=h.work_for('desktop-ready')
-        args=types.SimpleNamespace(runtime_id=h.VERSION,theme_id='m3ww-v1',desktop_id='desktop-ready',ready_file=ready,run_mode='native',
+        args=types.SimpleNamespace(runtime_id=h.VERSION,theme_id='m3ww-v1',desktop_id='desktop-ready',ready_file=ready,run_mode='native',usb_storage='off',
                                    width=1280,height=720,refresh=60,alias=None,client_gl_mode='default')
         observed=[]
         def watch():
@@ -163,7 +163,7 @@ class ComponentTests(unittest.TestCase):
         config=work/'config/hyprland.lua';config.write_text('-- keep my config\n')
         ready=self.root/'ready';ready.write_text('99999\n')
         unrelated=subprocess.Popen(['/bin/sleep','30'],start_new_session=True)
-        args=types.SimpleNamespace(runtime_id=h.VERSION,theme_id='m3ww-v1',desktop_id='desktop-test',ready_file=ready,run_mode='native',
+        args=types.SimpleNamespace(runtime_id=h.VERSION,theme_id='m3ww-v1',desktop_id='desktop-test',ready_file=ready,run_mode='native',usb_storage='off',
                                    width=1280,height=720,refresh=60,alias=None,client_gl_mode='default')
         try:
             with patch.object(h,'verify'),patch.object(h,'verify_shell'),patch.object(h,'prepare_shell',return_value=[]):
@@ -180,7 +180,7 @@ class ComponentTests(unittest.TestCase):
     def testFailedSaveRevokesPreparedSession(self):
         ready = self.root / 'ready'; ready.write_text('123\n')
         args = types.SimpleNamespace(runtime_id=h.VERSION, theme_id='m3ww-v1',
-            desktop_id='desktop-missing', ready_file=ready, run_mode='native', alias=None, client_gl_mode='default', width=1280,height=720,refresh=60)
+            desktop_id='desktop-missing', ready_file=ready, run_mode='native',usb_storage='off', alias=None, client_gl_mode='default', width=1280,height=720,refresh=60)
         work = h.work_for(args.desktop_id); work.mkdir(parents=True)
         (work / 'prepared-session.json').write_text('{}')
         (h.COMPONENTS['theme_root']('m3ww-v1') / 'eww.scss').write_text('damaged')
@@ -198,8 +198,18 @@ class ComponentTests(unittest.TestCase):
         executable = bindir / 'proot-distro'
         executable.write_text('#!/usr/bin/python3\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n')
         executable.chmod(0o700)
+        # This wrapper test now prepares the real software-center dependencies too.
+        guest = h.PREFIX / 'var/lib/proot-distro/containers/ubuntu-test/rootfs'
+        status = guest / 'var/lib/dpkg/status'; status.parent.mkdir(parents=True)
+        status.write_text('\n\n'.join('Package: '+name+'\nStatus: install ok installed' for name in (
+            'gnome-software','gnome-software-plugin-deb','packagekit','appstream','apt-config-icons',
+            'polkitd','python3-gi','gir1.2-polkit-1.0','zenity')))
+        for name in ('usr/bin/gnome-software','usr/bin/zenity','usr/bin/python3','usr/bin/dbus-daemon',
+                     'usr/bin/appstreamcli','usr/lib/polkit-1/polkitd','usr/libexec/packagekitd'):
+            target = guest / name; target.parent.mkdir(parents=True, exist_ok=True)
+            target.touch(); target.chmod(0o755)
         args = types.SimpleNamespace(runtime_id=h.VERSION, theme_id='m3ww-v1',
-            desktop_id='guest-token', ready_file=self.root/'ready', run_mode='proot',
+            desktop_id='guest-token', ready_file=self.root/'ready', run_mode='proot',usb_storage='off',
             alias='ubuntu-test', client_gl_mode='default', width=1280,height=720,refresh=60)
         with patch.object(h, 'prepare_shell', return_value=[]):
             h.prepare(args)

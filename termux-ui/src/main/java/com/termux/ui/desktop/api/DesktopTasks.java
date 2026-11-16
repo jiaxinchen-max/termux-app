@@ -52,7 +52,7 @@ public final class DesktopTasks {
         this.repository = new FileDesktopDistroRepository(paths.getDesktopDistrosDirectory(), new File(filesDirectory, "home"));
         this.environment = new DesktopEnvironment(filesDirectory);
         this.selections = new com.termux.ui.desktop.data.HyprlandSelectionTransaction(
-            new File(paths.getDesktopDistrosDirectory(), "pending-hyprland"), repository);
+            new File(paths.getDesktopDistrosDirectory(), "pending-hyprland"), repository, filesDirectory);
     }
 
     @NonNull public List<DesktopDistro> list() throws IOException {
@@ -115,6 +115,39 @@ public final class DesktopTasks {
             // The install script sees the candidate, while the inventory keeps the last good selection.
             return install(candidate, true, environment.isInstalled(current));
         }
+    }
+
+    /** Publish USB settings only after their preparation task succeeds. */
+    public String configureUsb(DesktopDistro desktop, com.termux.ui.desktop.domain.DesktopUsbStorageMode mode)
+        throws IOException, LaunchHostException {
+        synchronized (DesktopOperationGate.LOCK) {
+            DesktopDistro current = repository.find(desktop.getId()).orElseThrow(() -> new IOException("desktop_not_found"));
+            requireComponentSwitchStopped(sessionState(current));
+            DesktopDistro candidate = current.withUsbStorage(mode);
+            DesktopRendererPolicy.requireSupported(candidate);
+            return install(candidate, true, false, false, true);
+        }
+    }
+
+    private java.util.List<File> usbManagedFiles(DesktopDistro distro) {
+        File files = context.getFilesDir(), home = new File(files, "home");
+        File work;
+        if (distro.getDe() == DesktopDe.UBUNTU_GNOME)
+            work = new File(files, "usr/var/lib/proot-distro/containers/" + distro.getProotDistro()
+                + "/rootfs/home/termux/.local/share/termux-gnome");
+        else work = new File(home, ".termux/" + (distro.getDe() == DesktopDe.HYPRLAND ? "hyprland-" : "xfce-") + distro.getId());
+        java.util.List<File> managed = new java.util.ArrayList<>();
+        managed.add(paths.getDesktopSpecFile(distro.getId()));
+        if (distro.getDe() == DesktopDe.KWIN_PLASMA) {
+            managed.add(new File(files, "usr/var/lib/proot-distro/containers/" + distro.getProotDistro()
+                + "/rootfs/usr/local/share/applications/termux-usb-files.desktop"));
+            managed.add(new File(files, "usr/var/lib/termux-desktop/rendering/" + distro.getProotDistro()
+                + "." + distro.getHostGlMode().getStorageValue() + "." + distro.getGuestGlMode().getStorageValue() + ".env"));
+        }
+        for (String name : new String[] {"prepared-session.json", "session.sh", "sessionbus.conf", "systembus.conf",
+                "bin/termux-hyprland-terminal", "bin/termux-hyprland-files", "bin/termux-hyprland-software"})
+            managed.add(new File(work, name));
+        return managed;
     }
 
     public boolean hyprlandRuntimeInstalled(DesktopDistro distro) { return environment.hyprlandRuntimeInstalled(distro); }
@@ -277,6 +310,11 @@ public final class DesktopTasks {
 
     private String install(DesktopDistro distro, boolean componentSelection, boolean themeOnly,
                            boolean prepareOnly) throws LaunchHostException {
+        return install(distro, componentSelection, themeOnly, prepareOnly, false);
+    }
+
+    private String install(DesktopDistro distro, boolean componentSelection, boolean themeOnly,
+                           boolean prepareOnly, boolean usbSelection) throws LaunchHostException {
         synchronized (DesktopOperationGate.LOCK) {
             String existing = activeInstallTask(distro);
             if (existing != null) return existing;
@@ -285,9 +323,17 @@ public final class DesktopTasks {
             }
             requireNotStoppingForLaunch(distro);
             String taskId = "desktop-install-" + java.util.UUID.randomUUID();
-            LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
-            commandStatus(distro, "installing");
             try {
+                boolean usbOnly = usbSelection && environment.isInstalled(distro);
+                if (usbSelection) selections.stage(distro, taskId, usbManagedFiles(distro));
+                LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
+                commandStatus(distro, "installing");
+                if (usbOnly) {
+                    try (FileOutputStream output = new FileOutputStream(paths.getDesktopSpecFile(distro.getId()), true)) {
+                        output.write("DESKTOP_USB_CONFIGURE_ONLY=1\n".getBytes(StandardCharsets.US_ASCII));
+                        output.getFD().sync();
+                    }
+                }
                 if (prepareOnly) {
                     try (FileOutputStream output = new FileOutputStream(paths.getDesktopSpecFile(distro.getId()), true)) {
                         output.write("DESKTOP_PREPARE_ONLY=1\n".getBytes(StandardCharsets.US_ASCII));
@@ -296,7 +342,7 @@ public final class DesktopTasks {
                 }
                 if (componentSelection) {
                     if (themeOnly) writeSpec(distro, true);
-                    selections.stage(distro, taskId);
+                    if (!usbSelection) selections.stage(distro, taskId);
                 }
                 com.termux.ui.desktop.runtime.DesktopInstallState.writeTask(installRecord(distro), taskId);
                 com.termux.ui.wine.runtime.RuntimeEditingStop.register(taskId, "desktop:" + distro.getId());
@@ -306,7 +352,7 @@ public final class DesktopTasks {
             } catch (LaunchHostException | IOException | RuntimeException error) {
                 installRecord(distro).delete();
                 if (componentSelection) {
-                    try { selections.discard(distro.getId()); }
+                    try { if (usbSelection) selections.rollback(distro.getId()); else selections.discard(distro.getId()); }
                     catch (IOException cleanup) { error.addSuppressed(cleanup); }
                 }
                 commandStatus(distro, "exit:1");
