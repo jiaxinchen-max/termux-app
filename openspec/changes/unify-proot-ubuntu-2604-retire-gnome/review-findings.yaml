@@ -40,3 +40,8 @@ findings:
     severity: high
     status: resolved
     description: 用户明确授权组件发布。GNOME 50 核心／GIO／Glycin 与 Native Ubuntu 外观已在组件仓库公开为集成验证版；22 个组件资产及既有上游 Mesa 均从原始公开 URL 回读并验证大小／SHA256，App 固定清单一致；不等同于整体验收。
+
+  - id: FRESH_INSTALL_GLYCIN_DEPLOYMENT
+    severity: high
+    status: resolved
+    description: 设备全新安装在复制 Glycin 助手时失败，原因是 APK 资源未列入 App 部署数组。补齐安装／保存阶段部署，无启动路径改动；新增实际 App 资源部署负正对照回归。用户要求自行完成完整安装验收。

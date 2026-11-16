@@ -119,3 +119,9 @@ Mutter 50.1-3 + Shell 50.1-2 的实际 PRoot 冷启动已使用生产 Glycin 安
 指定名称 APK 为 45,514,430 字节，SHA256 `434d0dfab7f2e18ad3079348d73e746cf4ddd9b43972ae83863436d527302cd3`。apksigner v1／v2 验证通过；aapt 确认 com.termux、唯一 ABI arm64-v8a、实际 Manifest 不含 testOnly；ZIP CRC 通过。72 个 termux-ui 资源逐字节匹配源码，外部主题、GNOME runtime 和 termux-api companion 未打入 APK。既有 12,294 字节 X11 CLI DEB 和 70,480 字节 statx 小助手继续保留。
 
 App 仓库独立公开 prerelease `desktop-adapted-20261116-4b1ee426` 包含 APK、SHA256SUMS 及逐资源验证清单，不替换 stable/latest。从原始公开 URL 无认证下载完整 APK，大小、SHA256 与本地及 GitHub digest 三方一致。未安装覆盖用户 App 或容器；完整全新安装／设备功能验收仍 Pending。此前 801 项单元测试证据保留，本轮仅构建／文档，无业务修改，不重复测试；规定的严格 Harness gate 仍缺失。不归档。
+
+## 全新安装失败修复：App 部署遗漏 Glycin 助手（2026-11-16）
+
+用户在全新 APK 安装后创建 Ubuntu GNOME PRoot，设备日志最终为 `Desktop install failed: installing desktop_install_glycin.py`。失败发生在宿主运行时下载后、Ubuntu rootfs 创建前。APK 内存在该资源，但 LaunchScriptInstaller 的部署数组遗漏它；本地核对其余 desktop_* 资源均已登记。修复仅补齐安装／保存阶段的部署清单，不增加启动时检查或修复。
+
+新增 Robolectric App 测试实际调用 installDesktopScripts，从空目录部署并验证 Glycin、GIO、Mesa 安装助手存在且与 APK 资源字节一致。修复前测试准确失败于缺少 desktop_install_glycin.py；修复后同一实际部署测试通过（1 项），构建耗时 5 秒；APK 交付证据随后记录。Glycin 5 项、Ubuntu GNOME 16 项定向测试通过。用户明确要求修复后直接交付 APK，完整安装由用户手动测，本轮不覆盖用户 App／容器。原严格 gate 仍不可用。
