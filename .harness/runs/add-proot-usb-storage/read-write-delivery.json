@@ -17,7 +17,7 @@
   "public_download": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122146279517675520/port/54357/termux-app_apt-android-7-debug_arm64-v8a.apk",
   "embedded_usb_client_verified": true,
   "source_base_commit": "87f2d13db098c8809d948339ca56536ccd3360cd",
-  "source_commit": "pending_progress_commit",
+  "source_commit": "041fa02cf1447f1a544ba8dbd97216dcb12b92e2",
   "directory": "/home/user/workspace/artifacts/proot-usb-write-20261116",
   "local_head": "200, correct MIME and length",
   "proxy_access": "requires signed-in DE session; anonymous access not claimed",
