@@ -1,0 +1,23 @@
+{
+  "source_commit": "c6ff13b31bab27643a646857d9464a5d46ef33f0",
+  "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "bytes": 45395870,
+  "sha256": "c8ffcd9291cbab243067c37144af53c8f52618c27b8d0193c6f4fd05e42f887d",
+  "signature": "verified v1/v2",
+  "test_only": false,
+  "abi": "arm64-v8a",
+  "source_assets_verified": 72,
+  "deployment_test": {
+    "before": "failed: missing desktop_install_glycin.py",
+    "after": "1 passed"
+  },
+  "glycin_tests": 5,
+  "ubuntu_gnome_tests": 16,
+  "device_acceptance": "用户手动验收；本轮未替换设备 App 或容器",
+  "clean_repack": true,
+  "release_url": "https://github.com/jiaxinchen-max/termux-app/releases/tag/desktop-glycin-fix-20261116-c6ff13b3",
+  "download_url": "https://github.com/jiaxinchen-max/termux-app/releases/download/desktop-glycin-fix-20261116-c6ff13b3/termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "public_readback_verified": true,
+  "checked_at": "2026-11-16T08:24:41.262735+00:00",
+  "authorization": "用户要求修复后直接交付 APK，自行手动验收；沿用推送保存进度授权"
+}

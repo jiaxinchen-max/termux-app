@@ -59,3 +59,11 @@ apk_delivery:
   test_only: false
   evidence: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/evidence/apk-publication.json
   device_acceptance: Pending
+
+ubuntu_gnome_install_regression:
+  authorization: 用户要求修复后直接交付 APK，完整设备安装由用户手动测试
+  source_commit: c6ff13b31bab27643a646857d9464a5d46ef33f0
+  status: FixedAndApkDelivered
+  root_cause: Glycin 安装助手在 APK 内，但 App 部署清单漏项
+  evidence: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/evidence/apk-glycin-fix.json
+  device_acceptance: PendingUserManualTest

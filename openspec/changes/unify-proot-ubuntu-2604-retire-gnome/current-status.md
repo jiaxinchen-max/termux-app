@@ -34,3 +34,7 @@
 - [下载 termux-app_apt-android-7-debug_arm64-v8a.apk](https://github.com/jiaxinchen-max/termux-app/releases/download/desktop-adapted-20261116-4b1ee426/termux-app_apt-android-7-debug_arm64-v8a.apk)，45,514,430 字节（45.51 MB／43.41 MiB），源码 4b1ee426。
 - 构建成功，v1／v2 签名通过；实际 APK 为 com.termux、arm64-v8a，未设置 testOnly，不需要安装 -t。72 个 termux-ui 资源与源码逐字节一致；未内嵌外部 GNOME／主题／API companion 大包。
 - 发布为独立 prerelease，未覆盖 stable／latest。无认证从原始下载 URL 重新下载全包，大小与 SHA256 434d0dfab7f2e18ad3079348d73e746cf4ddd9b43972ae83863436d527302cd3 匹配。证据见 evidence/apk-publication.json。
+
+## Ubuntu GNOME PRoot 全新安装修复
+
+用户手动安装发现 `installing desktop_install_glycin.py` 失败。根因为 App 部署清单漏项；c6ff13b3 已补齐，不改变启动路径。实际 App 部署测试负正对照通过，Glycin 5 项、Ubuntu GNOME 16 项通过。按用户要求交付修复 APK，完整安装由用户手动测。最新文件 45,395,870 字节，签名通过、无 testOnly，72 个资源匹配源码。下载及公开字节证据见 evidence/apk-glycin-fix.json。

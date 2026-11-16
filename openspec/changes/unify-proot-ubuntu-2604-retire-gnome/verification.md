@@ -125,3 +125,5 @@ App 仓库独立公开 prerelease `desktop-adapted-20261116-4b1ee426` 包含 APK
 用户在全新 APK 安装后创建 Ubuntu GNOME PRoot，设备日志最终为 `Desktop install failed: installing desktop_install_glycin.py`。失败发生在宿主运行时下载后、Ubuntu rootfs 创建前。APK 内存在该资源，但 LaunchScriptInstaller 的部署数组遗漏它；本地核对其余 desktop_* 资源均已登记。修复仅补齐安装／保存阶段的部署清单，不增加启动时检查或修复。
 
 新增 Robolectric App 测试实际调用 installDesktopScripts，从空目录部署并验证 Glycin、GIO、Mesa 安装助手存在且与 APK 资源字节一致。修复前测试准确失败于缺少 desktop_install_glycin.py；修复后同一实际部署测试通过（1 项），构建耗时 5 秒；APK 交付证据随后记录。Glycin 5 项、Ubuntu GNOME 16 项定向测试通过。用户明确要求修复后直接交付 APK，完整安装由用户手动测，本轮不覆盖用户 App／容器。原严格 gate 仍不可用。
+
+修复版源码 c6ff13b3 已推送。最终清除增量 ZIP 空洞后重新打包，未增添运行资产；产物 45,395,870 字节，SHA256 `c8ffcd9291cbab243067c37144af53c8f52618c27b8d0193c6f4fd05e42f887d`，apksigner v1／v2 通过、arm64-v8a、Manifest 无 testOnly、ZIP CRC 及 72 个资源字节检查通过。独立公开 prerelease `desktop-glycin-fix-20261116-c6ff13b3` 的原始 APK URL 已无认证下载全包，大小与 SHA256 匹配。证据见 evidence/apk-glycin-fix.json。未执行完整设备安装，交由用户手动验收。
