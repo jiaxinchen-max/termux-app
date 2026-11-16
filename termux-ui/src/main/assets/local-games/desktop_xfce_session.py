@@ -19,7 +19,9 @@ def prepare(args, prefix):
     key = hashlib.sha256(args.desktop_id.encode()).hexdigest()[:16]
     parent = prefix / ('tmp/tusb-' + key)
     runtime = parent / 'xfce-session'
-    bus_socket = runtime / 'session-bus'
+    guest_parent = Path('/tmp') / parent.name if args.run_mode == 'proot' else parent
+    guest_runtime = guest_parent / 'xfce-session'
+    bus_socket = guest_runtime / 'session-bus'
     work = Path(os.environ['HOME']) / ('.termux/xfce-' + args.desktop_id)
     work.mkdir(mode=0o700, parents=True, exist_ok=True)
     runtime.mkdir(parents=True, exist_ok=True)
@@ -40,9 +42,11 @@ exec xfce4-session
 ''')
     if args.run_mode == 'proot':
         rootfs = prefix / 'var/lib/proot-distro/containers' / args.alias / 'rootfs'
-        (rootfs / str(parent).lstrip('/')).mkdir(parents=True, exist_ok=True)
-        (rootfs / str(work).lstrip('/')).mkdir(parents=True, exist_ok=True)
-        runpy.run_path(str(Path(__file__).with_name('desktop_software_center.py')))['prepare'](rootfs, str(runtime))
+        # proot-distro deliberately masks the guest's host-PREFIX placeholder
+        # with mode 000. Keep it closed and use guest paths for both mounts.
+        guest_work = Path('/home/termux/.local/share') / ('termux-xfce-' + args.desktop_id)
+        (rootfs / str(guest_work).lstrip('/')).mkdir(parents=True, exist_ok=True)
+        runpy.run_path(str(Path(__file__).with_name('desktop_software_center.py')))['prepare'](rootfs, str(guest_runtime))
 
 
 def main():
@@ -65,6 +69,9 @@ def main():
     parent = prefix / ('tmp/tusb-' + key)
     runtime = parent / 'xfce-session'
     usb_runtime = parent / 'desktop'
+    guest_parent = Path('/tmp') / parent.name if args.run_mode == 'proot' else parent
+    guest_runtime = guest_parent / 'xfce-session'
+    guest_work = Path('/home/termux/.local/share') / ('termux-xfce-' + args.desktop_id)
     work = Path(os.environ['HOME']) / ('.termux/xfce-' + args.desktop_id)
     import fcntl
     lock = (work / 'session.lock').open('w')
@@ -81,10 +88,10 @@ def main():
                 TERMUX_USB_DESKTOP_DIR=str(usb_runtime))
     for key in ('DBUS_SESSION_BUS_ADDRESS', 'DBUS_SESSION_BUS_PID', 'SESSION_MANAGER'):
         host.pop(key, None)
-    guest_values = ['DISPLAY=' + args.display, 'XDG_RUNTIME_DIR=' + str(runtime),
+    guest_values = ['DISPLAY=' + args.display, 'XDG_RUNTIME_DIR=' + str(guest_runtime),
                     'PULSE_SERVER=' + os.environ['PULSE_SERVER'],
-                    'TERMUX_USB_DESKTOP_DIR=' + str(usb_runtime),
-                    'DBUS_SYSTEM_BUS_ADDRESS=unix:path=' + str(runtime / 'system-bus'),
+                    'TERMUX_USB_DESKTOP_DIR=' + str(guest_parent / 'desktop'),
+                    'DBUS_SYSTEM_BUS_ADDRESS=unix:path=' + str(guest_runtime / 'system-bus'),
                     'GIO_USE_NETWORK_MONITOR=base', 'GDK_BACKEND=x11']
     if args.usb_storage == 'read-only':
         module_dir = (prefix / 'var/lib/proot-distro/containers' / args.alias /
@@ -96,11 +103,11 @@ def main():
             host['GIO_EXTRA_MODULES'] = str(module_dir)
     base = [] if args.run_mode == 'native' else [
         'proot-distro', 'login', args.alias, '--user', 'termux', '--shared-tmp',
-        '--bind', str(parent) + ':' + str(parent), '--bind', str(work) + ':' + str(work),
+        '--bind', str(parent) + ':' + str(guest_parent), '--bind', str(work) + ':' + str(guest_work),
         '--', 'env', '-u', 'DBUS_SESSION_BUS_ADDRESS', '-u', 'DBUS_SESSION_BUS_PID',
         '-u', 'SESSION_MANAGER'] + guest_values
-    command = base + ['dbus-run-session', '--config-file=' + str(config), '--',
-                      '/bin/sh' if base else str(prefix / 'bin/sh'), str(session_script)]
+    command = base + ['dbus-run-session', '--config-file=' + str(guest_work / config.name if base else config), '--',
+                      '/bin/sh' if base else str(prefix / 'bin/sh'), str(guest_work / session_script.name if base else session_script)]
     children, logs = [], []
     storage = None
     def start(name, argv):
@@ -128,7 +135,10 @@ def main():
             if session.poll() is not None or time.monotonic() > deadline:
                 raise RuntimeError('XFCE private session D-Bus did not start; inspect ' + str(runtime / 'xfce.log'))
             time.sleep(.1)
-        host['DBUS_SESSION_BUS_ADDRESS'] = marker.read_text().strip()
+        guest_address = marker.read_text().strip()
+        host['DBUS_SESSION_BUS_ADDRESS'] = guest_address.replace(
+            'unix:path=' + str(guest_runtime / 'session-bus'),
+            'unix:path=' + str(runtime / 'session-bus'), 1)
         if args.usb_storage == 'read-only':
             command = [str(prefix / 'bin/python3'), '-I', '-B',
                        str(Path(__file__).with_name('desktop_usb_storage.py')), '--mode', 'read-only',
@@ -136,7 +146,7 @@ def main():
                        '--broker-socket', str(parent / 'broker.sock'),
                        '--termux-usb', str(prefix / 'libexec/termux-usb-app')]
             if base:
-                gio_command = base + ['DBUS_SESSION_BUS_ADDRESS=' + host['DBUS_SESSION_BUS_ADDRESS'],
+                gio_command = base + ['DBUS_SESSION_BUS_ADDRESS=' + guest_address,
                                      '/usr/local/libexec/tusb-gio-mount']
                 command += ['--gio-command-json', json.dumps(gio_command)]
             storage = start('usb-storage', command)

@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: MIT
 """Rootless GNOME 50 launcher using the native Android EGL/AHB compositor.
 
-Requires real GNOME packages. Does not provide GDM, logind, authentication,
-or lock-screen support. Android mode requires the existing termux-render App view.
+Requires real GNOME packages. Does not provide GDM, logind or lock-screen
+support. PRoot package management owns guest PolicyKit/PAM services. Android
+mode requires the existing termux-render App view.
 """
 import argparse
 import os
@@ -439,8 +440,8 @@ def run_prepared(args):
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGINT, interrupted)
     try:
-        # The bus is real and private to this App UID. It implements no login,
-        # account, authorization, or power management services.
+        # Native keeps its minimal private bus. PRoot owns real guest package
+        # authorization services without publishing login or hardware daemons.
         (w / 'session.env').unlink(missing_ok=True)
         (w / 'shell.pid').unlink(missing_ok=True)
         (w / 'host-session.env').unlink(missing_ok=True)

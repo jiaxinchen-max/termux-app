@@ -112,6 +112,29 @@ class Preparation(unittest.TestCase):
         self.assertTrue((work/'sessionbus.conf').is_file())
         self.assertIn(str(prefix/'tmp'), (work/'sessionbus.conf').read_text())
 
+    def test_xfce_proot_preparation_preserves_masked_host_prefix(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as folder:
+            prefix = Path(folder)/'prefix'
+            rootfs = prefix/'var/lib/proot-distro/containers/ubuntu-test/rootfs'
+            rootfs.parent.mkdir(parents=True)
+            rootfs.symlink_to(self.root, target_is_directory=True)
+            masked = self.root/str(prefix).lstrip('/')
+            masked.mkdir(parents=True)
+            masked.chmod(0)
+            self.addCleanup(masked.chmod, 0o755)
+            home = Path(folder)/'home'
+            with patch.dict(os.environ, HOME=str(home)):
+                module('desktop_xfce_session').prepare(SimpleNamespace(
+                    desktop_id='test', run_mode='proot', alias='ubuntu-test'), prefix)
+            self.assertEqual(0, masked.stat().st_mode & 0o777)
+            config = (home/'.termux/xfce-test/sessionbus.conf').read_text()
+            self.assertIn('unix:path=/tmp/tusb-', config)
+            self.assertNotIn(str(prefix), config)
+            self.assertTrue((self.root/'home/termux/.local/share/termux-xfce-test').is_dir())
+            endpoint = os.readlink(self.root/'run/dbus/system_bus_socket')
+            self.assertTrue(endpoint.startswith('/tmp/tusb-'), endpoint)
+
 
 class LauncherIntegration(unittest.TestCase):
     def test_gnome_starts_guest_system_services_as_root_without_changing_user_session_command(self):
@@ -141,6 +164,12 @@ class LauncherIntegration(unittest.TestCase):
             self.assertTrue(observed[0][-1].endswith('/desktop_container_software_services.py'))
 
     def test_xfce_usb_off_owns_both_guest_service_and_ordinary_session_processes(self):
+        self.xfce_owned_session('off')
+
+    def test_xfce_usb_uses_host_control_socket_and_guest_session_bus(self):
+        self.xfce_owned_session('read-only')
+
+    def xfce_owned_session(self, usb_mode):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); prefix = root/'prefix'; binary = prefix/'bin'; binary.mkdir(parents=True)
             trace = root/'calls.jsonl'
@@ -149,14 +178,33 @@ class LauncherIntegration(unittest.TestCase):
 import json,os,sys,time
 from pathlib import Path
 with open(os.environ['TRACE'],'a') as f:f.write(json.dumps([os.getpid(),*sys.argv[1:]])+'\n')
-runtime=Path(os.environ['XDG_RUNTIME_DIR'])
+args=sys.argv[1:]
+guest=next(v.split('=',1)[1] for v in args if v.startswith('XDG_RUNTIME_DIR='))
+assert guest.startswith('/tmp/tusb-'), guest
+source,target=args[args.index('--bind')+1].split(':',1)
+runtime=Path(source)/Path(guest).relative_to(target)
 if sys.argv[sys.argv.index('--user')+1]=='root':
  (runtime/'software-center.ready').write_text(str(os.getpid()))
 else:
- (runtime/'session-address').write_text('unix:path='+str(runtime/'session-bus'))
+ conf=next(v.split('=',1)[1] for v in args if v.startswith('--config-file='))
+ assert conf.startswith('/home/termux/.local/share/termux-xfce-'), conf
+ (runtime/'session-address').write_text('unix:path='+guest+'/session-bus,guid=test')
 while True:time.sleep(.05)
 """)
             fake.chmod(0o755)
+            usb = binary/'python3'
+            usb.write_text('#!'+sys.executable+r"""
+import json,os,signal,socket,sys,time
+from pathlib import Path
+args=sys.argv[1:]
+runtime=Path(args[args.index('--runtime')+1]);runtime.mkdir(parents=True)
+with open(os.environ['TRACE'],'a') as f:
+ f.write(json.dumps([os.getpid(),'usb',os.environ['DBUS_SESSION_BUS_ADDRESS'],*args])+'\n')
+signal.signal(signal.SIGTERM,lambda *unused:sys.exit(0))
+connection=socket.socket(socket.AF_UNIX);connection.bind(str(runtime/'control.sock'))
+while True:time.sleep(.05)
+""")
+            usb.chmod(0o755)
             env = dict(os.environ, HOME=folder, PREFIX=str(prefix), PATH=str(binary)+':'+os.environ['PATH'],
                        TRACE=str(trace), PULSE_SERVER='tcp:127.0.0.1:4713')
             m = module('desktop_xfce_session')
@@ -167,16 +215,27 @@ while True:time.sleep(.05)
                 m.prepare(SimpleNamespace(desktop_id='test',run_mode='native',alias=None),prefix)
             process = subprocess.Popen([sys.executable,str(ASSETS/'desktop_xfce_session.py'),
                 '--desktop-id','test','--run-mode','proot','--alias','ubuntu-test',
-                '--usb-storage','off','--display',':0'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+                '--usb-storage',usb_mode,'--display',':0'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
             try:
                 deadline = time.monotonic()+5
-                while not trace.exists() or len(trace.read_text().splitlines())<2:
+                expected = 3 if usb_mode == 'read-only' else 2
+                while not trace.exists() or len(trace.read_text().splitlines())<expected:
                     if process.poll() is not None or time.monotonic()>deadline:
                         self.fail('XFCE did not start both guest roles: '+process.communicate(timeout=2)[0].decode())
                     time.sleep(.02)
                 calls=[json.loads(line) for line in trace.read_text().splitlines()]
-                self.assertEqual(['root','termux'],[c[c.index('--user')+1] for c in calls])
+                guest_calls = [c for c in calls if '--user' in c]
+                self.assertEqual(['root','termux'],[c[c.index('--user')+1] for c in guest_calls])
                 self.assertTrue(any(c[-1].endswith('desktop_container_software_services.py') for c in calls))
+                if usb_mode == 'read-only':
+                    usb_call = next(c for c in calls if c[1]=='usb')
+                    host_bus = usb_call[2]
+                    self.assertIn('unix:path='+str(prefix/'tmp'), host_bus)
+                    self.assertTrue(host_bus.endswith(',guid=test'), host_bus)
+                    gio = json.loads(usb_call[usb_call.index('--gio-command-json')+1])
+                    address = next(v for v in gio if v.startswith('DBUS_SESSION_BUS_ADDRESS='))
+                    self.assertIn('=unix:path=/tmp/tusb-', address)
+                    self.assertNotIn(str(prefix), address)
             finally:
                 process.terminate(); output=process.communicate(timeout=8)[0].decode()
             self.assertEqual(130,process.returncode,output)

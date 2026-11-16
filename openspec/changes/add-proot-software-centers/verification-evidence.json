@@ -3,10 +3,10 @@
   "source_hashes": {
     "docs/desktop-testing/test-container-polkit-agent.py": "05c2771e95ba8dd56c307bf22b0c697b0893b24bd4d6711f8d631c2d072b7aec",
     "docs/desktop-testing/test-software-center-install.py": "323db1ad1557755d8bb0c87cd2760729c1bde62cfbce5513572f468a09a11912",
-    "docs/desktop-testing/test-software-centers.py": "ca8f589452386b06efabac7e45cb2c7b7acebc09d28c40d470732e9688a51655",
+    "docs/desktop-testing/test-software-centers.py": "5942c876c2895f8459637901f34cfc324cd8f544ad8d6e105ca6a77030b2542e",
     "termux-ui/src/main/assets/local-games/desktop_container_polkit_agent.py": "50febe4e0d6fb583ccd6565c21b0bff261b29eacf39cebbd820e7a4225c03851",
     "termux-ui/src/main/assets/local-games/desktop_container_software_services.py": "1684c7b1af22eae9191336d99d4ca38a9dce60461b1b6c2a28f6acdef07401f1",
-    "termux-ui/src/main/assets/local-games/desktop_gnome_launch.py": "def4b741df688b346cd1d45e9307df28366e4bcb6d9b32886fd1822810e5260d",
+    "termux-ui/src/main/assets/local-games/desktop_gnome_launch.py": "e972ae8e4c23410c0beda895338173edbe3d1901c53e0b0ee3c4061a2ae13953",
     "termux-ui/src/main/assets/local-games/desktop_hyprland.py": "b2caa20ae59cf7e82d4ba99408a86133c80b69341d21735dad0aad3382bc1935",
     "termux-ui/src/main/assets/local-games/desktop_hyprland_shell.py": "014385595ae2cda8125eaff699a7a10001c6492a79c0930bee548b2c03cc1940",
     "termux-ui/src/main/assets/local-games/desktop_initialize.py": "8fbc6f47db96304ed6b4791f168cc59f2a65fc9de3322e78195cb0b96dc25402",
@@ -14,11 +14,11 @@
     "termux-ui/src/main/assets/local-games/desktop_software_center.py": "9c9f10c3f494da3b4de92f0b4e4e6c352c48bf94b40a4be67b4236370ccdf7f9",
     "termux-ui/src/main/assets/local-games/desktop_start.sh": "e1fb7c42dd219742905c1a03eb88a2bad90755366b9cd02cae5399f1a8c21c05",
     "termux-ui/src/main/assets/local-games/desktop_stop.sh": "49d915e8893386b9a60a4a61d8cd295f91ab036dd7eee18b9e7b77ffad590299",
-    "termux-ui/src/main/assets/local-games/desktop_xfce_session.py": "746d3c697ce4d95f96fa2fc6801ca9e5b2e35bee16365f419614eb7855ab9977",
+    "termux-ui/src/main/assets/local-games/desktop_xfce_session.py": "066b0ee900d86420150ba6f5885e8e5c66e8d09eb53cc3934ce242b25adab4d2",
     "termux-ui/src/main/java/com/termux/ui/service/LaunchScriptInstaller.java": "6a052e5e678db8f1dc6933e7d0efe47ef0592879802980c5b472efa078dab4c0"
   },
   "python": {
-    "service_and_launchers": 16,
+    "service_and_launchers": 18,
     "install_routes": 3,
     "polkit_agent": 12,
     "container_account": 3,
@@ -27,7 +27,7 @@
     "plasma_user_session": 5,
     "hyprland_host_prerequisites": 4,
     "xfce_wallpaper": 6,
-    "total": 77,
+    "total": 79,
     "failures": 0
   },
   "java": {
@@ -43,10 +43,10 @@
     "reason": "旧用例仍假设 Debian、已废弃 GNOME/X11 参数以及旧的准备/账户契约；本次未改写以掩盖失败"
   },
   "apk": {
-    "source_commit": "f39f5f8add069e397fedfc81b456d8382674d097",
+    "source_commit": "7745fa5f644652601085fb4ce2aac9b24d1f0dba",
     "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
     "bytes": 44533485,
-    "sha256": "78e4fe464d965b8c0ef9625bcbc9334215a2ead4b70a9c893a9bca13b0af82c2",
+    "sha256": "0d906fe63e40500c294cf720f607083a0229a67355a555c53c30c9f6b135e55b",
     "signature": "verified v1/v2",
     "test_only": false,
     "abi": "arm64-v8a",
@@ -59,17 +59,40 @@
       }
     ],
     "device_installation": "Pending",
-    "public_download": "Local HTTP200 full body hash verified; authenticated sandbox proxy supplied"
+    "public_download": "HTTP200 full body SHA256 verified",
+    "download_url": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122146279517675520/port/54355/termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "source_state": "7745fa5f + XFCE permission fix working tree; exact runtime asset hashes in artifact apk-verification.json"
   },
   "strict_gate": {
     "status": "Unavailable",
     "reason": "仓库 verify.sh 与 OpenSpec CLI 缺失"
   },
   "device": {
-    "alias": "software-center-check-20261116",
-    "original_desktops_untouched": true,
-    "app_pid_before_validation": "none",
-    "status": "独立 Ubuntu 底包解包与应用中心依赖安装进行中；尚未完成服务及 GUI 端到端验证"
+    "alias": "ubuntu-xfce4-1",
+    "app_pid_before_validation": "none after force-stop",
+    "status": "修正后的准备、普通用户配置读取、私有会话 D-Bus、IPC 映射及真实 guest package services ready/cleanup 通过；完整桌面和密码交易待用户验证",
+    "masked_guest_prefix_mode_before": "000",
+    "masked_guest_prefix_mode_after": "000",
+    "original_container_preserved": true,
+    "apk_installed_via_adb": false
   },
-  "product_consistency": "Pending"
+  "product_consistency": "Pending",
+  "current_iteration": {
+    "python_tests": 27,
+    "suites": [
+      "test-software-centers.py",
+      "test-software-center-install.py",
+      "test-xfce-wallpaper.py"
+    ],
+    "failures": 0,
+    "carried_forward_tests": "其他测试结果沿用前轮；未重复声称本轮全量运行",
+    "regression_reproduced_on": "7745fa5f",
+    "build": "assembleDebug passed",
+    "runtime_syntax": "passed",
+    "device_logs": "/home/user/workspace/artifacts/xfce-permission-fix-20261116"
+  },
+  "previous_independent_device_test": {
+    "alias": "software-center-check-20261116",
+    "status": "底包安装成功；run-as 上下文 DNS UDP EPERM，包安装未完成，App 服务代执行结果未确认"
+  }
 }

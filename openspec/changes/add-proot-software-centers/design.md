@@ -13,3 +13,6 @@ GNOME 使用现有短 runtime 挂载和准备命令，把 system bus 管理方�
 
 ## 风险、回退和验证
 服务生命周期、短 Unix socket 路径、PRoot 身份映射是主要风险。只操作本会话的子进程。保留 Plasma 实现以控制回归面。回退本次提交并重新安装/保存新容器；已装 Ubuntu 包无需自动删除。没有已登记的 protected path；不修改签名、凭据、CI 或组件发布配置。使用行为测试验证就绪、失败清理和隔离，回归现有用户/认证/准备流程，设备执行独立服务测试，构建并签名 APK。
+
+## XFCE 安装权限回归修正
+设备安装日志确认依赖安装成功，最终准备失败于 rootfs 内的宿主 PREFIX 占位目录；该目录由 proot-distro 设为 000，必须保留。XFCE PRoot 改为将宿主私有 IPC 目录绑定到容器 /tmp/tusb-<id>，持久配置绑定到 /home/termux/.local/share/termux-xfce-<id>。保存时写入 guest 地址，宿主监督器保留 host 地址，USB 的 guest GIO 使用 guest 会话总线。不得 chmod 隔离占位目录，不得在启动阶段补写配置。此修正属于已批准任务 2/3 的正确性修复，不增加能力或修改 Native。

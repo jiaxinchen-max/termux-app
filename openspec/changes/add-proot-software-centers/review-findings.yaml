@@ -4,7 +4,14 @@ stage: code-review
 status: APPROVED_WITH_LIMITATIONS
 method: 直接源码自审、真实生产安装入口的隔离命令测试、独立进程生命周期测试；未使用子代理
 human_confirmation: 用户批准执行；沿用任务结束推送进度授权
-findings: []
+findings:
+  - id: XFCE-PREFIX-001
+    severity: MUST_FIX
+    status: resolved
+    file: termux-ui/src/main/assets/local-games/desktop_xfce_session.py
+    description: 准备阶段向 proot-distro 权限 000 的宿主 PREFIX 占位目录写入导致安装失败
+    resolution: 使用 guest 的 tmp 和 home 挂载点并区分 host/guest 总线地址，保留隔离权限
+    verification: 旧实现重现错误；27 项相关测试、真实 guest 配置/会话总线和包服务 ready/cleanup、签名 APK 资产校验通过
 evidence: verification-evidence.json
 reviewed:
   - 三个安装分支显式 DEB 插件、AppStream 准备顺序与失败不发布成功
@@ -14,7 +21,7 @@ reviewed:
   - 配置持久化、过期 ready 清理、只结束拥有的进程组、认证异常不重启或终止健康桌面
   - Java 提取清单与 GNOME 独立启动器随附脚本完整；APK 全部源资产逐字节匹配
 limitations:
-  - 新应用中心在模拟器的完整安装、界面和真实密码交易尚未完成；自动测试不冒充 PAM 成功证据
+  - 本轮已验证 XFCE 准备及真实 guest 服务；完整桌面/应用中心界面和真实密码交易尚未完成，不冒充 PAM 成功证据
   - 原初始化测试套件修改前后均为 8 个失败和 4 个错误，详细记录在验证文档
   - Harness 严格门禁脚本缺失，不能声称通过
   - 用户尚未最终验收，产品资料一致性 Pending，不归档
