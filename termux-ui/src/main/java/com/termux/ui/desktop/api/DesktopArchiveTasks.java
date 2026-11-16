@@ -293,6 +293,7 @@ public final class DesktopArchiveTasks {
                         .isInstalled(imported.getDesktop())) {
                     throw new IOException("desktop_archive_restored_environment_incomplete");
                 }
+                publishLaunchSpec(job, imported.getDesktop());
                 // Persist publication phase before creating the inventory record.
                 job.setProperty("published", "true");
                 save(job);
@@ -362,6 +363,19 @@ public final class DesktopArchiveTasks {
         } catch (android.system.ErrnoException error) {
             throw new IOException("desktop_archive_rendering_invalid", error);
         }
+    }
+
+    private void publishLaunchSpec(Properties job, DesktopDistro desktop) throws IOException {
+        com.termux.ui.desktop.archive.DesktopArchiveLaunchSpec.publish(
+            new AndroidDesktopArchiveFileSystem(), paths.getDesktopSpecFile(desktop.getId()), desktop,
+            paths.getDesktopPidFile(desktop.getId()), paths.getDesktopStatusFile(desktop.getId()),
+            paths.getDesktopLogFile(desktop.getId()), (temporary, device, inode) -> {
+                job.setProperty("launchSpecTemporary", temporary.getName());
+                job.setProperty("launchSpecDevice", Long.toString(device));
+                job.setProperty("launchSpecInode", Long.toString(inode));
+                job.setProperty("launchSpecOwned", "true");
+                save(job); // Ownership is durable before bytes or no-replace publication.
+            });
     }
 
     private void requireSpace(DesktopArchiveMetadata metadata) throws IOException {
@@ -495,6 +509,16 @@ public final class DesktopArchiveTasks {
                 deleteIfOwned(inventory, job, "inventory", false);
             }
             catch (IOException error) { if (failure == null) failure = error; else failure.addSuppressed(error); }
+            // Preserve a launch contract while any unclaimed inventory could still reference it.
+            if (failure == null && "true".equals(job.getProperty("launchSpecOwned"))) {
+                try {
+                    String temporary = job.getProperty("launchSpecTemporary", "");
+                    if (!temporary.startsWith(id + ".spec.restore-") || temporary.indexOf('/') >= 0)
+                        throw new IOException("desktop_archive_journal_invalid");
+                    deleteIfOwned(new File(paths.getDesktopSpecsDirectory(), temporary), job, "launchSpec", false);
+                    deleteIfOwned(paths.getDesktopSpecFile(id), job, "launchSpec", false);
+                } catch (IOException error) { failure = error; }
+            }
             // Preserve a container/settings while any unclaimed inventory could still reference it.
             if (failure == null) {
                 try { deleteIfOwned(target, job, "import", true); }

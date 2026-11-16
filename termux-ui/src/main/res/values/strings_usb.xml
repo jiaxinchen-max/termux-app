@@ -29,5 +29,4 @@
     <string name="desktop_usb_working">Waiting for the USB operation / Android authorization…</string>
     <string name="desktop_usb_error">USB operation failed</string>
     <string name="desktop_usb_archive_disable">Turn off USB storage before exporting. This archive format does not include USB integration settings.</string>
-    <string name="desktop_usb_gnome_archive_unsupported">GNOME container import and export are not supported by the current archive format.</string>
 </resources>

@@ -87,9 +87,6 @@ fi
 if [ "$OPERATION" = host-prerequisites ] && [ "${DESKTOP_USB_STORAGE:-off}" != off ]; then
     log 'Container archive prerequisites require USB storage off'; exit 64
 fi
-if [ "$OPERATION" = host-prerequisites ] && { [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; }; then
-    log 'GNOME container archives are not supported'; exit 64
-fi
 case "${DESKTOP_USB_STORAGE:-}" in off|read-only) ;; *) log 'Explicit USB storage mode off|read-only required'; exit 64 ;; esac
 if [ "$DESKTOP_USB_STORAGE" = read-only ] && [ "$DESKTOP_DE" = kwin_plasma ]; then
     log 'USB GIO volumes are supported by GNOME/Files and XFCE/Thunar; Dolphin/Solid is not supported.'
@@ -526,6 +523,38 @@ register_embedded_host_packages() {
     done
 }
 
+install_gnome_launchers() {
+    destination="$PREFIX/libexec/termux-gnome"
+    mkdir -p "$destination" || fail 'creating GNOME launcher directory'
+    launcher_assets="desktop_gnome_launch.py desktop_usb_storage.py"
+    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+        if [ "$DESKTOP_MODE" = native ]; then
+            launcher_assets="$launcher_assets desktop_native_ubuntu.py"
+        else
+            launcher_assets="$launcher_assets desktop_ubuntu_gnome.py desktop_install_glycin.py desktop_install_gio.py"
+        fi
+    fi
+    for item in $launcher_assets; do
+        case "$item" in desktop_gnome_launch.py) target=launch.py ;; *) target="$item" ;; esac
+        cp "$(dirname "$0")/$item" "$destination/$target.tmp.$$" && mv "$destination/$target.tmp.$$" "$destination/$target" || fail "installing $item"
+    done
+}
+
+host_manifest_group() {
+    printf '%s\n' "$1" | while read -r name digest; do
+        [ -n "$name" ] || continue
+        printf '%s %s %s %s\n' "$name" "$digest" "$2" "$3"
+    done
+}
+
+gnome_standard_package_valid() {
+    package_version "$1" >/dev/null || return 1
+    case "$1" in
+        python) [ -x "$PREFIX/bin/python3" ] ;;
+        dbus) [ -x "$PREFIX/bin/dbus-daemon" ] && [ -x "$PREFIX/bin/dbus-run-session" ] ;;
+    esac
+}
+
 check_host_prerequisites() {
     missing_debs=''
     manifest="$DEBS"
@@ -535,8 +564,13 @@ check_host_prerequisites() {
         manifest="$XLORIE_DEBS"; release="$XLORIE_RELEASE_TAG"; url="$XLORIE_BASE_URL"
     fi
     host_manifest="$DESKTOP_LOG_FILE.host-manifest.$$"
-    printf '%s\n' "$manifest" > "$host_manifest" || fail 'writing host manifest'
-    while read -r name digest; do
+    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+        host_manifest_group "$GNOME_RUNTIME_DEBS" "$GNOME_RESOLUTE_TAG" "$GNOME_RESOLUTE_URL" > "$host_manifest" &&
+        host_manifest_group "$GNOME_SHELL_SUPPORT_DEBS" "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" >> "$host_manifest" || fail 'writing GNOME host manifest'
+    else
+        host_manifest_group "$manifest" "$release" "$url" > "$host_manifest" || fail 'writing host manifest'
+    fi
+    while read -r name digest release url; do
         [ -n "$name" ] || continue
         package="${name%%_*}"
         version="${name#*_}"; version="${version%_*}"
@@ -545,12 +579,17 @@ check_host_prerequisites() {
         else
             log "Host prerequisite missing or mismatched: $package $version"
             missing_debs="$missing_debs
-$name $digest"
+$name $digest $release $url"
         fi
     done < "$host_manifest"
     standard_packages=''
     if [ ! -x "$PREFIX/bin/pulseaudio" ] || [ ! -x "$PREFIX/bin/pactl" ]; then
         standard_packages="$standard_packages pulseaudio"
+    fi
+    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+        for package in python dbus dconf gsettings-desktop-schemas librsvg; do
+            gnome_standard_package_valid "$package" || standard_packages="$standard_packages $package"
+        done
     fi
     proot_valid || standard_packages="$standard_packages proot"
     proot_distro_valid || standard_packages="$standard_packages proot-distro"
@@ -565,8 +604,18 @@ $name $digest"
         run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold || fail 'pkg update'
         host_paths=''
         if [ -n "$missing_debs" ]; then
-            host_paths=$(fetch_debs "$release" "$url" "$missing_debs") || fail 'downloading host prerequisites'
-            [ -n "$host_paths" ] || fail 'no host prerequisite packages downloaded'
+            printf '%s\n' "$missing_debs" > "$host_manifest.missing" || fail 'writing missing host manifest'
+            while read -r name digest release url; do
+                [ -n "$name" ] || continue
+                if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+                    downloaded=$(fetch_verified_debs "$release" "$url" "$name $digest") || fail 'downloading GNOME host prerequisite'
+                else
+                    downloaded=$(fetch_debs "$release" "$url" "$name $digest") || fail 'downloading host prerequisite'
+                fi
+                [ -n "$downloaded" ] || fail 'no host prerequisite package downloaded'
+                host_paths="$host_paths $downloaded"
+            done < "$host_manifest.missing"
+            rm -f "$host_manifest.missing"
         fi
         # All paths are app-private, conservative spec paths.
         # --reinstall repairs explicitly requested missing or mismatched prerequisites.
@@ -576,7 +625,7 @@ $name $digest"
     else
         log 'Host prerequisites already satisfied; no network or package update required.'
     fi
-    while read -r name digest; do
+    while read -r name digest release url; do
         [ -n "$name" ] || continue
         package="${name%%_*}"
         version="${name#*_}"; version="${version%_*}"
@@ -589,6 +638,11 @@ $name $digest"
     proot_valid || fail 'proot verification failed'
     proot_distro_valid || fail 'proot-distro new containers layout verification failed (requires 5.10.3 <= version < 6 and --name)'
     [ -x "$PREFIX/bin/pulseaudio" ] && [ -x "$PREFIX/bin/pactl" ] || fail 'host PulseAudio support is missing'
+    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+        for package in python dbus dconf gsettings-desktop-schemas librsvg; do
+            gnome_standard_package_valid "$package" || fail "GNOME host prerequisite missing: $package"
+        done
+    fi
     register_embedded_host_packages
     audit=$(dpkg --audit 2>&1) || fail 'dpkg --audit failed'
     [ -z "$audit" ] || fail "dpkg --audit reported problems: $audit"
@@ -599,6 +653,7 @@ $name $digest"
         run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_initialize.py" prepare-plasma \
             || fail 'preparing Plasma host launcher for restored desktop'
     fi
+    [ "$DESKTOP_DE" != ubuntu_gnome ] || install_gnome_launchers
     log 'Host prerequisites finished; no container was created or modified.'
 }
 
@@ -760,20 +815,7 @@ if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
     DEB_PATHS="$DEB_PATHS $USB_PATHS"
 fi
 if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
-    destination="$PREFIX/libexec/termux-gnome"
-    mkdir -p "$destination" || fail 'creating GNOME launcher directory'
-    launcher_assets="desktop_gnome_launch.py desktop_usb_storage.py"
-    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
-        if [ "$DESKTOP_MODE" = native ]; then
-            launcher_assets="$launcher_assets desktop_native_ubuntu.py"
-        else
-            launcher_assets="$launcher_assets desktop_ubuntu_gnome.py desktop_install_glycin.py desktop_install_gio.py"
-        fi
-    fi
-    for item in $launcher_assets; do
-        case "$item" in desktop_gnome_launch.py) target=launch.py ;; *) target="$item" ;; esac
-        cp "$(dirname "$0")/$item" "$destination/$target.tmp.$$" && mv "$destination/$target.tmp.$$" "$destination/$target" || fail "installing $item"
-    done
+    install_gnome_launchers
 fi
 
 if [ "$DESKTOP_MODE" = "native" ]; then

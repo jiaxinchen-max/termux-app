@@ -25,9 +25,17 @@ public class DesktopArchiveDistributionTest {
             catch (IOException expected) { }
         }
     }
-    @Test public void doesNotExpandGnomeArchiveSupport() throws Exception {
-        assertFalse(DesktopArchiveDistribution.supports(DesktopDe.UBUNTU_GNOME, "noble"));
-        try { DesktopArchiveDistribution.codename(DesktopDe.UBUNTU_GNOME, "ID=ubuntu\nVERSION_CODENAME=noble\n"); fail(); }
-        catch (IOException expected) { }
+    @Test public void ubuntuGnomeRequiresResoluteWhileRetiredGnomeAndHyprlandStayUnsupported() throws Exception {
+        assertTrue(DesktopArchiveDistribution.supports(DesktopDe.UBUNTU_GNOME, "resolute"));
+        assertEquals("resolute", DesktopArchiveDistribution.codename(DesktopDe.UBUNTU_GNOME,
+            "ID=ubuntu\nVERSION_CODENAME=resolute\n"));
+        for (String release : new String[] {"noble", "trixie", "", "unknown"}) {
+            assertFalse(DesktopArchiveDistribution.supports(DesktopDe.UBUNTU_GNOME, release));
+            try { DesktopArchiveDistribution.codename(DesktopDe.UBUNTU_GNOME,
+                "ID=ubuntu\nVERSION_CODENAME=" + release + "\n"); fail(release); }
+            catch (IOException expected) { }
+        }
+        assertFalse(DesktopArchiveDistribution.supports(DesktopDe.GNOME, "resolute"));
+        assertFalse(DesktopArchiveDistribution.supports(DesktopDe.HYPRLAND, "resolute"));
     }
 }

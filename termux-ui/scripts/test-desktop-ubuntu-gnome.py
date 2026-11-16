@@ -314,12 +314,11 @@ dpkg() { return 0; }
             finally:
                 other.terminate(); other.wait(timeout=3)
 
-    def test_unsupported_gpu_profile_base_and_archive_fail_before_install(self):
+    def test_unsupported_gpu_profile_and_base_fail_before_install(self):
         for patch, operation in [({'DESKTOP_GUEST_GL_MODE': 'zink'}, 'install'),
                                   ({'DESKTOP_GNOME_SESSION_PROFILE': 'gnome'}, 'install'),
                                   ({'DESKTOP_GNOME_RENDERER': 'zink'}, 'install'),
-                                  ({'DESKTOP_CONTAINER_BASE': 'debian:trixie'}, 'install'),
-                                  ({}, 'host-prerequisites')]:
+                                  ({'DESKTOP_CONTAINER_BASE': 'debian:trixie'}, 'install')]:
             with self.subTest(patch=patch, operation=operation):
                 code, output, trace, marker = self.install(patch=patch, operation=operation)
                 self.assertEqual(64, code, output)

@@ -10,6 +10,8 @@ final class DesktopArchiveRuntimeExclusions {
         "rootfs/plat_property_contexts", "rootfs/property_contexts");
     private static final List<String> ROOTS=Arrays.asList(
         "shm", "rootfs/proc", "rootfs/sys", "rootfs/dev", "rootfs/run", "rootfs/tmp",
+        // Generated for one desktop identity; restore prepares a fresh session.
+        "rootfs/home/termux/.local/share/termux-gnome", "rootfs/tusb-gnome",
         // snapd's intentionally unlistable empty bind-mount target (normally mode 0111).
         "rootfs/var/lib/snapd/void",
         "rootfs/mnt/sdcard", "rootfs/sdcard", "rootfs/storage/emulated/0",

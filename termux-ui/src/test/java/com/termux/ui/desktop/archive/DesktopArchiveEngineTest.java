@@ -213,6 +213,41 @@ public class DesktopArchiveEngineTest {
         catch (IllegalArgumentException expected) { }
     }
 
+    @Test public void ubuntuGnomeRoundTripKeepsUserStateAndDropsMachineLocalSession() throws Exception {
+        Files.delete(source.resolve(".desktop-de-xfce4"));
+        write(".desktop-de-ubuntu_gnome", "");
+        DesktopDistro gnome = new DesktopDistro("old-id", "Ubuntu 工作桌面", DesktopRunMode.PROOT,
+            "old-container", DesktopDe.UBUNTU_GNOME, DesktopGlMode.SYSTEM,
+            DesktopGuestGlMode.LLVMPIPE, "1280x720", 60, DesktopUsbStorageMode.OFF);
+        metadata = DesktopArchiveMetadata.create("com.termux", "aarch64", "resolute", gnome, "3", "horizontal");
+        String workspace = "rootfs/home/termux/.local/share/termux-gnome";
+        write(workspace + "/prepared-session.json", "old-id and old-container");
+        Files.createSymbolicLink(source.resolve(workspace + "/runtime"), temporary.resolve("old-host-sockets"));
+        write("rootfs/tusb-gnome/old-script", "old absolute container path");
+        List<String> persistent = Arrays.asList("rootfs/home/termux/Documents/用户文件",
+            "rootfs/home/termux/.config/dconf/user", "rootfs/home/termux/.config/.termux-gnome-configured",
+            "rootfs/home/termux/.local/share/gnome-shell/extensions/custom/extension.js",
+            "rootfs/var/lib/dpkg/status", "rootfs/usr/local/lib/termux-gnome/libglycin-2.so.0");
+        for (String path : persistent) write(path, "preserve " + path);
+        File file = archive();
+        DesktopArchiveMetadata checked = inspect(file);
+        DesktopArchiveImportResult result = restore(file, checked);
+        assertEquals("Ubuntu 工作桌面", result.getDesktop().getName());
+        assertEquals("new-id", result.getDesktop().getId());
+        assertEquals("new-container", result.getDesktop().getProotDistro());
+        assertEquals(DesktopDe.UBUNTU_GNOME, result.getDesktop().getDe());
+        assertEquals(DesktopGlMode.SYSTEM, result.getDesktop().getHostGlMode());
+        assertEquals(DesktopGuestGlMode.LLVMPIPE, result.getDesktop().getGuestGlMode());
+        assertEquals(60, result.getDesktop().getRefreshRate());
+        assertEquals("1280x720", result.getDesktop().getResolution());
+        Path restored = result.getContainerDirectory().toPath();
+        assertArrayEquals(new String[0], restored.resolve(workspace).toFile().list());
+        assertArrayEquals(new String[0], restored.resolve("rootfs/tusb-gnome").toFile().list());
+        for (String path : persistent)
+            assertEquals("preserve " + path, new String(Files.readAllBytes(restored.resolve(path)), "UTF-8"));
+        assertEquals("old-id and old-container", new String(Files.readAllBytes(source.resolve(workspace + "/prepared-session.json")), "UTF-8"));
+    }
+
     @Test public void missingInstalledMarkerAndWrongActualCodenameDoNotPublishExport()throws Exception {
         Files.delete(source.resolve(".desktop-de-xfce4"));rejected(this::archive);assertFalse(Files.exists(temporary.resolve("desktop.tar.gz.partial")));
         write(".desktop-de-xfce4","");write("rootfs/usr/lib/os-release","ID=debian\nVERSION_CODENAME=forky\n");rejected(this::archive);

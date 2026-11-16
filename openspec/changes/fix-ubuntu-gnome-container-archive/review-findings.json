@@ -1,0 +1,107 @@
+{
+  "schema": "review_findings_v1",
+  "change_id": "fix-ubuntu-gnome-container-archive",
+  "reviewer": "primary-agent-self-review",
+  "status": "APPROVED",
+  "findings": [],
+  "reviewed_files": [
+    {
+      "path": "termux-ui/scripts/test-desktop-restore-prerequisites.sh",
+      "sha256": "9c22b7c63146bd889b70f45b7e686e1f608dedad11834fb49772b422a87b7522"
+    },
+    {
+      "path": "termux-ui/scripts/test-desktop-ubuntu-gnome.py",
+      "sha256": "75459fc415281c0756988d1057d3162c74e13c177ff65e370c017e492c126e4b"
+    },
+    {
+      "path": "termux-ui/scripts/tests/test_desktop_restore_local.py",
+      "sha256": "bfa2689d5fc8f63025cf3a3d7f67c5408955e220362486423f8be22e141ebc34"
+    },
+    {
+      "path": "termux-ui/src/main/assets/local-games/desktop_initialize.py",
+      "sha256": "5530e0f050626fccafa3003709ae72aa90aa0a8ad80f9bba87eee22bd4008a5e"
+    },
+    {
+      "path": "termux-ui/src/main/assets/local-games/desktop_install.sh",
+      "sha256": "cc5c241fb6ba1890f9f9b9cd3befaed6dd9db8e12805b3fd87978d116a00ef8d"
+    },
+    {
+      "path": "termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopActivity.java",
+      "sha256": "4b082dbdbc12f22fcac414423a3ee0fa53a95f0f94b7224b6302bfea4c2a21d1"
+    },
+    {
+      "path": "termux-ui/src/main/java/com/termux/ui/desktop/api/DesktopArchiveTasks.java",
+      "sha256": "869da5abb1c579a088c1ccb25e4318a3e258f655ad14d11bdd799176f34a74d1"
+    },
+    {
+      "path": "termux-ui/src/main/java/com/termux/ui/desktop/api/DesktopRestorePrerequisites.java",
+      "sha256": "94f8c401686a9b96b16c2b0c95f7b84c57f9b19a17157bf97117ebabc0e41247"
+    },
+    {
+      "path": "termux-ui/src/main/java/com/termux/ui/desktop/archive/DesktopArchiveDistribution.java",
+      "sha256": "9b761b348114f524ca9d7b2758a79c2422657d916ae87a94a2d11ae4ae86be98"
+    },
+    {
+      "path": "termux-ui/src/main/java/com/termux/ui/desktop/archive/DesktopArchiveLaunchSpec.java",
+      "sha256": "4fbfc83fbadb6550ccc37afe66e4a014e08e5eef6680b4c56d95d77fcf529409"
+    },
+    {
+      "path": "termux-ui/src/main/java/com/termux/ui/desktop/archive/DesktopArchiveRuntimeExclusions.java",
+      "sha256": "0e54c3cbc9e1f952c53dea411616e83699cf3da1d58e42dbef1794b06fae2734"
+    },
+    {
+      "path": "termux-ui/src/main/res/values-zh-rCN/strings_desktop_rendering.xml",
+      "sha256": "c2afcbc4c8f753a4f087f686a58eb439550118319483f3c18debafff8cb0d5df"
+    },
+    {
+      "path": "termux-ui/src/main/res/values-zh-rCN/strings_usb.xml",
+      "sha256": "4343fa3c90e52f88cd27a8a3b80e048722f1d42f7bcdb8a5050a7c33248895a5"
+    },
+    {
+      "path": "termux-ui/src/main/res/values/strings_desktop_rendering.xml",
+      "sha256": "9672efc61c27f1fbfe7778b4d484404ab31e2ff8bfd36bdbf0faec2c9b2f4eb1"
+    },
+    {
+      "path": "termux-ui/src/main/res/values/strings_usb.xml",
+      "sha256": "f617ebbf6bf1c9b166d4cbf6d848d1fd5a37a78a566604e51c1955ef3cf6c26b"
+    },
+    {
+      "path": "termux-ui/src/test/java/com/termux/ui/desktop/api/DesktopRestoreInitializationTest.java",
+      "sha256": "0a08b63822c71501ace493854b0a5c8551484103735c94e4e5c252514cd0688c"
+    },
+    {
+      "path": "termux-ui/src/test/java/com/termux/ui/desktop/archive/DesktopArchiveDistributionTest.java",
+      "sha256": "533b211d15e71adf4c9286653edd480d508233546bab17812f4b5c052f2f2542"
+    },
+    {
+      "path": "termux-ui/src/test/java/com/termux/ui/desktop/archive/DesktopArchiveEngineTest.java",
+      "sha256": "619c344c9651c4695bcdb62326fe99ba2d0ac5a8a8d842f8d1589c34ebf493a1"
+    },
+    {
+      "path": "termux-ui/src/test/java/com/termux/ui/desktop/archive/DesktopArchiveLaunchSpecTest.java",
+      "sha256": "d92bff5f57a487f870249f5d83fcd19ae1c1bbad6138e5b8024d32d2e65c4404"
+    }
+  ],
+  "checks": [
+    "导出 UI 与元数据共享支持策略，独立废弃 GNOME 和 Hyprland 继续拒绝",
+    "所有新增依赖与会话初始化仅在恢复阶段执行",
+    "新身份、alias、正式 ready 路径与正常启动保持一致",
+    "工作区删除不跟随父目录或子符号链接，原备份和原容器不参与清理",
+    "失败依旧使用既有回执及事务回滚，不提前发布成功记录",
+    "共享恢复脚本已覆盖 XFCE/Plasma、标准依赖、跨发布源及错误路径",
+    "恢复先完成初始化和生产环境检查，再以独占临时文件及不可覆盖重命名发布启动配置，最后写入库存",
+    "归属持久化失败或发布竞态不得覆盖已有配置；失败清理保留未认领库存引用的启动配置与容器"
+  ],
+  "validation": {
+    "automated_cases": 251,
+    "failures": 0,
+    "code_build": "passed",
+    "device_roundtrip": "passed: full export, inspect, import and local initialization",
+    "product_consistency": "Pending; waiting for user acceptance",
+    "device_launch": "not verified: Android render service connection refused"
+  },
+  "limitations": [
+    "缺少仓库 Harness 严格门禁；未把手工记录冒充为门禁通过",
+    "新 APK 没有替换设备 App；新版本 UI 操作仍需用户验收"
+  ]
+}

@@ -398,13 +398,11 @@ public final class DesktopActivity extends AppUiActivity {
         }
         items.add(Menu.NONE, MENU_USB_STORAGE, Menu.NONE, R.string.desktop_usb_title)
             .setEnabled(!installing && state != DesktopSessionState.STOPPING);
-        if (distro.getRunMode() == DesktopRunMode.PROOT) {
-            if (distro.getDe().isGnomeSession()) {
-                items.add(Menu.NONE, MENU_EXPORT, Menu.NONE, R.string.desktop_usb_gnome_archive_unsupported).setEnabled(false);
-            } else {
-                items.add(Menu.NONE, MENU_EXPORT, Menu.NONE, R.string.desktop_archive_export)
-                    .setEnabled(!anyDesktopActive() && !DesktopArchiveFlow.instance().isBusy());
-            }
+        if (distro.getRunMode() == DesktopRunMode.PROOT
+                && com.termux.ui.desktop.archive.DesktopArchiveDistribution.supports(distro.getDe(),
+                    com.termux.ui.desktop.runtime.DesktopCreationCatalog.containerCodename(distro.getDe()))) {
+            items.add(Menu.NONE, MENU_EXPORT, Menu.NONE, R.string.desktop_archive_export)
+                .setEnabled(!anyDesktopActive() && !DesktopArchiveFlow.instance().isBusy());
         }
         items.add(Menu.NONE, MENU_DELETE, Menu.NONE, R.string.desktop_action_delete).setEnabled(!installing);
         items.add(Menu.NONE, MENU_LOGS, Menu.NONE, R.string.desktop_action_logs);

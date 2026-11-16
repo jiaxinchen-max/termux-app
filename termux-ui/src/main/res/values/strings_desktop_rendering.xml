@@ -10,6 +10,6 @@
     <string name="desktop_xfce_renderer_hint">The host Xlorie renderer is configured separately. XFCE uses its default container environment; independent container GPU acceleration is not configured.</string>
     <string name="desktop_plasma_renderer_hint">KWin runs on the host; Plasma Shell runs inside Debian. Choose System EGL or Zink for the host, and LLVMpipe or Zink for the container independently. Zink requires a working Vulkan backend; software Vulkan uses the CPU.</string>
     <string name="desktop_renderer_pair_unsupported">This host and container renderer pair is unsupported. Check the supported pairs shown above; both selections must be set explicitly.</string>
-    <string name="desktop_ubuntu_gnome_renderer_hint">GNOME 50 uses Android System EGL for the compositor. Applications inside Ubuntu 26.04 LTS use LLVMpipe software rendering. Container GPU acceleration and GNOME container backup are not supported.</string>
+    <string name="desktop_ubuntu_gnome_renderer_hint">GNOME 50 uses Android System EGL for the compositor. Applications inside Ubuntu 26.04 LTS use LLVMpipe software rendering. Container GPU acceleration is not supported. Stop the desktop to export a complete container backup.</string>
     <string name="desktop_native_ubuntu_hint">Ubuntu style · Native GNOME. Yaru theme, left Dock, system tray and desktop icons. Uses Android System EGL; runs native Termux applications.</string>
 </resources>

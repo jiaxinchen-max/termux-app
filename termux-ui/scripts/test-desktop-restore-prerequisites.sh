@@ -10,8 +10,9 @@ source = (assets / 'desktop_install.sh').read_text()
 def block(name, quote):
     return re.search(r'^' + name + '=' + quote + r'(.*?)' + quote, source, re.M | re.S).group(1)
 manifests = {}
-versions = {'proot': '5.1.107', 'proot-distro': '5.10.3'}
-for name in ('DEBS', 'XLORIE_DEBS'):
+versions = {'proot': '5.1.107', 'proot-distro': '5.10.3',
+            **{p: '1.0' for p in ('python', 'dbus', 'dconf', 'gsettings-desktop-schemas', 'librsvg')}}
+for name in ('DEBS', 'XLORIE_DEBS', 'GNOME_RUNTIME_DEBS', 'GNOME_SHELL_SUPPORT_DEBS'):
     for line in block(name, '"').splitlines():
         if not line.strip(): continue
         filename, digest = line.split()
@@ -50,6 +51,13 @@ elif cmd == 'dpkg':
         sys.exit(0 if (version(left) >= version(right) if op == 'ge' else version(left) < version(right)) else 1)
     if args[0] == '--verify' and args[1] in state.get('corrupt',[]): print('??5?????? changed')
 elif cmd == 'sha256sum':
+    if args == ['-c', '-']:
+        for line in sys.stdin:
+            expected, path = line.split()
+            valid = state['manifests'].get(pathlib.Path(path).name) == expected
+            if state.get('download_bad_hash'): valid = False
+            if not valid: sys.exit(1)
+        sys.exit(0)
     path = pathlib.Path(args[0])
     digest = state['manifests'].get(path.name)
     if digest is None: digest = next((d for p, f, d in state['files'] if str(path) == str(base/'usr'/f)), None)
@@ -94,6 +102,12 @@ elif cmd == 'apt':
         if arg.endswith('.deb'):
             package, version, abi = pathlib.Path(arg).name.split('_')
             state['versions'][package] = version
+        elif arg in ('python','dbus','dconf','gsettings-desktop-schemas','librsvg'):
+            if arg in state.get('keep_missing_standard', []): continue
+            state['versions'][arg] = '1.0'
+            for binary in {'python':['python3'], 'dbus':['dbus-daemon','dbus-run-session']}.get(arg, []):
+                target = base/'usr/bin'/binary
+                target.write_text(pathlib.Path(sys.argv[0]).read_text()); target.chmod(0o700)
         elif arg == 'mesa-demos' and not state.get('keep_missing_eglinfo'):
             target = base/'usr/bin/eglinfo'
             target.write_text(pathlib.Path(sys.argv[0]).read_text()); target.chmod(0o700)
@@ -126,7 +140,7 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
         data = {'versions':dict(versions), 'files':files, 'manifests':manifests}
         if mutate: mutate(data, case)
         (case/'state.json').write_text(json.dumps(data))
-        for command in ('uname','dpkg-query','dpkg','dpkg-deb','sha256sum','proot','proot-distro','python3','curl','apt','pkg','apt-mark','pulseaudio','pactl','eglinfo'):
+        for command in ('uname','dpkg-query','dpkg','dpkg-deb','sha256sum','proot','proot-distro','python3','curl','apt','pkg','apt-mark','pulseaudio','pactl','eglinfo','dbus-daemon','dbus-run-session'):
             if command in data.get('missing_binaries', []): continue
             target = case/'usr/bin'/command
             target.write_text(mock)
@@ -139,13 +153,21 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
         embedded.mkdir(parents=True, exist_ok=True)
         for package in ('termux-api', 'upower'):
             if package not in data.get('missing_embedded', []): (embedded/(package+'.deb')).touch()
-        for asset in ('desktop_install.sh','desktop_common.sh','desktop_rendering.sh'):
+        for asset in ('desktop_install.sh','desktop_common.sh','desktop_rendering.sh','desktop_gnome_launch.py',
+                      'desktop_usb_storage.py','desktop_ubuntu_gnome.py','desktop_install_glycin.py','desktop_install_gio.py'):
             shutil.copy(assets/asset, case/asset)
         spec = dict(DESKTOP_MODE='proot', DESKTOP_DE=de,
                     DESKTOP_SPEC_VERSION='3', DESKTOP_HOST_GL_MODE='llvmpipe' if de=='kwin_plasma' else 'system',
                     DESKTOP_GUEST_GL_MODE='llvmpipe' if de=='kwin_plasma' else 'default', DESKTOP_USB_STORAGE='off',
                     DESKTOP_LOG_FILE=str(case/'install.log'), DESKTOP_PID_FILE=str(case/'state/pid'),
                     DESKTOP_STATUS_FILE=str(case/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.7-r4')
+        if de == 'ubuntu_gnome':
+            spec.update(DESKTOP_CONTAINER_BASE='ubuntu:resolute', DESKTOP_CONTAINER_CODENAME='resolute',
+                        DESKTOP_GUEST_GL_MODE='llvmpipe', DESKTOP_REFRESH_RATE='60',
+                        DESKTOP_GNOME_SESSION_PROFILE='ubuntu', DESKTOP_GNOME_BACKEND='android',
+                        DESKTOP_GNOME_RENDERER='system', DESKTOP_GNOME_SESSION_STARTUP='direct',
+                        DESKTOP_GNOME_APPLICATION_RENDERER='llvmpipe', DESKTOP_GNOME_DISPLAY_GL_MODE='',
+                        DESKTOP_GNOME_DISPLAY_BUFFER_MODE='')
         spec.update(data.get('spec', {}))
         (case/'spec').write_text(''.join(k+'='+v+'\n' for k,v in spec.items()))
         (case/'state/status').write_text('running\n')
@@ -263,5 +285,42 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
     def existing(data,case): (case/'result').write_text('stale-success'); data['existing_result']=True
     case, calls = run('existing-marker', existing, code=64)
     assert (case/'result').read_text() == 'stale-success'
+    case, calls = run('gnome-satisfied', de='ubuntu_gnome')
+    assert not re.search(r'^(pkg|curl|apt) ', calls, re.M), calls
+    launcher = case/'usr/libexec/termux-gnome'
+    for source, target in [('desktop_gnome_launch.py','launch.py'), ('desktop_usb_storage.py','desktop_usb_storage.py'),
+                           ('desktop_ubuntu_gnome.py','desktop_ubuntu_gnome.py'), ('desktop_install_glycin.py','desktop_install_glycin.py'),
+                           ('desktop_install_gio.py','desktop_install_gio.py')]:
+        assert (launcher/target).read_bytes() == (assets/source).read_bytes()
+    # Both GNOME release groups must be selected on a clean host; no KWin/Xlorie DEBs.
+    def missing_gnome(data, case):
+        for filename in manifests:
+            if filename.startswith(('gjs_', 'gnome-shell_', 'mutter_', 'spidermonkey_', 'accountsservice_',
+                                    'gnome-settings-daemon-schemas_', 'libgdm_', 'polkit_')):
+                data['versions'].pop(filename.split('_')[0], None)
+    case, calls = run('gnome-two-releases', missing_gnome, de='ubuntu_gnome')
+    downloads = '\n'.join(line for line in calls.splitlines() if line.startswith('curl '))
+    assert len(downloads.splitlines()) == 8, downloads
+    for fragment in ('/gnome-50-resolute-20261116-r1/mutter_50.1-4_',
+                     '/gnome-usb-20261030-r1/accountsservice_23.13.9_'):
+        assert fragment in downloads, downloads
+    assert not re.search(r'(kwin_|xorg-server_|xwayland_|qt6-)', downloads), downloads
+    assert len(re.findall(r'^apt install ', calls, re.M)) == 1, calls
+    def missing_standard(data, case):
+        for package in ('python','dbus','dconf','gsettings-desktop-schemas','librsvg'): data['versions'].pop(package)
+        data['missing_binaries'] = ['dbus-daemon','dbus-run-session']
+    case, calls = run('gnome-standard-host-packages', missing_standard, de='ubuntu_gnome')
+    assert re.search(r'^apt install .* python dbus dconf gsettings-desktop-schemas librsvg$', calls, re.M), calls
+    assert not re.search(r'^curl ', calls, re.M), calls
+    def ineffective_standard(data, case):
+        missing_standard(data, case); data['keep_missing_standard'] = ['dconf']
+    run('gnome-standard-ineffective', ineffective_standard, de='ubuntu_gnome', code=1)
+    def failed_gnome(data, case):
+        missing_gnome(data, case); data['apt_failure'] = 100
+    run('gnome-apt-failure', failed_gnome, de='ubuntu_gnome', code=100)
+    def corrupt_gnome_download(data, case):
+        missing_gnome(data, case); data['download_bad_hash'] = True
+    case, calls = run('gnome-download-corrupt', corrupt_gnome_download, de='ubuntu_gnome', code=65)
+    assert not re.search(r'^apt install ', calls, re.M), calls
     print('PASS: '+str(count)+' restore prerequisite fixtures')
 PY

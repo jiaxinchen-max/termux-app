@@ -29,5 +29,4 @@
     <string name="desktop_usb_working">正在等待 USB 操作 / Android 授权…</string>
     <string name="desktop_usb_error">USB 操作失败</string>
     <string name="desktop_usb_archive_disable">导出前请关闭 USB 存储。当前归档格式不包含 USB 集成设置。</string>
-    <string name="desktop_usb_gnome_archive_unsupported">当前归档格式暂不支持 GNOME 容器导入导出。</string>
 </resources>

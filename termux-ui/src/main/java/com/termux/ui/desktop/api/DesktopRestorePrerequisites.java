@@ -145,7 +145,8 @@ public final class DesktopRestorePrerequisites {
         if (restoring) {
             String initializer = new File(scripts.rawInstall.getParentFile(), "desktop_initialize.py").getPath();
             write(wrapper, restoreWrapper(new File(context.getFilesDir(), "usr/bin/python3"),
-                initializer, log, result, taskId, distro), true);
+                initializer, log, result, taskId, distro,
+                new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".gnome-ready")), true);
         } else {
             write(wrapper, "#!/data/data/com.termux/files/usr/bin/sh\nexec "
                 + quote(scripts.rawInstall.getPath()) + " \"$1\" --operation=host-prerequisites "
@@ -195,15 +196,29 @@ public final class DesktopRestorePrerequisites {
     }
 
     static String restoreWrapper(File python, String initializer, File log, File result,
-                                 String taskId, DesktopDistro distro) {
+                                 String taskId, DesktopDistro distro, File readyFile) {
         String command = quote(python.getPath())
             + " -I -B " + quote(initializer) + " restore --de " + quote(distro.getDe().getStorageValue())
             + " --run-mode proot --alias " + quote(distro.getProotDistro())
             + " --host-gl-mode " + quote(distro.getHostGlMode().getStorageValue())
             + " --guest-gl-mode " + quote(distro.getGuestGlMode().getStorageValue())
             + " --usb-storage off --rendering-output " + quote(new File(result.getParentFile(), "rendering.env").getPath());
+        String preparation = "";
+        if (distro.getDe() == com.termux.ui.desktop.domain.DesktopDe.UBUNTU_GNOME) {
+            command += " --desktop-id " + quote(distro.getId())
+                + " --ready-file " + quote(readyFile.getPath())
+                + " --size " + quote(distro.getResolution())
+                + " --refresh-rate " + distro.getRefreshRate()
+                + " --render-socket " + quote(DesktopLaunchSpec.RENDER_SOCKET_PATH);
+            preparation = "DESKTOP_LOG_FILE=" + quote(log.getPath()) + "\n"
+                + "DESKTOP_PID_FILE=" + quote(new File(result.getParentFile(), "pid").getPath()) + "\n"
+                + "DESKTOP_STATUS_FILE=" + quote(new File(result.getParentFile(), "status").getPath()) + "\n"
+                + ". " + quote(new File(new File(initializer).getParentFile(), "desktop_common.sh").getPath()) + " || return $?\n"
+                + "prepare_desktop_audio host-pulseaudio || return $?\n";
+        }
         return "#!/data/data/com.termux/files/usr/bin/sh\n"
-            + command + " > " + quote(log.getPath()) + " 2>&1\ncode=$?\n"
+            + "initialize_restored() {\n" + preparation + command + "\n}\n"
+            + "initialize_restored > " + quote(log.getPath()) + " 2>&1\ncode=$?\n"
             + "temporary=" + quote(result.getPath()) + ".tmp.$$\n"
             + "(set -C; printf 'schemaVersion=1\ntaskId=%s\noperation=restore-initialize\nstate=%s\nexitCode=%s\n' "
             + quote(taskId) + " \"$([ \"$code\" -eq 0 ] && echo succeeded || echo failed)\" \"$code\" > \"$temporary\")"

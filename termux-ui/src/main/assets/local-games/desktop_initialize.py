@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import runpy
 import shlex
+import shutil
 import struct
 import subprocess
 
@@ -289,6 +290,22 @@ def prepare_plasma_cache(guest, env):
                    env=env, check=True, timeout=120)
 
 
+def restore_gnome_workspace(root):
+    """Discard only generated session state, never follow restored user links."""
+    parent = root.resolve(strict=True)
+    for part in ('home', 'termux', '.local', 'share'):
+        parent = parent / part
+        if parent.is_symlink() or not parent.is_dir():
+            raise RuntimeError('Restored GNOME workspace parent must be a real directory: ' + str(parent))
+    work = parent / 'termux-gnome'
+    if work.is_symlink():
+        work.unlink()
+    elif work.exists():
+        if not work.is_dir():
+            raise RuntimeError('Restored GNOME workspace must be a directory')
+        shutil.rmtree(work)
+
+
 def prepare_gnome_session(args, root, env):
     if not args.desktop_id or not args.ready_file or not args.size or not args.render_socket:
         raise ValueError('Saving a GNOME desktop requires its identity and output settings')
@@ -321,7 +338,7 @@ def initialize(args):
         if not args.size or not re.fullmatch(r'[0-9]{2,4}x[0-9]{2,4}', args.size):
             raise ValueError('Saving this desktop requires explicit output dimensions')
     # Revoke a previous preparation before any save-time validation can fail.
-    if args.de in ('gnome', 'ubuntu_gnome') and args.desktop_id:
+    if args.de in ('gnome', 'ubuntu_gnome') and args.desktop_id and getattr(args, 'command', None) != 'restore':
         saved_work = (Path(os.environ['HOME']) / ('.termux/gnome-' + args.desktop_id)
             if args.run_mode == 'native' else prefix / 'var/lib/proot-distro/containers' /
             args.alias / 'rootfs/home/termux/.local/share/termux-gnome')
@@ -453,6 +470,8 @@ def initialize(args):
         check_egl(guest + settings + ['eglinfo', '-p', 'surfaceless', '-B'], mode, env)
 
     if args.de in ('gnome', 'ubuntu_gnome'):
+        if getattr(args, 'command', None) == 'restore':
+            restore_gnome_workspace(root)
         prepare_gnome_session(args, root, env)
     elif args.de == 'hyprland':
         from types import SimpleNamespace
@@ -494,7 +513,7 @@ def main():
     if args.command == 'prepare-plasma':
         prepare_plasma(args.prefix)
     else:
-        if args.command == 'restore' and (args.run_mode != 'proot' or args.de not in ('kwin_plasma', 'xfce4') or args.usb_storage != 'off'):
+        if args.command == 'restore' and (args.run_mode != 'proot' or args.de not in ('kwin_plasma', 'xfce4', 'ubuntu_gnome') or args.usb_storage != 'off'):
             parser.error('Restore requires a supported container archive with USB off')
         initialize(args)
         if args.command == 'restore':
