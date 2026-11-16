@@ -7,7 +7,7 @@ desktop_resolve_rendering() {
     case "${DESKTOP_MODE:-}:${DESKTOP_DE:-}:$DESKTOP_HOST_GL_MODE:$DESKTOP_GUEST_GL_MODE" in
         native:xfce4:system:none|native:xfce4:zink:none|native:xfce4:llvmpipe:none|\
         native:kwin_plasma:system:none|native:kwin_plasma:zink:none|native:kwin_plasma:llvmpipe:none|\
-        native:gnome:system:none|native:ubuntu_gnome:system:none|native:hyprland:system:none|\
+        native:ubuntu_gnome:system:none|native:hyprland:system:none|\
         proot:xfce4:system:default|proot:xfce4:zink:default|proot:xfce4:llvmpipe:default|\
         proot:kwin_plasma:system:llvmpipe|proot:kwin_plasma:system:zink|proot:kwin_plasma:zink:llvmpipe|proot:kwin_plasma:zink:zink|proot:kwin_plasma:llvmpipe:llvmpipe|\
         proot:ubuntu_gnome:system:llvmpipe|\

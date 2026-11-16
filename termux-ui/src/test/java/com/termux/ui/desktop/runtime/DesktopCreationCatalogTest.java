@@ -25,13 +25,13 @@ public class DesktopCreationCatalogTest {
     }
 
     @Test
-    public void nativeOptionsHideCreatedEnvironments() {
+    public void nativeAvailabilityExcludesCreatedButCatalogKeepsAllFour() {
         List<DesktopDistro> existing = Collections.singletonList(
             desktop("n1", DesktopRunMode.NATIVE, "", DesktopDe.KWIN_PLASMA));
 
-        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.GNOME, DesktopDe.HYPRLAND, DesktopDe.UBUNTU_GNOME),
+        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.UBUNTU_GNOME, DesktopDe.HYPRLAND),
             DesktopCreationCatalog.nativeOptions(existing));
-        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.GNOME, DesktopDe.HYPRLAND, DesktopDe.UBUNTU_GNOME),
+        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.UBUNTU_GNOME, DesktopDe.HYPRLAND),
             DesktopCreationCatalog.nativeOptions(Collections.emptyList()));
     }
 
@@ -51,7 +51,7 @@ public class DesktopCreationCatalogTest {
             desktop("c1", DesktopRunMode.PROOT, "debian-xfce4-1", DesktopDe.XFCE4),
             desktop("c2", DesktopRunMode.PROOT, "debian-xfce4-2", DesktopDe.XFCE4));
 
-        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.HYPRLAND, DesktopDe.UBUNTU_GNOME),
+        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.UBUNTU_GNOME, DesktopDe.HYPRLAND),
             DesktopCreationCatalog.containerOptions());
         assertEquals(2, DesktopCreationCatalog.count(existing, "debian", DesktopDe.XFCE4));
     }
@@ -86,7 +86,9 @@ public class DesktopCreationCatalogTest {
             DesktopCreationCatalog.containerBase(DesktopDe.UBUNTU_GNOME), DesktopDe.UBUNTU_GNOME));
         assertTrue(DesktopDe.XFCE4.isCreatable());
         assertTrue(DesktopDe.KWIN_PLASMA.isCreatable());
-        assertTrue(DesktopDe.GNOME.isCreatable());
+        assertFalse(DesktopDe.GNOME.isCreatable());
+        assertFalse(DesktopDe.GNOME.supportsNative());
+        assertFalse(DesktopDe.GNOME.supportsProot());
         assertEquals("gnome",DesktopDe.GNOME.getStorageValue());
         assertEquals(DesktopDe.GNOME,DesktopDe.fromStorageValue("gnome"));
     }

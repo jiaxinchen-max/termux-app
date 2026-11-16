@@ -5,7 +5,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.LinearLayout;
+import android.widget.GridLayout;
+import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -56,6 +57,9 @@ public final class DesktopCreateActivity extends AppUiActivity {
 
     private String container = DesktopCreationCatalog.DEFAULT_CONTAINER;
     private DesktopDe de;
+    private String restoredName;
+    private DesktopDe namedDe;
+    private String suggestedName;
     private String resolution = DesktopDistro.DEFAULT_RESOLUTION;
     private int refreshRate = DesktopDistro.DEFAULT_REFRESH_RATE;
     private DesktopGlMode hostGlMode;
@@ -132,6 +136,19 @@ public final class DesktopCreateActivity extends AppUiActivity {
         bindSelect(binding.desktopCreateHyprlandTheme, R.string.desktop_hyprland_theme,
             themeLabels(this), () -> themeLabel(this, hyprlandTheme), value -> hyprlandTheme = themeOf(this, value));
         binding.desktopCreateAction.setOnClickListener(view -> create());
+        binding.desktopCreateDes.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (right - left != oldRight - oldLeft) populate();
+        });
+        if (savedInstanceState != null) {
+            String selected = savedInstanceState.getString("desktop-de");
+            if (selected != null) de = DesktopDe.valueOf(selected);
+            resolution = savedInstanceState.getString("desktop-resolution", resolution);
+            refreshRate = savedInstanceState.getInt("desktop-refresh", refreshRate);
+            hostGlMode = DesktopGlMode.valueOf(savedInstanceState.getString("desktop-host", hostGlMode.name()));
+            guestGlMode = DesktopGuestGlMode.valueOf(savedInstanceState.getString("desktop-guest", guestGlMode.name()));
+            restoredName = savedInstanceState.getString("desktop-name");
+        }
         load();
     }
 
@@ -145,6 +162,7 @@ public final class DesktopCreateActivity extends AppUiActivity {
             }
             final List<DesktopDistro> distros = loaded;
             runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
                 existing = distros;
                 populate();
             });
@@ -154,32 +172,55 @@ public final class DesktopCreateActivity extends AppUiActivity {
     private void populate() {
         LayoutInflater inflater = getLayoutInflater();
         binding.desktopCreateDes.removeAllViews();
-        List<DesktopDe> options = mode == DesktopRunMode.NATIVE
-            ? DesktopCreationCatalog.nativeOptions(existing)
-            : DesktopCreationCatalog.containerOptions();
-        if (de == null || !options.contains(de)) {
-            de = options.isEmpty() ? null : options.get(0);
+        List<DesktopDe> options = DesktopCreationCatalog.environments();
+        List<DesktopDe> available = mode == DesktopRunMode.NATIVE
+            ? DesktopCreationCatalog.nativeOptions(existing) : options;
+        if (de == null || !available.contains(de)) {
+            de = available.isEmpty() ? null : available.get(0);
+            hostGlMode = DesktopGlMode.SYSTEM;
+            guestGlMode = mode == DesktopRunMode.NATIVE ? DesktopGuestGlMode.NONE
+                : de == DesktopDe.KWIN_PLASMA || de == DesktopDe.UBUNTU_GNOME
+                    ? DesktopGuestGlMode.LLVMPIPE : DesktopGuestGlMode.DEFAULT;
         }
-
+        float density = getResources().getDisplayMetrics().density;
+        int width = binding.desktopCreateDes.getWidth();
+        if (width <= 0) width = getResources().getDisplayMetrics().widthPixels
+            - 2 * getResources().getDimensionPixelSize(R.dimen.local_games_page_horizontal_padding);
+        int availableDp = Math.max(1, Math.round(width / density));
+        float scale = getResources().getConfiguration().fontScale;
+        int columns = DesktopCardLayout.columns(availableDp, scale);
+        binding.desktopCreateDes.setColumnCount(columns);
         if (de != null && de.isGnomeSession()) refreshRate = 60;
-        for (DesktopDe candidate : options) {
-            boolean creatable = true;
-            binding.desktopCreateDes.addView(optionRow(inflater, iconOf(candidate),
-                deLabel(candidate), deDesc(candidate), creatable,
-                creatable && candidate == de,
-                creatable ? view -> selectDe(candidate) : null));
+        for (int index = 0; index < options.size(); index++) {
+            DesktopDe candidate = options.get(index);
+            boolean creatable = available.contains(candidate);
+            View card = optionCard(inflater, candidate, creatable, candidate == de);
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = Math.round(DesktopCardLayout.widthDp(availableDp, scale) * density);
+            params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            params.columnSpec = GridLayout.spec(index % columns);
+            params.rowSpec = GridLayout.spec(index / columns);
+            int margin = Math.round(3 * density);
+            params.setMargins(margin, margin, margin, margin);
+            card.setLayoutParams(params);
+            binding.desktopCreateDes.addView(card);
         }
         if (de == null) {
             // Every native environment exists already.
-            binding.desktopCreateNote.setText(R.string.desktop_create_native_note);
+            binding.desktopCreateNote.setText(R.string.desktop_card_all_created);
             binding.desktopCreateAction.setEnabled(false);
             return;
         }
         binding.desktopCreateAction.setEnabled(!saveState.saving);
         syncDynamicFields();
+        if (restoredName != null) {
+            binding.desktopCreateName.setText(restoredName);
+            restoredName = null;
+        }
     }
 
     private void selectDe(DesktopDe selected) {
+        if (saveState.saving) return;
         if (selected != de) {
             hostGlMode = DesktopGlMode.SYSTEM;
             guestGlMode = mode == DesktopRunMode.NATIVE ? DesktopGuestGlMode.NONE
@@ -190,6 +231,7 @@ public final class DesktopCreateActivity extends AppUiActivity {
     }
 
     private void syncDynamicFields() {
+        if (de == null) return;
         binding.desktopCreateHyprlandRuntime.getRoot().setVisibility(de == DesktopDe.HYPRLAND ? View.VISIBLE : View.GONE);
         binding.desktopCreateHyprlandTheme.getRoot().setVisibility(de == DesktopDe.HYPRLAND ? View.VISIBLE : View.GONE);
         binding.desktopCreateResolution.desktopSelectValue.setText(resolution);
@@ -205,11 +247,14 @@ public final class DesktopCreateActivity extends AppUiActivity {
             String alias = DesktopCreationCatalog.nextInstanceAlias(existing, container, de);
             binding.desktopCreateAlias.setText(getString(R.string.desktop_create_alias) + ": "
                 + alias);
-            binding.desktopCreateName.setText(deLabel(de) + " #"
-                + alias.substring(alias.lastIndexOf('-') + 1));
+            String nextName = deLabel(de) + " #" + alias.substring(alias.lastIndexOf('-') + 1);
+            if (namedDe != de || String.valueOf(binding.desktopCreateName.getText()).equals(suggestedName))
+                binding.desktopCreateName.setText(nextName);
+            suggestedName = nextName;
         } else {
             binding.desktopCreateName.setText(deLabel(de));
         }
+        namedDe = de;
     }
 
     /** A stand-in entry so {@link DesktopCreationCatalog#instanceLabel} numbers the next one. */
@@ -276,6 +321,12 @@ public final class DesktopCreateActivity extends AppUiActivity {
 
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putString("hyprland-theme", hyprlandTheme);
+        if (de != null) state.putString("desktop-de", de.name());
+        state.putString("desktop-resolution", resolution);
+        state.putInt("desktop-refresh", refreshRate);
+        state.putString("desktop-host", hostGlMode.name());
+        state.putString("desktop-guest", guestGlMode.name());
+        state.putString("desktop-name", String.valueOf(binding.desktopCreateName.getText()));
         super.onSaveInstanceState(state);
     }
 
@@ -308,11 +359,13 @@ public final class DesktopCreateActivity extends AppUiActivity {
         row.desktopSelectLabel.setText(labelRes);
         row.desktopSelectValue.setText(current.get());
         row.desktopSelectRoot.setOnClickListener(view -> {
+            if (saveState.saving) return;
             String[] values = choices.get();
             new FrostedDialogBuilder(this)
                 .setTitle(labelRes)
                 .setSingleChoiceItems(values, indexOf(values, current.get()),
                     (dialog, which) -> {
+                        if (saveState.saving) { dialog.dismiss(); return; }
                         apply.set(values[which]);
                         row.desktopSelectValue.setText(current.get());
                         syncDynamicFields();
@@ -399,19 +452,22 @@ public final class DesktopCreateActivity extends AppUiActivity {
         }
     }
 
-    private View optionRow(LayoutInflater inflater, String icon, String title, String desc,
-                           boolean enabled, boolean selected, @Nullable View.OnClickListener click) {
+    private View optionCard(LayoutInflater inflater, DesktopDe candidate, boolean enabled,
+                            boolean selected) {
         ItemDesktopOptionBinding row = ItemDesktopOptionBinding.inflate(inflater,
             binding.desktopCreateDes, false);
-        row.desktopOptionIcon.setText(icon);
-        row.desktopOptionTitle.setText(title);
-        row.desktopOptionDesc.setText(desc);
+        row.desktopOptionTitle.setText(deLabel(candidate));
+        row.desktopOptionIcon.setImageResource(DesktopCardAppearance.art(candidate));
+        row.desktopOptionRoot.setBackgroundResource(DesktopCardAppearance.cover(candidate));
         row.desktopOptionCheck.setVisibility(selected ? View.VISIBLE : View.GONE);
+        row.desktopOptionSelection.setVisibility(selected ? View.VISIBLE : View.GONE);
         row.desktopOptionSoon.setVisibility(enabled ? View.GONE : View.VISIBLE);
-        row.desktopOptionRoot.setBackground(getDrawable(selected
-            ? R.drawable.desktop_bg_option_selected : R.drawable.desktop_bg_option));
-        row.desktopOptionRoot.setAlpha(enabled ? 1f : 0.45f);
-        if (click != null) row.desktopOptionRoot.setOnClickListener(click);
+        row.desktopOptionRoot.setAlpha(enabled ? 1f : 0.65f);
+        row.desktopOptionRoot.setSelected(selected);
+        row.desktopOptionRoot.setEnabled(enabled && !saveState.saving);
+        row.desktopOptionRoot.setContentDescription(deLabel(candidate)
+            + (enabled ? "" : ", " + getString(R.string.desktop_card_created)));
+        if (enabled) row.desktopOptionRoot.setOnClickListener(view -> selectDe(candidate));
         return row.getRoot();
     }
 

@@ -1,0 +1,61 @@
+change_id: unify-desktop-types-cover-grid
+stage: handoff
+status: ImplementedPendingAcceptance
+source_commit: cc113220e01cc1cfcae787d8ae53020e178cfa59
+branch: master-x11-submodule-tmp
+approval:
+  requirements: Approved
+  implementation: Approved
+  protected_paths: Approved
+  reason: 用户明确确认“这个ui设计的不错，就照这个来”，覆盖当前方案及安装／启动类型白名单。
+api_docs:
+  status: N/A
+  reason: 仅 Android 本地选择页及本地类型约束，不修改 HTTP 契约。
+product_docs:
+  status: Required
+  documents: [docs/product/desktop-management.md]
+  planned_content: 两种模式统一四类型、自适应紧凑封面卡片、Native 唯一性与 PRoot 重复创建、安装扫描光带、完整深浅主题及实体启动按钮与二次确认。
+consistency:
+  status: Pending
+  evidence: openspec/changes/unify-desktop-types-cover-grid/verification.md
+  findings: openspec/changes/unify-desktop-types-cover-grid/review-findings.yaml
+verification:
+  strict_gate: unavailable
+  reason: 仓库缺少规定的 Harness 引导文件、strict verify 脚本及 OpenSpec CLI。
+  implementation_tests: PassedFocusedWithBroaderFailuresRecorded
+readiness: PendingDeviceAcceptance
+installation_animation:
+  request: 用户截图要求将安装圆环换成从左至右扫过的动画。
+  source: termux-ui/src/main/res/layout/item_desktop.xml
+  preview: /home/user/workspace/artifacts/desktop-install-animation/index.html
+  status: ImplementedAndUnitVerified
+launch_interaction:
+  request: 用户追加深浅主题、左下实体启动按钮和防误触二次确认。
+  status: ImplementedAndUnitVerified
+  confirmation_boundary: 进入能够自动启动桌面的会话页之前。
+  card_body_launch: disabled
+compact_visual_revision:
+  request: 用户认为封面和按钮过大，要求更紧凑。
+  preview_cover_px: 52
+  preview_card_gap_px: 6
+  preview_button_visible_height_px: 28
+  hit_target_height_px: 48
+  status: ImplementedAndLayoutVerified
+  name_position: cover_bottom_left_with_gradient
+  duplicate_body_name: removed
+adaptive_layout_revision:
+  request: 用户提出卡宽约为前版80%即可，或参考Wine程序卡片，不必两行两列。
+  fixed_two_by_two: false
+  preview_card_width_px: 128
+  baseline_content_padding_dp: 6
+  baseline_title_sp: 12
+  baseline_secondary_sp: 9
+  status: ImplementedAndLayoutVerified
+git_authorization:
+  status: Approved
+  source: 用户既有指令“任务完成后推送代码保存进度”，本轮“这个ui设计的不错，就照这个来”。
+verification_results: openspec/changes/unify-desktop-types-cover-grid/verification-results.json
+limitations:
+  - 未执行实机视觉验收；未构建或部署 APK。
+  - Harness strict 门禁和规定引导文件缺失，未冒称通过。
+  - 扩展回归的会话退出测试超时；模块边界脚本命中基线既有的广播 action 字符串。

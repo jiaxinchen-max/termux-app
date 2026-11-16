@@ -95,6 +95,27 @@ public class DesktopMutationTest {
         } finally { synchronized (DesktopOperationGate.LOCK) { DesktopOperationGate.releaseArchive(); } }
     }
 
+    @Test public void retiredRecordsCanBeDeletedButNeverSavedInstalledOrLaunched() throws Exception {
+        DesktopTasks tasks = new DesktopTasks(RuntimeEnvironment.getApplication());
+        for (DesktopRunMode mode : DesktopRunMode.values()) {
+            DesktopDistro distro = new DesktopDistro("retired-" + mode.name(), "Old GNOME", mode,
+                mode == DesktopRunMode.PROOT ? "ubuntu-gnome-1" : "", DesktopDe.GNOME,
+                DesktopGlMode.SYSTEM, mode == DesktopRunMode.PROOT ? DesktopGuestGlMode.LLVMPIPE
+                    : DesktopGuestGlMode.NONE, "1280x720", 60, DesktopUsbStorageMode.OFF);
+            repository.save(distro);
+            write(paths.getDesktopStatusFile(distro.getId()), "stopped\n");
+            assertThrows(IOException.class, () -> tasks.save(distro.withName("Cannot save")));
+            assertThrows(LaunchHostException.class, () -> tasks.install(distro));
+            LaunchHostException retired = assertThrows(LaunchHostException.class, () -> tasks.start(distro));
+            assertEquals("desktop_type_retired", retired.getErrorCode());
+            assertEquals("Old GNOME", repository.find(distro.getId()).get().getName());
+            assertEquals("stopped\n", new String(Files.readAllBytes(
+                paths.getDesktopStatusFile(distro.getId()).toPath()), StandardCharsets.US_ASCII));
+            tasks.delete(distro);
+            assertFalse(repository.find(distro.getId()).isPresent());
+        }
+    }
+
     private DesktopDistro desktop(DesktopRunMode backend) {
         return new DesktopDistro("desktop-" + UUID.randomUUID(), "Desktop", backend, backend == DesktopRunMode.PROOT ? "test-container" : "", DesktopDe.XFCE4, backend == DesktopRunMode.PROOT ? DesktopGlMode.LLVMPIPE : DesktopGlMode.SYSTEM, (backend == DesktopRunMode.NATIVE ? DesktopGuestGlMode.NONE : DesktopGuestGlMode.DEFAULT), "1280x720", 60, DesktopUsbStorageMode.OFF);
     }

@@ -13,7 +13,7 @@ import java.util.List;
  * What the create screens offer, given what already exists. Pure: the activities only render it.
  *
  * <p>Native desktops run their compositor directly on the host, so one instance per environment
- * is all that makes sense: created environments leave the option list. Container desktops own a
+ * is allowed: the UI marks created environments unavailable. Container desktops own a
  * proot container instance each, so the same environment can be created again and again.
  */
 public final class DesktopCreationCatalog {
@@ -31,7 +31,7 @@ public final class DesktopCreationCatalog {
     /** Native: creatable environments that no existing native desktop uses yet. */
     public static List<DesktopDe> nativeOptions(List<DesktopDistro> existing) {
         List<DesktopDe> options = new ArrayList<>();
-        for (DesktopDe de : DesktopDe.values()) {
+        for (DesktopDe de : environments()) {
             if (!de.supportsNative() || count(existing, null, de) > 0) continue;
             options.add(de);
         }
@@ -40,9 +40,8 @@ public final class DesktopCreationCatalog {
 
     /** Container: every creatable environment, repeats allowed. */
     public static List<DesktopDe> containerOptions() {
-        List<DesktopDe> options = new ArrayList<>();
-        for (DesktopDe de : DesktopDe.values()) if (de.supportsProot()) options.add(de);
-        return options;
+        return new ArrayList<>(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA,
+            DesktopDe.UBUNTU_GNOME, DesktopDe.HYPRLAND));
     }
 
     /** Supported bases, assigned automatically by the desktop profile. */

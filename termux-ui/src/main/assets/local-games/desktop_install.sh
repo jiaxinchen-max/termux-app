@@ -30,8 +30,8 @@ fi
 . "$SPEC_PATH"
 . "$(dirname "$0")/desktop_common.sh"
 
-if [ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" = proot:gnome ]; then
-    log 'Independent GNOME containers are retired; create a supported desktop. Existing containers can still be deleted.'
+if [ "${DESKTOP_DE:-}" = gnome ]; then
+    log 'Independent GNOME is retired; create Ubuntu GNOME instead. Existing records can still be deleted.'
     printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"
     exit 64
 fi
@@ -68,7 +68,7 @@ trap 'exit 129' HUP
 desktop_resolve_rendering || { log 'Unsupported host/container renderer pair; choose compatible renderers explicitly.'; exit 64; }
 case "${DESKTOP_MODE:-}" in native|proot) ;; *) log 'Explicit desktop run mode required'; exit 64 ;; esac
 [ "$OPERATION" != host-prerequisites ] || [ "$DESKTOP_MODE" = proot ] || { log 'Host prerequisites require PROOT mode'; exit 64; }
-case "${DESKTOP_DE:-}" in xfce4|kwin_plasma|gnome|ubuntu_gnome|hyprland) ;; *) log 'Unsupported desktop environment'; exit 64 ;; esac
+case "${DESKTOP_DE:-}" in xfce4|kwin_plasma|ubuntu_gnome|hyprland) ;; *) log 'Unsupported desktop environment'; exit 64 ;; esac
 case "${DESKTOP_COMPONENT_RENDERER:-}" in system|zink|llvmpipe) ;; *) log 'Explicit system, zink or llvmpipe renderer required'; exit 64 ;; esac
 if [ "$DESKTOP_DE" = hyprland ]; then
     [ "$OPERATION" = install ] && [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:system ] || {

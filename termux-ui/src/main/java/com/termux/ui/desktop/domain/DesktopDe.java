@@ -4,7 +4,7 @@ package com.termux.ui.desktop.domain;
 public enum DesktopDe {
     XFCE4("xfce4", true),
     KWIN_PLASMA("kwin_plasma", true),
-    GNOME("gnome", true),
+    GNOME("gnome", false),
     HYPRLAND("hyprland", true),
     UBUNTU_GNOME("ubuntu_gnome", true);
 
@@ -23,7 +23,7 @@ public enum DesktopDe {
 
     public boolean supportsNative() { return creatable; }
 
-    /** Independent GNOME containers are retired; Native GNOME remains supported. */
+    /** Independent GNOME is retired in both modes; Ubuntu GNOME remains supported. */
     public boolean supportsProot() { return creatable && this != GNOME; }
 
     public boolean isGnomeSession() { return this == GNOME || this == UBUNTU_GNOME; }

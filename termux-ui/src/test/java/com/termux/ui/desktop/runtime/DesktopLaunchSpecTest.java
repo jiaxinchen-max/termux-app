@@ -99,16 +99,10 @@ public class DesktopLaunchSpecTest {
         assertThrows(IllegalArgumentException.class, () ->
             DesktopLaunchSpec.encode(distro, "a.pid", "/a.status", "/a.log"));
     }
-    @Test public void gnomeSpecSelectsExactBackendRendererAndContainerRelease() {
+    @Test public void retiredGnomeSpecIsRejectedInBothModes() {
         DesktopDistro nativeGnome=new DesktopDistro("g", "GNOME", DesktopRunMode.NATIVE, "", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 60, DesktopUsbStorageMode.OFF);
-        Map<String,String> nativeSpec=parse(DesktopLaunchSpec.encode(nativeGnome,"/p","/s","/l"));
-        assertEquals("gnome",nativeSpec.get("DESKTOP_DE"));
-        assertEquals("android",nativeSpec.get("DESKTOP_GNOME_BACKEND"));
-        assertEquals("direct",nativeSpec.get("DESKTOP_GNOME_SESSION_STARTUP"));
-        assertEquals("system",nativeSpec.get("DESKTOP_GNOME_RENDERER"));
-        assertEquals("60",nativeSpec.get("DESKTOP_REFRESH_RATE"));
-        assertFalse(nativeSpec.containsKey("DESKTOP_GNOME_DISPLAY_GL_MODE"));
-        assertFalse(nativeSpec.containsKey("DESKTOP_GNOME_DISPLAY_BUFFER_MODE"));
+        assertTrue(assertThrows(IllegalArgumentException.class,
+            () -> DesktopLaunchSpec.encode(nativeGnome,"/p","/s","/l")).getMessage().contains("retired"));
         DesktopDistro prootGnome=new DesktopDistro("gp", "GNOME", DesktopRunMode.PROOT, "debian-gnome-1", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.LLVMPIPE, "1920x1080", 90, DesktopUsbStorageMode.OFF);
         assertTrue(assertThrows(IllegalArgumentException.class,
             () -> DesktopLaunchSpec.encode(prootGnome,"/p","/s","/l")).getMessage().contains("retired"));

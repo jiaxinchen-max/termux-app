@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_card_created">Created</string>
+    <string name="desktop_card_all_created">All native desktop types have been created.</string>
+    <string name="desktop_action_start">Start</string>
+    <string name="desktop_action_enter">Enter</string>
+    <string name="desktop_start_title">Start desktop</string>
+    <string name="desktop_enter_title">Enter desktop</string>
+    <string name="desktop_start_confirm">Open “%1$s” in %2$s mode?</string>
+</resources>

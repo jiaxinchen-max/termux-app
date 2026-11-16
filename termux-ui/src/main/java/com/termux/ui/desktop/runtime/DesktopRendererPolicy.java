@@ -62,8 +62,8 @@ public final class DesktopRendererPolicy {
     }
 
     public static void requireSupported(DesktopDistro distro) {
-        if (distro.getRunMode() == DesktopRunMode.PROOT && !distro.getDe().supportsProot())
-            throw new IllegalArgumentException("Independent GNOME containers are retired; create a supported desktop. Existing containers can still be deleted.");
+        if (!distro.getDe().isCreatable())
+            throw new IllegalArgumentException("Independent GNOME is retired; create Ubuntu GNOME instead. Existing records can still be deleted.");
         if (distro.getUsbStorage()==DesktopUsbStorageMode.READ_ONLY
                 && distro.getDe()!=DesktopDe.GNOME && distro.getDe()!=DesktopDe.XFCE4)
             throw new IllegalArgumentException("desktop_usb_storage_requires_gio_sidebar");

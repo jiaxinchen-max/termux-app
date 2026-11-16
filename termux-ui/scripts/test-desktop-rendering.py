@@ -11,7 +11,7 @@ import unittest
 ASSETS = Path(__file__).resolve().parents[1] / 'src/main/assets/local-games'
 PAIRS = set('''native:xfce4:system:none native:xfce4:zink:none native:xfce4:llvmpipe:none
 native:kwin_plasma:system:none native:kwin_plasma:zink:none native:kwin_plasma:llvmpipe:none
-native:gnome:system:none native:ubuntu_gnome:system:none native:hyprland:system:none
+native:ubuntu_gnome:system:none native:hyprland:system:none
 proot:xfce4:system:default proot:xfce4:zink:default proot:xfce4:llvmpipe:default
 proot:kwin_plasma:system:llvmpipe proot:kwin_plasma:system:zink proot:kwin_plasma:zink:llvmpipe proot:kwin_plasma:zink:zink proot:kwin_plasma:llvmpipe:llvmpipe
 proot:ubuntu_gnome:system:llvmpipe
@@ -48,6 +48,33 @@ class DesktopRenderingTest(unittest.TestCase):
             self.assertEqual(0 if pair in PAIRS else 64, result.returncode, pair + result.stderr)
             if pair in PAIRS:
                 self.assertEqual(host+':'+guest, result.stdout)
+
+    def testRetiredGnomeInstallerAndLauncherRejectBeforeExternalCommands(self):
+        with tempfile.TemporaryDirectory(prefix='retired-desktop-') as directory:
+            base = Path(directory)
+            command_dir = base / 'bin'; command_dir.mkdir()
+            called = base / 'external-called'
+            for name in ('apt', 'proot-distro', 'gnome-shell', 'pkill'):
+                stub = command_dir / name
+                stub.write_text('#!/bin/sh\n: > ' + shlex.quote(str(called)) + '\nexit 99\n')
+                stub.chmod(0o755)
+            env = dict(os.environ, PATH=str(command_dir) + ':' + os.environ['PATH'])
+            for mode in ('native', 'proot'):
+                spec = base / 'spec'
+                status = base / 'status'
+                values = dict(DESKTOP_SPEC_VERSION='3', DESKTOP_ID='retired', DESKTOP_MODE=mode,
+                              DESKTOP_DE='gnome', DESKTOP_HOST_GL_MODE='system',
+                              DESKTOP_GUEST_GL_MODE='none' if mode == 'native' else 'llvmpipe',
+                              DESKTOP_STATUS_FILE=str(status), DESKTOP_LOG_FILE=str(base/'log'),
+                              DESKTOP_PID_FILE=str(base/'pid'))
+                spec.write_text(''.join(k+'='+shlex.quote(v)+'\n' for k,v in values.items()))
+                for script, args in (('desktop_install.sh', ['--operation=install']),
+                                     ('desktop_start.sh', [])):
+                    result = subprocess.run(['sh', str(ASSETS/script), str(spec)] + args,
+                                            env=env, capture_output=True, text=True, timeout=3)
+                    self.assertEqual(64, result.returncode, mode + script + result.stderr)
+                    self.assertFalse(called.exists())
+                    self.assertEqual('exit:64\n', status.read_text())
 
     def testOldAndMissingSpecVersionsAreRejected(self):
         for version in ('', '1', '2'):

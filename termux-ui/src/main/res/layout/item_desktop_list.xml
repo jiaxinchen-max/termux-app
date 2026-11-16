@@ -12,10 +12,14 @@
     app:strokeWidth="0dp">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:gravity="center_vertical" android:padding="8dp">
-        <ImageView android:layout_width="48dp" android:layout_height="48dp"
-            android:layout_marginEnd="12dp" android:padding="8dp"
-            android:importantForAccessibility="no" android:src="@drawable/local_games_ic_desktop"
-            app:tint="@color/local_games_on_surface_secondary" />
+        <FrameLayout android:layout_width="56dp" android:layout_height="52dp" android:layout_marginEnd="8dp">
+            <ImageView android:id="@+id/desktop_cover" android:layout_width="match_parent" android:layout_height="match_parent"
+                android:background="@drawable/desktop_cover_ubuntu" android:padding="0dp"
+                android:importantForAccessibility="no" android:src="@drawable/desktop_art_ubuntu" />
+            <com.termux.ui.desktop.activity.DesktopInstallProgressView android:id="@+id/desktop_install_progress"
+                android:layout_width="match_parent" android:layout_height="3dp" android:layout_gravity="bottom"
+                android:layout_margin="3dp" android:visibility="gone" />
+        </FrameLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:orientation="vertical">
         <TextView android:id="@+id/desktop_name"
@@ -37,22 +41,23 @@
         </LinearLayout>
         <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginStart="8dp" android:orientation="vertical" android:gravity="center">
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/desktop_primary"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="72dp" android:layout_height="40dp"
-            android:insetTop="0dp" android:insetBottom="0dp"
-            android:minWidth="0dp" android:minHeight="0dp" android:padding="0dp"
-            android:textAllCaps="false" android:textSize="12sp"
-            android:textColor="@color/local_games_on_surface" />
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/desktop_more"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="48dp" android:layout_height="40dp"
-            android:insetTop="0dp" android:insetBottom="0dp"
-            android:minWidth="0dp" android:minHeight="0dp" android:padding="0dp"
-            android:textAllCaps="false" android:textSize="12sp"
-            android:textColor="@color/local_games_on_surface" android:contentDescription="@string/desktop_more" android:text="⋯" />
+            <com.google.android.material.button.MaterialButton
+                    android:id="@+id/desktop_primary"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:minWidth="48dp" android:minHeight="48dp"
+                    android:insetTop="10dp" android:insetBottom="10dp"
+                    android:paddingStart="7dp" android:paddingEnd="7dp"
+                    android:textAllCaps="false" android:textSize="10sp" android:maxLines="2"
+                    android:textColor="@color/local_games_on_primary"
+                    app:backgroundTint="@color/local_games_primary" app:cornerRadius="6dp" />
+            <com.google.android.material.button.MaterialButton
+                    android:id="@+id/desktop_more" style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="48dp" android:layout_height="48dp"
+                    android:minWidth="0dp" android:minHeight="0dp" android:padding="0dp"
+                    android:insetTop="0dp" android:insetBottom="0dp"
+                    android:text="⋯" android:textSize="18sp"
+                    android:textColor="@color/local_games_on_surface_secondary"
+                    android:contentDescription="@string/desktop_more" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

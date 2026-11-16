@@ -224,7 +224,7 @@ public class DesktopEnvironmentTest {
         try (FileWriter writer = new FileWriter(log)) { writer.write("starting kwin\n"); }
         assertFalse(DesktopEnvironment.logShowsReady(log));
     }
-    @Test public void gnomeNativeRequiresPythonAndRealSessionPrograms() throws Exception {
+    @Test public void retiredGnomeNativeNeverCountsAsInstalled() throws Exception {
         DesktopEnvironment env=new DesktopEnvironment(temporaryFolder.getRoot());
         DesktopDistro d=new DesktopDistro("gn", "GNOME", DesktopRunMode.NATIVE, "", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 60, DesktopUsbStorageMode.OFF);
         touch("usr/bin/python3");touch("usr/bin/gnome-shell");assertFalse(env.isInstalled(d));
@@ -232,13 +232,13 @@ public class DesktopEnvironmentTest {
         touch("usr/libexec/termux-gnome/launch.py");assertFalse(env.isInstalled(d));
         String[] services={"ca.desrt.dconf", "org.gtk.vfs.Daemon", "org.gnome.Nautilus"};
         for (String service:services) touch("usr/share/dbus-1/services/"+service+".service");
-        assertTrue(env.isInstalled(d));
+        assertFalse(env.isInstalled(d));
         for (String service:services) {
             File file=new File(temporaryFolder.getRoot(),"usr/share/dbus-1/services/"+service+".service");
             assertTrue(file.delete());
             assertFalse(env.isInstalled(d));
             touch("usr/share/dbus-1/services/"+service+".service");
-            assertTrue(env.isInstalled(d));
+            assertFalse(env.isInstalled(d));
         }
         assertTrue(env.gnomeWaylandSocket(d).getPath().endsWith("home/.termux/gnome-gn/runtime/wayland-gnome"));
     }

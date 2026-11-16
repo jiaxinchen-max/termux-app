@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Create screen: option rows for container + desktop environment, dropdown parameter rows,
+<!-- Create screen: compact desktop cover choices, dropdown parameter rows,
      a name field for container desktops and the create action. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -65,11 +65,11 @@
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
-            <LinearLayout
+            <GridLayout
                 android:id="@+id/desktop_create_des"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical" />
+                android:alignmentMode="alignMargins" />
 
             <TextView
                 android:id="@+id/desktop_create_note"

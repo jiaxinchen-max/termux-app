@@ -372,6 +372,8 @@ public final class DesktopTasks {
      * after, so call this once the session view is bound.
      */
     public void start(@NonNull DesktopDistro distro) throws LaunchHostException {
+        if (!distro.getDe().isCreatable())
+            throw new LaunchHostException("desktop_type_retired", true, null);
         synchronized (DesktopOperationGate.LOCK) {
             try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
                 throw new LaunchHostException("desktop_archive_busy", true, busy);

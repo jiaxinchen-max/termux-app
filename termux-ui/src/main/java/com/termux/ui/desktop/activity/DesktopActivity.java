@@ -22,7 +22,6 @@ import androidx.core.content.ContextCompat;
 import com.termux.ui.R;
 import com.termux.ui.activity.AppUiActivity;
 import com.termux.ui.activity.FrostedDialogBuilder;
-import com.termux.ui.activity.LibraryGridColumns;
 import com.termux.ui.activity.PrefixSetupConsoleDialog;
 import com.termux.ui.activity.UiNavigation;
 import com.termux.ui.activity.CollectionToolbar;
@@ -87,6 +86,9 @@ public final class DesktopActivity extends AppUiActivity {
     private CollectionToolbar collectionToolbar;
     private DesktopTasks tasks;
     private boolean destroyed;
+    private boolean primaryPending;
+    private String enteringId;
+    @Nullable private androidx.appcompat.app.AlertDialog launchConfirmation;
     private volatile boolean resumed;
     @Nullable private List<Object> renderedKey;
     private DesktopRunMode tab = DesktopRunMode.NATIVE;
@@ -101,6 +103,10 @@ public final class DesktopActivity extends AppUiActivity {
         binding = ActivityDesktopBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         tasks = new DesktopTasks(this);
+        binding.desktopItems.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (!destroyed && right - left != oldRight - oldLeft) render(shownDistros, shownStates);
+        });
         if (savedInstanceState != null) {
             ArrayList<String> handled = savedInstanceState.getStringArrayList("desktop-handled-creations");
             if (handled != null) handledCreations.addAll(handled);
@@ -118,6 +124,8 @@ public final class DesktopActivity extends AppUiActivity {
     protected void onResume() {
         super.onResume();
         resumed = true;
+        enteringId = null;
+        setProgressActive(true);
         DesktopArchiveFlow.instance().attach(this, this::renderArchiveStatus, this::refresh);
         refresh();
     }
@@ -125,6 +133,7 @@ public final class DesktopActivity extends AppUiActivity {
     @Override
     protected void onPause() {
         resumed = false;
+        setProgressActive(false);
         handler.removeCallbacks(refreshTick);
         DesktopArchiveFlow.instance().detach(this);
         super.onPause();
@@ -143,6 +152,7 @@ public final class DesktopActivity extends AppUiActivity {
     @Override
     protected void onDestroy() {
         destroyed = true;
+        if (launchConfirmation != null) launchConfirmation.dismiss();
         handler.removeCallbacks(refreshTick);
         ioExecutor.shutdown();
         binding = null;
@@ -228,6 +238,7 @@ public final class DesktopActivity extends AppUiActivity {
         key.add(gridWidth);
         key.add(getResources().getDisplayMetrics().densityDpi);
         key.add(isLandscape());
+        key.add(getResources().getConfiguration().fontScale);
         for (int index = 0; index < distros.size(); index++) {
             DesktopDistro distro = distros.get(index);
             if (distro.getRunMode() != tab) continue;
@@ -251,8 +262,9 @@ public final class DesktopActivity extends AppUiActivity {
         grid.removeAllViews();
         binding.desktopCount.setText(collectionToolbar.getRuntimeCountText(modeDistros.size()));
         grid.setVisibility(View.VISIBLE);
-        int columns = collectionToolbar.isList() ? 1 : LibraryGridColumns.columnsFor(
-            Math.round(gridWidth / getResources().getDisplayMetrics().density), isLandscape());
+        int columns = collectionToolbar.isList() ? 1 : DesktopCardLayout.columns(
+            Math.round(gridWidth / getResources().getDisplayMetrics().density),
+            getResources().getConfiguration().fontScale);
         grid.setColumnCount(columns);
         for (int index = 0; index < modeDistros.size(); index++) {
             ItemDesktopBinding card = ItemDesktopBinding.bind(getLayoutInflater().inflate(
@@ -296,16 +308,17 @@ public final class DesktopActivity extends AppUiActivity {
         createDesktop.launch(DesktopCreateActivity.createIntent(this, tab));
     }
 
-    /** Places a card in its grid cell with the Library's width, gutter and margins. */
+    /** Keeps compact cards at their preferred width as the window grows. */
     private void place(View card, int index, int columns, int gridWidth, boolean fillRow) {
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
-        params.width = LibraryGridColumns.cardWidthPx(gridWidth, columns, dp(4),
-            getResources().getDisplayMetrics().density);
+        params.width = collectionToolbar.isList() ? Math.max(1, gridWidth - dp(6))
+            : dp(DesktopCardLayout.widthDp(Math.round(gridWidth
+                / getResources().getDisplayMetrics().density), getResources().getConfiguration().fontScale));
         params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
         params.columnSpec = GridLayout.spec(index % columns);
         int row = index / columns;
         params.rowSpec = fillRow ? GridLayout.spec(row, GridLayout.FILL) : GridLayout.spec(row);
-        params.setMargins(dp(2), dp(2), dp(2), dp(6));
+        params.setMargins(dp(3), dp(3), dp(3), dp(3));
         card.setLayoutParams(params);
     }
 
@@ -328,9 +341,11 @@ public final class DesktopActivity extends AppUiActivity {
             label = distro.getName();
         }
         card.desktopName.setText(label);
+        card.desktopCover.setImageResource(DesktopCardAppearance.art(distro.getDe()));
+        card.desktopCover.setBackgroundResource(DesktopCardAppearance.cover(distro.getDe()));
         card.desktopModeBadge.setText(distro.getRunMode() == DesktopRunMode.NATIVE
             ? getString(R.string.desktop_mode_native_badge)
-            : getString(R.string.desktop_mode_container_badge, distro.getProotDistro()));
+            : getString(R.string.desktop_mode_proot_badge));
         card.desktopDetail.setText(getString(R.string.desktop_card_detail,
             getString(R.string.desktop_host_summary, DesktopCreateActivity.hostLabel(this, distro.getHostGlMode()))
                 + (distro.getRunMode() == DesktopRunMode.PROOT ? " · " + getString(R.string.desktop_guest_summary,
@@ -348,16 +363,22 @@ public final class DesktopActivity extends AppUiActivity {
         card.desktopStatus.setTextColor(ContextCompat.getColor(this, stateColor(state)));
 
         boolean installing = state == DesktopSessionState.INSTALLING;
+        card.desktopInstallProgress.setHostActive(resumed);
         if (installing) card.desktopInstallProgress.show(); else card.desktopInstallProgress.hide();
         boolean active = state.isActive();
         boolean stopping = state == DesktopSessionState.STOPPING;
+        boolean starting = state == DesktopSessionState.STARTING;
         boolean install = state == DesktopSessionState.NOT_INSTALLED;
         card.desktopPrimary.setText(installing ? R.string.desktop_action_view_install
-            : install ? R.string.desktop_action_install : R.string.desktop_action_open);
-        View.OnClickListener primary = view -> primaryAction(distro);
-        card.desktopPrimary.setOnClickListener(primary);
-        card.desktopPrimary.setEnabled(!stopping);
-        card.getRoot().setOnClickListener(stopping ? null : primary);
+            : install ? R.string.desktop_action_install
+            : stopping ? R.string.desktop_state_stopping : starting ? R.string.desktop_state_starting
+            : state == DesktopSessionState.RUNNING ? R.string.desktop_action_enter : R.string.desktop_action_start);
+        card.desktopPrimary.setOnClickListener(view -> primaryAction(distro));
+        card.desktopPrimary.setEnabled(!stopping && !starting && distro.getDe().isCreatable());
+        // Only the visible primary button can enter a session; cover/body taps are inert.
+        card.getRoot().setOnClickListener(null);
+        card.getRoot().setClickable(false);
+
         card.desktopMore.setOnClickListener(view -> showMore(view, distro, state, active));
     }
 
@@ -366,7 +387,7 @@ public final class DesktopActivity extends AppUiActivity {
         boolean installing = state == DesktopSessionState.INSTALLING;
         PopupMenu menu = new PopupMenu(this, anchor);
         Menu items = menu.getMenu();
-        if (state != DesktopSessionState.NOT_INSTALLED && !active) {
+        if (distro.getDe().isCreatable() && state != DesktopSessionState.NOT_INSTALLED && !active) {
             items.add(Menu.NONE, MENU_INSTALL, Menu.NONE, R.string.desktop_action_install);
         }
         if (active && !installing && state != DesktopSessionState.STOPPING)
@@ -469,17 +490,55 @@ public final class DesktopActivity extends AppUiActivity {
         super.onSaveInstanceState(outState);
     }
 
+    private void setProgressActive(boolean active) {
+        if (binding == null) return;
+        for (int i = 0; i < binding.desktopItems.getChildCount(); i++) {
+            View view = binding.desktopItems.getChildAt(i).findViewById(R.id.desktop_install_progress);
+            if (view instanceof DesktopInstallProgressView)
+                ((DesktopInstallProgressView) view).setHostActive(active);
+        }
+    }
+
     private void primaryAction(DesktopDistro distro) {
+        if (primaryPending || enteringId != null || launchConfirmation != null || destroyed) return;
+        primaryPending = true;
         runHostAction(() -> {
-            String taskId = tasks.activeInstallTask(distro);
-            boolean installed = taskId == null && tasks.isInstalled(distro);
-            runOnUiThread(() -> {
-                if (destroyed) return;
-                if (taskId != null) showInstallConsole(taskId);
-                else if (installed) open(distro);
-                else confirmInstall(distro);
-            });
+            try {
+                String taskId = tasks.activeInstallTask(distro);
+                boolean installed = taskId == null && tasks.isInstalled(distro);
+                DesktopSessionState state = tasks.sessionState(distro);
+                runOnUiThread(() -> {
+                    primaryPending = false;
+                    if (destroyed || !resumed) return;
+                    if (taskId != null) showInstallConsole(taskId);
+                    else if (state == DesktopSessionState.STARTING || state == DesktopSessionState.STOPPING) return;
+                    else if (installed) confirmOpen(distro, state == DesktopSessionState.RUNNING);
+                    else confirmInstall(distro);
+                });
+            } catch (RuntimeException error) {
+                runOnUiThread(() -> primaryPending = false);
+                throw error;
+            }
         });
+    }
+
+    private void confirmOpen(DesktopDistro distro, boolean running) {
+        if (launchConfirmation != null || enteringId != null || destroyed || !resumed) return;
+        String mode = getString(distro.getRunMode() == DesktopRunMode.NATIVE
+            ? R.string.desktop_mode_native : R.string.desktop_mode_proot_badge);
+        launchConfirmation = new FrostedDialogBuilder(this)
+            .setTitle(running ? R.string.desktop_enter_title : R.string.desktop_start_title)
+            .setMessage(getString(R.string.desktop_start_confirm, distro.getName(), mode))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(running ? R.string.desktop_action_enter : R.string.desktop_action_start,
+                (dialog, which) -> {
+                    if (!destroyed && resumed && enteringId == null) {
+                        enteringId = distro.getId();
+                        open(distro);
+                    }
+                }).create();
+        launchConfirmation.setOnDismissListener(dialog -> launchConfirmation = null);
+        launchConfirmation.show();
     }
 
     void showInstallConsole(String taskId) {

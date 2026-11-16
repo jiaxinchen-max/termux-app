@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_card_created">已创建</string>
+    <string name="desktop_card_all_created">所有原生桌面类型均已创建。</string>
+    <string name="desktop_action_start">启动</string>
+    <string name="desktop_action_enter">进入</string>
+    <string name="desktop_start_title">启动桌面</string>
+    <string name="desktop_enter_title">进入桌面</string>
+    <string name="desktop_start_confirm">确定打开“%1$s”吗？\n运行模式：%2$s</string>
+</resources>

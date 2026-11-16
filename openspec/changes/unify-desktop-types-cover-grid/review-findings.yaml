@@ -1,0 +1,30 @@
+schema: review_findings_v1
+change_id: unify-desktop-types-cover-grid
+status: APPROVED
+scope: 本变更的源码人工审查与定向自动化验证；不代表 Harness 严格门禁、全仓库回归或实机视觉验收通过。
+findings: []
+resolved_findings:
+  - id: CARD_NAME_REFLOW
+    description: 纯布局刷新保留用户名称；异步载入已有容器后仍更新未编辑的自动序号，页面重建保留选择与名称。
+    evidence: DesktopCreateRenderingTest
+  - id: RETIRED_GNOME_DIRECT_LAUNCH
+    description: Java 任务启动入口在提交会话前拒绝已废弃类型，避免旧脚本绕过类型约束；仅枚举判断，不新增启动初始化或探针。
+    evidence: DesktopMutationTest、DesktopRendererPolicyTest、test-desktop-rendering.py
+  - id: OFFSCREEN_ANIMATION_WORK
+    description: 安装光带按页面、窗口、祖先与实际可见矩形停止和恢复；隐藏静态状态不连续触发重绘。
+    evidence: DesktopInstallProgressViewTest
+reviewed_areas:
+  - 四类型顺序与 Native 唯一性；旧 GNOME 记录可读可删除；Ubuntu GNOME 共享运行时保持。
+  - 紧凑自适应布局与长名称、大字体；浅深主题颜色资源；名称与角标避免重叠。
+  - 仅主按钮进入、确认前无会话 Intent、取消无进入、重复点击防重、安装日志分流。
+  - 安装光带生命周期与系统禁用动画；无大型资产或新增依赖。
+  - 保存／安装初始化约束；未改 Wine 网格；未改既有脏 CMake 子模块。
+limitations:
+  - id: HARNESS_STRICT_UNAVAILABLE
+    description: 缺少规定的引导文件、strict verify 脚本和 OpenSpec CLI，保留限制，不提供虚假的严格门禁结论。
+  - id: BROADER_SESSION_EXIT_TIMEOUT
+    description: DesktopSessionControlsTest.confirmedExitSubmitsOnceWaitsAndFailureCanBeRetried 在最终完成等待处超时；未改该测试和会话控制实现，不将扩展回归记为全通过。
+  - id: EXISTING_BOUNDARY_SCAN_FAILURE
+    description: 正确使用 bash 执行模块边界检查后，扫描命中 LocalGamesActivity 中基线已有广播 action 字符串；相关文件和检查脚本均无本轮差异。
+  - id: DEVICE_VISUAL_ACCEPTANCE
+    description: 自动化布局测量和设计预览不能替代实际 APK 视觉验收；未构建或部署 APK，产品一致性仍 Pending。

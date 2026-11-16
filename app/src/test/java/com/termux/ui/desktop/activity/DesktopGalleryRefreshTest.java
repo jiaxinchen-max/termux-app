@@ -3,6 +3,12 @@ package com.termux.ui.desktop.activity;
 import com.termux.ui.desktop.domain.DesktopGuestGlMode;
 import com.termux.ui.desktop.domain.DesktopUsbStorageMode;
 import android.view.View;
+import android.content.Intent;
+import android.content.DialogInterface;
+import androidx.appcompat.app.AlertDialog;
+import org.robolectric.Shadows;
+import org.robolectric.shadows.ShadowDialog;
+import java.lang.reflect.Field;
 import android.widget.GridLayout;
 import android.widget.TextView;
 import com.termux.ui.R;
@@ -14,6 +20,8 @@ import com.termux.ui.desktop.domain.DesktopSessionState;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
+import com.termux.ui.activity.FileManagerViewMode;
+import org.robolectric.RuntimeEnvironment;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
@@ -60,10 +68,125 @@ public class DesktopGalleryRefreshTest {
             render(activity, desktop("1280x720"), DesktopSessionState.INSTALLED);
             assertNotSame(previous, grid.getChildAt(0));
             TextView action = grid.getChildAt(0).findViewById(R.id.desktop_primary);
-            assertEquals(activity.getString(R.string.desktop_action_open), action.getText().toString());
+            assertEquals(activity.getString(R.string.desktop_action_start), action.getText().toString());
             previous = grid.getChildAt(0);
             render(activity, desktop("1920x1080"), DesktopSessionState.INSTALLED);
             assertNotSame(previous, grid.getChildAt(0));
+        }
+    }
+    private static void confirm(DesktopActivity activity, DesktopDistro desktop, boolean running) throws Exception {
+        Method method = DesktopActivity.class.getDeclaredMethod("confirmOpen", DesktopDistro.class, boolean.class);
+        method.setAccessible(true);
+        method.invoke(activity, desktop, running);
+    }
+
+    @Test public void cardBodyIsInertAndStartingOrStoppingDisablesPrimary() throws Exception {
+        try (ActivityController<DesktopActivity> controller = Robolectric.buildActivity(DesktopActivity.class)) {
+            DesktopActivity activity = controller.create().get();
+            for (DesktopSessionState state : new DesktopSessionState[]{DesktopSessionState.INSTALLED,
+                    DesktopSessionState.STARTING, DesktopSessionState.STOPPING}) {
+                render(activity, desktop("1280x720"), state);
+                GridLayout grid = activity.findViewById(R.id.desktop_items);
+                View card = grid.getChildAt(0);
+                assertFalse(card.performClick());
+                assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
+                assertEquals(state == DesktopSessionState.INSTALLED,
+                    card.findViewById(R.id.desktop_primary).isEnabled());
+            }
+        }
+    }
+
+    @Test public void narrowAndWideCardsKeepLongNamesAndLargeFontActionsInsideBounds() throws Exception {
+        for (float scale : new float[]{1f, 2f}) {
+            RuntimeEnvironment.setFontScale(scale);
+            FileManagerViewMode.GRID.save(RuntimeEnvironment.getApplication(), "desktop");
+            RuntimeEnvironment.getApplication().getSharedPreferences("local_games_settings", 0)
+                .edit().putBoolean("desktop_proot", true).commit();
+            try (ActivityController<DesktopActivity> controller = Robolectric.buildActivity(DesktopActivity.class)) {
+                DesktopActivity activity = controller.create().get();
+                DesktopDistro desktop = new DesktopDistro("long-name", "Ubuntu GNOME with my work applications",
+                    DesktopRunMode.PROOT, "ubuntu-ubuntu-gnome-1", DesktopDe.UBUNTU_GNOME,
+                    DesktopGlMode.SYSTEM, DesktopGuestGlMode.LLVMPIPE, "1280x720", 60, DesktopUsbStorageMode.OFF);
+                GridLayout grid = activity.findViewById(R.id.desktop_items);
+                float density = activity.getResources().getDisplayMetrics().density;
+                for (int widthDp : new int[]{240, 360, 840}) {
+                    int width = Math.round(widthDp * density);
+                    grid.layout(0, 0, width, 1);
+                    render(activity, desktop, DesktopSessionState.INSTALLING);
+                    View card = grid.getChildAt(0);
+                    int cardWidth = card.getLayoutParams().width;
+                    assertTrue(cardWidth <= width);
+                    card.measure(View.MeasureSpec.makeMeasureSpec(cardWidth, View.MeasureSpec.EXACTLY),
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+                    card.layout(0, 0, cardWidth, card.getMeasuredHeight());
+                    TextView title = card.findViewById(R.id.desktop_name);
+                    TextView badge = card.findViewById(R.id.desktop_mode_badge);
+                    assertTrue(title.getTop() >= badge.getBottom());
+                    assertEquals(0, title.getLayout().getEllipsisCount(title.getLineCount() - 1));
+                    TextView primary = card.findViewById(R.id.desktop_primary);
+                    View more = card.findViewById(R.id.desktop_more);
+                    assertTrue(primary.getRight() <= more.getLeft());
+                    assertTrue(primary.getHeight() >= 48 * density);
+                    assertTrue(primary.getHeight() - primary.getCompoundPaddingTop()
+                        - primary.getCompoundPaddingBottom() >= primary.getLayout().getHeight());
+                    assertTrue(more.getRight() <= ((View)more.getParent()).getWidth());
+                }
+            }
+        }
+    }
+
+    @Test public void cancelNeverEntersAndRepeatedConfirmationEntersOnlyOnce() throws Exception {
+        verifyConfirmationMatrix();
+    }
+
+    @Test @Config(qualifiers = "w360dp-h640dp-port-night")
+    public void confirmationAndBodyClicksMatchInDarkTheme() throws Exception {
+        verifyConfirmationMatrix();
+    }
+
+    private void verifyConfirmationMatrix() throws Exception {
+        for (DesktopRunMode mode : DesktopRunMode.values()) {
+            for (FileManagerViewMode layout : FileManagerViewMode.values()) {
+                android.content.Context context = RuntimeEnvironment.getApplication();
+                layout.save(context, "desktop");
+                context.getSharedPreferences("local_games_settings", 0).edit()
+                    .putBoolean("desktop_proot", mode == DesktopRunMode.PROOT).commit();
+                try (ActivityController<DesktopActivity> controller = Robolectric.buildActivity(DesktopActivity.class)) {
+                    DesktopActivity activity = controller.create().get();
+                    // Keep real task polling out of this navigation-only test.
+                    Field resumed = DesktopActivity.class.getDeclaredField("resumed");
+                    resumed.setAccessible(true); resumed.set(activity, true);
+                    DesktopDistro desktop = new DesktopDistro("confirmation", "My desktop", mode,
+                        mode == DesktopRunMode.PROOT ? "ubuntu-xfce4-1" : "", DesktopDe.XFCE4,
+                        DesktopGlMode.SYSTEM, mode == DesktopRunMode.PROOT ? DesktopGuestGlMode.DEFAULT
+                            : DesktopGuestGlMode.NONE, "1280x720", 60, DesktopUsbStorageMode.OFF);
+                    render(activity, desktop, DesktopSessionState.INSTALLED);
+                    GridLayout grid = activity.findViewById(R.id.desktop_items);
+                    assertFalse(grid.getChildAt(0).performClick());
+                    confirm(activity, desktop, false);
+                    AlertDialog dialog = (AlertDialog) ShadowDialog.getLatestDialog();
+                    assertTrue(dialog.isShowing());
+                    String message = ((TextView)dialog.findViewById(android.R.id.message)).getText().toString();
+                    assertTrue(message.contains("My desktop"));
+                    assertTrue(message.contains(activity.getString(mode == DesktopRunMode.PROOT
+                        ? R.string.desktop_mode_proot_badge : R.string.desktop_mode_native)));
+                    confirm(activity, desktop, false);
+                    assertSame(dialog, ShadowDialog.getLatestDialog());
+                    assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
+                    dialog.getButton(DialogInterface.BUTTON_NEGATIVE).performClick();
+                    Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+                    assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
+                    confirm(activity, desktop, true);
+                    dialog = (AlertDialog) ShadowDialog.getLatestDialog();
+                    dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();
+                    Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+                    Intent intent = Shadows.shadowOf(activity).getNextStartedActivity();
+                    assertNotNull(intent);
+                    assertEquals(DesktopSessionActivity.class.getName(), intent.getComponent().getClassName());
+                    confirm(activity, desktop, true);
+                    assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
+                }
+            }
         }
     }
 }
