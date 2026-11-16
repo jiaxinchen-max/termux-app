@@ -24,6 +24,17 @@ public final class DesktopLaunchSpec {
 
     private DesktopLaunchSpec() {}
 
+    public static String encodeRemoval(DesktopDistro distro, String statusFile) {
+        if (distro.getRunMode() != DesktopRunMode.PROOT)
+            throw new IllegalArgumentException("desktop_removal_requires_proot");
+        StringBuilder spec = new StringBuilder();
+        put(spec, "DESKTOP_MODE", "proot");
+        put(spec, "DESKTOP_REMOVE_METHOD", "proot-distro");
+        put(spec, "DESKTOP_PROOT_DISTRO", distro.getProotDistro());
+        put(spec, "DESKTOP_STATUS_FILE", requirePath(statusFile));
+        return spec.toString();
+    }
+
     public static String encode(DesktopDistro distro, String pidFile, String statusFile,
                                 String logFile) {
         DesktopRendererPolicy.requireSupported(distro);

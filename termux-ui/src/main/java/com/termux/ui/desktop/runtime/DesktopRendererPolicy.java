@@ -23,6 +23,7 @@ public final class DesktopRendererPolicy {
                 return Collections.singletonList(DesktopGlMode.SYSTEM);
             return Arrays.asList(DesktopGlMode.SYSTEM, DesktopGlMode.ZINK, DesktopGlMode.LLVMPIPE);
         }
+        if (!de.supportsProot()) return Collections.emptyList();
         switch (de) {
             case UBUNTU_GNOME: return Collections.singletonList(DesktopGlMode.SYSTEM);
             case HYPRLAND: return Collections.singletonList(DesktopGlMode.SYSTEM);
@@ -36,6 +37,7 @@ public final class DesktopRendererPolicy {
         if (mode == null || de == null || !de.isCreatable()) return Collections.emptyList();
         if (mode == DesktopRunMode.NATIVE) return de.supportsNative()
             ? Collections.singletonList(DesktopGuestGlMode.NONE) : Collections.emptyList();
+        if (!de.supportsProot()) return Collections.emptyList();
         if (de == DesktopDe.UBUNTU_GNOME) return Collections.singletonList(DesktopGuestGlMode.LLVMPIPE);
         if (de == DesktopDe.XFCE4) return Collections.singletonList(DesktopGuestGlMode.DEFAULT);
         if (de == DesktopDe.HYPRLAND) return Arrays.asList(DesktopGuestGlMode.DEFAULT, DesktopGuestGlMode.ZINK);
@@ -60,6 +62,8 @@ public final class DesktopRendererPolicy {
     }
 
     public static void requireSupported(DesktopDistro distro) {
+        if (distro.getRunMode() == DesktopRunMode.PROOT && !distro.getDe().supportsProot())
+            throw new IllegalArgumentException("Independent GNOME containers are retired; create a supported desktop. Existing containers can still be deleted.");
         if (distro.getUsbStorage()==DesktopUsbStorageMode.READ_ONLY
                 && distro.getDe()!=DesktopDe.GNOME && distro.getDe()!=DesktopDe.XFCE4)
             throw new IllegalArgumentException("desktop_usb_storage_requires_gio_sidebar");

@@ -23,6 +23,9 @@ public enum DesktopDe {
 
     public boolean supportsNative() { return creatable; }
 
+    /** Independent GNOME containers are retired; Native GNOME remains supported. */
+    public boolean supportsProot() { return creatable && this != GNOME; }
+
     public boolean isGnomeSession() { return this == GNOME || this == UBUNTU_GNOME; }
 
     public static DesktopDe fromStorageValue(String value) {

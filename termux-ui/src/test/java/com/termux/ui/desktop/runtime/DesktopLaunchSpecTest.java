@@ -110,33 +110,24 @@ public class DesktopLaunchSpecTest {
         assertFalse(nativeSpec.containsKey("DESKTOP_GNOME_DISPLAY_GL_MODE"));
         assertFalse(nativeSpec.containsKey("DESKTOP_GNOME_DISPLAY_BUFFER_MODE"));
         DesktopDistro prootGnome=new DesktopDistro("gp", "GNOME", DesktopRunMode.PROOT, "debian-gnome-1", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.LLVMPIPE, "1920x1080", 90, DesktopUsbStorageMode.OFF);
-        Map<String,String> prootSpec=parse(DesktopLaunchSpec.encode(prootGnome,"/p","/s","/l"));
-        assertEquals("x11",prootSpec.get("DESKTOP_GNOME_BACKEND"));
-        assertEquals("direct",prootSpec.get("DESKTOP_GNOME_SESSION_STARTUP"));
-        assertEquals("llvmpipe",prootSpec.get("DESKTOP_GNOME_RENDERER"));
-        assertEquals("llvmpipe",prootSpec.get("DESKTOP_GUEST_GL_MODE"));
-        assertEquals("system",prootSpec.get("DESKTOP_GNOME_DISPLAY_GL_MODE"));
-        assertEquals("native",prootSpec.get("DESKTOP_GNOME_DISPLAY_BUFFER_MODE"));
-        assertEquals("trixie",prootSpec.get("DESKTOP_CONTAINER_CODENAME"));
-        assertEquals("90",prootSpec.get("DESKTOP_REFRESH_RATE"));
+        assertTrue(assertThrows(IllegalArgumentException.class,
+            () -> DesktopLaunchSpec.encode(prootGnome,"/p","/s","/l")).getMessage().contains("retired"));
         assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(nativeGnome.withOutput("1280x720",30),"/p","/s","/l"));
         assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(nativeGnome.withRenderers(DesktopGlMode.ZINK,DesktopGuestGlMode.NONE),"/p","/s","/l"));
         assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(prootGnome.withRenderers(DesktopGlMode.SYSTEM,DesktopGuestGlMode.DEFAULT),"/p","/s","/l"));
         assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(nativeGnome.withRenderers(DesktopGlMode.LLVMPIPE,DesktopGuestGlMode.NONE),"/p","/s","/l"));
         assertThrows(IllegalArgumentException.class,()->DesktopLaunchSpec.encode(prootGnome.withRenderers(DesktopGlMode.AUTO,DesktopGuestGlMode.UNRESOLVED),"/p","/s","/l"));
     }
-    @Test public void prootGnomeZinkRequiresHostZinkAndDmabufBuffers() {
+    @Test public void retiredGnomeStillHasAnExplicitRemovalContract() {
         DesktopDistro desktop=new DesktopDistro("gz", "GNOME", DesktopRunMode.PROOT, "debian-gnome-zink", DesktopDe.GNOME, DesktopGlMode.ZINK, DesktopGuestGlMode.ZINK, "1920x1080", 90, DesktopUsbStorageMode.OFF);
-        Map<String,String> spec=parse(DesktopLaunchSpec.encode(desktop,"/p","/s","/l"));
+        assertTrue(assertThrows(IllegalArgumentException.class,
+            () -> DesktopLaunchSpec.encode(desktop,"/p","/s","/l")).getMessage().contains("retired"));
+        Map<String,String> spec=parse(DesktopLaunchSpec.encodeRemoval(desktop,"/s"));
         assertEquals("proot",spec.get("DESKTOP_MODE"));
-        assertEquals("x11",spec.get("DESKTOP_GNOME_BACKEND"));
-        assertEquals("direct",spec.get("DESKTOP_GNOME_SESSION_STARTUP"));
-        assertEquals("zink",spec.get("DESKTOP_HOST_GL_MODE"));
-        assertEquals("zink",spec.get("DESKTOP_GNOME_RENDERER"));
-        assertEquals("zink",spec.get("DESKTOP_GNOME_DISPLAY_GL_MODE"));
-        assertEquals("dmabuf",spec.get("DESKTOP_GNOME_DISPLAY_BUFFER_MODE"));
-        assertEquals("trixie",spec.get("DESKTOP_CONTAINER_CODENAME"));
-        assertEquals("90",spec.get("DESKTOP_REFRESH_RATE"));
+        assertEquals("proot-distro",spec.get("DESKTOP_REMOVE_METHOD"));
+        assertEquals("debian-gnome-zink",spec.get("DESKTOP_PROOT_DISTRO"));
+        assertEquals("/s",spec.get("DESKTOP_STATUS_FILE"));
+        assertEquals(4,spec.size());
     }
     @Test public void independentGnomeDisplayModeNeverLeaksIntoOtherDesktops() {
         for(DesktopDe de:new DesktopDe[]{DesktopDe.XFCE4,DesktopDe.KWIN_PLASMA}) {

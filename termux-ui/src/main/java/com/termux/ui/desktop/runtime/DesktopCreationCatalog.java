@@ -41,7 +41,7 @@ public final class DesktopCreationCatalog {
     /** Container: every creatable environment, repeats allowed. */
     public static List<DesktopDe> containerOptions() {
         List<DesktopDe> options = new ArrayList<>();
-        for (DesktopDe de : DesktopDe.values()) if (de.isCreatable()) options.add(de);
+        for (DesktopDe de : DesktopDe.values()) if (de.supportsProot()) options.add(de);
         return options;
     }
 

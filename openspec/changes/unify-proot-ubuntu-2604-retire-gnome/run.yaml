@@ -1,0 +1,18 @@
+change_id: unify-proot-ubuntu-2604-retire-gnome
+stage: implementation_design_decision
+approval:
+  requirements: Approved
+  implementation: Approved
+api_docs:
+  status: N/A
+  reason: 不新增或修改 HTTP API 合同
+product_docs:
+  status: Required
+  documents: [docs/product/desktop-management.md]
+consistency:
+  status: Pending
+  evidence: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/verification.md
+  findings: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/review-findings.yaml
+verification:
+  strict_gate: unavailable
+  reason: 仓库缺少规定 Harness 指令、strict gate 脚本与 OpenSpec CLI

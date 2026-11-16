@@ -139,8 +139,14 @@ public final class DesktopTasks {
     public void removeContainer(@NonNull DesktopDistro distro) throws LaunchHostException {
         synchronized (DesktopOperationGate.LOCK) {
             requireNoInstallation(distro);
-            // delete() removes the old spec before this call; deploy a fresh explicit removal spec.
-            LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
+            // Removal remains available even when this desktop can no longer be launched.
+            LaunchScriptInstaller.DesktopScripts scripts;
+            try {
+                writeRemovalSpec(distro);
+                scripts = new LaunchScriptInstaller(context, paths).installDesktopScripts();
+            } catch (IOException | RuntimeException error) {
+                throw new LaunchHostException("desktop_prepare_failed", true, error);
+            }
             commandStatus(distro, "removing");
             try {
                 LocalGames.requireHost(context).startLaunch(new LaunchRequest("desktop-remove-"
@@ -474,6 +480,18 @@ public final class DesktopTasks {
             return new LaunchScriptInstaller(context, paths).installDesktopScripts();
         } catch (IOException | RuntimeException error) {
             throw new LaunchHostException("desktop_prepare_failed", true, error);
+        }
+    }
+
+    private void writeRemovalSpec(DesktopDistro distro) throws IOException {
+        File spec = paths.getDesktopSpecFile(distro.getId());
+        File directory = spec.getParentFile();
+        if (!directory.isDirectory() && !directory.mkdirs())
+            throw new IOException("desktop_spec_directory_failed");
+        try (FileOutputStream output = new FileOutputStream(spec)) {
+            output.write(DesktopLaunchSpec.encodeRemoval(distro,
+                paths.getDesktopStatusFile(distro.getId()).getPath()).getBytes(StandardCharsets.UTF_8));
+            output.getFD().sync();
         }
     }
 

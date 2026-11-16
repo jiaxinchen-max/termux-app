@@ -9,6 +9,12 @@ SPEC_PATH="${1:?Usage: $0 <desktop_spec>}"
 . "$SPEC_PATH"
 . "$(dirname "$0")/desktop_common.sh"
 
+if [ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" = proot:gnome ]; then
+    log 'Independent GNOME containers are retired; create a supported desktop. Existing containers can still be deleted.'
+    printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"
+    exit 64
+fi
+
 existing=$(read_pid) && pid_alive "$existing" && {
     log "ERROR: Desktop $DESKTOP_ID is already running (pid $existing); stop it before applying the requested renderer ${DESKTOP_COMPONENT_RENDERER:-unset}."
     exit 73

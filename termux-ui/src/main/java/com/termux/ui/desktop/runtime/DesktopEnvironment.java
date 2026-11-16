@@ -31,6 +31,7 @@ public final class DesktopEnvironment {
     /** Whether everything the distribution's run mode and environment need is present. */
     public boolean isInstalled(DesktopDistro distro) {
         if (distro.getRunMode() == DesktopRunMode.NATIVE && !distro.getDe().supportsNative()) return false;
+        if (distro.getRunMode() == DesktopRunMode.PROOT && !distro.getDe().supportsProot()) return false;
         boolean host;
         switch (distro.getDe()) {
             case KWIN_PLASMA:

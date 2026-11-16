@@ -30,6 +30,12 @@ fi
 . "$SPEC_PATH"
 . "$(dirname "$0")/desktop_common.sh"
 
+if [ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" = proot:gnome ]; then
+    log 'Independent GNOME containers are retired; create a supported desktop. Existing containers can still be deleted.'
+    printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"
+    exit 64
+fi
+
 INSTALL_DONE=0
 finish_operation() {
     code=$?

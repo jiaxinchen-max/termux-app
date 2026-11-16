@@ -40,6 +40,8 @@ def main():
     ap.add_argument('--display', required=True)
     ap.add_argument('--service-policy', choices=('core',), required=True)
     args = ap.parse_args()
+    if args.run_mode == 'proot' and args.session_profile == 'gnome':
+        ap.error('Independent GNOME containers are retired; create a supported desktop')
     ubuntu = args.session_profile in ('ubuntu', 'native-ubuntu')
     native_ubuntu = args.session_profile == 'native-ubuntu'
     profile = None

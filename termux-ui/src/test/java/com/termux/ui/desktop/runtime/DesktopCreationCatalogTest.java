@@ -46,12 +46,12 @@ public class DesktopCreationCatalogTest {
     }
 
     @Test
-    public void containerOptionsNeverHideAnything() {
+    public void containerOptionsExcludeRetiredIndependentGnome() {
         List<DesktopDistro> existing = Arrays.asList(
             desktop("c1", DesktopRunMode.PROOT, "debian-xfce4-1", DesktopDe.XFCE4),
             desktop("c2", DesktopRunMode.PROOT, "debian-xfce4-2", DesktopDe.XFCE4));
 
-        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.GNOME, DesktopDe.HYPRLAND, DesktopDe.UBUNTU_GNOME),
+        assertEquals(Arrays.asList(DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA, DesktopDe.HYPRLAND, DesktopDe.UBUNTU_GNOME),
             DesktopCreationCatalog.containerOptions());
         assertEquals(2, DesktopCreationCatalog.count(existing, "debian", DesktopDe.XFCE4));
     }

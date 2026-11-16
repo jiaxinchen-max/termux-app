@@ -1,0 +1,12 @@
+schema: review_findings_v1
+status: CHANGES_REQUESTED
+scope: 独立 GNOME PRoot 下线部分已源码自审并通过聚焦测试，整体统一升级未完成
+findings:
+  - id: GNOME50_DISPLAY_ARCHITECTURE
+    severity: blocker
+    status: open
+    description: GNOME 50 已无现有 X11 后端，原设计沿用显示链路不可行，需要确认显示架构变更或 Ubuntu GNOME 下线范围。
+  - id: FULL_RUNTIME_VALIDATION
+    severity: high
+    status: open
+    description: 未完成 Resolute 资产适配与设备验证，不可发布为整体完成版本。
