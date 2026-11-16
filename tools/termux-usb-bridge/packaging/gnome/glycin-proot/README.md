@@ -37,6 +37,6 @@ python3 build.py \
 - 归档：`termux-gnome-glycin-resolute-aarch64-2.1.1-r1.tar.gz`
 - 归档 SHA256：`cb72b99666baacb5cd8b4fd62960f3a54568c49c04a05bd8b5f9280ba8493eb9`
 
-使用 `package.py --directory <output> --output <archive>` 生成固定双文件 USTAR/gzip。完整编译命令、来源、Cargo.lock 和输出哈希另存于归档内的 `glycin-build-manifest.json`。资产尚未发布；安装器已统一 Shell/Mutter 50 核心清单及新外观资源，Native 完整组合与四类安装回归仍未完成，不能发布 APK。
+使用 `package.py --directory <output> --output <archive>` 生成固定双文件 USTAR/gzip。完整编译命令、来源、Cargo.lock 和输出哈希另存于归档内的 `glycin-build-manifest.json`。资产已随 [gnome-50-resolute-20261116-r1](https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/gnome-50-resolute-20261116-r1) 公开发布，原始下载 URL 的大小及 SHA256 回读通过；安装器已统一 Shell/Mutter 50 核心清单及新外观资源，Native 完整组合与四类安装回归仍未完成，不能发布 APK。
 
 隔离测试容器已通过真实下载、归档校验和生产助手安装；实际会话使用该安装库。默认 AUTO 模式成功解码 Yaru 256×256 PNG 和 Terminal 的 16×16 fallback 图标；无效 PNG 按 `Invalid PNG signature` 返回解码错误；Terminal 正常打开并接受 Android 键盘输入。5 项安装助手回归覆盖完整性失败、路径/符号链接拒绝、安装后篡改及保留发行版库。DING 重启引出的 Mutter 显示队列重入崩溃已修复，50.1-4 已通过无诊断探针的 8 次设备压力回归及所属进程退出清理。图像解码通过仍不代表完整桌面验证完成。证据见对应 OpenSpec `verification.md`。

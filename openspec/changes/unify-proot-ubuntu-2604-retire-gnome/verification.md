@@ -97,3 +97,17 @@ Mutter 50.1-3 + Shell 50.1-2 的实际 PRoot 冷启动已使用生产 Glycin 安
 保存／启动证据：`evidence/save-launch-separation.txt`；本地 `artifacts/gnome50/*-tests.log`、`session-current-tests.log`、`gnome-fixtures-current.log`、`save-coldstart-device.log` 与 `save-coldstart.png`。严格 Harness gate 和 OpenSpec CLI 仍缺失。新资产发布、Native 全套 GUI、四类全新安装、Discover 认证、实际 USB／高通 GPU 等尚待验证，整体 NotReadyForRelease，产品一致性 Pending，不归档。
 
 启动失败的会话页面现返回列表并保留日志；已记录 exit／stopped 终态时不再等待启动宽限期。此 Android 页面路径通过 Java 编译与现有单元测试，尚未在新 APK 上实测；设备实测范围仍为隔离生产 launcher。
+
+
+## 用户授权的组件发布与公开下载核验（2026-11-16）
+
+用户明确要求“发布相关组件到组件仓库，总结当前任务完成情况”，本节取代前文“资产未发布”的当前状态；历史记录保留。本次授权发布组件，未构建／发布 APK，不代表最终验收或归档。
+
+- 组件仓库 jiaxinchen-max/termux-app-packages 的清单、来源锁和验证说明提交 3c98bd7。两个版本均为公开 prerelease，draft=false，未改变现有 latest。GNOME 50 版本 15 个资产、Native Ubuntu 50 外观版本 7 个资产；原有组件及 catalog 保留。
+- `gnome-50-resolute-20261116-r1` 包含 Mutter 50.1-4、Shell 50.1-2、GJS 1.88.0、SpiderMonkey 140.17.0-1、三个复用依赖及 Resolute GIO／Glycin。所有字节与 App 52ccd543 的固定安装清单一致，不需要改安装器。四个新 DEB 来自原编译机原 build-package.sh，不在本地重编。复用依赖逐项从其既有来源下载核验。
+- 源包含真实原版 Mutter／Shell／GJS／Glycin 和 crate、App 修改及实际编译机配方／生成 GIR、GIO 和 Glycin 构建来源；SpiderMonkey 的未修改完整上游源码以固定 URL／SHA256 提供，全部本地修改随源包保留。两个 GIR README 只有记录说明差异，其他配方／补丁／GIR 与 App 源码一致。许可与来源保留，不上传诊断 runtime 或临时设备覆盖包。
+- `native-ubuntu-gnome-50-r1` 外观包 26,178,566 字节，SHA256 `5d043a773b503c472743c1902d8347ea8ba6c8f7f88c79868e5f661b26288e0e`。已核实原编译机第二次完整构建与首包大小、SHA256 完全相同。本地对实际发布文件重新执行 12 项资源测试通过。
+- 上传前逐文件验证字节，上传后 GitHub 所报 size／digest 全部匹配。再无认证访问两组公开发行版，核验完整资产清单和 draft／prerelease 状态；22 个资产逐个从原始 browser_download_url 下载，实际字节数和 SHA256 全部匹配，无需追加缓存绕过参数。既有 lfdevs Resolute Mesa 的原始公开 URL 也实际下载验证通过，保留第三方专用地址。
+- 发布只影响固定新版本组件及文档；旧资产、用户容器不变。回退恢复之前 App 源码／组件清单，不自动降级容器。Native 全套 GUI、四类全新安装、真实 USB／高通 GPU／Discover 等仍待验证；宽泛旧综合脚本未通过，严格 gate 不存在；整体 NotReadyForRelease，产品一致性 Pending。
+
+证据：`evidence/component-publication.json`、`current-status.md`；组件仓库 `repository/gnome/publication-20261116.json`；本地 `artifacts/gnome50/publication/public-readback.log` 和 `native-appearance-tests.log`。本次后续修改仅更新发布记录和任务状态，没有业务代码变更，因此不重复运行已通过的 801 项 Java 测试。

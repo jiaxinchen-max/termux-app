@@ -28,9 +28,23 @@ progress_save:
   scope: 当前分支 WIP 源码及进度记录
   readiness: NotReadyForRelease
   runtime: Mutter 50.1-4 无探针 8 次重启及完整清理通过；保存／启动分离通过实际冷启动、缺少保存结果直接退出和 801 项 Java 测试
-  remaining: 新资产未发布；Native 全套 GUI、四类新安装及综合旧脚本夹具仍待验证
+  remaining: Native 全套 GUI、四类新安装及综合旧脚本夹具仍待验证；组件已独立公开发布
 
 save_launch_split:
   authorization: 用户明确要求所有初始化在保存阶段完成，启动失败退出
   status: ImplementedAndFocusedVerified
   evidence: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/evidence/save-launch-separation.txt
+
+component_publication:
+  authorization: 用户明确要求发布相关组件到组件仓库并总结当前任务完成情况
+  status: PublishedAndPublicBytesVerified
+  repository: https://github.com/jiaxinchen-max/termux-app-packages
+  source_commit: 52ccd54399a907284b95d44dae59d8f2088d951c
+  manifest_commit: 3c98bd7fddd4e8ec97a751107a1778aa690166d1
+  releases: [gnome-50-resolute-20261116-r1, native-ubuntu-gnome-50-r1]
+  evidence_commit: 2e4b062a4a2cd131f4f56f5117b087ade05e786b
+  channel: prerelease
+  public_assets_verified: 22
+  external_mesa_asset_verified: true
+  evidence: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/evidence/component-publication.json
+  apk_published: false

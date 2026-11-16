@@ -1,6 +1,6 @@
 # Mutter Android GPU 后端
 
-2026-11-16：Mutter/Shell 50 移植实施中，未发布。当前集成补丁为 `mutter/0001-android-platform.patch`，
+2026-11-16：Mutter/Shell 50 已在组件仓库 [gnome-50-resolute-20261116-r1](https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/gnome-50-resolute-20261116-r1) 发布公开集成验证版，完整 App 验收仍在进行。当前集成补丁为 `mutter/0001-android-platform.patch`，
 已迁移显示、输入/sprite 和 Cogl EGL winsys 接口；四个组件已在原链构建并通过 ELF 检查，全部新 ABI GIR 已真实生成。Native 与 PRoot Bionic Shell 均提交过 GPU 首帧；普通用户 PRoot 的总线、四扩展、DING 窗口、终端输入与 Nautilus 已实测；完整会话清理已验证，Native 全套 GUI 与四类新安装仍待验证。
 50.1-4 保留窗口队列补丁，并将 keymap 更新改为持有描述对象的 GLib idle 异步任务，避免重入 Shell 输入源选择。窗口队列补丁修正同步刷新重复清标记导致 DING 回调重新入队在销毁时漏清理的问题；设备压力验证记录在对应 OpenSpec，不以函数级回归替代实测。
 所有持久初始化和静态完整性／依赖／版本检查在保存／安装阶段完成；启动执行已保存的会话，不初始化、修复或回退。

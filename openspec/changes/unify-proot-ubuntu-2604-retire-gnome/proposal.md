@@ -13,7 +13,10 @@
 HTTP API 合同没有变化，api_docs 为 N/A。用户可见的桌面类型、系统版本及兼容规则变化，product_docs 为 Required，目标 docs/product/desktop-management.md，验收前 consistency 为 Pending。
 
 ## 当前状态
-用户已通过“实施”批准原方案。已实施独立 GNOME PRoot 下线；发现 GNOME 50 移除现有 X11 后端，用户追加确认“升级现有组件进行支持，pipewire不用考虑”；显示改为移植 Android 原生后端，底包统一仍未完成。仓库缺少 Harness 指令和 strict gate/OpenSpec CLI，不宣称完整门禁通过。
+用户已通过“实施”批准原方案。已实施独立 GNOME PRoot 下线；发现 GNOME 50 移除现有 X11 后端，用户追加确认“升级现有组件进行支持，pipewire不用考虑”；显示改为移植 Android 原生后端。底包映射和安装代码已统一 Resolute，四类全新安装与 Native 完整组合仍待验收。仓库缺少 Harness 指令和 strict gate/OpenSpec CLI，不宣称完整门禁通过。
 
 ## 用户追加约束：保存与启动分离
 用户明确要求所有初始化在保存／安装阶段完成；启动不执行依赖、版本、主题哈希预检，不写入默认设置，不自动修复或重试。启动失败退出并保留原始日志。此要求替代此前启动时重新验证静态安装内容的设计。
+
+## 用户追加授权：发布组件
+用户明确要求“发布相关组件到组件仓库，总结当前任务完成情况”。本次发布已验证的 GNOME 50 核心、Resolute GIO／Glycin 与 Native Ubuntu 50 外观，附源码、来源锁及校验清单，以公开集成验证版区分组件交付与完整 App 验收。App 继续使用既有固定 URL／哈希，不发布 APK、不归档。

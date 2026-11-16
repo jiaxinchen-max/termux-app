@@ -13,7 +13,7 @@ findings:
   - id: INSTALLER_RUNTIME_COHERENCE
     severity: blocker
     status: open
-    description: 安装器已同步真实 GNOME 50 核心、Resolute 适配和 Native Ubuntu 50 外观哈希，GNOME 不再依赖 Xlorie；新资产未发布，Native 独立 GTK 应用组合未实测，仍不可发布 APK。
+    description: 安装器已同步真实 GNOME 50 核心、Resolute 适配和 Native Ubuntu 50 外观哈希，GNOME 不再依赖 Xlorie；两组组件已公开发布并通过 22 项公开下载字节校验，Native 独立 GTK 应用组合与四类新安装仍未实测，仍不可发布 APK。
   - id: PROOT_SHELL_BUS_READINESS
     severity: blocker
     status: resolved
@@ -35,3 +35,8 @@ findings:
     severity: high
     status: resolved
     description: 按用户纠正移除启动阶段静态校验、默认配置生成、主题及缓存初始化和文件部署；保存完成才发布会话描述。实际冷启动未重写静态文件，缺少保存结果直接失败，无自动初始化／修复。
+
+  - id: COMPONENT_PUBLICATION
+    severity: high
+    status: resolved
+    description: 用户明确授权组件发布。GNOME 50 核心／GIO／Glycin 与 Native Ubuntu 外观已在组件仓库公开为集成验证版；22 个组件资产及既有上游 Mesa 均从原始公开 URL 回读并验证大小／SHA256，App 固定清单一致；不等同于整体验收。
