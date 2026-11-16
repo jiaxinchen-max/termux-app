@@ -1,0 +1,20 @@
+schema: review_findings_v1
+change_id: add-proot-usb-storage
+stage: requirement_review
+status: REVIEWED_AWAITING_SCOPE_CONFIRMATION
+method: 主代理直接源码与资料自审；未使用独立代理
+findings: []
+pending_decisions:
+  - 用户实际设备类别及是否采用只读存储首期
+  - Plasma 使用配套 Thunar 的专门 USB 文件入口是否符合期望
+checks:
+  planning_structure: passed
+  whitespace: passed
+  current_source_consistency: manually_reviewed
+  yaml_fields: manually_reviewed_only
+  implementation: not_started
+limitations:
+  - 无 Harness 严格门禁脚本与 OpenSpec CLI，不能声称 strict-run 通过
+  - 无物理 USB 验证，候选支持边界不能替代实物验收
+  - 需求未确认，禁止进入业务实现
+review_document: openspec/changes/add-proot-usb-storage/planning-review.md

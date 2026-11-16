@@ -1,0 +1,26 @@
+change_id: add-proot-usb-storage
+stage: requirement_review
+scope_status: provisional_storage_first
+api_docs:
+  status: N/A
+  reason: 复用现有本机鉴权 WebDAV、Android USB FD 与 Unix 控制协议；不新增或变更 HTTP 合约
+product_docs:
+  status: Required
+  documents:
+    - docs/product/desktop-external-devices.md
+  planned_knowledge: 四类 PRoot 的只读 USB 存储、Android 授权、文件管理器入口与设备支持边界；最终验收后编写
+  consistency:
+    status: Pending
+    evidence: .harness/runs/add-proot-usb-storage/evidence.md
+    findings: .harness/runs/add-proot-usb-storage/review-findings.yaml
+approval:
+  requirement: pending
+  device_category: pending_async_answer
+  git_progress: 此前用户已要求任务结束推送代码保存进度；本次仅保存调研和候选规划
+  implementation: not_started
+protected_paths:
+  status: inventory_unavailable
+  reason: 仓库缺少规则文件；当前仅规划资料，无业务或受保护配置修改
+harness_gate:
+  status: unavailable
+  reason: 仓库缺少 .harness/scripts/verify.sh 和 bootstrap 文件，环境无 openspec CLI；人工规划检查不等于严格门禁通过
