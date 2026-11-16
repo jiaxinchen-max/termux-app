@@ -30,3 +30,6 @@
 - 尚未通过 App 完整启动桌面或验证应用中心 GUI 的真实密码交易，不声称端到端验收通过。安装完成状态仍需用户覆盖新 APK 后重试 XFCE 安装；不用删除容器或清空数据。
 - 本轮 APK 签名 v1/v2 验证通过，arm64-v8a、非 testOnly，74 个运行源资产字节匹配，无 pyc；44,533,485 字节（42.47 MiB）。SHA256：0d906fe63e40500c294cf720f607083a0229a67355a555c53c30c9f6b135e55b。HTTP 完整下载哈希一致。
 - 设备及构建日志保存在 /home/user/workspace/artifacts/xfce-permission-fix-20261116/；严格 Harness 门禁仍因脚本缺失不可执行，产品验收 Pending。
+
+## 其他桌面同类问题检查
+以 87357f8a 检查其余三个桌面的保存/安装/恢复路径，未发现当前支持组合会触发 XFCE 的 000 PREFIX 写入错误。4 项隔离路径审计、10 项 Plasma 启动监督和 5 项普通用户会话测试通过。Ubuntu GNOME 的 USB read-only 旧分支包含类似写法，但当前 UI 和启动参数契约禁止该组合，未更改业务逻辑；未来开放前必须修正。模拟器目前没有 GNOME/Hyprland PRoot 桌面，本次不声称其完整安装或 GUI 验收通过。详见 docs/desktop-testing/desktop-path-permission-audit-20261116.md。
