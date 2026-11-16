@@ -96,7 +96,8 @@ public class DesktopGalleryRefreshTest {
         }
     }
 
-    @Test public void narrowAndWideCardsKeepLongNamesAndLargeFontActionsInsideBounds() throws Exception {
+    @Test @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    public void fixedCardsKeepActionsInsideFiniteViewportsWithLongNamesAndLargeFonts() throws Exception {
         for (float scale : new float[]{1f, 2f}) {
             RuntimeEnvironment.setFontScale(scale);
             FileManagerViewMode.GRID.save(RuntimeEnvironment.getApplication(), "desktop");
@@ -113,23 +114,38 @@ public class DesktopGalleryRefreshTest {
                     int width = Math.round(widthDp * density);
                     grid.layout(0, 0, width, 1);
                     render(activity, desktop, DesktopSessionState.INSTALLING);
+                    // Text auto-sizing can request another layout after the first finite pass.
+                    for (int pass = 0; pass < 2; pass++) {
+                        grid.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                            View.MeasureSpec.makeMeasureSpec(Math.round(660 * density), View.MeasureSpec.AT_MOST));
+                        grid.layout(0, 0, width, grid.getMeasuredHeight());
+                    }
                     View card = grid.getChildAt(0);
-                    int cardWidth = card.getLayoutParams().width;
-                    assertTrue(cardWidth <= width);
-                    card.measure(View.MeasureSpec.makeMeasureSpec(cardWidth, View.MeasureSpec.EXACTLY),
-                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-                    card.layout(0, 0, cardWidth, card.getMeasuredHeight());
+                    assertEquals(3, grid.getChildCount());
+                    for (int index = 0; index < grid.getChildCount(); index++) {
+                        assertEquals(Math.round(128 * density), grid.getChildAt(index).getWidth());
+                        assertEquals(Math.round(160 * density), grid.getChildAt(index).getHeight());
+                    }
+                    assertEquals(Math.round(52 * density), card.findViewById(R.id.desktop_cover).getHeight());
                     TextView title = card.findViewById(R.id.desktop_name);
                     TextView badge = card.findViewById(R.id.desktop_mode_badge);
                     assertTrue(title.getTop() >= badge.getBottom());
-                    assertEquals(0, title.getLayout().getEllipsisCount(title.getLineCount() - 1));
+                    assertTrue(title.getLineCount() <= 2);
                     TextView primary = card.findViewById(R.id.desktop_primary);
                     View more = card.findViewById(R.id.desktop_more);
                     assertTrue(primary.getRight() <= more.getLeft());
                     assertTrue(primary.getHeight() >= 48 * density);
-                    assertTrue(primary.getHeight() - primary.getCompoundPaddingTop()
+                    assertTrue("font=" + scale + " height=" + primary.getHeight()
+                        + " padding=" + primary.getCompoundPaddingTop() + "," + primary.getCompoundPaddingBottom()
+                        + " text=" + primary.getLayout().getHeight() + " size=" + primary.getTextSize(),
+                        primary.getHeight() - primary.getCompoundPaddingTop()
                         - primary.getCompoundPaddingBottom() >= primary.getLayout().getHeight());
                     assertTrue(more.getRight() <= ((View)more.getParent()).getWidth());
+                    android.graphics.Rect bounds = new android.graphics.Rect();
+                    primary.getDrawingRect(bounds);
+                    ((android.view.ViewGroup)card).offsetDescendantRectToMyCoords(primary, bounds);
+                    assertTrue(bounds.top >= 0);
+                    assertTrue(bounds.bottom <= card.getHeight());
                 }
             }
         }

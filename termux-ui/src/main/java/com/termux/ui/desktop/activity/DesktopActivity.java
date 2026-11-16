@@ -264,21 +264,21 @@ public final class DesktopActivity extends AppUiActivity {
         grid.setVisibility(View.VISIBLE);
         int columns = collectionToolbar.isList() ? 1 : DesktopCardLayout.columns(
             Math.round(gridWidth / getResources().getDisplayMetrics().density),
-            getResources().getConfiguration().fontScale);
+            1f);
         grid.setColumnCount(columns);
         for (int index = 0; index < modeDistros.size(); index++) {
             ItemDesktopBinding card = ItemDesktopBinding.bind(getLayoutInflater().inflate(
                 collectionToolbar.isList() ? R.layout.item_desktop_list : R.layout.item_desktop,
                 grid, false));
             bindCard(card, modeDistros.get(index), modeStates.get(index), distros);
-            place(card.getRoot(), index, columns, gridWidth, false);
+            place(card.getRoot(), index, columns, gridWidth);
             grid.addView(card.getRoot());
         }
         ItemDesktopAddBinding add = ItemDesktopAddBinding.bind(getLayoutInflater().inflate(
             collectionToolbar.isList() ? R.layout.item_desktop_add_list : R.layout.item_desktop_add,
             grid, false));
         add.getRoot().setOnClickListener(view -> openCreate());
-        place(add.getRoot(), modeDistros.size(), columns, gridWidth, true);
+        place(add.getRoot(), modeDistros.size(), columns, gridWidth);
         grid.addView(add.getRoot());
         if (tab == DesktopRunMode.PROOT) {
             importCard = ItemDesktopImportBinding.bind(getLayoutInflater().inflate(
@@ -298,7 +298,7 @@ public final class DesktopActivity extends AppUiActivity {
                 });
                 menu.show();
             });
-            place(importCard.getRoot(), modeDistros.size() + 1, columns, gridWidth, true);
+            place(importCard.getRoot(), modeDistros.size() + 1, columns, gridWidth);
             grid.addView(importCard.getRoot());
             updateImportAvailability();
         }
@@ -308,16 +308,16 @@ public final class DesktopActivity extends AppUiActivity {
         createDesktop.launch(DesktopCreateActivity.createIntent(this, tab));
     }
 
-    /** Keeps compact cards at their preferred width as the window grows. */
-    private void place(View card, int index, int columns, int gridWidth, boolean fillRow) {
+    /** Grid cards keep fixed bounds; only list rows use the available width and content height. */
+    private void place(View card, int index, int columns, int gridWidth) {
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
         params.width = collectionToolbar.isList() ? Math.max(1, gridWidth - dp(6))
-            : dp(DesktopCardLayout.widthDp(Math.round(gridWidth
-                / getResources().getDisplayMetrics().density), getResources().getConfiguration().fontScale));
-        params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            : Math.max(1, Math.min(getResources().getDimensionPixelSize(R.dimen.desktop_card_width),
+                gridWidth - dp(6)));
+        params.height = collectionToolbar.isList() ? ViewGroup.LayoutParams.WRAP_CONTENT
+            : getResources().getDimensionPixelSize(R.dimen.desktop_card_height);
         params.columnSpec = GridLayout.spec(index % columns);
-        int row = index / columns;
-        params.rowSpec = fillRow ? GridLayout.spec(row, GridLayout.FILL) : GridLayout.spec(row);
+        params.rowSpec = GridLayout.spec(index / columns, GridLayout.TOP);
         params.setMargins(dp(3), dp(3), dp(3), dp(3));
         card.setLayoutParams(params);
     }

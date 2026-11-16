@@ -1,0 +1,80 @@
+{
+  "schema": "review_findings_v1",
+  "change_id": "fix-desktop-manager-fixed-card-size",
+  "reviewer": "primary-agent-self-review",
+  "status": "APPROVED",
+  "findings": [],
+  "reviewed_files": [
+    {
+      "path": "app/src/test/java/com/termux/ui/desktop/activity/DesktopGalleryRefreshTest.java",
+      "sha256": "dca793acb0ac6c8f4a055feb275b51a5009e7cae4f840d381fd3e952285555b7"
+    },
+    {
+      "path": "termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopActivity.java",
+      "sha256": "795333f7706dbcfdb23d09e0a8d5aaa5b44b9f23d34fbd1d7b5bc5ede43fc615"
+    },
+    {
+      "path": "termux-ui/src/main/res/layout/item_desktop.xml",
+      "sha256": "1349b1d60d9cc4dc55a73e73a398ca250cc24ac0cf446198fce50bb1e52a58cd"
+    },
+    {
+      "path": "termux-ui/src/main/res/layout/item_desktop_add.xml",
+      "sha256": "911024a687b6c88befa376087f48c2310485693644aec9afc48f04a4b07b16aa"
+    },
+    {
+      "path": "termux-ui/src/main/res/layout/item_desktop_import.xml",
+      "sha256": "63aa5259825af31972502404c020e95233a9958d2978aadccd1e88561b1227a5"
+    },
+    {
+      "path": "termux-ui/src/main/res/values/dimens.xml",
+      "sha256": "37293d4f61d2cb75107f155719872a87d4314fd3623362e8ca45e35b9dc0e7da"
+    }
+  ],
+  "checks": [
+    "管理网格实体/新增/导入卡片使用相同固定尺寸，列表继续全宽",
+    "封面不再根据 match_parent 装饰层确定高度；正文分配剩余空间且底部操作固定",
+    "有限视口与两倍字号下参数和按钮不会挤出卡片，长名称允许省略",
+    "主题令牌、启动确认及安装光带生命周期保留，未改后台或创建页",
+    "保留 Wine 已使用的旧 dimen，未修改七个脏子模块"
+  ],
+  "validation": {
+    "tests": [
+      {
+        "suite": "DesktopGalleryRefreshTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "DesktopCreateRenderingTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "build": "passed",
+    "fixed_grid_card_dp": {
+      "width": 128,
+      "height": 160,
+      "cover_height": 52
+    },
+    "layout_matrix": {
+      "available_widths_dp": [
+        240,
+        360,
+        840
+      ],
+      "font_scales": [
+        1,
+        2
+      ],
+      "engine": "Robolectric native graphics",
+      "measurement": "finite AT_MOST viewport, fixed dimensions, visible action bounds and text"
+    },
+    "device_installation": "not performed; user will download and install",
+    "strict_harness_gate": "Unavailable: repository harness files missing",
+    "product_consistency": "Pending user acceptance"
+  }
+}
