@@ -184,7 +184,13 @@ run() {
     case "$*" in *"proot-distro login"*) [ "$FIXTURE_FAIL" != apt ] || return 37 ;; esac
     return 0
 }
-fetch_debs() { printf 'FETCH %s\\n' "$1 $3" >> "$FIXTURE_TRACE"; printf '%s' "$PREFIX/tmp/xlorie.deb"; }
+fetch_debs() {
+    printf 'FETCH %s\\n' "$1 $3" >> "$FIXTURE_TRACE"
+    if [ "$FIXTURE_FAIL" = shell-dependencies ]; then
+        case "$3" in *accountsservice_*) return 42 ;; esac
+    fi
+    printf '%s' "$PREFIX/tmp/xlorie.deb"
+}
 fetch_verified_debs() { fetch_debs \"$@\"; }
 ensure_container_instance() { printf 'IMAGE %s\\n' "$2" >> "$FIXTURE_TRACE"; }
 pinned_package_valid() { return 0; }
@@ -245,6 +251,23 @@ dpkg() { return 0; }
                 code, output, trace, marker = self.install(failure=failure)
                 self.assertEqual(expected, code, output)
                 self.assertFalse(marker)
+
+    def test_proot_fetches_offline_shell_dependencies_without_native_file_manager(self):
+        code, output, trace, marker = self.install()
+        self.assertEqual(0, code, output)
+        self.assertTrue(marker)
+        for dependency in ('accountsservice_23.13.9_', 'gnome-settings-daemon-schemas_48.1_',
+                           'libgdm_48.0-1_', 'polkit_126_'):
+            self.assertIn(dependency, trace)
+        for native_application in ('nautilus_48.', 'gnome-control-center_48.', 'gnome-autoar_'):
+            self.assertNotIn(native_application, trace)
+
+    def test_missing_shell_dependency_download_fails_before_host_apt(self):
+        code, output, trace, marker = self.install(failure='shell-dependencies')
+        self.assertEqual(42, code, output)
+        self.assertFalse(marker)
+        self.assertIn('downloading verified GNOME Shell dependencies', output)
+        self.assertNotIn('RUN apt install', trace)
 
     def test_unknown_ding_source_removes_existing_success_marker(self):
         code, output, trace, marker = self.install(existing=True, failure='ding')

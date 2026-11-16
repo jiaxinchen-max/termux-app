@@ -45,3 +45,9 @@ findings:
     severity: high
     status: resolved
     description: 设备全新安装在复制 Glycin 助手时失败，原因是 APK 资源未列入 App 部署数组。补齐安装／保存阶段部署，无启动路径改动；新增实际 App 资源部署负正对照回归。用户要求自行完成完整安装验收。
+
+
+  - id: PROOT_SHARED_SHELL_DEPENDENCIES
+    severity: high
+    status: resolved
+    description: 实际用户日志复现四个 Shell 依赖不可安装，已从 Native 附加清单拆为两种模式共享的固定哈希组件；真实宿主 apt 全部配置成功、Shell/GJS 版本及 dpkg audit 通过，容器完整安装仍在执行。

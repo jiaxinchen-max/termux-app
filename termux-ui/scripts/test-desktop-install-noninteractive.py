@@ -1,9 +1,11 @@
 """Run desktop install entry points against a real, isolated dpkg conffile conflict."""
 
 import json
+import hashlib
 import os
 from pathlib import Path
 import pty
+import re
 import shutil
 import signal
 import subprocess
@@ -113,7 +115,18 @@ elif name == os.environ['FIXTURE_TARGET'] and args[0] == os.environ['FIXTURE_STA
                       DESKTOP_STATUS_FILE=str(self.base / "status"),
                       DESKTOP_RELEASE_TAG="termux-hwaccel-6.7-r4")
         spec.write_text("".join(key + "='" + value + "'\n" for key, value in values.items()))
-        command = ["sh", str(ASSETS / "desktop_install.sh"), str(spec), "--operation=" + operation]
+        installer = ASSETS / "desktop_install.sh"
+        if de == "gnome":
+            # The network wrapper supplies fixture bytes. Pin those bytes in the test
+            # manifest while retaining the production SHA256 verification and dpkg path.
+            fixture_digest = hashlib.sha256(b"fixture download").hexdigest()
+            installer = self.base / "desktop_install.sh"
+            installer.write_text(re.sub(r"\b[0-9a-f]{64}\b", fixture_digest,
+                                        (ASSETS / "desktop_install.sh").read_text()))
+            for name in ("desktop_common.sh", "desktop_rendering.sh",
+                         "desktop_gnome_launch.py", "desktop_usb_storage.py"):
+                (self.base / name).symlink_to(ASSETS / name)
+        command = ["sh", str(installer), str(spec), "--operation=" + operation]
         if operation == "host-prerequisites":
             command += ["--task-id=conflict", "--result-file=" + str(self.base / "result")]
         code, output, blocked = self.without_input(command)

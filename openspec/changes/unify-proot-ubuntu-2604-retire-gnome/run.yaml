@@ -67,3 +67,15 @@ ubuntu_gnome_install_regression:
   root_cause: Glycin 安装助手在 APK 内，但 App 部署清单漏项
   evidence: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/evidence/apk-glycin-fix.json
   device_acceptance: PendingUserManualTest
+
+
+ubuntu_gnome_shared_dependencies:
+  authorization: 用户要求自行查漏补缺并完整验证安装，修复后交付 APK，持续推送保存进度
+  status: HostPackagesVerifiedContainerInstallInProgress
+  audit_alias: audit-ubuntu-gnome
+  root_cause: 四个已发布的原生 Shell 依赖仅下载到 Native 模式，PRoot apt 无法解析
+  focused_tests: {ubuntu_gnome: 18, save: 5, noninteractive_real_dpkg: 10}
+  host_real_install: Passed
+  host_dpkg_audit: Clean
+  container_real_install: InProgress
+  evidence: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/verification.md

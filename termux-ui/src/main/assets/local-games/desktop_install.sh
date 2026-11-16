@@ -163,16 +163,20 @@ xwayland_24.1.11-1_aarch64.deb 3cc2999ae0ba90495abad71445f794723efc06a97c001b383
 # GNOME/USB release asset identities and publication digests.
 GNOME_USB_RELEASE_TAG="gnome-usb-20261030-r1"
 GNOME_USB_BASE_URL="https://github.com/jiaxinchen-max/termux-app-packages/releases/download/$GNOME_USB_RELEASE_TAG"
-GNOME_NATIVE_DEBS="
+# Both modes run the Bionic Shell/Mutter. These dependencies are absent from the
+# public apt repositories and must accompany the compositor in PRoot mode too.
+GNOME_SHELL_SUPPORT_DEBS="
 accountsservice_23.13.9_aarch64.deb 4d1dfa7ae196beba68378d04913a0ab2eb09b105b4e305da27bd97a355fe1f4e
-gexiv2_0.14.7_aarch64.deb 2eea495d80f59b7285f8225df2526cd8a7c06ce03f9abd1ca2d65b9427772221
-gnome-autoar_0.4.5_aarch64.deb 3d98ef33d6e48a21af97bc1d03440303106172969ae5fd67bd77ded9348b03f6
 gnome-settings-daemon-schemas_48.1_all.deb 03ed7b7a1f8d184353906f511e66bbf767f32622fb26c280ea896cb3789f9215
 libgdm_48.0-1_aarch64.deb fb9d03f4665fd540af125d91784d0d284122b5ee81b53f279705eafdacb63231
+polkit_126_aarch64.deb 1eddba206bc72c6b423557ff749416971efdec25be03fca45ad5498b33e98b67
+"
+GNOME_NATIVE_DEBS="
+gexiv2_0.14.7_aarch64.deb 2eea495d80f59b7285f8225df2526cd8a7c06ce03f9abd1ca2d65b9427772221
+gnome-autoar_0.4.5_aarch64.deb 3d98ef33d6e48a21af97bc1d03440303106172969ae5fd67bd77ded9348b03f6
 localsearch-schemas_3.9.0_all.deb 13a0f641887be3fb7c92034ae485a67bf9a8726a73bed04d8f6f77d3e6f1f2b6
 nautilus_48.3-3_aarch64.deb ee53e9a2961294df5516ba0d7e4a3e138e57634ec4b132f37f1ea41c97d26506
 pipewire-dbus_1.4.9_aarch64.deb f42dd82ff03801d5c1e14203f78c3092cfdbf0a57add3133c37331afd4b8ac8b
-polkit_126_aarch64.deb 1eddba206bc72c6b423557ff749416971efdec25be03fca45ad5498b33e98b67
 "
 NATIVE_GNOME_APPS_TAG="native-gnome-apps-48-r2"
 NATIVE_GNOME_APPS_URL="https://github.com/jiaxinchen-max/termux-app-packages/releases/download/$NATIVE_GNOME_APPS_TAG"
@@ -733,6 +737,8 @@ run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-
 DEB_PATHS=""
 if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
     DEB_PATHS=$(fetch_verified_debs "$GNOME_RESOLUTE_TAG" "$GNOME_RESOLUTE_URL" "$GNOME_RUNTIME_DEBS") || fail 'downloading verified GNOME 50 runtime'
+    GNOME_SUPPORT_PATHS=$(fetch_verified_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$GNOME_SHELL_SUPPORT_DEBS") || fail 'downloading verified GNOME Shell dependencies'
+    DEB_PATHS="$DEB_PATHS $GNOME_SUPPORT_PATHS"
     if [ "$DESKTOP_MODE" = native ]; then
         GNOME_PATHS=$(fetch_verified_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$GNOME_NATIVE_DEBS") || fail 'downloading verified native GNOME applications and services'
         DEB_PATHS="$DEB_PATHS $GNOME_PATHS"
@@ -889,7 +895,8 @@ fi
 verification_manifest="$DEBS"
 case "$DESKTOP_DE" in
     xfce4) verification_manifest="$XLORIE_DEBS" ;;
-    gnome|ubuntu_gnome) verification_manifest="$GNOME_RUNTIME_DEBS"
+    gnome|ubuntu_gnome) verification_manifest="$GNOME_RUNTIME_DEBS
+$GNOME_SHELL_SUPPORT_DEBS"
         [ "$DESKTOP_MODE" != native ] || verification_manifest="$verification_manifest
 $GNOME_NATIVE_DEBS" ;;
 esac

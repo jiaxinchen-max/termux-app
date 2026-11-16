@@ -127,3 +127,12 @@ App 仓库独立公开 prerelease `desktop-adapted-20261116-4b1ee426` 包含 APK
 新增 Robolectric App 测试实际调用 installDesktopScripts，从空目录部署并验证 Glycin、GIO、Mesa 安装助手存在且与 APK 资源字节一致。修复前测试准确失败于缺少 desktop_install_glycin.py；修复后同一实际部署测试通过（1 项），构建耗时 5 秒；APK 交付证据随后记录。Glycin 5 项、Ubuntu GNOME 16 项定向测试通过。用户明确要求修复后直接交付 APK，完整安装由用户手动测，本轮不覆盖用户 App／容器。原严格 gate 仍不可用。
 
 修复版源码 c6ff13b3 已推送。最终清除增量 ZIP 空洞后重新打包，未增添运行资产；产物 45,395,870 字节，SHA256 `c8ffcd9291cbab243067c37144af53c8f52618c27b8d0193c6f4fd05e42f887d`，apksigner v1／v2 通过、arm64-v8a、Manifest 无 testOnly、ZIP CRC 及 72 个资源字节检查通过。独立公开 prerelease `desktop-glycin-fix-20261116-c6ff13b3` 的原始 APK URL 已无认证下载全包，大小与 SHA256 匹配。证据见 evidence/apk-glycin-fix.json。未执行完整设备安装，交由用户手动验收。
+
+
+## 再次安装失败：PRoot 原生合成器依赖漏项（2026-11-16）
+
+用户要求自行查漏补缺并完整安装验证。设备日志确认 Shell 依赖的 accountsservice、gnome-settings-daemon-schemas、libgdm、polkit 在公开 apt 源不可用；这四个已发布组件仅列入 Native 应用附加清单，PRoot 没有下载。两种模式均使用 Bionic Shell/Mutter，因此将四项拆为共享合成器依赖；两种模式下载并校验实际 SHA256，在同一 apt 事务安装，结束时校验固定版本。PRoot 不安装 Native Nautilus 等额外应用。没有启动阶段检查、初始化或回退，APK 不内嵌新组件。
+
+18 项 Ubuntu GNOME 回归、5 项保存回归、10 项真实隔离 dpkg conffile 回归通过。新增用例验证四项共享依赖进入 PRoot、Native 应用不会进入 PRoot、下载失败保留 42 且不执行 host apt、不写完成标记；在之前 APK 的安装器上两个新增用例均准确失败。原 GNOME 无人值守夹具未适配强制校验，现仅把测试清单摘要固定为网络夹具的真实摘要，保留正式 SHA256 校验与真实 dpkg 冲突。
+
+实际设备 force-stop 后重新打开 App，使用独立 audit-ubuntu-gnome 实例执行修复后的正式安装器，不替换用户容器或伪造 apt。宿主真实 apt 安装与配置全部通过；gnome-shell --version 输出 GNOME Shell 50.1，gjs --version 为 1.88.0，dpkg --audit 为空。已开始下载并应用 ubuntu:resolute OCI 底包。容器内软件包及最终保存初始化尚在执行，不能宣称完整安装成功。日志保存在本地 artifacts/gnome50/install-audit/，规定的 strict gate 仍缺失。
