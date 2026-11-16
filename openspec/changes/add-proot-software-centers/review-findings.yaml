@@ -1,0 +1,20 @@
+schema: review_findings_v1
+change_id: add-proot-software-centers
+stage: code-review
+status: APPROVED_WITH_LIMITATIONS
+method: 直接源码自审、真实生产安装入口的隔离命令测试、独立进程生命周期测试；未使用子代理
+human_confirmation: 用户批准执行；沿用任务结束推送进度授权
+findings: []
+evidence: verification-evidence.json
+reviewed:
+  - 三个安装分支显式 DEB 插件、AppStream 准备顺序与失败不发布成功
+  - 保存/恢复验证包状态及服务配置，普通启动没有 APT 操作、版本探测或修复
+  - guest root 服务与普通用户应用分离，宿主/容器总线隔离和 PAM 标准端点
+  - GTK 密码遮蔽、参数边界、错误和取消仍交由真实 PolicyKit/PAM，Plasma kdialog 默认保持
+  - 配置持久化、过期 ready 清理、只结束拥有的进程组、认证异常不重启或终止健康桌面
+  - Java 提取清单与 GNOME 独立启动器随附脚本完整；APK 全部源资产逐字节匹配
+limitations:
+  - 新应用中心在模拟器的完整安装、界面和真实密码交易尚未完成；自动测试不冒充 PAM 成功证据
+  - 原初始化测试套件修改前后均为 8 个失败和 4 个错误，详细记录在验证文档
+  - Harness 严格门禁脚本缺失，不能声称通过
+  - 用户尚未最终验收，产品资料一致性 Pending，不归档

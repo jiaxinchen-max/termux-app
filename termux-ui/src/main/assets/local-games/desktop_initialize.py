@@ -510,7 +510,7 @@ def initialize(args):
             desktop_id=args.desktop_id, ready_file=args.ready_file, run_mode=args.run_mode,
             alias=args.alias, client_gl_mode=args.guest_gl_mode if guest else 'default',
             width=width, height=height, refresh=args.refresh_rate))
-    elif args.de == 'xfce4' and args.usb_storage == 'read-only':
+    elif args.de == 'xfce4' and (guest or args.usb_storage == 'read-only'):
         from types import SimpleNamespace
         runpy.run_path(str(ASSETS / 'desktop_xfce_session.py'))['prepare'](SimpleNamespace(
             desktop_id=args.desktop_id, run_mode=args.run_mode, alias=args.alias), prefix)

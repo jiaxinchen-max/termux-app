@@ -9,6 +9,7 @@ termux and registration is restricted to that user's private-bus clients.
 """
 import json
 import os
+from pathlib import Path
 import pwd
 import signal
 import sys
@@ -106,6 +107,17 @@ class Listener:
         self.bus.unregister_object(handle)
 
 
+def dialog_command(message, text, echo):
+    frontend = os.environ.get('DESKTOP_AUTH_DIALOG', 'kdialog')
+    if frontend == 'zenity':
+        return ['/usr/bin/zenity', '--entry', *([] if echo else ['--hide-text']),
+                '--title=Authentication', '--text=' + message + '\n' + text]
+    if frontend == 'kdialog':
+        return ['/usr/bin/kdialog', '--title', 'Authentication',
+                '--inputbox' if echo else '--password', message + '\n' + text]
+    raise RuntimeError('Unsupported authentication dialog')
+
+
 def authenticate():
     uid = pwd.getpwnam('termux').pw_uid
     if uid == 0 or os.getuid() != uid:
@@ -124,8 +136,7 @@ def authenticate():
             dialog = Gio.Subprocess.new(['/usr/bin/env', 'HOME=/home/termux', 'USER=termux',
                 'LOGNAME=termux', 'XDG_CONFIG_HOME=/home/termux/.config',
                 'XDG_CACHE_HOME=/home/termux/.cache', 'XDG_DATA_HOME=/home/termux/.local/share',
-                '/usr/bin/kdialog', '--title', 'Authentication',
-                '--inputbox' if echo else '--password', message + '\n' + text],
+                *dialog_command(message, text, echo)],
                 Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE)
             dialogs.add(dialog)
             def answered(process, result):
@@ -141,7 +152,7 @@ def authenticate():
                 except GLib.Error:
                     session.cancel()
             dialog.communicate_utf8_async(None, None, answered)
-        except GLib.Error:
+        except (GLib.Error, RuntimeError):
             session.cancel()
 
     def finished(unused, gained):
@@ -240,6 +251,9 @@ def main():
     for signum in (signal.SIGTERM, signal.SIGINT):
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signum, stop)
     print('PolicyKit process password agent ready', flush=True)
+    ready = os.environ.get('DESKTOP_POLKIT_READY_FILE')
+    if ready:
+        Path(ready).write_text(str(os.getpid()) + '\n')
     try:
         loop.run()
     finally:

@@ -129,4 +129,18 @@ class AgentTests(unittest.TestCase):
         listener.stop();callback(worker,Mock());listener.stop()
         invocation.return_dbus_error.assert_called_once();invocation.return_value.assert_not_called()
 
+    def test_gtk_password_prompt_is_masked_and_never_uses_message_as_options(self):
+        with patch.dict(self.m.os.environ, DESKTOP_AUTH_DIALOG='zenity'):
+            command = self.m.dialog_command('--example action', 'Password:', False)
+            self.assertEqual('/usr/bin/zenity', command[0])
+            self.assertIn('--hide-text', command)
+            self.assertIn('--text=--example action\nPassword:', command)
+            self.assertNotIn('--hide-text', self.m.dialog_command('action', 'Username:', True))
+
+    def test_plasma_keeps_packaged_kdialog_and_unknown_frontend_fails(self):
+        with patch.dict(self.m.os.environ, DESKTOP_AUTH_DIALOG='kdialog'):
+            self.assertIn('--password', self.m.dialog_command('action', 'Password:', False))
+        with patch.dict(self.m.os.environ, DESKTOP_AUTH_DIALOG='unknown'):
+            with self.assertRaises(RuntimeError): self.m.dialog_command('action', 'Password:', False)
+
 if __name__=='__main__':unittest.main()

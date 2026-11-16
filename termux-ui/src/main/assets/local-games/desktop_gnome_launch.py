@@ -16,6 +16,7 @@ import re
 import shutil
 import hashlib
 import json
+import runpy
 from xml.sax.saxutils import escape
 
 
@@ -249,6 +250,7 @@ def main():
         values.update(PREFIX=str(prefix), LIBGL_ALWAYS_SOFTWARE='1', GALLIUM_DRIVER='llvmpipe')
         values.update(USER='termux', LOGNAME='termux', SHELL='/bin/bash',
                       PATH='/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+                      GIO_USE_NETWORK_MONITOR='base',
                       XDG_DATA_DIRS=('/usr/share/ubuntu:/usr/local/share:/usr/share' if ubuntu else '/usr/local/share:/usr/share'), XDG_CONFIG_DIRS='/etc/xdg')
         if args.usb_storage == 'read-only':
             values['GIO_EXTRA_MODULES'] = '/usr/local/lib/termux-usb-bridge/gio/modules'
@@ -353,6 +355,8 @@ fi
 ''' + (profile.session_setup(prefix) if native_ubuntu else profile.session_setup() if ubuntu else '')
     subprocess.run(base + ['dbus-run-session', '--', session_sh, '-ec', settings],
                    env=guest, check=True, timeout=60)
+    if args.rootfs:
+        runpy.run_path(str(Path(__file__).with_name('desktop_software_center.py')))['prepare'](root, gr)
     config = dict(schema=1, request=session_request(args),
                   runtime=str(runtime), usb_parent=str(usb_parent), gw=gw, gr=gr,
                   base=base, session_sh=session_sh,
@@ -442,8 +446,17 @@ def run_prepared(args):
         (w / 'host-session.env').unlink(missing_ok=True)
         (runtime / 'system-bus').unlink(missing_ok=True)
         (runtime / 'session-bus').unlink(missing_ok=True)
-        bus = start('systembus', base + ['dbus-daemon', '--config-file=' + gw + '/systembus.conf',
-                    '--nofork', '--nopidfile'], guest)
+        if args.rootfs:
+            software = runpy.run_path(str(Path(__file__).with_name('desktop_software_center.py')))
+            (runtime / 'software-center.ready').unlink(missing_ok=True)
+            root_base = list(base)
+            root_base[root_base.index('-i') + 1] = '0:0'
+            bus = start('software-center', root_base + ['USER=root', 'LOGNAME=root', 'HOME=/root',
+                '/usr/bin/python3', '-I', '-B', software['MANAGER']], guest)
+            software['wait_ready'](bus, runtime)
+        else:
+            bus = start('systembus', base + ['dbus-daemon', '--config-file=' + gw + '/systembus.conf',
+                        '--nofork', '--nopidfile'], guest)
         deadline = time.monotonic() + 30
         while not (runtime / 'system-bus').exists():
             if bus.poll() is not None or time.monotonic() > deadline:

@@ -14,6 +14,7 @@ owned_storage_session=0
 case "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}" in
     gnome:*|ubuntu_gnome:*|hyprland:*|xfce4:read-only) owned_storage_session=1 ;;
 esac
+[ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" != proot:xfce4 ] || owned_storage_session=1
 stop_failure=0
 plasma_owned=0
 [ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" != proot:kwin_plasma ] || plasma_owned=1
@@ -55,7 +56,7 @@ if pid=$(read_pid) && pid_alive "$pid"; then
     fi
 fi
 
-if [ "$plasma_owned" -eq 0 ] && [ "${DESKTOP_DE:-}" != hyprland ] && [ "${DESKTOP_DE:-}" != gnome ] && [ "${DESKTOP_DE:-}" != ubuntu_gnome ] && [ "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}" != xfce4:read-only ]; then
+if [ "$plasma_owned" -eq 0 ] && [ "$owned_storage_session" -eq 0 ]; then
     for name in plasmashell kded6 kglobalacceld kactivitymanagerd kwin_wayland Xwayland Xlorie xfce4-session xfwm4 xfdesktop xfce4-panel; do
         signal_by_name TERM "$name"
     done

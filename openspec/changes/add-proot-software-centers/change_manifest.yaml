@@ -1,0 +1,13 @@
+change_id: add-proot-software-centers
+api_docs:
+  status: N/A
+  reason: 没有 HTTP 合约变化
+product_docs:
+  status: Required
+  documents: [docs/product/desktop-software-center.md]
+  consistency:
+    status: Pending
+    evidence: .harness/runs/add-proot-software-centers/evidence.md
+    findings: .harness/runs/add-proot-software-centers/review.yaml
+approval: 用户批准执行；此前授权任务结束推送进度
+harness_gate: unavailable

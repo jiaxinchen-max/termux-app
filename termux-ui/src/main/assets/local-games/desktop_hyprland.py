@@ -216,7 +216,9 @@ def container_command(work, alias, client_mode, program, token):
     guest_env = ['XDG_RUNTIME_DIR=/tmp/hyprland-runtime', 'WAYLAND_DISPLAY=wayland-hyprland',
                  'GDK_BACKEND=wayland', 'QT_QPA_PLATFORM=wayland', 'XDG_SESSION_TYPE=wayland',
                  'XDG_CURRENT_DESKTOP=Hyprland', 'PULSE_SERVER=tcp:127.0.0.1:4713',
-                 'TERMUX_HYPRLAND_SESSION=' + token]
+                 'TERMUX_HYPRLAND_SESSION=' + token,
+                 'DBUS_SYSTEM_BUS_ADDRESS=unix:path=/tmp/hyprland-runtime/system-bus',
+                 'GIO_USE_NETWORK_MONITOR=base']
     if client_mode == 'zink':
         guest_env += ['VK_DRIVER_FILES=/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json',
                       'VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json',
@@ -348,7 +350,13 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
     # Session-local wrappers select host or guest clients without user-code interpolation.
     bin_dir = work / 'bin'
     bin_dir.mkdir(exist_ok=True)
-    for action, program in [('terminal', ['xfce4-terminal', '--disable-server']), ('files', ['thunar'])]:
+    actions = [('terminal', ['xfce4-terminal', '--disable-server']), ('files', ['thunar'])]
+    if args.run_mode == 'proot':
+        software = runpy.run_path(str(Path(__file__).with_name('desktop_software_center.py')))
+        software['prepare'](PREFIX / 'var/lib/proot-distro/containers' / args.alias / 'rootfs',
+                            '/tmp/hyprland-runtime')
+        actions.append(('software', ['gnome-software']))
+    for action, program in actions:
         executable = [str(PREFIX / "bin/env"), "-u", "LD_LIBRARY_PATH", "-u", "LD_PRELOAD", *program]
         if args.run_mode == 'proot':
             executable = container_command(work, args.alias, client_mode,
@@ -410,6 +418,8 @@ def _session_locked(args, work, client_mode, prepared):
     shell_commands = prepared['shell_commands']
     process = None
     bus = None
+    packages = None
+    service_clients = []
     clients = []
     def stop(signum, frame):
         raise KeyboardInterrupt
@@ -459,6 +469,15 @@ def _session_locked(args, work, client_mode, prepared):
                 raise RuntimeError('Hyprland Android output/IPC/socket readiness timed out')
             (work / 'runtime/wayland-hyprland').symlink_to(env['WAYLAND_DISPLAY'])
             env['GDK_BACKEND'] = 'wayland'
+            if args.run_mode == 'proot':
+                software = runpy.run_path(str(Path(__file__).with_name('desktop_software_center.py')))
+                package_command = container_command(work, args.alias, client_mode,
+                    ['/usr/bin/python3', '-I', '-B', software['MANAGER']], env['TERMUX_HYPRLAND_SESSION'])
+                package_command[package_command.index('--user') + 1] = 'root'
+                packages = subprocess.Popen(package_command, env=env, stdout=log,
+                    stderr=subprocess.STDOUT, start_new_session=True)
+                service_clients.append(packages)
+                software['wait_ready'](packages, runtime)
             # Host GTK clients must use the installed libraries, not compositor-private ones.
             client_env = env.copy()
             client_env.pop('LD_LIBRARY_PATH', None)
@@ -500,6 +519,8 @@ def _session_locked(args, work, client_mode, prepared):
             temporary.replace(args.ready_file)
             print('Hyprland Android output and IPC ready; visual/input validation pending', flush=True)
             while process.poll() is None:
+                if packages is not None and packages.poll() is not None:
+                    raise RuntimeError('Hyprland guest package services exited; inspect session.log')
                 if bus.poll() is not None:
                     raise RuntimeError('Hyprland private D-Bus exited')
                 if any(client.poll() is not None for client in clients[:len(shell_commands)]):
@@ -511,7 +532,7 @@ def _session_locked(args, work, client_mode, prepared):
     finally:
         args.ready_file.unlink(missing_ok=True)
         (work / 'session.json').unlink(missing_ok=True)
-        for client in clients:
+        for client in clients + service_clients:
             try:
                 os.killpg(client.pid, signal.SIGTERM)
             except ProcessLookupError:
@@ -526,7 +547,7 @@ def _session_locked(args, work, client_mode, prepared):
                     process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
                     pass
-        for client in clients:
+        for client in clients + service_clients:
             try:
                 client.wait(timeout=5)
             except subprocess.TimeoutExpired:

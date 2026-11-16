@@ -3,6 +3,8 @@
 # the container). Runs in a visible Termux terminal session.
 
 set -u
+
+SOFTWARE_CENTER_PACKAGES="gnome-software gnome-software-plugin-deb packagekit appstream apt-config-icons polkitd python3 python3-gi gir1.2-polkit-1.0 zenity"
 # debconf and dpkg conffile decisions are separate; -y alone cannot answer either.
 export DEBIAN_FRONTEND=noninteractive
 
@@ -531,7 +533,7 @@ install_gnome_launchers() {
         if [ "$DESKTOP_MODE" = native ]; then
             launcher_assets="$launcher_assets desktop_native_ubuntu.py"
         else
-            launcher_assets="$launcher_assets desktop_ubuntu_gnome.py desktop_install_glycin.py desktop_install_gio.py"
+            launcher_assets="$launcher_assets desktop_ubuntu_gnome.py desktop_install_glycin.py desktop_install_gio.py desktop_software_center.py desktop_container_software_services.py desktop_container_polkit_agent.py"
         fi
     fi
     for item in $launcher_assets; do
@@ -782,7 +784,10 @@ if [ "$DESKTOP_DE" = hyprland ]; then
         fi
         # shellcheck disable=SC2086
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
-            --statx-backend=proc-fdinfo --no-install-recommends xfce4-terminal thunar dbus-x11 adwaita-icon-theme passwd sudo $zink_packages || fail 'Hyprland container clients'
+            --statx-backend=proc-fdinfo --no-install-recommends xfce4-terminal thunar dbus-x11 adwaita-icon-theme passwd sudo $SOFTWARE_CENTER_PACKAGES $zink_packages || fail 'Hyprland container clients'
+        cp "$(dirname "$0")/desktop_container_discover_catalog.sh" "$PREFIX/tmp/desktop_container_discover_catalog.sh" || fail 'staging software catalog helper'
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_discover_catalog.sh \
+            --statx-backend=proc-fdinfo || fail 'preparing software application catalog'
         if [ "$DESKTOP_COMPONENT_RENDERER" = zink ]; then
             ensure_resolute_turnip_icd "$DESKTOP_PROOT_DISTRO" "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.hyprland-mesa-backup"
             run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- python3 -I -c \
@@ -904,12 +909,13 @@ else
            [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || container_packages="$container_packages libvulkan-dev mesa-vulkan-drivers" ;;
     esac
     container_packages="$container_packages passwd sudo"
+    [ "$DESKTOP_DE" = kwin_plasma ] || container_packages="$container_packages $SOFTWARE_CENTER_PACKAGES"
     container_apt="$(dirname "$0")/desktop_container_plasma_apt.sh"
     [ -r "$container_apt" ] || fail "missing $container_apt"
     for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
         cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail "cannot stage container helper $helper"
     done
-    if [ "$DESKTOP_DE" = kwin_plasma ]; then
+    if [ "$DESKTOP_MODE" = proot ]; then
         cp "$(dirname "$0")/desktop_container_discover_catalog.sh" "$PREFIX/tmp/desktop_container_discover_catalog.sh" || fail 'staging Discover catalog helper'
     fi
     recommend_option=''
@@ -926,7 +932,7 @@ else
     # shellcheck disable=SC2086
     run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
         --statx-backend=proc-fdinfo $recommend_option $container_packages || fail "container apt install $DESKTOP_DE"
-    if [ "$DESKTOP_DE" = kwin_plasma ]; then
+    if [ "$DESKTOP_MODE" = proot ]; then
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_discover_catalog.sh \
             --statx-backend=proc-fdinfo || fail 'preparing Discover application catalog'
     fi

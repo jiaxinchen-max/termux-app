@@ -1,0 +1,75 @@
+{
+  "base_commit": "f39f5f8add069e397fedfc81b456d8382674d097",
+  "source_hashes": {
+    "docs/desktop-testing/test-container-polkit-agent.py": "05c2771e95ba8dd56c307bf22b0c697b0893b24bd4d6711f8d631c2d072b7aec",
+    "docs/desktop-testing/test-software-center-install.py": "323db1ad1557755d8bb0c87cd2760729c1bde62cfbce5513572f468a09a11912",
+    "docs/desktop-testing/test-software-centers.py": "ca8f589452386b06efabac7e45cb2c7b7acebc09d28c40d470732e9688a51655",
+    "termux-ui/src/main/assets/local-games/desktop_container_polkit_agent.py": "50febe4e0d6fb583ccd6565c21b0bff261b29eacf39cebbd820e7a4225c03851",
+    "termux-ui/src/main/assets/local-games/desktop_container_software_services.py": "1684c7b1af22eae9191336d99d4ca38a9dce60461b1b6c2a28f6acdef07401f1",
+    "termux-ui/src/main/assets/local-games/desktop_gnome_launch.py": "def4b741df688b346cd1d45e9307df28366e4bcb6d9b32886fd1822810e5260d",
+    "termux-ui/src/main/assets/local-games/desktop_hyprland.py": "b2caa20ae59cf7e82d4ba99408a86133c80b69341d21735dad0aad3382bc1935",
+    "termux-ui/src/main/assets/local-games/desktop_hyprland_shell.py": "014385595ae2cda8125eaff699a7a10001c6492a79c0930bee548b2c03cc1940",
+    "termux-ui/src/main/assets/local-games/desktop_initialize.py": "8fbc6f47db96304ed6b4791f168cc59f2a65fc9de3322e78195cb0b96dc25402",
+    "termux-ui/src/main/assets/local-games/desktop_install.sh": "fe5af782247b72ea8d6de178cda185dc33a56e4618203919af72e40b130764ee",
+    "termux-ui/src/main/assets/local-games/desktop_software_center.py": "9c9f10c3f494da3b4de92f0b4e4e6c352c48bf94b40a4be67b4236370ccdf7f9",
+    "termux-ui/src/main/assets/local-games/desktop_start.sh": "e1fb7c42dd219742905c1a03eb88a2bad90755366b9cd02cae5399f1a8c21c05",
+    "termux-ui/src/main/assets/local-games/desktop_stop.sh": "49d915e8893386b9a60a4a61d8cd295f91ab036dd7eee18b9e7b77ffad590299",
+    "termux-ui/src/main/assets/local-games/desktop_xfce_session.py": "746d3c697ce4d95f96fa2fc6801ca9e5b2e35bee16365f419614eb7855ab9977",
+    "termux-ui/src/main/java/com/termux/ui/service/LaunchScriptInstaller.java": "6a052e5e678db8f1dc6933e7d0efe47ef0592879802980c5b472efa078dab4c0"
+  },
+  "python": {
+    "service_and_launchers": 16,
+    "install_routes": 3,
+    "polkit_agent": 12,
+    "container_account": 3,
+    "audio": 18,
+    "plasma_startup": 10,
+    "plasma_user_session": 5,
+    "hyprland_host_prerequisites": 4,
+    "xfce_wallpaper": 6,
+    "total": 77,
+    "failures": 0
+  },
+  "java": {
+    "tests": 9,
+    "failures": 0,
+    "errors": 0
+  },
+  "baseline_initialization_suite": {
+    "tests": 24,
+    "failures": 8,
+    "errors": 4,
+    "same_on_base_commit": true,
+    "reason": "旧用例仍假设 Debian、已废弃 GNOME/X11 参数以及旧的准备/账户契约；本次未改写以掩盖失败"
+  },
+  "apk": {
+    "source_commit": "f39f5f8add069e397fedfc81b456d8382674d097",
+    "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "bytes": 44533485,
+    "sha256": "78e4fe464d965b8c0ef9625bcbc9334215a2ead4b70a9c893a9bca13b0af82c2",
+    "signature": "verified v1/v2",
+    "test_only": false,
+    "abi": "arm64-v8a",
+    "source_assets_verified": 74,
+    "clean_repack": true,
+    "large_assets": [
+      {
+        "name": "assets/wine.tar",
+        "bytes": 7577600
+      }
+    ],
+    "device_installation": "Pending",
+    "public_download": "Local HTTP200 full body hash verified; authenticated sandbox proxy supplied"
+  },
+  "strict_gate": {
+    "status": "Unavailable",
+    "reason": "仓库 verify.sh 与 OpenSpec CLI 缺失"
+  },
+  "device": {
+    "alias": "software-center-check-20261116",
+    "original_desktops_untouched": true,
+    "app_pid_before_validation": "none",
+    "status": "独立 Ubuntu 底包解包与应用中心依赖安装进行中；尚未完成服务及 GUI 端到端验证"
+  },
+  "product_consistency": "Pending"
+}

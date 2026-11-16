@@ -97,6 +97,9 @@ def prepare(work, run_mode, theme_id):
         ('theme-r7', 'Restore r7 theme (restart)', '恢复 r7 外观（重启生效）', 'preferences-desktop-theme', str(launcher) + ' theme-r7', 'Desktop'),
         ('display', 'Display information', '显示能力说明', 'video-display', str(launcher) + ' display', 'Desktop'),
     ]
+    if run_mode == 'proot':
+        entries.append(('software', 'Software', '应用中心', 'org.gnome.Software',
+                        str(work / 'bin/termux-hyprland-software'), 'Applications'))
     for index in range(1, 5):
         entries.append(('workspace-' + str(index), 'Workspace ' + str(index), '工作区 ' + str(index),
                         'preferences-desktop-workspaces', str(launcher) + ' workspace ' + str(index), 'Workspaces'))

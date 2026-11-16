@@ -176,9 +176,9 @@ finish_desktop() {
     case "$(cat "$DESKTOP_STATUS_FILE" 2>/dev/null)" in
         stopping|stopped)
             case "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}:$code" in
-                hyprland:*:0|hyprland:*:130|hyprland:*:143|gnome:*:0|gnome:*:130|gnome:*:143|ubuntu_gnome:*:0|ubuntu_gnome:*:130|ubuntu_gnome:*:143|xfce4:read-only:0|xfce4:read-only:130|xfce4:read-only:143)
+                hyprland:*:0|hyprland:*:130|hyprland:*:143|gnome:*:0|gnome:*:130|gnome:*:143|ubuntu_gnome:*:0|ubuntu_gnome:*:130|ubuntu_gnome:*:143|xfce4:*:0|xfce4:*:130|xfce4:*:143)
                     printf 'stopped\n' > "$DESKTOP_STATUS_FILE"; code=0 ;;
-                hyprland:*|gnome:*|ubuntu_gnome:*|xfce4:read-only:*) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
+                hyprland:*|gnome:*|ubuntu_gnome:*|xfce4:*:*) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
                 *) printf 'stopped\n' > "$DESKTOP_STATUS_FILE"; code=0 ;;
             esac ;;
         *) printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" ;;
@@ -332,17 +332,13 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
     fi
     export DISPLAY=:0
     log "Starting the $DESKTOP_MODE XFCE4 session (DISPLAY=:0, XLORIE_GL_MODE=$gl_mode)"
-    if [ "${DESKTOP_USB_STORAGE:-off}" = read-only ]; then
+    if [ "$DESKTOP_MODE" = proot ] || [ "${DESKTOP_USB_STORAGE:-off}" = read-only ]; then
         printf 'xfce4-usb\n' > "$DESKTOP_PID_FILE.owned-session" || { code=74; finish_desktop; }
         XFCE_LAUNCHER="$(dirname "$0")/desktop_xfce_session.py"
         set -- --desktop-id "$DESKTOP_ID" --run-mode "$DESKTOP_MODE" \
-            --display :0 --usb-storage read-only
+            --display :0 --usb-storage "${DESKTOP_USB_STORAGE:-off}"
         [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
         "$PREFIX/bin/python3" -I -B "$XFCE_LAUNCHER" "$@" >> "$DESKTOP_LOG_FILE.out" 2>&1 &
-    elif [ "$DESKTOP_MODE" = "proot" ]; then
-        proot-distro login "$DESKTOP_PROOT_DISTRO" --user termux --shared-tmp -- env DISPLAY=:0 PULSE_SERVER="$PULSE_SERVER" \
-            sh -c 'export XDG_RUNTIME_DIR=/tmp/xdg; mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"; exec dbus-run-session -- xfce4-session' \
-            >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     else
         DISPLAY=:0 dbus-run-session -- xfce4-session >> "$DESKTOP_LOG_FILE.out" 2>&1 &
     fi

@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import re
+import runpy
 import signal
 import subprocess
 import time
@@ -19,15 +20,17 @@ def prepare(args, prefix):
     parent = prefix / ('tmp/tusb-' + key)
     runtime = parent / 'xfce-session'
     bus_socket = runtime / 'session-bus'
+    work = Path(os.environ['HOME']) / ('.termux/xfce-' + args.desktop_id)
+    work.mkdir(mode=0o700, parents=True, exist_ok=True)
     runtime.mkdir(parents=True, exist_ok=True)
     parent.chmod(0o700)
     runtime.chmod(0o700)
-    config = runtime / 'sessionbus.conf'
+    config = work / 'sessionbus.conf'
     config.write_text('<busconfig><type>session</type><listen>unix:path=' + escape(str(bus_socket)) +
         '</listen><auth>EXTERNAL</auth><standard_session_servicedirs/>'
         '<policy context="default"><allow user="*"/><allow own="*"/>'
         '<allow send_destination="*"/><allow receive_sender="*"/></policy></busconfig>')
-    session_script = runtime / 'session.sh'
+    session_script = work / 'session.sh'
     session_script.write_text('''#!/bin/sh
 set -eu
 umask 077
@@ -38,6 +41,8 @@ exec xfce4-session
     if args.run_mode == 'proot':
         rootfs = prefix / 'var/lib/proot-distro/containers' / args.alias / 'rootfs'
         (rootfs / str(parent).lstrip('/')).mkdir(parents=True, exist_ok=True)
+        (rootfs / str(work).lstrip('/')).mkdir(parents=True, exist_ok=True)
+        runpy.run_path(str(Path(__file__).with_name('desktop_software_center.py')))['prepare'](rootfs, str(runtime))
 
 
 def main():
@@ -60,21 +65,27 @@ def main():
     parent = prefix / ('tmp/tusb-' + key)
     runtime = parent / 'xfce-session'
     usb_runtime = parent / 'desktop'
+    work = Path(os.environ['HOME']) / ('.termux/xfce-' + args.desktop_id)
     import fcntl
-    lock = (runtime / 'session.lock').open('w')
+    lock = (work / 'session.lock').open('w')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    # Session IPC only. Static configuration lives outside Termux's cleared tmp.
+    runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
+    parent.chmod(0o700)
     marker = runtime / 'session-address'
     marker.unlink(missing_ok=True)
     (runtime / 'session-bus').unlink(missing_ok=True)
-    config = runtime / 'sessionbus.conf'
-    session_script = runtime / 'session.sh'
+    config = work / 'sessionbus.conf'
+    session_script = work / 'session.sh'
     host = dict(os.environ, DISPLAY=args.display, XDG_RUNTIME_DIR=str(runtime),
                 TERMUX_USB_DESKTOP_DIR=str(usb_runtime))
     for key in ('DBUS_SESSION_BUS_ADDRESS', 'DBUS_SESSION_BUS_PID', 'SESSION_MANAGER'):
         host.pop(key, None)
     guest_values = ['DISPLAY=' + args.display, 'XDG_RUNTIME_DIR=' + str(runtime),
                     'PULSE_SERVER=' + os.environ['PULSE_SERVER'],
-                    'TERMUX_USB_DESKTOP_DIR=' + str(usb_runtime)]
+                    'TERMUX_USB_DESKTOP_DIR=' + str(usb_runtime),
+                    'DBUS_SYSTEM_BUS_ADDRESS=unix:path=' + str(runtime / 'system-bus'),
+                    'GIO_USE_NETWORK_MONITOR=base', 'GDK_BACKEND=x11']
     if args.usb_storage == 'read-only':
         module_dir = (prefix / 'var/lib/proot-distro/containers' / args.alias /
                       'rootfs/usr/local/lib/termux-usb-bridge/gio/modules' if args.run_mode == 'proot'
@@ -84,7 +95,8 @@ def main():
         else:
             host['GIO_EXTRA_MODULES'] = str(module_dir)
     base = [] if args.run_mode == 'native' else [
-        'proot-distro', 'login', args.alias, '--user', 'termux', '--shared-tmp', '--bind', str(parent) + ':' + str(parent),
+        'proot-distro', 'login', args.alias, '--user', 'termux', '--shared-tmp',
+        '--bind', str(parent) + ':' + str(parent), '--bind', str(work) + ':' + str(work),
         '--', 'env', '-u', 'DBUS_SESSION_BUS_ADDRESS', '-u', 'DBUS_SESSION_BUS_PID',
         '-u', 'SESSION_MANAGER'] + guest_values
     command = base + ['dbus-run-session', '--config-file=' + str(config), '--',
@@ -102,6 +114,14 @@ def main():
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGINT, interrupted)
     try:
+        packages = None
+        if base:
+            software = runpy.run_path(str(Path(__file__).with_name('desktop_software_center.py')))
+            (runtime / 'software-center.ready').unlink(missing_ok=True)
+            root_base = list(base)
+            root_base[root_base.index('--user') + 1] = 'root'
+            packages = start('software-center', root_base + ['/usr/bin/python3', '-I', '-B', software['MANAGER']])
+            software['wait_ready'](packages, runtime)
         session = start('xfce', command)
         deadline = time.monotonic() + 30
         while not marker.is_file():
@@ -126,6 +146,8 @@ def main():
                     raise RuntimeError('XFCE USB storage did not start in the desktop session')
                 time.sleep(.1)
         while session.poll() is None:
+            if packages is not None and packages.poll() is not None:
+                raise RuntimeError('Container package services terminated; inspect software-center.log')
             if storage is not None and storage.poll() is not None:
                 raise RuntimeError('XFCE USB storage service terminated; inspect ' + str(runtime / 'usb-storage.log'))
             time.sleep(.2)
