@@ -64,6 +64,31 @@ public class DesktopArchiveEngineTest {
     private static IOException rejected(Checked body)throws Exception {
         try{body.run();fail("archive should be rejected");return null;}catch(IOException expected){return expected;}
     }
+    @Test public void hyprlandRoundTripPreservesBothThemesAndClientRenderers() throws Exception {
+        write(".desktop-de-hyprland", "");
+        for (String theme : HyprlandComponents.themes()) {
+            for (DesktopGuestGlMode guest : new DesktopGuestGlMode[] {DesktopGuestGlMode.DEFAULT, DesktopGuestGlMode.ZINK}) {
+                DesktopDistro original = new DesktopDistro("old-id", "Custom Hyprland", DesktopRunMode.PROOT,
+                    "old-container", DesktopDe.HYPRLAND, DesktopGlMode.SYSTEM, guest,
+                    "1600x900", 60, DesktopUsbStorageMode.OFF, HyprlandComponents.RUNTIME_ID, theme);
+                metadata = DesktopArchiveMetadata.create("com.termux", "aarch64", "resolute", original, "2", "auto");
+                File archive = archive();
+                DesktopArchiveImportResult restored = restore(archive, inspect(archive));
+                DesktopDistro desktop = restored.getDesktop();
+                assertEquals("new-id", desktop.getId());
+                assertEquals("new-container", desktop.getProotDistro());
+                assertEquals(original.getName(), desktop.getName());
+                assertEquals(original.getHyprlandRuntimeId(), desktop.getHyprlandRuntimeId());
+                assertEquals(theme, desktop.getHyprlandThemeId());
+                assertEquals(guest, desktop.getGuestGlMode());
+                assertEquals("1600x900", desktop.getResolution());
+                assertEquals(TEXT, new String(Files.readAllBytes(restored.getContainerDirectory().toPath()
+                    .resolve("rootfs/usr/bin/app")), java.nio.charset.StandardCharsets.UTF_8));
+                engine.discardImportedContainer(restored);
+                Files.delete(archive.toPath());
+            }
+        }
+    }
     @Test public void archiveRejectsUsbSettingsRatherThanSilentlyDroppingThem() {
         try {
             DesktopArchiveMetadata.create("com.termux","aarch64","resolute",

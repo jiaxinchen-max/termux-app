@@ -591,6 +591,8 @@ def main():
     p = sub.add_parser('install'); p.add_argument('archive', type=Path)
     sub.add_parser('check')
     sub.add_parser('check-runtime')
+    p = sub.add_parser('check-shell')
+    p.add_argument('--theme-id', required=True)
     p = sub.add_parser('session')
     p.add_argument('--runtime-id', required=True); p.add_argument('--theme-id', required=True)
     p.add_argument('--desktop-id', required=True); p.add_argument('--ready-file', type=Path, required=True)
@@ -606,6 +608,8 @@ def main():
         install(args.archive)
     elif args.command == 'check-runtime':
         verify(runtime_root())
+    elif args.command == 'check-shell':
+        verify_shell(args.theme_id)
     elif args.command == 'check':
         verify(runtime_root())
         verify_shell()

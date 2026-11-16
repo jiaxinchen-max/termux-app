@@ -55,15 +55,23 @@ public class DesktopRestoreInitializationTest {
         } catch (IOException expected) { assertEquals("desktop_prerequisites_result_invalid", expected.getMessage()); }
     }
     @Test public void gnomeRestoreUsesFinalDesktopIdentityAndPersistentReadyPath() throws Exception {
-        gnomeRestore(0);
+        compositorRestore(DesktopDe.UBUNTU_GNOME, 0);
     }
 
     @Test public void audioFailureCannotPublishSuccessfulGnomeRestoration() throws Exception {
-        gnomeRestore(72);
+        compositorRestore(DesktopDe.UBUNTU_GNOME, 72);
     }
 
-    private void gnomeRestore(int audioExit) throws Exception {
-        File folder = work.newFolder("gnome task " + audioExit);
+    @Test public void hyprlandRestorePreservesComponentsWithNewIdentity() throws Exception {
+        compositorRestore(DesktopDe.HYPRLAND, 0);
+    }
+
+    @Test public void audioFailureCannotPublishSuccessfulHyprlandRestoration() throws Exception {
+        compositorRestore(DesktopDe.HYPRLAND, 72);
+    }
+
+    private void compositorRestore(DesktopDe de, int audioExit) throws Exception {
+        File folder = work.newFolder(de.getStorageValue() + " task " + audioExit);
         File assets = new File(folder, "trusted assets");
         assertTrue(assets.mkdir());
         File python = new File(folder, "python");
@@ -71,26 +79,35 @@ public class DesktopRestoreInitializationTest {
         assertTrue(python.setExecutable(true));
         Files.write(new File(assets, "desktop_common.sh").toPath(),
             ("prepare_desktop_audio() { [ \"$1\" = host-pulseaudio ] || return 99; return " + audioExit + "; }\n").getBytes(StandardCharsets.UTF_8));
-        DesktopDistro gnome = new DesktopDistro("new-gnome-id", "My Ubuntu", DesktopRunMode.PROOT,
-            "new-gnome-alias", DesktopDe.UBUNTU_GNOME, DesktopGlMode.SYSTEM,
-            DesktopGuestGlMode.LLVMPIPE, "1280x720", 60, DesktopUsbStorageMode.OFF);
-        File ready = new File(folder, "persistent state/new-gnome-id.pid.gnome-ready");
+        String id = "new-" + de.getStorageValue() + "-id";
+        String alias = id + "-alias";
+        DesktopDistro restored = new DesktopDistro(id, "Restored desktop", DesktopRunMode.PROOT,
+            alias, de, DesktopGlMode.SYSTEM,
+            de == DesktopDe.HYPRLAND ? DesktopGuestGlMode.DEFAULT : DesktopGuestGlMode.LLVMPIPE,
+            "1280x720", 60, DesktopUsbStorageMode.OFF,
+            de == DesktopDe.HYPRLAND ? "0.57.0-r7" : "", de == DesktopDe.HYPRLAND ? "classic-r7" : "");
+        File ready = new File(folder, "persistent state/" + id + ".pid."
+            + (de == DesktopDe.HYPRLAND ? "hyprland" : "gnome") + "-ready");
         File result = new File(folder, "result");
         File log = new File(folder, "log");
         File script = new File(folder, "restore.sh");
         Files.write(script.toPath(), DesktopRestorePrerequisites.restoreWrapper(python,
-            new File(assets, "desktop_initialize.py").getPath(), log, result, "gnome-task", gnome, ready).getBytes(StandardCharsets.UTF_8));
+            new File(assets, "desktop_initialize.py").getPath(), log, result, "restore-task", restored, ready).getBytes(StandardCharsets.UTF_8));
         assertEquals(audioExit, new ProcessBuilder("/bin/sh", script.getPath()).inheritIO().start().waitFor());
         if (audioExit == 0) {
-            DesktopRestorePrerequisites.validateResult(result, "gnome-task", "restore-initialize");
+            DesktopRestorePrerequisites.validateResult(result, "restore-task", "restore-initialize");
             String commands = new String(Files.readAllBytes(log.toPath()), StandardCharsets.UTF_8);
-            assertTrue(commands.contains("--desktop-id\nnew-gnome-id\n"));
-            assertTrue(commands.contains("--alias\nnew-gnome-alias\n"));
+            if (de == DesktopDe.HYPRLAND) {
+                assertTrue(commands.contains("--runtime-id\n0.57.0-r7\n--theme-id\nclassic-r7\n"));
+                assertTrue(commands.contains("restore\n--de\nhyprland\n"));
+            }
+            assertTrue(commands.contains("--desktop-id\n" + id + "\n"));
+            assertTrue(commands.contains("--alias\n" + alias + "\n"));
             assertTrue(commands.contains("--ready-file\n" + ready + "\n"));
             assertTrue(commands.contains("--size\n1280x720\n--refresh-rate\n60\n"));
             assertTrue(commands.contains("--render-socket\n" + DesktopLaunchSpec.RENDER_SOCKET_PATH + "\n"));
         } else {
-            try { DesktopRestorePrerequisites.validateResult(result, "gnome-task", "restore-initialize"); fail(); }
+            try { DesktopRestorePrerequisites.validateResult(result, "restore-task", "restore-initialize"); fail(); }
             catch (IOException expected) { assertTrue(expected.getMessage().contains("failed:" + audioExit)); }
             assertFalse(new String(Files.readAllBytes(log.toPath()), StandardCharsets.UTF_8).contains("--desktop-id"));
         }

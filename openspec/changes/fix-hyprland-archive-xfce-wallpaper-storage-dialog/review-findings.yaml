@@ -1,0 +1,21 @@
+schema: review_findings_v1
+change_id: fix-hyprland-archive-xfce-wallpaper-storage-dialog
+stage: code-review
+status: APPROVED_WITH_LIMITATIONS
+method: 直接源码自审与生产入口执行测试；未使用子代理
+human_confirmation: 用户明确回复“批准”确认规划；沿用任务结束推送授权
+findings: []
+evidence: verification-evidence.json
+reviewed:
+  - 严格 Hyprland 元数据字段与组件身份、真实 tar 往返、新 ID/alias 和原有归档边界
+  - 宿主准备不调用 guest 安装、缺失组件固定来源、失败不发布成功
+  - 新 workspace 独占创建、inode 所有权清理、初始化取消后等待进程停止
+  - XFCE 父路径和源图链接安全、自选配置保留、只在准备阶段修复
+  - USB 实色日夜表面、主题上下文、准确禁用原因、读取异常恢复刷新、关闭后停止更新
+  - 日常启动脚本与音频服务未修改、无新增 APK 大资产
+limitations:
+  - 新 APK 未安装到模拟器，USB 日夜/点击/异常/关闭交互待验
+  - XFCE 图片实际解码已通过，桌面显示截图待验
+  - Hyprland Android UI 整容器导出恢复和恢复后启动待验；主机引擎往返通过不等于设备端到端通过
+  - 严格门禁因仓库缺失 verify.sh 退出 127；未声称通过
+  - 未最终验收，产品资料一致性 Pending，不归档

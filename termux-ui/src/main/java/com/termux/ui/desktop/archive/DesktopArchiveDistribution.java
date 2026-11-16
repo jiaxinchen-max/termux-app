@@ -11,7 +11,8 @@ public final class DesktopArchiveDistribution {
     private DesktopArchiveDistribution() { }
 
     public static boolean supports(DesktopDe de, String codename) {
-        return (de == DesktopDe.XFCE4 || de == DesktopDe.KWIN_PLASMA || de == DesktopDe.UBUNTU_GNOME)
+        return (de == DesktopDe.XFCE4 || de == DesktopDe.KWIN_PLASMA
+                || de == DesktopDe.UBUNTU_GNOME || de == DesktopDe.HYPRLAND)
             && DesktopCreationCatalog.containerCodename(de).equals(codename);
     }
 

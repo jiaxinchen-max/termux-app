@@ -282,6 +282,7 @@ public final class DesktopArchiveTasks {
                     throw new IOException("desktop_archive_install_marker_missing");
                 }
                 update(job, "desktop_archive_initializing", "", progress);
+                reserveHyprlandWorkspace(job, imported.getDesktop());
                 DesktopRestorePrerequisites.Result initialized = new DesktopRestorePrerequisites(context)
                     .initializeRestored(imported.getDesktop(), "initialize-" + job.getProperty("taskId"),
                         5 * 60 * 1000L,
@@ -341,6 +342,26 @@ public final class DesktopArchiveTasks {
                 worker = null;
                 DesktopOperationGate.releaseArchive();
             }
+        }
+    }
+
+    private void reserveHyprlandWorkspace(Properties job, DesktopDistro desktop) throws IOException {
+        if (desktop.getDe() != com.termux.ui.desktop.domain.DesktopDe.HYPRLAND) return;
+        File parent = new File(context.getFilesDir(), "home/.termux");
+        if (!parent.exists() && !parent.mkdir()) throw new IOException("desktop_archive_workspace_parent_failed");
+        try {
+            if (!OsConstants.S_ISDIR(Os.lstat(parent.getPath()).st_mode))
+                throw new IOException("desktop_archive_workspace_parent_invalid");
+            File work = new File(parent, "hyprland-" + desktop.getId());
+            if (!work.mkdir()) throw new IOException("desktop_archive_workspace_exists");
+            Os.chmod(work.getPath(), 0700);
+            android.system.StructStat stat = Os.lstat(work.getPath());
+            job.setProperty("sessionWorkDevice", Long.toString(stat.st_dev));
+            job.setProperty("sessionWorkInode", Long.toString(stat.st_ino));
+            job.setProperty("sessionWorkOwned", "true");
+            save(job);
+        } catch (android.system.ErrnoException error) {
+            throw new IOException("desktop_archive_workspace_failed", error);
         }
     }
 
@@ -485,6 +506,11 @@ public final class DesktopArchiveTasks {
             // A timed-out/cancelled initializer must stop before its target is reclaimed.
             DesktopRestorePrerequisites.requireIdle(context);
             IOException failure = null;
+            if ("true".equals(job.getProperty("sessionWorkOwned"))) {
+                try { deleteIfOwned(new File(context.getFilesDir(), "home/.termux/hyprland-" + id),
+                    job, "sessionWork", true); }
+                catch (IOException error) { failure = error; }
+            }
             if ("true".equals(job.getProperty("renderingOwned"))) {
                 String name = job.getProperty("renderingName", "");
                 if (!name.matches(java.util.regex.Pattern.quote(alias)

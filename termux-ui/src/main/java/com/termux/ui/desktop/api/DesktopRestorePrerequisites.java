@@ -146,7 +146,9 @@ public final class DesktopRestorePrerequisites {
             String initializer = new File(scripts.rawInstall.getParentFile(), "desktop_initialize.py").getPath();
             write(wrapper, restoreWrapper(new File(context.getFilesDir(), "usr/bin/python3"),
                 initializer, log, result, taskId, distro,
-                new File(paths.getDesktopPidFile(distro.getId()).getPath() + ".gnome-ready")), true);
+                new File(paths.getDesktopPidFile(distro.getId()).getPath()
+                    + (distro.getDe() == com.termux.ui.desktop.domain.DesktopDe.HYPRLAND
+                        ? ".hyprland-ready" : ".gnome-ready"))), true);
         } else {
             write(wrapper, "#!/data/data/com.termux/files/usr/bin/sh\nexec "
                 + quote(scripts.rawInstall.getPath()) + " \"$1\" --operation=host-prerequisites "
@@ -204,7 +206,15 @@ public final class DesktopRestorePrerequisites {
             + " --guest-gl-mode " + quote(distro.getGuestGlMode().getStorageValue())
             + " --usb-storage off --rendering-output " + quote(new File(result.getParentFile(), "rendering.env").getPath());
         String preparation = "";
-        if (distro.getDe() == com.termux.ui.desktop.domain.DesktopDe.UBUNTU_GNOME) {
+        if (distro.getDe() == com.termux.ui.desktop.domain.DesktopDe.XFCE4) {
+            command += " --desktop-id " + quote(distro.getId());
+        }
+        if (distro.getDe() == com.termux.ui.desktop.domain.DesktopDe.HYPRLAND) {
+            command += " --runtime-id " + quote(distro.getHyprlandRuntimeId())
+                + " --theme-id " + quote(distro.getHyprlandThemeId());
+        }
+        if (distro.getDe() == com.termux.ui.desktop.domain.DesktopDe.UBUNTU_GNOME
+                || distro.getDe() == com.termux.ui.desktop.domain.DesktopDe.HYPRLAND) {
             command += " --desktop-id " + quote(distro.getId())
                 + " --ready-file " + quote(readyFile.getPath())
                 + " --size " + quote(distro.getResolution())

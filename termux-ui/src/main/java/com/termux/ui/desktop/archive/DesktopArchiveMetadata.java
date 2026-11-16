@@ -67,9 +67,10 @@ public final class DesktopArchiveMetadata {
     public long getExpandedBytes() { return entryCount < 0 ? -1 : regularBytes + entryCount * 4096L; }
 
     byte[] encode() {
-        String json="{\"format\":\"termux-desktop-container\",\"version\":2,\"compression\":\"gzip\""
+        boolean hyprland = desktop.getDe() == DesktopDe.HYPRLAND;
+        String json="{\"format\":\"termux-desktop-container\",\"version\":"+(hyprland ? 3 : 2)+",\"compression\":\"gzip\""
             +",\"appPackage\":"+quote(appPackage)+",\"architecture\":"+quote(architecture)
-            +",\"codename\":"+quote(codename)+",\"desktopSchema\":"+DesktopDistro.SCHEMA_VERSION
+            +",\"codename\":"+quote(codename)+",\"desktopSchema\":"+desktop.getSchemaVersion()
             +",\"id\":"+quote(desktop.getId())+",\"name\":"+quote(desktop.getName())
             +",\"runMode\":"+quote(desktop.getRunMode().getStorageValue())
             +",\"de\":"+quote(desktop.getDe().getStorageValue())
@@ -78,6 +79,8 @@ public final class DesktopArchiveMetadata {
             +",\"guestGlMode\":"+quote(desktop.getGuestGlMode().getStorageValue())
             +",\"resolution\":"+quote(desktop.getResolution())+",\"refreshRate\":"+desktop.getRefreshRate()
             +",\"touchMode\":"+quote(touchMode)+",\"orientation\":"+quote(orientation)
+            +(hyprland ? ",\"hyprlandRuntimeId\":"+quote(desktop.getHyprlandRuntimeId())
+                +",\"hyprlandThemeId\":"+quote(desktop.getHyprlandThemeId()) : "")
             +",\"payload\":\"container\",\"exclusions\":\"runtime-v1\"}";
         return json.getBytes(StandardCharsets.UTF_8);
     }
@@ -86,18 +89,22 @@ public final class DesktopArchiveMetadata {
         try {
             JSONObject j=new JSONObject(new String(data, StandardCharsets.UTF_8));
             int version = integer(j,"version");
-            if (version != 2 || j.length() != 20 || !"termux-desktop-container".equals(string(j,"format"))
+            DesktopDe de=DesktopDe.fromStorageValue(string(j,"de"));
+            boolean hyprland = de == DesktopDe.HYPRLAND;
+            if (version != (hyprland ? 3 : 2) || j.length() != (hyprland ? 22 : 20)
+                    || !"termux-desktop-container".equals(string(j,"format"))
                     || !"gzip".equals(string(j,"compression"))
-                    || integer(j,"desktopSchema") != DesktopDistro.SCHEMA_VERSION
+                    || integer(j,"desktopSchema") != (hyprland ? DesktopDistro.HYPRLAND_SCHEMA_VERSION : DesktopDistro.SCHEMA_VERSION)
                     || !"container".equals(string(j,"payload"))
                     || !"runtime-v1".equals(string(j,"exclusions")))
                 throw new IllegalArgumentException("unsupported_archive_manifest");
             DesktopRunMode mode=DesktopRunMode.fromStorageValue(string(j,"runMode"));
-            DesktopDe de=DesktopDe.fromStorageValue(string(j,"de"));
             DesktopGlMode host=DesktopGlMode.fromStorageValue(string(j,"hostGlMode"));
             DesktopGuestGlMode guest=DesktopGuestGlMode.fromStorageValue(string(j,"guestGlMode"));
             DesktopDistro d=new DesktopDistro(string(j,"id"),string(j,"name"),mode,string(j,"prootAlias"),
-                de,host,guest,string(j,"resolution"),integer(j,"refreshRate"),DesktopUsbStorageMode.OFF);
+                de,host,guest,string(j,"resolution"),integer(j,"refreshRate"),DesktopUsbStorageMode.OFF,
+                hyprland ? string(j,"hyprlandRuntimeId") : "",
+                hyprland ? string(j,"hyprlandThemeId") : "");
             DesktopArchiveMetadata result=create(string(j,"appPackage"),string(j,"architecture"),
                 string(j,"codename"),d,nullable(j,"touchMode"),nullable(j,"orientation"));
             if (!result.appPackage.equals(expectedPackage) || !result.architecture.equals(expectedArch))

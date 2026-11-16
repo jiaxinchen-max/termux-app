@@ -1,6 +1,6 @@
 <resources>
     <string name="desktop_usb_title">External storage</string>
-    <string name="desktop_usb_scope">Expose authorized USB storage as read-only GIO/GVfs volumes in GNOME Files or XFCE Thunar. This does not create a kernel mount or /dev/sdX device. Keep the App visible when requesting Android USB permission.</string>
+    <string name="desktop_usb_scope">Expose authorized USB storage as read-only GIO/GVfs volumes in supported desktop file managers. This does not create a kernel mount or /dev/sdX device. Keep the App visible when requesting Android USB permission.</string>
     <string name="desktop_usb_enable_read_only">Enable USB storage (read-only)</string>
     <string name="desktop_usb_plasma_unsupported">Plasma Dolphin uses Solid/UDisks2. Its device sidebar is not supported by this GIO bridge; USB storage cannot be enabled for this desktop.</string>
     <string name="desktop_usb_loading">Reading USB status…</string>
@@ -29,4 +29,7 @@
     <string name="desktop_usb_working">Waiting for the USB operation / Android authorization…</string>
     <string name="desktop_usb_error">USB operation failed</string>
     <string name="desktop_usb_archive_disable">Turn off USB storage before exporting. This archive format does not include USB integration settings.</string>
+    <string name="desktop_usb_hyprland_unsupported">This Hyprland session does not provide a USB volume service. USB storage cannot be enabled here; XFCE supports this integration.</string>
+    <string name="desktop_usb_ubuntu_gnome_unsupported">The current Ubuntu GNOME session does not support USB storage integration. XFCE supports this feature.</string>
+    <string name="desktop_usb_status_failed">Could not read USB status: %1$s. Tap Refresh devices to retry.</string>
 </resources>

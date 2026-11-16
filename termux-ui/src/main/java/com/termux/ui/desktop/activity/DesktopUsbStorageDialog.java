@@ -1,5 +1,6 @@
 package com.termux.ui.desktop.activity;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.Button;
@@ -12,7 +13,11 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.termux.ui.R;
-import com.termux.ui.activity.FrostedDialogBuilder;
+import com.termux.ui.activity.FrostedWindow;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.termux.ui.desktop.domain.DesktopDe;
 import com.termux.ui.activity.PrefixSetupConsoleDialog;
 import com.termux.ui.desktop.api.DesktopTasks;
 import com.termux.ui.desktop.api.DesktopUsbStorageTasks;
@@ -26,6 +31,7 @@ import java.util.concurrent.Executors;
 /** Read-only USB management; all authorization remains with the Android USB permission dialog. */
 final class DesktopUsbStorageDialog {
     private final AppCompatActivity activity;
+    private final Context themedContext;
     private final DesktopTasks desktops;
     private final DesktopUsbStorageTasks usb;
     private final Runnable changed;
@@ -47,59 +53,90 @@ final class DesktopUsbStorageDialog {
                                     DesktopDistro distro, Runnable changed) {
         this.activity = activity; this.desktops = desktops; this.distro = distro; this.changed = changed;
         usb = new DesktopUsbStorageTasks(activity);
-        body = new LinearLayout(activity); body.setOrientation(LinearLayout.VERTICAL);
+        MaterialAlertDialogBuilder builder = solidBuilder();
+        themedContext = builder.getContext();
+        body = new LinearLayout(themedContext); body.setOrientation(LinearLayout.VERTICAL);
         int padding = dp(20); body.setPadding(padding, dp(8), padding, padding);
         text(body, activity.getString(R.string.desktop_usb_scope));
-        enabled = new CheckBox(activity); enabled.setText(R.string.desktop_usb_enable_read_only); body.addView(enabled);
-        if (!DesktopUsbStorageTasks.supported(distro)) text(body, activity.getString(R.string.desktop_usb_plasma_unsupported));
+        enabled = new MaterialCheckBox(themedContext); enabled.setText(R.string.desktop_usb_enable_read_only); body.addView(enabled);
         status = text(body, activity.getString(R.string.desktop_usb_loading));
         install = button(body, R.string.desktop_usb_install, () -> work(this::initializeDesktop));
         refresh = button(body, R.string.desktop_usb_refresh, this::reload);
-        devices = new LinearLayout(activity); devices.setOrientation(LinearLayout.VERTICAL); body.addView(devices);
-        ScrollView scroll = new ScrollView(activity); scroll.addView(body);
-        dialog = new FrostedDialogBuilder(activity).setTitle(R.string.desktop_usb_title).setView(scroll)
+        devices = new LinearLayout(themedContext); devices.setOrientation(LinearLayout.VERTICAL); body.addView(devices);
+        ScrollView scroll = new ScrollView(themedContext); scroll.addView(body);
+        dialog = builder.setTitle(R.string.desktop_usb_title).setView(scroll)
             .setPositiveButton(android.R.string.ok, null).create();
+        FrostedWindow.applyScrim(dialog);
+        setControlsEnabled(false);
         dialog.setOnDismissListener(ignored -> { closed = true; handler.removeCallbacks(refreshTick); io.shutdown(); });
         dialog.setOnShowListener(ignored -> reload());
         enabled.setOnCheckedChangeListener((view, checked) -> {
-            if (rendering) return;
+            if (rendering || busy || closed) return;
             work(() -> {
                 usb.setEnabled(this.distro, checked);
                 this.distro = this.distro.withUsbStorage(checked ? DesktopUsbStorageMode.READ_ONLY : DesktopUsbStorageMode.OFF);
                 if (checked) initializeDesktop();
-                else activity.runOnUiThread(changed);
+                else activity.runOnUiThread(() -> { if (usable()) changed.run(); });
             });
         });
     }
     private boolean usable() { return !closed && !activity.isFinishing() && !activity.isDestroyed(); }
+    private MaterialAlertDialogBuilder solidBuilder() {
+        return new MaterialAlertDialogBuilder(activity).setBackground(FrostedWindow.surface(
+            activity, R.color.desktop_usb_dialog_surface, FrostedWindow.PANEL_RADIUS_DP));
+    }
+    private int unsupportedReason() {
+        if (distro.getDe() == DesktopDe.KWIN_PLASMA) return R.string.desktop_usb_plasma_unsupported;
+        if (distro.getDe() == DesktopDe.HYPRLAND) return R.string.desktop_usb_hyprland_unsupported;
+        return R.string.desktop_usb_ubuntu_gnome_unsupported;
+    }
+    private void setControlsEnabled(boolean value) {
+        enabled.setEnabled(value); install.setEnabled(value); refresh.setEnabled(value);
+        for (int index = 0; index < devices.getChildCount(); index++) devices.getChildAt(index).setEnabled(value);
+    }
     private void reload() {
         handler.removeCallbacks(refreshTick);
         if (!usable() || busy) return;
-        busy = true; refresh.setEnabled(false);
+        if (!DesktopUsbStorageTasks.supported(distro)) {
+            setControlsEnabled(false);
+            install.setVisibility(android.view.View.GONE);
+            refresh.setVisibility(android.view.View.GONE);
+            status.setText(unsupportedReason());
+            return;
+        }
+        busy = true;
+        setControlsEnabled(false);
         io.execute(() -> {
-            DesktopUsbStorageTasks.Dependencies dependencies = usb.dependencies(distro);
-            DesktopSessionState state = desktops.state(distro);
+            DesktopUsbStorageTasks.Dependencies dependencies = null;
+            DesktopSessionState state = null;
             DesktopUsbStorageTasks.Health health = null;
             String error = null;
-            if (DesktopUsbStorageTasks.supported(distro) && distro.getUsbStorage() == DesktopUsbStorageMode.READ_ONLY
-                && state == DesktopSessionState.RUNNING) {
-                try { health = usb.health(distro); }
-                catch (Exception failure) {
-                    error = details(failure);
-                    String diagnostics = usb.diagnostics(distro);
-                    if (diagnostics != null && !diagnostics.isEmpty()) error += "\n" + diagnostics;
+            try {
+                dependencies = usb.dependencies(distro);
+                state = desktops.state(distro);
+                if (distro.getUsbStorage() == DesktopUsbStorageMode.READ_ONLY
+                    && state == DesktopSessionState.RUNNING) {
+                    health = usb.health(distro);
+                } else if (distro.getUsbStorage() == DesktopUsbStorageMode.READ_ONLY
+                    && state == DesktopSessionState.FAILED) {
+                    error = usb.diagnostics(distro);
                 }
-            } else if (distro.getUsbStorage() == DesktopUsbStorageMode.READ_ONLY
-                && state == DesktopSessionState.FAILED) {
-                String diagnostics = usb.diagnostics(distro);
-                if (diagnostics != null && !diagnostics.isEmpty()) error = diagnostics;
+            } catch (Exception failure) {
+                error = details(failure);
             }
+            DesktopUsbStorageTasks.Dependencies files = dependencies;
+            DesktopSessionState sessionState = state;
             DesktopUsbStorageTasks.Health snapshot = health;
             String failure = error;
             activity.runOnUiThread(() -> {
-                if (!usable()) return;
                 busy = false;
-                render(dependencies, state, snapshot, failure);
+                if (!usable()) return;
+                if (files == null || sessionState == null) {
+                    status.setText(activity.getString(R.string.desktop_usb_status_failed, failure));
+                    refresh.setEnabled(true);
+                } else {
+                    render(files, sessionState, snapshot, failure);
+                }
                 handler.postDelayed(refreshTick, 3000);
             });
         });
@@ -172,8 +209,7 @@ final class DesktopUsbStorageDialog {
     private void work(Work operation) {
         if (!usable() || busy) return;
         busy = true; handler.removeCallbacks(refreshTick);
-        enabled.setEnabled(false); install.setEnabled(false); refresh.setEnabled(false);
-        for (int index = 0; index < devices.getChildCount(); index++) devices.getChildAt(index).setEnabled(false);
+        setControlsEnabled(false);
         status.setText(R.string.desktop_usb_working);
         io.execute(() -> {
             String failure = null;
@@ -182,7 +218,7 @@ final class DesktopUsbStorageDialog {
             activity.runOnUiThread(() -> {
                 if (!usable()) return;
                 busy = false;
-                if (result != null) new FrostedDialogBuilder(activity).setTitle(R.string.desktop_usb_error)
+                if (result != null) solidBuilder().setTitle(R.string.desktop_usb_error)
                     .setMessage(result).setPositiveButton(android.R.string.ok, null).show();
                 reload();
             });
@@ -193,15 +229,15 @@ final class DesktopUsbStorageDialog {
         if ("desktop_stopping".equals(message)) return activity.getString(R.string.desktop_state_stopping);
         if ("desktop_usb_storage_requires_gio_sidebar".equals(message)
             || "desktop_usb_environment_unsupported".equals(message))
-            return activity.getString(R.string.desktop_usb_plasma_unsupported);
+            return activity.getString(unsupportedReason());
         return message == null ? error.getClass().getSimpleName() : message;
     }
     private TextView text(LinearLayout parent, String value) {
-        TextView view = new TextView(activity); view.setText(value); view.setTextIsSelectable(true);
+        TextView view = new TextView(themedContext); view.setText(value); view.setTextIsSelectable(true);
         view.setPadding(0, dp(8), 0, dp(8)); parent.addView(view); return view;
     }
     private Button button(LinearLayout parent, int label, Runnable action) {
-        Button view = new Button(activity); view.setText(label); view.setAllCaps(false);
+        Button view = new MaterialButton(themedContext); view.setText(label); view.setAllCaps(false);
         view.setOnClickListener(ignored -> action.run()); parent.addView(view); return view;
     }
     private int dp(int value) { return Math.round(value * activity.getResources().getDisplayMetrics().density); }

@@ -1,0 +1,67 @@
+{
+  "base_commit": "a88e0a6c22194fdc70e6adbb5793e2437c23e6b0",
+  "source_hashes": {
+    "docs/desktop-testing/test-hyprland-restore-host.py": "2453c76ff98c9e3c0ebaece44e6a741cc987e5968a5b4799de22653d7cceaafb",
+    "docs/desktop-testing/test-xfce-wallpaper.py": "a36b6a7677829cf065cf838b0253361f7868d82892bb492218c730c8b77dc53a",
+    "termux-ui/src/main/assets/local-games/desktop_hyprland.py": "41b4a09419d7ca5ffa1128b04751b878701b543ed454c86ad557c3a9f4e58448",
+    "termux-ui/src/main/assets/local-games/desktop_initialize.py": "ced1767ab2d267c86f803c3e1553a699a0242ea0a9d50f35acb1da6c594411e0",
+    "termux-ui/src/main/assets/local-games/desktop_install.sh": "5f7fb2ccc294f14175fdc825ce9995aaf4c4a62e4df8c6b88c6f52950a545be1",
+    "termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopUsbStorageDialog.java": "2b38c2e3c9b2bf132ddedbf2c4b8a631f0e31c31f189043e0e54a24ac8e9bbc4",
+    "termux-ui/src/main/java/com/termux/ui/desktop/api/DesktopArchiveTasks.java": "6102e35e7b6bbb7da7536663b79ed035f556611f062db1e5d2c2b2ce55a74796",
+    "termux-ui/src/main/java/com/termux/ui/desktop/api/DesktopRestorePrerequisites.java": "e9e0af79e16edc59f43d1c6af2fb52f1ab21a12015daaafc743c6d27b7a1894a",
+    "termux-ui/src/main/java/com/termux/ui/desktop/archive/DesktopArchiveDistribution.java": "e650207eff8cf73874f9514e6f4bb3fc3f8483f0210709c721366e0b4d8d328a",
+    "termux-ui/src/main/java/com/termux/ui/desktop/archive/DesktopArchiveEngine.java": "3b57bd80e1fbe59d98e374651087392e8590f939b870aafce0a95affae1568c2",
+    "termux-ui/src/main/java/com/termux/ui/desktop/archive/DesktopArchiveMetadata.java": "aabf86dba04813e4c689d7102e3c528c78516add5e459532c6c3097a7aa5d8e7",
+    "termux-ui/src/main/res/values-night/colors.xml": "7f117d2e601ae81c65d2e8dbcebf74ac162632c6934c8fb02e783cb5eae20663",
+    "termux-ui/src/main/res/values-zh-rCN/strings_usb.xml": "c2a8365f79e055b75f91be7f7708db07d2a38013befd9d59548ba0c7783f79c4",
+    "termux-ui/src/main/res/values/colors.xml": "ffb019e6e1efc9e46c78f7f9da91720bf88f0c20c895de49f5b5916775af0050",
+    "termux-ui/src/main/res/values/strings_usb.xml": "c1caebe6be990d8d4cf023a46b0799de97d86f9171644a815cf2112a2a6412c8",
+    "termux-ui/src/test/java/com/termux/ui/desktop/api/DesktopRestoreInitializationTest.java": "ce3604b42559d13969dc74f8994a3ae15cc1cca3a0375b9f647be4e6e13b6270",
+    "termux-ui/src/test/java/com/termux/ui/desktop/archive/DesktopArchiveDistributionTest.java": "4b012399393bafbf1ac375857df11f136481665f13279086f0121cddc5b17208",
+    "termux-ui/src/test/java/com/termux/ui/desktop/archive/DesktopArchiveEngineTest.java": "69df187109151de2c98b55ce5711098ed6febbd6ac6e1748966b395b6d4c4264",
+    "termux-ui/src/test/java/com/termux/ui/desktop/archive/DesktopArchiveLaunchSpecTest.java": "26f266a98857210153ee3484bb3ee81fb38ebc4a54d2c2c462237a44b57e605a",
+    "termux-ui/src/test/java/com/termux/ui/desktop/archive/DesktopArchiveMetadataTest.java": "5ec867d9e8f5e80a499df8d5fddab634bdae1b53816e7aceb61c54611e76c6b4"
+  },
+  "java": {
+    "tests": 56,
+    "failures": 0,
+    "errors": 0
+  },
+  "python": {
+    "host_prerequisites": 4,
+    "wallpaper": 6
+  },
+  "device": {
+    "force_stopped": true,
+    "wallpaper_preparation": "passed",
+    "gdk_pixbuf_decode": "passed (115x72, exit0)",
+    "new_apk_dialog_interactions": "Pending",
+    "xfce_desktop_visual": "Pending",
+    "hyprland_full_device_restore": "Pending"
+  },
+  "apk": {
+    "source_commit": "a88e0a6c22194fdc70e6adbb5793e2437c23e6b0 + source_hashes",
+    "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "bytes": 44533291,
+    "sha256": "2e87d74e53b82ba066dfe18c0048efa82151e4a4c83388a2b28ee5de357796c4",
+    "signature": "verified v1/v2",
+    "test_only": false,
+    "abi": "arm64-v8a",
+    "source_assets_verified": 72,
+    "clean_repack": true,
+    "large_assets": [
+      {
+        "name": "assets/wine.tar",
+        "bytes": 7577600
+      }
+    ],
+    "device_installation": "Pending",
+    "public_download": "Local HTTP HEAD200 and full body SHA256 verified; authenticated sandbox proxy provided"
+  },
+  "strict_gate": {
+    "status": "Unavailable",
+    "exit": 127,
+    "reason": "verify.sh missing"
+  },
+  "product_consistency": "Pending"
+}

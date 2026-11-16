@@ -71,8 +71,8 @@ case "${DESKTOP_MODE:-}" in native|proot) ;; *) log 'Explicit desktop run mode r
 case "${DESKTOP_DE:-}" in xfce4|kwin_plasma|ubuntu_gnome|hyprland) ;; *) log 'Unsupported desktop environment'; exit 64 ;; esac
 case "${DESKTOP_COMPONENT_RENDERER:-}" in system|zink|llvmpipe) ;; *) log 'Explicit system, zink or llvmpipe renderer required'; exit 64 ;; esac
 if [ "$DESKTOP_DE" = hyprland ]; then
-    [ "$OPERATION" = install ] && [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:system ] || {
-        log 'Hyprland requires its pinned Android/System EGL host and USB off; archives are unsupported.'; exit 64
+    [ "${DESKTOP_USB_STORAGE:-}:${DESKTOP_HYPRLAND_BACKEND:-}:${DESKTOP_HYPRLAND_HOST_GL_MODE:-system}" = off:android:system ] || {
+        log 'Hyprland requires its pinned Android/System EGL host and USB off.'; exit 64
     }
     . "$(dirname "$0")/hyprland-components.sh"
     hyprland_resolve_components || { log 'Unknown or incompatible Hyprland compositor/theme selection'; exit 64; }
@@ -657,6 +657,50 @@ $name $digest $release $url"
     log 'Host prerequisites finished; no container was created or modified.'
 }
 
+ensure_hyprland_host() {
+    support="$HYPRLAND_SUPPORT"
+    if [ "$DESKTOP_MODE" = native ]; then support="$support thunar"; else support="$support proot proot-distro"; fi
+    missing_support=0
+    for package in $support; do
+        package_version "$package" >/dev/null || missing_support=1
+    done
+    [ -x "$PREFIX/bin/pulseaudio" ] && [ -x "$PREFIX/bin/pactl" ] || missing_support=1
+    if [ "$DESKTOP_MODE" = proot ]; then
+        proot_valid && proot_distro_valid || missing_support=1
+    fi
+    "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-shell \
+        --theme-id "$DESKTOP_HYPRLAND_THEME_ID" >/dev/null 2>&1 || missing_support=1
+    if [ "$missing_support" = 1 ]; then
+        run pkg install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold x11-repo || fail 'x11-repo'
+        run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold || fail 'pkg update'
+        # shellcheck disable=SC2086
+        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold $support || fail 'Hyprland runtime/client dependencies'
+    else
+        log 'Hyprland host dependencies satisfied; no package update required.'
+    fi
+    if run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-runtime; then
+        log 'Selected Hyprland compositor already verified; preserving its files'
+    else
+        artifact=$(fetch_debs "$HYPRLAND_RELEASE" "$HYPRLAND_BASE_URL" "$HYPRLAND_ASSET $HYPRLAND_ARCHIVE_SHA256") || fail 'downloading Hyprland component'
+        artifact="${artifact# }"
+        if ! run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" install "$artifact"; then
+            rm -f "$artifact"
+            fail 'Hyprland runtime verification/install failed; retry will download the component again'
+        fi
+    fi
+    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland_components.py" install \
+        --runtime "$DESKTOP_HYPRLAND_RUNTIME_ID" --theme "$DESKTOP_HYPRLAND_THEME_ID" || fail 'Hyprland theme verification/install'
+    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-shell \
+        --theme-id "$DESKTOP_HYPRLAND_THEME_ID" || fail 'Hyprland shell verification'
+    [ -x "$PREFIX/bin/pulseaudio" ] && [ -x "$PREFIX/bin/pactl" ] || fail 'Host audio support missing'
+    if [ "$DESKTOP_MODE" = proot ]; then
+        proot_valid && proot_distro_valid || fail 'Hyprland PRoot host prerequisites invalid'
+    fi
+    register_embedded_host_packages
+    audit=$(dpkg --audit 2>&1) || fail 'dpkg audit'
+    [ -z "$audit" ] || fail "$audit"
+}
+
 initialize_desktop() {
     case "$DESKTOP_DE" in
         gnome|ubuntu_gnome)
@@ -706,24 +750,12 @@ fi
 
 if [ "$DESKTOP_DE" = hyprland ]; then
     log "Installing Hyprland Android candidate ($DESKTOP_MODE); device validation pending"
-    run pkg install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold x11-repo || fail 'x11-repo'
-    run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold || fail 'pkg update'
-    support="$HYPRLAND_SUPPORT"
-    if [ "$DESKTOP_MODE" = native ]; then support="$support thunar"; else support="$support proot proot-distro"; fi
-    # shellcheck disable=SC2086
-    run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold $support || fail 'Hyprland runtime/client dependencies'
-    if run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-runtime; then
-        log 'Selected Hyprland compositor already verified; preserving its files'
-    else
-        artifact=$(fetch_debs "$HYPRLAND_RELEASE" "$HYPRLAND_BASE_URL" "$HYPRLAND_ASSET $HYPRLAND_ARCHIVE_SHA256") || fail 'downloading Hyprland component'
-        artifact="${artifact# }"
-        if ! run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" install "$artifact"; then
-            rm -f "$artifact"
-            fail 'Hyprland runtime verification/install failed; retry will download the component again'
-        fi
+    ensure_hyprland_host
+    if [ "$OPERATION" = host-prerequisites ]; then
+        log 'Hyprland host prerequisites finished; container files untouched.'
+        INSTALL_DONE=1
+        exit 0
     fi
-    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland_components.py" install \
-        --runtime "$DESKTOP_HYPRLAND_RUNTIME_ID" --theme "$DESKTOP_HYPRLAND_THEME_ID" || fail 'Hyprland theme verification/install'
     if [ "${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" = 1 ]; then
         # A theme transaction must preserve the previous container and completion receipts.
         # Initialization validates the candidate's clients/renderers without installing a guest.

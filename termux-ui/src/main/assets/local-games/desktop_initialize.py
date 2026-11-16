@@ -99,6 +99,36 @@ def plasma_icd(root, guest, software):
     return '/' + str(path.relative_to(root)) if guest else str(path)
 
 
+def prepare_xfce_wallpaper(root):
+    """Fill Ubuntu's missing compiled-in default without touching user XFConf choices."""
+    root = root.resolve(strict=True)
+    relative = Path('usr/share/xfce4/backdrops/xubuntu-wallpaper.png')
+    directory = root
+    for part in relative.parts[:-1]:
+        directory /= part
+        if not stat.S_ISDIR(directory.lstat().st_mode):
+            raise RuntimeError('XFCE wallpaper parent must be a real container directory: ' + str(directory))
+    target = root / relative
+    if target.is_symlink():
+        link = Path(os.readlink(target))
+        actual = (root / str(link).lstrip('/') if link.is_absolute() else target.parent / link).resolve(strict=True)
+        if not actual.is_relative_to(root) or not actual.is_file():
+            raise RuntimeError('XFCE default wallpaper escapes the container or is not a file')
+        return
+    if target.exists():
+        if not stat.S_ISREG(target.lstat().st_mode):
+            raise RuntimeError('Invalid XFCE default wallpaper')
+        return
+    # SVG has a native librsvg GdkPixbuf loader in the minimal XFCE installation.
+    # Do not require new artwork packages or change a user's selected wallpaper.
+    source = root / 'usr/share/backgrounds/greybird.svg'
+    actual = source.resolve(strict=True)
+    if not actual.is_relative_to(root) or not actual.is_file():
+        raise RuntimeError('Missing safe XFCE distribution wallpaper')
+    target.symlink_to(os.path.relpath(source, target.parent))
+    print('Prepared XFCE default wallpaper from installed greybird.svg', flush=True)
+
+
 def restore_network(prefix, root):
     """Recreate resolver state lost with /run; never write through an archived symlink."""
     root = root.resolve(strict=True)
@@ -484,6 +514,8 @@ def initialize(args):
         from types import SimpleNamespace
         runpy.run_path(str(ASSETS / 'desktop_xfce_session.py'))['prepare'](SimpleNamespace(
             desktop_id=args.desktop_id, run_mode=args.run_mode, alias=args.alias), prefix)
+    if args.de == 'xfce4' and guest:
+        prepare_xfce_wallpaper(root)
 
 
 def main():
@@ -513,7 +545,7 @@ def main():
     if args.command == 'prepare-plasma':
         prepare_plasma(args.prefix)
     else:
-        if args.command == 'restore' and (args.run_mode != 'proot' or args.de not in ('kwin_plasma', 'xfce4', 'ubuntu_gnome') or args.usb_storage != 'off'):
+        if args.command == 'restore' and (args.run_mode != 'proot' or args.de not in ('kwin_plasma', 'xfce4', 'ubuntu_gnome', 'hyprland') or args.usb_storage != 'off'):
             parser.error('Restore requires a supported container archive with USB off')
         initialize(args)
         if args.command == 'restore':

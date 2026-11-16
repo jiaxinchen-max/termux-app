@@ -14,7 +14,7 @@ public class DesktopArchiveLaunchSpecTest {
 
     private DesktopDistro desktop(DesktopDe de) {
         return new DesktopDistro("new-id", "Restored", DesktopRunMode.PROOT, "new-alias", de,
-            DesktopGlMode.SYSTEM, de == DesktopDe.XFCE4 ? DesktopGuestGlMode.DEFAULT : DesktopGuestGlMode.LLVMPIPE,
+            DesktopGlMode.SYSTEM, de == DesktopDe.XFCE4 || de == DesktopDe.HYPRLAND ? DesktopGuestGlMode.DEFAULT : DesktopGuestGlMode.LLVMPIPE,
             "1280x720", 60, DesktopUsbStorageMode.OFF);
     }
     private void publish(DesktopArchiveFileSystem filesystem, File target, DesktopDe de,
@@ -24,7 +24,7 @@ public class DesktopArchiveLaunchSpecTest {
             new File(state, "new-id.status"), new File(work.getRoot(), "new-id.log"), journal);
     }
     @Test public void allRestorableDesktopsHaveFinalContractBeforeLaunching() throws Exception {
-        for (DesktopDe de : new DesktopDe[] {DesktopDe.UBUNTU_GNOME, DesktopDe.KWIN_PLASMA, DesktopDe.XFCE4}) {
+        for (DesktopDe de : new DesktopDe[] {DesktopDe.UBUNTU_GNOME, DesktopDe.KWIN_PLASMA, DesktopDe.XFCE4, DesktopDe.HYPRLAND}) {
             File folder = work.newFolder(de.getStorageValue());
             File target = new File(folder, "new-id.spec");
             long[] owned = new long[2];
@@ -39,6 +39,10 @@ public class DesktopArchiveLaunchSpecTest {
             assertTrue(spec.contains("DESKTOP_PID_FILE=" + new File(work.getRoot(), "state/new-id.pid") + "\n"));
             assertTrue(spec.contains("DESKTOP_DE=" + de.getStorageValue() + "\n"));
             if (de == DesktopDe.UBUNTU_GNOME) assertTrue(spec.contains("DESKTOP_GNOME_SESSION_PROFILE=ubuntu\n"));
+            if (de == DesktopDe.HYPRLAND) {
+                assertTrue(spec.contains("DESKTOP_HYPRLAND_RUNTIME_ID=" + HyprlandComponents.RUNTIME_ID + "\n"));
+                assertTrue(spec.contains("DESKTOP_HYPRLAND_THEME_ID=" + HyprlandComponents.DEFAULT_THEME + "\n"));
+            }
             assertEquals(owned[0], fs.lstat(target).device);
             assertEquals(owned[1], fs.lstat(target).inode);
             assertEquals(1, folder.list().length);

@@ -125,7 +125,8 @@ public final class DesktopArchiveEngine {
                 state.createLinksAndModes();
                 DesktopDistro old=state.metadata.getDesktop();
                 DesktopDistro restored=new DesktopDistro(newDesktopId,old.getName(),old.getRunMode(),
-                    newAlias,old.getDe(),old.getHostGlMode(),old.getGuestGlMode(),old.getResolution(),old.getRefreshRate(),old.getUsbStorage());
+                    newAlias,old.getDe(),old.getHostGlMode(),old.getGuestGlMode(),old.getResolution(),old.getRefreshRate(),old.getUsbStorage(),
+                    old.getHyprlandRuntimeId(),old.getHyprlandThemeId());
                 DesktopArchiveFileSystem.Stat identity=fs.lstat(stage);
                 if (identity==null || identity.kind!=DesktopArchiveFileSystem.Kind.DIRECTORY
                         || identity.device!=ownedStage.device || identity.inode!=ownedStage.inode)

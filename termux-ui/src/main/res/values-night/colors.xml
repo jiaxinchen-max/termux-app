@@ -71,4 +71,5 @@
         <item>#A2E3DF</item>
         <item>#FFF7EE</item>
     </array>
+    <color name="desktop_usb_dialog_surface">#FF201813</color>
 </resources>
