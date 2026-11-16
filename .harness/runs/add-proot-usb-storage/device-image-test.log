@@ -1,0 +1,40 @@
+IMAGE_DRIVER_STARTED
+127.0.0.1 - - [17/Nov/2026 00:35:52] "OPTIONS / HTTP/1.1" 401 -
+127.0.0.1 - - [17/Nov/2026 00:35:52] "OPTIONS / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Nov/2026 00:35:52] "PROPFIND / HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:35:54] "PROPFIND / HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:35:56] "PROPFIND /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:35:56] "PROPFIND /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:35:56] "GET /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 200 -
+127.0.0.1 - - [17/Nov/2026 00:35:56] "PROPFIND /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:35:59] "PROPFIND /denied.bin HTTP/1.1" 404 -
+127.0.0.1 - - [17/Nov/2026 00:35:59] "PROPFIND /denied.bin HTTP/1.1" 404 -
+127.0.0.1 - - [17/Nov/2026 00:35:59] "PUT /denied.bin HTTP/1.1" 403 -
+guest uid=10216
+PASS glibc GVfs authenticated mount, Unicode listing and binary readback
+PASS read-only GVfs rejects write: gio: file:///tmp/tusb-image-test/readback.bin: HTTP Error: (null)
+PASS guest GIO module exposes removable volume
+PASS helper unmount
+
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Activating service name='org.gtk.vfs.Daemon' requested by ':1.0' (uid=10216 pid=18765 comm="/tmp/tusb-image-test/guest/usr/local/libexec/tusb-" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Successfully activated service 'org.gtk.vfs.Daemon'
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Activating service name='org.gtk.vfs.UDisks2VolumeMonitor' requested by ':1.8' (uid=10216 pid=18811 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+
+(process:18816): GVFS-UDisks2-WARNING **: 16:36:01.364: Failed to connect to UDisks: Could not connect: No such file or directory
+
+(process:18816): GVFS-RemoteVolumeMonitorDaemon-WARNING **: 16:36:01.371: monitor says it's not supported
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Successfully activated service 'org.gtk.vfs.UDisks2VolumeMonitor'
+
+(process:18816): GVFS-RemoteVolumeMonitorDaemon-WARNING **: 16:36:01.561: monitor says it's not supported
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Activating service name='org.gtk.vfs.AfcVolumeMonitor' requested by ':1.8' (uid=10216 pid=18811 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Successfully activated service 'org.gtk.vfs.AfcVolumeMonitor'
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Activating service name='org.gtk.vfs.MTPVolumeMonitor' requested by ':1.8' (uid=10216 pid=18811 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Successfully activated service 'org.gtk.vfs.MTPVolumeMonitor'
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Activating service name='org.gtk.vfs.GPhoto2VolumeMonitor' requested by ':1.8' (uid=10216 pid=18811 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Successfully activated service 'org.gtk.vfs.GPhoto2VolumeMonitor'
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Activating service name='org.gtk.vfs.GoaVolumeMonitor' requested by ':1.8' (uid=10216 pid=18811 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[18758]: [session uid=10216 pid=18758 pidfd=4] Successfully activated service 'org.gtk.vfs.GoaVolumeMonitor'
+A connection to the bus can't be made
+A connection to the bus can't be made
+
+PASS exFAT image SHA256 unchanged and masked PREFIX remains 000

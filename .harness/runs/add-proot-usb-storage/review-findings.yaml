@@ -22,6 +22,7 @@ checks:
   transaction_and_matrix_tests: passed
   shell_configuration_combinations: 8_passed
   apk_build: passed
+  emulator_real_gio_image: passed
   harness_strict: unavailable
 limitations:
   - 物理 USB 的授权、热拔出、设备占用与四桌面 GUI 验收未执行

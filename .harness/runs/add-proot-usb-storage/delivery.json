@@ -1,0 +1,19 @@
+{
+  "source_commit": "fbd0f1b7f81f44c215e9d50746e729f597fa7924",
+  "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "bytes": 44545773,
+  "sha256": "60ce61c476349c46136d3fa6666934cd3667c8a1029ec0cea977d0f565f7f851",
+  "signature": "verified v1/v2",
+  "test_only": false,
+  "abi": "arm64-v8a",
+  "source_assets_verified": 74,
+  "large_assets": [
+    {
+      "name": "assets/wine.tar",
+      "bytes": 7577600
+    }
+  ],
+  "public_download": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122146279517675520/port/54356/termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "download_verification": "localhost HEAD 200, Content-Length matches; proxy requires signed-in DE session (anonymous request 401)",
+  "device_installation": "Pending"
+}

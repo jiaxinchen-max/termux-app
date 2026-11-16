@@ -1,15 +1,18 @@
 change_id: add-proot-usb-storage
-stage: verification
-status: in_progress
+stage: user_validation
+status: awaiting_user_testing
 planning_artifacts: confirmed
 implementation: completed
+implementation_commit: fbd0f1b7
 last_update: 2026-11-16
-next_action: 完成模拟器 GIO 镜像验证、签名分发 APK 并推送；实物 USB 验收保留待办
+next_action: 用户安装 APK 并执行真实 USB 及四类桌面 GUI 验证；验收前不归档
 verification:
   source_review: completed_self_review
   planning_structure: passed
   planning_review: approved_by_user
   local_tests: passed
-  apk_build: passed
+  emulator_real_gio_image: passed
+  apk_build_signature_assets: passed
+  apk_user_installation: pending
   harness_strict: unavailable
   physical_usb: not_run

@@ -25,3 +25,7 @@
 USB 盘需要 Android USB Host 支持、前台系统授权及 BOT/SCSI FAT/exFAT 协议匹配。Android 自己挂载的盘不保证能接管；其他 USB 类别与写盘不在范围。用户可停止桌面、关闭 USB 并等待保存完成后回退为 off；软件包保留，避免隐式卸载共享依赖。代码回退可反向撤销本次提交。
 
 仓库缺少 Harness bootstrap/strict 脚本、OpenSpec CLI 及产品基线目录；严格门禁不可执行，未伪造通过。product_docs 一致性保持 Pending，未归档。
+
+## 模拟器补充验证
+
+独立测试容器内普通 termux UID 10216 的真实 exFAT→WebDAV→glibc GIO/GVfs 链路通过；PUT 403、内容读回、GIO 卷、卸载、整体镜像 SHA256 和 000 夹具均已验证，见 device-image-test.log。未接入实物 USB，不能将镜像结果扩展为 BOT/OTG 或四桌面完整 GUI 通过。最终 APK 脚本逐字节匹配已推送 fbd0f1b7。

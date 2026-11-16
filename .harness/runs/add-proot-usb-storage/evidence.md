@@ -48,6 +48,22 @@
 
 解压仅到 App HOME 的独立 `.cache/proot-usb-check-20261116/`；GVfs 前置依赖安装到独立 `software-center-check-20261116` 测试容器。未向现有 `ubuntu-xfce4-1`、`ubuntu-kwin-plasma-1` 写入测试组件或改变其 guest 配置。没有新 DEB 编译或组件发布。
 
+## 模拟器真实 GIO/GVfs 镜像结果
+
+结果 **PASS**，完整日志与驱动脚本保存在 `device-image-test.log`、`device-image-test.py`。测试前再次 force-stop 并验证无 App PID，重新启动默认 Activity；测试仅在明确准备的独立容器中运行。
+
+独立最小底包没有完整桌面已有的 host PREFIX 占位目录；第一次驱动因此在读取前退出。仅在该测试 rootfs 创建空的 000 夹具后，从干净进程重测通过。未修改两个用户桌面的原有 000 目录。测试驱动设互斥锁，防止同时运行破坏测试磁盘。
+
+- 已发布的 Bionic `libtermux-usb-fs.so` 创建/填充 64 MiB exFAT 镜像，再以只读打开并提供实际鉴权 localhost WebDAV。
+- guest `termux` UID 10216 用发布的 glibc `tusb-gio-mount` 和 Ubuntu GVfs DAV 挂载，实际 `gio list/copy` 完成中文目录与二进制内容逐字节核对。
+- 首个无凭据 OPTIONS 为 401，helper 鉴权后 OPTIONS/GET 成功；写入 PUT 为 403，gio 写入命令失败。
+- guest glibc GIO 模块在 `gio mount -li` 中暴露可移动卷；helper 卸载成功。WebDAV 线程关闭、文件系统关闭后镜像整体 SHA256 完全不变。
+- Android 上运行新的 fd-relative guest mount helper，000 夹具权限不变。
+- 日志里的 UDisks 不可用提示没有使读盘失败；测试没有创建 UDisks 硬件服务或内核挂载。
+- 完成后移除 64 MiB 测试镜像、读回文件、口令文件和临时 endpoint/volumes 元数据；保留小体积日志和测试组件，测试 rootfs 未删除。
+
+这是共享文件传输基础链路的真实镜像测试，未经过实物 USB FD/BOT 传输，也未代表四个完整 GUI 会话均已测试。
+
 ## 工具缺口与验收边界
 
 已直接核对缺少 `.harness/agents/application-owner.md`、`.harness/workflows/HARNESS_WORKFLOW.md`、`.harness/rules/agent-rules.md`、`.codex/skills/codex-owner/SKILL.md`、`.harness/scripts/verify.sh`，环境没有 openspec CLI。`.harness/scripts/verify.sh --change-id add-proot-usb-storage --strict-run` 无法执行；人工和本地测试不等于严格门禁通过。

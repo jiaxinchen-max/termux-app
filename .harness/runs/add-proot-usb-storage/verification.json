@@ -106,5 +106,22 @@
   ],
   "harness_strict": "Unavailable: repository script absent",
   "physical_usb": "Not run",
-  "four_desktop_gui": "Not run"
+  "four_desktop_gui": "Not run",
+  "android_image_test": {
+    "status": "passed",
+    "guest_uid": 10216,
+    "filesystem": "exFAT 64 MiB image",
+    "log": "device-image-test.log",
+    "sha256": "4a67a185cc78019c40c789a06a849f784045a09baa3944b525b931f189ec0d1e",
+    "scope": "Published Bionic library/WebDAV to actual guest glibc GIO/GVfs; not physical OTG or all desktop GUI sessions",
+    "checks": [
+      "private token authentication",
+      "Unicode directory and binary readback",
+      "write rejected with HTTP 403",
+      "GIO removable volume",
+      "unmount",
+      "unchanged image SHA256",
+      "000 mask fixture unchanged"
+    ]
+  }
 }
