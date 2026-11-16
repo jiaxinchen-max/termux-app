@@ -1,0 +1,31 @@
+{
+  "schema": "review_findings_v1",
+  "change_id": "fix-desktop-audio-service-lifecycle",
+  "status": "APPROVED",
+  "findings": [],
+  "review": {
+    "method": "直接源码自审及执行型测试",
+    "files_sha256": {
+      "termux-ui/src/main/assets/local-games/desktop_audio_service.py": "e726ecaa902dd579059d86b97ce049a26a24941191d3c2dbf85b80a8d11c6fb2",
+      "termux-ui/src/main/assets/local-games/desktop_common.sh": "abad180fe14b88eea2c82dc104d52da5000a9fce933f7b237d03b97c2e7e7572",
+      "termux-ui/src/main/java/com/termux/ui/service/LaunchScriptInstaller.java": "94bc1e26efc7c373088055a69c90556d4056e2f6d52194e0be45fa7821515412",
+      "termux-ui/src/main/java/com/termux/ui/desktop/api/DesktopRestorePrerequisites.java": "dd2cb87905df2fc1e8124943dd69d972688e8e6efc71ea1ff852e1b162b1489d",
+      "docs/desktop-testing/test-desktop-audio.py": "ec2b53a84a2a9976d23a355038bc39fe86c1de30f25127cc546ad30ede7d7cf6"
+    },
+    "checks": [
+      "健康端点先复用，不依赖 --check 或 PID 文件",
+      "旧进程仅本 UID、名称与命令匹配，发送信号前复核 starttime",
+      "Android hidepid 他用户条目忽略，本 UID 无法读取或信号失败直接退出",
+      "SIGTERM 后等待，必要时 SIGKILL，确认退出后单次启动",
+      "文件锁串行化复用/替换，端点调用、停止和冷启动有界",
+      "正常关闭桌面不结束共享音频，失败不发布音频端点",
+      "辅助脚本随原部署流程打包，恢复 wrapper 显式引用正确位置"
+    ]
+  },
+  "known_limitations": [
+    "未运行 Harness strict gate：仓库缺少脚本和 OpenSpec CLI",
+    "较旧的初始化测试在未修改 HEAD 上存在相同的 8 failures/4 errors；不是本轮新增，通过基线对照记录",
+    "APK 覆盖安装不会自动重做已保存桌面的部署；其他设备需在桌面设置保存一次更新脚本，当前模拟器已直接应用同版运行脚本",
+    "完整 APK 未经 ADB 安装，按用户偏好提供手动下载；设备测试使用同字节运行脚本"
+  ]
+}

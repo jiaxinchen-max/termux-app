@@ -214,7 +214,9 @@ public final class DesktopRestorePrerequisites {
                 + "DESKTOP_PID_FILE=" + quote(new File(result.getParentFile(), "pid").getPath()) + "\n"
                 + "DESKTOP_STATUS_FILE=" + quote(new File(result.getParentFile(), "status").getPath()) + "\n"
                 + ". " + quote(new File(new File(initializer).getParentFile(), "desktop_common.sh").getPath()) + " || return $?\n"
-                + "prepare_desktop_audio host-pulseaudio || return $?\n";
+                + "prepare_desktop_audio host-pulseaudio "
+                + quote(new File(new File(initializer).getParentFile(), "desktop_audio_service.py").getPath())
+                + " || return $?\n";
         }
         return "#!/data/data/com.termux/files/usr/bin/sh\n"
             + "initialize_restored() {\n" + preparation + command + "\n}\n"
