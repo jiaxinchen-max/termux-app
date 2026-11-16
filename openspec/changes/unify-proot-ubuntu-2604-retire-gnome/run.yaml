@@ -47,4 +47,15 @@ component_publication:
   public_assets_verified: 22
   external_mesa_asset_verified: true
   evidence: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/evidence/component-publication.json
-  apk_published: false
+  apk_published: true
+
+apk_delivery:
+  authorization: 用户明确要求将适配 APK 提供下载
+  status: PublishedAndPublicBytesVerified
+  source_commit: 4b1ee42672a62e789b9acc490aba76b8081e1f64
+  tag: desktop-adapted-20261116-4b1ee426
+  bytes: 45514430
+  sha256: 434d0dfab7f2e18ad3079348d73e746cf4ddd9b43972ae83863436d527302cd3
+  test_only: false
+  evidence: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/evidence/apk-publication.json
+  device_acceptance: Pending

@@ -1,0 +1,31 @@
+{
+  "created_at": "2026-11-16T08:11:07.051199+00:00",
+  "source_commit": "4b1ee42672a62e789b9acc490aba76b8081e1f64",
+  "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "bytes": 45514430,
+  "sha256": "434d0dfab7f2e18ad3079348d73e746cf4ddd9b43972ae83863436d527302cd3",
+  "build_command": "TERMUX_PACKAGE_VARIANT=apt-android-7 ./gradlew :app:assembleDebug -Pandroid.injected.build.abi=arm64-v8a -Pandroid.injected.testOnly=false --console=plain",
+  "build": "passed",
+  "signature_verification": "passed v1/v2",
+  "package": "com.termux",
+  "abi": "arm64-v8a",
+  "test_only": false,
+  "zip_crc_check": "passed",
+  "external_runtime_theme_api_payloads_embedded": [],
+  "source_assets_checked": 72,
+  "acceptance": "Pending: full fresh installation and device functional acceptance",
+  "authorization": "用户明确要求将适配 APK 提供下载；沿用推送代码保存进度授权",
+  "release_url": "https://github.com/jiaxinchen-max/termux-app/releases/tag/desktop-adapted-20261116-4b1ee426",
+  "download_url": "https://github.com/jiaxinchen-max/termux-app/releases/download/desktop-adapted-20261116-4b1ee426/termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "prerelease": true,
+  "draft": false,
+  "public_readback": {
+    "checked_at": "2026-11-16T08:12:27.392396+00:00",
+    "authenticated": false,
+    "bytes": 45514430,
+    "sha256": "434d0dfab7f2e18ad3079348d73e746cf4ddd9b43972ae83863436d527302cd3",
+    "matched": true
+  },
+  "source_changes": "本轮无业务代码修改；CMake 对上游 submodule 的构建补丁不提交",
+  "harness_gate": "Unavailable: repository scripts absent"
+}

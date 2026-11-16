@@ -111,3 +111,11 @@ Mutter 50.1-3 + Shell 50.1-2 的实际 PRoot 冷启动已使用生产 Glycin 安
 - 发布只影响固定新版本组件及文档；旧资产、用户容器不变。回退恢复之前 App 源码／组件清单，不自动降级容器。Native 全套 GUI、四类全新安装、真实 USB／高通 GPU／Discover 等仍待验证；宽泛旧综合脚本未通过，严格 gate 不存在；整体 NotReadyForRelease，产品一致性 Pending。
 
 证据：`evidence/component-publication.json`、`current-status.md`；组件仓库 `repository/gnome/publication-20261116.json`；本地 `artifacts/gnome50/publication/public-readback.log` 和 `native-appearance-tests.log`。本次后续修改仅更新发布记录和任务状态，没有业务代码变更，因此不重复运行已通过的 801 项 Java 测试。
+
+## 适配 APK 构建与下载交付（2026-11-16）
+
+用户要求“将适配的apk给我下载”。以干净 App 提交 4b1ee426 构建 arm64，递归检出所有钉住 submodule；补齐本地 CMake 3.22.1／Bison／Flex 后原构建链通过。初次 ABI 注入构建会生成 testOnly；该候选未交付，最终显式加 `-Pandroid.injected.testOnly=false` 重新构建。最终构建命令及实际验证见 evidence/apk-publication.json。
+
+指定名称 APK 为 45,514,430 字节，SHA256 `434d0dfab7f2e18ad3079348d73e746cf4ddd9b43972ae83863436d527302cd3`。apksigner v1／v2 验证通过；aapt 确认 com.termux、唯一 ABI arm64-v8a、实际 Manifest 不含 testOnly；ZIP CRC 通过。72 个 termux-ui 资源逐字节匹配源码，外部主题、GNOME runtime 和 termux-api companion 未打入 APK。既有 12,294 字节 X11 CLI DEB 和 70,480 字节 statx 小助手继续保留。
+
+App 仓库独立公开 prerelease `desktop-adapted-20261116-4b1ee426` 包含 APK、SHA256SUMS 及逐资源验证清单，不替换 stable/latest。从原始公开 URL 无认证下载完整 APK，大小、SHA256 与本地及 GitHub digest 三方一致。未安装覆盖用户 App 或容器；完整全新安装／设备功能验收仍 Pending。此前 801 项单元测试证据保留，本轮仅构建／文档，无业务修改，不重复测试；规定的严格 Harness gate 仍缺失。不归档。

@@ -1,6 +1,6 @@
 # 当前任务完成情况（2026-11-16）
 
-用户本次明确授权“发布相关组件到组件仓库，总结当前任务完成情况”。当前代码与组件已交付，完整 App 验收尚未完成，未构建或发布新 APK，不归档。
+组件发布之后，用户进一步要求“将适配的apk给我下载”。已从 4b1ee426 构建并公开交付 arm64 APK，完整 App 功能验收尚未完成，不归档。
 
 | 工作项 | 当前结果 | 验证边界 |
 | --- | --- | --- |
@@ -25,6 +25,12 @@
 
 801 项 Java 测试通过。保存、GNOME 会话／进程、Hyprland、Plasma 安装、GIO、Glycin、恢复及渲染定向回归已通过。宽泛旧 test-desktop-scripts.sh 仍使用旧运行路径、废弃接口与启动缓存预期，未通过，不宣称全仓库测试完成。规定的 Harness strict gate 和 OpenSpec CLI 缺失。
 
-剩余验收：Native GNOME 50 全套 GUI／独立应用组合、四类 PRoot 全新安装、真实鼠标交互、Discover 密码授权、USB、高通 GPU，以及新 APK 的完整安装／启动／失败退出验证。完成后再交付指定名称 termux-app_apt-android-7-debug_arm64-v8a.apk。产品一致性继续 Pending，整体 NotReadyForRelease，未归档。
+剩余验收：Native GNOME 50 全套 GUI／独立应用组合、四类 PRoot 全新安装、真实鼠标交互、Discover 密码授权、USB、高通 GPU，以及新 APK 的完整安装／启动／失败退出验证。已交付指定名称 termux-app_apt-android-7-debug_arm64-v8a.apk；下载包的构建、签名、清单、资源及公开下载字节已核验，设备功能验收范围保持待完成。产品一致性继续 Pending，整体 NotReadyForRelease，未归档。
 
 公开下载证据见 evidence/component-publication.json，完整逐资产记录在组件仓库 repository/gnome/publication-20261116.json（提交 2e4b062）。历史失败及其后修复证据继续保留于 verification.md。
+
+## 本轮 APK 交付
+
+- [下载 termux-app_apt-android-7-debug_arm64-v8a.apk](https://github.com/jiaxinchen-max/termux-app/releases/download/desktop-adapted-20261116-4b1ee426/termux-app_apt-android-7-debug_arm64-v8a.apk)，45,514,430 字节（45.51 MB／43.41 MiB），源码 4b1ee426。
+- 构建成功，v1／v2 签名通过；实际 APK 为 com.termux、arm64-v8a，未设置 testOnly，不需要安装 -t。72 个 termux-ui 资源与源码逐字节一致；未内嵌外部 GNOME／主题／API companion 大包。
+- 发布为独立 prerelease，未覆盖 stable／latest。无认证从原始下载 URL 重新下载全包，大小与 SHA256 434d0dfab7f2e18ad3079348d73e746cf4ddd9b43972ae83863436d527302cd3 匹配。证据见 evidence/apk-publication.json。
