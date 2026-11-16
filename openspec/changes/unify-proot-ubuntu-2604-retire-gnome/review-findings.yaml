@@ -50,4 +50,9 @@ findings:
   - id: PROOT_SHARED_SHELL_DEPENDENCIES
     severity: high
     status: resolved
-    description: 实际用户日志复现四个 Shell 依赖不可安装，已从 Native 附加清单拆为两种模式共享的固定哈希组件；真实宿主 apt 全部配置成功、Shell/GJS 版本及 dpkg audit 通过，容器完整安装仍在执行。
+    description: 实际用户日志复现四个 Shell 依赖不可安装，已从 Native 附加清单拆为两种模式共享的固定哈希组件；真实宿主 apt 全部配置成功、Shell/GJS 版本及 dpkg audit 通过，完整真实 Ubuntu 26.04.1 安装 exit:0、host/guest audit 干净，APK 实际安装无需 -t，正式脚本冷启动和四扩展 state=1 已通过。
+
+  - id: COLD_AUDIO_START_DEADLINE
+    severity: high
+    status: resolved
+    description: 真实冷启动音频服务已拉起但短客户端超时返回 124；服务启动改为单次 15 秒限时，客户端仍 3 秒，不增加静态预检、初始化或重试。真实 4 秒子进程回归在旧 helper 失败、新 helper 通过，错误 43 记录日志且不重试；最终 APK 冷启动待记录。

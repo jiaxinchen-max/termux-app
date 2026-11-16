@@ -20,6 +20,15 @@ desktop_audio_run() {
     timeout -k 1 3 "$@"
 }
 
+# Starting the Android sink can exceed the short client-request deadline on a cold app.
+# This is one service start, with no fixed sleep, endpoint probe or retry.
+desktop_audio_start() {
+    timeout -k 1 15 env -u PULSE_SERVER "$PREFIX/bin/pulseaudio" --start --exit-idle-time=-1 \
+        --log-target="file:$HOME/.termux/desktop-pulseaudio.log" \
+        --load='module-native-protocol-tcp listen=127.0.0.1 port=4713 auth-anonymous=1' \
+        >> "$DESKTOP_LOG_FILE" 2>&1
+}
+
 prepare_desktop_audio() {
     [ "${1:-}" = host-pulseaudio ] || {
         log 'Explicit DESKTOP_AUDIO_MODE=host-pulseaudio is required.'
@@ -34,10 +43,7 @@ prepare_desktop_audio() {
         log 'Starting host PulseAudio with a loopback-only container endpoint.'
         mkdir -p "$HOME/.termux" || return 70
         log "PulseAudio server log: $HOME/.termux/desktop-pulseaudio.log"
-        desktop_audio_run env -u PULSE_SERVER "$PREFIX/bin/pulseaudio" --start --exit-idle-time=-1 \
-            --log-target="file:$HOME/.termux/desktop-pulseaudio.log" \
-            --load='module-native-protocol-tcp listen=127.0.0.1 port=4713 auth-anonymous=1' \
-            >> "$DESKTOP_LOG_FILE" 2>&1 || {
+        desktop_audio_start || {
             log 'Host PulseAudio failed to start; desktop audio is required.'
             return 70
         }
@@ -70,10 +76,11 @@ prepare_desktop_audio() {
 
 start_desktop_audio() {
     [ "${1:-}" = host-pulseaudio ] || return 64
-    desktop_audio_run env -u PULSE_SERVER "$PREFIX/bin/pulseaudio" --start --exit-idle-time=-1 \
-        --log-target="file:$HOME/.termux/desktop-pulseaudio.log" \
-        --load='module-native-protocol-tcp listen=127.0.0.1 port=4713 auth-anonymous=1' \
-        >> "$DESKTOP_LOG_FILE" 2>&1 || return 70
+    if desktop_audio_start; then :; else
+        desktop_audio_code=$?
+        log "Host PulseAudio start failed (status $desktop_audio_code); inspect $HOME/.termux/desktop-pulseaudio.log"
+        return 70
+    fi
     export PULSE_SERVER=tcp:127.0.0.1:4713
     unset PULSE_SINK PULSE_SOURCE
 }

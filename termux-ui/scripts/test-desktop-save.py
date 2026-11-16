@@ -33,6 +33,9 @@ with open(os.environ['TRACE'], 'a') as out: out.write(json.dumps([name, sys.argv
 if name == 'uname': print('aarch64')
 if name in ('apt','pkg','curl','wget','dpkg-query'): sys.exit(98)
 if name == 'pactl' and 'sinks' in sys.argv: print('0\tAndroid\tmodule-sles-sink.c\tIDLE')
+if name == 'pulseaudio' and os.environ.get('AUDIO_START_DELAY'):
+    import time
+    time.sleep(float(os.environ['AUDIO_START_DELAY']))
 if name == os.environ.get('FAIL'): sys.exit(43)
 '''
         for name in ('uname', 'apt', 'pkg', 'curl', 'wget', 'dpkg-query', 'dpkg', 'python3', 'pulseaudio', 'pactl'):
@@ -88,6 +91,14 @@ if name == os.environ.get('FAIL'): sys.exit(43)
         result = subprocess.run(['sh', '-c', script], env=dict(self.env, FAIL='pulseaudio', **self.values),
             text=True, capture_output=True, timeout=8)
         self.assertEqual(70, result.returncode, result.stdout + result.stderr)
+        self.assertEqual(['pulseaudio'], [name for name, _ in self.calls()])
+        self.assertIn('Host PulseAudio start failed (status 43)', (self.base / 'log').read_text())
+
+    def test_cold_audio_start_can_complete_after_client_deadline(self):
+        script = '. ' + shlex.quote(str(self.scripts / 'desktop_common.sh')) + '\nstart_desktop_audio host-pulseaudio\n'
+        result = subprocess.run(['sh', '-c', script], env=dict(self.env, AUDIO_START_DELAY='4', **self.values),
+            text=True, capture_output=True, timeout=10)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertEqual(['pulseaudio'], [name for name, _ in self.calls()])
 
 

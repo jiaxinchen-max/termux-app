@@ -136,3 +136,16 @@ App 仓库独立公开 prerelease `desktop-adapted-20261116-4b1ee426` 包含 APK
 18 项 Ubuntu GNOME 回归、5 项保存回归、10 项真实隔离 dpkg conffile 回归通过。新增用例验证四项共享依赖进入 PRoot、Native 应用不会进入 PRoot、下载失败保留 42 且不执行 host apt、不写完成标记；在之前 APK 的安装器上两个新增用例均准确失败。原 GNOME 无人值守夹具未适配强制校验，现仅把测试清单摘要固定为网络夹具的真实摘要，保留正式 SHA256 校验与真实 dpkg 冲突。
 
 实际设备 force-stop 后重新打开 App，使用独立 audit-ubuntu-gnome 实例执行修复后的正式安装器，不替换用户容器或伪造 apt。宿主真实 apt 安装与配置全部通过；gnome-shell --version 输出 GNOME Shell 50.1，gjs --version 为 1.88.0，dpkg --audit 为空。已开始下载并应用 ubuntu:resolute OCI 底包。容器内软件包及最终保存初始化尚在执行，不能宣称完整安装成功。日志保存在本地 artifacts/gnome50/install-audit/，规定的 strict gate 仍缺失。
+
+
+### 完整真实安装与冷启动结果
+
+上述“容器仍在执行”为历史中间状态。正式安装器最终 `exit:0`，Ubuntu 26.04.1 LTS / resolute 的约 624 个真实软件包安装配置完成，Glycin、Mesa 与会话保存初始化完成；普通用户 termux 为 UID 10215、HOME=/home/termux，host/guest `dpkg --audit` 均为空，完成标记和保存描述存在。没有替换 apt/dpkg、绕过维护脚本或用私有库覆盖正式安装。原用户记录保留，验证使用独立 audit-ubuntu-gnome。
+
+源码 b2d3de63 的指定名称 APK 已构建、v1/v2 签名验证、arm64 且无 testOnly，72 个资源逐字节匹配；45,396,022 字节，SHA256 f7fa9c62f339fd5d5342f3625cc0206670a8f74e07fecc0e10888bb6dd685c04。原始公开 GitHub URL 已完整无认证下载并验大小及哈希；设备直接下载同一 URL 后验哈希，实际 cmd package install -r 安装 Success，无 -t。
+
+该 APK force-stop 后经公开 TermuxActivity 进入前台，再打开真实 DesktopSessionActivity，正式脚本未添加诊断或库覆盖，GNOME 真实 AHB 输出、壁纸、Dock、Home 图标显示，四扩展均返回 state=1、error 空，生产 ready 文件存在。四个静态会话文件 SHA256 与保存后完全相同。证据 artifacts/gnome50/install-audit/production-coldstart.txt 与 production-coldstart.png。
+
+测试中 run-as 安装器创建的 PulseAudio 进程与真实 App SELinux 上下文不同；已只清理该验证进程。随后有几次内部 Activity 调用被 Android 后台启动限制阻止，不计为冷启动尝试。另有一次真实 App 冷启动，音频服务已起但 3 秒客户端限时使调用返回 124，桌面按规则退出 70；单次成功不能覆盖该问题。现将实际服务启动单独限为 15 秒，成功立即继续，客户端查询仍为 3 秒，启动不增加探针、配置写入或重试，失败日志保留原始返回码。6 项保存／启动回归通过，含真实子进程延迟 4 秒；旧 helper 的负对照在同一用例以 70 失败。最终含此修正 APK 的构建和冷启动待记录。
+
+严格 Harness gate 仍缺失；Native、另外三类全新安装、真实 USB／高通 GPU／Discover 不在本轮验证范围。产品一致性 Pending，不归档。
