@@ -7,7 +7,7 @@
 - termux-ui 的 DesktopRestoreInitializationTest 5 项、DesktopArchiveLaunchSpecTest 4 项通过；APK assembleDebug 成功。
 - 模拟器真实服务替换：两个 run-as 测试残留音频进程 18545/19733 变为单个 22346，端点与 Android sink 可用，第二次调用保持同 PID。
 - Native：测试前 force-stop，经实际管理页 Start/二次确认打开，音频直接复用，gnome-ready 已发布，取得真实 GNOME 桌面截图 native-running.png。
-- PRoot：干净 App 进程经实际管理页确认启动，日志已通过音频复用并完成 Android AHB 渲染桥握手；本次 GNOME 自身就绪超时退出 exit:1。未把音频修复等同于 PRoot 桌面完整验证通过，正在复查。
+- PRoot：干净 App 进程经实际管理页确认启动，日志已通过音频复用并完成 Android AHB 渲染桥握手；首次 GNOME 因 ubuntu-dock@ubuntu.com 就绪等待超时退出 exit:1；再次干净 App 进程验证时取得正式 gnome-ready（23967），见 proot-last-recheck.json；最终截图 proot-final-screen.png 显示管理页，没有取得 PRoot 桌面画面，因此仅确认音频阶段通过，PRoot 完整桌面及稳定性尚未验证通过。保留 Ubuntu Dock 超时问题，不宣称已修复 GNOME 所有超时。
 - APK 固定文件名 termux-app_apt-android-7-debug_arm64-v8a.apk，44,525,099 字节（42.46 MiB），原 debug key 签名 v1/v2 通过、无 testOnly、仅 arm64，72 个运行资产与源码逐字节一致。SHA256 913a4c7cf2d58a3491ea642c3121db37c5c4c936aae01294ae36e416ead9dadb。
 
 ## 验证边界
@@ -16,4 +16,4 @@
 
 初始化大套件 24 项中 8 failures/4 errors，以及安装音频夹具的渲染组合失败，均在未修改 HEAD 的隔离基线复现，失败用例集合相同；没有宣称全套绿灯。仓库缺少 Harness verify.sh、四份流程指令及 OpenSpec CLI，严格门禁未运行。
 
-产品资料一致性 Pending，等待用户验收，不归档。七个既有脏子模块未修改。详细日志、基线对照、真实音频生命周期、截图和 APK 元数据保存在 artifacts/desktop-start-regression-20261116 与 artifacts/desktop-audio-lifecycle-apk-20261116。
+产品资料一致性 Pending，等待用户验收，不归档。两个原库存记录与两个原 spec 的 SHA256 全部保持一致，原容器未删除或重新初始化。七个既有脏子模块未修改。详细日志、基线对照、真实音频生命周期、截图和 APK 元数据保存在 artifacts/desktop-start-regression-20261116 与 artifacts/desktop-audio-lifecycle-apk-20261116。
