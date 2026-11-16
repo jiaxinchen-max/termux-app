@@ -1,5 +1,5 @@
 change_id: unify-proot-ubuntu-2604-retire-gnome
-stage: implementation_design_decision
+stage: implementation
 approval:
   requirements: Approved
   implementation: Approved
@@ -16,3 +16,16 @@ consistency:
 verification:
   strict_gate: unavailable
   reason: 仓库缺少规定 Harness 指令、strict gate 脚本与 OpenSpec CLI
+
+display_redesign:
+  status: Approved
+  evidence: 用户明确要求升级现有组件进行支持，pipewire不用考虑
+  architecture: existing-android-backend-gnome-50
+  pipewire_display_bridge: excluded
+
+progress_save:
+  authorization: 用户明确要求“先推送代码”
+  scope: 当前分支 WIP 源码及进度记录
+  readiness: NotReadyForRelease
+  runtime: Native 与 PRoot Shell 50 均有 GPU 首帧；PRoot D-Bus 就绪失败
+  remaining: 安装资产配套、完整会话与四类桌面回归

@@ -1,0 +1,61 @@
+Android cross-build support rebased for GNOME 50.
+
+--- a/meson.build
++++ b/meson.build
+@@ -285,20 +285,26 @@
+ # Check if a minimal SpiderMonkey program compiles, links, and runs. If not,
+ # it's most likely the case that SpiderMonkey was configured incorrectly, for
+ # example by building mozglue as a shared library.
+-minimal_program = cxx.run('''
++minimal_program_source = '''
+ #include <js/Initialization.h>
+ int main() {
+     if (!JS_Init()) return 1;
+     JS_ShutDown();
+     return 0;
+ }
+-''',
+-    args: debug_arg, dependencies: spidermonkey,
+-    name: 'SpiderMonkey sanity check')
++'''
++if meson.is_cross_build()
++    minimal_compiled = cxx.links(minimal_program_source, args: debug_arg,
++        dependencies: spidermonkey, name: 'SpiderMonkey cross link sanity check')
++else
++    minimal_program = cxx.run(minimal_program_source, args: debug_arg,
++        dependencies: spidermonkey, name: 'SpiderMonkey sanity check')
++    minimal_compiled = minimal_program.compiled()
++endif
+ 
+ recommended_configuration = ''' Check the recommended configuration:
+ https://github.com/spidermonkey-embedders/spidermonkey-embedding-examples/blob/esr91/docs/Building%20SpiderMonkey.md'''
+-if not minimal_program.compiled()
++if not minimal_compiled
+     error('''A minimal SpiderMonkey program
+ could not be compiled or linked. Most likely you should build it with a
+ different configuration.''' + recommended_configuration)
+@@ -691,6 +697,7 @@
+ 
+ ### Tests and test setups ######################################################
+ 
++if get_option('build_tests')
+ # External code should not error out even when building with -Werror
+ gi_tests = subproject('gobject-introspection-tests',
+     default_options: ['werror=false', 'cairo=true',
+@@ -702,6 +709,8 @@
+ #       to Windows before we can build it on Windows.
+ if host_machine.system() != 'windows'
+     subdir('test')
++endif
++
+ endif
+ 
+ valgrind_environment = environment()
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -24,3 +24,5 @@
+     description: 'Skip tests that need a display connection')
+ option('verbose_logs', type: 'boolean', value: false,
+     description: 'Enable extra log messages that may decrease performance (not allowed in release builds)')
++
++option('build_tests', type: 'boolean', value: true, description: 'Build test binaries and introspection fixtures')

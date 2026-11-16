@@ -1,4 +1,17 @@
-# GNOME rootless X11 移植
+# GNOME Android 原生移植与历史验证记录
+
+## GNOME 50 升级实施状态
+
+当前工作配方为 Mutter/Shell 50.1、GJS 1.88.0、SpiderMonkey 140.17.0。
+这是未发布的移植进度：四个组件已在原编译链构建并通过官方 ELF 检查，全部新 ABI GIR 已在 Android 真实生成。Native 与普通用户 PRoot 均已提交 GPU 首帧；PRoot 的 Shell D-Bus 就绪检查仍失败，扩展、应用、输入及安装资产尚待完成。安装器清单仍为旧版本，不能发布当前组合。
+显示复用既有 Android System EGL/AHardwareBuffer 与 termux-render 协议，不新增 PipeWire、Devkit 或 Xlorie 中转。PRoot 使用 Ubuntu Resolute 的普通用户会话、私有 D-Bus 与 glibc 应用；配套 Bionic Shell 在绑定 Android 平台目录和 PREFIX 的同一文件系统视图中执行。跨 libc 类型库和共享库必须隔离。
+
+Mutter 50 的 EGL winsys 已改为 GObject，旧 dummy 显示/输入实现已移除；本目录保留独立 Android monitor/input/sprite 实现并适配新接口。原生背景图在 Android 使用 GdkPixbuf 解码，非 Android 保留上游 glycin。Android 输出仍为 SDR/sRGB、60 Hz。
+
+在指定编译机 `/workspace/termux-packages/build-package.sh` 顺序构建，保留原构建锁。SpiderMonkey 使用完整上游 140 配方及补丁，来源钉在其 `upstream-provenance.json`，不混入旧 128 补丁。Mutter/GJS/Shell 的 `gir-48/` 仅供历史追溯，不能作为新构建输入。`gir/` 中全部新 dump 均已在 Android 运行本次交叉编译的真实探测程序生成，来源与哈希见同名 provenance JSON。
+
+下文为 GNOME 48 的历史 X11/设备能力记录，不代表 50 系列验证结果；完整的新版本证据由本轮 OpenSpec 验证记录维护。
+
 
 Android GPU backend 的实现、启动方式、Pixel Fold 实测及限制见
 [ANDROID_RENDERING_DESIGN.md](ANDROID_RENDERING_DESIGN.md)。下文 X11 验证与该 GPU 验证分别记录。
@@ -7,12 +20,12 @@ Android GPU backend 的实现、启动方式、Pixel Fold 实测及限制见
 目标：Termux 原生 Bionic 和 PRoot glibc 运行 GNOME Shell/Mutter、Session、Files，并复用
 USB bridge 的 GIO/GVfs 存储和 PipeWire 相机接口。不修改 termux-app。
 
-GPU 后端尚未实现；对照最新 KWin 6.6 r27 的改造边界和实施顺序见
+历史规划曾记录 GPU 后端未实现；当前 50 系列已提交 GPU 首帧，原规划及实施边界见
 [ANDROID_RENDERING_DESIGN.md](ANDROID_RENDERING_DESIGN.md)。
 
 配方入口是 `build.sh`。编译机基线为 termux-packages
 `6c7f8ef0524bf3e0882301f397bbb6929ea99b5f`。本目录只包含本轮新增或调整的配方；
-`spidermonkey/` 应覆盖原有同名配方的对应文件，保留仓库的 0001–0026 补丁。
+历史 128 配方曾保留编译仓库的 0001–0026 补丁；当前 140 必须使用本目录完整补丁集。
 `mutter/` 从该基线的 disabled-packages/mutter 移入 x11-packages；避免启用全部 disabled 包。
 其余目录复制到 `x11-packages/<包名>/`；`common/` 和 `launch.py` 不是包。
 

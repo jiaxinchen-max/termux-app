@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "namespace": "GjsPrivate-1.0",
+  "component": "gjs",
+  "version": "1.88.0",
+  "sourceSha256": "30a0b9f3317e8e60b1896db2903c70e8b0cd33df953c328755803a75191dc453",
+  "generator": "Original Termux cross-build introspection executable executed on Android aarch64",
+  "device": "120.24.191.156:8057",
+  "command": "./GjsPrivate-1.0 --introspect-dump=functions.txt,dump.xml",
+  "inputsSha256": {
+    "GjsPrivate-1.0": "565549f499668fa035e569275d0cbc2c7d152f91ac1d04611a812a66f594d48d",
+    "functions.txt": "fb99660e4053b53319b67dc65acc5dbcfb6c18858bf4b6fbc7769c48f154f320",
+    "libgjs.so.0.0.0": "72e4d5f36fa03903617f236bff3c7bae2e3f2d87e263ee12100fadb5c56b79f8"
+  },
+  "archiveSha256": "5d311fdf88408bb798c519fa31c882286b583c02037dc46a92d1570dd0dc0fda",
+  "outputSha256": "58033c760766f7a3e911df523d7742fdda7965b66ec234e87f9976fcb3a25b79"
+}

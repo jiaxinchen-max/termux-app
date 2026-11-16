@@ -34,9 +34,15 @@ __attribute__((visibility("default"))) bool android_is_in_vendor_process(void) {
 }
 __attribute__((visibility("default"))) void *android_load_sphal_library(const char *name, int flags) {
   pthread_once(&once, initialize);
-  if (!driver_ns) return NULL;
+  if (!driver_ns) {
+    fprintf(stderr, "Mutter Android cannot create driver namespace: %s\n", dlerror());
+    return NULL;
+  }
   android_dlextinfo info = { .flags = ANDROID_DLEXT_USE_NAMESPACE, .library_namespace = driver_ns };
-  return android_dlopen_ext(name, flags, &info);
+  void *handle = android_dlopen_ext(name, flags, &info);
+  if (!handle)
+    fprintf(stderr, "Mutter Android cannot load EGL driver %s: %s\n", name, dlerror());
+  return handle;
 }
 __attribute__((visibility("default"))) int android_unload_sphal_library(void *handle) {
   return dlclose(handle);

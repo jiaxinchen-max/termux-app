@@ -72,6 +72,15 @@ desktop_resolve_rendering || {
     log 'Unsupported host/container renderer pair; choose compatible renderers explicitly.'
     printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
 }
+if [ "$DESKTOP_MODE" = proot ]; then
+    rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
+    root_id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"')
+    root_codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"')
+    if [ "$root_id:$root_codename" != ubuntu:resolute ]; then
+        log 'This desktop requires Ubuntu 26.04 LTS; recreate the container. Existing data is unchanged.'
+        printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
+    fi
+fi
 if [ "$DESKTOP_MODE:${DESKTOP_DE:-}" = proot:kwin_plasma ]; then
     desktop_load_plasma_rendering || {
         log 'Plasma renderer initialization is incomplete for this pair; retry installation.'
@@ -113,22 +122,15 @@ if [ "${DESKTOP_DE:-}" = gnome ] || [ "${DESKTOP_DE:-}" = ubuntu_gnome ]; then
                 printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
             }
             [ "$DESKTOP_REFRESH_RATE" = 60 ] || {
-                log 'Native GNOME Mutter 48.1-24 supports exactly 60 Hz.'
+                log 'GNOME Android output supports exactly 60 Hz.'
                 printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
             } ;;
-        proot:x11:llvmpipe:llvmpipe|proot:x11:zink:zink)
-            case "$DESKTOP_GNOME_RENDERER:${DESKTOP_GNOME_DISPLAY_GL_MODE:-}:${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" in
-                llvmpipe:system:native|zink:zink:dmabuf) ;; *)
-                log 'PRoot GNOME llvmpipe requires explicit host system/native; Zink requires zink/dmabuf.'
-                printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
-            ;; esac
-            expected_gnome_codename=trixie
-            [ "$DESKTOP_DE" != ubuntu_gnome ] || expected_gnome_codename=noble
-            [ "${DESKTOP_CONTAINER_CODENAME:-}" = "$expected_gnome_codename" ] || {
-                log "PRoot $DESKTOP_DE requires explicit codename $expected_gnome_codename."
+        proot:android:system:llvmpipe)
+            [ "$DESKTOP_DE:${DESKTOP_CONTAINER_CODENAME:-}:${DESKTOP_GNOME_APPLICATION_RENDERER:-}:$DESKTOP_REFRESH_RATE" = ubuntu_gnome:resolute:llvmpipe:60 ] && [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" ] || {
+                log 'Ubuntu GNOME requires Resolute, native Android/System EGL and llvmpipe applications.'
                 printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
             } ;;
-        *) log 'GNOME requires Native android/system or PRoot x11/llvmpipe|zink explicitly.'
+        *) log 'GNOME requires the native Android/System EGL compositor explicitly.'
            printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
     esac
     case "${DESKTOP_USB_STORAGE:-}" in off|read-only) ;; *)
@@ -247,8 +249,7 @@ if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
     fi
     if [ "$DESKTOP_MODE" = proot ]; then
         rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
-        set -- "$@" --x11-display-gl-mode "$DESKTOP_GNOME_DISPLAY_GL_MODE" \
-            --x11-display-buffer-mode "$DESKTOP_GNOME_DISPLAY_BUFFER_MODE" \
+        set -- "$@" --app-renderer "$DESKTOP_GNOME_APPLICATION_RENDERER" \
             --rootfs "$rootfs" --work "$rootfs/home/termux/.local/share/termux-gnome"
     else
         set -- "$@" --work "$HOME/.termux/gnome-$DESKTOP_ID"

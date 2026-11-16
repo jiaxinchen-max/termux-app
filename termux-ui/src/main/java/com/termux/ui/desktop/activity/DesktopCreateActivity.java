@@ -161,7 +161,7 @@ public final class DesktopCreateActivity extends AppUiActivity {
             de = options.isEmpty() ? null : options.get(0);
         }
 
-        if (mode == DesktopRunMode.NATIVE && de != null && de.isGnomeSession()) refreshRate = 60;
+        if (de != null && de.isGnomeSession()) refreshRate = 60;
         for (DesktopDe candidate : options) {
             boolean creatable = true;
             binding.desktopCreateDes.addView(optionRow(inflater, iconOf(candidate),
@@ -328,7 +328,7 @@ public final class DesktopCreateActivity extends AppUiActivity {
     }
 
     private String[] refreshLabels() {
-        if (mode == DesktopRunMode.NATIVE && de != null && de.isGnomeSession()) return new String[]{"60 Hz"};
+        if (de != null && de.isGnomeSession()) return new String[]{"60 Hz"};
         String[] labels = new String[REFRESH_RATES.length];
         for (int i = 0; i < REFRESH_RATES.length; i++) labels[i] = REFRESH_RATES[i] + " Hz";
         return labels;

@@ -1,0 +1,11 @@
+--- a/layout/style/moz.build
++++ b/layout/style/moz.build
+@@ -177,7 +177,7 @@ EXPORTS.mozilla.css += [
+     "StylePreloadKind.h",
+ ]
+ 
+-UNIFIED_SOURCES += [
++SOURCES += [
+     "AnimationCollection.cpp",
+     "AttributeStyles.cpp",
+     "CachedInheritingStyles.cpp",

@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Ubuntu noble GNOME profile validation shared by installation and launch."""
+"""Ubuntu Resolute GNOME profile validation shared by installation and launch."""
 import argparse
 import hashlib
 import json
 import os
 from pathlib import Path
 
-DING_SOURCE_SHA256 = 'bdc6c9460d4688e0b410417e664a715c409d5c9591bd8227adc544fdcde5b25f'
-DING_PATCHED_SHA256 = '06b32faba87947ab1d1c003cda03670418d7092cb952e92bb63eb379b7e29697'
+DING_SOURCE_SHA256 = 'e41eb8152982a10384bd2c5c42bc10d51000f35080ee4c934e38c9ac0ef2f0ef'
+DING_PATCHED_SHA256 = '0500bf9457eb83f62c26574d3c3a539c68a3ee6882a42a409aeda11c14cf8075'
 DING_SOURCE = 'usr/share/gnome-shell/extensions/ding@rastersoft.com/extension.js'
 
+MODE = 'termux-ubuntu'
 EXTENSIONS = ('ubuntu-dock@ubuntu.com', 'ubuntu-appindicators@ubuntu.com',
               'ding@rastersoft.com', 'tiling-assistant@ubuntu.com')
 REQUIRED_FILES = (
@@ -23,9 +24,8 @@ REQUIRED_FILES = (
     'usr/share/applications/org.gnome.eog.desktop',
     'usr/share/dbus-1/services/org.gnome.Settings.service',
     'usr/share/dbus-1/services/org.gnome.clocks.service',
-    'usr/libexec/gsd-xsettings',
     'usr/share/gnome-session/sessions/ubuntu.session',
-    'usr/share/xsessions/ubuntu-xorg.desktop',
+    'usr/share/wayland-sessions/ubuntu.desktop',
     'usr/share/gnome-shell/modes/ubuntu.json',
     'usr/share/gnome-shell/theme/Yaru/gnome-shell.css',
     'usr/share/gnome-shell/theme/Yaru/gnome-shell-theme.gresource',
@@ -50,8 +50,8 @@ def validate_rootfs(root, require_patched=True):
         if '=' in line:
             key, value = line.split('=', 1)
             release[key] = value.strip('\"\'')
-    if (release.get('ID'), release.get('VERSION_CODENAME')) != ('ubuntu', 'noble'):
-        raise ValueError('Ubuntu GNOME requires ubuntu:noble; got ' +
+    if (release.get('ID'), release.get('VERSION_CODENAME')) != ('ubuntu', 'resolute'):
+        raise ValueError('Ubuntu GNOME requires ubuntu:resolute; got ' +
                          str(release.get('ID')) + ':' + str(release.get('VERSION_CODENAME')))
     for relative in REQUIRED_FILES:
         if not (root / relative).is_file():
@@ -62,15 +62,23 @@ def validate_rootfs(root, require_patched=True):
     for uuid in EXTENSIONS:
         extension = root / 'usr/share/gnome-shell/extensions' / uuid
         metadata = json.loads((extension / 'metadata.json').read_text())
-        if metadata.get('uuid') != uuid or '46' not in metadata.get('shell-version', []):
-            raise ValueError('Ubuntu GNOME 46 extension metadata mismatch: ' + uuid)
+        if metadata.get('uuid') != uuid or '50' not in metadata.get('shell-version', []):
+            raise ValueError('Ubuntu GNOME 50 extension metadata mismatch: ' + uuid)
         if not (extension / 'extension.js').is_file():
             raise ValueError('Ubuntu extension implementation is missing: ' + uuid)
-    desktop = (root / 'usr/share/xsessions/ubuntu-xorg.desktop').read_text()
-    if 'GNOME_SHELL_SESSION_MODE=ubuntu' not in desktop or '--session=ubuntu' not in desktop:
-        raise ValueError('Ubuntu Xorg session does not select Ubuntu mode/session')
-    if require_patched and hashlib.sha256((root / DING_SOURCE).read_bytes()).hexdigest() != DING_PATCHED_SHA256:
-        raise ValueError('Ubuntu DING session cleanup patch is missing or corrupt; reinstall the desktop')
+    desktop = (root / 'usr/share/wayland-sessions/ubuntu.desktop').read_text()
+    if '--session=ubuntu' not in desktop:
+        raise ValueError('Ubuntu Wayland session does not select Ubuntu mode/session')
+    if require_patched:
+        if hashlib.sha256((root / DING_SOURCE).read_bytes()).hexdigest() != DING_PATCHED_SHA256:
+            raise ValueError('Ubuntu DING session cleanup patch is missing or corrupt; reinstall the desktop')
+        if json.loads((root / ('usr/share/gnome-shell/modes/' + MODE + '.json')).read_text()) != managed_mode():
+            raise ValueError('Managed Ubuntu session mode is missing or corrupt; reinstall the desktop')
+
+
+def managed_mode():
+    # Do not activate Snap prompting/search services in a PRoot desktop.
+    return dict(parentMode='ubuntu', enabledExtensions=list(EXTENSIONS))
 
 
 def prepare_rootfs(root):
@@ -81,6 +89,9 @@ def prepare_rootfs(root):
         raise ValueError('Ubuntu DING source escapes the selected rootfs')
     original = path.read_bytes()
     digest = hashlib.sha256(original).hexdigest()
+    mode = root / ('usr/share/gnome-shell/modes/' + MODE + '.json')
+    mode.write_text(json.dumps(managed_mode(), indent=2) + '\n')
+    mode.chmod(0o644)
     if digest == DING_PATCHED_SHA256:
         return
     if digest != DING_SOURCE_SHA256:
@@ -109,7 +120,7 @@ def session_setup():
     # Initialize a fresh managed session only; preserve subsequent user customization.
     # Replace Ubuntu's default Snap favorites with the apt applications actually installed.
     return '''
-if [ ! -f "$XDG_CONFIG_HOME/.termux-ubuntu-profile-v1" ]; then
+if [ ! -f "$XDG_CONFIG_HOME/.termux-ubuntu-profile-v2" ]; then
     gsettings set org.gnome.desktop.interface gtk-theme Yaru
     gsettings set org.gnome.desktop.interface icon-theme Yaru
     gsettings set org.gnome.desktop.interface cursor-theme Yaru
@@ -123,7 +134,7 @@ if [ ! -f "$XDG_CONFIG_HOME/.termux-ubuntu-profile-v1" ]; then
     if [ ! -f "$XDG_CONFIG_HOME/user-dirs.dirs" ]; then
         printf '%s\\n' 'XDG_DESKTOP_DIR="$HOME/Desktop"' > "$XDG_CONFIG_HOME/user-dirs.dirs"
     fi
-    touch "$XDG_CONFIG_HOME/.termux-ubuntu-profile-v1"
+    touch "$XDG_CONFIG_HOME/.termux-ubuntu-profile-v2"
 fi
 '''
 
@@ -139,4 +150,4 @@ if __name__ == '__main__':
         validate_rootfs(args.rootfs)
     except (OSError, ValueError, KeyError, TypeError) as error:
         parser.exit(65, 'Ubuntu GNOME validation failed: ' + str(error) + '\n')
-    print('Ubuntu noble session, Yaru and extension files verified')
+    print('Ubuntu Resolute session, Yaru and extension files verified')

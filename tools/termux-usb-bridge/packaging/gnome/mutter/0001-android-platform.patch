@@ -1,0 +1,634 @@
+Mutter 50 Android platform integration, rebased from the existing 48 backend.
+
+--- a/config.h.meson
++++ b/config.h.meson
+@@ -1,3 +1,6 @@
++/* Pango headers provide PangoRenderer automatic cleanup helpers. */
++#mesondefine HAVE_PANGO_RENDERER_AUTOPTR
++
+ /* The prefix for our gettext translation domains. */
+ #mesondefine GETTEXT_PACKAGE
+ 
+@@ -51,6 +54,7 @@
+ 
+ /* Define if you want to enable the native (KMS) backend based on systemd */
+ #mesondefine HAVE_NATIVE_BACKEND
++#mesondefine HAVE_ANDROID_BACKEND
+ 
+ /* Define if you want to enable XWayland support */
+ #mesondefine HAVE_XWAYLAND
+--- a/meson.build
++++ b/meson.build
+@@ -117,7 +117,11 @@
+ 
+ m_dep = cc.find_library('m', required: true)
+ graphene_dep = dependency('graphene-gobject-1.0', version: graphene_req)
+-glycin_dep = dependency('glycin-2', version: glycin_req)
++if host_machine.system() == 'android'
++  glycin_dep = dependency('gdk-pixbuf-2.0')
++else
++  glycin_dep = dependency('glycin-2', version: glycin_req)
++endif
+ cairo_dep = dependency('cairo', version: cairo_req)
+ pixman_dep = dependency('pixman-1', version: pixman_req)
+ gsettings_desktop_schemas_dep = dependency('gsettings-desktop-schemas',
+@@ -150,6 +154,14 @@
+   pango_dep = dependency('pango', version: pango_req)
+   pangocairo_dep = dependency('pangocairo', version: pangocairo_req)
+   harfbuzz_dep = dependency('harfbuzz', version: harfbuzz_req)
++  have_pango_renderer_autoptr = cc.compiles('''
++    #include <pango/pango.h>
++    int main(void) {
++      g_autoptr(PangoRenderer) renderer = NULL;
++      return renderer != NULL;
++    }
++  ''', dependencies: pango_dep,
++       name: 'PangoRenderer automatic cleanup helpers')
+ endif
+ 
+ if have_fonts
+@@ -257,6 +269,7 @@
+   endif
+ endif
+ 
++have_android_backend = get_option('android_backend')
+ have_native_backend = get_option('native_backend')
+ if have_native_backend
+   libgbm_dep = dependency('gbm', version: gbm_req)
+@@ -549,6 +562,9 @@
+ have_eventfd = cc.has_header('sys/eventfd.h')
+ 
+ cdata = configuration_data()
++if have_fonts
++  cdata.set('HAVE_PANGO_RENDERER_AUTOPTR', have_pango_renderer_autoptr)
++endif
+ cdata.set_quoted('GETTEXT_PACKAGE', gettext_package)
+ cdata.set_quoted('VERSION', meson.project_version())
+ cdata.set_quoted('PACKAGE_NAME', meson.project_name())
+@@ -560,6 +576,7 @@
+ cdata.set('HAVE_XWAYLAND', have_xwayland)
+ cdata.set('HAVE_LOGIND', have_logind)
+ cdata.set('HAVE_NATIVE_BACKEND', have_native_backend)
++cdata.set('HAVE_ANDROID_BACKEND', have_android_backend)
+ cdata.set('HAVE_REMOTE_DESKTOP', have_remote_desktop)
+ cdata.set('HAVE_DEVKIT', have_devkit)
+ cdata.set('HAVE_GNOME_DESKTOP', have_gnome_desktop)
+@@ -613,7 +630,7 @@
+     cdata.set('HAVE_SYS_RANDOM', 1)
+   elif cc.has_header_symbol('linux/random.h', 'getrandom')
+     cdata.set('HAVE_LINUX_RANDOM', 1)
+-  else
++  elif host_machine.system() != 'android'
+     error('Required function getrandom not found')
+   endif
+ 
+--- a/meson.options
++++ b/meson.options
+@@ -1,3 +1,5 @@
++option('android_backend', type: 'boolean', value: false, description: 'termux-render Android GPU backend')
++
+ option('opengl',
+   type: 'boolean',
+   value: true,
+--- a/clutter/clutter/pango/clutter-pango-private.h
++++ b/clutter/clutter/pango/clutter-pango-private.h
+@@ -34,6 +34,8 @@
+  */
+ 
+ #pragma once
++
++#include "config.h"
+ 
+ #include <pango/pango.h>
+ 
+@@ -79,7 +81,9 @@
+                           ClutterColorState *color_state,
+                           ClutterColorState *target_color_state);
+ 
++#ifndef HAVE_PANGO_RENDERER_AUTOPTR
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC (PangoRenderer, g_object_unref)
++#endif
+ 
+ static inline PangoDirection
+ clutter_text_direction_to_pango_direction (ClutterTextDirection dir)
+--- a/cogl/cogl/gl-prototypes/cogl-all-functions.h
++++ b/cogl/cogl/gl-prototypes/cogl-all-functions.h
+@@ -101,6 +101,14 @@
+ COGL_EXT_FUNCTION (void *, glMapBuffer,
+                    (GLenum		 target,
+                     GLenum		 access))
++COGL_EXT_END ()
++
++/* GLES 3 has UnmapBuffer in core, but has no core MapBuffer. Resolve it
++ * independently so a driver without OES_mapbuffer can unmap MapBufferRange. */
++COGL_EXT_BEGIN (unmap_vbos, 1, 5,
++                COGL_EXT_IN_GLES3,
++                "ARB\0OES\0",
++                "vertex_buffer_object\0mapbuffer\0")
+ COGL_EXT_FUNCTION (GLboolean, glUnmapBuffer,
+                    (GLenum		 target))
+ COGL_EXT_END ()
+--- a/mtk/mtk/mtk-anonymous-file.c
++++ b/mtk/mtk/mtk-anonymous-file.c
+@@ -18,6 +18,16 @@
+  */
+ 
+ #include "config.h"
++
++#if defined(__ANDROID__) && __ANDROID_API__ < 30
++#include <linux/memfd.h>
++#include <sys/syscall.h>
++#define memfd_create(name, flags) syscall(SYS_memfd_create, name, flags)
++#ifndef HAVE_MEMFD_CREATE
++#define HAVE_MEMFD_CREATE 1
++#endif
++#endif
++
+ 
+ #include <errno.h>
+ #include <glib/gstdio.h>
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -155,6 +155,20 @@
+   mutter_c_args += [
+     '-DWITH_VERBOSE_MODE'
+   ]
++endif
++
++if have_android_backend
++  mutter_deps += [dependency('termux-render'), cc.find_library('android')]
++  shared_library('mutter-android-system-egl', 'backends/android/system-egl.c',
++    dependencies: [glib_dep, cc.find_library('termux-platform-ns'), cc.find_library('dl')],
++    install: true, install_dir: pkglibdir)
++  shared_library('vndksupport', 'backends/android/vndksupport.c',
++    dependencies: [cc.find_library('dl')],
++    install: true, install_dir: pkglibdir)
++  executable('mutter-android-egl-probe', 'backends/android/egl-probe.c',
++    c_args: ['-DMUTTER_ANDROID_LIBDIR="@0@"'.format(pkglibdir)],
++    dependencies: [cc.find_library('termux-platform-ns'), cc.find_library('dl')],
++    install: true, install_dir: libexecdir)
+ endif
+ 
+ mutter_sources = [
+@@ -678,6 +692,22 @@
+   ]
+ endif
+ 
++if have_android_backend
++  mutter_sources += [
++    'backends/android/meta-backend-android.c',
++    'backends/android/meta-backend-android.h',
++    'backends/android/meta-clutter-backend-android.c',
++    'backends/android/meta-clutter-backend-android.h',
++    'backends/android/meta-sprite-android.c',
++    'backends/android/meta-sprite-android.h',
++    'backends/android/meta-monitor-manager-android.c',
++    'backends/android/meta-monitor-manager-android.h',
++    'backends/android/meta-input-settings-android.c',
++    'backends/android/meta-input-settings-android.h',
++    'backends/android/meta-wayland-android-buffer.c',
++  ]
++endif
++
+ if have_native_backend
+   mutter_sources += [
+     'backends/native/meta-backend-native.c',
+@@ -1101,6 +1131,10 @@
+   wayland_eglstream_protocols_dir = wayland_eglstream_protocols_dep.get_variable('pkgdatadir')
+ endif
+ 
++if have_android_backend
++  wayland_protocols += [['termux-ahardware-buffer-v1', 'private']]
++endif
++
+ protocol_xmls = files()
+ 
+ foreach p: wayland_protocols
+@@ -1138,6 +1172,14 @@
+   wayland_protocol_client_headers += generated[1]
+   wayland_protocol_server_headers += generated[2]
+ endforeach
++
++if have_android_backend
++  executable('mutter-android-ahb-client',
++    'backends/android/ahb-client.c',
++    wayland_protocol_client_headers, wayland_protocol_sources,
++    dependencies: [wayland_client_dep, cc.find_library('EGL'), cc.find_library('android')],
++    install: true, install_dir: libexecdir)
++endif
+ 
+ message('Generated code for @0@ wayland protocols'.format(wayland_protocol_sources.length()))
+ 
+--- a/src/backends/meta-barrier.c
++++ b/src/backends/meta-barrier.c
+@@ -10,6 +10,7 @@
+ 
+ #include "meta/barrier.h"
+ #include "backends/meta-barrier-private.h"
++#include "backends/meta-backend-private.h"
+ 
+ #include <glib-object.h>
+ 
+--- a/src/backends/meta-screen-cast-stream-src.c
++++ b/src/backends/meta-screen-cast-stream-src.c
+@@ -19,6 +19,16 @@
+  */
+ 
+ #include "config.h"
++
++#if defined(__ANDROID__) && __ANDROID_API__ < 30
++#include <linux/memfd.h>
++#include <sys/syscall.h>
++#define memfd_create(name, flags) syscall(SYS_memfd_create, name, flags)
++#ifndef HAVE_MEMFD_CREATE
++#define HAVE_MEMFD_CREATE 1
++#endif
++#endif
++
+ 
+ #include "backends/meta-screen-cast-stream-src.h"
+ 
+--- a/src/compositor/meta-background-image.c
++++ b/src/compositor/meta-background-image.c
+@@ -20,7 +20,11 @@
+ 
+ #include "compositor/meta-background-image-private.h"
+ 
++#ifdef __ANDROID__
++#include <gdk-pixbuf/gdk-pixbuf.h>
++#else
+ #include <glycin.h>
++#endif
+ #include <gio/gio.h>
+ 
+ #include "clutter/clutter.h"
+@@ -117,6 +121,7 @@
+   return cache;
+ }
+ 
++#ifndef __ANDROID__
+ static CoglPixelFormat
+ gly_memory_format_to_cogl (GlyMemoryFormat format)
+ {
+@@ -184,6 +189,8 @@
+   clutter_cicp->video_full_range_flag = gly_cicp->video_full_range_flag;
+ }
+ 
++#endif /* !__ANDROID__ */
++
+ static void
+ load_file (GTask               *task,
+            MetaBackgroundImage *source,
+@@ -191,9 +198,13 @@
+            GCancellable        *cancellable)
+ {
+   g_autoptr (GFileInputStream) stream = NULL;
++#ifdef __ANDROID__
++  GdkPixbuf *frame;
++#else
+   g_autoptr (GlyLoader) loader = NULL;
+   g_autoptr (GlyImage) image = NULL;
+   GlyFrame *frame;
++#endif
+   GError *error = NULL;
+ 
+   stream = g_file_read (source->file, NULL, &error);
+@@ -203,6 +214,14 @@
+       return;
+     }
+ 
++#ifdef __ANDROID__
++  frame = gdk_pixbuf_new_from_stream (G_INPUT_STREAM (stream), cancellable, &error);
++  if (!frame)
++    {
++      g_task_return_error (task, error);
++      return;
++    }
++#else
+   loader = gly_loader_new_for_stream (G_INPUT_STREAM (stream));
+ 
+   gly_loader_set_accepted_memory_formats (loader, glycin_supported_memory_formats ());
+@@ -221,6 +240,7 @@
+       return;
+     }
+ 
++#endif
+   g_task_return_pointer (task, frame, (GDestroyNotify) g_object_unref);
+ }
+ 
+@@ -236,11 +256,19 @@
+   g_autoptr (GError) local_error = NULL;
+   GTask *task;
+   CoglTexture *texture;
++#ifdef __ANDROID__
++  g_autoptr (GdkPixbuf) frame = NULL;
++  CoglPixelFormat cogl_format;
++  gboolean has_alpha;
++#else
+   g_autoptr (GlyFrame) frame = NULL;
++#endif
+   int width, height, row_stride;
++#ifndef __ANDROID__
+   GlyMemoryFormat format;
+   g_autoptr (GlyCicp) cicp = NULL;
+   GBytes *bytes;
++#endif
+ 
+   task = G_TASK (result);
+   frame = g_task_propagate_pointer (task, &error);
+@@ -254,23 +282,38 @@
+       goto out;
+     }
+ 
++#ifdef __ANDROID__
++  width = gdk_pixbuf_get_width (frame);
++  height = gdk_pixbuf_get_height (frame);
++  row_stride = gdk_pixbuf_get_rowstride (frame);
++  has_alpha = gdk_pixbuf_get_has_alpha (frame);
++  cogl_format = has_alpha ? COGL_PIXEL_FORMAT_RGBA_8888 : COGL_PIXEL_FORMAT_RGB_888;
++#else
+   width = gly_frame_get_width (frame);
+   height = gly_frame_get_height (frame);
+   row_stride = gly_frame_get_stride (frame);
+   bytes = gly_frame_get_buf_bytes (frame);
+   format = gly_frame_get_memory_format (frame);
+   cicp = gly_frame_get_color_cicp (frame);
++#endif
+ 
+   texture = meta_create_texture (width, height, ctx,
++#ifdef __ANDROID__
++                                 has_alpha
++#else
+                                  gly_memory_format_has_alpha (format)
++#endif
+                                    ? COGL_TEXTURE_COMPONENTS_RGBA
+                                    : COGL_TEXTURE_COMPONENTS_RGB,
+                                  META_TEXTURE_ALLOW_SLICING);
+ 
+   if (!cogl_texture_set_data (texture,
+-                              gly_memory_format_to_cogl (format),
+-                              row_stride,
++#ifdef __ANDROID__
++                              cogl_format, row_stride, gdk_pixbuf_get_pixels (frame), 0,
++#else
++                              gly_memory_format_to_cogl (format), row_stride,
+                               g_bytes_get_data (bytes, NULL), 0,
++#endif
+                               &local_error))
+     {
+       g_warning ("Failed to create texture for background: %s",
+@@ -280,6 +323,7 @@
+ 
+   image->texture = texture;
+ 
++#ifndef __ANDROID__
+   if (cicp)
+     {
+       ClutterCicp clutter_cicp;
+@@ -300,6 +344,9 @@
+     {
+       image->color_state = NULL;
+     }
++#else
++  image->color_state = NULL; /* Android output is SDR/sRGB. */
++#endif
+ 
+ out:
+   image->loaded = TRUE;
+--- a/src/compositor/plugins/meson.build
++++ b/src/compositor/plugins/meson.build
+@@ -12,6 +12,7 @@
+     glib_dep,
+     gsettings_desktop_schemas_dep,
+     libmutter_clutter_dep,
++    libmutter_dep,
+   ],
+   install_dir: pkglibdir / 'plugins',
+   install_rpath: pkglibdir,
+--- a/src/core/display.c
++++ b/src/core/display.c
+@@ -44,6 +44,9 @@
+ #include "compositor/compositor-private.h"
+ #include "compositor/meta-compositor-native.h"
+ #include "compositor/meta-compositor-server.h"
++#ifdef HAVE_ANDROID_BACKEND
++#include "backends/android/meta-backend-android.h"
++#endif
+ #include "cogl/cogl.h"
+ #include "core/bell.h"
+ #include "core/boxes-private.h"
+@@ -573,6 +576,10 @@
+ {
+   MetaBackend *backend = backend_from_display (display);
+ 
++#ifdef HAVE_ANDROID_BACKEND
++  if (META_IS_BACKEND_ANDROID (backend))
++    return META_COMPOSITOR (meta_compositor_server_new (display, backend));
++#endif
+ #ifdef HAVE_NATIVE_BACKEND
+   if (META_IS_BACKEND_NATIVE (backend))
+     return META_COMPOSITOR (meta_compositor_native_new (display, backend));
+--- a/src/core/meta-context-main.c
++++ b/src/core/meta-context-main.c
+@@ -21,11 +21,16 @@
+ #include "config.h"
+ 
+ #include "core/meta-context-main.h"
++#ifdef HAVE_ANDROID_BACKEND
++#include "backends/android/meta-backend-android.h"
++#endif
+ 
+ #include <glib.h>
+ #include <gio/gio.h>
+ 
++#ifdef HAVE_LOGIND
+ #include <systemd/sd-login.h>
++#endif
+ 
+ #include "backends/meta-monitor-private.h"
+ #include "backends/meta-monitor-manager-private.h"
+@@ -270,6 +275,11 @@
+ meta_context_main_create_backend (MetaContext  *context,
+                                   GError      **error)
+ {
++#ifdef HAVE_ANDROID_BACKEND
++  if (g_strcmp0 (g_getenv ("MUTTER_BACKEND"), "android") == 0)
++    return g_initable_new (META_TYPE_BACKEND_ANDROID, NULL, error,
++                           "context", context, NULL);
++#endif
+   MetaContextMain *context_main = META_CONTEXT_MAIN (context);
+ 
+ #ifdef HAVE_NATIVE_BACKEND
+--- a/src/wayland/meta-wayland-buffer.c
++++ b/src/wayland/meta-wayland-buffer.c
+@@ -47,6 +47,9 @@
+ #include "config.h"
+ 
+ #include "wayland/meta-wayland-buffer.h"
++#ifdef HAVE_ANDROID_BACKEND
++#include "backends/android/meta-wayland-android-buffer.h"
++#endif
+ 
+ #include <drm_fourcc.h>
+ #include <glib/gstdio.h>
+@@ -660,6 +663,10 @@
+ 
+   switch (buffer->type)
+     {
++#ifdef HAVE_ANDROID_BACKEND
++    case META_WAYLAND_BUFFER_TYPE_ANDROID:
++      return meta_wayland_android_buffer_attach (buffer, texture, error);
++#endif
+     case META_WAYLAND_BUFFER_TYPE_SHM:
+       return shm_buffer_attach (buffer, texture, error);
+     case META_WAYLAND_BUFFER_TYPE_EGL_IMAGE:
+@@ -697,6 +704,10 @@
+ CoglSnippet *
+ meta_wayland_buffer_create_snippet (MetaWaylandBuffer *buffer)
+ {
++#ifdef HAVE_ANDROID_BACKEND
++  if (buffer->type == META_WAYLAND_BUFFER_TYPE_ANDROID)
++    return meta_wayland_android_buffer_create_snippet (buffer);
++#endif
+ #ifdef HAVE_WAYLAND_EGLSTREAM
+   if (!buffer->egl_stream.stream)
+     return NULL;
+@@ -759,6 +770,10 @@
+ 
+   if (buffer->use_count == 0)
+     {
++#ifdef HAVE_ANDROID_BACKEND
++      if (buffer->type == META_WAYLAND_BUFFER_TYPE_ANDROID)
++        meta_wayland_android_buffer_finish (buffer);
++#endif
+       if (buffer->resource)
+         wl_buffer_send_release (buffer->resource);
+ 
+@@ -873,6 +888,9 @@
+     case META_WAYLAND_BUFFER_TYPE_EGL_IMAGE:
+ #ifdef HAVE_WAYLAND_EGLSTREAM
+     case META_WAYLAND_BUFFER_TYPE_EGL_STREAM:
++#endif
++#ifdef HAVE_ANDROID_BACKEND
++    case META_WAYLAND_BUFFER_TYPE_ANDROID:
+ #endif
+     case META_WAYLAND_BUFFER_TYPE_DMA_BUF:
+     case META_WAYLAND_BUFFER_TYPE_SINGLE_PIXEL:
+@@ -982,6 +1000,9 @@
+ 
+   switch (buffer->type)
+     {
++#ifdef HAVE_ANDROID_BACKEND
++    case META_WAYLAND_BUFFER_TYPE_ANDROID:
++#endif
+     case META_WAYLAND_BUFFER_TYPE_SHM:
+     case META_WAYLAND_BUFFER_TYPE_SINGLE_PIXEL:
+ #ifdef HAVE_WAYLAND_EGLSTREAM
+@@ -1040,6 +1061,9 @@
+   g_clear_pointer (&buffer->tainted_scanout_onscreens, g_hash_table_unref);
+   g_clear_pointer (&buffer->release_points, g_ptr_array_unref);
+ 
++#ifdef HAVE_ANDROID_BACKEND
++  meta_wayland_android_buffer_clear (buffer);
++#endif
+   g_clear_object (&buffer->egl_image.texture);
+ #ifdef HAVE_WAYLAND_EGLSTREAM
+   g_clear_object (&buffer->egl_stream.texture);
+--- a/src/wayland/meta-wayland-buffer.h
++++ b/src/wayland/meta-wayland-buffer.h
+@@ -41,6 +41,9 @@
+ #endif
+   META_WAYLAND_BUFFER_TYPE_DMA_BUF,
+   META_WAYLAND_BUFFER_TYPE_SINGLE_PIXEL,
++#ifdef HAVE_ANDROID_BACKEND
++  META_WAYLAND_BUFFER_TYPE_ANDROID,
++#endif
+ } MetaWaylandBufferType;
+ 
+ struct _MetaWaylandBuffer
+@@ -82,6 +85,14 @@
+     struct wl_shm_buffer *buffer;
+   } shm;
+ 
++#ifdef HAVE_ANDROID_BACKEND
++  struct {
++    void *hardware_buffer;
++    uint32_t flags;
++    MetaMultiTexture *texture;
++  } android;
++#endif
++
+   GHashTable *tainted_scanout_onscreens;
+ 
+   GPtrArray *release_points;
+--- a/src/wayland/meta-wayland-linux-drm-syncobj.c
++++ b/src/wayland/meta-wayland-linux-drm-syncobj.c
+@@ -20,9 +20,9 @@
+ 
+ #include "config.h"
+ 
+-#include "backends/native/meta-backend-native-types.h"
+-#include "backends/native/meta-device-pool.h"
+-#include "backends/native/meta-renderer-native.h"
++#include "backends/meta-backend-private.h"
++#include "backends/meta-egl.h"
++#include <xf86drm.h>
+ #include "meta/util.h"
+ #include "wayland/meta-wayland-buffer.h"
+ #include "wayland/meta-wayland-linux-drm-syncobj.h"
+--- a/src/wayland/meta-wayland.c
++++ b/src/wayland/meta-wayland.c
+@@ -18,6 +18,9 @@
+  */
+ 
+ #include "config.h"
++#ifdef HAVE_ANDROID_BACKEND
++#include "backends/android/meta-wayland-android-buffer.h"
++#endif
+ 
+ #include "wayland/meta-wayland.h"
+ 
+@@ -1028,6 +1031,9 @@
+   meta_wayland_xdg_foreign_init (compositor);
+   meta_wayland_legacy_xdg_foreign_init (compositor);
+   init_dma_buf_support (compositor);
++#ifdef HAVE_ANDROID_BACKEND
++  meta_wayland_android_buffer_init (compositor);
++#endif
+   meta_wayland_init_single_pixel_buffer_manager (compositor);
+   meta_wayland_keyboard_shortcuts_inhibit_init (compositor);
+   meta_wayland_surface_inhibit_shortcuts_dialog_init ();
+--- a/src/wayland/meta-xwayland.c
++++ b/src/wayland/meta-xwayland.c
+@@ -36,6 +36,9 @@
+ #include <sys/random.h>
+ #elif defined(HAVE_LINUX_RANDOM)
+ #include <linux/random.h>
++#elif defined(__ANDROID__)
++#include <syscall.h>
++#define getrandom(buf,buflen,flags) syscall(SYS_getrandom,buf,buflen,flags)
+ #endif
+ #include <unistd.h>
+ #include <X11/extensions/Xrandr.h>
+@@ -60,9 +63,9 @@
+ #define XWAYLAND_LISTENFD "-listen"
+ #endif
+ 
+-#define TMP_UNIX_DIR         "/tmp"
+-#define X11_TMP_UNIX_DIR     "/tmp/.X11-unix"
+-#define X11_TMP_UNIX_PATH    "/tmp/.X11-unix/X"
++#define TMP_UNIX_DIR         "@TERMUX_PREFIX@/tmp"
++#define X11_TMP_UNIX_DIR     "@TERMUX_PREFIX@/tmp/.X11-unix"
++#define X11_TMP_UNIX_PATH    "@TERMUX_PREFIX@/tmp/.X11-unix/X"
+ 
+ static int display_number_override = -1;
+ 
+@@ -157,7 +160,7 @@
+   char *filename;
+   int fd;
+ 
+-  filename = g_strdup_printf ("/tmp/.X%d-lock", display);
++  filename = g_strdup_printf ("@TERMUX_PREFIX@/tmp/.X%d-lock", display);
+ 
+  again:
+   fd = open (filename, O_WRONLY | O_CLOEXEC | O_CREAT | O_EXCL, 0444);

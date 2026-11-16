@@ -1,0 +1,20 @@
+{
+  "namespace": "Cogl-18",
+  "sourceVersion": "50.1",
+  "architecture": "aarch64",
+  "libc": "bionic",
+  "generatedOn": "Android emulator 120.24.191.156:8057",
+  "command": "./Cogl-18 --introspect-dump=functions.txt,dump.xml",
+  "inputsSha256": {
+    "Cogl-18": "14d88e9a480e5355ea121d0b29faed0d672c8c7cfc51f41f6ea99bff9be7c990",
+    "functions.txt": "c2e56261f67978ff470bb52b5ddb034a6d89ac2076effa99c0c071f5e96514a8",
+    "libmutter-cogl-18.so.0.0.0": "2ae49376c1bdf2700ce56b9231b63b838f9e954bfb8526c0b252736d1a303662",
+    "libmutter-mtk-18.so.0.0.0": "cd9d6086c5f5549d236bc3dc2d0e5790132f9e66e3499a1c9cf7ae87d3e3a053"
+  },
+  "outputSha256": "51a1fd63c30c526cfb9d1e30a4b93cfe8cbc2f40e3819dfcde61a28fadb8634b",
+  "schemaVersion": 1,
+  "mutter": "50.1",
+  "sourceSha256": "9344502ce473f788795f26b45f8b8ff53c0a36b867470d705a11a3ee0911021e",
+  "generator": "Original Termux cross-build introspection executable executed on Android aarch64",
+  "device": "120.24.191.156:8057"
+}

@@ -230,8 +230,8 @@ public final class DesktopTasks {
             socket = alive && environment.hyprlandWaylandSocket(distro).exists();
             ready = socket && DesktopEnvironment.hyprlandReadyMarkerMatches(pidFile, pid);
         } else if (distro.getDe().isGnomeSession()) {
-            socket = alive && (distro.getRunMode() == DesktopRunMode.NATIVE
-                ? environment.gnomeWaylandSocket(distro).exists() : environment.x11Socket().exists());
+            socket = alive && (distro.getRunMode() == DesktopRunMode.NATIVE || distro.getDe().supportsProot())
+                && environment.gnomeWaylandSocket(distro).exists();
             ready = socket && DesktopEnvironment.gnomeReadyMarkerMatches(pidFile, pid);
         } else {
             // Xlorie sessions: the X socket coming up is the ready marker.

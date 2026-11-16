@@ -71,6 +71,12 @@ public class DesktopEnvironmentTest {
         return file;
     }
 
+    private void writeRelease(String container, String id, String codename) throws IOException {
+        try (FileWriter writer = new FileWriter(touch(container + "rootfs/etc/os-release"))) {
+            writer.write("ID=" + id + "\nVERSION_CODENAME=" + codename + "\n");
+        }
+    }
+
     @Test
     public void hyprlandUpgradeRequiresTheFixedRuntimeAndMatchingManifest() throws Exception {
         DesktopEnvironment environment = new DesktopEnvironment(temporaryFolder.getRoot());
@@ -109,6 +115,7 @@ public class DesktopEnvironmentTest {
         assertTrue(environment.isInstalled(distro));
         touch("usr/bin/proot-distro");
         String container = "usr/var/lib/proot-distro/containers/debian-hyprland-1/";
+        writeRelease(container, "ubuntu", "resolute");
         touch(container + ".desktop-de-hyprland");
         DesktopDistro guest = new DesktopDistro("hy-guest", "Hyprland", DesktopRunMode.PROOT, "debian-hyprland-1", DesktopDe.HYPRLAND, DesktopGlMode.SYSTEM, DesktopGuestGlMode.DEFAULT, "1280x720", 30, DesktopUsbStorageMode.OFF);
         assertTrue(environment.isInstalled(guest));
@@ -119,7 +126,7 @@ public class DesktopEnvironmentTest {
         touch(container + "rootfs/usr/bin/python3");
         assertFalse(environment.isInstalled(guest.withRenderers(DesktopGlMode.SYSTEM,DesktopGuestGlMode.ZINK)));
         try (FileWriter writer = new FileWriter(zinkMarker)) {
-            writer.write("b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687\n");
+            writer.write("51aa11a8e7bc8c98bc9e852b260ee2dac99392b4ee8658182e4837c309818faf\n");
         }
         assertTrue(environment.isInstalled(guest.withRenderers(DesktopGlMode.SYSTEM,DesktopGuestGlMode.ZINK)));
         assertTrue(genmon.delete());
@@ -149,6 +156,7 @@ public class DesktopEnvironmentTest {
         // A container without the desktop packages is half-provisioned: still not installed.
         assertFalse(environment.isInstalled(PROOT));
         touch("usr/var/lib/proot-distro/containers/debian/.desktop-de-kwin_plasma");
+        writeRelease("usr/var/lib/proot-distro/containers/debian/", "ubuntu", "resolute");
         assertFalse(environment.isInstalled(PROOT));
         touch("usr/var/lib/termux-desktop/rendering/debian.zink.zink.env");
         assertTrue(environment.isInstalled(PROOT));
@@ -165,6 +173,7 @@ public class DesktopEnvironmentTest {
         assertTrue(new File(temporaryFolder.getRoot(),
             "usr/var/lib/proot-distro/installed-rootfs/debian").mkdirs());
         touch("usr/var/lib/proot-distro/installed-rootfs/debian/.desktop-de-kwin_plasma");
+        writeRelease("usr/var/lib/proot-distro/installed-rootfs/debian/", "ubuntu", "resolute");
         touch("usr/var/lib/termux-desktop/rendering/debian.zink.zink.env");
         assertTrue(environment.isInstalled(PROOT));
     }
@@ -219,6 +228,7 @@ public class DesktopEnvironmentTest {
         DesktopEnvironment env=new DesktopEnvironment(temporaryFolder.getRoot());
         DesktopDistro d=new DesktopDistro("gn", "GNOME", DesktopRunMode.NATIVE, "", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 60, DesktopUsbStorageMode.OFF);
         touch("usr/bin/python3");touch("usr/bin/gnome-shell");assertFalse(env.isInstalled(d));
+        touch("usr/lib/mutter-18/libmutter-android-system-egl.so");
         touch("usr/bin/gnome-session");assertFalse(env.isInstalled(d));
         touch("usr/libexec/termux-gnome/launch.py");assertFalse(env.isInstalled(d));
         String[] services={"ca.desrt.dconf", "org.gtk.vfs.Daemon", "org.gnome.Nautilus"};
@@ -233,7 +243,7 @@ public class DesktopEnvironmentTest {
         }
         assertTrue(env.gnomeWaylandSocket(d).getPath().endsWith("home/.termux/gnome-gn/runtime/wayland-gnome"));
     }
-    @Test public void gnomeProotRequiresPythonXlorieAndMatchingInstalledMarker() throws Exception {
+    @Test public void retiredGnomeProotNeverCountsAsInstalled() throws Exception {
         DesktopEnvironment env=new DesktopEnvironment(temporaryFolder.getRoot());
         DesktopDistro d=new DesktopDistro("gp", "GNOME", DesktopRunMode.PROOT, "debian-gnome-1", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.LLVMPIPE, "1280x720", 60, DesktopUsbStorageMode.OFF);
         touch("usr/bin/python3");touch("usr/bin/Xlorie");touch("usr/bin/proot-distro");
@@ -241,7 +251,16 @@ public class DesktopEnvironmentTest {
         touch("usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-xfce4");
         assertFalse(env.isInstalled(d));
         touch("usr/var/lib/proot-distro/containers/debian-gnome-1/.desktop-de-gnome");
-        assertTrue(env.isInstalled(d));
+        assertFalse(env.isInstalled(d));
+    }
+    @Test public void ubuntuProotUsesItsOwnNativeWaylandSocket() {
+        DesktopEnvironment env=new DesktopEnvironment(temporaryFolder.getRoot());
+        DesktopDistro desktop=new DesktopDistro("ub", "Ubuntu", DesktopRunMode.PROOT,
+            "ubuntu-ubuntu-gnome-1", DesktopDe.UBUNTU_GNOME, DesktopGlMode.SYSTEM,
+            DesktopGuestGlMode.LLVMPIPE, "1280x720", 60, DesktopUsbStorageMode.OFF);
+        assertTrue(env.gnomeWaylandSocket(desktop).getPath().endsWith(
+            "usr/var/lib/proot-distro/containers/ubuntu-ubuntu-gnome-1/rootfs/home/termux/.local/share/termux-gnome/runtime/wayland-gnome"));
+        assertFalse(env.gnomeWaylandSocket(desktop).equals(env.x11Socket()));
     }
     @Test public void gnomeReadyMarkerMustIdentifyTheCurrentLauncher() throws Exception {
         File pidFile=new File(temporaryFolder.getRoot(),"gnome.pid");
@@ -271,7 +290,7 @@ public class DesktopEnvironmentTest {
             DesktopDe.UBUNTU_GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE,
             "1280x720", 60, DesktopUsbStorageMode.OFF);
         for (String file : new String[]{"bin/python3", "bin/gnome-shell", "bin/gnome-session", "bin/gjs",
-                "bin/gnome-terminal", "bin/gnome-text-editor", "libexec/termux-gnome/launch.py",
+                "bin/gnome-terminal", "bin/gnome-text-editor", "lib/mutter-18/libmutter-android-system-egl.so", "libexec/termux-gnome/launch.py",
                 "libexec/termux-gnome/desktop_native_ubuntu.py", "share/termux-native-ubuntu/manifest.json",
                 "share/gnome-shell/modes/termux-ubuntu.json", "share/gnome-shell/theme/Yaru/gnome-shell-theme.gresource",
                 "share/themes/Yaru/gtk-3.0/gtk.css", "share/icons/Yaru/index.theme",

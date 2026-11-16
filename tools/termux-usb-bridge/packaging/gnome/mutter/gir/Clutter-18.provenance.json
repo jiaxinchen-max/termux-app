@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "namespace": "Clutter-18",
+  "mutter": "50.1",
+  "sourceSha256": "9344502ce473f788795f26b45f8b8ff53c0a36b867470d705a11a3ee0911021e",
+  "generator": "Original Termux cross-build introspection executable executed on Android aarch64",
+  "device": "120.24.191.156:8057",
+  "command": "./Clutter-18 --introspect-dump=functions.txt,dump.xml",
+  "inputsSha256": {
+    "Clutter-18": "ca491baa109d9d37904f425e9394b8a94c2528fbd75c993b84fecf5829b164d0",
+    "functions.txt": "9400d7d7396f2ea4bcf82bd08145258dbe05e28e47bef594d51c71c2b9c549b4",
+    "libmutter-cogl-18.so.0.0.0": "2ae49376c1bdf2700ce56b9231b63b838f9e954bfb8526c0b252736d1a303662",
+    "libmutter-mtk-18.so.0.0.0": "cd9d6086c5f5549d236bc3dc2d0e5790132f9e66e3499a1c9cf7ae87d3e3a053",
+    "libmutter-clutter-18.so.0.0.0": "1359f3ad5c59289285ce12690d427c0a18286a859a31ede24535c94952dbcfff"
+  },
+  "archiveSha256": "0d36f48634006fbcc1390131882382976af2b5f71229041916d051e8d7a9cf81",
+  "outputSha256": "831d1fe22b810311f86623c5e4a1a6b9f80f4741b224b022dac4dd177a4b7e10"
+}

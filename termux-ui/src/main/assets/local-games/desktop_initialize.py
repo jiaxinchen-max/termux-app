@@ -297,8 +297,9 @@ def initialize(args):
         root = prefix / 'var/lib/proot-distro/containers' / args.alias / 'rootfs'
         release = dict(line.split('=', 1) for line in (root / 'etc/os-release').read_text().splitlines()
                        if '=' in line)
-        wanted = {'ubuntu_gnome': ('ubuntu', 'noble'),
-                  'kwin_plasma': ('ubuntu', 'resolute')}.get(args.de, ('debian', 'trixie'))
+        if args.de == 'gnome':
+            raise RuntimeError('Independent GNOME containers are retired; create a supported desktop')
+        wanted = ('ubuntu', 'resolute')
         if tuple(release.get(k, '').strip('"\'') for k in ('ID', 'VERSION_CODENAME')) != wanted:
             raise RuntimeError('Desktop rootfs must be ' + ':'.join(wanted))
         executable(prefix / 'bin/proot-distro')
@@ -316,10 +317,21 @@ def initialize(args):
     }[args.de]
     for command in commands:
         executable(root / ('usr/bin' if guest else 'bin') / command)
-    if args.de in ('gnome', 'ubuntu_gnome', 'xfce4'):
+    if args.de == 'xfce4':
         executable(prefix / 'bin/Xlorie')
+    if args.de in ('gnome', 'ubuntu_gnome'):
+        executable(prefix / 'bin/gnome-shell')
+        required(prefix / 'lib/mutter-18/libmutter-android-system-egl.so')
+        version = subprocess.run([str(prefix / 'bin/gnome-shell'), '--version'], env=env,
+                                 check=True, capture_output=True, text=True, timeout=20).stdout
+        if not re.search(r'GNOME Shell 50(?:\.|$)', version.strip()):
+            raise RuntimeError('Native GNOME runtime must be Shell/Mutter 50, got: ' + version.strip())
     if args.de == 'ubuntu_gnome' and guest:
         runpy.run_path(str(ASSETS / 'desktop_ubuntu_gnome.py'))['validate_rootfs'](root)
+        version = subprocess.run(guest + ['gnome-shell', '--version'], env=env, check=True,
+                                 capture_output=True, text=True, timeout=15).stdout
+        if not re.search(r'GNOME Shell 50(?:\.|$)', version.strip()):
+            raise RuntimeError('Ubuntu profile requires GNOME Shell 50, got: ' + version.strip())
     if args.de in ('gnome', 'ubuntu_gnome'):
         services = root / ('usr/share/dbus-1/services' if guest else 'share/dbus-1/services')
         for name in ('ca.desrt.dconf', 'org.gtk.vfs.Daemon', 'org.gnome.Nautilus'):

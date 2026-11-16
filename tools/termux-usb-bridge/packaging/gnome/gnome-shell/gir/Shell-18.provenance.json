@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "namespace": "Shell-18",
+  "component": "gnome-shell",
+  "version": "50.1",
+  "sourceSha256": "1b47760172c14f3f4edd1c9aff365f4de45583517bf0f80df4d3acbd4e4cb294",
+  "generator": "Original Termux cross-build introspection executable executed on Android aarch64",
+  "device": "120.24.191.156:8057",
+  "command": "./Shell-18 --introspect-dump=functions.txt,dump.xml",
+  "inputsSha256": {
+    "Shell-18": "af5ae449c06ecc80087eba1940c547bfc01e6a7565ab1944c6d7fd59e3bebc8a",
+    "functions.txt": "feea147ea2f9813ea08c77425bc5fbaa3d0c9123cf2ab96a870672962e47af96",
+    "libgnome-shell-menu.so": "6e51355d0673ad7773e6290683acf664dcccc69fe38bb0b2ea3627ddaaa6888b",
+    "libshell-18.so": "47f9e0d79af860b270515b1b2d546a971749744828c5710bcda4d6675a7c452f",
+    "libgnome-shell-gvc.so": "6f7c2b6b2aa85d457161fb69d093b1852963f69522a52c9d4c2707f01d297df3",
+    "libshew-0.so": "758dccfbd51e22590da781b366ce84f86b9b473dc00e1b5f2108b3ce0700e48a",
+    "libst-18.so": "9c6a7b3fc83a7fe600d12389496574d9522ca4ceb03f181be50c08554dc959b6"
+  },
+  "archiveSha256": "c8f481858d64cfab3be6d211355443e0458729935fadf6696902265c002c8e9d",
+  "outputSha256": "f5516920ccb3b409756b7eeaa9980a463461d80d47be78ba8b29ff746e5f7203"
+}

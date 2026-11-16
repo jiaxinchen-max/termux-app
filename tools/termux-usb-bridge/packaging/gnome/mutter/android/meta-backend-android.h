@@ -3,3 +3,6 @@
 #include "backends/meta-backend-private.h"
 #define META_TYPE_BACKEND_ANDROID (meta_backend_android_get_type ())
 G_DECLARE_FINAL_TYPE (MetaBackendAndroid, meta_backend_android, META, BACKEND_ANDROID, MetaBackend)
+
+ClutterStageWindow * meta_backend_android_create_stage_window (MetaBackend *backend, ClutterStage *wrapper);
+void meta_backend_android_remove_cursor_renderer (MetaBackend *backend, ClutterSprite *sprite);

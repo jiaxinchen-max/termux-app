@@ -131,7 +131,7 @@ def validate(files, codename, bridge_version):
     manifest = json.loads(files[MANIFEST].decode('utf-8'), object_pairs_hook=unique_object)
     if not isinstance(manifest, dict) or type(manifest.get('schemaVersion')) is not int or manifest['schemaVersion'] != 1:
         raise ValueError('unsupported GIO manifest schema')
-    for key, expected in {'architecture': 'aarch64', 'libc': 'glibc', 'codename': codename,
+    for key, expected in {'architecture': 'aarch64', 'libc': 'glibc', 'distribution': 'ubuntu', 'codename': codename,
                           'bridgeVersion': bridge_version}.items():
         if manifest.get(key) != expected:
             raise ValueError('GIO artifact identity mismatch: ' + key)
@@ -140,7 +140,8 @@ def validate(files, codename, bridge_version):
         raise ValueError('GIO manifest must identify exactly the two payloads')
     for name in PAYLOADS:
         checksum = checksums[name]
-        if not isinstance(checksum, str) or not re.fullmatch('[0-9a-f]{64}', checksum):
+        if (not isinstance(checksum, str) or not re.fullmatch('[0-9a-f]{64}', checksum)
+                or hashlib.sha256(files[name]).hexdigest() != checksum):
             raise ValueError('GIO payload checksum mismatch: ' + name)
 
 
@@ -215,11 +216,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--archive', required=True)
     parser.add_argument('--rootfs', required=True)
-    parser.add_argument('--codename', choices=('trixie',), required=True)
+    parser.add_argument('--codename', choices=('resolute',), required=True)
     parser.add_argument('--bridge-version', choices=('0.4.1',), required=True)
     args = parser.parse_args()
     install(args.archive, args.rootfs, args.codename, args.bridge_version)
-    print('Installed verified aarch64 glibc GIO module and helper (Debian trixie, bridge 0.4.1).')
+    print('Installed verified aarch64 glibc GIO module and helper (Ubuntu Resolute, bridge 0.4.1).')
 
 
 if __name__ == '__main__':

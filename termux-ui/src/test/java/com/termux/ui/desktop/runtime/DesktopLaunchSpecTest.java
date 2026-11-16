@@ -153,19 +153,23 @@ public class DesktopLaunchSpecTest {
         assertEquals("desktop_usb_storage_requires_gio_sidebar",assertThrows(IllegalArgumentException.class,
             ()->DesktopLaunchSpec.encode(plasma,"/p","/s","/l")).getMessage());
     }
-    @org.junit.Test public void ubuntuSpecPinsRealBaseProfileAndSoftwarePair() {
+    @org.junit.Test public void ubuntuSpecSeparatesNativeCompositorAndContainerApplications() {
         com.termux.ui.desktop.domain.DesktopDistro ubuntu = new com.termux.ui.desktop.domain.DesktopDistro(
             "ub", "Ubuntu", com.termux.ui.desktop.domain.DesktopRunMode.PROOT, "ubuntu-ubuntu-gnome-1",
             com.termux.ui.desktop.domain.DesktopDe.UBUNTU_GNOME, com.termux.ui.desktop.domain.DesktopGlMode.SYSTEM,
             com.termux.ui.desktop.domain.DesktopGuestGlMode.LLVMPIPE, "1280x720", 60,
             com.termux.ui.desktop.domain.DesktopUsbStorageMode.OFF);
         String spec = DesktopLaunchSpec.encode(ubuntu, "/tmp/pid", "/tmp/status", "/tmp/log");
-        org.junit.Assert.assertTrue(spec.contains("DESKTOP_CONTAINER_BASE=ubuntu:noble\n"));
-        org.junit.Assert.assertTrue(spec.contains("DESKTOP_CONTAINER_CODENAME=noble\n"));
+        org.junit.Assert.assertTrue(spec.contains("DESKTOP_CONTAINER_BASE=ubuntu:resolute\n"));
+        org.junit.Assert.assertTrue(spec.contains("DESKTOP_CONTAINER_CODENAME=resolute\n"));
         org.junit.Assert.assertTrue(spec.contains("DESKTOP_GNOME_SESSION_PROFILE=ubuntu\n"));
-        org.junit.Assert.assertTrue(spec.contains("DESKTOP_GNOME_DISPLAY_GL_MODE=system\n"));
-        org.junit.Assert.assertTrue(spec.contains("DESKTOP_GNOME_RENDERER=llvmpipe\n"));
+        org.junit.Assert.assertFalse(spec.contains("DESKTOP_GNOME_DISPLAY_GL_MODE="));
+        org.junit.Assert.assertTrue(spec.contains("DESKTOP_GNOME_BACKEND=android\n"));
+        org.junit.Assert.assertTrue(spec.contains("DESKTOP_GNOME_APPLICATION_RENDERER=llvmpipe\n"));
+        org.junit.Assert.assertTrue(spec.contains("DESKTOP_GNOME_RENDERER=system\n"));
         org.junit.Assert.assertFalse(spec.contains("trixie"));
+        assertThrows(IllegalArgumentException.class, () -> DesktopLaunchSpec.encode(
+            ubuntu.withOutput("1280x720",30),"/p","/s","/l"));
     }
     @org.junit.Test public void nativeUbuntuUsesNativeProfileAndNoRootfs() {
         DesktopDistro desktop = new DesktopDistro("nu", "Ubuntu style", DesktopRunMode.NATIVE, "",

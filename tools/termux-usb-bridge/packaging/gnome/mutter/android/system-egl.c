@@ -14,7 +14,12 @@ static void *system_egl(void) {
 #else
     const char *path="/system/lib/libEGL.so";
 #endif
-    void *drivers=platform_dlopen("/data/data/com.termux/files/usr/lib/mutter-16/libvndksupport.so",RTLD_NOW|RTLD_LOCAL);
+    Dl_info origin;
+    if(!dladdr((void *)system_egl,&origin) || !origin.dli_fname)
+      g_error("Mutter Android cannot locate its private EGL adapter");
+    g_autofree char *directory=g_path_get_dirname(origin.dli_fname);
+    g_autofree char *support=g_build_filename(directory,"libvndksupport.so",NULL);
+    void *drivers=platform_dlopen(support,RTLD_NOW|RTLD_LOCAL);
     if(!drivers)g_error("Mutter Android cannot load private driver namespace: %s",dlerror());
     void *handle=platform_dlopen(path,RTLD_NOW|RTLD_LOCAL);
     if(!handle)g_error("Mutter Android cannot open system EGL: %s",dlerror());

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Build only the glibc GIO volume module/helper in an aarch64 Debian rootfs."""
+"""Build the aarch64 glibc GIO module/helper with the Ubuntu Resolute toolchain."""
 import argparse
 import hashlib
 import json
@@ -19,11 +19,11 @@ def main():
     ap.add_argument('--output-root', type=Path, required=True)
     ap.add_argument('--cc', type=Path, required=True)
     ap.add_argument('--pkg-config', type=Path, required=True)
-    ap.add_argument('--codename', choices=('trixie',), required=True)
+    ap.add_argument('--codename', choices=('resolute',), required=True)
     args = ap.parse_args()
     fields = dict(line.split('=', 1) for line in Path('/etc/os-release').read_text().splitlines() if '=' in line)
-    if fields.get('ID', '').strip('"') != 'debian' or fields.get('VERSION_CODENAME', '').strip('"') != args.codename:
-        ap.error('build inside the explicitly selected Debian trixie runtime')
+    if fields.get('ID', '').strip('"') != 'ubuntu' or fields.get('VERSION_CODENAME', '').strip('"') != args.codename:
+        ap.error('build inside the explicitly selected Ubuntu Resolute runtime')
     cc, pkg = str(args.cc.resolve(strict=True)), str(args.pkg_config.resolve(strict=True))
     triple = subprocess.check_output([cc, '-dumpmachine'], text=True).strip()
     if triple != 'aarch64-linux-gnu':
@@ -51,7 +51,7 @@ def main():
         target.chmod(0o755 if not extra else 0o644)
         commands.append(command)
         outputs[destination] = digest(target)
-    manifest = dict(schemaVersion=1, architecture='aarch64', libc='glibc',
+    manifest = dict(schemaVersion=1, architecture='aarch64', libc='glibc', distribution='ubuntu',
         codename=args.codename, bridgeVersion='0.4.1', sourceSha256=inputs, outputSha256=outputs,
         compiler=subprocess.check_output([cc, '--version'], text=True).splitlines()[0],
         glibVersion=subprocess.check_output([pkg, '--modversion', 'gio-2.0'], text=True).strip(),

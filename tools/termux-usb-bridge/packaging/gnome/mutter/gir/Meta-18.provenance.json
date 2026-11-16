@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "namespace": "Meta-18",
+  "mutter": "50.1",
+  "sourceSha256": "9344502ce473f788795f26b45f8b8ff53c0a36b867470d705a11a3ee0911021e",
+  "generator": "Original Termux cross-build introspection executable executed on Android aarch64",
+  "device": "120.24.191.156:8057",
+  "command": "./Meta-18 --introspect-dump=functions.txt,dump.xml",
+  "inputsSha256": {
+    "Meta-18": "bdb3d19a87a12b7fcbddbbb55167af262fefcf3124cdb51e6fe5e9959eadedd0",
+    "functions.txt": "a9fbf0a04ecd8ddf57c8b434a799e21c1ce5efa02bc7dca76584ac8bb2cab6e8",
+    "libmutter-18.so.0.0.0": "2f64febd4f3c6233ca313f7b82aa0bba0a9f1793cc02262b37e076b5aca26ca8",
+    "libmutter-cogl-18.so.0.0.0": "2ae49376c1bdf2700ce56b9231b63b838f9e954bfb8526c0b252736d1a303662",
+    "libmutter-mtk-18.so.0.0.0": "cd9d6086c5f5549d236bc3dc2d0e5790132f9e66e3499a1c9cf7ae87d3e3a053",
+    "libmutter-clutter-18.so.0.0.0": "1359f3ad5c59289285ce12690d427c0a18286a859a31ede24535c94952dbcfff"
+  },
+  "archiveSha256": "2dcedbae96ee8129c23be415cbef2f64100070c04ff25346419aa2090bef6973",
+  "outputSha256": "ac5c7332f6ae07a66eb3db5769620a0a14f29b231369a0b5b02d40cb1b2d3f50"
+}

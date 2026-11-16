@@ -1,5 +1,10 @@
 # Mutter Android GPU 后端
 
+2026-11-16：Mutter/Shell 50 移植实施中，未发布。当前集成补丁为 `mutter/0001-android-platform.patch`，
+已迁移显示、输入/sprite 和 Cogl EGL winsys 接口；尚待全部新 ABI GIR、完整构建和 Android 图形回归。
+PRoot Ubuntu 采用匹配的 Bionic Shell 与容器 glibc 应用分进程执行，不引入 PipeWire 显示中转。
+以下设备验证均属于原 48 系列，不能视为 50 系列通过。
+
 2026-10-30：首阶段已实现并在 Pixel Fold / Android 15 模拟器验证。
 首阶段实验包为 Mutter 48.1-17；客户端 AHB 扩展包为 Mutter 48.1-23，GNOME Shell 48.7。KWin 参考基线为
 `ef19d13142c95581b711313895b0c550f891b89d`（Plasma 6.6.7 / r27）。
@@ -18,7 +23,7 @@ native GNOME Shell / Mutter
   native GTK 或 PRoot/glibc GTK：现有 wl_shm，仍需上传
 ```
 
-实现文件在 `mutter/android/`，集成补丁为 `0008-android-backend.patch`。
+实现文件在 `mutter/android/`，48 系列集成补丁原名为 `0008-android-backend.patch`。
 `0009-gles3-unmap-buffer.patch` 修复 Cogl 在 GLES 3 驱动没有 OES_mapbuffer 时，
 解析了 MapBufferRange 却未解析核心 UnmapBuffer 的崩溃。
 

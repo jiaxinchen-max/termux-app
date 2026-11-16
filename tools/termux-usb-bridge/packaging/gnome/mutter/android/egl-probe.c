@@ -5,11 +5,12 @@
 #include <sys/system_properties.h>
 #include <EGL/egl.h>
 extern void *platform_dlopen(const char *,int);
-int main(void) {
+int main(int argc,char **argv) {
   char value[PROP_VALUE_MAX]={0};
   __system_property_get("ro.hardware.egl",value);
   printf("default ro.hardware.egl=%s\n",value);fflush(stdout);
-  platform_dlopen("/data/data/com.termux/files/usr/lib/mutter-16/libvndksupport.so",RTLD_NOW|RTLD_LOCAL);
+  const char *support=argc==2?argv[1]:MUTTER_ANDROID_LIBDIR "/libvndksupport.so";
+  if(!platform_dlopen(support,RTLD_NOW|RTLD_LOCAL)){fprintf(stderr,"private EGL support: %s\n",dlerror());return 1;}
   void *handle=platform_dlopen("/system/lib64/libEGL.so",RTLD_NOW|RTLD_LOCAL);
   if(!handle){fprintf(stderr,"platform EGL load: %s\n",dlerror());return 1;}
   typedef int (*GetProperty)(const char *,char *);

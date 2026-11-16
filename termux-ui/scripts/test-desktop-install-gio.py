@@ -25,7 +25,7 @@ class GioInstallTest(unittest.TestCase):
         self.base = Path(self.folder.name).resolve()
         self.root = self.base / 'rootfs'; self.root.mkdir()
         self.payloads = {name: ('test payload:' + name).encode() for name in installer.PAYLOADS}
-        self.manifest = dict(schemaVersion=1, architecture='aarch64', libc='glibc', codename='trixie',
+        self.manifest = dict(schemaVersion=1, architecture='aarch64', libc='glibc', distribution='ubuntu', codename='resolute',
             bridgeVersion='0.4.1', outputSha256={name: hashlib.sha256(data).hexdigest() for name, data in self.payloads.items()})
         self.archive = self.base / 'gio.tar.gz'
 
@@ -43,7 +43,7 @@ class GioInstallTest(unittest.TestCase):
         self.archive.write_bytes(gzip.compress(out.getvalue(), mtime=0))
 
     def install(self):
-        installer.install(str(self.archive), str(self.root), 'trixie', '0.4.1')
+        installer.install(str(self.archive), str(self.root), 'resolute', '0.4.1')
 
     def test_valid_repeat_install_has_exact_content_and_fixed_modes(self):
         self.write(); self.install(); self.install()
@@ -94,13 +94,15 @@ class GioInstallTest(unittest.TestCase):
                 with self.assertRaises(ValueError): self.install()
                 self.assertFalse((self.root / 'usr').exists())
 
-    def test_payload_digest_difference_is_accepted(self):
+    def test_payload_digest_difference_is_rejected_before_writing(self):
         self.write(manifest=dict(self.manifest, outputSha256={name: '0'*64 for name in self.payloads}))
-        self.install()
-        self.assertTrue((self.root/'usr').is_dir())
+        with self.assertRaisesRegex(ValueError, 'checksum mismatch'):
+            self.install()
+        self.assertFalse((self.root / 'usr').exists())
 
     def test_payload_hash_and_architecture_mismatch_are_rejected(self):
         for changed in [dict(self.manifest, architecture='x86_64'),
+                        dict(self.manifest, distribution='debian', codename='trixie'),
                         dict(self.manifest, schemaVersion=True)]:
             self.write(manifest=changed)
             with self.assertRaises(ValueError): self.install()

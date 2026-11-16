@@ -18,8 +18,8 @@ import java.util.List;
  */
 public final class DesktopCreationCatalog {
 
-    /** Default base for Debian desktop profiles; no distribution picker is exposed. */
-    public static final String DEFAULT_CONTAINER = "debian";
+    /** Default base for managed desktop profiles; no distribution picker is exposed. */
+    public static final String DEFAULT_CONTAINER = "ubuntu";
 
     private DesktopCreationCatalog() {}
 
@@ -47,16 +47,15 @@ public final class DesktopCreationCatalog {
 
     /** Supported bases, assigned automatically by the desktop profile. */
     public static List<String> containers() {
-        return Collections.unmodifiableList(Arrays.asList("debian", "ubuntu"));
+        return Collections.unmodifiableList(Arrays.asList("ubuntu"));
     }
 
     public static String containerBase(DesktopDe de) {
-        return de == DesktopDe.UBUNTU_GNOME || de == DesktopDe.KWIN_PLASMA ? "ubuntu" : DEFAULT_CONTAINER;
+        return DEFAULT_CONTAINER;
     }
 
     public static String containerCodename(DesktopDe de) {
-        return de == DesktopDe.UBUNTU_GNOME ? "noble"
-            : de == DesktopDe.KWIN_PLASMA ? "resolute" : "trixie";
+        return "resolute";
     }
 
     public static String containerImage(DesktopDe de) {

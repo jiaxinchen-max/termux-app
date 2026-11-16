@@ -77,7 +77,7 @@ final class DesktopSettingsDialog {
         bind(activity, sheet.desktopSettingsResolution, R.string.desktop_select_resolution,
             RESOLUTIONS, () -> resolution[0], value -> resolution[0] = value);
         bind(activity, sheet.desktopSettingsRefresh, R.string.desktop_select_refresh,
-            distro.getDe().isGnomeSession() && !container ? new String[]{"60 Hz"} : refreshLabels(),
+            distro.getDe().isGnomeSession() ? new String[]{"60 Hz"} : refreshLabels(),
             () -> refresh[0] + " Hz",
             value -> refresh[0] = Integer.parseInt(value.substring(0, value.length() - 3)));
         List<String> hosts = new ArrayList<>();

@@ -7,7 +7,7 @@ DesktopCreationCatalog 将 Ubuntu GNOME 映射到 noble、Plasma 映射到 resol
 所有可创建的 PRoot 桌面固定 ubuntu:resolute，codename resolute；安装后同时验证 ID=ubuntu 和 VERSION_CODENAME=resolute。列表为 Plasma、Ubuntu GNOME、XFCE、Hyprland 客户端。GNOME 枚举仍可供 Native 使用，但支持矩阵拒绝 PROOT+GNOME；UI 不提供该组合，直接脚本调用与归档恢复也拒绝。移除仅属于旧 PRoot GNOME 的分支；与 Native/Ubuntu GNOME 共用逻辑不得误删。
 
 ## 版本相关适配
-先从 Resolute 实际软件源确认 GNOME/Ubuntu session、Yaru、扩展与 XFCE 软件包版本和文件布局。用实测版本替换 GNOME 46/Noble 假设，DING 补丁若不再需要则移除，否则基于该版本重新制作并钉住校验值；不跳过完整性校验。Ubuntu GNOME 仍沿用既有显示架构，验证宿主端与容器 GNOME 版本交互，不因发行版同名推定兼容。
+先从 Resolute 实际软件源确认 GNOME/Ubuntu session、Yaru、扩展与 XFCE 软件包版本和文件布局。用实测版本替换 GNOME 46/Noble 假设，DING 补丁若不再需要则移除，否则基于该版本重新制作并钉住校验值；不跳过完整性校验。Ubuntu GNOME 按下述已确认的 Android 原生显示链路改造，不因发行版同名推定兼容。
 Plasma 沿用已在 Resolute 使用的体系。Hyprland 容器仅提供普通客户端，不将完整合成器迁入容器。Mesa/Zink 和 USB GIO 按 Resolute 验证 ELF 依赖/GLIBC/LLVM/模块加载；缺少匹配资产时在原编译机原构建链生成，记录哈希和发布元数据，不在 APK 加入大资产。不允许将 trixie 二进制重新命名伪装成 Resolute，不能通过静默 llvmpipe 回退掩盖 Zink 失败。
 
 ## 数据与边界
@@ -20,7 +20,17 @@ Plasma 沿用已在 Resolute 使用的体系。Hyprland 容器仅提供普通客
 ## 工具限制
 当前仓库缺少 .harness 的规定指令、strict gate 脚本、OpenSpec CLI 和 docs/product 基线，按实际可用命令记录证据，不伪造通过。
 
-## 实施发现与待确认设计
+## 实施发现与已取代的设计限制
 Ubuntu Resolute arm64 仓库实际提供 GNOME Shell/Mutter 50.1，Ubuntu session 50.0，仅安装 wayland-sessions/ubuntu.desktop，不提供旧 ubuntu-xorg.desktop。Mutter 50.1 的 meta-context-main.c 仅创建 native 或 headless backend，参数中已无 --x11，既有 gnome-shell --x11 启动链无法沿用。不能以替换版本字符串完成升级。
-需要用户选择允许重做 Ubuntu GNOME 的显示链路（另行形成具体设计并验证），或同时废弃 Ubuntu GNOME PRoot 类型；此前授权只废弃独立 GNOME，不得自行扩大移除范围。在确认前，Ubuntu GNOME 及其他底包映射尚未更改，不构建声称完成统一升级的 APK。
+用户随后已明确授权保留 Ubuntu GNOME、升级现有原生组件并排除 PipeWire；执行以下已确认设计。底包映射正在修改，完整验证前不构建声称完成统一升级的 APK。
 独立 GNOME 下线使用 supportsProot() 与 Native 支持分离。安装、启动和 Python 直接调用拒绝；删除生成仅含模式、删除方法、容器别名和状态路径的独立 spec，不受已退休类型或渲染器校验阻断。
+
+## 用户确认的原生组件升级（替代显示桥）
+用户明确要求“升级现有组件进行支持，pipewire不用考虑”。本轮新增的 headless/Devkit/PipeWire/Openbox 显示桥不进入交付；此限制针对显示链路，不删除其他桌面既有音频/相机功能。
+升级现有 Bionic Mutter 与 GNOME Shell 为 50.1，GJS 为 1.88（配套 SpiderMonkey 140），保留现有 Android backend、System EGL/AHB 输出与 App render/input 协议。生产生态包仅在指定编译机 /workspace/termux-packages 原链构建。新 ABI 的 GIR 必须由真实 Android 类型 dump 生成，不重命名旧 GIR 冒充。
+Ubuntu GNOME 的普通用户会话仍在 Resolute PRoot 内：绑定可读 Android 平台目录及原 Termux PREFIX，在同一 PRoot 文件系统视图内启动 Bionic Shell/Mutter；子应用、DING、dconf、GVfs 和会话总线使用容器程序。Bionic 与 glibc 在不同进程，严禁互相加载共享库/typelib。先验证这种执行机制，再接入正式安装和启动；若实际验证失败，明确保留未完成状态，不回退 PipeWire。
+容器保留 Ubuntu 50 的主题、扩展、应用和普通用户；Native Ubuntu 外观亦需更新为匹配 GNOME 50 的真实资源，不能继续加载 48 扩展。渲染参数明确区分宿主 System EGL 输出与容器应用 llvmpipe/Zink，不将容器 renderer 传给原生合成器。
+
+## 原生升级验证与回滚
+保护范围包括原生 Mutter/Shell/GJS 配方、Android 后端、组件清单与原生/PRoot 启动参数；用户当前明确授权升级。先审查上游 API 变化和依赖版本，再在原链构建、检查 ELF 与新 GIR，模拟器 force-stop 后验证两类 Native GNOME 及 Ubuntu PRoot 的冷启动、真实显示、键鼠、容器终端身份和清理。物理高通 GPU 结果单独记录，不用模拟器代替。
+不发布未验证的新组件。回滚恢复已发布组件清单、配方和启动代码；旧容器/备份不动，不自动迁移用户数据。APK 不携带 GNOME/主题大资产。

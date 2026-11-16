@@ -12,8 +12,8 @@ import sys
 import tarfile
 import uuid
 
-ARCHIVE_BYTES = 12242251
-ARCHIVE_SHA256 = 'b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687'
+ARCHIVE_BYTES = 12674045
+ARCHIVE_SHA256 = '51aa11a8e7bc8c98bc9e852b260ee2dac99392b4ee8658182e4837c309818faf'
 EXPANDED_LIMIT = 64 * 1024 * 1024
 DIRECTORY_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
 DIRECTORY_PATH_FLAGS = (os.O_PATH | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
@@ -99,7 +99,7 @@ def read_archive(path):
         data = read_regular(parent, parts[-1], ARCHIVE_BYTES)
     finally:
         os.close(parent)
-    if len(data) != ARCHIVE_BYTES:
+    if len(data) != ARCHIVE_BYTES or hashlib.sha256(data).hexdigest() != ARCHIVE_SHA256:
         raise ValueError('pinned Mesa archive bytes/SHA256 mismatch')
     return data
 
@@ -191,8 +191,8 @@ def validate_rootfs(root):
             if key in release:
                 raise ValueError('duplicate os-release key')
             release[key] = value.strip('"\'')
-    if release.get('ID') != 'debian' or release.get('VERSION_CODENAME') != 'trixie':
-        raise ValueError('Mesa overlay requires Debian trixie rootfs')
+    if release.get('ID') != 'ubuntu' or release.get('VERSION_CODENAME') != 'resolute':
+        raise ValueError('Mesa overlay requires Ubuntu Resolute rootfs')
 
 
 def install_one(root, name, kind, content, mode):
@@ -254,8 +254,8 @@ def verify(root, entries):
 
 
 def install(archive, rootfs, codename, gl_mode):
-    if codename != 'trixie' or gl_mode != 'zink':
-        raise ValueError('explicit trixie/zink mode required')
+    if codename != 'resolute' or gl_mode != 'zink':
+        raise ValueError('explicit resolute/zink mode required')
     entries = decode_archive(read_archive(archive))
     root = open_directory(rootfs)
     try:
@@ -297,11 +297,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--archive', required=True)
     parser.add_argument('--rootfs', required=True)
-    parser.add_argument('--codename', choices=('trixie',), required=True)
+    parser.add_argument('--codename', choices=('resolute',), required=True)
     parser.add_argument('--gl-mode', choices=('zink',), required=True)
     args = parser.parse_args()
     install(args.archive, args.rootfs, args.codename, args.gl_mode)
-    print('Installed verified upstream Mesa 27.0.0-devel-20261025 (Debian trixie, aarch64, KGSL/Zink).')
+    print('Installed verified upstream Mesa 27.0.0-devel-20261025 (Ubuntu Resolute, aarch64, KGSL/Zink).')
 
 
 if __name__ == '__main__':

@@ -75,23 +75,10 @@ public final class DesktopLaunchSpec {
                 distro.getDe() == DesktopDe.UBUNTU_GNOME
                     ? (distro.getRunMode() == DesktopRunMode.NATIVE ? "native-ubuntu" : "ubuntu") : "gnome");
             put(spec, "DESKTOP_GNOME_SESSION_STARTUP", "direct");
-            put(spec, "DESKTOP_GNOME_BACKEND", distro.getRunMode() == DesktopRunMode.NATIVE ? "android" : "x11");
-            put(spec, "DESKTOP_GNOME_RENDERER", distro.getRunMode() == DesktopRunMode.NATIVE
-                ? distro.getHostGlMode().getStorageValue() : distro.getGuestGlMode().getStorageValue());
+            put(spec, "DESKTOP_GNOME_BACKEND", "android");
+            put(spec, "DESKTOP_GNOME_RENDERER", distro.getHostGlMode().getStorageValue());
             if (distro.getRunMode() == DesktopRunMode.PROOT) {
-                // Each guest renderer requires its exact host display/buffer topology.
-                switch (distro.getGuestGlMode()) {
-                    case ZINK:
-                        put(spec, "DESKTOP_GNOME_DISPLAY_GL_MODE", distro.getHostGlMode().getStorageValue());
-                        put(spec, "DESKTOP_GNOME_DISPLAY_BUFFER_MODE", "dmabuf");
-                        break;
-                    case LLVMPIPE:
-                        put(spec, "DESKTOP_GNOME_DISPLAY_GL_MODE", distro.getHostGlMode().getStorageValue());
-                        put(spec, "DESKTOP_GNOME_DISPLAY_BUFFER_MODE", "native");
-                        break;
-                    default:
-                        throw new IllegalArgumentException("desktop_renderer_explicit_required");
-                }
+                put(spec, "DESKTOP_GNOME_APPLICATION_RENDERER", distro.getGuestGlMode().getStorageValue());
             }
         }
         return spec.toString();

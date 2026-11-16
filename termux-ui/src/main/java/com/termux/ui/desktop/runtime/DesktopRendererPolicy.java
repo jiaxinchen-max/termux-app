@@ -69,8 +69,8 @@ public final class DesktopRendererPolicy {
             throw new IllegalArgumentException("desktop_usb_storage_requires_gio_sidebar");
         if (!supports(distro.getRunMode(),distro.getDe(),distro.getHostGlMode(),distro.getGuestGlMode()))
             throw new IllegalArgumentException("desktop_renderer_explicit_required");
-        if (distro.getDe().isGnomeSession() && distro.getRunMode()==DesktopRunMode.NATIVE
+        if (distro.getDe().isGnomeSession()
                 && distro.getRefreshRate()!=60)
-            throw new IllegalArgumentException("desktop_gnome_native_refresh_requires_60");
+            throw new IllegalArgumentException("desktop_gnome_android_refresh_requires_60");
     }
 }

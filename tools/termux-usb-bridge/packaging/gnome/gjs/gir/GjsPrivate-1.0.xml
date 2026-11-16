@@ -5,8 +5,8 @@
     <property name="g-interface-info" type="GDBusInterfaceInfo" flags="234"/>
     <signal name="handle-method-call" return="void">
       <param type="gchararray"/>
-      <param type="GVariant"/>
       <param type="GDBusMethodInvocation"/>
+      <param type="GVariant"/>
     </signal>
     <signal name="handle-property-get" return="GVariant">
       <param type="gchararray"/>

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "namespace": "Mtk-18",
+  "mutter": "50.1",
+  "sourceSha256": "9344502ce473f788795f26b45f8b8ff53c0a36b867470d705a11a3ee0911021e",
+  "generator": "Original Termux cross-build introspection executable executed on Android aarch64",
+  "device": "120.24.191.156:8057",
+  "command": "./Mtk-18 --introspect-dump=functions.txt,dump.xml",
+  "inputsSha256": {
+    "Mtk-18": "3182a6d8c3e820801676576f7d5c31112d73908222c959dd178abe639d7f8f6c",
+    "libmutter-mtk-18.so.0": "cd9d6086c5f5549d236bc3dc2d0e5790132f9e66e3499a1c9cf7ae87d3e3a053",
+    "functions.txt": "21619daa26f04979799a30af197e619b9e4d190398a846699c9d4dfd6009f3e8"
+  },
+  "outputSha256": "9d176208102b7fbad2f92eb2f94e2e74cc0b9477b6c8c50629ff4a440d943a38"
+}

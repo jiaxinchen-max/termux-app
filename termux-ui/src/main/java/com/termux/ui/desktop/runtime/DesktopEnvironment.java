@@ -46,6 +46,8 @@ public final class DesktopEnvironment {
             case UBUNTU_GNOME:
             case GNOME:
                 host = new File(prefix, "bin/python3").isFile()
+                    && new File(prefix, "bin/gnome-shell").isFile()
+                    && new File(prefix, "lib/mutter-18/libmutter-android-system-egl.so").isFile()
                     && new File(prefix, "libexec/termux-gnome/launch.py").isFile()
                     && (distro.getDe() != DesktopDe.UBUNTU_GNOME
                         || new File(prefix, "libexec/termux-gnome/" + (distro.getRunMode() == DesktopRunMode.NATIVE
@@ -55,7 +57,7 @@ public final class DesktopEnvironment {
                             && new File(prefix, "bin/gnome-session").isFile()
                             && nativeGnomeServicesInstalled()
                             && (distro.getDe() != DesktopDe.UBUNTU_GNOME || nativeUbuntuInstalled())
-                        : new File(prefix, "bin/Xlorie").isFile());
+                        : true);
                 break;
             case XFCE4:
                 // Xlorie serves the view; the session itself runs natively or in the container.
@@ -70,6 +72,7 @@ public final class DesktopEnvironment {
         if (distro.getRunMode() == DesktopRunMode.NATIVE) return true;
         if (!new File(prefix, "bin/proot-distro").isFile()) return false;
         File container = containerDir(distro.getProotDistro());
+        if (container == null || !resoluteInstalled(container)) return false;
         if (distro.getDe() == DesktopDe.KWIN_PLASMA) {
             File rendering = new File(prefix, "var/lib/termux-desktop/rendering/"
                 + distro.getProotDistro() + "." + distro.getHostGlMode().getStorageValue()
@@ -80,7 +83,7 @@ public final class DesktopEnvironment {
         if (distro.getDe() == DesktopDe.UBUNTU_GNOME && !ubuntuGnomeInstalled(container)) return false;
         if (container != null && distro.getDe() == DesktopDe.HYPRLAND
                 && distro.getGuestGlMode() == com.termux.ui.desktop.domain.DesktopGuestGlMode.ZINK) {
-            return "b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687".equals(
+            return "51aa11a8e7bc8c98bc9e852b260ee2dac99392b4ee8658182e4837c309818faf".equals(
                 head(new File(container, ".desktop-de-hyprland-zink"), 80).trim())
                 && new File(container, ".desktop-de-hyprland").isFile()
                 && new File(container, "rootfs/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json").isFile()
@@ -113,16 +116,22 @@ public final class DesktopEnvironment {
         return true;
     }
 
+    private boolean resoluteInstalled(File container) {
+        String release = head(new File(container, "rootfs/etc/os-release"), 8192);
+        return java.util.regex.Pattern.compile("(?m)^ID=[\"']?ubuntu[\"']?\\s*$").matcher(release).find()
+            && java.util.regex.Pattern.compile("(?m)^VERSION_CODENAME=[\"']?resolute[\"']?\\s*$").matcher(release).find();
+    }
+
     private boolean ubuntuGnomeInstalled(File container) {
         if (container == null) return false;
         File root = new File(container, "rootfs");
         String release = head(new File(root, "etc/os-release"), 8192);
         if (!java.util.regex.Pattern.compile("(?m)^ID=[\"']?ubuntu[\"']?\\s*$").matcher(release).find()
-                || !java.util.regex.Pattern.compile("(?m)^VERSION_CODENAME=[\"']?noble[\"']?\\s*$").matcher(release).find()) return false;
+                || !java.util.regex.Pattern.compile("(?m)^VERSION_CODENAME=[\"']?resolute[\"']?\\s*$").matcher(release).find()) return false;
         for (String file : new String[]{"usr/bin/gnome-shell", "usr/bin/gnome-extensions", "usr/bin/gdbus",
-                "usr/bin/nautilus", "usr/bin/gnome-terminal", "usr/bin/gnome-text-editor", "usr/libexec/gsd-xsettings",
-                "usr/share/gnome-session/sessions/ubuntu.session", "usr/share/xsessions/ubuntu-xorg.desktop",
-                "usr/share/gnome-shell/modes/ubuntu.json", "usr/share/gnome-shell/theme/Yaru/gnome-shell.css",
+                "usr/bin/nautilus", "usr/bin/gnome-terminal", "usr/bin/gnome-text-editor",
+                "usr/share/gnome-session/sessions/ubuntu.session", "usr/share/wayland-sessions/ubuntu.desktop",
+                "usr/share/gnome-shell/modes/termux-ubuntu.json", "usr/share/gnome-shell/modes/ubuntu.json", "usr/share/gnome-shell/theme/Yaru/gnome-shell.css",
                 "usr/share/gnome-shell/theme/Yaru/gnome-shell-theme.gresource", "usr/share/gnome-shell/theme/Yaru/gnome-shell-icons.gresource", "usr/share/themes/Yaru/gtk-3.0/gtk.css",
                 "usr/share/icons/Yaru/index.theme", "usr/share/sounds/Yaru/index.theme",
                 "usr/share/backgrounds/warty-final-ubuntu.png", "usr/share/glib-2.0/schemas/gschemas.compiled",
@@ -188,10 +197,13 @@ public final class DesktopEnvironment {
         return new File(home, ".termux/kwin-runtime/runtime-" + uid + "/wayland-0");
     }
 
-    /** Native GNOME uses its own work/runtime and never reuses KWin's socket. */
+    /** GNOME uses its own Android Wayland output in either execution mode. */
     public File gnomeWaylandSocket(DesktopDistro distro) {
-        if (!distro.getDe().isGnomeSession() || distro.getRunMode()!=DesktopRunMode.NATIVE)
-            throw new IllegalArgumentException("desktop_gnome_native_required");
+        if (!distro.getDe().isGnomeSession() || (distro.getRunMode()==DesktopRunMode.PROOT && !distro.getDe().supportsProot()))
+            throw new IllegalArgumentException("desktop_gnome_session_required");
+        if (distro.getRunMode()==DesktopRunMode.PROOT)
+            return new File(prefix, "var/lib/proot-distro/containers/" + distro.getProotDistro()
+                + "/rootfs/home/termux/.local/share/termux-gnome/runtime/wayland-gnome");
         return new File(home,".termux/gnome-"+distro.getId()+"/runtime/wayland-gnome");
     }
 

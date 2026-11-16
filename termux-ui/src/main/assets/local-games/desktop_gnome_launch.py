@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Rootless GNOME launcher: X11 or native Android GPU compositor.
+"""Rootless GNOME 50 launcher using the native Android EGL/AHB compositor.
 
 Requires real GNOME packages. Does not provide GDM, logind, authentication,
 or lock-screen support. Android mode requires the existing termux-render App view.
@@ -24,12 +24,11 @@ def main():
     ap.add_argument('--desktop-id', required=True)
     ap.add_argument('--ready-file', type=Path, required=True)
     ap.add_argument('--run-mode', choices=('native', 'proot'), required=True)
-    ap.add_argument('--backend', choices=('x11', 'android'), required=True)
+    ap.add_argument('--backend', choices=('android',), required=True)
     ap.add_argument('--session-profile', choices=('gnome', 'ubuntu', 'native-ubuntu'), default='gnome')
     ap.add_argument('--session-startup', choices=('direct',), required=True)
-    ap.add_argument('--gl-mode', choices=('system', 'llvmpipe', 'zink'), required=True)
-    ap.add_argument('--x11-display-gl-mode', choices=('system', 'zink'))
-    ap.add_argument('--x11-display-buffer-mode', choices=('native', 'dmabuf'))
+    ap.add_argument('--gl-mode', choices=('system',), required=True)
+    ap.add_argument('--app-renderer', choices=('llvmpipe',))
     ap.add_argument('--size', required=True)
     ap.add_argument('--refresh-rate', type=int, required=True)
     ap.add_argument('--render-socket', type=Path, required=True)
@@ -48,8 +47,8 @@ def main():
     if ubuntu:
         if native_ubuntu and ((args.run_mode, args.backend, args.gl_mode, args.usb_storage) != ('native', 'android', 'system', 'off') or args.rootfs):
             ap.error('Native Ubuntu GNOME requires native Android/System EGL, USB off and no rootfs')
-        if not native_ubuntu and ((args.run_mode, args.backend, args.gl_mode, args.usb_storage) != ('proot', 'x11', 'llvmpipe', 'off') or not args.rootfs):
-            ap.error('Ubuntu GNOME requires PRoot x11/llvmpipe and USB off')
+        if not native_ubuntu and ((args.run_mode, args.backend, args.gl_mode, args.usb_storage) != ('proot', 'android', 'system', 'off') or not args.rootfs):
+            ap.error('Ubuntu GNOME requires Resolute PRoot, Android/System EGL and USB off')
         # -I excludes the script directory from sys.path. Load only the adjacent shipped asset.
         import importlib.util
         module_spec = importlib.util.spec_from_file_location(
@@ -57,24 +56,18 @@ def main():
                 'desktop_native_ubuntu.py' if native_ubuntu else 'desktop_ubuntu_gnome.py'))
         profile = importlib.util.module_from_spec(module_spec)
         module_spec.loader.exec_module(profile)
-    if args.backend == 'x11':
-        expected_display = {'llvmpipe': ('system', 'native'), 'zink': ('zink', 'dmabuf')}
-        if (args.x11_display_gl_mode, args.x11_display_buffer_mode) != expected_display.get(args.gl_mode):
-            ap.error('X11 llvmpipe requires explicit system/native; Zink requires explicit zink/dmabuf')
-    elif args.x11_display_gl_mode is not None or args.x11_display_buffer_mode is not None:
-        ap.error('Android backend does not accept X11 display modes')
+        if not native_ubuntu:
+            profile.validate_rootfs(args.rootfs)
     if args.run_mode == 'native':
-        if args.rootfs or args.backend != 'android' or args.gl_mode != 'system':
-            ap.error('native GNOME requires android/system and no rootfs')
-        # The pinned Mutter 48.1-24 backend hardcodes 60 Hz. Do not misreport others.
-        if args.refresh_rate != 60:
-            ap.error('native GNOME Mutter 48.1-24 supports exactly 60 Hz')
-    elif not args.rootfs or args.backend != 'x11' or args.gl_mode not in ('llvmpipe', 'zink'):
-        ap.error('PRoot GNOME requires an explicit Debian trixie rootfs and x11/llvmpipe|zink')
-    if not 1 <= args.refresh_rate <= 120:
-        ap.error('--refresh-rate must be between 1 and 120')
+        if args.rootfs or args.app_renderer is not None:
+            ap.error('Native GNOME does not accept a rootfs or container renderer')
+    elif not ubuntu or native_ubuntu or not args.rootfs or args.app_renderer != 'llvmpipe':
+        ap.error('PRoot Ubuntu GNOME requires a Resolute rootfs and explicit app renderer llvmpipe')
+    # The Android output backend currently supports exactly 60 Hz.
+    if args.refresh_rate != 60:
+        ap.error('GNOME Android output supports exactly 60 Hz')
     if args.display != ':0':
-        ap.error('the App Xlorie integration requires --display=:0')
+        ap.error('the reserved desktop display identifier must be :0')
     if not args.render_socket.is_absolute():
         ap.error('--render-socket must be absolute')
     if not re.fullmatch(r'[A-Za-z0-9._-]{1,128}', args.desktop_id):
@@ -88,8 +81,6 @@ def main():
         ap.error('--wayland-display must be a socket basename')
     android = args.backend == 'android'
     prefix = Path(os.environ['PREFIX'])
-    if args.x11_display_gl_mode == 'zink':
-        host_icd = prefix / 'share/vulkan/icd.d/freedreno_icd.aarch64.json'
     desktop_key = hashlib.sha256(args.desktop_id.encode()).hexdigest()[:16]
     runtime = prefix / ('tmp/gnome-' + desktop_key) / 'runtime'
     usb_parent = prefix / ('tmp/tusb-' + desktop_key)
@@ -137,8 +128,7 @@ def main():
     lock = (w / 'session.lock').open('w')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     args.ready_file.unlink(missing_ok=True)
-    # KWin aliases may be inherited from an earlier desktop. They are not GNOME
-    # parameters, and Xlorie rejects a conflicting KWIN_ANDROID_GL_MODE alias.
+    # Do not inherit another compositor's renderer selection.
     host = {key: value for key, value in os.environ.items()
             if not key.startswith('KWIN_') and key != 'PLASMA_LOG'}
     # An inherited Mesa/Vulkan selection must never alter the requested mode,
@@ -160,7 +150,7 @@ def main():
     gw, gr = str(w), str(runtime)
     if args.rootfs:
         root = args.rootfs.resolve()
-        for d in ('tusb-gnome', 'run/tusb-gnome', 'tmp/.X11-unix'):
+        for d in ('tusb-gnome', 'run/tusb-gnome'):
             (root / d).mkdir(parents=True, exist_ok=True)
         gw, gr = '/tusb-gnome', '/run/tusb-gnome'
         guest.pop('LD_PRELOAD', None)
@@ -171,8 +161,40 @@ def main():
         base = ['proot', '-i', account[2] + ':' + account[3], '--link2symlink', '--sysvipc', '-r', str(root), '-b', '/dev',
                 '-b', '/proc', '-b', '/sys', '-b', str(w) + ':' + gw,
                 '-b', str(w) + ':' + str(w),
-                '-b', str(runtime) + ':' + gr,
-                '-b', str(prefix / 'tmp/.X11-unix') + ':/tmp/.X11-unix']
+                '-b', str(runtime) + ':' + gr]
+        # Native Shell and guest applications share one filesystem and private bus.
+        # The Android linker loads Bionic libraries from PREFIX; glibc apps keep /usr.
+        for platform in (prefix, Path('/apex'), Path('/system'), Path('/vendor'),
+                         Path('/product'), Path('/system_ext')):
+            # Android permits searching /apex without listing the directory.
+            # Its runtime linker is still required by every Bionic executable.
+            if platform.is_dir():
+                (root / str(platform).lstrip('/')).mkdir(parents=True, exist_ok=True)
+                base += ['-b', str(platform)]
+        # libtermux-render connects at its original absolute socket path. PREFIX
+        # alone does not expose this socket under the separate Termux HOME.
+        (root / str(args.render_socket.parent).lstrip('/')).mkdir(parents=True, exist_ok=True)
+        base += ['-b', str(args.render_socket)]
+        # /linkerconfig itself can deny getattr/listing while its generated
+        # config remains readable. PRoot cannot canonicalize that directory.
+        # Snapshot the device's current config through a direct open, then bind
+        # the file so Bionic keeps its real platform/driver namespace links.
+        for config_path in (Path('/linkerconfig/ld.config.txt'), Path('/system/etc/ld.config.txt')):
+            try:
+                with config_path.open('rb') as source:
+                    linker_config = source.read(2 * 1024 * 1024 + 1)
+            except (FileNotFoundError, PermissionError):
+                continue
+            if not linker_config or len(linker_config) > 2 * 1024 * 1024:
+                raise RuntimeError('Android linker configuration is empty or too large')
+            snapshot = w / 'android-ld.config.txt'
+            snapshot.write_bytes(linker_config)
+            snapshot.chmod(0o600)
+            (root / str(config_path.parent).lstrip('/')).mkdir(parents=True, exist_ok=True)
+            base += ['-b', str(snapshot) + ':' + str(config_path)]
+            break
+        else:
+            raise RuntimeError('Android linker configuration is unavailable for the native compositor')
         if args.usb_storage == 'read-only':
             (root / str(usb_parent).lstrip('/')).mkdir(parents=True, exist_ok=True)
             base += ['-b', str(usb_parent) + ':' + str(usb_parent)]
@@ -183,9 +205,9 @@ def main():
                   XCURSOR_THEME='Adwaita',
                   XDG_CONFIG_HOME=session_config, XDG_CACHE_HOME=session_cache,
                   XDG_DATA_HOME=session_data, XDG_CURRENT_DESKTOP='GNOME',
-                  XDG_SESSION_TYPE='x11', XDG_SESSION_DESKTOP='gnome',
+                  XDG_SESSION_TYPE='wayland', XDG_SESSION_DESKTOP='gnome',
                   DBUS_SYSTEM_BUS_ADDRESS='unix:path=' + gr + '/system-bus',
-                  GDK_BACKEND='x11', GSK_RENDERER='cairo', GTK_A11Y='none', NO_AT_BRIDGE='1',
+                  GDK_BACKEND='wayland', GSK_RENDERER='cairo', GTK_A11Y='none', NO_AT_BRIDGE='1',
                   GST_PLUGIN_FEATURE_RANK=os.environ.get('GST_PLUGIN_FEATURE_RANK',
                       'ximagesink:3000,cacasink:0,glimagesink:0,xvimagesink:0'),
                   PIPEWIRE_RUNTIME_DIR=gr, PIPEWIRE_REMOTE='pipewire-0',
@@ -193,12 +215,7 @@ def main():
                   LANG='C.UTF-8', TZ=os.environ.get('TZ', 'Asia/Shanghai'))
     if ubuntu:
         values.update(XDG_CURRENT_DESKTOP='ubuntu:GNOME', XDG_SESSION_DESKTOP='ubuntu',
-                      GNOME_SHELL_SESSION_MODE=profile.MODE if native_ubuntu else 'ubuntu', XCURSOR_THEME='Yaru')
-    if args.gl_mode == 'llvmpipe':
-        values.update(LIBGL_ALWAYS_SOFTWARE='1', GALLIUM_DRIVER='llvmpipe')
-    elif args.gl_mode == 'zink':
-        values.update(GALLIUM_DRIVER='zink', MESA_LOADER_DRIVER_OVERRIDE='zink',
-                      VK_DRIVER_FILES='/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json')
+                      GNOME_SHELL_SESSION_MODE=profile.MODE, XCURSOR_THEME='Yaru')
     if android:
         for env in (host, guest, values):
             for key in ('DISPLAY', 'LIBGL_ALWAYS_SOFTWARE', 'GALLIUM_DRIVER',
@@ -208,10 +225,8 @@ def main():
         values.update(XDG_SESSION_TYPE='wayland', GDK_BACKEND='wayland',
                       WAYLAND_DISPLAY=args.wayland_display)
     if args.rootfs:
-        # Both guest renderers are verified through GLX. Mutter's X11 GL3
-        # winsys is GLX; restrict Clutter's list too so it cannot try GLES/EGL
-        # or retry with its default "any" driver after GLX initialization fails.
-        values.update(COGL_DRIVER='gl3', CLUTTER_DRIVER='gl3')
+        # This renderer belongs to guest applications, never the native compositor.
+        values.update(PREFIX=str(prefix), LIBGL_ALWAYS_SOFTWARE='1', GALLIUM_DRIVER='llvmpipe')
         values.update(USER='termux', LOGNAME='termux', SHELL='/bin/bash',
                       PATH='/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
                       XDG_DATA_DIRS=('/usr/share/ubuntu:/usr/local/share:/usr/share' if ubuntu else '/usr/local/share:/usr/share'), XDG_CONFIG_DIRS='/etc/xdg')
@@ -232,25 +247,42 @@ def main():
         escape(gr + '/system-bus') + '</listen><auth>EXTERNAL</auth><policy context="default">'
         '<allow user="*"/><allow own="*"/><allow send_destination="*"/>'
         '<allow receive_sender="*"/></policy></busconfig>')
+    shell_binary = str(prefix / 'bin/gnome-shell')
+    native_probe = subprocess.run(base + [shell_binary, '--version'], env=guest,
+                                  capture_output=True, text=True, timeout=20)
+    if native_probe.returncode or not native_probe.stdout.strip().startswith('GNOME Shell 50.'):
+        raise RuntimeError('GNOME requires the matching native Shell/Mutter 50 runtime: ' +
+                           native_probe.stdout + native_probe.stderr)
+    compositor_env = {
+        'MUTTER_BACKEND': 'android', 'MUTTER_ANDROID_GL_MODE': 'system',
+        'MUTTER_ANDROID_WIDTH': size[1], 'MUTTER_ANDROID_HEIGHT': size[2],
+        'MUTTER_ANDROID_REFRESH_RATE': str(args.refresh_rate),
+        'CLUTTER_DRIVER': 'gles2', 'TERMUX_ANDROID_ZINK': '0',
+        'LD_PRELOAD': str(prefix / 'lib/mutter-18/libmutter-android-system-egl.so'),
+    }
+    if args.rootfs:
+        compositor_env.update(GNOME_SHELL_DATADIR='/usr/share/gnome-shell',
+                              MUTTER_ANDROID_CLIENT_RENDERER=args.app_renderer)
+    elif host.get('LD_PRELOAD'):
+        compositor_env['LD_PRELOAD'] += ':' + host['LD_PRELOAD']
+    compositor = ['env', '-u', 'LIBGL_ALWAYS_SOFTWARE', '-u', 'GALLIUM_DRIVER',
+                  '-u', 'MESA_LOADER_DRIVER_OVERRIDE', '-u', 'VK_DRIVER_FILES']
+    compositor += [key + '=' + value for key, value in compositor_env.items()]
+    compositor += [shell_binary, '--wayland', '--no-x11',
+                   '--wayland-display=' + args.wayland_display]
+    if ubuntu:
+        compositor += ['--mode=' + profile.MODE]
     (w / 'session.sh').write_text('''#!/bin/sh
 set -eu
 cd "$HOME"
 printf 'export DBUS_SESSION_BUS_ADDRESS="%s"\\n' "$DBUS_SESSION_BUS_ADDRESS" > ''' + shlex.quote(gw + '/session.env') + '''
 dbus-update-activation-environment ''' + ' '.join(values) + '''
 ''' + ('' if native_ubuntu else 'gsettings set org.gnome.desktop.interface cursor-theme "$XCURSOR_THEME"\n') + '''
-gsettings set org.gnome.desktop.interface enable-animations ''' + ('true' if android else 'false') + '''
+gsettings set org.gnome.desktop.interface enable-animations true
 gsettings set org.gnome.desktop.session idle-delay 0
 gsettings set org.gnome.desktop.screensaver lock-enabled false
 ''' + (profile.session_setup(prefix) if native_ubuntu else profile.session_setup() if ubuntu else '') + '''
-printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
-''' + (('exec env MUTTER_BACKEND=android MUTTER_ANDROID_GL_MODE=' + args.gl_mode +
-        ' MUTTER_ANDROID_WIDTH=' + size[1] + ' MUTTER_ANDROID_HEIGHT=' + size[2] +
-        ' MUTTER_ANDROID_REFRESH_RATE=' + str(args.refresh_rate) +
-        ' CLUTTER_DRIVER=gles2 TERMUX_ANDROID_ZINK=' + ('0' if args.gl_mode == 'system' else '1') +
-        ((' LD_PRELOAD=' + shlex.quote(str(prefix / 'lib/mutter-16/libmutter-android-system-egl.so') +
-            (':' + host['LD_PRELOAD'] if host.get('LD_PRELOAD') else ''))) if args.gl_mode == 'system' else '') +
-        ' gnome-shell --wayland --no-x11' + (' --mode=' + profile.MODE if native_ubuntu else '') + ' --wayland-display=' + shlex.quote(args.wayland_display) + '\n')
-        if android else 'exec gnome-shell --x11 --sm-disable --mode=' + ('ubuntu' if ubuntu else 'user') + '\n'))
+printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '\nexec ' + shlex.join(compositor) + '\n')
     session_bus_args = ['dbus-run-session', '--config-file=' + gw + '/sessionbus.conf']
     if args.service_policy == 'core':
         services = w / 'dbus-services'
@@ -300,45 +332,17 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
     try:
         # The bus is real and private to this App UID. It implements no login,
         # account, authorization, or power management services.
-        if not android and subprocess.run(['xdpyinfo', '-display', args.display], env=host,
-                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5).returncode == 0:
-            raise RuntimeError('X11 display is already in use: ' + args.display)
         (w / 'session.env').unlink(missing_ok=True)
         (w / 'shell.pid').unlink(missing_ok=True)
         (w / 'host-session.env').unlink(missing_ok=True)
         (runtime / 'system-bus').unlink(missing_ok=True)
         (runtime / 'session-bus').unlink(missing_ok=True)
-        if not android:
-            # Host display EGL and the glibc Shell renderer are independent contracts.
-            # llvmpipe presents native AHB via System EGL; Zink imports guest
-            # DRI3 dma-buf through the explicitly selected host Zink renderer.
-            host.update(XLORIE_GL_MODE=args.x11_display_gl_mode, XLORIE_GLX='1',
-                        TERMUX_RENDER_AHB_RECEIVE=args.x11_display_buffer_mode)
-            if args.x11_display_gl_mode == 'zink':
-                host.update(GALLIUM_DRIVER='zink', MESA_LOADER_DRIVER_OVERRIDE='zink',
-                            VK_DRIVER_FILES=str(host_icd))
-            x11dir = prefix / 'tmp/.X11-unix'
-            if x11dir.is_symlink():
-                x11dir.unlink()
-            x11dir.mkdir(parents=True, exist_ok=True)
-            x11dir.chmod(0o1777)
-            (x11dir / 'X0').unlink(missing_ok=True)
-            (prefix / 'tmp/.X0-lock').unlink(missing_ok=True)
-        x11 = None if android else start('x11', ['Xlorie', args.display, '-noreset',
-            '-screen', '0', args.size + 'x24', '-framerate', str(args.refresh_rate),
-            '-render-socket', str(args.render_socket), '-xkbdir', str(prefix / 'share/X11/xkb')], host)
         bus = start('systembus', base + ['dbus-daemon', '--config-file=' + gw + '/systembus.conf',
                     '--nofork', '--nopidfile'], guest)
         deadline = time.monotonic() + 30
         while not (runtime / 'system-bus').exists():
-            if bus.poll() is not None or (x11 is not None and x11.poll() is not None) or time.monotonic() > deadline:
-                raise RuntimeError('X11/system D-Bus startup failed; inspect work logs')
-            time.sleep(.1)
-        deadline = time.monotonic() + 30
-        while not android and subprocess.run(['xdpyinfo', '-display', args.display], env=host,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5).returncode != 0:
-            if x11.poll() is not None or time.monotonic() > deadline:
-                raise RuntimeError('X11 display did not become ready')
+            if bus.poll() is not None or time.monotonic() > deadline:
+                raise RuntimeError('Private system D-Bus startup failed; inspect work logs')
             time.sleep(.1)
         session = start('session', base + session_bus_args + ['--', '/bin/sh' if args.rootfs else str(prefix / 'bin/sh'), gw + '/session.sh'], guest)
         deadline = time.monotonic() + 30
@@ -394,10 +398,6 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
                 if optional[-1][1].poll() is not None or time.monotonic() > deadline:
                     raise RuntimeError('USB storage did not become ready in this desktop session')
                 time.sleep(.1)
-        if ubuntu and not native_ubuntu:
-            settings = start('xsettings', base + ['/bin/sh', '-c',
-                '. ' + shlex.quote(gw + '/session.env') + '; exec /usr/libexec/gsd-xsettings'], guest)
-            optional.append(('Ubuntu XSettings', settings))
         if android:
             deadline = time.monotonic() + 30
             while not (runtime / args.wayland_display).is_socket():
@@ -426,7 +426,7 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
                     if result.returncode == 0 and re.search(
                             r"'state': <(?:uint32 |double )?1(?:\.0)?>", result.stdout):
                         break
-                    # GNOME 48 sets ERROR provisionally while awaiting module import.
+                    # Shell may set ERROR provisionally while awaiting module import.
                     # An empty error during that interval is not a completed failure.
                     if (re.search(r"'state': <(?:uint32 |double )?3(?:\.0)?>", result.stdout)
                             and not re.search(r"'error': <''>", result.stdout)):
@@ -434,7 +434,7 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
                     if not shell_alive() or session.poll() is not None or time.monotonic() > deadline:
                         raise RuntimeError('Ubuntu extension did not become active: ' + uuid + '\n' + result.stdout[-2000:])
                     time.sleep(.5)
-            for name in (('com.rastersoft.ding',) if native_ubuntu else ('com.rastersoft.ding', 'org.gnome.SettingsDaemon.XSettings')):
+            for name in ('com.rastersoft.ding',):
                 command = base + [session_sh, '-c', '. ' + shlex.quote(gw + '/session.env') +
                     '; exec gdbus call --session --dest org.freedesktop.DBus '
                     '--object-path /org/freedesktop/DBus '
@@ -445,13 +445,18 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
                         stderr=subprocess.STDOUT, text=True, timeout=5)
                     if result.returncode == 0 and result.stdout.strip() == '(true,)':
                         break
-                    if not shell_alive() or session.poll() is not None or (not native_ubuntu and settings.poll() is not None) or time.monotonic() > deadline:
+                    if not shell_alive() or session.poll() is not None or time.monotonic() > deadline:
                         raise RuntimeError('Ubuntu desktop service did not become ready: ' + name + '\n' + result.stdout[-2000:])
                     time.sleep(.5)
         if any(process.poll() is not None for _, process in optional):
             raise RuntimeError('A requested desktop service terminated before GNOME was ready')
         if not shell_alive():
             raise RuntimeError('Direct GNOME Shell exited before it became ready')
+        deadline = time.monotonic() + 30
+        while 'Android first frame submitted' not in (w / 'session.log').read_text(errors='replace'):
+            if not shell_alive() or session.poll() is not None or time.monotonic() > deadline:
+                raise RuntimeError('GNOME did not submit an Android GPU frame; inspect session.log')
+            time.sleep(.1)
         temporary = args.ready_file.with_name(args.ready_file.name + '.' + str(os.getpid()) + '.tmp')
         temporary.write_text(str(os.getpid()) + '\n')
         temporary.replace(args.ready_file)
@@ -459,7 +464,7 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '''
         while session.poll() is None:
             if not shell_alive():
                 return session.wait(timeout=5)
-            if bus.poll() is not None or (x11 is not None and x11.poll() is not None):
+            if bus.poll() is not None:
                 raise RuntimeError('Display/system D-Bus terminated')
             for name, process in optional:
                 if process.poll() is not None:

@@ -100,12 +100,6 @@ if [ "$DESKTOP_DE" = gnome ]; then
         native:system:android:system)
             [ "$DESKTOP_REFRESH_RATE" = 60 ] || { log 'Native GNOME requires 60Hz'; exit 64; }
             [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" ] || { log 'Native GNOME does not use X11 display parameters'; exit 64; } ;;
-        proot:llvmpipe:x11:llvmpipe)
-            [ "${DESKTOP_CONTAINER_CODENAME:-}" = trixie ] || exit 64
-            [ "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}:${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" = system:native ] || { log 'Container GNOME llvmpipe requires explicit host system/native'; exit 64; } ;;
-        proot:zink:x11:zink)
-            [ "${DESKTOP_CONTAINER_CODENAME:-}" = trixie ] || exit 64
-            [ "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}:${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" = zink:dmabuf ] || { log 'Container GNOME Zink requires explicit host zink/dmabuf'; exit 64; } ;;
         *) log 'Unsupported explicit GNOME backend/renderer combination'; exit 64 ;;
     esac
 fi
@@ -332,11 +326,11 @@ ensure_container_instance() { # alias source
 # on the host, where curl honours ~/.curlrc and https_proxy.
 TURNIP_REPO="lfdevs/mesa-for-android-container"
 TURNIP_RELEASE_TAG="mesa-27.0.0-devel-20261025"
-GNOME_TURNIP_ARTIFACT="mesa-for-android-container_27.0.0-devel-20261025_debian_trixie_arm64.tar.gz b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687"
-ensure_trixie_turnip_icd() { # alias [backup directory]; never infer a driver from file presence
+RESOLUTE_TURNIP_ARTIFACT="mesa-for-android-container_27.0.0-devel-20261025_ubuntu_resolute_arm64.tar.gz 51aa11a8e7bc8c98bc9e852b260ee2dac99392b4ee8658182e4837c309818faf"
+ensure_resolute_turnip_icd() { # alias [backup directory]; never infer a driver from file presence
     mesa_backup_dir="${2:-}"
     rootfs="$PREFIX/var/lib/proot-distro/containers/$1/rootfs"
-    archive=$(fetch_debs "$TURNIP_RELEASE_TAG" "https://github.com/$TURNIP_REPO/releases/download/$TURNIP_RELEASE_TAG" "$GNOME_TURNIP_ARTIFACT") || fail 'downloading verified GNOME Zink Mesa/Turnip'
+    archive=$(fetch_debs "$TURNIP_RELEASE_TAG" "https://github.com/$TURNIP_REPO/releases/download/$TURNIP_RELEASE_TAG" "$RESOLUTE_TURNIP_ARTIFACT") || fail 'downloading verified GNOME Zink Mesa/Turnip'
     set -- $archive
     [ "$#" -eq 1 ] || fail 'expected one verified Mesa artifact'
     if [ -n "$mesa_backup_dir" ]; then
@@ -351,7 +345,7 @@ ensure_trixie_turnip_icd() { # alias [backup directory]; never infer a driver fr
         fi
     fi
     run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_install_mesa.py" \
-        --archive "$1" --rootfs "$rootfs" --codename trixie --gl-mode zink || fail 'installing verified trixie Zink Mesa/Turnip'
+        --archive "$1" --rootfs "$rootfs" --codename resolute --gl-mode zink || fail 'installing verified Resolute Zink Mesa/Turnip'
     run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh -eu -c '
         for library in /usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so /usr/lib/aarch64-linux-gnu/libgallium-27.0.0-devel.so /usr/lib/aarch64-linux-gnu/libGLX_mesa.so.0; do
             dependencies=$(ldd "$library")
@@ -364,7 +358,7 @@ ensure_trixie_turnip_icd() { # alias [backup directory]; never infer a driver fr
 }
 
 ensure_gnome_turnip_icd() {
-    ensure_trixie_turnip_icd "$1"
+    ensure_resolute_turnip_icd "$1"
 }
 
 ensure_turnip_icd() { # alias
@@ -666,10 +660,12 @@ if [ "$DESKTOP_DE" = hyprland ]; then
         exit 0
     fi
     if [ "$DESKTOP_MODE" = proot ]; then
-        ensure_container_instance "$DESKTOP_PROOT_DISTRO" debian:trixie
+        ensure_container_instance "$DESKTOP_PROOT_DISTRO" ubuntu:resolute
         rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
         [ -f "$rootfs/etc/os-release" ] || fail 'Hyprland container missing'
-        grep -q '^VERSION_CODENAME=trixie$' "$rootfs/etc/os-release" || fail 'Hyprland clients require Debian trixie'
+        [ "$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" | tr -d '"')":"$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" | tr -d '"')" = ubuntu:resolute ] || fail 'Hyprland clients require Ubuntu Resolute'
+        . "$(dirname "$0")/desktop_container_apt_sources.sh" || fail 'loading container HTTPS setup'
+        bootstrap_ubuntu_ca_certificates "$rootfs" "$PREFIX/etc/tls/cert.pem" || fail 'initializing Hyprland container HTTPS trust'
         de_marker="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-hyprland"
         rm -f "$de_marker" "$de_marker-zink" || fail 'resetting Hyprland client install marker'
         for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
@@ -677,13 +673,13 @@ if [ "$DESKTOP_DE" = hyprland ]; then
         done
         zink_packages=''
         if [ "$DESKTOP_COMPONENT_RENDERER" = zink ]; then
-            zink_packages='libvulkan1 vulkan-tools libllvm19 libdrm2 libgbm1 libegl1 libgles2 libgl1-mesa-dri libegl-mesa0 libglx-mesa0 mesa-vulkan-drivers python3 python3-gi gir1.2-gtk-3.0 libepoxy0 mesa-utils-bin'
+            zink_packages='libvulkan1 vulkan-tools libllvm21 libdisplay-info3 libsensors5 libdrm2 libgbm1 libegl1 libgles2 libgl1-mesa-dri libegl-mesa0 libglx-mesa0 mesa-vulkan-drivers python3 python3-gi gir1.2-gtk-3.0 libepoxy0 mesa-utils-bin'
         fi
         # shellcheck disable=SC2086
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
             --statx-backend=proc-fdinfo --no-install-recommends xfce4-terminal thunar dbus-x11 adwaita-icon-theme passwd sudo $zink_packages || fail 'Hyprland container clients'
         if [ "$DESKTOP_COMPONENT_RENDERER" = zink ]; then
-            ensure_trixie_turnip_icd "$DESKTOP_PROOT_DISTRO" "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.hyprland-mesa-backup"
+            ensure_resolute_turnip_icd "$DESKTOP_PROOT_DISTRO" "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.hyprland-mesa-backup"
             run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- python3 -I -c \
                 "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk" || fail 'container GPU test dependencies'
         fi
@@ -701,7 +697,7 @@ if [ "$DESKTOP_DE" = hyprland ]; then
     [ -z "$audit" ] || fail "$audit"
     [ "$DESKTOP_MODE" != proot ] || : > "$de_marker" || fail 'writing client installation marker'
     if [ "$DESKTOP_MODE:$DESKTOP_COMPONENT_RENDERER" = proot:zink ]; then
-        printf '%s\n' b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687 > "$de_marker-zink" || fail 'writing experimental Zink identity'
+        printf '%s\n' 51aa11a8e7bc8c98bc9e852b260ee2dac99392b4ee8658182e4837c309818faf > "$de_marker-zink" || fail 'writing experimental Zink identity'
     fi
     log 'Hyprland candidate installed. Runtime and input await manual device validation.'
     INSTALL_DONE=1
@@ -790,19 +786,11 @@ else
         [ "$DESKTOP_HOST_GL_MODE" != zink ] || host_packages="$host_packages mesa mesa-vulkan-icd-freedreno vulkan-loader"
     fi
     run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS $host_packages || fail "apt install"
-    # Plasma clients use Ubuntu 26.04; the compositor stays on the native host.
-    case "$DESKTOP_DE" in
-        kwin_plasma) default_base="ubuntu:resolute" ;;
-        ubuntu_gnome) default_base="ubuntu:noble" ;;
-        *) default_base="debian:trixie" ;;
-    esac
+    # Every retained container profile uses the same explicitly selected LTS base.
+    default_base="ubuntu:resolute"
     ensure_container_instance "$DESKTOP_PROOT_DISTRO" "${DESKTOP_CONTAINER_BASE:-$default_base}"
     rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
-    case "$DESKTOP_DE" in
-        kwin_plasma) expected_distribution=ubuntu:resolute ;;
-        ubuntu_gnome) expected_distribution=ubuntu:noble ;;
-        *) expected_distribution=debian:trixie ;;
-    esac
+    expected_distribution=ubuntu:resolute
     [ "${DESKTOP_CONTAINER_BASE:-$default_base}" = "$expected_distribution" ] || fail "desktop base must be $expected_distribution"
     codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" | tr -d '\"')
     distro_id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" | tr -d '\"')
@@ -817,9 +805,9 @@ else
     rm -f "$de_marker" || fail 'resetting the container install marker'
     case "$DESKTOP_DE" in
         xfce4) container_packages="xfce4 xfce4-terminal dbus-x11" ;;
-        ubuntu_gnome) container_packages="ubuntu-session ubuntu-settings gjs mesa-utils-bin gnome-shell gnome-settings-daemon nautilus gvfs-backends dbus-x11 libgl1-mesa-dri mesa-utils gnome-terminal gnome-text-editor gnome-control-center gnome-calculator gnome-clocks eog ubuntu-wallpapers ubuntu-wallpapers-noble fonts-ubuntu yaru-theme-gtk yaru-theme-icon yaru-theme-sound yaru-theme-gnome-shell gnome-shell-extension-ubuntu-dock gnome-shell-extension-appindicator gnome-shell-extension-desktop-icons-ng gnome-shell-extension-ubuntu-tiling-assistant" ;;
+        ubuntu_gnome) container_packages="ubuntu-session ubuntu-settings gjs mesa-utils-bin gnome-shell gnome-settings-daemon nautilus gvfs-backends dbus-x11 libgl1-mesa-dri mesa-utils gnome-terminal gnome-text-editor gnome-control-center gnome-calculator gnome-clocks eog ubuntu-wallpapers ubuntu-wallpapers-resolute fonts-ubuntu yaru-theme-gtk yaru-theme-icon yaru-theme-sound yaru-theme-gnome-shell gnome-shell-ubuntu-extensions" ;;
         gnome) container_packages="gjs mesa-utils-bin gnome-shell gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils"
-            [ "$DESKTOP_COMPONENT_RENDERER" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm19 libdrm2"
+            [ "$DESKTOP_COMPONENT_RENDERER" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm21 libdrm2"
             ;;
         *) container_packages="kubuntu-settings-desktop python3 qt6-wayland mesa-utils-bin plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit appstream polkitd python3-gi gir1.2-polkit-1.0 kdialog libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2"
            [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || container_packages="$container_packages libvulkan-dev mesa-vulkan-drivers" ;;

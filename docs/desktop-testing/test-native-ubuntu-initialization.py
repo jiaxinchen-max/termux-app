@@ -127,7 +127,7 @@ class InitializationTest(unittest.TestCase):
         self.assertEqual(result.returncode, 65)
         self.assertIn('corrupt or missing', result.stderr)
 
-    def test_native_launch_reaches_execution_without_theme_preflight(self):
+    def test_native_launch_checks_runtime_version_without_theme_validation(self):
         # Run the real launcher with no theme, initialization marker or apps.
         # Stop at process creation: this proves the launch boundary, not a desktop.
         driver = r'''
@@ -141,14 +141,16 @@ for name in ('ca.desrt.dconf','org.gtk.vfs.Daemon','org.gnome.Nautilus','org.gno
 render=socket.socket(socket.AF_UNIX);render.bind(str(base/'render.sock'))
 os.environ.update(PREFIX=str(prefix),HOME=str(home),PULSE_SERVER='tcp:127.0.0.1:4713')
 class ReachedExecution(Exception):pass
-def no_probe(*args,**kwargs):raise AssertionError('startup dependency preflight: '+repr(args))
+def runtime_version(command,**kwargs):
+ assert command==[str(prefix/'bin/gnome-shell'),'--version'],command
+ return subprocess.CompletedProcess(command,0,stdout='GNOME Shell 50.1\n',stderr='')
 def spawn(command,**kwargs):
  assert command[0]=='dbus-daemon',command
  raise ReachedExecution()
-subprocess.run=no_probe;subprocess.Popen=spawn
+subprocess.run=runtime_version;subprocess.Popen=spawn
 sys.argv=[launcher,'--desktop-id','fixture','--ready-file',str(base/'ready'),'--run-mode','native','--backend','android','--session-profile','native-ubuntu','--session-startup','direct','--gl-mode','system','--size','1280x720','--refresh-rate','60','--render-socket',str(base/'render.sock'),'--wayland-display','wayland-fixture','--usb-storage','off','--work',str(base/'work'),'--display',':0','--service-policy','core']
 try:runpy.run_path(launcher,run_name='__main__')
-except ReachedExecution:print('reached native execution without static preflight')
+except ReachedExecution:print('reached native execution after runtime version check')
 else:raise AssertionError('did not reach process creation')
 '''
         with tempfile.TemporaryDirectory(dir='/tmp') as directory:

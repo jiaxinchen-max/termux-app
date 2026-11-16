@@ -8,10 +8,11 @@
 #include "backends/meta-renderer-view.h"
 #include "backends/meta-color-manager-private.h"
 #include "backends/meta-color-device.h"
-#include "backends/meta-monitor-manager-dummy.h"
-#include "backends/meta-input-settings-dummy.h"
+#include "backends/android/meta-monitor-manager-android.h"
+#include "backends/android/meta-input-settings-android.h"
 #include "backends/meta-cursor-renderer.h"
-#include "backends/meta-cursor.h"
+#include "backends/android/meta-clutter-backend-android.h"
+#include "backends/meta-keymap-description-private.h"
 #include "backends/meta-stage-private.h"
 #include "backends/meta-stage-impl-private.h"
 #include "clutter/clutter-mutter.h"
@@ -20,7 +21,7 @@
 #include "cogl/cogl-context-private.h"
 #include "cogl/cogl-renderer-private.h"
 #include "cogl/cogl-display-private.h"
-#include "cogl/winsys/cogl-winsys-egl-private.h"
+#include "cogl/winsys/cogl-winsys-egl.h"
 #include "core/meta-context-private.h"
 #include <glib-unix.h>
 #include <termux/render/render.h>
@@ -40,7 +41,8 @@ struct _MetaBackendAndroid {
   gboolean system;
   LorieBuffer *buffer;
   struct lorie_shared_server_state *state;
-  MetaCursorRenderer *cursor;
+  GHashTable *cursors;
+  gboolean first_frame;
   MetaInputSettings *settings;
   guint input_source;
   GByteArray *input;
@@ -59,7 +61,8 @@ static void android_keymap_init (AndroidKeymap *keymap) { }
 
 typedef struct {
   ClutterSeat parent;
-  ClutterInputDevice *pointer, *keyboard, *touch, *pointer_source, *keyboard_source;
+  ClutterInputDevice *touch, *pointer_source, *keyboard_source;
+  MetaKeymapDescription *description;
   ClutterKeymap *keymap;
   struct xkb_context *xkb_context;
   struct xkb_keymap *xkb_keymap;
@@ -72,8 +75,6 @@ typedef struct {
 typedef ClutterSeatClass AndroidSeatClass;
 static GType android_seat_get_type(void);
 G_DEFINE_TYPE (AndroidSeat, android_seat, CLUTTER_TYPE_SEAT)
-static ClutterInputDevice *seat_pointer (ClutterSeat *seat) { return ((AndroidSeat *)seat)->pointer; }
-static ClutterInputDevice *seat_keyboard (ClutterSeat *seat) { return ((AndroidSeat *)seat)->keyboard; }
 static ClutterKeymap *seat_keymap (ClutterSeat *seat) { return ((AndroidSeat *)seat)->keymap; }
 static const GList *seat_devices (ClutterSeat *seat) { return ((AndroidSeat *)seat)->devices; }
 static gboolean seat_handle_post (ClutterSeat *seat, const ClutterEvent *event) { return TRUE; }
@@ -81,8 +82,8 @@ static void seat_bell (ClutterSeat *seat) { }
 static ClutterModifierType seat_mods (AndroidSeat *s) {
   return s->buttons | xkb_state_serialize_mods (s->xkb_state, XKB_STATE_MODS_EFFECTIVE);
 }
-static gboolean seat_query (ClutterSeat *seat, ClutterInputDevice *device,
-                            ClutterEventSequence *sequence, graphene_point_t *coords,
+static gboolean seat_query (ClutterSeat *seat, ClutterSprite *sprite,
+                            graphene_point_t *coords,
                             ClutterModifierType *mods) {
   AndroidSeat *s = (AndroidSeat *)seat;
   if(coords)*coords = s->pos; if(mods)*mods = seat_mods (s); return TRUE;
@@ -101,6 +102,8 @@ static void seat_set_xkb (AndroidSeat *s, const char *layouts, const char *varia
   if (s->xkb_state) xkb_state_unref(s->xkb_state);
   if (s->xkb_keymap) xkb_keymap_unref(s->xkb_keymap);
   s->xkb_keymap=map; s->xkb_state=state;
+  g_clear_pointer(&s->description, meta_keymap_description_unref);
+  s->description=meta_keymap_description_new_from_rules(names.model,names.layout,names.variant,names.options,NULL,NULL);
   g_signal_emit_by_name(s->keymap,"state-changed");
 }
 static void seat_constructed (GObject *object) {
@@ -109,18 +112,12 @@ static void seat_constructed (GObject *object) {
   s->keymap=g_object_new(android_keymap_get_type(),NULL);
   s->xkb_context=xkb_context_new(XKB_CONTEXT_NO_FLAGS);
   seat_set_xkb(s,"us",NULL,NULL,NULL);
-  s->pointer=g_object_new(CLUTTER_TYPE_INPUT_DEVICE,"name","Android pointer","seat",s,
-    "capabilities",CLUTTER_INPUT_CAPABILITY_POINTER,"device-type",CLUTTER_POINTER_DEVICE,"device-mode",CLUTTER_INPUT_MODE_LOGICAL,"has-cursor",TRUE,NULL);
-  s->keyboard=g_object_new(CLUTTER_TYPE_INPUT_DEVICE,"name","Android keyboard","seat",s,
-    "capabilities",CLUTTER_INPUT_CAPABILITY_KEYBOARD,"device-type",CLUTTER_KEYBOARD_DEVICE,"device-mode",CLUTTER_INPUT_MODE_LOGICAL,NULL);
   s->touch=g_object_new(CLUTTER_TYPE_INPUT_DEVICE,"name","Android touchscreen","seat",s,
-    "capabilities",CLUTTER_INPUT_CAPABILITY_TOUCH,"device-type",CLUTTER_TOUCHSCREEN_DEVICE,"device-mode",CLUTTER_INPUT_MODE_PHYSICAL,NULL);
+    "capabilities",CLUTTER_INPUT_CAPABILITY_TOUCH,"device-type",CLUTTER_TOUCHSCREEN_DEVICE,NULL);
   s->pointer_source=g_object_new(CLUTTER_TYPE_INPUT_DEVICE,"name","Android mouse source","seat",s,
-    "capabilities",CLUTTER_INPUT_CAPABILITY_POINTER,"device-type",CLUTTER_POINTER_DEVICE,
-    "device-mode",CLUTTER_INPUT_MODE_PHYSICAL,"has-cursor",TRUE,NULL);
+    "capabilities",CLUTTER_INPUT_CAPABILITY_POINTER,"device-type",CLUTTER_POINTER_DEVICE,NULL);
   s->keyboard_source=g_object_new(CLUTTER_TYPE_INPUT_DEVICE,"name","Android keyboard source","seat",s,
-    "capabilities",CLUTTER_INPUT_CAPABILITY_KEYBOARD,"device-type",CLUTTER_KEYBOARD_DEVICE,
-    "device-mode",CLUTTER_INPUT_MODE_PHYSICAL,NULL);
+    "capabilities",CLUTTER_INPUT_CAPABILITY_KEYBOARD,"device-type",CLUTTER_KEYBOARD_DEVICE,NULL);
   s->devices=g_list_append(s->devices,s->pointer_source);
   s->devices=g_list_append(s->devices,s->keyboard_source);
   s->devices=g_list_append(s->devices,s->touch);
@@ -128,7 +125,8 @@ static void seat_constructed (GObject *object) {
 }
 static void seat_dispose (GObject *object) {
   AndroidSeat *s=(AndroidSeat *)object;
-  g_clear_object(&s->pointer);g_clear_object(&s->keyboard);g_clear_object(&s->touch);
+  g_clear_object(&s->touch);
+  g_clear_pointer(&s->description,meta_keymap_description_unref);
   g_clear_object(&s->pointer_source);g_clear_object(&s->keyboard_source);
   g_clear_object(&s->keymap);g_clear_pointer(&s->devices,g_list_free);
   g_clear_pointer(&s->touches,g_hash_table_unref);
@@ -137,30 +135,39 @@ static void seat_dispose (GObject *object) {
   g_clear_pointer(&s->xkb_context,xkb_context_unref);
   G_OBJECT_CLASS(android_seat_parent_class)->dispose(object);
 }
+static ClutterInputDevice *seat_virtual_pointer(ClutterSeat *seat) { return ((AndroidSeat *)seat)->pointer_source; }
 static void android_seat_class_init (AndroidSeatClass *klass) {
   GObjectClass *oc=G_OBJECT_CLASS(klass);oc->constructed=seat_constructed;oc->dispose=seat_dispose;
-  klass->get_pointer=seat_pointer;klass->get_keyboard=seat_keyboard;klass->get_keymap=seat_keymap;
+  klass->get_keymap=seat_keymap;
+  klass->get_virtual_source_pointer=seat_virtual_pointer;
   klass->peek_devices=seat_devices;klass->bell_notify=seat_bell;klass->handle_event_post=seat_handle_post;
   klass->warp_pointer=seat_warp;klass->init_pointer_position=seat_position;klass->query_state=seat_query;
   klass->get_supported_virtual_device_types=seat_virtual_types;
 }
 static void android_seat_init (AndroidSeat *seat) { }
 
-/* Custom Cogl EGL winsys, independent of the X11 and DRM platform paths. */
-static gboolean egl_display_setup (CoglDisplay *display,GError **error) { return TRUE; }
-static void egl_display_destroy (CoglDisplay *display) { }
-static int egl_attributes (CoglDisplay *display,EGLint *a) {
-  a[0]=EGL_SURFACE_TYPE;a[1]=EGL_PBUFFER_BIT;return 2;
+/* Mutter 50 models EGL window systems as GObjects. Keep the Android
+ * implementation independent of KMS/GBM and reuse Cogl's context lifecycle. */
+typedef struct { CoglWinsysEGL parent; gboolean system; } AndroidWinsys;
+typedef CoglWinsysEGLClass AndroidWinsysClass;
+static GType android_winsys_get_type(void);
+G_DEFINE_TYPE(AndroidWinsys,android_winsys,COGL_TYPE_WINSYS_EGL)
+
+static int egl_attributes(CoglWinsysEGL *winsys,CoglDisplay *display,EGLint *attrs) {
+  attrs[0]=EGL_SURFACE_TYPE;attrs[1]=EGL_PBUFFER_BIT;return 2;
 }
-static gboolean egl_choose_config(CoglDisplay *display,EGLint *attrs,EGLConfig *config,GError **error) {
-  CoglRendererEGL *r=display->renderer->winsys;EGLint count=0;
+static gboolean egl_choose_config(CoglWinsysEGL *winsys,CoglDisplay *display,
+                                  EGLint *attrs,EGLConfig *config,GError **error) {
+  CoglRendererEGL *r=cogl_renderer_get_winsys_data(display->renderer);
+  EGLint count=0;
   if(!eglChooseConfig(r->edpy,attrs,config,1,&count) || count!=1) {
     g_set_error(error,G_IO_ERROR,G_IO_ERROR_FAILED,"Android EGL config unavailable: 0x%x",eglGetError());return FALSE;
   }
   return TRUE;
 }
-static gboolean egl_context_created (CoglDisplay *display,GError **error) {
-  CoglRendererEGL *r=display->renderer->winsys;CoglDisplayEGL *d=display->winsys;
+static gboolean egl_context_created(CoglWinsysEGL *winsys,CoglDisplay *display,GError **error) {
+  CoglRendererEGL *r=cogl_renderer_get_winsys_data(display->renderer);
+  CoglDisplayEGL *d=display->winsys;
   const EGLint attrs[]={EGL_WIDTH,1,EGL_HEIGHT,1,EGL_NONE};
   d->dummy_surface=eglCreatePbufferSurface(r->edpy,d->egl_config,attrs);
   if(d->dummy_surface==EGL_NO_SURFACE || !_cogl_winsys_egl_make_current(display,
@@ -170,57 +177,52 @@ static gboolean egl_context_created (CoglDisplay *display,GError **error) {
   }
   return TRUE;
 }
-static void egl_context_cleanup (CoglDisplay *display) {
-  CoglRendererEGL *r=display->renderer->winsys;CoglDisplayEGL *d=display->winsys;
-  if(d->dummy_surface!=EGL_NO_SURFACE) eglDestroySurface(r->edpy,d->dummy_surface);
+static void egl_context_cleanup(CoglWinsysEGL *winsys,CoglDisplay *display) {
+  CoglRendererEGL *r=cogl_renderer_get_winsys_data(display->renderer);
+  CoglDisplayEGL *d=display->winsys;
+  if(d->dummy_surface!=EGL_NO_SURFACE)eglDestroySurface(r->edpy,d->dummy_surface);
   d->dummy_surface=EGL_NO_SURFACE;
 }
-static gboolean egl_context_init (CoglContext *context,GError **error) { return TRUE; }
-static const CoglWinsysEGLVtable android_egl={
-  .display_setup=egl_display_setup,.display_destroy=egl_display_destroy,
-  .context_created=egl_context_created,.cleanup_context=egl_context_cleanup,
-  .context_init=egl_context_init,.add_config_attributes=egl_attributes,.choose_config=egl_choose_config
-};
-static void renderer_disconnect (CoglRenderer *renderer) {
-  CoglRendererEGL *r=renderer->winsys;
-  if(r){eglTerminate(r->edpy);g_free(r);renderer->winsys=NULL;}
+static void renderer_data_free(gpointer data) {
+  CoglRendererEGL *r=data;
+  if(r->edpy!=EGL_NO_DISPLAY)eglTerminate(r->edpy);
+  g_free(r);
 }
-static gboolean renderer_connect (CoglRenderer *renderer,GError **error) {
-  if(renderer->driver_id!=COGL_DRIVER_ID_GLES2) {
-    g_set_error(error,G_IO_ERROR,G_IO_ERROR_NOT_SUPPORTED,"Android backend requires the Cogl GLES2 driver");return FALSE;
-  }
-  MetaBackendAndroid *a=META_BACKEND_ANDROID(meta_renderer_get_backend(renderer->custom_winsys_user_data));
-  CoglRendererEGL *r=g_new0(CoglRendererEGL,1);renderer->winsys=r;
-  r->platform_vtable=&android_egl;r->needs_config=TRUE;
-  if(a->system) r->edpy=eglGetDisplay(EGL_DEFAULT_DISPLAY);
+static gboolean renderer_connect(CoglWinsys *winsys,CoglRenderer *renderer,GError **error) {
+  AndroidWinsys *android=(AndroidWinsys *)winsys;
+  CoglRendererEGL *r=g_new0(CoglRendererEGL,1);
+  r->needs_config=TRUE;
+  if(android->system)r->edpy=eglGetDisplay(EGL_DEFAULT_DISPLAY);
   else {
     PFNEGLGETPLATFORMDISPLAYEXTPROC get=(void *)eglGetProcAddress("eglGetPlatformDisplayEXT");
-    r->edpy=get ? get(EGL_PLATFORM_SURFACELESS_MESA,EGL_DEFAULT_DISPLAY,NULL) : EGL_NO_DISPLAY;
+    r->edpy=get?get(EGL_PLATFORM_SURFACELESS_MESA,EGL_DEFAULT_DISPLAY,NULL):EGL_NO_DISPLAY;
   }
-  if(r->edpy==EGL_NO_DISPLAY || !_cogl_winsys_egl_renderer_connect_common(renderer,error)) {
-    if(error && !*error)g_set_error(error,G_IO_ERROR,G_IO_ERROR_FAILED,"Android EGL display unavailable");
-    renderer_disconnect(renderer);return FALSE;
+  cogl_renderer_set_winsys_data(renderer,r,renderer_data_free);
+  if(r->edpy==EGL_NO_DISPLAY) {
+    g_set_error(error,G_IO_ERROR,G_IO_ERROR_FAILED,"Android EGL display unavailable");return FALSE;
   }
-  return TRUE;
+  return COGL_WINSYS_CLASS(android_winsys_parent_class)->renderer_connect(winsys,renderer,error);
 }
-static const CoglWinsysVtable *android_winsys (CoglRenderer *renderer) {
-  static CoglWinsysVtable v;static gsize once;
-  if(g_once_init_enter(&once)) {
-    v=*_cogl_winsys_egl_get_vtable();v.id=COGL_WINSYS_ID_CUSTOM;v.name="EGL_ANDROID";
-    v.renderer_connect=renderer_connect;v.renderer_disconnect=renderer_disconnect;
-    g_once_init_leave(&once,1);
-  }
-  return &v;
+static void android_winsys_class_init(AndroidWinsysClass *klass) {
+  COGL_WINSYS_CLASS(klass)->renderer_connect=renderer_connect;
+  klass->context_created=egl_context_created;klass->cleanup_context=egl_context_cleanup;
+  klass->add_config_attributes=egl_attributes;klass->choose_config=egl_choose_config;
 }
+static void android_winsys_init(AndroidWinsys *winsys) { }
 
 typedef struct { MetaRenderer parent; EGLImageKHR image; } AndroidRenderer;
 typedef MetaRendererClass AndroidRendererClass;
 static GType android_renderer_get_type(void);
 G_DEFINE_TYPE(AndroidRenderer,android_renderer,META_TYPE_RENDERER)
-static CoglRenderer *android_create_cogl (MetaRenderer *renderer) {
+static CoglRenderer *android_create_cogl(MetaRenderer *renderer) {
+  MetaBackendAndroid *a=META_BACKEND_ANDROID(meta_renderer_get_backend(renderer));
   CoglRenderer *r=cogl_renderer_new();
+  AndroidWinsys *winsys=g_object_new(android_winsys_get_type(),"name","EGL_ANDROID",NULL);
+  winsys->system=a->system;
   cogl_renderer_set_driver(r,COGL_DRIVER_ID_GLES2);
-  cogl_renderer_set_custom_winsys(r,android_winsys,renderer);return r;
+  cogl_renderer_set_custom_winsys(r,COGL_WINSYS(winsys));
+  /* Cogl takes ownership of the winsys reference. */
+  return r;
 }
 static EGLImageKHR import_output (MetaBackendAndroid *a,EGLDisplay dpy,GError **error) {
   const LorieBuffer_Desc *desc=LorieBuffer_description(a->buffer);
@@ -320,6 +322,7 @@ static void stage_redraw(ClutterStageWindow *stage,ClutterStageView *view,Clutte
   cogl_framebuffer_finish(output_fb);
   if(!clutter_frame_has_result(frame))clutter_frame_set_result(frame,CLUTTER_FRAME_RESULT_PENDING_PRESENTED);
   a->state->waitForNextFrame=FALSE;a->state->drawRequested=1;
+  if(!a->first_frame){a->first_frame=TRUE;g_message("Android first frame submitted: GPU output, CPU readback=off");}
   if(rendererCond)pthread_cond_signal(rendererCond);
   lorie_mutex_unlock(&a->state->lock,&a->state->lockingPid);
   /* Upstream offscreen views schedule their completion via an idle source.
@@ -332,36 +335,13 @@ static void android_stage_class_init(AndroidStageClass *klass) {
 }
 static void android_stage_init(AndroidStage *stage) { }
 
-typedef struct { ClutterBackend parent; MetaBackend *backend; } AndroidClutter;
-typedef ClutterBackendClass AndroidClutterClass;
-static GType android_clutter_get_type(void);
-G_DEFINE_TYPE(AndroidClutter,android_clutter,CLUTTER_TYPE_BACKEND)
-static CoglRenderer *clutter_renderer(ClutterBackend *c,GError **error) {
-  return meta_renderer_create_cogl_renderer(meta_backend_get_renderer(((AndroidClutter *)c)->backend));
+ClutterStageWindow *meta_backend_android_create_stage_window(MetaBackend *backend,ClutterStage *wrapper) {
+  return g_object_new(android_stage_get_type(),"backend",backend,"wrapper",wrapper,NULL);
 }
-static ClutterStageWindow *clutter_stage(ClutterBackend *c,ClutterStage *wrapper,GError **error) {
-  return g_object_new(android_stage_get_type(),"backend",((AndroidClutter *)c)->backend,"wrapper",wrapper,NULL);
+void meta_backend_android_remove_cursor_renderer(MetaBackend *backend,ClutterSprite *sprite) {
+  MetaBackendAndroid *a=META_BACKEND_ANDROID(backend);
+  if(a->cursors)g_hash_table_remove(a->cursors,sprite);
 }
-static ClutterSeat *clutter_seat(ClutterBackend *c) { return meta_backend_get_default_seat(((AndroidClutter *)c)->backend); }
-static gboolean clutter_display_server(ClutterBackend *c) { return TRUE; }
-static void android_clutter_class_init(AndroidClutterClass *c) {
-  c->get_renderer=clutter_renderer;c->create_stage=clutter_stage;
-  c->get_default_seat=clutter_seat;c->is_display_server=clutter_display_server;
-}
-static void android_clutter_init(AndroidClutter *c) { }
-
-/* Software cursor means the cursor is composited by the same GPU scene. */
-typedef struct { MetaCursorRenderer parent; } AndroidCursor;
-typedef MetaCursorRendererClass AndroidCursorClass;
-static GType android_cursor_get_type(void);
-G_DEFINE_TYPE(AndroidCursor,android_cursor,META_TYPE_CURSOR_RENDERER)
-static gboolean cursor_update(MetaCursorRenderer *r,MetaCursorSprite *sprite) {
-  if(sprite)meta_cursor_sprite_realize_texture(sprite);
-  /* Mutter 48 uses TRUE to enable its software cursor overlay. */
-  return sprite != NULL;
-}
-static void android_cursor_class_init(AndroidCursorClass *c) { c->update_cursor=cursor_update; }
-static void android_cursor_init(AndroidCursor *c) { }
 
 static void push_event(ClutterEvent *event) { if(event)_clutter_event_push(event,FALSE); }
 static void input_key(AndroidSeat *s,unsigned evcode,gboolean down) {
@@ -405,7 +385,7 @@ static void input_event(MetaBackendAndroid *a,const lorieEvent *e) {
       push_event(clutter_event_motion_new(CLUTTER_EVENT_NONE,now,s->pointer_source,NULL,seat_mods(s),s->pos,delta,delta,delta,NULL));
     } else if(e->mouse.detail==4 || e->mouse.detail==5) {
       graphene_point_t delta=GRAPHENE_POINT_INIT(e->mouse.detail==4?e->mouse.x:0,e->mouse.detail==5?e->mouse.y:0);
-      push_event(clutter_event_scroll_smooth_new(CLUTTER_EVENT_NONE,now,s->pointer_source,NULL,seat_mods(s),s->pos,delta,CLUTTER_SCROLL_SOURCE_WHEEL,CLUTTER_SCROLL_FINISHED_NONE));
+      push_event(clutter_event_scroll_smooth_new(CLUTTER_EVENT_NONE,now,s->pointer_source,NULL,seat_mods(s),s->pos,delta,CLUTTER_SCROLL_NONE,CLUTTER_SCROLL_SOURCE_WHEEL,CLUTTER_SCROLL_FINISHED_NONE));
     } else if(e->mouse.detail<=3) {
       unsigned button=e->mouse.detail;uint32_t mask=CLUTTER_BUTTON1_MASK << (button-1);
       if(e->mouse.down)s->buttons|=mask;else s->buttons&=~mask;
@@ -465,21 +445,23 @@ static gboolean backend_init_basic(MetaBackend *backend,GError **error) {
   const LorieBuffer_Desc *desc=LorieBuffer_description(a->buffer);a->width=desc->width;a->height=desc->height;
   a->input_width=a->width;a->input_height=a->height;
   g_autofree char *spec=g_strdup_printf("%dx%d@%d",a->width,a->height,a->refresh);
-  g_setenv("MUTTER_DEBUG_DUMMY_MODE_SPECS",spec,TRUE);
-  MetaGpu *gpu=g_object_new(META_TYPE_GPU_DUMMY,"backend",backend,NULL);meta_backend_add_gpu(backend,gpu);
+  g_setenv("MUTTER_DEBUG_ANDROID_MODE_SPECS",spec,TRUE);
+  MetaGpu *gpu=g_object_new(META_TYPE_GPU_ANDROID,"backend",backend,NULL);meta_backend_add_gpu(backend,gpu);
   return TRUE;
 }
 static gboolean backend_init_render(MetaBackend *backend,GError **error) {
   MetaBackendAndroid *a=META_BACKEND_ANDROID(backend);
   CoglContext *ctx=clutter_backend_get_cogl_context(meta_backend_get_clutter_backend(backend));
-  const char *renderer=(const char *)ctx->glGetString(GL_RENDERER);
+  const GLubyte *(*get_string)(GLenum)=cogl_renderer_get_proc_address(cogl_context_get_renderer(ctx),"glGetString");
+  if(!get_string){g_set_error(error,G_IO_ERROR,G_IO_ERROR_FAILED,"Android GLES glGetString unavailable");return FALSE;}
+  const char *renderer=(const char *)get_string(GL_RENDERER);
   g_autofree char *lower=renderer?g_ascii_strdown(renderer,-1):NULL;
   if(!lower || strstr(lower,"llvmpipe") || strstr(lower,"lavapipe") || strstr(lower,"softpipe") || strstr(lower,"swiftshader") || strstr(lower,"software rasterizer") ||
      (a->system && strstr(lower,"zink")) || (!a->system && !strstr(lower,"zink"))) {
     g_set_error(error,G_IO_ERROR,G_IO_ERROR_FAILED,"Requested Android renderer does not match GL_RENDERER=%s",renderer?renderer:"(null)");return FALSE;
   }
-  g_message("Android GL_VERSION=%s",ctx->glGetString(GL_VERSION));
-  g_message("Android renderer verified: mode=%s, GL_VENDOR=%s, GL_RENDERER=%s",a->system?"system":"zink",ctx->glGetString(GL_VENDOR),renderer);
+  g_message("Android GL_VERSION=%s",get_string(GL_VERSION));
+  g_message("Android renderer verified: mode=%s, GL_VENDOR=%s, GL_RENDERER=%s",a->system?"system":"zink",get_string(GL_VENDOR),renderer);
   return TRUE;
 }
 static gboolean backend_init_post(MetaBackend *backend,GError **error) {
@@ -502,10 +484,19 @@ static gboolean backend_init_post(MetaBackend *backend,GError **error) {
     if(clean->len)g_setenv("LD_PRELOAD",clean->str,TRUE);else g_unsetenv("LD_PRELOAD");
     g_string_free(clean,TRUE);
   }
+  /* EGL is initialized. Restore only the explicitly selected guest application renderer. */
+  const char *client_renderer=g_getenv("MUTTER_ANDROID_CLIENT_RENDERER");
+  if(client_renderer) {
+    if(strcmp(client_renderer,"llvmpipe")) {
+      g_set_error(error,G_IO_ERROR,G_IO_ERROR_INVALID_ARGUMENT,"Unsupported Android client renderer");return FALSE;
+    }
+    g_setenv("LIBGL_ALWAYS_SOFTWARE","1",TRUE);g_setenv("GALLIUM_DRIVER","llvmpipe",TRUE);
+    g_unsetenv("MUTTER_ANDROID_CLIENT_RENDERER");
+  }
   a->input_source=g_unix_fd_add(fd,G_IO_IN|G_IO_HUP|G_IO_ERR,input_ready,a);return TRUE;
 }
 static ClutterBackend *backend_clutter(MetaBackend *backend,ClutterContext *context) {
-  AndroidClutter *c=g_object_new(android_clutter_get_type(),"context",context,NULL);c->backend=backend;return CLUTTER_BACKEND(c);
+  return CLUTTER_BACKEND(meta_clutter_backend_android_new(backend,context));
 }
 static ClutterSeat *backend_seat(MetaBackend *backend,GError **error) {
   AndroidSeat *seat=g_object_new(android_seat_get_type(),"context",meta_backend_get_clutter_context(backend),"name","android",NULL);
@@ -524,16 +515,21 @@ static MetaRenderer *backend_renderer(MetaBackend *backend,GError **error) {
   return g_object_new(android_renderer_get_type(),"backend",backend,NULL);
 }
 static MetaMonitorManager *backend_monitors(MetaBackend *backend,GError **error) {
-  return g_object_new(META_TYPE_MONITOR_MANAGER_DUMMY,"backend",backend,NULL);
+  return g_object_new(META_TYPE_MONITOR_MANAGER_ANDROID,"backend",backend,NULL);
 }
-static MetaCursorRenderer *backend_cursor(MetaBackend *backend,ClutterInputDevice *device) {
+static MetaCursorRenderer *backend_cursor(MetaBackend *backend,ClutterSprite *sprite) {
   MetaBackendAndroid *a=META_BACKEND_ANDROID(backend);
-  if(!a->cursor)a->cursor=g_object_new(android_cursor_get_type(),"backend",backend,"device",device,NULL);
-  return a->cursor;
+  MetaCursorRenderer *cursor=g_hash_table_lookup(a->cursors,sprite);
+  if(!cursor){
+    cursor=meta_cursor_renderer_new(backend);
+    meta_cursor_renderer_set_sprite(cursor,sprite);
+    g_hash_table_insert(a->cursors,sprite,cursor);
+  }
+  return cursor;
 }
 static MetaInputSettings *backend_settings(MetaBackend *backend) {
   MetaBackendAndroid *a=META_BACKEND_ANDROID(backend);
-  if(!a->settings)a->settings=g_object_new(META_TYPE_INPUT_SETTINGS_DUMMY,"backend",backend,NULL);
+  if(!a->settings)a->settings=g_object_new(META_TYPE_INPUT_SETTINGS_ANDROID,"backend",backend,NULL);
   return a->settings;
 }
 static void backend_update_stage(MetaBackend *backend) { meta_stage_rebuild_views(META_STAGE(meta_backend_get_stage(backend))); }
@@ -541,18 +537,32 @@ static MetaBackendCapabilities backend_capabilities(MetaBackend *backend) { retu
 static AndroidSeat *backend_get_seat(MetaBackend *backend) { return (AndroidSeat *)meta_backend_get_default_seat(backend); }
 static struct xkb_keymap *backend_keymap(MetaBackend *backend) { return backend_get_seat(backend)->xkb_keymap; }
 static xkb_layout_index_t backend_layout(MetaBackend *backend) { return xkb_state_serialize_layout(backend_get_seat(backend)->xkb_state,XKB_STATE_LAYOUT_EFFECTIVE); }
-static void backend_set_keymap(MetaBackend *backend,const char *layouts,const char *variants,const char *options,const char *model) {
-  seat_set_xkb(backend_get_seat(backend),layouts,variants,options,model);g_signal_emit_by_name(backend,"keymap-changed");
+static MetaKeymapDescription *backend_description(MetaBackend *backend) {
+  return backend_get_seat(backend)->description;
 }
-static void backend_lock_layout(MetaBackend *backend,guint idx) {
-  AndroidSeat *s=backend_get_seat(backend);xkb_state_update_mask(s->xkb_state,0,0,0,0,0,idx);g_signal_emit_by_name(backend,"keymap-layout-group-changed",idx);
+static void backend_set_keymap_async(MetaBackend *backend,MetaKeymapDescription *description,xkb_layout_index_t index,GTask *task) {
+  AndroidSeat *s=backend_get_seat(backend);
+  GError *error=NULL;
+  struct xkb_keymap *map=meta_keymap_description_create_xkb_keymap(description,NULL,NULL,&error);
+  if(!map){g_task_return_error(task,error);g_object_unref(task);return;}
+  struct xkb_state *state=xkb_state_new(map);
+  if(!state){xkb_keymap_unref(map);g_task_return_new_error(task,G_IO_ERROR,G_IO_ERROR_FAILED,"Cannot create Android keyboard state");g_object_unref(task);return;}
+  xkb_state_update_mask(state,0,0,0,0,0,index);
+  xkb_state_unref(s->xkb_state);xkb_keymap_unref(s->xkb_keymap);
+  s->xkb_keymap=map;s->xkb_state=state;
+  g_clear_pointer(&s->description,meta_keymap_description_unref);
+  s->description=meta_keymap_description_ref(description);
+  g_signal_emit_by_name(s->keymap,"state-changed");
+  meta_backend_notify_keymap_changed(backend);
+  meta_backend_notify_keymap_layout_group_changed(backend,index);
+  g_task_return_boolean(task,TRUE);g_object_unref(task);
 }
 static void backend_pointer_constraint(MetaBackend *backend,MetaPointerConstraint *constraint) {
   if(constraint)g_warning("Android pointer constraints are not implemented");
 }
 static void backend_dispose(GObject *object) {
   MetaBackendAndroid *a=META_BACKEND_ANDROID(object);
-  g_clear_handle_id(&a->input_source,g_source_remove);g_clear_object(&a->cursor);g_clear_object(&a->settings);
+  g_clear_handle_id(&a->input_source,g_source_remove);g_clear_pointer(&a->cursors,g_hash_table_unref);g_clear_object(&a->settings);
   G_OBJECT_CLASS(meta_backend_android_parent_class)->dispose(object);
   if(a->buffer || a->state){stopEventLoop();a->buffer=NULL;a->state=NULL;}
   g_clear_pointer(&a->input,g_byte_array_unref);
@@ -566,12 +576,12 @@ static void meta_backend_android_class_init(MetaBackendAndroidClass *klass) {
   c->create_color_manager=backend_color;c->get_current_logical_monitor=backend_current_monitor;
   c->get_cursor_renderer=backend_cursor;c->get_input_settings=backend_settings;
   c->update_stage=backend_update_stage;c->get_capabilities=backend_capabilities;
-  c->get_keymap=backend_keymap;c->get_keymap_layout_group=backend_layout;
-  c->set_keymap=backend_set_keymap;c->lock_layout_group=backend_lock_layout;
+  c->get_xkb_keymap=backend_keymap;c->get_keymap_description=backend_description;c->get_keymap_layout_group=backend_layout;
+  c->set_keymap_async=backend_set_keymap_async;
   c->set_pointer_constraint=backend_pointer_constraint;
 }
 static void meta_backend_android_init(MetaBackendAndroid *a) {
-  a->width=1280;a->height=800;a->refresh=60;a->input=g_byte_array_new();
+  a->width=1280;a->height=800;a->refresh=60;a->input=g_byte_array_new();a->cursors=g_hash_table_new_full(g_direct_hash,g_direct_equal,NULL,g_object_unref);
   const char *w=g_getenv("MUTTER_ANDROID_WIDTH"),*h=g_getenv("MUTTER_ANDROID_HEIGHT");
   if(w)a->width=CLAMP(atoi(w),320,8192);if(h)a->height=CLAMP(atoi(h),240,8192);
 }

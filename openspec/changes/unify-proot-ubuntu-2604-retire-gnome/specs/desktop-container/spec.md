@@ -23,3 +23,16 @@
 
 ## Requirement: 非破坏性变更
 系统不得自动升级/迁移/删除现存容器或备份。旧发行版在不支持的执行入口提示重建，保持可删除清理。完整图形、授权和支持的设备桥能力经新容器实测后方可宣称通过。
+
+## Requirement: Ubuntu GNOME 原生显示链路
+Ubuntu GNOME 必须复用升级后的 Android 原生 Mutter/GNOME Shell 50 配套组件，通过 System EGL/AHardwareBuffer 与 App 交换画面、输入。不得新增 PipeWire、Devkit、Openbox 或 Xlorie 作为 GNOME 显示中转。
+
+### Scenario: 容器与原生运行时协作
+- 当用户启动 Ubuntu GNOME PRoot 时，在普通用户的容器视图中运行版本匹配的 Bionic Shell/Mutter；应用及会话服务使用 Resolute glibc 程序，保持同一私有会话与文件系统视图。
+- Bionic 和 glibc 程序不得加载对方的共享库或 introspection 类型库。
+- 当运行时缺失、版本不匹配或显示初始化失败时，明确失败，不启动 PipeWire 或软件显示桥伪装成功。
+- Native GNOME 与 Native Ubuntu GNOME 升级到配套 50 系列，保留直接 Android 输出；Native Ubuntu 主题/扩展须匹配新版本。
+
+### Scenario: 就绪与退出
+- 启动成功必须验证真实 Android 输出、Shell 会话及所需扩展；仅有 D-Bus 名称不等于显示成功。
+- 合成器退出时清理本桌面所属进程，不影响其他桌面或删除容器。

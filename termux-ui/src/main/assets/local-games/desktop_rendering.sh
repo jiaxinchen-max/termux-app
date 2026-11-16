@@ -19,8 +19,9 @@ desktop_resolve_rendering() {
         [ -z "${DESKTOP_CONTAINER_BASE:-}${DESKTOP_CONTAINER_CODENAME:-}${DESKTOP_GNOME_DISPLAY_GL_MODE:-}${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" ] || return 64
         [ "${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}:${DESKTOP_GNOME_SESSION_STARTUP:-}" = android:system:direct ] || return 64
     elif [ "${DESKTOP_DE:-}" = ubuntu_gnome ]; then
-        [ "${DESKTOP_CONTAINER_BASE:-}:${DESKTOP_CONTAINER_CODENAME:-}:${DESKTOP_GNOME_SESSION_PROFILE:-}:${DESKTOP_USB_STORAGE:-}" = ubuntu:noble:noble:ubuntu:off ] || return 64
-        [ "${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}:${DESKTOP_GNOME_SESSION_STARTUP:-}:${DESKTOP_GNOME_DISPLAY_GL_MODE:-}:${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" = x11:llvmpipe:direct:system:native ] || return 64
+        [ "${DESKTOP_CONTAINER_BASE:-}:${DESKTOP_CONTAINER_CODENAME:-}:${DESKTOP_GNOME_SESSION_PROFILE:-}:${DESKTOP_USB_STORAGE:-}" = ubuntu:resolute:resolute:ubuntu:off ] || return 64
+        [ "${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}:${DESKTOP_GNOME_SESSION_STARTUP:-}:${DESKTOP_GNOME_APPLICATION_RENDERER:-}:${DESKTOP_REFRESH_RATE:-}" = android:system:direct:llvmpipe:60 ] || return 64
+        [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" ] || return 64
     fi
     # Component package/launcher routing; host and guest environments use their explicit fields.
     case "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" in

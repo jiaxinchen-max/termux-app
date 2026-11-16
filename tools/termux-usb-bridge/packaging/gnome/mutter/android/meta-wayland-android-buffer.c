@@ -248,7 +248,10 @@ meta_wayland_android_buffer_finish (MetaWaylandBuffer *buffer)
    * No explicit native-fence protocol is claimed by this implementation. */
   CoglContext *ctx = get_context (buffer->compositor);
   cogl_context_flush (ctx);
-  ctx->glFinish ();
+  void (*finish) (void) = cogl_renderer_get_proc_address (cogl_context_get_renderer (ctx), "glFinish");
+  if (!finish)
+    g_error ("Android client buffers require GLES glFinish before wl_buffer.release");
+  finish ();
 }
 
 void

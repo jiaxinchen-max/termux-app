@@ -13,26 +13,26 @@ import unittest
 
 ASSETS = Path(__file__).resolve().parents[1] / 'src/main/assets/local-games'
 spec = importlib.util.spec_from_file_location('ubuntu_profile', ASSETS / 'desktop_ubuntu_gnome.py')
-DING_FIXTURE = Path(__file__).with_name('fixtures') / 'ubuntu-ding47-extension.js'
+DING_FIXTURE = Path(__file__).with_name('fixtures') / 'ubuntu-ding50-extension.js'
 profile = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(profile)
 
 
 def rootfs_fixture(root):
     (root / 'etc').mkdir(parents=True)
-    (root / 'etc/os-release').write_text('ID="ubuntu"\nVERSION_CODENAME=noble\n')
+    (root / 'etc/os-release').write_text('ID="ubuntu"\nVERSION_CODENAME=resolute\n')
     for relative in profile.REQUIRED_FILES:
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.touch()
     (root / 'usr/share/gnome-shell/modes/ubuntu.json').write_text(json.dumps({
         'parentMode': 'user', 'stylesheetName': 'Yaru/gnome-shell.css'}))
-    (root / 'usr/share/xsessions/ubuntu-xorg.desktop').write_text(
+    (root / 'usr/share/wayland-sessions/ubuntu.desktop').write_text(
         'Exec=env GNOME_SHELL_SESSION_MODE=ubuntu gnome-session --session=ubuntu\n')
     for uuid in profile.EXTENSIONS:
         folder = root / 'usr/share/gnome-shell/extensions' / uuid
         folder.mkdir(parents=True)
-        (folder / 'metadata.json').write_text(json.dumps({'uuid': uuid, 'shell-version': ['46']}))
+        (folder / 'metadata.json').write_text(json.dumps({'uuid': uuid, 'shell-version': ['50']}))
         (folder / 'extension.js').touch()
     (root / profile.DING_SOURCE).write_bytes(DING_FIXTURE.read_bytes())
     profile.prepare_rootfs(root)
@@ -58,14 +58,14 @@ class UbuntuProfileTests(unittest.TestCase):
             file.write_bytes(content)
 
     def test_debian_or_wrong_ubuntu_release_rejected(self):
-        for text in ('ID=debian\nVERSION_CODENAME=noble', 'ID=ubuntu\nVERSION_CODENAME=jammy'):
+        for text in ('ID=debian\nVERSION_CODENAME=resolute', 'ID=ubuntu\nVERSION_CODENAME=jammy'):
             (self.root / 'etc/os-release').write_text(text)
-            with self.assertRaisesRegex(ValueError, 'requires ubuntu:noble'):
+            with self.assertRaisesRegex(ValueError, 'requires ubuntu:resolute'):
                 profile.validate_rootfs(self.root)
 
     def test_extensions_must_match_uuid_and_shell_version(self):
         file = self.root / 'usr/share/gnome-shell/extensions/ubuntu-dock@ubuntu.com/metadata.json'
-        for metadata in ({'uuid': 'wrong', 'shell-version': ['46']},
+        for metadata in ({'uuid': 'wrong', 'shell-version': ['50']},
                          {'uuid': 'ubuntu-dock@ubuntu.com', 'shell-version': ['48']}):
             file.write_text(json.dumps(metadata))
             with self.assertRaisesRegex(ValueError, 'metadata mismatch'):
@@ -173,8 +173,8 @@ dpkg() { return 0; }
             script = scripts / 'desktop_install.sh'; script.write_text(source)
             values = dict(DESKTOP_SPEC_VERSION='3', DESKTOP_MODE='proot', DESKTOP_DE='ubuntu_gnome',
                           DESKTOP_HOST_GL_MODE='system', DESKTOP_GUEST_GL_MODE='llvmpipe', DESKTOP_USB_STORAGE='off',
-                          DESKTOP_PROOT_DISTRO='ubuntu-ubuntu-gnome-1', DESKTOP_CONTAINER_BASE='ubuntu:noble',
-                          DESKTOP_CONTAINER_CODENAME='noble', DESKTOP_GNOME_SESSION_PROFILE='ubuntu',
+                          DESKTOP_PROOT_DISTRO='ubuntu-ubuntu-gnome-1', DESKTOP_CONTAINER_BASE='ubuntu:resolute',
+                          DESKTOP_CONTAINER_CODENAME='resolute', DESKTOP_GNOME_SESSION_PROFILE='ubuntu',
                           DESKTOP_GNOME_BACKEND='x11', DESKTOP_GNOME_RENDERER='llvmpipe', DESKTOP_GNOME_SESSION_STARTUP='direct',
                           DESKTOP_GNOME_DISPLAY_GL_MODE='system', DESKTOP_GNOME_DISPLAY_BUFFER_MODE='native',
                           DESKTOP_RELEASE_TAG='termux-hwaccel-6.7-r4', DESKTOP_LOG_FILE=str(base/'log'),
@@ -194,7 +194,7 @@ dpkg() { return 0; }
         code, output, trace, marker = self.install()
         self.assertEqual(0, code, output)
         self.assertTrue(marker)
-        self.assertIn('IMAGE ubuntu:noble', trace)
+        self.assertIn('IMAGE ubuntu:resolute', trace)
         self.assertIn('ubuntu-session ubuntu-settings gnome-shell', trace)
         self.assertIn('--no-install-recommends --reinstall', trace)
         self.assertIn('gnome-shell-extension-ubuntu-dock', trace)
@@ -243,7 +243,7 @@ dpkg() { return 0; }
                 values = dict(DESKTOP_SPEC_VERSION='3', DESKTOP_ID='new', DESKTOP_MODE='proot',
                     DESKTOP_DE='ubuntu_gnome', DESKTOP_HOST_GL_MODE='system', DESKTOP_GUEST_GL_MODE='llvmpipe',
                     DESKTOP_PROOT_DISTRO='ubuntu-ubuntu-gnome-1', DESKTOP_USB_STORAGE='off',
-                    DESKTOP_CONTAINER_BASE='ubuntu:noble', DESKTOP_CONTAINER_CODENAME='noble',
+                    DESKTOP_CONTAINER_BASE='ubuntu:resolute', DESKTOP_CONTAINER_CODENAME='resolute',
                     DESKTOP_GNOME_SESSION_PROFILE='ubuntu', DESKTOP_GNOME_BACKEND='x11',
                     DESKTOP_GNOME_RENDERER='llvmpipe', DESKTOP_GNOME_SESSION_STARTUP='direct',
                     DESKTOP_GNOME_DISPLAY_GL_MODE='system', DESKTOP_GNOME_DISPLAY_BUFFER_MODE='native',

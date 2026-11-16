@@ -6,10 +6,16 @@
 - [ ] 核实 Resolute 的实际软件包、GNOME session/扩展/主题布局及所需驱动和 USB 桥兼容性。
 - [ ] 统一创建目录、镜像/codename 元数据、安装和启动验证；清除 Debian/Noble 隐式回退。
 - [x] 移除 PROOT+GNOME 创建/执行支持并明确处理已废弃记录/备份，保留 Native GNOME 与删除入口。
+- [x] 用户确认保留 Ubuntu GNOME 并改造其显示链路。
+- [x] 用户确认升级现有原生组件并排除 PipeWire 显示桥。
+- [x] 移植 Android 后端到 Mutter 50，配套升级 Shell/GJS/SpiderMonkey 并在原编译链构建，真实生成新 ABI GIR。
+- [ ] 实施 Bionic Shell 在普通用户 PRoot 视图中的原生输出，验证容器应用/服务、输入及清理；移除未交付的显示桥代码。
+- [ ] 更新 Native Ubuntu GNOME 主题/扩展资产与 50 系列运行时校验，验证 Native 回归。
 - [ ] 适配 Ubuntu GNOME 版本、扩展和补丁校验，保持完整性验证。
 - [ ] 适配 Resolute Mesa/Zink/Hyprland 客户端与 USB GIO，所需生态包仅在原编译机原链编译，组件独立发布。
 - [ ] 增加支持矩阵、底包、已废弃类型、组件与 Native 回归；审查权限、失败隔离和归档行为。
 - [ ] force-stop 后实机全新安装四类桌面并验证渲染/终端/应用/支持的 USB 和授权流程。
 - [ ] 运行可用检查、构建轻量 arm64 APK，明确 strict gate 缺失及任何实测限制。
-- [ ] 按用户既有授权推送代码保存进度，提供 APK。
+- [ ] 按用户“先推送代码”授权提交并推送当前 WIP；完整会话及安装资产仍待完成。
+- [ ] 完整验证后提供指定名称的轻量 APK。
 - [ ] 用户最终验收后更新产品知识并复核一致性；归档需另行授权。
