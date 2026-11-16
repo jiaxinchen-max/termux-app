@@ -1,0 +1,90 @@
+{
+  "source_commit": "b2d3de6386b1a95884ea334818daaf4a1df26f4c",
+  "device": "120.24.191.156:8057",
+  "audit_alias": "audit-ubuntu-gnome",
+  "installer": "production desktop_install.sh, actual apt/dpkg, no package substitutes or library overlays",
+  "result": "exit:0",
+  "os_release": "Ubuntu 26.04.1 LTS (resolute)",
+  "default_user": {
+    "name": "termux",
+    "uid": 10215,
+    "home": "/home/termux",
+    "root": false
+  },
+  "host_dpkg_audit": "empty",
+  "guest_dpkg_audit": "empty",
+  "completion_marker": true,
+  "prepared_session": true,
+  "saved_descriptor_sha256": "12c1016e3050a80b11f0b41d48d7d5353e7e75115939c8f836b06278dddad82c",
+  "host_versions": {
+    "accountsservice": "23.13.9",
+    "gjs": "1.88.0",
+    "gnome-settings-daemon-schemas": "48.1",
+    "gnome-shell": "50.1-2",
+    "libandroid-stub": "30-3",
+    "libepoxy": "1.5.10-6",
+    "libgdm": "48.0-1",
+    "mutter": "50.1-4",
+    "polkit": "126",
+    "spidermonkey": "140.17.0-1",
+    "termux-render": "0.1.0-1"
+  },
+  "tests": {
+    "ubuntu_gnome": 18,
+    "real_dpkg_noninteractive": 10,
+    "save": 6,
+    "negative_control": "2 added regressions fail against installer extracted from previous delivered APK"
+  },
+  "logs": {
+    "failure.log": {
+      "bytes": 3647,
+      "sha256": "0d212acabd7b5e1ea2e6b57cdb51f6e80184eaa85ae00cfb23af94ffa998eebf"
+    },
+    "install-complete.log": {
+      "bytes": 353317,
+      "sha256": "5d5243e829268c49f0c6bb1592426df715f3c263d895d216f526123debb727dd"
+    },
+    "post-install.txt": {
+      "bytes": 842,
+      "sha256": "1b26ebdef0cca25caf96270405b088ed50c1bf18993fd4b4c5e24904efb60620"
+    },
+    "host-packages.txt": {
+      "bytes": 285,
+      "sha256": "8cae1fea5944f9eccb8bea0eacf9b5629a534b3f9bb2071e6181f4b28acc8ce3"
+    },
+    "ubuntu-gnome-tests.log": {
+      "bytes": 2803,
+      "sha256": "bd9e7309513c19a6b5c9d9787bb574fdea629111d57231f156c692a98c92e40c"
+    },
+    "noninteractive-tests.log": {
+      "bytes": 1797,
+      "sha256": "38f3038732d21151da430be2b01ff9439689587b38173dc0976145e346e6e853"
+    },
+    "save-tests.log": {
+      "bytes": 950,
+      "sha256": "ae496efa4773c2d38ecdc88683661a7886c097feee5a7f6b79c484c27a939f4a"
+    },
+    "dependencies-before.log": {
+      "bytes": 5055,
+      "sha256": "2217aa91ab56f20eab69c453ad11b7d1bea23a08b60bec98ae734569bda8671c"
+    },
+    "audio-before.log": {
+      "bytes": 955,
+      "sha256": "b4d50dc5e43750ba01cb1f71e739c78fbf8829e2f4fa932cc59d7fedda66ff04"
+    },
+    "production-coldstart.txt": {
+      "bytes": 4267,
+      "sha256": "1f77432295c0417023a6a581ca316e08c1a5562f8f925fe431d3febde36fe9ea"
+    },
+    "production-coldstart.png": {
+      "bytes": 741920,
+      "sha256": "7944e9d2803c3f2c3ad271bd64d63e185f4dae57bcbb7d145f60861e0768b74c"
+    }
+  },
+  "new_apk_cold_launch": "b2d3de63 Passed: actual App process, production scripts restored, four extensions state=1, ready file and screenshot",
+  "strict_gate": "Unavailable (required scripts absent)",
+  "product_acceptance": "Pending",
+  "audio_timeout": "71ce7f62: single 15-second service-start deadline, no retry or extra launch probe; six tests passed including real delayed child and old-helper negative control. Actual APK installation and UI Save passed. Final APK cold start delegated to user per latest instruction.",
+  "final_apk_source": "723f1a88cc83a870341ceca925d96e7183c0207e",
+  "final_apk_device_acceptance": "PendingUserManualTest"
+}

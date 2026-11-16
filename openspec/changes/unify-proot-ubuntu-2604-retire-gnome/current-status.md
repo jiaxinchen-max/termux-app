@@ -1,13 +1,23 @@
+# 最新安装修复交付（2026-11-16）
+
+Ubuntu GNOME PRoot 缺少的 4 个原生 Shell 依赖已补齐；真实 Ubuntu 26.04.1 容器完整安装 exit:0，host/guest dpkg audit 干净，正式脚本启动后真实桌面及四扩展 state=1。音频服务启动独立有界超时，失败不重试；实际 APK 安装及 UI Save 通过。最终包额外同步了中英文 Ubuntu 26.04／GNOME 50 说明，按用户最新要求由用户手动安装测试。
+
+- 最终源码：723f1a88，已推送 master-x11-submodule-tmp。
+- [下载 termux-app_apt-android-7-debug_arm64-v8a.apk](https://github.com/jiaxinchen-max/termux-app/releases/download/desktop-gnome-install-20261116-723f1a88/termux-app_apt-android-7-debug_arm64-v8a.apk)，44.51 MB／42.45 MiB，无 testOnly，签名及全部 71 个受版本管理运行资产校验通过。
+- 原始公开 URL 已完整回读验大小／SHA256；无新内嵌大型组件。
+- 最终 APK 设备冷启动及产品验收 Pending；Native／其他三类全新安装、硬件验证与旧综合脚本限制继续保留。
+- 证据：evidence/gnome-installation-verification.json、evidence/apk-install-fix.json。以下为历史交付记录。
+
 # 当前任务完成情况（2026-11-16）
 
 组件发布之后，用户进一步要求“将适配的apk给我下载”。已从 4b1ee426 构建并公开交付 arm64 APK，完整 App 功能验收尚未完成，不归档。
 
 | 工作项 | 当前结果 | 验证边界 |
 | --- | --- | --- |
-| PRoot 底包统一 | Plasma／Kubuntu、Ubuntu GNOME、XFCE、Hyprland 客户端的目录和安装代码均固定 ubuntu:resolute（26.04 LTS） | 四类完整全新安装仍待验收 |
+| PRoot 底包统一 | Plasma／Kubuntu、Ubuntu GNOME、XFCE、Hyprland 客户端的目录和安装代码均固定 ubuntu:resolute（26.04 LTS） | Ubuntu GNOME 完整真实安装通过；其余三类仍待验收 |
 | 独立 GNOME 容器下线 | 创建、执行、归档入口拒绝 PRoot+GNOME；保留 Native GNOME 和 Ubuntu GNOME | 不迁移旧容器，不默默替换成其他类型 |
 | GNOME 原生显示链路 | Mutter 50.1-4、Shell 50.1-2、GJS 1.88.0、SpiderMonkey 140；移植现有 Android backend，新 ABI GIR 真实生成 | 无 PipeWire 显示桥；PRoot 与 Native 完整 GUI 的覆盖范围不同 |
-| PRoot 真实会话 | 普通用户桌面、Dock、Home、四扩展、终端输入、Nautilus、会话总线和清理已实测 | 隔离测试容器及私有库覆盖，不能称为新 APK 全新安装通过 |
+| PRoot 真实会话 | 普通用户桌面、Dock、Home、四扩展、终端输入、Nautilus、会话总线和清理已实测 | 本轮独立容器使用正式组件完整安装成功，无私有库覆盖；正式脚本和 APK 桌面输出通过，最终包手动验收待完成 |
 | 稳定性修复 | 窗口可见性队列重入与 keymap 同步重入已修复 | r4 无诊断 8 次 DING 重启、9 个所属进程退出，无关宿主进程保留 |
 | 保存／启动分离 | 初始化、静态校验、默认配置、主题、缓存及文件部署移至保存／安装；启动失败退出会话页 | 实际冷启动未改写静态配置；缺少保存结果退出且不修复。页面退出只经过 Java 编译及测试，未在新 APK 实测 |
 | Resolute 适配 | glibc GIO 与 Glycin 使用真实 Resolute 工具链构建，安装校验精确文件与来源；Mesa 使用匹配上游资产 | 图片解码、GIO 命令和生产助手验证通过，真实 USB／高通 GPU 待测 |

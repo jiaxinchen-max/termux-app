@@ -28,7 +28,7 @@ progress_save:
   scope: 当前分支 WIP 源码及进度记录
   readiness: NotReadyForRelease
   runtime: Mutter 50.1-4 无探针 8 次重启及完整清理通过；保存／启动分离通过实际冷启动、缺少保存结果直接退出和 801 项 Java 测试
-  remaining: Native 全套 GUI、四类新安装及综合旧脚本夹具仍待验证；组件已独立公开发布
+  remaining: Ubuntu GNOME 真实安装、桌面和四扩展已通过；Native、其他三类新安装及综合旧脚本夹具仍待验证；最终 APK 按用户要求手动安装测试
 
 save_launch_split:
   authorization: 用户明确要求所有初始化在保存阶段完成，启动失败退出
@@ -71,11 +71,25 @@ ubuntu_gnome_install_regression:
 
 ubuntu_gnome_shared_dependencies:
   authorization: 用户要求自行查漏补缺并完整验证安装，修复后交付 APK，持续推送保存进度
-  status: HostPackagesVerifiedContainerInstallInProgress
+  status: InstallVerifiedApkDeliveredManualAcceptancePending
   audit_alias: audit-ubuntu-gnome
   root_cause: 四个已发布的原生 Shell 依赖仅下载到 Native 模式，PRoot apt 无法解析
   focused_tests: {ubuntu_gnome: 18, save: 5, noninteractive_real_dpkg: 10}
   host_real_install: Passed
   host_dpkg_audit: Clean
-  container_real_install: InProgress
+  container_real_install: Passed
   evidence: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/verification.md
+
+  container_os: Ubuntu 26.04.1 LTS (resolute)
+  guest_dpkg_audit: Clean
+  real_desktop: PassedOnB2d3de63Apk
+  audio_fix_source: 71ce7f62
+  final_apk_source: 723f1a88cc83a870341ceca925d96e7183c0207e
+  final_apk_tag: desktop-gnome-install-20261116-723f1a88
+  final_apk_bytes: 44507803
+  final_apk_sha256: 6803b6775ccfbca202f8a5566a57ca4f9048ae4516fd790044c64035100d3851
+  final_apk_public_download: FullBytesVerified
+  final_device_acceptance: PendingUserManualTest
+  final_device_authorization: 用户要求手动下载安装，不再等待模拟器自动传输安装
+  installation_evidence: evidence/gnome-installation-verification.json
+  apk_evidence: evidence/apk-install-fix.json

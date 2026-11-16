@@ -151,3 +151,12 @@ App 仓库独立公开 prerelease `desktop-adapted-20261116-4b1ee426` 包含 APK
 严格 Harness gate 仍缺失；Native、另外三类全新安装、真实 USB／高通 GPU／Discover 不在本轮验证范围。产品一致性 Pending，不归档。
 
 保存路径真实 UI 复测：在 71ce7f62 APK 的桌面设置点击 Save，prepare 返回 exit:0，运行目录 desktop_common.sh 与新源码 SHA256 e6d31fbe9c26ef065d7a84189a18e60ba4ee29b2e038caa30c5c529c13fefe5e 一致。设置页发现残留 Ubuntu 24.04／Xlorie 文案；已在中英文描述与渲染提示同步实际 Ubuntu 26.04／GNOME 50 原生合成器及 LLVMpipe 容器应用，不修改运行逻辑或增加启动行为。最终 APK 将包含这些文本修正。
+
+
+### 最终交付与用户手动安装（2026-11-16）
+
+最终源码 723f1a88 已推送，指定名称 APK 44,507,803 字节，SHA256 `6803b6775ccfbca202f8a5566a57ca4f9048ae4516fd790044c64035100d3851`；v1/v2/v3 签名通过且证书与之前版本相同，arm64、无 testOnly。71 个受 Git 管理的 local-games 资源逐字节匹配源码，实际编译资源确认中英文均使用 Ubuntu 26.04／GNOME 50 原生显示说明。此前“72 个”属于计数误差，本次重新按 Git 文件清单与 APK 路径核对为 71；无运行资产增删。相较 b2d3de63，唯一运行资产差异为音频 helper 增加 111 字节，包缩小来自重新 ZIP 压缩，无新增大型组件内嵌。
+
+公开 prerelease desktop-gnome-install-20261116-723f1a88 已上传 APK／SHA256SUMS／验证清单，未改 stable/latest；原始公开 URL 无认证完整下载、字节数和 SHA256 通过。用户最新要求手动下载安装，因此不再等待最终包模拟器自动安装／冷启动。实际设备证据严格区分：完整真实安装及四扩展／真实桌面来自 b2d3de63 APK；含音频修正的 71ce7f62 APK 无 -t 实际安装 Success、UI Save exit:0，正式 helper 哈希匹配；最终 723f1a88 仅追加中英文文案修正，最终包设备验收 PendingUserManualTest。
+
+本轮 18 项 Ubuntu GNOME、6 项保存／音频、10 项真实 dpkg 回归通过；旧 helper 的真实延迟子进程负对照失败。严格 gate 缺失及其他桌面／硬件验证限制保持，不宣称整体验收。证据：evidence/gnome-installation-verification.json、evidence/apk-install-fix.json。

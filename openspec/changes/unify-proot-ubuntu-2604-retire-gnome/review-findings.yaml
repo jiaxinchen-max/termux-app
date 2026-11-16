@@ -1,6 +1,6 @@
 schema: review_findings_v1
 status: CHANGES_REQUESTED
-scope: 继续修复和验证；会话与实际应用已推进，Mutter 生命周期修复已通过设备压力及退出清理，保存／启动分离已定向验证；完整安装链仍不可发布
+scope: 继续修复和验证；会话与实际应用已推进，Mutter 生命周期修复已通过设备压力及退出清理，保存／启动分离已定向验证；Ubuntu GNOME 完整安装阻塞已解决，其他桌面整体验收未完成
 findings:
   - id: GNOME50_DISPLAY_ARCHITECTURE
     severity: blocker
@@ -13,7 +13,7 @@ findings:
   - id: INSTALLER_RUNTIME_COHERENCE
     severity: blocker
     status: open
-    description: 安装器已同步真实 GNOME 50 核心、Resolute 适配和 Native Ubuntu 50 外观哈希，GNOME 不再依赖 Xlorie；两组组件已公开发布并通过 22 项公开下载字节校验，Native 独立 GTK 应用组合与四类新安装仍未实测，仍不可发布 APK。
+    description: 安装器已同步真实 GNOME 50 核心、Resolute 适配和 Native Ubuntu 50 外观哈希，GNOME 不再依赖 Xlorie；两组组件已公开发布并通过 22 项公开下载字节校验，Ubuntu GNOME 完整真实安装及正式脚本桌面通过，Native 独立 GTK 组合与其他三类新安装仍待验收；APK 仅作为用户授权的集成验证版。
   - id: PROOT_SHELL_BUS_READINESS
     severity: blocker
     status: resolved
@@ -55,4 +55,4 @@ findings:
   - id: COLD_AUDIO_START_DEADLINE
     severity: high
     status: resolved
-    description: 真实冷启动音频服务已拉起但短客户端超时返回 124；服务启动改为单次 15 秒限时，客户端仍 3 秒，不增加静态预检、初始化或重试。真实 4 秒子进程回归在旧 helper 失败、新 helper 通过，错误 43 记录日志且不重试；最终 APK 冷启动待记录。
+    description: 真实冷启动音频服务已拉起但短客户端超时返回 124；服务启动改为单次 15 秒限时，客户端仍 3 秒，不增加静态预检、初始化或重试。真实 4 秒子进程回归在旧 helper 失败、新 helper 通过，错误 43 记录日志且不重试；实际 APK 安装与 UI Save 已通过，最终 APK 按用户要求手动安装验收。
