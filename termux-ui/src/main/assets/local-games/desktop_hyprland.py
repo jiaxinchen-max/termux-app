@@ -282,27 +282,36 @@ def verify_zink_client(work, env, alias, log, clients):
     raise RuntimeError('Container Zink failed to render/map a hardware Wayland window; see session.log; select default container mode')
 
 
-def session(args):
-    client_mode = getattr(args, 'client_gl_mode', 'default')
-    if client_mode not in ('default', 'zink') or (client_mode == 'zink' and args.run_mode != 'proot'):
-        raise ValueError('Experimental Zink is supported only for PRoot Hyprland clients')
+def session_request(args):
+    return {key: str(value) if isinstance(value, Path) else value
+            for key, value in vars(args).items() if key not in ('command',)}
+
+
+def prepare(args):
+    """Save/install only: validate resources and publish complete static session setup."""
     work = work_for(args.desktop_id)
     work.mkdir(mode=0o700, parents=True, exist_ok=True)
     if work.is_symlink() or work.stat().st_uid != os.getuid():
         raise RuntimeError('Unsafe Hyprland session directory')
     with (work / 'session.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return _session_locked(args, work, client_mode)
+        (work / 'prepared-session.json').unlink(missing_ok=True)
+        return _prepare_locked(args, work)
 
 
-def _session_locked(args, work, client_mode):
+def _prepare_locked(args, work):
+    client_mode = getattr(args, 'client_gl_mode', 'default')
     for name in ['config', 'cache', 'data']:
-        p = work / name
-        if p.is_symlink():
+        directory = work / name
+        if directory.is_symlink():
             raise RuntimeError('Unsafe Hyprland private directory: ' + name)
-        p.mkdir(mode=0o700, exist_ok=True)
-        p.chmod(0o700)
-    # Keep socket paths short, and expose the current runtime through the desktop directory.
+        directory.mkdir(mode=0o700, exist_ok=True)
+        directory.chmod(0o700)
+    COMPONENTS['resolve'](args.runtime_id, args.theme_id)
+    if args.runtime_id != VERSION:
+        raise ValueError('Unsupported Hyprland runtime')
+    COMPONENTS['theme_root'].__globals__['PREFIX'] = PREFIX
+    COMPONENTS['verify_theme'](COMPONENTS['theme_root'](args.theme_id), args.runtime_id, args.theme_id)
     runtime = session_runtime(work)
     runtime.parent.mkdir(parents=True, exist_ok=True)
     alias = work / 'runtime'
@@ -310,32 +319,12 @@ def _session_locked(args, work, client_mode):
         if alias.readlink() != runtime:
             raise RuntimeError('Unexpected Hyprland runtime link')
     elif alias.exists():
-        shutil.rmtree(alias)
-    if runtime.is_symlink() or (runtime.exists() and runtime.stat().st_uid != os.getuid()):
-        raise RuntimeError('Unsafe Hyprland runtime directory')
-    if runtime.exists():
-        shutil.rmtree(runtime)
-    runtime.mkdir(mode=0o700)
-    if not alias.is_symlink():
+        raise RuntimeError('Hyprland runtime path must be the managed session link')
+    else:
         alias.symlink_to(runtime, target_is_directory=True)
     if len(str(runtime / 'hypr' / ('a_' + '9'*10 + '_' + 'f'*8) / '.socket2.sock').encode()) > 107:
         raise RuntimeError('Hyprland IPC socket path exceeds the Unix limit')
-    args.ready_file.unlink(missing_ok=True)
-    (work / 'session.json').unlink(missing_ok=True)
-    (work / 'gpu-client-report.json').unlink(missing_ok=True)
-    (work / 'gpu-host-report.json').unlink(missing_ok=True)
-    (work / 'hyprland.log').unlink(missing_ok=True)
-    COMPONENTS['resolve'](args.runtime_id, args.theme_id)
-    if args.runtime_id != VERSION:
-        raise ValueError('Unsupported Hyprland runtime')
-    COMPONENTS['theme_root'].__globals__['PREFIX'] = PREFIX
-    COMPONENTS['verify_theme'](COMPONENTS['theme_root'](args.theme_id), args.runtime_id, args.theme_id)
-    env = clean_environment(work)
-    env['TERMUX_HYPRLAND_SESSION'] = secrets.token_hex(16)
-    env.update(AQ_ANDROID_WIDTH=str(args.width), AQ_ANDROID_HEIGHT=str(args.height),
-               AQ_ANDROID_REFRESH=str(args.refresh))
-    # Preload only the compositor: the wrapper removes it from client environments.
-    env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=' + str(runtime / 'session-bus')
+    # Preload only the compositor: client wrappers remove it from their environments.
     command = [str(PREFIX / 'bin/env'),
                'LD_PRELOAD=' + str(runtime_root() / 'lib/hyprland/android/libhyprland-system-gl.so'),
                str(runtime_root() / 'bin/Hyprland'), '--config', str(work / 'config/hyprland.lua')]
@@ -359,20 +348,66 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
     # Session-local wrappers select host or guest clients without user-code interpolation.
     bin_dir = work / 'bin'
     bin_dir.mkdir(exist_ok=True)
-    env['PATH'] = str(bin_dir) + ':' + env['PATH']
     for action, program in [('terminal', ['xfce4-terminal', '--disable-server']), ('files', ['thunar'])]:
         executable = [str(PREFIX / "bin/env"), "-u", "LD_LIBRARY_PATH", "-u", "LD_PRELOAD", *program]
         if args.run_mode == 'proot':
             executable = container_command(work, args.alias, client_mode,
-                ['dbus-run-session', '--', *program], env['TERMUX_HYPRLAND_SESSION'])
+                ['dbus-run-session', '--', *program], '__LIVE_SESSION_TOKEN__')
         wrapper = bin_dir / ('termux-hyprland-' + action)
-        wrapper.write_text('#!' + str(PREFIX / 'bin/sh') + '\nexec ' + shlex.join(executable) + ' "$@"\n')
+        wrapper.write_text('#!' + str(PREFIX / 'bin/sh') + '\nexec ' + shlex.join(executable).replace('TERMUX_HYPRLAND_SESSION=__LIVE_SESSION_TOKEN__', '"TERMUX_HYPRLAND_SESSION=${TERMUX_HYPRLAND_SESSION:?}"') + ' "$@"\n')
         wrapper.chmod(0o700)
     (work / 'theme-session-config').unlink(missing_ok=True)
     shell_commands = prepare_shell(work, args.run_mode, args.theme_id)
     themed = work / 'theme-session-config'
     if themed.exists():
         command[-1] = themed.read_text()
+    config = dict(schema=1, request=session_request(args), command=command,
+                  shell_commands=shell_commands, themed=themed.exists())
+    temporary = work / 'prepared-session.json.tmp'
+    temporary.write_text(json.dumps(config, sort_keys=True) + '\n')
+    temporary.chmod(0o600)
+    temporary.replace(work / 'prepared-session.json')
+    return 0
+
+
+def session(args):
+    client_mode = getattr(args, 'client_gl_mode', 'default')
+    if client_mode not in ('default', 'zink') or (client_mode == 'zink' and args.run_mode != 'proot'):
+        raise ValueError('Experimental Zink is supported only for PRoot Hyprland clients')
+    work = work_for(args.desktop_id)
+    if work.is_symlink() or work.stat().st_uid != os.getuid():
+        raise RuntimeError('Unsafe Hyprland session directory')
+    with (work / 'session.lock').open('w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        args.ready_file.unlink(missing_ok=True)
+        prepared = json.loads((work / 'prepared-session.json').read_text())
+        if prepared.get('schema') != 1 or prepared.get('request') != session_request(args):
+            raise RuntimeError('Desktop settings are not prepared; save/install the desktop first')
+        return _session_locked(args, work, client_mode, prepared)
+
+
+def _session_locked(args, work, client_mode, prepared):
+    # Keep socket paths short, and expose the current runtime through the desktop directory.
+    runtime = session_runtime(work)
+    if runtime.is_symlink() or (runtime.exists() and runtime.stat().st_uid != os.getuid()):
+        raise RuntimeError('Unsafe Hyprland runtime directory')
+    if runtime.exists():
+        shutil.rmtree(runtime)
+    runtime.mkdir(mode=0o700)
+    args.ready_file.unlink(missing_ok=True)
+    (work / 'session.json').unlink(missing_ok=True)
+    (work / 'gpu-client-report.json').unlink(missing_ok=True)
+    (work / 'gpu-host-report.json').unlink(missing_ok=True)
+    (work / 'hyprland.log').unlink(missing_ok=True)
+    env = clean_environment(work)
+    env['TERMUX_HYPRLAND_SESSION'] = secrets.token_hex(16)
+    env.update(AQ_ANDROID_WIDTH=str(args.width), AQ_ANDROID_HEIGHT=str(args.height),
+               AQ_ANDROID_REFRESH=str(args.refresh))
+    env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=' + str(runtime / 'session-bus')
+    bin_dir = work / 'bin'
+    env['PATH'] = str(bin_dir) + ':' + env['PATH']
+    command = prepared['command']
+    shell_commands = prepared['shell_commands']
     process = None
     bus = None
     clients = []
@@ -446,7 +481,7 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
                     '--dest=org.freedesktop.DBus', '/org/freedesktop/DBus',
                     'org.freedesktop.DBus.NameHasOwner', 'string:org.freedesktop.Notifications'],
                     env=client_env, capture_output=True, text=True, timeout=3)
-                if {('m3ww-bar' if themed.exists() else 'xfce4-panel'), 'wallpaper'} <= namespaces and 'boolean true' in notification.stdout:
+                if {('m3ww-bar' if prepared['themed'] else 'xfce4-panel'), 'wallpaper'} <= namespaces and 'boolean true' in notification.stdout:
                     break
                 time.sleep(.2)
             else:

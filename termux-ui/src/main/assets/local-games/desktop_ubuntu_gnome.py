@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 DING_SOURCE_SHA256 = 'e41eb8152982a10384bd2c5c42bc10d51000f35080ee4c934e38c9ac0ef2f0ef'
-DING_PATCHED_SHA256 = '0500bf9457eb83f62c26574d3c3a539c68a3ee6882a42a409aeda11c14cf8075'
+DING_PATCHED_SHA256 = '5ff763e8a1755f0235c619992aa6cade80ba5c637fecdab01bf52aca01d9411c'
 DING_SOURCE = 'usr/share/gnome-shell/extensions/ding@rastersoft.com/extension.js'
 
 MODE = 'termux-ubuntu'
@@ -72,13 +72,20 @@ def validate_rootfs(root, require_patched=True):
     if require_patched:
         if hashlib.sha256((root / DING_SOURCE).read_bytes()).hexdigest() != DING_PATCHED_SHA256:
             raise ValueError('Ubuntu DING session cleanup patch is missing or corrupt; reinstall the desktop')
-        if json.loads((root / ('usr/share/gnome-shell/modes/' + MODE + '.json')).read_text()) != managed_mode():
+        if json.loads((root / ('usr/share/gnome-shell/modes/' + MODE + '.json')).read_text()) != managed_mode(root):
             raise ValueError('Managed Ubuntu session mode is missing or corrupt; reinstall the desktop')
 
 
-def managed_mode():
-    # Do not activate Snap prompting/search services in a PRoot desktop.
-    return dict(parentMode='ubuntu', enabledExtensions=list(EXTENSIONS))
+def managed_mode(root):
+    # Shell inherits one parent level and extensions match only current/parent
+    # mode. Deriving from ubuntu would lose user capabilities and leave the
+    # standard user extensions INITIALIZED forever. Preserve Ubuntu appearance
+    # on a direct user mode, excluding its unsupported Snap services.
+    mode = json.loads((Path(root) / 'usr/share/gnome-shell/modes/ubuntu.json').read_text())
+    if mode.get('parentMode') != 'user':
+        raise ValueError('Ubuntu session must derive directly from user mode')
+    mode['enabledExtensions'] = list(EXTENSIONS)
+    return mode
 
 
 def prepare_rootfs(root):
@@ -90,7 +97,7 @@ def prepare_rootfs(root):
     original = path.read_bytes()
     digest = hashlib.sha256(original).hexdigest()
     mode = root / ('usr/share/gnome-shell/modes/' + MODE + '.json')
-    mode.write_text(json.dumps(managed_mode(), indent=2) + '\n')
+    mode.write_text(json.dumps(managed_mode(root), indent=2) + '\n')
     mode.chmod(0o644)
     if digest == DING_PATCHED_SHA256:
         return
@@ -104,6 +111,12 @@ def prepare_rootfs(root):
         // Android denies unrelated /proc reads; never scan or kill them.
     }
 ''' + text[end:]
+    # Real PRoot cold starts/restarts exceeded the upstream three-second limit.
+    # This watchdog is cancelled as soon as all desktop windows are detected.
+    if patched.count('GLib.PRIORITY_DEFAULT, 3000,') != 1:
+        raise ValueError('Ubuntu DING startup watchdog source mismatch')
+    patched = patched.replace('in three seconds', 'in thirty seconds').replace(
+        'GLib.PRIORITY_DEFAULT, 3000,', 'GLib.PRIORITY_DEFAULT, 30000,')
     data = patched.encode('utf-8')
     if hashlib.sha256(data).hexdigest() != DING_PATCHED_SHA256:
         raise ValueError('Ubuntu DING patch result SHA256 mismatch')

@@ -1,0 +1,13 @@
+--- a/src/sandbox.rs
++++ b/src/sandbox.rs
+@@ -746,6 +746,10 @@
+                 // Wording of an old Debian patch
+                 "No permissions to create new namespace",
+                 "bwrap: setting up uid map: Permission denied",
++                // Android blocks these required namespace identity sysctls.
++                // Treat this as unavailable bwrap, like other restricted hosts.
++                "bwrap: Can't read /proc/sys/kernel/overflowuid: Permission denied",
++                "bwrap: Can't read /proc/sys/kernel/overflowgid: Permission denied",
+             ]
+             .iter()
+             .any(|y| x.contains(y))

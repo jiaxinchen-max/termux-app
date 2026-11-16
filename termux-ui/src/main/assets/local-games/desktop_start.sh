@@ -72,15 +72,6 @@ desktop_resolve_rendering || {
     log 'Unsupported host/container renderer pair; choose compatible renderers explicitly.'
     printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
 }
-if [ "$DESKTOP_MODE" = proot ]; then
-    rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
-    root_id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"')
-    root_codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"')
-    if [ "$root_id:$root_codename" != ubuntu:resolute ]; then
-        log 'This desktop requires Ubuntu 26.04 LTS; recreate the container. Existing data is unchanged.'
-        printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
-    fi
-fi
 if [ "$DESKTOP_MODE:${DESKTOP_DE:-}" = proot:kwin_plasma ]; then
     desktop_load_plasma_rendering || {
         log 'Plasma renderer initialization is incomplete for this pair; retry installation.'
@@ -217,18 +208,6 @@ if [ "$DESKTOP_DE" = hyprland ]; then
         tail -n 40 "$HOME/.termux/hyprland-$DESKTOP_ID/session.log" 2>/dev/null | tee -a "$DESKTOP_LOG_FILE"
     fi
     finish_desktop
-fi
-
-if [ "$DESKTOP_DE" != gnome ] && [ "$DESKTOP_DE" != ubuntu_gnome ]; then
-    if [ "$DESKTOP_MODE" = proot ]; then
-        usb_user_config="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs/home/termux/.config"
-    else
-        usb_user_config="${XDG_CONFIG_HOME:-$HOME/.config}"
-    fi
-    disable_global_usb_autostart "$usb_user_config" || {
-        log 'Cannot disable the global USB bridge autostart for this desktop.'
-        code=74; finish_desktop
-    }
 fi
 
 if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then

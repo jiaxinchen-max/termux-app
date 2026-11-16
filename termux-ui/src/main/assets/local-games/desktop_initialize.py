@@ -209,15 +209,18 @@ def prepare_plasma(prefix):
             raise RuntimeError('Unsupported Plasma component script; reinstall pinned r28: ' + name)
         sources[name] = data.decode()
     start = sources['start-plasma']
-    # Retain lookup of the actual service command, not the pre-launch dependency inventory.
-    begin = start.index('echo "Checking dependencies..."')
+    # Resolve fixed service paths during Save, alongside dependency validation.
+    activity = next((prefix / name for name in (
+        'bin/kactivitymanagerd', 'bin/kactivitymanagerd6', 'lib/libexec/kactivitymanagerd',
+        'libexec/kactivitymanagerd', 'lib/kf6/kactivitymanagerd', 'lib/qt6/libexec/kactivitymanagerd')
+        if os.access(prefix / name, os.X_OK)), None)
+    begin = start.index('find_kactivitymanagerd()')
     end = start.index('SCRIPT_DIR=', begin)
-    start = start[:begin] + '''KACTIVITYMANAGERD_CMD=""
-if [ "$COMPOSITOR_ONLY" != "1" ]; then
-    KACTIVITYMANAGERD_CMD="$(find_kactivitymanagerd)"
-fi
-
-''' + start[end:]
+    start = start[:begin] + 'KACTIVITYMANAGERD_CMD=' + shlex.quote(str(activity) if activity else '') + '\n\n' + start[end:]
+    # KDE application caches are prepared during Save for both Native and PRoot.
+    begin = start.index('    if command -v kbuildsycoca6 ')
+    end = start.index('    if command -v plasmashell ', begin)
+    start = start[:begin] + start[end:]
     begin = start.index('RENDERING_ENV=')
     end = start.index('kwin_android_select_rendering', begin)
     start = start[:begin] + 'source "$PREFIX/libexec/termux-desktop/rendering-env"\n' + start[end:]
@@ -286,9 +289,46 @@ def prepare_plasma_cache(guest, env):
                    env=env, check=True, timeout=120)
 
 
+def prepare_gnome_session(args, root, env):
+    if not args.desktop_id or not args.ready_file or not args.size or not args.render_socket:
+        raise ValueError('Saving a GNOME desktop requires its identity and output settings')
+    native = args.run_mode == 'native'
+    work = (Path(os.environ['HOME']) / ('.termux/gnome-' + args.desktop_id) if native
+            else root / 'home/termux/.local/share/termux-gnome')
+    profile = ('native-ubuntu' if native else 'ubuntu') if args.de == 'ubuntu_gnome' else 'gnome'
+    command = [str(args.prefix / 'bin/python3'), '-I', '-B', str(ASSETS / 'desktop_gnome_launch.py'),
+               '--prepare', '--desktop-id', args.desktop_id, '--ready-file', str(args.ready_file),
+               '--run-mode', args.run_mode, '--backend', 'android', '--session-profile', profile,
+               '--session-startup', 'direct', '--gl-mode', args.host_gl_mode,
+               '--size', args.size, '--refresh-rate', str(args.refresh_rate),
+               '--render-socket', str(args.render_socket), '--wayland-display', 'wayland-gnome',
+               '--display', ':0', '--service-policy', 'core', '--usb-storage', args.usb_storage,
+               '--work', str(work)]
+    if not native:
+        command += ['--rootfs', str(root), '--app-renderer', args.guest_gl_mode]
+    subprocess.run(command, env=dict(env, PREFIX=str(args.prefix)), check=True, timeout=120)
+
+
 def initialize(args):
     prefix = args.prefix
     root = prefix
+    # Validate identities before using them as save-time filesystem paths.
+    if args.de in ('gnome', 'ubuntu_gnome', 'hyprland'):
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', args.desktop_id or ''):
+            raise ValueError('Saving this desktop requires a valid desktop identity')
+        if args.run_mode == 'proot' and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,63}', args.alias or ''):
+            raise ValueError('Saving a PRoot desktop requires a valid container alias')
+        if not args.size or not re.fullmatch(r'[0-9]{2,4}x[0-9]{2,4}', args.size):
+            raise ValueError('Saving this desktop requires explicit output dimensions')
+    # Revoke a previous preparation before any save-time validation can fail.
+    if args.de in ('gnome', 'ubuntu_gnome') and args.desktop_id:
+        saved_work = (Path(os.environ['HOME']) / ('.termux/gnome-' + args.desktop_id)
+            if args.run_mode == 'native' else prefix / 'var/lib/proot-distro/containers' /
+            args.alias / 'rootfs/home/termux/.local/share/termux-gnome')
+        (saved_work / 'prepared-session.json').unlink(missing_ok=True)
+    elif args.de == 'hyprland' and args.desktop_id:
+        (Path(os.environ['HOME']) / ('.termux/hyprland-' + args.desktop_id) /
+            'prepared-session.json').unlink(missing_ok=True)
     env = clean_environment()
     guest = []
     if args.run_mode == 'proot':
@@ -394,6 +434,12 @@ def initialize(args):
                             ' && kwin_android_configure_qt_clients' if not guest else '')],
                        env=dict(env, KWIN_ANDROID_GL_MODE=args.host_gl_mode), check=True, timeout=30)
         prepare_plasma(prefix)
+        if not guest:
+            executable(prefix / 'bin/kbuildsycoca6')
+            subprocess.run([str(prefix / 'bin/dbus-run-session'), '--',
+                str(prefix / 'bin/kbuildsycoca6'), '--noincremental'],
+                env=dict(env, XDG_DATA_DIRS=str(prefix / 'share'), XDG_MENU_PREFIX='plasma-'),
+                check=True, timeout=120)
         if plasma_proot:
             prepare_plasma_cache(guest, env)
             plasma_rendering(args, root, guest, env)
@@ -406,6 +452,20 @@ def initialize(args):
             settings += ['VK_DRIVER_FILES=/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json']
         check_egl(guest + settings + ['eglinfo', '-p', 'surfaceless', '-B'], mode, env)
 
+    if args.de in ('gnome', 'ubuntu_gnome'):
+        prepare_gnome_session(args, root, env)
+    elif args.de == 'hyprland':
+        from types import SimpleNamespace
+        width, height = map(int, args.size.split('x'))
+        module['prepare'](SimpleNamespace(runtime_id=args.runtime_id, theme_id=args.theme_id,
+            desktop_id=args.desktop_id, ready_file=args.ready_file, run_mode=args.run_mode,
+            alias=args.alias, client_gl_mode=args.guest_gl_mode if guest else 'default',
+            width=width, height=height, refresh=args.refresh_rate))
+    elif args.de == 'xfce4' and args.usb_storage == 'read-only':
+        from types import SimpleNamespace
+        runpy.run_path(str(ASSETS / 'desktop_xfce_session.py'))['prepare'](SimpleNamespace(
+            desktop_id=args.desktop_id, run_mode=args.run_mode, alias=args.alias), prefix)
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -414,6 +474,11 @@ def main():
     prepare.add_argument('--prefix', type=Path, default=Path(os.environ['PREFIX']))
     for command in ('initialize', 'restore'):
         install = sub.add_parser(command)
+        install.add_argument('--desktop-id')
+        install.add_argument('--ready-file', type=Path)
+        install.add_argument('--size')
+        install.add_argument('--refresh-rate', type=int, default=60)
+        install.add_argument('--render-socket', type=Path)
         install.add_argument('--prefix', type=Path, default=Path(os.environ['PREFIX']))
         install.add_argument('--de', choices=('xfce4', 'gnome', 'ubuntu_gnome', 'hyprland', 'kwin_plasma'), required=True)
         install.add_argument('--run-mode', choices=('native', 'proot'), required=True)

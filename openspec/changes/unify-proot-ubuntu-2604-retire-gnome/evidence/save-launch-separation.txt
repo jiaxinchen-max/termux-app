@@ -1,0 +1,25 @@
+2026-11-16 Save/launch split verification
+
+Device: 120.24.191.156:8057, isolated ubuntu-gnome-resolute-probe only.
+Save: production desktop_gnome_launch.py --prepare succeeded before cold launch.
+Cold launch: force-stop com.termux, start UI/render view, run saved launcher.
+FORBID_STATIC_PROBES=1 confirmed in launcher /proc environ.
+Actual desktop output, Dock and Home icon visible in save-coldstart.png.
+Static saved files predate launch and retain these SHA256:
+prepared-session.json 30d098eabeaa32fb04871780840b6b3a0701e798ed0b759ebe41398e28c1d57c
+session.sh 314494bb758254f9c2a75ebc65afbf3b1ac65fd2ec7274bb39675ab643eb9946
+sessionbus.conf 65d951eb760cd1603475b0030b69f711d876bc1812aba88f483fd63b55a62d65
+systembus.conf dfbcd08529431762443e2ddf0e3aac9a501d0d63d3f53c91857d92001ac6810a
+Tracked owned processes: 28554 28559 28564 28567 28694 28705 28727 28746 28804.
+Stop: all 9 gone, ready and shell identity removed, unrelated host sleep retained.
+Separate failure: force-stop, hold isolated prepared-session.json aside, launch exits 1
+with FileNotFoundError; no descriptor recreated, no ready marker; exact file restored.
+
+Local verification:
+termux-ui Java compile succeeded; 801 tests, 0 failures/errors.
+Save 5; GNOME real-bus session 15; GNOME/XFCE process fixture 31;
+managed lifecycle 17; Hyprland session 13/install 6;
+Ubuntu GNOME profile/install 16; Plasma install 11; local restore 9.
+Fixtures replace external boundaries explicitly and are not GPU or APK validation.
+Legacy broad desktop-scripts fixture still fails its old saved-runtime path.
+Harness strict gate and OpenSpec CLI unavailable. NotReadyForRelease.

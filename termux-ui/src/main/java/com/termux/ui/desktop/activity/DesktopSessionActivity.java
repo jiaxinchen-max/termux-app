@@ -248,7 +248,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
                         if ("desktop_stopping".equals(error.getErrorCode())) {
                             onState(DesktopSessionState.STOPPING);
                         } else {
-                            showFailure(getString(R.string.desktop_error, error.getErrorCode()));
+                            exitAfterStartFailure(getString(R.string.desktop_error, error.getErrorCode()));
                         }
                     });
                     return;
@@ -257,7 +257,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
             boolean inGrace = startRequested && observed != DesktopSessionState.RUNNING
                 && observed != DesktopSessionState.NOT_INSTALLED
                 && observed != DesktopSessionState.STOPPING
-                && !tasks.hasTerminalFailureStatus(distro)
+                && !tasks.hasTerminalResultStatus(distro)
                 && System.currentTimeMillis() - startRequestedAtMs < START_GRACE_MS;
             DesktopSessionState state = inGrace ? DesktopSessionState.STARTING : observed;
             runOnUiThread(() -> onState(state));
@@ -283,13 +283,14 @@ public final class DesktopSessionActivity extends AppCompatActivity {
         }
         switch (state) {
             case NOT_INSTALLED:
-                showFailure(getString(R.string.desktop_state_not_installed));
+                exitAfterStartFailure(getString(R.string.desktop_state_not_installed));
                 return;
             case RUNNING:
                 everRunning = true;
                 break;
             case FAILED:
-                showFailure(getString(R.string.desktop_session_failed));
+                if (everRunning) showFailure(getString(R.string.desktop_session_failed));
+                else exitAfterStartFailure(getString(R.string.desktop_session_failed));
                 return;
             case STOPPING:
                 startRequested = true;
@@ -305,6 +306,10 @@ public final class DesktopSessionActivity extends AppCompatActivity {
                     finish();
                     return;
                 }
+                if (startRequested) {
+                    exitAfterStartFailure(getString(R.string.desktop_session_failed));
+                    return;
+                }
                 break;
             default:
                 break;
@@ -314,6 +319,12 @@ public final class DesktopSessionActivity extends AppCompatActivity {
 
     private void showDesktop() {
         if (binding != null && !stoppingObserved && !exitRequested) binding.desktopSessionWaiting.setVisibility(View.GONE);
+    }
+
+    private void exitAfterStartFailure(String message) {
+        handler.removeCallbacks(pollTick);
+        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show();
+        finish();
     }
 
     private void showFailure(String message) {

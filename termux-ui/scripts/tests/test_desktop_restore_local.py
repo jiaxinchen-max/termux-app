@@ -79,7 +79,7 @@ class RestoreLocalTest(unittest.TestCase):
             self.write(self.prefix / 'bin' / name, '#!/bin/sh\nexit 0\n').chmod(0o755)
         for name in ('plasmashell', 'dbus-daemon', 'dbus-send', 'xfce4-session', 'dbus-run-session'):
             self.write(self.root / 'usr/bin' / name, 'restored executable').chmod(0o755)
-        self.write(self.root / 'etc/os-release', 'ID=ubuntu\nVERSION_CODENAME=resolute\n' if de == 'kwin_plasma' else 'ID=debian\nVERSION_CODENAME=trixie\n')
+        self.write(self.root / 'etc/os-release', 'ID=ubuntu\nVERSION_CODENAME=resolute\n')
         self.write(self.root / 'usr/lib/polkit-1/polkitd', '').chmod(0o755)
         self.write(self.root / 'usr/libexec/packagekitd', '')
         self.write(self.root / 'usr/lib/aarch64-linux-gnu/qt6/plugins/platforms/libqwayland-egl.so', '')

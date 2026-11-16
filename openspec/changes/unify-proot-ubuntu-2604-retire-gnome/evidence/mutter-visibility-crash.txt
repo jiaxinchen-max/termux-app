@@ -1,0 +1,31 @@
+LIFETIME queue-add 0xb400007a2f989200 idx=1
+LIFETIME queue-add 0xb400007a2f989200 idx=0
+LIFETIME monitor window=0xb400007a2f989200 surface=0xb400007a8fb44410 unmanaging=0
+LIFETIME queue-remove 0xb400007a2f989200 idx=1
+LIFETIME monitor window=0xb400007a2f989200 surface=0xb400007a8fb44410 unmanaging=0
+LIFETIME queue-run 0xb400007a2f989200 idx=0 tid=0xb400007a4f916ab0
+LIFETIME visibility 0xb400007a2f989200 W8 (Desktop Icons 1) unmanaging=0 tid=0xb400007a4f916ab0
+LIFETIME queue-add 0xb400007a2f989200 idx=0
+LIFETIME monitor window=0xb400007a2f989200 surface=0xb400007a8fb44410 unmanaging=0
+LIFETIME queue-run 0xb400007a2f989200 idx=0 tid=0xb400007a4f916ab0
+LIFETIME visibility 0xb400007a2f989200 W8 (Desktop Icons 1) unmanaging=0 tid=0xb400007a4f916ab0
+LIFETIME queue-remove 0xb400007a2f989200 idx=0
+LIFETIME visibility 0xb400007a2f989200 W8 (Desktop Icons 1) unmanaging=0 tid=0xb400007a4f916ab0
+LIFETIME queue-remove 0xb400007a2f989200 idx=0
+LIFETIME visibility 0xb400007a2f989200 W8 (Desktop Icons 1) unmanaging=0 tid=0xb400007a4f916ab0
+LIFETIME queue-add 0xb400007a2f989200 idx=1
+LIFETIME queue-add 0xb400007a2f989200 idx=0
+LIFETIME queue-remove 0xb400007a2f989200 idx=1
+LIFETIME monitor window=0xb400007a2f989200 surface=0xb400007a8fb44410 unmanaging=0
+LIFETIME monitor window=0xb400007a2f989200 surface=0xb400007a8fb44410 unmanaging=0
+LIFETIME unmanage 0xb400007a2f989200 W8 (Desktop Icons 1) tid=0xb400007a4f916ab0
+LIFETIME surface-dispose 0xb400007a8fb44410 role=0xb400007adf9d3180 tid=0xb400007a4f916ab0
+LIFETIME queue-run 0xb400007a2f989200 idx=0 tid=0xb400007a4f916ab0
+LIFETIME visibility 0xb400007a2f989200 W8 (Desktop Icons 1) unmanaging=1 tid=0xb400007a4f916ab0
+LIFETIME monitor window=0xb400007a2f989200 surface=0xb400007a8fb44410 unmanaging=1
+CRASH-PROBE signal=11 fault=0xaaaaaaaaaaaaaaaa
+
+Symbolized original 50.1 build: meta_wayland_surface_get_toplevel ->
+meta_wayland_surface_get_toplevel_window -> meta_window_wayland_update_main_monitor ->
+meta_window_update_monitor -> meta_window_move_resize_internal -> meta_window_force_placement ->
+meta_window_update_visibility -> update_window_visibilities -> window_queue_run_later_func.

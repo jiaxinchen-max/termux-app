@@ -154,7 +154,7 @@ class MesaBackupTests(unittest.TestCase):
         self.m = fixture.installer
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name); self.root = self.base / 'rootfs'; self.root.mkdir()
-        (self.root / 'etc').mkdir(); (self.root / 'etc/os-release').write_text('ID=debian\nVERSION_CODENAME=trixie\n')
+        (self.root / 'etc').mkdir(); (self.root / 'etc/os-release').write_text('ID=ubuntu\nVERSION_CODENAME=resolute\n')
         data = fixture.Fixture().fixture(); self.archive = self.base / 'mesa.gz'; self.archive.write_bytes(data)
         import hashlib
         self.m.ARCHIVE_BYTES = len(data); self.m.ARCHIVE_SHA256 = hashlib.sha256(data).hexdigest()

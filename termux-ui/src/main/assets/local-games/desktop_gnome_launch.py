@@ -19,8 +19,24 @@ import json
 from xml.sax.saxutils import escape
 
 
+def session_command(base, shell, session_env, command):
+    """Probe with the session's filesystem, credentials and exact bus address."""
+    return base + [shell, '-c', '. ' + shlex.quote(str(session_env)) + '; exec "$@"',
+                   'gnome-session-probe'] + command
+
+
+def probe_session(command, env, timeout=5):
+    """A slow reply is a failed attempt, not an escape from the startup deadline."""
+    try:
+        return subprocess.run(command, env=env, stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(command, 124, 'Session probe timed out')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--prepare', action='store_true', help='Save/install phase only: prepare and validate this session')
     ap.add_argument('--desktop-id', required=True)
     ap.add_argument('--ready-file', type=Path, required=True)
     ap.add_argument('--run-mode', choices=('native', 'proot'), required=True)
@@ -39,6 +55,14 @@ def main():
     ap.add_argument('--display', required=True)
     ap.add_argument('--service-policy', choices=('core',), required=True)
     args = ap.parse_args()
+    if not args.prepare:
+        return run_prepared(args)
+    import fcntl
+    w = args.work.resolve()
+    w.mkdir(parents=True, exist_ok=True)
+    lock = (w / 'session.lock').open('w')
+    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    (w / 'prepared-session.json').unlink(missing_ok=True)
     if args.run_mode == 'proot' and args.session_profile == 'gnome':
         ap.error('Independent GNOME containers are retired; create a supported desktop')
     ubuntu = args.session_profile in ('ubuntu', 'native-ubuntu')
@@ -81,21 +105,21 @@ def main():
         ap.error('--wayland-display must be a socket basename')
     android = args.backend == 'android'
     prefix = Path(os.environ['PREFIX'])
+    termux_home = os.environ['HOME']
+    if not Path(termux_home).is_absolute() or not Path(termux_home).is_dir():
+        ap.error('the parent Termux HOME must be an existing absolute directory')
     desktop_key = hashlib.sha256(args.desktop_id.encode()).hexdigest()[:16]
-    runtime = prefix / ('tmp/gnome-' + desktop_key) / 'runtime'
+    # TermuxService.onDestroy clears PREFIX/tmp. Session sockets must survive
+    # that independent service lifecycle and still fit sockaddr_un.sun_path.
+    runtime = Path(termux_home) / ('.cache/gnome-' + desktop_key)
     usb_parent = prefix / ('tmp/tusb-' + desktop_key)
     usb_runtime = usb_parent / 'desktop'
     if args.usb_storage == 'read-only':
         usb_parent.mkdir(parents=True, exist_ok=True)
         usb_parent.chmod(0o700)
-    if not args.render_socket.is_socket():
-        ap.error('the requested App render socket is not available')
     w = args.work.resolve()
     w.mkdir(parents=True, exist_ok=True)
     w.chmod(0o700)
-    termux_home = os.environ['HOME']
-    if not Path(termux_home).is_absolute() or not Path(termux_home).is_dir():
-        ap.error('the parent Termux HOME must be an existing absolute directory')
     if args.rootfs:
         user_home = args.rootfs.resolve() / 'home/termux'
         config_home, cache_home, data_home = (user_home / '.config', user_home / '.cache',
@@ -124,21 +148,8 @@ def main():
     else:
         runtime_link.symlink_to(runtime, target_is_directory=True)
     # Reject reuse while another session holds this workspace.
-    import fcntl
-    lock = (w / 'session.lock').open('w')
-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    args.ready_file.unlink(missing_ok=True)
-    # Do not inherit another compositor's renderer selection.
-    host = {key: value for key, value in os.environ.items()
-            if not key.startswith('KWIN_') and key != 'PLASMA_LOG'}
-    # An inherited Mesa/Vulkan selection must never alter the requested mode,
-    # including the independent System EGL display server.
-    for key in list(host):
-        if key.startswith(('MESA_', 'GALLIUM_', 'LIBGL_', 'VK_', 'ZINK_', 'MUTTER_ANDROID_')) or key in (
-                'COGL_DRIVER', 'CLUTTER_DRIVER', 'DRI_PRIME', '__GLX_VENDOR_LIBRARY_NAME',
-                'EGL_PLATFORM', 'TERMUX_ANDROID_ZINK', 'MUTTER_BACKEND',
-                'XLORIE_GL_MODE', 'XLORIE_GLX', 'TERMUX_RENDER_AHB_RECEIVE'):
-            host.pop(key)
+    inherited = parent_environment()
+    host = dict(inherited)
     host.update(HOME=termux_home, DISPLAY=args.display, XDG_RUNTIME_DIR=str(runtime),
                 XCURSOR_PATH=str(prefix / 'share/icons'), XCURSOR_THEME='Adwaita',
                 XDG_CONFIG_HOME=str(config_home), XDG_CACHE_HOME=str(cache_home),
@@ -158,10 +169,19 @@ def main():
                         if line.startswith('termux:')), None)
         if not account or len(account) != 7 or not account[2].isdigit() or not account[3].isdigit() or int(account[2]) == 0 or account[5] != '/home/termux':
             ap.error('container requires the ordinary termux account; create a new container')
-        base = ['proot', '-i', account[2] + ':' + account[3], '--link2symlink', '--sysvipc', '-r', str(root), '-b', '/dev',
+        adapter_spec = importlib.util.spec_from_file_location(
+            'gnome_glycin_adapter', Path(__file__).with_name('desktop_install_glycin.py'))
+        adapter = importlib.util.module_from_spec(adapter_spec)
+        adapter_spec.loader.exec_module(adapter)
+        glycin = adapter.verify_installed(root)
+        # D-Bus activation can detach service process groups. Have the tracer
+        # reap its whole guest when the owning command exits, including those
+        # services, without scanning unrelated Android processes.
+        base = ['proot', '--kill-on-exit', '-i', account[2] + ':' + account[3], '--link2symlink', '--sysvipc', '-r', str(root), '-b', '/dev',
                 '-b', '/proc', '-b', '/sys', '-b', str(w) + ':' + gw,
                 '-b', str(w) + ':' + str(w),
-                '-b', str(runtime) + ':' + gr]
+                '-b', str(runtime) + ':' + gr,
+                '-b', str(glycin) + ':/usr/lib/aarch64-linux-gnu/libglycin-2.so.0']
         # Native Shell and guest applications share one filesystem and private bus.
         # The Android linker loads Bionic libraries from PREFIX; glibc apps keep /usr.
         for platform in (prefix, Path('/apex'), Path('/system'), Path('/vendor'),
@@ -248,11 +268,18 @@ def main():
         '<allow user="*"/><allow own="*"/><allow send_destination="*"/>'
         '<allow receive_sender="*"/></policy></busconfig>')
     shell_binary = str(prefix / 'bin/gnome-shell')
-    native_probe = subprocess.run(base + [shell_binary, '--version'], env=guest,
-                                  capture_output=True, text=True, timeout=20)
-    if native_probe.returncode or not native_probe.stdout.strip().startswith('GNOME Shell 50.'):
-        raise RuntimeError('GNOME requires the matching native Shell/Mutter 50 runtime: ' +
-                           native_probe.stdout + native_probe.stderr)
+    if native_ubuntu:
+        # Direct invocation must enforce the same integrity/dependency gates as
+        # installation. Reject corruption or a broken application before buses
+        # and the compositor are created, even when an old marker still exists.
+        profile.validate(prefix)
+        profile.runtime_probe(prefix, guest)
+    else:
+        native_probe = subprocess.run(base + [shell_binary, '--version'], env=guest,
+                                      capture_output=True, text=True, timeout=20)
+        if native_probe.returncode or not native_probe.stdout.strip().startswith('GNOME Shell 50.'):
+            raise RuntimeError('GNOME requires the matching native Shell/Mutter 50 runtime: ' +
+                               native_probe.stdout + native_probe.stderr)
     compositor_env = {
         'MUTTER_BACKEND': 'android', 'MUTTER_ANDROID_GL_MODE': 'system',
         'MUTTER_ANDROID_WIDTH': size[1], 'MUTTER_ANDROID_HEIGHT': size[2],
@@ -275,14 +302,13 @@ def main():
     (w / 'session.sh').write_text('''#!/bin/sh
 set -eu
 cd "$HOME"
-printf 'export DBUS_SESSION_BUS_ADDRESS="%s"\\n' "$DBUS_SESSION_BUS_ADDRESS" > ''' + shlex.quote(gw + '/session.env') + '''
+session_env_file=''' + shlex.quote(gw + '/session.env.') + '''$$
+printf 'export DBUS_SESSION_BUS_ADDRESS="%s"\\n' "$DBUS_SESSION_BUS_ADDRESS" > "$session_env_file"
+mv -f "$session_env_file" ''' + shlex.quote(gw + '/session.env') + '''
 dbus-update-activation-environment ''' + ' '.join(values) + '''
-''' + ('' if native_ubuntu else 'gsettings set org.gnome.desktop.interface cursor-theme "$XCURSOR_THEME"\n') + '''
-gsettings set org.gnome.desktop.interface enable-animations true
-gsettings set org.gnome.desktop.session idle-delay 0
-gsettings set org.gnome.desktop.screensaver lock-enabled false
-''' + (profile.session_setup(prefix) if native_ubuntu else profile.session_setup() if ubuntu else '') + '''
-printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '\nexec ' + shlex.join(compositor) + '\n')
+shell_pid_file=''' + shlex.quote(gw + '/shell.pid.') + '''$$
+printf '%s\\n' "$$" > "$shell_pid_file"
+mv -f "$shell_pid_file" ''' + shlex.quote(gw + '/shell.pid') + '\nexec ' + shlex.join(compositor) + '\n')
     session_bus_args = ['dbus-run-session', '--config-file=' + gw + '/sessionbus.conf']
     if args.service_policy == 'core':
         services = w / 'dbus-services'
@@ -316,6 +342,85 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '\nexec ' + shlex.j
             '<standard_session_servicedirs/><policy context="default"><allow user="*"/>'
             '<allow own="*"/><allow send_destination="*"/><allow receive_sender="*"/>'
             '</policy></busconfig>')
+    # Only preparation may write defaults, inspect packages or copy services.
+    settings = '''if [ ! -f "$XDG_CONFIG_HOME/.termux-gnome-configured" ]; then
+gsettings set org.gnome.desktop.interface cursor-theme "$XCURSOR_THEME"
+gsettings set org.gnome.desktop.interface enable-animations true
+gsettings set org.gnome.desktop.session idle-delay 0
+gsettings set org.gnome.desktop.screensaver lock-enabled false
+touch "$XDG_CONFIG_HOME/.termux-gnome-configured"
+fi
+''' + (profile.session_setup(prefix) if native_ubuntu else profile.session_setup() if ubuntu else '')
+    subprocess.run(base + ['dbus-run-session', '--', session_sh, '-ec', settings],
+                   env=guest, check=True, timeout=60)
+    config = dict(schema=1, request=session_request(args),
+                  runtime=str(runtime), usb_parent=str(usb_parent), gw=gw, gr=gr,
+                  base=base, session_sh=session_sh,
+                  extensions=list(profile.EXTENSIONS) if ubuntu else [],
+                  host={key: value for key, value in host.items() if inherited.get(key) != value},
+                  guest={key: value for key, value in guest.items() if inherited.get(key) != value},
+                  guest_unset=[key for key in inherited if key not in guest])
+    temporary = w / ('prepared-session.json.' + str(os.getpid()) + '.tmp')
+    try:
+        temporary.write_text(json.dumps(config, sort_keys=True) + '\n')
+        temporary.chmod(0o600)
+        temporary.replace(w / 'prepared-session.json')
+    finally:
+        temporary.unlink(missing_ok=True)
+        lock.close()
+    print('GNOME session prepared during save/install: ' + str(w), flush=True)
+    return 0
+
+
+def session_request(args):
+    return {key: str(value) if isinstance(value, Path) else value
+            for key, value in vars(args).items() if key != 'prepare'}
+
+
+def parent_environment():
+    # Do not inherit another compositor's renderer selection.
+    host = {key: value for key, value in os.environ.items()
+            if not key.startswith('KWIN_') and key != 'PLASMA_LOG'}
+    # An inherited Mesa/Vulkan selection must never alter the requested mode,
+    # including the independent System EGL display server.
+    for key in list(host):
+        if key.startswith(('MESA_', 'GALLIUM_', 'LIBGL_', 'VK_', 'ZINK_', 'MUTTER_ANDROID_')) or key in (
+                'COGL_DRIVER', 'CLUTTER_DRIVER', 'DRI_PRIME', '__GLX_VENDOR_LIBRARY_NAME',
+                'EGL_PLATFORM', 'TERMUX_ANDROID_ZINK', 'MUTTER_BACKEND',
+                'XLORIE_GL_MODE', 'XLORIE_GLX', 'TERMUX_RENDER_AHB_RECEIVE'):
+            host.pop(key)
+    # A new session always obtains its own bus identity.
+    host.pop('DBUS_SESSION_BUS_ADDRESS', None)
+    host.pop('DBUS_SESSION_BUS_PID', None)
+    host.pop('SESSION_MANAGER', None)
+    return host
+
+
+def run_prepared(args):
+    # Read the small save result; no package inventory, hashes, --version,
+    # dependency probe, default settings, initialization or repair on launch.
+    from types import SimpleNamespace
+    import fcntl
+    w = args.work.resolve()
+    config = json.loads((w / 'prepared-session.json').read_text())
+    if config.get('schema') != 1 or config.get('request') != session_request(args):
+        raise RuntimeError('Desktop settings are not prepared; save/install the desktop first')
+    prefix = Path(os.environ['PREFIX'])
+    runtime, usb_parent = Path(config['runtime']), Path(config['usb_parent'])
+    usb_runtime = usb_parent / 'desktop'
+    gw, gr, base, session_sh = config['gw'], config['gr'], config['base'], config['session_sh']
+    profile = SimpleNamespace(EXTENSIONS=config['extensions'])
+    native_ubuntu = args.session_profile == 'native-ubuntu'
+    ubuntu = args.session_profile in ('ubuntu', 'native-ubuntu')
+    android = True
+    session_bus_args = ['dbus-run-session', '--config-file=' + gw + '/sessionbus.conf']
+    host = dict(parent_environment(), **config['host'])
+    guest = dict(parent_environment(), **config['guest'])
+    for key in config['guest_unset']:
+        guest.pop(key, None)
+    lock = (w / 'session.lock').open('w')
+    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    args.ready_file.unlink(missing_ok=True)
     children, logs, optional = [], [], []
     storage = None
     def start(name, command, env):
@@ -405,24 +510,25 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '\nexec ' + shlex.j
                     raise RuntimeError('GNOME Android Wayland display did not become ready')
                 time.sleep(.1)
         deadline = time.monotonic() + 30
-        shell_ping = ['dbus-send', '--session', '--dest=org.gnome.Shell', '--type=method_call',
-                      '--print-reply', '/org/gnome/Shell', 'org.freedesktop.DBus.Peer.Ping']
-        while subprocess.run(shell_ping, env=host, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL, timeout=5).returncode != 0:
+        # PRoot may map the ordinary account to a different UID than Android.
+        # Host EXTERNAL authentication cannot be used against that session bus.
+        shell_ping = session_command(base, session_sh, gw + '/session.env',
+            ['dbus-send', '--session', '--dest=org.gnome.Shell', '--type=method_call',
+             '--print-reply', '/org/gnome/Shell', 'org.freedesktop.DBus.Peer.Ping'])
+        while probe_session(shell_ping, guest).returncode != 0:
             if not shell_alive() or session.poll() is not None or time.monotonic() > deadline:
                 raise RuntimeError('GNOME Shell org.gnome.Shell D-Bus did not become ready')
             time.sleep(.1)
         if ubuntu:
             # Shell's bus alone is insufficient: broken Dock/DING must fail readiness.
             for uuid in profile.EXTENSIONS:
-                command = base + [session_sh, '-c', '. ' + shlex.quote(gw + '/session.env') +
-                    '; exec gdbus call --session --dest org.gnome.Shell '
-                    '--object-path /org/gnome/Shell '
-                    '--method org.gnome.Shell.Extensions.GetExtensionInfo ' + shlex.quote(uuid)]
+                command = session_command(base, session_sh, gw + '/session.env',
+                    ['gdbus', 'call', '--session', '--dest', 'org.gnome.Shell',
+                     '--object-path', '/org/gnome/Shell',
+                     '--method', 'org.gnome.Shell.Extensions.GetExtensionInfo', uuid])
                 deadline = time.monotonic() + 30
                 while True:
-                    result = subprocess.run(command, env=guest, stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT, text=True, timeout=5)
+                    result = probe_session(command, guest)
                     if result.returncode == 0 and re.search(
                             r"'state': <(?:uint32 |double )?1(?:\.0)?>", result.stdout):
                         break
@@ -435,19 +541,26 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '\nexec ' + shlex.j
                         raise RuntimeError('Ubuntu extension did not become active: ' + uuid + '\n' + result.stdout[-2000:])
                     time.sleep(.5)
             for name in ('com.rastersoft.ding',):
-                command = base + [session_sh, '-c', '. ' + shlex.quote(gw + '/session.env') +
-                    '; exec gdbus call --session --dest org.freedesktop.DBus '
-                    '--object-path /org/freedesktop/DBus '
-                    '--method org.freedesktop.DBus.NameHasOwner ' + shlex.quote(name)]
+                command = session_command(base, session_sh, gw + '/session.env',
+                    ['gdbus', 'call', '--session', '--dest', 'org.freedesktop.DBus',
+                     '--object-path', '/org/freedesktop/DBus',
+                     '--method', 'org.freedesktop.DBus.NameHasOwner', name])
                 deadline = time.monotonic() + 30
                 while True:
-                    result = subprocess.run(command, env=guest, stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT, text=True, timeout=5)
+                    result = probe_session(command, guest)
                     if result.returncode == 0 and result.stdout.strip() == '(true,)':
                         break
                     if not shell_alive() or session.poll() is not None or time.monotonic() > deadline:
                         raise RuntimeError('Ubuntu desktop service did not become ready: ' + name + '\n' + result.stdout[-2000:])
                     time.sleep(.5)
+            # DING acquires its bus name before decoding icons and creating its
+            # windows. The pinned extension logs this after Mutter has associated
+            # the final required window; a restart loop must not count as ready.
+            deadline = time.monotonic() + 30
+            while 'Received notification for window. 0 notifications remaining.' not in (w / 'session.log').read_text(errors='replace'):
+                if not shell_alive() or session.poll() is not None or time.monotonic() > deadline:
+                    raise RuntimeError('Ubuntu desktop windows did not become ready; inspect session.log')
+                time.sleep(.1)
         if any(process.poll() is not None for _, process in optional):
             raise RuntimeError('A requested desktop service terminated before GNOME was ready')
         if not shell_alive():
@@ -463,13 +576,16 @@ printf '%s\\n' "$$" > ''' + shlex.quote(gw + '/shell.pid') + '\nexec ' + shlex.j
         print('GNOME session started; logs: ' + str(w), flush=True)
         while session.poll() is None:
             if not shell_alive():
-                return session.wait(timeout=5)
+                code = session.wait(timeout=5)
+                print('GNOME compositor exited; session status: ' + str(code), flush=True)
+                return code
             if bus.poll() is not None:
                 raise RuntimeError('Display/system D-Bus terminated')
             for name, process in optional:
                 if process.poll() is not None:
                     raise RuntimeError(name + ' terminated; inspect work logs')
             time.sleep(.5)
+        print('GNOME session exited; status: ' + str(session.returncode), flush=True)
         return session.returncode
     except KeyboardInterrupt:
         return 130

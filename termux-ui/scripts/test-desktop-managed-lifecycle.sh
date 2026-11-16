@@ -22,10 +22,10 @@ with tempfile.TemporaryDirectory(prefix='dl-',dir='/tmp') as directory:
   if not missing_asset: (scripts/'desktop_usb_storage.py').write_text('# fixture\n')
   env=dict(os.environ,PREFIX=str(prefix),HOME=str(home),FIXTURE=str(work),FIXTURE_AUDIO_FAILURE='1' if audio_failure else '0')
   def spec(identifier):
-   values=dict(DESKTOP_ID=identifier,DESKTOP_MODE=mode,DESKTOP_DE=de,DESKTOP_SPEC_VERSION='3',DESKTOP_HOST_GL_MODE='system' if mode=='proot' and gl=='llvmpipe' else gl,DESKTOP_GUEST_GL_MODE=gl if mode=='proot' else 'none',DESKTOP_USB_STORAGE='off',DESKTOP_GNOME_BACKEND='x11' if mode=='proot' else 'android',DESKTOP_GNOME_RENDERER=renderer or gl,DESKTOP_GNOME_SESSION_STARTUP='direct',DESKTOP_REFRESH_RATE='60',DESKTOP_WIDTH='800',DESKTOP_HEIGHT='600',DESKTOP_RENDER_SOCKET=str(work/'render'),DESKTOP_PID_FILE=str(state/(identifier+'.pid')),DESKTOP_STATUS_FILE=str(state/(identifier+'.status')),DESKTOP_LOG_FILE=str(work/(identifier+'.log')))
+   values=dict(DESKTOP_ID=identifier,DESKTOP_MODE=mode,DESKTOP_DE=de,DESKTOP_SPEC_VERSION='3',DESKTOP_HOST_GL_MODE='system' if mode=='proot' and gl=='llvmpipe' else gl,DESKTOP_GUEST_GL_MODE=gl if mode=='proot' else 'none',DESKTOP_USB_STORAGE='off',DESKTOP_GNOME_BACKEND='android',DESKTOP_GNOME_RENDERER=renderer or ('system' if mode=='proot' else gl),DESKTOP_GNOME_SESSION_STARTUP='direct',DESKTOP_REFRESH_RATE='60',DESKTOP_WIDTH='800',DESKTOP_HEIGHT='600',DESKTOP_RENDER_SOCKET=str(work/'render'),DESKTOP_PID_FILE=str(state/(identifier+'.pid')),DESKTOP_STATUS_FILE=str(state/(identifier+'.status')),DESKTOP_LOG_FILE=str(work/(identifier+'.log')))
    if audio is not None: values['DESKTOP_AUDIO_MODE']=audio
-   if mode=='proot': values.update(DESKTOP_PROOT_DISTRO='debian-test',DESKTOP_CONTAINER_CODENAME='trixie')
-   if de=='ubuntu_gnome': values.update(DESKTOP_CONTAINER_BASE='ubuntu:noble',DESKTOP_CONTAINER_CODENAME='noble',DESKTOP_GNOME_SESSION_PROFILE='ubuntu')
+   if mode=='proot': values.update(DESKTOP_PROOT_DISTRO='ubuntu-test',DESKTOP_CONTAINER_CODENAME='resolute',DESKTOP_GNOME_APPLICATION_RENDERER='llvmpipe')
+   if de=='ubuntu_gnome': values.update(DESKTOP_CONTAINER_BASE='ubuntu:resolute',DESKTOP_CONTAINER_CODENAME='resolute',DESKTOP_GNOME_SESSION_PROFILE='ubuntu')
    if display is not None: values['DESKTOP_GNOME_DISPLAY_GL_MODE']=display
    if buffer is not None: values['DESKTOP_GNOME_DISPLAY_BUFFER_MODE']=buffer
    target=specs/(identifier+'.spec'); target.write_text(''.join(k+'='+shlex.quote(v)+'\n' for k,v in values.items())); return target
@@ -56,9 +56,6 @@ while True: time.sleep(.05)
    elif failed:
     assert result.returncode==74 and not (work/'new-started').exists(),result.stdout
     assert (state/'old.status').read_text()=='exit:73\n',result.stdout
-   elif missing_asset:
-    assert result.returncode==74 and not (work/'new-started').exists(),result.stdout
-    assert (work/'old-cleaned').exists()
    elif audio != 'host-pulseaudio' or audio_failure:
     expected=70 if audio_failure else 64
     assert result.returncode==expected and not (work/'new-started').exists(),result.stdout
@@ -71,11 +68,13 @@ while True: time.sleep(.05)
     if mode=='proot':
      import json
      args=json.loads((work/'new-started').read_text())
-     assert args[args.index('--x11-display-gl-mode')+1]==display
-     assert args[args.index('--x11-display-buffer-mode')+1]==buffer
-     assert args[args.index('--gl-mode')+1]==gl
-     if de=='ubuntu_gnome': assert args[args.index('--session-profile')+1]=='ubuntu'
-    assert (prefix/'libexec/termux-gnome/launch.py').read_text()==(scripts/'desktop_gnome_launch.py').read_text()
+     assert args[args.index('--backend')+1]=='android'
+     assert args[args.index('--gl-mode')+1]=='system'
+     assert args[args.index('--app-renderer')+1]=='llvmpipe'
+     assert args[args.index('--session-profile')+1]=='ubuntu'
+    assert not (prefix/'libexec/termux-gnome').exists(), 'launch deployed static helper files'
+    if missing_asset: assert not (scripts/'desktop_usb_storage.py').exists(), 'launch repaired static assets'
+
   finally:
    if old.poll() is None: old.terminate()
    reaper.join(timeout=5)
@@ -83,15 +82,15 @@ while True: time.sleep(.05)
    render_socket.close()
  run('audio-missing',audio=None); run('audio-invalid',audio='auto'); run('audio-service-failed',audio_failure=True)
  run('switch-ok'); run('switch-cleanup-error',failed=True); run('switch-spec-missing',missing_spec=True); run('stage-error',missing_asset=True)
- run('proot-llvmpipe',mode='proot',gl='llvmpipe',display='system',buffer='native')
- run('proot-zink',mode='proot',gl='zink',display='zink',buffer='dmabuf')
+ run('proot-llvmpipe',mode='proot',gl='llvmpipe',rejected=True)
+ run('proot-zink',mode='proot',gl='zink',rejected=True)
  run('proot-mismatched-renderer',mode='proot',gl='zink',renderer='llvmpipe',display='zink',buffer='dmabuf',rejected=True)
  run('proot-missing-buffer',mode='proot',gl='zink',display='zink',rejected=True)
  run('proot-mismatched-display',mode='proot',gl='zink',display='system',buffer='dmabuf',rejected=True)
  run('proot-mismatched-buffer',mode='proot',gl='zink',display='zink',buffer='native',rejected=True)
  run('native-forbidden-buffer',buffer='native',rejected=True)
- run('ubuntu-switch-ok',mode='proot',gl='llvmpipe',display='system',buffer='native',de='ubuntu_gnome')
- run('ubuntu-cleanup-error',mode='proot',gl='llvmpipe',display='system',buffer='native',de='ubuntu_gnome',failed=True)
+ run('ubuntu-switch-ok',mode='proot',gl='llvmpipe',de='ubuntu_gnome')
+ run('ubuntu-cleanup-error',mode='proot',gl='llvmpipe',de='ubuntu_gnome',failed=True)
  # Blocking the package's global autostart must preserve all other user entries.
  folder=base/'autostart'; folder.mkdir(); config=folder/'config'; autostart=config/'autostart'; autostart.mkdir(parents=True)
  (autostart/'user.desktop').write_text('unchanged'); (autostart/'tusb-desktop.desktop').write_text('Exec=unexpected-global-service')

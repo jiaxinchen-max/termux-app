@@ -8,17 +8,18 @@ import tempfile
 import unittest
 
 ASSETS = Path(__file__).resolve().parents[1] / 'src/main/assets/local-games'
-PIN = 'b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687'
+PIN = '51aa11a8e7bc8c98bc9e852b260ee2dac99392b4ee8658182e4837c309818faf'
 
 class InstallTests(unittest.TestCase):
     def run_install(self, mode='zink', failure='', de='hyprland', theme='m3ww-v1', switch=False):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary); prefix = base / 'usr'; (prefix / 'bin').mkdir(parents=True); (prefix / 'tmp').mkdir()
             assets = base / 'assets'; assets.mkdir()
+            (prefix/'etc/tls').mkdir(parents=True); shutil.copy('/etc/ssl/certs/ca-certificates.crt', prefix/'etc/tls/cert.pem')
             for name in ['desktop_container_user.sh', 'desktop_common.sh', 'desktop_rendering.sh', 'hyprland-components.sh', 'desktop_container_plasma_apt.sh', 'desktop_container_apt_sources.sh', 'desktop_container_statx_setup.sh', 'desktop_container_run_config.sh', 'desktop_container_statx_aarch64.bin']:
                 shutil.copyfile(ASSETS / name, assets / name)
             container = prefix / 'var/lib/proot-distro/containers/debian-1'; rootfs = container / 'rootfs'
-            (rootfs / 'etc').mkdir(parents=True); (rootfs / 'etc/os-release').write_text('ID=debian\nVERSION_CODENAME=trixie\n')
+            (rootfs / 'etc').mkdir(parents=True); (rootfs / 'etc/os-release').write_text('ID=ubuntu\nVERSION_CODENAME=resolute\n')
             marker = container / '.desktop-de-hyprland'; marker.write_text('old marker'); Path(str(marker)+'-zink').write_text('old marker')
             source = (ASSETS / 'desktop_install.sh').read_text()
             # Real entry validation, marker logic, shared Mesa function and error propagation run.
@@ -107,10 +108,9 @@ dpkg() { :; }
                 self.assertNotIn('desktop_install_mesa.py', result['trace'])
                 self.assertEqual('exit:' + str(code) + '\n', result['status'])
 
-    def testGnomeWrapperRetainsPinnedInstallerAndNoHyprlandBackup(self):
+    def testRetiredGnomeContainerCannotReachInstaller(self):
         result = self.run_install(de='gnome')
-        self.assertEqual(0, result['code'], result['output'])
-        self.assertIn(PIN,result['trace']); self.assertIn('desktop_install_mesa.py',result['trace'])
-        self.assertNotIn('backup-mesa',result['trace'])
+        self.assertEqual(64, result['code'], result['output'])
+        self.assertEqual('', result['trace'])
 
 if __name__ == '__main__': unittest.main()

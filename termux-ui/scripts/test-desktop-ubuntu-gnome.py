@@ -48,6 +48,22 @@ class UbuntuProfileTests(unittest.TestCase):
     def test_valid_official_profile_layout(self):
         profile.validate_rootfs(self.root)
 
+    def test_managed_mode_preserves_ubuntu_appearance_and_user_extension_support(self):
+        original = self.root / 'usr/share/gnome-shell/modes/ubuntu.json'
+        mode = json.loads(original.read_text())
+        mode.update(colorScheme='prefer-light',
+                    themeResourceName='theme/Yaru/gnome-shell-theme.gresource',
+                    iconsResourceName='theme/Yaru/gnome-shell-icons.gresource',
+                    enabledExtensions=['snapd-prompting@canonical.com'])
+        original.write_text(json.dumps(mode))
+        profile.prepare_rootfs(self.root)
+        managed = json.loads((self.root / ('usr/share/gnome-shell/modes/' + profile.MODE + '.json')).read_text())
+        self.assertEqual('user', managed['parentMode'])
+        self.assertEqual(list(profile.EXTENSIONS), managed.pop('enabledExtensions'))
+        mode.pop('enabledExtensions')
+        self.assertEqual(mode, managed)
+        profile.validate_rootfs(self.root)
+
     def test_each_required_file_is_checked(self):
         for relative in profile.REQUIRED_FILES:
             file = self.root / relative
@@ -110,6 +126,8 @@ class UbuntuProfileTests(unittest.TestCase):
         self.assertEqual(profile.DING_PATCHED_SHA256, hashlib.sha256(patched).hexdigest())
         self.assertNotIn(b"Gio.File.new_for_path('/proc')", patched)
         self.assertIn(b'this.doKillAllOldDesktopProcesses();', patched)
+        self.assertIn(b'GLib.PRIORITY_DEFAULT, 30000,', patched)
+        self.assertNotIn(b'GLib.PRIORITY_DEFAULT, 3000,', patched)
         profile.prepare_rootfs(self.root)
         self.assertEqual(patched, path.read_bytes())
         unknown = original + b'// unknown revision\n'
@@ -137,11 +155,14 @@ class UbuntuInstallTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='ubuntu-install-') as directory:
             base = Path(directory)
             prefix = base / 'usr'; (prefix / 'bin').mkdir(parents=True); (prefix / 'tmp').mkdir()
+            (prefix / 'etc/tls').mkdir(parents=True)
+            shutil.copy('/etc/ssl/certs/ca-certificates.crt', prefix / 'etc/tls/cert.pem')
             (prefix / 'bin/python3').symlink_to(sys.executable)
             uname = prefix / 'bin/uname'; uname.write_text('#!/bin/sh\nprintf aarch64\n'); uname.chmod(0o755)
             scripts = base / 'scripts'; scripts.mkdir()
             for name in ('desktop_common.sh', 'desktop_rendering.sh', 'desktop_gnome_launch.py',
-                         'desktop_ubuntu_gnome.py', 'desktop_usb_storage.py', 'desktop_container_plasma_apt.sh', 'desktop_container_apt_sources.sh',
+                         'desktop_ubuntu_gnome.py', 'desktop_usb_storage.py', 'desktop_install_glycin.py', 'desktop_install_gio.py',
+                         'desktop_container_user.sh', 'desktop_container_plasma_apt.sh', 'desktop_container_apt_sources.sh',
                          'desktop_container_statx_setup.sh', 'desktop_container_run_config.sh', 'desktop_container_statx_aarch64.bin'):
                 shutil.copy(ASSETS / name, scripts / name)
             container = prefix / 'var/lib/proot-distro/containers/ubuntu-ubuntu-gnome-1'
@@ -158,25 +179,29 @@ class UbuntuInstallTests(unittest.TestCase):
             mocks = '''
 run() {
     printf 'RUN %s\\n' "$*" >> "$FIXTURE_TRACE"
+    case "$*" in *desktop_install_glycin.py*) [ "$FIXTURE_FAIL" != glycin ]; return $? ;; esac
     if [ "$1" = python3 ]; then "$@"; return $?; fi
     case "$*" in *"proot-distro login"*) [ "$FIXTURE_FAIL" != apt ] || return 37 ;; esac
     return 0
 }
 fetch_debs() { printf 'FETCH %s\\n' "$1 $3" >> "$FIXTURE_TRACE"; printf '%s' "$PREFIX/tmp/xlorie.deb"; }
+fetch_verified_debs() { fetch_debs \"$@\"; }
 ensure_container_instance() { printf 'IMAGE %s\\n' "$2" >> "$FIXTURE_TRACE"; }
 pinned_package_valid() { return 0; }
+register_embedded_host_packages() { return 0; }
+prepare_desktop_audio() { return 0; }
 dpkg() { return 0; }
 '''
             source = (ASSETS / 'desktop_install.sh').read_text()
             boundary = 'log "Installing $DESKTOP_LABEL desktop packages ($DESKTOP_MODE mode)"'
             source = source.replace(boundary, mocks+'\n'+boundary)
             script = scripts / 'desktop_install.sh'; script.write_text(source)
-            values = dict(DESKTOP_SPEC_VERSION='3', DESKTOP_MODE='proot', DESKTOP_DE='ubuntu_gnome',
+            values = dict(DESKTOP_SPEC_VERSION='3', DESKTOP_ID='ubuntu-test', DESKTOP_WIDTH='1280', DESKTOP_HEIGHT='720', DESKTOP_RENDER_SOCKET=str(base/'render'), DESKTOP_MODE='proot', DESKTOP_DE='ubuntu_gnome',
                           DESKTOP_HOST_GL_MODE='system', DESKTOP_GUEST_GL_MODE='llvmpipe', DESKTOP_USB_STORAGE='off',
                           DESKTOP_PROOT_DISTRO='ubuntu-ubuntu-gnome-1', DESKTOP_CONTAINER_BASE='ubuntu:resolute',
                           DESKTOP_CONTAINER_CODENAME='resolute', DESKTOP_GNOME_SESSION_PROFILE='ubuntu',
-                          DESKTOP_GNOME_BACKEND='x11', DESKTOP_GNOME_RENDERER='llvmpipe', DESKTOP_GNOME_SESSION_STARTUP='direct',
-                          DESKTOP_GNOME_DISPLAY_GL_MODE='system', DESKTOP_GNOME_DISPLAY_BUFFER_MODE='native',
+                          DESKTOP_GNOME_BACKEND='android', DESKTOP_GNOME_RENDERER='system', DESKTOP_GNOME_SESSION_STARTUP='direct', DESKTOP_GNOME_APPLICATION_RENDERER='llvmpipe',
+                          DESKTOP_GNOME_DISPLAY_GL_MODE='', DESKTOP_GNOME_DISPLAY_BUFFER_MODE='',
                           DESKTOP_RELEASE_TAG='termux-hwaccel-6.7-r4', DESKTOP_LOG_FILE=str(base/'log'),
                           DESKTOP_STATUS_FILE=str(base/'status'), DESKTOP_PID_FILE=str(base/'pid'), DESKTOP_REFRESH_RATE='60')
             values.update(patch or {})
@@ -190,24 +215,32 @@ dpkg() { return 0; }
                                              FIXTURE_TRACE=str(trace), FIXTURE_FAIL=failure))
             return result.returncode, result.stdout+result.stderr, trace.read_text() if trace.exists() else '', marker.exists()
 
-    def test_install_routes_ubuntu_and_only_host_xlorie_components(self):
+    def test_install_routes_resolute_and_matching_native_compositor_without_xlorie(self):
         code, output, trace, marker = self.install()
         self.assertEqual(0, code, output)
         self.assertTrue(marker)
         self.assertIn('IMAGE ubuntu:resolute', trace)
-        self.assertIn('ubuntu-session ubuntu-settings gnome-shell', trace)
+        self.assertIn('ubuntu-session ubuntu-settings gjs mesa-utils-bin gnome-shell', trace)
         self.assertIn('--no-install-recommends --reinstall', trace)
-        self.assertIn('gnome-shell-extension-ubuntu-dock', trace)
+        self.assertIn('gnome-shell-ubuntu-extensions', trace)
         self.assertIn('fonts-ubuntu ', trace)
         self.assertNotIn('fonts-ubuntu-classic', trace)
         self.assertIn('gnome-control-center gnome-calculator gnome-clocks eog', trace)
-        self.assertIn('termux-xlorie-21.1.16-r9', trace)
+        self.assertIn('gnome-shell_50.1-', trace)
+        self.assertIn('mutter_50.1-', trace)
+        self.assertIn('gjs_1.88.0', trace)
+        self.assertIn('spidermonkey_140.', trace)
+        self.assertIn('desktop_install_glycin.py', trace)
+        self.assertIn('--user root --shared-tmp -- sh /tmp/desktop_container_user.sh', trace)
+        self.assertNotIn('xorg-server_', trace)
+        self.assertNotIn('xorg-xdpyinfo', trace)
+        self.assertNotIn('apt-mark hold xorg-server', trace)
         for forbidden in ('mesa-for-android-container', 'desktop_install_gio.py', 'desktop_install_mesa.py',
                           'gnome-shell_48', 'kwin_6.6', 'snapd', 'gdm3'):
             self.assertNotIn(forbidden, trace)
 
     def test_install_failure_preserves_status_and_never_marks_ready(self):
-        for failure, expected in [('apt', 37), ('files', 65), ('base', 1)]:
+        for failure, expected in [('apt', 37), ('files', 65), ('base', 1), ('glycin', 1)]:
             with self.subTest(failure=failure):
                 code, output, trace, marker = self.install(failure=failure)
                 self.assertEqual(expected, code, output)
@@ -219,11 +252,11 @@ dpkg() { return 0; }
         self.assertFalse(marker)
         self.assertIn('Unsupported Ubuntu DING source', output)
 
-    def test_existing_complete_install_skips_guest_packages_and_rechecks_files(self):
+    def test_explicit_reinstall_reapplies_guest_packages_and_rechecks_files(self):
         code, output, trace, marker = self.install(existing=True)
         self.assertEqual(0, code, output)
         self.assertTrue(marker)
-        self.assertNotIn('proot-distro login', trace)
+        self.assertIn('proot-distro login', trace)
         self.assertIn('desktop_ubuntu_gnome.py', trace)
 
     def test_incomplete_existing_marker_is_removed(self):
@@ -232,7 +265,7 @@ dpkg() { return 0; }
         self.assertFalse(marker)
         self.assertIn('proot-distro login', trace)
 
-    def test_wrong_rootfs_does_not_stop_an_existing_desktop(self):
+    def test_invalid_saved_policy_does_not_stop_an_existing_desktop(self):
         with tempfile.TemporaryDirectory(prefix='ubuntu-preflight-') as directory:
             base = Path(directory); prefix = base/'usr'; (prefix/'bin').mkdir(parents=True)
             (prefix/'bin/python3').symlink_to(sys.executable)
@@ -243,27 +276,25 @@ dpkg() { return 0; }
                 values = dict(DESKTOP_SPEC_VERSION='3', DESKTOP_ID='new', DESKTOP_MODE='proot',
                     DESKTOP_DE='ubuntu_gnome', DESKTOP_HOST_GL_MODE='system', DESKTOP_GUEST_GL_MODE='llvmpipe',
                     DESKTOP_PROOT_DISTRO='ubuntu-ubuntu-gnome-1', DESKTOP_USB_STORAGE='off',
-                    DESKTOP_CONTAINER_BASE='ubuntu:resolute', DESKTOP_CONTAINER_CODENAME='resolute',
-                    DESKTOP_GNOME_SESSION_PROFILE='ubuntu', DESKTOP_GNOME_BACKEND='x11',
-                    DESKTOP_GNOME_RENDERER='llvmpipe', DESKTOP_GNOME_SESSION_STARTUP='direct',
-                    DESKTOP_GNOME_DISPLAY_GL_MODE='system', DESKTOP_GNOME_DISPLAY_BUFFER_MODE='native',
+                    DESKTOP_CONTAINER_BASE='debian:trixie', DESKTOP_CONTAINER_CODENAME='resolute',
+                    DESKTOP_GNOME_SESSION_PROFILE='ubuntu', DESKTOP_GNOME_BACKEND='android',
+                    DESKTOP_GNOME_RENDERER='system', DESKTOP_GNOME_SESSION_STARTUP='direct', DESKTOP_GNOME_APPLICATION_RENDERER='llvmpipe',
+                    DESKTOP_GNOME_DISPLAY_GL_MODE='', DESKTOP_GNOME_DISPLAY_BUFFER_MODE='',
                     DESKTOP_PID_FILE=str(state/'new.pid'), DESKTOP_LOG_FILE=str(base/'log'),
-                    DESKTOP_STATUS_FILE=str(state/'new.status'))
+                    DESKTOP_STATUS_FILE=str(state/'new.status'), DESKTOP_REFRESH_RATE='60')
                 file = base/'spec'; file.write_text(''.join(k+'='+shlex.quote(v)+'\n' for k,v in values.items()))
                 result = subprocess.run(['sh', str(ASSETS/'desktop_start.sh'), str(file)],
                     env=dict(os.environ, PREFIX=str(prefix), HOME=str(base/'home')), capture_output=True, text=True, timeout=5)
-                self.assertEqual(65, result.returncode, result.stdout+result.stderr)
+                self.assertEqual(64, result.returncode, result.stdout+result.stderr)
                 self.assertIsNone(other.poll())
-                self.assertEqual('exit:65\n', (state/'new.status').read_text())
+                self.assertEqual('exit:64\n', (state/'new.status').read_text())
             finally:
                 other.terminate(); other.wait(timeout=3)
 
-    def test_unsupported_native_gpu_usb_and_archive_fail_before_install(self):
-        for patch, operation in [({'DESKTOP_MODE': 'native'}, 'install'),
-                                  ({'DESKTOP_GUEST_GL_MODE': 'zink'}, 'install'),
+    def test_unsupported_gpu_profile_base_and_archive_fail_before_install(self):
+        for patch, operation in [({'DESKTOP_GUEST_GL_MODE': 'zink'}, 'install'),
                                   ({'DESKTOP_GNOME_SESSION_PROFILE': 'gnome'}, 'install'),
                                   ({'DESKTOP_GNOME_RENDERER': 'zink'}, 'install'),
-                                  ({'DESKTOP_USB_STORAGE': 'read-only'}, 'install'),
                                   ({'DESKTOP_CONTAINER_BASE': 'debian:trixie'}, 'install'),
                                   ({}, 'host-prerequisites')]:
             with self.subTest(patch=patch, operation=operation):

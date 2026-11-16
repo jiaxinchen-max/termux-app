@@ -81,8 +81,8 @@ class ArchiveTest(Fixture, unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'size/mode'): installer.decode_archive(self.fixture(extra=member))
 
     def test_pinned_constants_and_actual_upstream_archive_when_supplied(self):
-        self.assertEqual(12242251, installer.ARCHIVE_BYTES)
-        self.assertEqual('b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687', installer.ARCHIVE_SHA256)
+        self.assertEqual(12674045, installer.ARCHIVE_BYTES)
+        self.assertEqual('51aa11a8e7bc8c98bc9e852b260ee2dac99392b4ee8658182e4837c309818faf', installer.ARCHIVE_SHA256)
         path = os.environ.get('MESA_TEST_ARCHIVE')
         if not path:
             self.skipTest('set MESA_TEST_ARCHIVE to validate the actual upstream archive')
@@ -99,7 +99,7 @@ class FilesystemTest(Fixture, unittest.TestCase):
         self.base = Path(self.folder.name).resolve()
         self.root = self.base / 'rootfs'; self.root.mkdir()
         (self.root / 'etc').mkdir()
-        (self.root / 'etc/os-release').write_text('ID=debian\nVERSION_CODENAME=trixie\n')
+        (self.root / 'etc/os-release').write_text('ID=ubuntu\nVERSION_CODENAME=resolute\n')
         self.archive = self.base / 'mesa.tar.gz'
         self.data = self.fixture(); self.archive.write_bytes(self.data)
         self.pin_bytes = patch.object(installer, 'ARCHIVE_BYTES', len(self.data))
@@ -110,7 +110,7 @@ class FilesystemTest(Fixture, unittest.TestCase):
         self.pin_sha.stop(); self.pin_bytes.stop(); self.folder.cleanup()
 
     def install(self):
-        installer.install(str(self.archive), str(self.root), 'trixie', 'zink')
+        installer.install(str(self.archive), str(self.root), 'resolute', 'zink')
 
     def test_valid_repeat_install_exact_content_modes_and_symlinks(self):
         self.install(); self.install()
@@ -123,30 +123,30 @@ class FilesystemTest(Fixture, unittest.TestCase):
         path = os.environ.get('MESA_TEST_ARCHIVE')
         if not path:
             self.skipTest('set MESA_TEST_ARCHIVE for actual payload install/readback')
-        with patch.object(installer, 'ARCHIVE_BYTES', 12242251), patch.object(installer, 'ARCHIVE_SHA256',
-                'b711d1d9ab5537ee9085da8896dfe2115e791b33aa317fe37538f276c967d687'):
-            installer.install(path, str(self.root), 'trixie', 'zink')
-            installer.install(path, str(self.root), 'trixie', 'zink')
+        with patch.object(installer, 'ARCHIVE_BYTES', 12674045), patch.object(installer, 'ARCHIVE_SHA256',
+                '51aa11a8e7bc8c98bc9e852b260ee2dac99392b4ee8658182e4837c309818faf'):
+            installer.install(path, str(self.root), 'resolute', 'zink')
+            installer.install(path, str(self.root), 'resolute', 'zink')
         self.assertEqual('../libgallium-27.0.0-devel.so',
             os.readlink(self.root / (installer.LIB + 'dri/zink_drv_video.so')))
 
     def test_explicit_modes_and_rootfs_identity_fail_before_payload_changes(self):
-        for codename, mode in [('forky', 'zink'), ('trixie', 'llvmpipe'), ('trixie', '')]:
+        for codename, mode in [('forky', 'zink'), ('resolute', 'llvmpipe'), ('resolute', '')]:
             with self.assertRaises(ValueError): installer.install(str(self.archive), str(self.root), codename, mode)
-        (self.root / 'etc/os-release').write_text('ID=ubuntu\nVERSION_CODENAME=trixie\n')
-        with self.assertRaisesRegex(ValueError, 'Debian trixie'): self.install()
+        (self.root / 'etc/os-release').write_text('ID=debian\nVERSION_CODENAME=resolute\n')
+        with self.assertRaisesRegex(ValueError, 'Ubuntu Resolute'): self.install()
         self.assertFalse((self.root / 'usr').exists())
 
     def test_standard_os_release_link_is_read_without_following_ancestors(self):
         (self.root / 'usr/lib').mkdir(parents=True)
-        (self.root / 'usr/lib/os-release').write_text('ID=debian\nVERSION_CODENAME=trixie\n')
+        (self.root / 'usr/lib/os-release').write_text('ID=ubuntu\nVERSION_CODENAME=resolute\n')
         (self.root / 'etc/os-release').unlink()
         (self.root / 'etc/os-release').symlink_to('../usr/lib/os-release')
         self.install()
 
     def test_root_archive_and_target_ancestor_symlinks_never_escape(self):
         alias = self.base / 'root-alias'; alias.symlink_to(self.root, target_is_directory=True)
-        with self.assertRaises(OSError): installer.install(str(self.archive), str(alias), 'trixie', 'zink')
+        with self.assertRaises(OSError): installer.install(str(self.archive), str(alias), 'resolute', 'zink')
         real = self.base / 'real.tar.gz'; self.archive.rename(real); self.archive.symlink_to(real)
         with self.assertRaises(OSError): self.install()
         self.archive.unlink(); real.rename(self.archive)

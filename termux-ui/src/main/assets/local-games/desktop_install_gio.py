@@ -82,7 +82,8 @@ def octal(field):
     return int(value or b'0', 8)
 
 
-def decode_tar(raw):
+def decode_tar(raw, payloads=PAYLOADS, manifest_name=MANIFEST):
+    expected_names = set(payloads) | {manifest_name}
     files = {}
     position = 0
     while position + 512 <= len(raw):
@@ -91,18 +92,18 @@ def decode_tar(raw):
             if len(raw) - position < 1024 or len(raw) % 512 or any(raw[position:]):
                 raise ValueError('invalid tar termination or trailing data')
             break
-        if len(files) >= 3 or header[156:157] not in (b'0', b'\0') or any(header[157:257]) or any(header[345:500]):
-            raise ValueError('only three fixed regular USTAR entries are allowed')
+        if len(files) >= len(expected_names) or header[156:157] not in (b'0', b'\0') or any(header[157:257]) or any(header[345:500]):
+            raise ValueError('only the fixed regular USTAR entries are allowed')
         if header[257:263] not in (b'ustar\0', b'ustar '):
             raise ValueError('USTAR format required')
         expected = octal(header[148:156])
         if sum(header[:148]) + 8 * 32 + sum(header[156:]) != expected:
             raise ValueError('tar header checksum mismatch')
         name = header[:100].split(b'\0', 1)[0].decode('utf-8', 'strict')
-        if name not in set(PAYLOADS) | {MANIFEST} or name in files:
+        if name not in expected_names or name in files:
             raise ValueError('unexpected or duplicate artifact path: ' + name)
         size = octal(header[124:136])
-        if size <= 0 or size > LIMIT or (name == MANIFEST and size > 65536):
+        if size <= 0 or size > LIMIT or (name == manifest_name and size > 65536):
             raise ValueError('invalid artifact entry size')
         start = position + 512
         end = start + size
@@ -113,8 +114,8 @@ def decode_tar(raw):
         position = padded
     else:
         raise ValueError('tar terminator missing')
-    if set(files) != set(PAYLOADS) | {MANIFEST}:
-        raise ValueError('artifact must contain exactly both GIO files and its manifest')
+    if set(files) != expected_names:
+        raise ValueError('artifact must contain exactly its declared payloads and manifest')
     return files
 
 

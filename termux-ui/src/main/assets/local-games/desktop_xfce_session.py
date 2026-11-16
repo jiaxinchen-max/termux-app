@@ -13,6 +13,33 @@ import time
 from xml.sax.saxutils import escape
 
 
+def prepare(args, prefix):
+    """Create managed XFCE session files while saving/installing."""
+    key = hashlib.sha256(args.desktop_id.encode()).hexdigest()[:16]
+    parent = prefix / ('tmp/tusb-' + key)
+    runtime = parent / 'xfce-session'
+    bus_socket = runtime / 'session-bus'
+    runtime.mkdir(parents=True, exist_ok=True)
+    parent.chmod(0o700)
+    runtime.chmod(0o700)
+    config = runtime / 'sessionbus.conf'
+    config.write_text('<busconfig><type>session</type><listen>unix:path=' + escape(str(bus_socket)) +
+        '</listen><auth>EXTERNAL</auth><standard_session_servicedirs/>'
+        '<policy context="default"><allow user="*"/><allow own="*"/>'
+        '<allow send_destination="*"/><allow receive_sender="*"/></policy></busconfig>')
+    session_script = runtime / 'session.sh'
+    session_script.write_text('''#!/bin/sh
+set -eu
+umask 077
+printf '%s\\n' "$DBUS_SESSION_BUS_ADDRESS" > "$XDG_RUNTIME_DIR/session-address.tmp"
+mv "$XDG_RUNTIME_DIR/session-address.tmp" "$XDG_RUNTIME_DIR/session-address"
+exec xfce4-session
+''')
+    if args.run_mode == 'proot':
+        rootfs = prefix / 'var/lib/proot-distro/containers' / args.alias / 'rootfs'
+        (rootfs / str(parent).lstrip('/')).mkdir(parents=True, exist_ok=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--desktop-id', required=True)
@@ -33,29 +60,14 @@ def main():
     parent = prefix / ('tmp/tusb-' + key)
     runtime = parent / 'xfce-session'
     usb_runtime = parent / 'desktop'
-    runtime.mkdir(parents=True, exist_ok=True)
-    parent.chmod(0o700)
-    runtime.chmod(0o700)
     import fcntl
     lock = (runtime / 'session.lock').open('w')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     marker = runtime / 'session-address'
     marker.unlink(missing_ok=True)
-    bus_socket = runtime / 'session-bus'
-    bus_socket.unlink(missing_ok=True)
+    (runtime / 'session-bus').unlink(missing_ok=True)
     config = runtime / 'sessionbus.conf'
-    config.write_text('<busconfig><type>session</type><listen>unix:path=' + escape(str(bus_socket)) +
-        '</listen><auth>EXTERNAL</auth><standard_session_servicedirs/>'
-        '<policy context="default"><allow user="*"/><allow own="*"/>'
-        '<allow send_destination="*"/><allow receive_sender="*"/></policy></busconfig>')
     session_script = runtime / 'session.sh'
-    session_script.write_text('''#!/bin/sh
-set -eu
-umask 077
-printf '%s\\n' "$DBUS_SESSION_BUS_ADDRESS" > "$XDG_RUNTIME_DIR/session-address.tmp"
-mv "$XDG_RUNTIME_DIR/session-address.tmp" "$XDG_RUNTIME_DIR/session-address"
-exec xfce4-session
-''')
     host = dict(os.environ, DISPLAY=args.display, XDG_RUNTIME_DIR=str(runtime),
                 TERMUX_USB_DESKTOP_DIR=str(usb_runtime))
     for key in ('DBUS_SESSION_BUS_ADDRESS', 'DBUS_SESSION_BUS_PID', 'SESSION_MANAGER'):
@@ -71,9 +83,6 @@ exec xfce4-session
             guest_values += ['GIO_EXTRA_MODULES=/usr/local/lib/termux-usb-bridge/gio/modules']
         else:
             host['GIO_EXTRA_MODULES'] = str(module_dir)
-    if args.run_mode == 'proot':
-        rootfs = prefix / 'var/lib/proot-distro/containers' / args.alias / 'rootfs'
-        (rootfs / str(parent).lstrip('/')).mkdir(parents=True, exist_ok=True)
     base = [] if args.run_mode == 'native' else [
         'proot-distro', 'login', args.alias, '--user', 'termux', '--shared-tmp', '--bind', str(parent) + ':' + str(parent),
         '--', 'env', '-u', 'DBUS_SESSION_BUS_ADDRESS', '-u', 'DBUS_SESSION_BUS_PID',

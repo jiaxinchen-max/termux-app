@@ -14,7 +14,7 @@ native:kwin_plasma:system:none native:kwin_plasma:zink:none native:kwin_plasma:l
 native:gnome:system:none native:ubuntu_gnome:system:none native:hyprland:system:none
 proot:xfce4:system:default proot:xfce4:zink:default proot:xfce4:llvmpipe:default
 proot:kwin_plasma:system:llvmpipe proot:kwin_plasma:system:zink proot:kwin_plasma:zink:llvmpipe proot:kwin_plasma:zink:zink proot:kwin_plasma:llvmpipe:llvmpipe
-proot:gnome:system:llvmpipe proot:gnome:zink:zink proot:ubuntu_gnome:system:llvmpipe
+proot:ubuntu_gnome:system:llvmpipe
 proot:hyprland:system:default proot:hyprland:system:zink'''.split())
 
 
@@ -38,11 +38,12 @@ class DesktopRenderingTest(unittest.TestCase):
                          DESKTOP_GNOME_DISPLAY_GL_MODE="", DESKTOP_GNOME_DISPLAY_BUFFER_MODE="") if mode == 'native' and de == 'ubuntu_gnome' else {}
             values = dict(DESKTOP_SPEC_VERSION='3', DESKTOP_MODE=mode, DESKTOP_DE=de,
                                   DESKTOP_HOST_GL_MODE=host, DESKTOP_GUEST_GL_MODE=guest,
-                                  DESKTOP_CONTAINER_BASE="ubuntu:noble", DESKTOP_CONTAINER_CODENAME="noble",
+                                  DESKTOP_CONTAINER_BASE="ubuntu:resolute", DESKTOP_CONTAINER_CODENAME="resolute",
                                   DESKTOP_GNOME_SESSION_PROFILE="ubuntu", DESKTOP_USB_STORAGE="off",
-                                  DESKTOP_GNOME_BACKEND="x11", DESKTOP_GNOME_RENDERER="llvmpipe",
-                                  DESKTOP_GNOME_SESSION_STARTUP="direct", DESKTOP_GNOME_DISPLAY_GL_MODE="system",
-                                  DESKTOP_GNOME_DISPLAY_BUFFER_MODE="native")
+                                  DESKTOP_GNOME_BACKEND="android", DESKTOP_GNOME_RENDERER="system",
+                                  DESKTOP_GNOME_SESSION_STARTUP="direct", DESKTOP_GNOME_DISPLAY_GL_MODE="",
+                                  DESKTOP_GNOME_DISPLAY_BUFFER_MODE="", DESKTOP_GNOME_APPLICATION_RENDERER="llvmpipe",
+                                  DESKTOP_REFRESH_RATE="60")
             result = self.resolve(**dict(values, **extra))
             self.assertEqual(0 if pair in PAIRS else 64, result.returncode, pair + result.stderr)
             if pair in PAIRS:

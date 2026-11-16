@@ -54,7 +54,6 @@ public final class DesktopEnvironment {
                             ? "desktop_native_ubuntu.py" : "desktop_ubuntu_gnome.py")).isFile())
                     && (distro.getRunMode() == DesktopRunMode.NATIVE
                         ? new File(prefix, "bin/gnome-shell").isFile()
-                            && new File(prefix, "bin/gnome-session").isFile()
                             && nativeGnomeServicesInstalled()
                             && (distro.getDe() != DesktopDe.UBUNTU_GNOME || nativeUbuntuInstalled())
                         : true);
@@ -130,6 +129,8 @@ public final class DesktopEnvironment {
                 || !java.util.regex.Pattern.compile("(?m)^VERSION_CODENAME=[\"']?resolute[\"']?\\s*$").matcher(release).find()) return false;
         for (String file : new String[]{"usr/bin/gnome-shell", "usr/bin/gnome-extensions", "usr/bin/gdbus",
                 "usr/bin/nautilus", "usr/bin/gnome-terminal", "usr/bin/gnome-text-editor",
+                "usr/local/lib/termux-gnome/libglycin-2.so.0",
+                "usr/local/lib/termux-gnome/glycin-build-manifest.json",
                 "usr/share/gnome-session/sessions/ubuntu.session", "usr/share/wayland-sessions/ubuntu.desktop",
                 "usr/share/gnome-shell/modes/termux-ubuntu.json", "usr/share/gnome-shell/modes/ubuntu.json", "usr/share/gnome-shell/theme/Yaru/gnome-shell.css",
                 "usr/share/gnome-shell/theme/Yaru/gnome-shell-theme.gresource", "usr/share/gnome-shell/theme/Yaru/gnome-shell-icons.gresource", "usr/share/themes/Yaru/gtk-3.0/gtk.css",
@@ -150,7 +151,7 @@ public final class DesktopEnvironment {
     }
 
     private boolean nativeUbuntuInstalled() {
-        if (!"5a767f2ef030ea401015e9c4afad6cfc582c203c6f4eb30e079ae6935474ff03".equals(
+        if (!"5d043a773b503c472743c1902d8347ea8ba6c8f7f88c79868e5f661b26288e0e".equals(
                 head(new File(prefix, "share/termux-native-ubuntu/.installed"), 80).trim())) return false;
         for (String file : new String[]{"bin/gnome-terminal", "bin/gnome-text-editor", "bin/gjs",
                 "share/termux-native-ubuntu/manifest.json", "share/gnome-shell/modes/termux-ubuntu.json",
@@ -161,7 +162,8 @@ public final class DesktopEnvironment {
                 "share/dbus-1/services/org.gnome.Terminal.service", "share/dbus-1/services/org.gnome.TextEditor.service"}) {
             if (!new File(prefix, file).isFile()) return false;
         }
-        for (String uuid : new String[]{"ubuntu-dock@ubuntu.com", "appindicatorsupport@rgcjonas.gmail.com", "ding@rastersoft.com"}) {
+        for (String uuid : new String[]{"ubuntu-dock@ubuntu.com", "ubuntu-appindicators@ubuntu.com",
+                "ding@rastersoft.com", "tiling-assistant@ubuntu.com"}) {
             File extension = new File(prefix, "share/gnome-shell/extensions/" + uuid);
             if (!new File(extension, "metadata.json").isFile() || !new File(extension, "extension.js").isFile()) return false;
         }

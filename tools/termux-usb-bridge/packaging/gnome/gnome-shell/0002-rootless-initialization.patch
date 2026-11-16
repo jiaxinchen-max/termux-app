@@ -1,0 +1,31 @@
+The Android backend has no logind session. Use Shell's existing dummy login
+manager, and retain asynchronous quick-settings initialization when both
+NetworkManager and Bluetooth were disabled at build time.
+
+--- a/js/misc/loginManager.js
++++ b/js/misc/loginManager.js
+@@ -15,6 +15,10 @@
+ const SystemdLoginUser = Gio.DBusProxy.makeProxyWrapper(SystemdLoginUserIface);
+ 
+ function haveSystemd() {
++    // A PRoot image can contain systemd's directories without running logind.
++    // Android owns login, power management and authentication for this backend.
++    if (GLib.getenv('MUTTER_BACKEND') === 'android')
++        return false;
+     return GLib.access('/run/systemd/seats', 0) >= 0;
+ }
+ 
+--- a/js/ui/panel.js
++++ b/js/ui/panel.js
+@@ -301,6 +301,11 @@
+     }
+ 
+     async _setupIndicators() {
++        // main.js constructs Panel before BrightnessManager. Without either
++        // optional dynamic import below this async method would run entirely
++        // synchronously and try to use that manager while it is still null.
++        await Promise.resolve();
++
+         if (Config.HAVE_NETWORKMANAGER) {
+             /** @type {import('./status/network.js')} */
+             const NetworkStatus = await import('./status/network.js');

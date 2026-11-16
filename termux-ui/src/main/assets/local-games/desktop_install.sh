@@ -42,7 +42,7 @@ finish_operation() {
     trap - EXIT
     [ "$INSTALL_DONE" -eq 1 ] || { [ "$code" -ne 0 ] || code=1; }
     if [ "$OPERATION" = install ]; then
-        if [ "$INSTALL_DONE" -ne 1 ] && [ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" = native:ubuntu_gnome ]; then
+        if [ "$INSTALL_DONE" -ne 1 ] && [ "${DESKTOP_PREPARE_ONLY:-0}" != 1 ] && [ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" = native:ubuntu_gnome ]; then
             rm -f "$PREFIX/share/termux-native-ubuntu/.installed"
         fi
         printf 'exit:%s\n' "$code" > "$DESKTOP_STATUS_FILE" || code=74
@@ -105,13 +105,13 @@ if [ "$DESKTOP_DE" = gnome ]; then
 fi
 
 # Invalidate the previous completion before initialization; failure must leave no success marker.
-if [ "$OPERATION" = install ] && [ "${DESKTOP_MODE:-}" = proot ] && [ "${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" != 1 ]; then
+if [ "$OPERATION" = install ] && [ "${DESKTOP_PREPARE_ONLY:-0}" != 1 ] && [ "${DESKTOP_MODE:-}" = proot ] && [ "${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" != 1 ]; then
     rm -f "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE" \
         "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.desktop-de-$DESKTOP_DE-zink" || exit 74
 fi
 
 # An unsuccessful retry must also invalidate the exact pair's old initialization receipt.
-if [ "$OPERATION:$DESKTOP_MODE:$DESKTOP_DE" = install:proot:kwin_plasma ]; then
+if [ "${DESKTOP_PREPARE_ONLY:-0}" != 1 ] && [ "$OPERATION:$DESKTOP_MODE:$DESKTOP_DE" = install:proot:kwin_plasma ]; then
     rm -f "$PREFIX/var/lib/termux-desktop/rendering/$DESKTOP_PROOT_DISTRO.$DESKTOP_HOST_GL_MODE.$DESKTOP_GUEST_GL_MODE.env" || exit 74
 fi
 
@@ -163,21 +163,16 @@ xwayland_24.1.11-1_aarch64.deb 3cc2999ae0ba90495abad71445f794723efc06a97c001b383
 # GNOME/USB release asset identities and publication digests.
 GNOME_USB_RELEASE_TAG="gnome-usb-20261030-r1"
 GNOME_USB_BASE_URL="https://github.com/jiaxinchen-max/termux-app-packages/releases/download/$GNOME_USB_RELEASE_TAG"
-GNOME_DEBS="
+GNOME_NATIVE_DEBS="
 accountsservice_23.13.9_aarch64.deb 4d1dfa7ae196beba68378d04913a0ab2eb09b105b4e305da27bd97a355fe1f4e
 gexiv2_0.14.7_aarch64.deb 2eea495d80f59b7285f8225df2526cd8a7c06ce03f9abd1ca2d65b9427772221
-gjs_1.82.3_aarch64.deb 6eedb4cb279672a535f473012a0864d12bd1bf1895ad290ae3028b924fa93a66
 gnome-autoar_0.4.5_aarch64.deb 3d98ef33d6e48a21af97bc1d03440303106172969ae5fd67bd77ded9348b03f6
-gnome-session_48.0_aarch64.deb 8fd68bd0c9a720e734d7058730e9563c6411147ce17f76d5d61dee34e031bda7
 gnome-settings-daemon-schemas_48.1_all.deb 03ed7b7a1f8d184353906f511e66bbf767f32622fb26c280ea896cb3789f9215
-gnome-shell_48.7-1_aarch64.deb 285cdb99e61c761405d154f608520cc3bfdc8b7c9ea91b3619d467c9d7f4d900
 libgdm_48.0-1_aarch64.deb fb9d03f4665fd540af125d91784d0d284122b5ee81b53f279705eafdacb63231
 localsearch-schemas_3.9.0_all.deb 13a0f641887be3fb7c92034ae485a67bf9a8726a73bed04d8f6f77d3e6f1f2b6
-mutter_48.1-25_aarch64.deb ef6631c3a21eeb11bbafd50906bd7e77fd3c65387f734696250a60ffa72f6549
 nautilus_48.3-3_aarch64.deb ee53e9a2961294df5516ba0d7e4a3e138e57634ec4b132f37f1ea41c97d26506
 pipewire-dbus_1.4.9_aarch64.deb f42dd82ff03801d5c1e14203f78c3092cfdbf0a57add3133c37331afd4b8ac8b
 polkit_126_aarch64.deb 1eddba206bc72c6b423557ff749416971efdec25be03fca45ad5498b33e98b67
-spidermonkey_128.10.0-3_aarch64.deb d5a3437b0d0543e58cb01e07cad277334ee849b663c06aef71f5d4c4e8973308
 "
 NATIVE_GNOME_APPS_TAG="native-gnome-apps-48-r2"
 NATIVE_GNOME_APPS_URL="https://github.com/jiaxinchen-max/termux-app-packages/releases/download/$NATIVE_GNOME_APPS_TAG"
@@ -189,7 +184,21 @@ gnome-clocks_51.0-1_aarch64.deb b4128a755e3b8a76ff1e07d13067ace817015b0490d90c5c
 USB_DEBS="
 termux-usb-bridge_0.4.1_aarch64.deb d00381ecca8285e502bcd00f3491032d25f14d499454bccbb1cb1dab3964770c
 "
-USB_GLIBC_ARTIFACT="termux-usb-gio-trixie-aarch64-0.4.1.tar.gz 0238798338273d9e4d983407c6399f85a0abd0a94f7b4daa09b747833ddeaaec"
+USB_GLIBC_ARTIFACT="termux-usb-gio-resolute-aarch64-0.4.1.tar.gz a843a28f1821c1e598d8c653ea0db7e6540d188d42296cc5a305bd4a838982ea"
+# Prepared on the original Linux builder; publish this component before releasing an APK.
+GNOME_RESOLUTE_TAG="gnome-50-resolute-20261116-r1"
+GNOME_RESOLUTE_URL="https://github.com/jiaxinchen-max/termux-app-packages/releases/download/$GNOME_RESOLUTE_TAG"
+# Shared Native/PRoot Bionic compositor runtime; no Xlorie display server.
+GNOME_RUNTIME_DEBS="
+gjs_1.88.0_aarch64.deb 75764e4d0a55fa3ce8cc8240fcea019467d92b1fd38cec9b74b9c8cbc3c23529
+gnome-shell_50.1-2_aarch64.deb 37c447a7e282e42c891d2f343d9d3cc506811e487bd3cca2defae3fc5882eb19
+mutter_50.1-4_aarch64.deb 294a5de617a3da94aa8c81a486bdcd021eb0d0524e278cea8b10fd0ebd69ac37
+spidermonkey_140.17.0-1_aarch64.deb dd60c5d67bbff83038202b796bb2dcc6e9c01acaddae5c1a4ff32f6f35134f9e
+libandroid-stub_30-3_aarch64.deb 88c7f4ba78a5eb57eafc2f1102ceea562a156fe7346528ca35c771eb0927fefc
+libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
+termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00fb04fbc2975a0ac0d6
+"
+GNOME_GLYCIN_ARTIFACT="termux-gnome-glycin-resolute-aarch64-2.1.1-r1.tar.gz cb72b99666baacb5cd8b4fd62960f3a54568c49c04a05bd8b5f9280ba8493eb9"
 
 run() {
     status_file="$DESKTOP_LOG_FILE.status.$$"
@@ -277,10 +286,10 @@ fetch_verified_debs() (
 # Fixed data-only component, outside the APK. Only verified downloads become cache entries.
 fetch_native_ubuntu_profile() {
     (
-        profile_name=native-ubuntu-gnome-48-r2.bin
-        profile_digest=5a767f2ef030ea401015e9c4afad6cfc582c203c6f4eb30e079ae6935474ff03
-        profile_url="https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-ubuntu-gnome-48-r2/$profile_name"
-        profile_cache="${TMPDIR:-$PREFIX/tmp}/desktop-native-ubuntu-gnome-48-r2"
+        profile_name=native-ubuntu-gnome-50-r1.bin
+        profile_digest=5d043a773b503c472743c1902d8347ea8ba6c8f7f88c79868e5f661b26288e0e
+        profile_url="https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-ubuntu-gnome-50-r1/$profile_name"
+        profile_cache="${TMPDIR:-$PREFIX/tmp}/desktop-native-ubuntu-gnome-50-r1"
         mkdir -p "$profile_cache" || exit 1
         profile_target="$profile_cache/$profile_name"
         if [ -f "$profile_target" ] && printf '%s  %s\n' "$profile_digest" "$profile_target" | sha256sum -c - >/dev/null 2>&1; then
@@ -357,36 +366,9 @@ ensure_resolute_turnip_icd() { # alias [backup directory]; never infer a driver 
         || fail 'holding the explicit container Mesa/Turnip build'
 }
 
-ensure_gnome_turnip_icd() {
+# All retained PRoot profiles have already verified ubuntu:resolute here.
+ensure_turnip_icd() {
     ensure_resolute_turnip_icd "$1"
-}
-
-ensure_turnip_icd() { # alias
-    rootfs="$PREFIX/var/lib/proot-distro/containers/$1/rootfs"
-    icd="usr/share/vulkan/icd.d/freedreno_icd.aarch64.json"
-    if [ -r "$rootfs/$icd" ] && [ -e "$rootfs/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so" ]; then
-        log "Turnip Vulkan ICD already present in $1; skipping"
-    else
-        id=$(sed -n 's/^ID=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
-        codename=$(sed -n 's/^VERSION_CODENAME=//p' "$rootfs/etc/os-release" 2>/dev/null | tr -d '"' | head -n1)
-        [ -n "$id" ] && [ -n "$codename" ] || fail "cannot tell which distro $1 is (no os-release)"
-        # Mesa tarballs are published per stable release; forky/sid use the newest Debian one. The full
-        # Mesa build is needed, not just turnip_*: with the turnip-only tarball the Wayland WSI crashes
-        # (SIGBUS in wsi_create_buffer_blit_context) because it mismatches the container's libgbm/EGL.
-        case "$id:$codename" in debian:forky|debian:sid|debian:testing) codename=trixie ;; esac
-        tag="$TURNIP_RELEASE_TAG"
-        url="https://github.com/$TURNIP_REPO/releases/download/$tag/mesa-for-android-container_${tag#mesa-}_${id}_${codename}_arm64.tar.gz"
-        log "Installing the Turnip Vulkan ICD into $1: $url"
-        tarball="${TMPDIR:-$PREFIX/tmp}/turnip.$$.tar.gz"
-        run curl -fL -m 300 -o "$tarball" "$url" || { rm -f "$tarball"; fail "download of the Turnip tarball failed"; }
-        run tar -xzf "$tarball" -C "$rootfs" || { rm -f "$tarball"; fail "unpacking the Turnip tarball failed"; }
-        rm -f "$tarball"
-        [ -r "$rootfs/$icd" ] || fail "the Turnip tarball did not provide /$icd"
-    fi
-    # Debian's mesa-vulkan-drivers ships a Turnip without the KGSL backend under the same file names;
-    # keep a later apt upgrade from overwriting the one just unpacked.
-    run proot-distro login "$1" --user root --shared-tmp -- apt-mark hold mesa-vulkan-drivers libgbm1 libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2 \
-        || fail "holding the container Turnip packages"
 }
 
 # Required runtime files, with release digests retained as publication metadata.
@@ -398,36 +380,9 @@ libei lib/libei.so.1.6.0 a1c1d1479afffd912b2e6cbe5272e7d774270018c0e59c1d699f245
 libei lib/libeis.so ce9b4d9760b1ddbd79ed14134ffbd514b6ae5ab22e6c1f911ffb0fb0434a8528
 libei lib/libeis.so.1 ce9b4d9760b1ddbd79ed14134ffbd514b6ae5ab22e6c1f911ffb0fb0434a8528
 libei lib/libeis.so.1.6.0 ce9b4d9760b1ddbd79ed14134ffbd514b6ae5ab22e6c1f911ffb0fb0434a8528
-mutter lib/libmutter-16.so.0.0.0 dd001f7aeb271f7b915fadf80dd5cf74c3966322bfa89e3061a3cba128562094
-gjs bin/gjs-console 942cdbf442a9d45c395703ca358664195300179e6a220234d9cda099b8e43316
-gnome-session bin/gnome-session 3171e8d06aac98e0de4b0450e2d6224254c82b4f24ebee881c319c6fea360f90
-gnome-session bin/gnome-session-inhibit 1450c4049801adb16c94f7b03d996caba1fa6e53057349e899378c57344244fe
-gnome-session bin/gnome-session-quit 2b3f6ef86b0ab270886f6de62f4f89be9b78fab3539040806ecff1e5c2fa4580
-gnome-shell bin/gnome-extensions b9b1e1acf86eccc621a5726aadef1d8f0ea91241bdafa7df882c170000b4b7aa
-gnome-shell bin/gnome-shell 9885aa7e0760687b2c6b25945d44e7c86046de764eb5ff6157283e878302dd81
-gnome-shell bin/gnome-shell-extension-tool beb1a2cba645dd835d8c61d75c93e2b16b168e16bc64b1fdcba71d6490a05228
-gnome-shell bin/gnome-shell-test-tool 7d55200a6d91d4aa4d2511de2b8a2aed06ce4eb11a2fef9b20f76e49f5e93b80
 libandroid-stub lib/libandroid.so 0a9ca6b42e5f786e931b5f97f83c57f671ac59946919cfdb47e94f2ec2d4eee8
-mutter bin/gdctl eef4c975f759f59a6958b1050248b2bf39aa903663520cf58b3b6223ae1ac406
-mutter bin/mutter bb1869e3c5be0cdfdbc34cc36e28517a288cc6cf526bc80286f5232992d8c644
-mutter lib/mutter-16/Clutter-16.gir 830a221057aa5a3cd8a486bda4e3cf42f80c7d983b84bd7831716be4b4c2c238
-mutter lib/mutter-16/Clutter-16.typelib e9d64c29e2b898378d184f8ffd91bb8cea2ac7e69929dc9c24e781943037c014
-mutter lib/mutter-16/Cogl-16.gir 850fec59ece1de9bfe866a696aa482eff3c6265cc0a47ff7a072f321daa918f3
-mutter lib/mutter-16/Cogl-16.typelib 292934aa13a783b0a4538625efb115f6cbdf8f5e2dd1ac978305310bfeca3674
-mutter lib/mutter-16/Meta-16.gir ebbe4c7a31acbb8a75a41a0986e5ad3e1ea4750fe4c8a51d5c2294cabb8ef6d6
-mutter lib/mutter-16/Meta-16.typelib 1c725beb318397280b409f98f63ffd0b834ea713d5aeeb4e6d81936eba940406
-mutter lib/mutter-16/Mtk-16.gir eaf0be07e578647c06cd0a95c80691639dd192f600f126f16a9f30ed4472b9b7
-mutter lib/mutter-16/Mtk-16.typelib c75f184c754b45c3c0cf77502658a17022c3e4ebebe17c4f4c3b30b51ac6c5c4
-mutter lib/mutter-16/libmutter-android-system-egl.so dab9592e1f62d6bc44815b7434c3fdf060b671b9b6d2a682c75bcd3a4382c4be
-mutter lib/mutter-16/libmutter-clutter-16.so.0.0.0 f43ba0340e71af6f034d1ad9f56f4962702e733ec5b7cfccd3086477c8c5cc7d
-mutter lib/mutter-16/libmutter-cogl-16.so.0.0.0 028ea30c9407ab9fe936e262454957a311c3ffd70c9bdd106a9dce0dce2510cd
-mutter lib/mutter-16/libmutter-mtk-16.so.0.0.0 b7d0ea2fffccd9d1da1847cc5384b6e2b4187f449dd531a343d660f918150a46
-mutter lib/mutter-16/libvndksupport.so fd7ffba8dd4bf9e7976b5e6cfb4cb92f75620afc7b48d21a90f874569d551ca1
-mutter lib/mutter-16/plugins/libdefault.so eefd8b16c45cc1b0f2db43b538f2a0c2af802efdea6d1e12e96bd9643ebe8c31
 nautilus bin/nautilus 8ddf9a4fbc6b19df2fdb70476674a13198470c05bee70e4652edee9119c9bee5
 nautilus bin/nautilus-autorun-software e338f23ab98b50d401bf75b43a667286bc526cbfb8e404d836622c4d6520bd0e
-spidermonkey bin/js128 01a782d01c41bae795baf4cefdc80ee0bdc4075dee8614d6658f7d9791bb40f6
-spidermonkey bin/js128-config be73a7e0beeca4137ac3b204249c9a343332c4b218fb1dd172ceab02cd189436
 termux-usb-bridge bin/termux-usb-bridge 4ad142204aee87a8fc5d9c802aeb222598b2ab61adf1946e6cbbadeb38e090af
 termux-usb-bridge bin/termux-usb-run 6a7550c3e0a0d97aa1ac3029b3f783d57395e943becee0665de561e31f5b6a97
 termux-usb-bridge bin/tusb-camera 42c0a754de42b34564906f78c61cb8f9a03a0f4df12ea5f87fbb48901854776c
@@ -465,6 +420,32 @@ termux-render lib/libtermux-render.so e233a5479d8f353eb83181d98e0eb82fbcd9bb5ec7
 xwayland bin/Xwayland 7475e64912162047442e6de9f96213a21bfc38ca2ce902b06a609869a28a4476
 xorg-server bin/Xlorie a709d798dd347c72166a0572ece320f5d2c47d2a29dedb2f5f871297208be0a8
 libxshmfence lib/libxshmfence.so 1ccd07bab7c2d89a8ae37bc97254a2022e8a49fe131aede93c80ecf6c6173c3d
+gnome-shell bin/gnome-extensions 1c6557a1b2adf4282bd0ab9e3ea6bba47093f3bae5a8615ccbaf0e0c5a686c2e
+gnome-shell bin/gnome-shell 0ec8baedfd6a59c0f08d59ff7fe07b2b5010b9f62785e53ab5607275d1482ef1
+gnome-shell bin/gnome-shell-extension-tool beb1a2cba645dd835d8c61d75c93e2b16b168e16bc64b1fdcba71d6490a05228
+gnome-shell bin/gnome-shell-test-tool 48872d83fee383fcf91adcfdaf386f43ee9006340c58a7e63424d47195a5d2c6
+mutter lib/mutter-18/libmutter-android-system-egl.so 605530b424848346698d861fc9e4afc7d12e0bae40967df026aa0b8a3175123f
+mutter lib/mutter-18/libvndksupport.so 1b98bb73b720e5ccf0bc9bc3b895d7988c96702991441e9e4573585ebb73fc18
+mutter lib/mutter-18/plugins/libdefault.so 12349e9dc59144c01b69694490c717a8b66dac5c5fc52d7f19847f71364ae478
+mutter bin/gdctl 9bc58921f17ca26fee12d0c85d728227265d4a1d33f409cb7d2ec87fd625aff2
+mutter bin/gnome-service-client 86f76a660deb70307be741551080d207560429e918f85b28d6f22c9a8f6ed960
+mutter bin/mutter 4fd6d6cb33d47d03544c3b022b93ad0cf440bf24b41f9a167e6faf9450a25fb1
+mutter lib/libmutter-18.so.0.0.0 290dafdc4afaa97b851c4660bdac4860d7796549cdc50a714440b9965fe425a4
+mutter lib/mutter-18/Clutter-18.gir dae38f11f411845226d8aea96a9f9ec7196d8c6a3d10b4ad2a530fa358f809d8
+mutter lib/mutter-18/Clutter-18.typelib abd1008ab9eeb0c207b35b19e6408de3319f306207e66ad3fb90fbfb432892b7
+mutter lib/mutter-18/Cogl-18.gir 36eab14acfb054149e5cf16bc950aaf151a2168427c1fd3d638a69100a837ca0
+mutter lib/mutter-18/Cogl-18.typelib 069443364e6896ac91de16ebd05caee1fa5bea1f7adfaf289066564023d5c0b2
+mutter lib/mutter-18/Meta-18.gir 04a9efcbc3a0e2f202c22dbbcf4fda8ddd31718ab4ab23325605d4fc6e94fa11
+mutter lib/mutter-18/Meta-18.typelib e59ddcff6c032bd32bef46c7fabe1f6b9e11ac3dbac7c8f7b3d88af4b7a12935
+mutter lib/mutter-18/Mtk-18.gir 1bc063e8009a2dfde588de9e9259abec98cf39d7957162e16230402ee663b075
+mutter lib/mutter-18/Mtk-18.typelib 61fea61c78d3c4442df82ee5393ea7a41d72b91c0b8c5981c1dc17f5f8466fa5
+mutter lib/mutter-18/libmutter-clutter-18.so.0.0.0 fd5a08043933bdbaad5c1974687519bf29f70ec3b55a52e4646de8c4cd2e7394
+mutter lib/mutter-18/libmutter-cogl-18.so.0.0.0 a57f0abca1ab100d9b392661e14afc914d76903f9b41cc606184d00cced14958
+mutter lib/mutter-18/libmutter-mtk-18.so.0.0.0 f6e57d16f73d75ff578d22adeec489d40ec5d357170d4323ed6db4215ccc6a96
+gjs bin/gjs aed646e13819f34ebf7bfc25a26c0872cf362fdb847b75284cd228d403f54c9f
+gjs bin/gjs-console aed646e13819f34ebf7bfc25a26c0872cf362fdb847b75284cd228d403f54c9f
+spidermonkey bin/js140 cb54db3a3216ab0ad899a5b1cc479878114a36593eedcaba2d9d73b73c63f51b
+spidermonkey bin/js140-config 845aa444cb89ebd1259674cc7355c9bba236f564bca1825927d8f3bab8f47395
 '
 package_version() {
     package_status=$(dpkg-query -W -f='${Status}' "$1" 2>/dev/null) || return 1
@@ -618,18 +599,51 @@ $name $digest"
 }
 
 initialize_desktop() {
+    case "$DESKTOP_DE" in
+        gnome|ubuntu_gnome)
+            if [ "$DESKTOP_MODE" = proot ]; then
+                saved_work="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs/home/termux/.local/share/termux-gnome"
+            else
+                saved_work="$HOME/.termux/gnome-$DESKTOP_ID"
+            fi
+            rm -f "$saved_work/prepared-session.json" || fail 'invalidating saved GNOME preparation' ;;
+        hyprland) rm -f "$HOME/.termux/hyprland-$DESKTOP_ID/prepared-session.json" || fail 'invalidating saved Hyprland preparation' ;;
+    esac
     # EGL diagnostics are initialization-only and never invoked by session entrypoints.
-    run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold python mesa-demos || fail 'initialization tools'
-    register_embedded_host_packages
+    [ "${DESKTOP_PREPARE_ONLY:-0}" = 1 ] || run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold python mesa-demos || fail 'initialization tools'
+    [ "${DESKTOP_PREPARE_ONLY:-0}" = 1 ] || register_embedded_host_packages
     set -- --de "$DESKTOP_DE" --run-mode "$DESKTOP_MODE" \
         --host-gl-mode "$DESKTOP_HOST_GL_MODE" --guest-gl-mode "$DESKTOP_GUEST_GL_MODE" \
         --usb-storage "$DESKTOP_USB_STORAGE"
     [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
+    case "$DESKTOP_DE" in gnome|ubuntu_gnome|hyprland)
+        ready_suffix=gnome
+        [ "$DESKTOP_DE" != hyprland ] || ready_suffix=hyprland
+        set -- "$@" --desktop-id "$DESKTOP_ID" --ready-file "$DESKTOP_PID_FILE.$ready_suffix-ready" \
+            --size "${DESKTOP_WIDTH}x${DESKTOP_HEIGHT}" --refresh-rate "$DESKTOP_REFRESH_RATE" \
+            --render-socket "$DESKTOP_RENDER_SOCKET" ;;
+    esac
+    [ "$DESKTOP_DE" != xfce4 ] || set -- "$@" --desktop-id "$DESKTOP_ID"
     [ "$DESKTOP_DE" != hyprland ] || set -- "$@" --runtime-id "$DESKTOP_HYPRLAND_RUNTIME_ID" --theme-id "$DESKTOP_HYPRLAND_THEME_ID"
-    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_initialize.py" initialize "$@" || fail 'desktop initialization verification'
+    if [ "$DESKTOP_MODE" = proot ]; then
+        usb_user_config="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs/home/termux/.config"
+    else
+        usb_user_config="${XDG_CONFIG_HOME:-$HOME/.config}"
+    fi
+    disable_global_usb_autostart "$usb_user_config" || fail 'disabling global USB bridge autostart'
+    prepare_desktop_audio "${DESKTOP_AUDIO_MODE:-}" || fail 'saving host audio configuration'
     initialization_audit=$(dpkg --audit 2>&1) || fail 'initialization dpkg audit'
     [ -z "$initialization_audit" ] || fail "$initialization_audit"
+    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_initialize.py" initialize "$@" || fail 'desktop initialization verification'
 }
+
+# Saving an existing desktop prepares it locally. No network, apt or repair.
+if [ "${DESKTOP_PREPARE_ONLY:-0}" = 1 ]; then
+    [ "$OPERATION" = install ] || exit 64
+    initialize_desktop
+    INSTALL_DONE=1
+    exit 0
+fi
 
 if [ "$DESKTOP_DE" = hyprland ]; then
     log "Installing Hyprland Android candidate ($DESKTOP_MODE); device validation pending"
@@ -718,9 +732,9 @@ run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-
 # its status here, or a failed download goes on with an empty package list and "installs" nothing.
 DEB_PATHS=""
 if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
-    DEB_PATHS=$(fetch_debs "$XLORIE_RELEASE_TAG" "$XLORIE_BASE_URL" "$XLORIE_DEBS") || fail "downloading GNOME display packages"
+    DEB_PATHS=$(fetch_verified_debs "$GNOME_RESOLUTE_TAG" "$GNOME_RESOLUTE_URL" "$GNOME_RUNTIME_DEBS") || fail 'downloading verified GNOME 50 runtime'
     if [ "$DESKTOP_MODE" = native ]; then
-        GNOME_PATHS=$(fetch_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$GNOME_DEBS") || fail "downloading GNOME packages"
+        GNOME_PATHS=$(fetch_verified_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$GNOME_NATIVE_DEBS") || fail 'downloading verified native GNOME applications and services'
         DEB_PATHS="$DEB_PATHS $GNOME_PATHS"
     fi
 elif [ "$DESKTOP_DE" = "xfce4" ]; then
@@ -747,7 +761,7 @@ if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
         if [ "$DESKTOP_MODE" = native ]; then
             launcher_assets="$launcher_assets desktop_native_ubuntu.py"
         else
-            launcher_assets="$launcher_assets desktop_ubuntu_gnome.py"
+            launcher_assets="$launcher_assets desktop_ubuntu_gnome.py desktop_install_glycin.py desktop_install_gio.py"
         fi
     fi
     for item in $launcher_assets; do
@@ -761,7 +775,7 @@ if [ "$DESKTOP_MODE" = "native" ]; then
         native_ubuntu_packages=""
         [ "$DESKTOP_DE" != ubuntu_gnome ] || native_ubuntu_packages="gtk3 gnome-desktop3 gnome-terminal gnome-text-editor gnome-calculator eog"
         # shellcheck disable=SC2086
-        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio python dbus dconf gvfs adwaita-icon-theme gnome-backgrounds xorg-xdpyinfo $native_ubuntu_packages || fail 'apt install GNOME'
+        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio python dbus dconf gvfs librsvg adwaita-icon-theme gnome-backgrounds $native_ubuntu_packages || fail 'apt install GNOME'
     elif [ "$DESKTOP_DE" = "xfce4" ]; then
         # shellcheck disable=SC2086
         run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS pulseaudio xfce4 xfce4-terminal dbus || fail "apt install xfce4"
@@ -782,7 +796,7 @@ else
         fi
     fi
     if [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
-        host_packages="$host_packages python dbus xorg-xdpyinfo"
+        host_packages="$host_packages python dbus dconf gsettings-desktop-schemas librsvg"
         [ "$DESKTOP_HOST_GL_MODE" != zink ] || host_packages="$host_packages mesa mesa-vulkan-icd-freedreno vulkan-loader"
     fi
     run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --reinstall --allow-downgrades --allow-change-held-packages $DEB_PATHS $host_packages || fail "apt install"
@@ -806,9 +820,6 @@ else
     case "$DESKTOP_DE" in
         xfce4) container_packages="xfce4 xfce4-terminal dbus-x11" ;;
         ubuntu_gnome) container_packages="ubuntu-session ubuntu-settings gjs mesa-utils-bin gnome-shell gnome-settings-daemon nautilus gvfs-backends dbus-x11 libgl1-mesa-dri mesa-utils gnome-terminal gnome-text-editor gnome-control-center gnome-calculator gnome-clocks eog ubuntu-wallpapers ubuntu-wallpapers-resolute fonts-ubuntu yaru-theme-gtk yaru-theme-icon yaru-theme-sound yaru-theme-gnome-shell gnome-shell-ubuntu-extensions" ;;
-        gnome) container_packages="gjs mesa-utils-bin gnome-shell gnome-settings-daemon nautilus gvfs-backends gnome-backgrounds adwaita-icon-theme dbus-x11 libgl1-mesa-dri mesa-utils"
-            [ "$DESKTOP_COMPONENT_RENDERER" != zink ] || container_packages="$container_packages mesa-vulkan-drivers libvulkan1 vulkan-tools libllvm21 libdrm2"
-            ;;
         *) container_packages="kubuntu-settings-desktop python3 qt6-wayland mesa-utils-bin plasma-desktop plasma-workspace kactivitymanagerd dolphin konsole dbus-x11 packagekit appstream polkitd python3-gi gir1.2-polkit-1.0 kdialog libegl-mesa0 libgl1-mesa-dri libglx-mesa0 libgles2"
            [ "$DESKTOP_COMPONENT_RENDERER" != "zink" ] || container_packages="$container_packages libvulkan-dev mesa-vulkan-drivers" ;;
     esac
@@ -841,9 +852,15 @@ else
     fi
     cp "$(dirname "$0")/desktop_container_user.sh" "$PREFIX/tmp/desktop_container_user.sh" || fail 'staging container account setup'
     run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_user.sh || fail 'creating container user'
+    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+        glycin_archive=$(fetch_verified_debs "$GNOME_RESOLUTE_TAG" "$GNOME_RESOLUTE_URL" "$GNOME_GLYCIN_ARTIFACT") || fail 'downloading verified Resolute image decoder'
+        glycin_archive=$(readlink -f "${glycin_archive# }") || fail 'resolving image decoder archive'
+        canonical_rootfs=$(readlink -f "$rootfs") || fail 'resolving image decoder rootfs'
+        run python3 -I -B "$(dirname "$0")/desktop_install_glycin.py" --archive "$glycin_archive" \
+            --rootfs "$canonical_rootfs" || fail 'installing verified Resolute image decoder'
+    fi
     # Idempotent and independent of the marker: a container created before this step still gets it.
     [ "$DESKTOP_DE" != "kwin_plasma" ] || [ "$PLASMA_EMULATOR" = 1 ] || [ "$DESKTOP_GUEST_GL_MODE" != "zink" ] || ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
-    [ "$DESKTOP_DE:$DESKTOP_COMPONENT_RENDERER" != gnome:zink ] || ensure_gnome_turnip_icd "$DESKTOP_PROOT_DISTRO"
     if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
         # The guest must load glibc GIO code. Never bind a host Bionic module into it.
         for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
@@ -851,12 +868,12 @@ else
         done
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
             --statx-backend=proc-fdinfo --no-install-recommends gvfs-backends libglib2.0-bin || fail 'container GIO prerequisites'
-        gio_archive=$(fetch_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$USB_GLIBC_ARTIFACT") || fail 'downloading glibc GIO artifact'
+        gio_archive=$(fetch_verified_debs "$GNOME_RESOLUTE_TAG" "$GNOME_RESOLUTE_URL" "$USB_GLIBC_ARTIFACT") || fail 'downloading glibc GIO artifact'
         gio_archive="${gio_archive# }"
         gio_archive=$(readlink -f "$gio_archive") || fail 'resolving GIO archive path'
         canonical_rootfs=$(readlink -f "$rootfs") || fail 'resolving GIO rootfs path'
         run python3 -I -B "$(dirname "$0")/desktop_install_gio.py" --archive "$gio_archive" \
-            --rootfs "$canonical_rootfs" --codename trixie --bridge-version 0.4.1 || fail 'installing glibc GIO payloads'
+            --rootfs "$canonical_rootfs" --codename resolute --bridge-version 0.4.1 || fail 'installing glibc GIO payloads'
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- gio-querymodules \
             /usr/local/lib/termux-usb-bridge/gio/modules || fail 'registering container GIO module'
     fi
@@ -864,7 +881,7 @@ fi
 
 audit=$(dpkg --audit 2>&1) || fail 'dpkg --audit failed'
 [ -z "$audit" ] || fail "dpkg --audit reported problems: $audit"
-if [ "$DESKTOP_DE" = "xfce4" ] || [ "$DESKTOP_DE" = gnome ] || [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+if [ "$DESKTOP_DE" = "xfce4" ]; then
     # The Xlorie xorg-server (release build) is older than Termux's stock one; keep a later
     # `pkg upgrade` from replacing it with a server that has no Xlorie.
     run apt-mark hold xorg-server || fail "holding xorg-server"
@@ -872,9 +889,9 @@ fi
 verification_manifest="$DEBS"
 case "$DESKTOP_DE" in
     xfce4) verification_manifest="$XLORIE_DEBS" ;;
-    gnome|ubuntu_gnome) verification_manifest="$XLORIE_DEBS"
+    gnome|ubuntu_gnome) verification_manifest="$GNOME_RUNTIME_DEBS"
         [ "$DESKTOP_MODE" != native ] || verification_manifest="$verification_manifest
-$GNOME_DEBS" ;;
+$GNOME_NATIVE_DEBS" ;;
 esac
 [ "$DESKTOP_MODE:$DESKTOP_DE" != native:ubuntu_gnome ] || verification_manifest="$verification_manifest
 $NATIVE_GNOME_APPS_DEBS"

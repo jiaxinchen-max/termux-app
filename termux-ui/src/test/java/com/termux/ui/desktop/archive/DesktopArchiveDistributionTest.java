@@ -10,9 +10,9 @@ public class DesktopArchiveDistributionTest {
         assertEquals("resolute", DesktopArchiveDistribution.codename(DesktopDe.KWIN_PLASMA,
             "PRETTY_NAME=\"Ubuntu 26.04.1 LTS\"\nVERSION_ID=\"26.04\"\nVERSION_CODENAME=resolute\nID=ubuntu\nID_LIKE=debian\n"));
     }
-    @Test public void debianXfceStillWorksWithQuotedCrLfFields() throws Exception {
-        assertEquals("trixie", DesktopArchiveDistribution.codename(DesktopDe.XFCE4,
-            "ID='debian'\r\nVERSION_CODENAME=\"trixie\"\r\n"));
+    @Test public void ubuntuXfceSupportsQuotedCrLfFields() throws Exception {
+        assertEquals("resolute", DesktopArchiveDistribution.codename(DesktopDe.XFCE4,
+            "ID='ubuntu'\r\nVERSION_CODENAME=\"resolute\"\r\n"));
     }
     @Test public void rejectsWrongBaseReleaseMissingAndDuplicateFields() throws Exception {
         for (String release : new String[] {

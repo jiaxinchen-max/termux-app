@@ -540,22 +540,81 @@ static xkb_layout_index_t backend_layout(MetaBackend *backend) { return xkb_stat
 static MetaKeymapDescription *backend_description(MetaBackend *backend) {
   return backend_get_seat(backend)->description;
 }
-static void backend_set_keymap_async(MetaBackend *backend,MetaKeymapDescription *description,xkb_layout_index_t index,GTask *task) {
-  AndroidSeat *s=backend_get_seat(backend);
-  GError *error=NULL;
-  struct xkb_keymap *map=meta_keymap_description_create_xkb_keymap(description,NULL,NULL,&error);
-  if(!map){g_task_return_error(task,error);g_object_unref(task);return;}
-  struct xkb_state *state=xkb_state_new(map);
-  if(!state){xkb_keymap_unref(map);g_task_return_new_error(task,G_IO_ERROR,G_IO_ERROR_FAILED,"Cannot create Android keyboard state");g_object_unref(task);return;}
-  xkb_state_update_mask(state,0,0,0,0,0,index);
-  xkb_state_unref(s->xkb_state);xkb_keymap_unref(s->xkb_keymap);
-  s->xkb_keymap=map;s->xkb_state=state;
-  g_clear_pointer(&s->description,meta_keymap_description_unref);
-  s->description=meta_keymap_description_ref(description);
-  g_signal_emit_by_name(s->keymap,"state-changed");
-  meta_backend_notify_keymap_changed(backend);
-  meta_backend_notify_keymap_layout_group_changed(backend,index);
-  g_task_return_boolean(task,TRUE);g_object_unref(task);
+typedef struct
+{
+  MetaKeymapDescription *description;
+  xkb_layout_index_t index;
+} AndroidKeymapRequest;
+
+static void
+android_keymap_request_free (AndroidKeymapRequest *request)
+{
+  meta_keymap_description_unref (request->description);
+  g_free (request);
+}
+
+static gboolean
+backend_set_keymap_idle (gpointer user_data)
+{
+  GTask *task = G_TASK (user_data);
+  MetaBackend *backend = g_task_get_source_object (task);
+  AndroidKeymapRequest *request = g_task_get_task_data (task);
+  AndroidSeat *seat = backend_get_seat (backend);
+  GError *error = NULL;
+  struct xkb_keymap *map;
+  struct xkb_state *state;
+
+  if (g_task_return_error_if_cancelled (task))
+    return G_SOURCE_REMOVE;
+
+  map = meta_keymap_description_create_xkb_keymap (request->description,
+                                                   NULL, NULL, &error);
+  if (!map)
+    {
+      g_task_return_error (task, error);
+      return G_SOURCE_REMOVE;
+    }
+
+  state = xkb_state_new (map);
+  if (!state)
+    {
+      xkb_keymap_unref (map);
+      g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED,
+                               "Cannot create Android keyboard state");
+      return G_SOURCE_REMOVE;
+    }
+
+  xkb_state_update_mask (state, 0, 0, 0, 0, 0, request->index);
+  xkb_state_unref (seat->xkb_state);
+  xkb_keymap_unref (seat->xkb_keymap);
+  seat->xkb_keymap = map;
+  seat->xkb_state = state;
+  g_clear_pointer (&seat->description, meta_keymap_description_unref);
+  seat->description = meta_keymap_description_ref (request->description);
+  g_signal_emit_by_name (seat->keymap, "state-changed");
+  meta_backend_notify_keymap_changed (backend);
+  meta_backend_notify_keymap_layout_group_changed (backend, request->index);
+  g_task_return_boolean (task, TRUE);
+  return G_SOURCE_REMOVE;
+}
+
+static void
+backend_set_keymap_async (MetaBackend           *backend,
+                          MetaKeymapDescription *description,
+                          xkb_layout_index_t     index,
+                          GTask                 *task)
+{
+  AndroidKeymapRequest *request = g_new0 (AndroidKeymapRequest, 1);
+
+  request->description = meta_keymap_description_ref (description);
+  request->index = index;
+  g_task_set_task_data (task, request,
+                        (GDestroyNotify) android_keymap_request_free);
+  /* Shell finishes selecting its input source after this method returns.
+   * Match the native backend: do not emit keymap signals into that call stack.
+   * The task owns the backend and request until the idle source completes. */
+  g_idle_add_full (G_PRIORITY_DEFAULT, backend_set_keymap_idle,
+                   task, g_object_unref);
 }
 static void backend_pointer_constraint(MetaBackend *backend,MetaPointerConstraint *constraint) {
   if(constraint)g_warning("Android pointer constraints are not implemented");

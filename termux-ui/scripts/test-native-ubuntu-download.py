@@ -20,8 +20,8 @@ class DownloadTest(unittest.TestCase):
         self.source = self.root / 'source'
         self.source.write_bytes(self.payload)
         self.calls = self.root / 'calls'
-        self.cache = self.root / 'cache/desktop-native-ubuntu-gnome-48-r2'
-        self.target = self.cache / 'native-ubuntu-gnome-48-r2.bin'
+        self.cache = self.root / 'cache/desktop-native-ubuntu-gnome-50-r1'
+        self.target = self.cache / 'native-ubuntu-gnome-50-r1.bin'
         curl = self.root / 'curl'
         curl.write_text('''#!/bin/sh
 printf '%s\\n' "$*" >> "$TEST_CALLS"
@@ -38,7 +38,7 @@ cp "$TEST_SOURCE" "$dest"
                         TMPDIR=str(self.root/'cache'), TEST_SOURCE=str(self.source),
                         TEST_CALLS=str(self.calls), TEST_MODE='ok', DESKTOP_LOG_FILE=str(self.root/'log'))
         digest = hashlib.sha256(self.payload).hexdigest()
-        self.function = FUNCTION.replace('5a767f2ef030ea401015e9c4afad6cfc582c203c6f4eb30e079ae6935474ff03', digest)
+        self.function = FUNCTION.replace('5d043a773b503c472743c1902d8347ea8ba6c8f7f88c79868e5f661b26288e0e', digest)
 
     def run_fetch(self):
         return subprocess.run(['sh','-eu','-c',self.function+'\nfetch_native_ubuntu_profile'],env=self.env,capture_output=True,text=True)
@@ -48,7 +48,7 @@ cp "$TEST_SOURCE" "$dest"
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertEqual(result.stdout.strip(),str(self.target))
         self.assertEqual(self.target.read_bytes(),self.payload)
-        self.assertIn('https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-ubuntu-gnome-48-r2/',self.calls.read_text())
+        self.assertIn('https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native-ubuntu-gnome-50-r1/',self.calls.read_text())
         self.assertEqual(list(self.cache.glob('.download.*')),[])
 
     def test_valid_cache_reused_offline(self):

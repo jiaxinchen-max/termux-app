@@ -88,6 +88,8 @@ public final class DesktopTasks {
             catch (LaunchHostException busy) { throw new IOException(busy.getErrorCode(), busy); }
             try { DesktopRendererPolicy.requireSupported(distro); }
             catch (IllegalArgumentException invalid) { throw new IOException(invalid.getMessage(), invalid); }
+            try { deploy(distro); }
+            catch (LaunchHostException error) { throw new IOException(error.getErrorCode(), error); }
             repository.save(distro);
 
         }
@@ -246,6 +248,12 @@ public final class DesktopTasks {
         return DesktopSessionStateResolver.isFailureStatus(readStatus(paths.getDesktopStatusFile(distro.getId())));
     }
 
+    /** Whether the launcher has recorded a terminal result. */
+    public boolean hasTerminalResultStatus(@NonNull DesktopDistro distro) {
+        String status = readStatus(paths.getDesktopStatusFile(distro.getId()));
+        return "stopped".equals(status) || (status != null && status.startsWith("exit:"));
+    }
+
     /** Last part of the distribution's log, for the in-app log viewer. */
     @NonNull
     public String logTail(@NonNull DesktopDistro distro, int maxBytes) {
@@ -258,7 +266,17 @@ public final class DesktopTasks {
         return install(distro, false, false);
     }
 
+    /** Prepare changed settings during Save, without downloading or reinstalling packages. */
+    public String prepare(@NonNull DesktopDistro distro) throws LaunchHostException {
+        return install(distro, false, false, true);
+    }
+
     private String install(DesktopDistro distro, boolean componentSelection, boolean themeOnly) throws LaunchHostException {
+        return install(distro, componentSelection, themeOnly, false);
+    }
+
+    private String install(DesktopDistro distro, boolean componentSelection, boolean themeOnly,
+                           boolean prepareOnly) throws LaunchHostException {
         synchronized (DesktopOperationGate.LOCK) {
             String existing = activeInstallTask(distro);
             if (existing != null) return existing;
@@ -270,6 +288,12 @@ public final class DesktopTasks {
             LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
             commandStatus(distro, "installing");
             try {
+                if (prepareOnly) {
+                    try (FileOutputStream output = new FileOutputStream(paths.getDesktopSpecFile(distro.getId()), true)) {
+                        output.write("DESKTOP_PREPARE_ONLY=1\n".getBytes(StandardCharsets.US_ASCII));
+                        output.getFD().sync();
+                    }
+                }
                 if (componentSelection) {
                     if (themeOnly) writeSpec(distro, true);
                     selections.stage(distro, taskId);
@@ -353,13 +377,12 @@ public final class DesktopTasks {
                 throw new LaunchHostException("desktop_archive_busy", true, busy);
             }
             requireNotStoppingForLaunch(distro);
-            LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
+            File startScript = new File(paths.getRuntimeDirectory(), "desktop_start.sh");
             LocalGamesHost host = LocalGames.requireHost(context);
-            host.prepareLaunchRuntime();
             commandStatus(distro, "starting");
             try {
                 host.startLaunch(new LaunchRequest("desktop-start-" + distro.getId() + "-"
-                    + System.currentTimeMillis(), scripts.start.getPath(),
+                    + System.currentTimeMillis(), startScript.getPath(),
                     paths.getDesktopSpecFile(distro.getId()).getPath(),
                     paths.getRuntimeDirectory().getPath(), LaunchExecutionMode.APP_SHELL));
             } catch (LaunchHostException error) {
@@ -415,9 +438,8 @@ public final class DesktopTasks {
             try { DesktopOperationGate.requireAvailable(); } catch (IOException busy) {
                 throw new LaunchHostException("desktop_archive_busy", true, busy);
             }
-            if (state(distro) != DesktopSessionState.RUNNING)
+            if (sessionState(distro) != DesktopSessionState.RUNNING)
                 throw new LaunchHostException("desktop_not_running", true, null);
-            deploy(distro);
             String task = "hyprland-action-" + distro.getId() + "-" + System.currentTimeMillis();
             File spec = new File(paths.getRuntimeDirectory(), task + ".spec");
             String content = DesktopLaunchSpec.encode(distro,
@@ -443,12 +465,12 @@ public final class DesktopTasks {
                 throw new LaunchHostException("desktop_archive_busy", true, busy);
             }
             requireNoInstallation(distro);
-            if (state(distro) == DesktopSessionState.STOPPING) return;
-            LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
+            if (sessionState(distro) == DesktopSessionState.STOPPING) return;
+            File stopScript = new File(paths.getRuntimeDirectory(), "desktop_stop.sh");
             commandStatus(distro, "stopping");
             try {
                 LocalGames.requireHost(context).startLaunch(new LaunchRequest("desktop-stop-"
-                    + distro.getId() + "-" + System.currentTimeMillis(), scripts.stop.getPath(),
+                    + distro.getId() + "-" + System.currentTimeMillis(), stopScript.getPath(),
                     paths.getDesktopSpecFile(distro.getId()).getPath(),
                     paths.getRuntimeDirectory().getPath(), LaunchExecutionMode.APP_SHELL));
             } catch (LaunchHostException error) {
@@ -477,6 +499,7 @@ public final class DesktopTasks {
         throws LaunchHostException {
         try {
             writeSpec(distro);
+            LocalGames.requireHost(context).prepareLaunchRuntime();
             return new LaunchScriptInstaller(context, paths).installDesktopScripts();
         } catch (IOException | RuntimeException error) {
             throw new LaunchHostException("desktop_prepare_failed", true, error);

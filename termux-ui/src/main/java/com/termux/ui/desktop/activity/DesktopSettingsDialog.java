@@ -120,6 +120,9 @@ final class DesktopSettingsDialog {
                         if (updated.getHostGlMode() != distro.getHostGlMode()
                                 || updated.getGuestGlMode() != distro.getGuestGlMode()) {
                             activity.installAndShowConsole(updated);
+                        } else {
+                            String task = tasks.prepare(updated);
+                            activity.runOnUiThread(() -> activity.showInstallConsole(task));
                         }
                     }
                     activity.runOnUiThread(onSaved);

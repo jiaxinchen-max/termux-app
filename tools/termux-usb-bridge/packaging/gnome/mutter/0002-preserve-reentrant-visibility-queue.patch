@@ -1,0 +1,38 @@
+Consume visibility queue flags before invoking callbacks. Both visibility
+updates and synchronous flushes can reenter through DING window placement.
+Clearing flags on return erases newly queued work; unmanage then skips its
+removal and a later frame accesses the destroyed Wayland surface.
+
+--- a/src/core/window.c
++++ b/src/core/window.c
+@@ -1975,8 +1975,6 @@
+ 
+   meta_display_flush_queued_window (window->display, window,
+                                     META_QUEUE_CALC_SHOWING);
+-
+-  priv->queued_types &= ~META_QUEUE_CALC_SHOWING;
+ }
+ 
+ void
+--- a/src/core/display.c
++++ b/src/core/display.c
+@@ -3241,6 +3241,10 @@
+   COGL_TRACE_BEGIN_SCOPED (MetaDisplayUpdateVisibility,
+                            "Meta::Display::update_window_visibilities()");
+ 
++  /* Callbacks can synchronously flush and queue another update. Consume this
++   * batch before invoking them, so newly queued work keeps its own flag. */
++  g_list_foreach (windows, (GFunc) meta_window_clear_queued, NULL);
++
+   for (l = windows; l; l = l->next)
+     {
+       MetaWindow *window = l->data;
+@@ -3279,8 +3283,6 @@
+   COGL_TRACE_END (MetaDisplayHideWindows);
+ 
+   meta_stack_thaw (display->stack);
+-
+-  g_list_foreach (windows, (GFunc) meta_window_clear_queued, NULL);
+ 
+   g_signal_emit (display, display_signals[WINDOW_VISIBILITY_UPDATED], 0,
+                  unplaced, should_show, should_hide);

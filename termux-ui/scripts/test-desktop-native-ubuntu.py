@@ -17,6 +17,13 @@ profile = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(profile)
 
 
+def install_data(prefix, archive):
+    # Install the actual artifact; Android runtime probes are tested separately
+    # below with explicit process results, since these host fixtures are data.
+    with patch.object(profile, 'runtime_probe'):
+        profile.install(prefix, archive)
+
+
 class NativeProfileTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -28,7 +35,7 @@ class NativeProfileTest(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.touch()
         cls.bundle = Path(os.environ['NATIVE_UBUNTU_BUNDLE'])
-        profile.install(cls.prefix, cls.bundle)
+        install_data(cls.prefix, cls.bundle)
 
     @classmethod
     def tearDownClass(cls):
@@ -45,7 +52,7 @@ class NativeProfileTest(unittest.TestCase):
         self.assertNotIn('enumerate_children', cleanup)
         self.assertNotIn('load_bytes', cleanup)
         self.assertNotIn('Gio.Subprocess', cleanup)
-        self.assertIn('session-owned cleanup', json.loads((self.prefix / profile.MANIFEST).read_text())['patches']['share/gnome-shell/extensions/ding@rastersoft.com/extension.js'])
+        self.assertIn('session-owned process cleanup', json.loads((self.prefix / profile.MANIFEST).read_text())['patches']['share/gnome-shell/extensions/ding@rastersoft.com/extension.js']['reason'])
         with tarfile.open(self.bundle) as archive:
             self.assertTrue(any(m.islnk() for m in archive.getmembers()))
             for entry in archive:
@@ -81,7 +88,7 @@ class NativeProfileTest(unittest.TestCase):
             metadata = json.loads(original)
             metadata['shell-version'] = ['51']
             path.write_text(json.dumps(metadata))
-            with self.assertRaisesRegex(ValueError, 'GNOME 48'):
+            with self.assertRaisesRegex(ValueError, 'GNOME 50'):
                 profile.validate(self.prefix)
         finally:
             path.write_bytes(original)
@@ -107,7 +114,7 @@ class NativeProfileTest(unittest.TestCase):
             del os.link
         try:
             with patch.object(profile, 'BUNDLE_SHA256', profile.digest(path)), patch.object(profile, 'validate'):
-                profile.install(prefix, path)
+                install_data(prefix, path)
         finally:
             if link is not None:
                 os.link = link
@@ -121,7 +128,7 @@ class NativeProfileTest(unittest.TestCase):
         path.write_bytes(b'not the released bundle')
         destination = self.root / 'untouched'
         with self.assertRaisesRegex(ValueError, 'SHA256 mismatch'):
-            profile.install(destination, path)
+            install_data(destination, path)
         self.assertFalse(destination.exists())
 
     def test_archive_cannot_escape_or_install_executables(self):
@@ -134,7 +141,7 @@ class NativeProfileTest(unittest.TestCase):
                     archive.addfile(member, io.BytesIO(b'x'))
                 with patch.object(profile, 'BUNDLE_SHA256', profile.digest(path)):
                     with self.assertRaises(ValueError):
-                        profile.install(self.root / 'untouched', path)
+                        install_data(self.root / 'untouched', path)
         self.assertFalse((self.root / 'outside').exists())
 
     def test_failed_install_removes_success_marker_and_reinstall_repairs(self):
@@ -142,11 +149,11 @@ class NativeProfileTest(unittest.TestCase):
         application.unlink()
         try:
             with self.assertRaisesRegex(ValueError, 'gnome-text-editor'):
-                profile.install(self.prefix, self.bundle)
+                install_data(self.prefix, self.bundle)
             self.assertFalse((self.prefix / 'share/termux-native-ubuntu/.installed').exists())
         finally:
             application.touch()
-            profile.install(self.prefix, self.bundle)
+            install_data(self.prefix, self.bundle)
         profile.validate(self.prefix)
 
     def test_first_start_initializes_once_then_preserves_customization(self):
@@ -178,17 +185,17 @@ class NativeProfileTest(unittest.TestCase):
         self.assertTrue((config / 'user-dirs.dirs').is_file())
 
     def test_runtime_requires_correct_shell_and_loadable_gi_libraries(self):
-        ok = subprocess.CompletedProcess([], 0, 'GNOME Shell 48.7\n', '')
+        ok = subprocess.CompletedProcess([], 0, 'GNOME Shell 50.1\n', '')
         broken_gi = subprocess.CompletedProcess([], 1, '', 'cannot load Gtk')
         with patch.object(profile.subprocess, 'run', side_effect=[ok, broken_gi]):
             with self.assertRaisesRegex(ValueError, 'dependency probe failed'):
                 profile.runtime_probe(self.prefix, {})
         with patch.object(profile.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'GNOME Shell 51.0', '')):
-            with self.assertRaisesRegex(ValueError, 'GNOME Shell 48'):
+            with self.assertRaisesRegex(ValueError, 'GNOME Shell 50'):
                 profile.runtime_probe(self.prefix, {})
 
     def test_runtime_rejects_installed_clock_linked_to_missing_icu(self):
-        shell = subprocess.CompletedProcess([], 0, 'GNOME Shell 48.7', '')
+        shell = subprocess.CompletedProcess([], 0, 'GNOME Shell 50.1', '')
         ok = subprocess.CompletedProcess([], 0, 'version', '')
         broken = subprocess.CompletedProcess([], 127, '', 'libicui18n.so.78 not found')
         with patch.object(profile.subprocess, 'run', side_effect=[shell, ok, ok, ok, broken]):
@@ -196,7 +203,7 @@ class NativeProfileTest(unittest.TestCase):
                 profile.runtime_probe(self.prefix, {})
 
     def test_runtime_accepts_all_loadable_native_applications(self):
-        shell = subprocess.CompletedProcess([], 0, 'GNOME Shell 48.7', '')
+        shell = subprocess.CompletedProcess([], 0, 'GNOME Shell 50.1', '')
         ok = subprocess.CompletedProcess([], 0, 'version', '')
         with patch.object(profile.subprocess, 'run', side_effect=[shell] + [ok] * 5) as run:
             profile.runtime_probe(self.prefix, {})

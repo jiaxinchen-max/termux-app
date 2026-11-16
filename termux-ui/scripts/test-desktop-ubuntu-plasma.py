@@ -14,6 +14,9 @@ class UbuntuPlasmaInstallTests(unittest.TestCase):
         self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
         self.base = self.fixture.base
+        # Host audio configuration is exercised separately by test-desktop-save.py.
+        common = self.base / 'desktop_common.sh'
+        common.write_text(common.read_text() + '\nprepare_desktop_audio() { return 0; }\n')
         ca = self.base / 'usr/etc/tls/cert.pem'
         ca.parent.mkdir(parents=True, exist_ok=True)
         ca.write_bytes(Path('/etc/ssl/certs/ca-certificates.crt').read_bytes())

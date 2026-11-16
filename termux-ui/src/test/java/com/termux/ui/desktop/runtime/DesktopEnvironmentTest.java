@@ -229,7 +229,6 @@ public class DesktopEnvironmentTest {
         DesktopDistro d=new DesktopDistro("gn", "GNOME", DesktopRunMode.NATIVE, "", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 60, DesktopUsbStorageMode.OFF);
         touch("usr/bin/python3");touch("usr/bin/gnome-shell");assertFalse(env.isInstalled(d));
         touch("usr/lib/mutter-18/libmutter-android-system-egl.so");
-        touch("usr/bin/gnome-session");assertFalse(env.isInstalled(d));
         touch("usr/libexec/termux-gnome/launch.py");assertFalse(env.isInstalled(d));
         String[] services={"ca.desrt.dconf", "org.gtk.vfs.Daemon", "org.gnome.Nautilus"};
         for (String service:services) touch("usr/share/dbus-1/services/"+service+".service");
@@ -289,7 +288,7 @@ public class DesktopEnvironmentTest {
         DesktopDistro desktop = new DesktopDistro("nu", "Ubuntu", DesktopRunMode.NATIVE, "",
             DesktopDe.UBUNTU_GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE,
             "1280x720", 60, DesktopUsbStorageMode.OFF);
-        for (String file : new String[]{"bin/python3", "bin/gnome-shell", "bin/gnome-session", "bin/gjs",
+        for (String file : new String[]{"bin/python3", "bin/gnome-shell", "bin/gjs",
                 "bin/gnome-terminal", "bin/gnome-text-editor", "lib/mutter-18/libmutter-android-system-egl.so", "libexec/termux-gnome/launch.py",
                 "libexec/termux-gnome/desktop_native_ubuntu.py", "share/termux-native-ubuntu/manifest.json",
                 "share/gnome-shell/modes/termux-ubuntu.json", "share/gnome-shell/theme/Yaru/gnome-shell-theme.gresource",
@@ -298,15 +297,24 @@ public class DesktopEnvironmentTest {
                 "lib/girepository-1.0/GnomeDesktop-3.0.typelib"}) touch("usr/"+file);
         for (String service : new String[]{"ca.desrt.dconf", "org.gtk.vfs.Daemon", "org.gnome.Nautilus",
                 "org.gnome.Terminal", "org.gnome.TextEditor"}) touch("usr/share/dbus-1/services/"+service+".service");
-        for (String uuid : new String[]{"ubuntu-dock@ubuntu.com", "appindicatorsupport@rgcjonas.gmail.com", "ding@rastersoft.com"}) {
+        for (String uuid : new String[]{"ubuntu-dock@ubuntu.com", "ubuntu-appindicators@ubuntu.com", "ding@rastersoft.com", "tiling-assistant@ubuntu.com"}) {
             touch("usr/share/gnome-shell/extensions/"+uuid+"/metadata.json");
             touch("usr/share/gnome-shell/extensions/"+uuid+"/extension.js");
         }
         assertFalse(environment.isInstalled(desktop));
         File marker = touch("usr/share/termux-native-ubuntu/.installed");
-        try (FileWriter writer = new FileWriter(marker)) { writer.write("5a767f2ef030ea401015e9c4afad6cfc582c203c6f4eb30e079ae6935474ff03\n"); }
+        try (FileWriter writer = new FileWriter(marker)) { writer.write("5d043a773b503c472743c1902d8347ea8ba6c8f7f88c79868e5f661b26288e0e\n"); }
         assertTrue(environment.isInstalled(desktop));
         assertTrue(environment.gnomeWaylandSocket(desktop).getPath().contains("gnome-nu"));
+        // A stale 48 profile or a missing 50 extension must require repair.
+        try (FileWriter writer = new FileWriter(marker)) { writer.write("old-profile\n"); }
+        assertFalse(environment.isInstalled(desktop));
+        try (FileWriter writer = new FileWriter(marker)) { writer.write("5d043a773b503c472743c1902d8347ea8ba6c8f7f88c79868e5f661b26288e0e\n"); }
+        File tiling = new File(temporaryFolder.getRoot(), "usr/share/gnome-shell/extensions/tiling-assistant@ubuntu.com/extension.js");
+        assertTrue(tiling.delete());
+        assertFalse(environment.isInstalled(desktop));
+        touch("usr/share/gnome-shell/extensions/tiling-assistant@ubuntu.com/extension.js");
+        assertTrue(environment.isInstalled(desktop));
         assertTrue(new File(temporaryFolder.getRoot(),"usr/bin/gnome-terminal").delete());
         assertFalse(environment.isInstalled(desktop));
     }

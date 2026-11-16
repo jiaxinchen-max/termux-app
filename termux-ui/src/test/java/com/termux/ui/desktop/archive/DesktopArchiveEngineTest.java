@@ -25,9 +25,9 @@ public class DesktopArchiveEngineTest {
         source=temporary.resolve("old-container");containers=temporary.resolve("containers");
         Files.createDirectories(source);Files.createDirectories(containers);
         write(".desktop-de-xfce4","");
-        write("manifest.json","{\"architecture\":\"arm64\",\"image\":\"debian:trixie\"}");
+        write("manifest.json","{\"architecture\":\"arm64\",\"image\":\"ubuntu:resolute\"}");
         write("sysdata/loadavg","0.0 0.0 0.0 1/1 1\n");
-        write("rootfs/usr/lib/os-release","ID=debian\nVERSION_CODENAME=trixie\n");
+        write("rootfs/usr/lib/os-release","ID=ubuntu\nVERSION_CODENAME=resolute\n");
         Files.createDirectories(source.resolve("rootfs/etc"));
         Files.createSymbolicLink(source.resolve("rootfs/etc/os-release"),Paths.get("../usr/lib/os-release"));
         write("rootfs/usr/bin/app",TEXT);Files.setAttribute(source.resolve("rootfs/usr/bin/app"),"unix:mode",0751);
@@ -37,7 +37,7 @@ public class DesktopArchiveEngineTest {
         for(String p:Arrays.asList("proc","sys","dev","run","tmp"))write("rootfs/"+p+"/runtime-secret","must not be archived");
         write("shm/old-ipc","not persistent");
         fs=new NioFs();engine=new DesktopArchiveEngine(fs,limits());
-        metadata=DesktopArchiveMetadata.create("com.termux","aarch64","trixie",
+        metadata=DesktopArchiveMetadata.create("com.termux","aarch64","resolute",
             new DesktopDistro("old-id", "工作桌面", DesktopRunMode.PROOT, "old-container", DesktopDe.XFCE4, DesktopGlMode.SYSTEM, DesktopGuestGlMode.DEFAULT, "1920x1080", 60, DesktopUsbStorageMode.OFF),"3","horizontal");
     }
     private DesktopArchiveLimits limits(){return new DesktopArchiveLimits(1024L*1024*1024,128L*1024*1024,30000,1024*1024);}
@@ -66,7 +66,7 @@ public class DesktopArchiveEngineTest {
     }
     @Test public void archiveRejectsUsbSettingsRatherThanSilentlyDroppingThem() {
         try {
-            DesktopArchiveMetadata.create("com.termux","aarch64","trixie",
+            DesktopArchiveMetadata.create("com.termux","aarch64","resolute",
                 metadata.getDesktop().withUsbStorage(DesktopUsbStorageMode.READ_ONLY),null,null);
             fail("USB settings must not be silently omitted from v1 archives");
         } catch (IllegalArgumentException expected) {
@@ -75,7 +75,7 @@ public class DesktopArchiveEngineTest {
     }
     @Test public void archiveRejectsUnimplementedGnomeFormat() {
         try {
-            DesktopArchiveMetadata.create("com.termux","aarch64","trixie",
+            DesktopArchiveMetadata.create("com.termux","aarch64","resolute",
                 new DesktopDistro("gnome", "GNOME", DesktopRunMode.PROOT, "debian-gnome-1", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.LLVMPIPE, "1280x720", 30, DesktopUsbStorageMode.OFF),null,null);
             fail("GNOME needs an explicit archive format implementation");
         } catch (IllegalArgumentException expected) {
@@ -165,7 +165,7 @@ public class DesktopArchiveEngineTest {
     }
     @Test public void unknownArchitecturePackageAndModesAreRejected()throws Exception {
         File file=archive();rejected(()->engine.readMetadata(file,"com.other","aarch64"));rejected(()->engine.readMetadata(file,"com.termux","x86_64"));
-        try{DesktopArchiveMetadata.create("com.termux","aarch64","trixie",metadata.getDesktop().withRenderers(DesktopGlMode.AUTO,DesktopGuestGlMode.UNRESOLVED),null,null);fail();}
+        try{DesktopArchiveMetadata.create("com.termux","aarch64","resolute",metadata.getDesktop().withRenderers(DesktopGlMode.AUTO,DesktopGuestGlMode.UNRESOLVED),null,null);fail();}
         catch(IllegalArgumentException expected){ }
         try{DesktopArchiveMetadata.create("com.termux","aarch64","forky",metadata.getDesktop(),null,null);fail();}
         catch(IllegalArgumentException expected){ }

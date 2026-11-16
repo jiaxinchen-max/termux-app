@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Install and validate the pinned Ubuntu appearance for native GNOME 48."""
+"""Install and validate the pinned Ubuntu appearance for native GNOME 50."""
 import argparse
 import hashlib
 import json
@@ -11,14 +11,16 @@ import shutil
 import subprocess
 import tarfile
 
-BUNDLE_SHA256 = '5a767f2ef030ea401015e9c4afad6cfc582c203c6f4eb30e079ae6935474ff03'
-EXTENSIONS = ('ubuntu-dock@ubuntu.com', 'appindicatorsupport@rgcjonas.gmail.com', 'ding@rastersoft.com')
+BUNDLE_SHA256 = '5d043a773b503c472743c1902d8347ea8ba6c8f7f88c79868e5f661b26288e0e'
+EXTENSIONS = ('ubuntu-dock@ubuntu.com', 'ubuntu-appindicators@ubuntu.com',
+              'ding@rastersoft.com', 'tiling-assistant@ubuntu.com')
 MODE = 'termux-ubuntu'
 MANIFEST = 'share/termux-native-ubuntu/manifest.json'
 REQUIRED_FILES = (
     'share/gnome-shell/modes/termux-ubuntu.json',
     'share/gnome-shell/theme/Yaru/gnome-shell-theme.gresource',
     'share/gnome-shell/theme/Yaru/gnome-shell.css',
+    'share/gnome-shell/theme/Yaru/gnome-shell-icons.gresource',
     'share/themes/Yaru/gtk-3.0/gtk.css', 'share/icons/Yaru/index.theme',
     'share/icons/Yaru/cursors/left_ptr',
     'share/backgrounds/termux-native-ubuntu/default.png',
@@ -120,12 +122,14 @@ def validate(prefix):
     for uuid in EXTENSIONS:
         directory = prefix / 'share/gnome-shell/extensions' / uuid
         metadata = json.loads((directory / 'metadata.json').read_text())
-        if metadata.get('uuid') != uuid or '48' not in metadata.get('shell-version', []):
-            raise ValueError('Native Ubuntu extension does not support GNOME 48: ' + uuid)
+        if metadata.get('uuid') != uuid or '50' not in metadata.get('shell-version', []):
+            raise ValueError('Native Ubuntu extension does not support GNOME 50: ' + uuid)
         if not (directory / 'extension.js').is_file():
             raise ValueError('Native Ubuntu extension code missing: ' + uuid)
     manifest = json.loads((prefix / MANIFEST).read_text())
-    if manifest.get('profile') != 'native-ubuntu-gnome-48-r2':
+    if (manifest.get('profile') != 'native-ubuntu-gnome-50-r1'
+            or manifest.get('shell_major') != 50
+            or manifest.get('distribution') != 'ubuntu:resolute'):
         raise ValueError('Unknown native Ubuntu profile manifest')
     for name, expected in manifest['files'].items():
         path = safe_destination(prefix, name)
@@ -137,8 +141,8 @@ def runtime_probe(prefix, env):
     env = dict(env, XDG_CURRENT_DESKTOP='ubuntu:GNOME')
     shell = subprocess.run([str(prefix / 'bin/gnome-shell'), '--version'], env=env,
                            capture_output=True, text=True, timeout=15)
-    if shell.returncode or not shell.stdout.strip().startswith('GNOME Shell 48.'):
-        raise ValueError('Native Ubuntu requires the pinned GNOME Shell 48 runtime: ' + shell.stdout + shell.stderr)
+    if shell.returncode or not shell.stdout.strip().startswith('GNOME Shell 50.'):
+        raise ValueError('Native Ubuntu requires the pinned GNOME Shell 50 runtime: ' + shell.stdout + shell.stderr)
     probe = "imports.gi.versions.Gtk='3.0'; imports.gi.versions.GnomeDesktop='3.0'; imports.gi.Gtk; imports.gi.GnomeDesktop;"
     result = subprocess.run([str(prefix / 'bin/gjs'), '-c', probe], env=env,
                             capture_output=True, text=True, timeout=15)
@@ -191,6 +195,9 @@ def main():
     args = parser.parse_args()
     try:
         if args.install:
+            (args.prefix / 'share/termux-native-ubuntu/.installed').unlink(missing_ok=True)
+            # Reject an unusable runtime before writing a large appearance tree.
+            runtime_probe(args.prefix, os.environ.copy())
             install(args.prefix, args.install)
         else:
             validate(args.prefix)

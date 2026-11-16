@@ -27,5 +27,10 @@ progress_save:
   authorization: 用户明确要求“先推送代码”
   scope: 当前分支 WIP 源码及进度记录
   readiness: NotReadyForRelease
-  runtime: Native 与 PRoot Shell 50 均有 GPU 首帧；PRoot D-Bus 就绪失败
-  remaining: 安装资产配套、完整会话与四类桌面回归
+  runtime: Mutter 50.1-4 无探针 8 次重启及完整清理通过；保存／启动分离通过实际冷启动、缺少保存结果直接退出和 801 项 Java 测试
+  remaining: 新资产未发布；Native 全套 GUI、四类新安装及综合旧脚本夹具仍待验证
+
+save_launch_split:
+  authorization: 用户明确要求所有初始化在保存阶段完成，启动失败退出
+  status: ImplementedAndFocusedVerified
+  evidence: openspec/changes/unify-proot-ubuntu-2604-retire-gnome/evidence/save-launch-separation.txt

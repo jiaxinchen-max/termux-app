@@ -313,13 +313,6 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     }
 fi
 
-# Remove only the software override written by older app versions. Every application now inherits
-# the requested renderer; Discover has no independent renderer override.
-legacy_launcher="$HOME/.local/share/applications/org.kde.discover.desktop"
-if [ -r "$legacy_launcher" ] && grep -q '^Exec=env QT_QUICK_BACKEND=software ' "$legacy_launcher"; then
-    rm -f "$legacy_launcher" || exit 1
-fi
-
 # --- KDE services, then the shell -----------------------------------------
 LIBEXEC="${KDE_LIBEXEC:-/usr/lib/aarch64-linux-gnu/libexec}"
 # These installed Plasma components are required; missing or dead services abort the session.

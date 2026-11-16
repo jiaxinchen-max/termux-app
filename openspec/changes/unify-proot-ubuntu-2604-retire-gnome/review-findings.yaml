@@ -1,6 +1,6 @@
 schema: review_findings_v1
 status: CHANGES_REQUESTED
-scope: 用户要求先推送当前 WIP；原生组件已构建并提交首帧，安装链及完整会话仍不可发布
+scope: 继续修复和验证；会话与实际应用已推进，Mutter 生命周期修复已通过设备压力及退出清理，保存／启动分离已定向验证；完整安装链仍不可发布
 findings:
   - id: GNOME50_DISPLAY_ARCHITECTURE
     severity: blocker
@@ -13,16 +13,25 @@ findings:
   - id: INSTALLER_RUNTIME_COHERENCE
     severity: blocker
     status: open
-    description: 安装器仍钉住 GNOME 48 清单、Xlorie 和旧 Native Ubuntu 外观，必须同步真实新资产及哈希；当前仅保存进度，不可发布 APK。
+    description: 安装器已同步真实 GNOME 50 核心、Resolute 适配和 Native Ubuntu 50 外观哈希，GNOME 不再依赖 Xlorie；新资产未发布，Native 独立 GTK 应用组合未实测，仍不可发布 APK。
   - id: PROOT_SHELL_BUS_READINESS
     severity: blocker
-    status: open
-    description: 普通用户 PRoot 的 Shell 50 已提交 GPU 首帧并记录启动，但生产启动器等待 org.gnome.Shell D-Bus 超时后清理，完整会话尚不可用。
+    status: resolved
+    description: 探针使用同一普通用户 PRoot 及 session.env，实际通过总线、全部扩展、DING 窗口和终端输入；真实 D-Bus 与生命周期回归通过。
+  - id: MUTTER_REENTRANT_VISIBILITY_QUEUE
+    severity: blocker
+    status: resolved
+    description: 已复现销毁后仍入队的 139 崩溃。修正两处回调后清标记，原版与不完整初版回归均失败，完整补丁通过；50.1-3 与 50.1-4 均通过无探针 8 次重启和完整清理；r4 为 9 个所属进程。
   - id: FULL_RUNTIME_VALIDATION
     severity: high
     status: open
-    description: Native 和 PRoot 已验证 GPU 首帧；Ubuntu 扩展/DING、应用/输入/清理、Native 50 主题及四类桌面全新安装仍待验证，GIO 未测试真实 USB。
+    description: PRoot 实际窗口、四扩展、终端身份及键盘输入、Nautilus 已验证；快速设置视觉已确认，实际鼠标点击、Native 50 全套 GUI 和四类全新安装仍待验证，GIO 未测试真实 USB。
   - id: INSTALLER_TEST_COVERAGE
     severity: high
     status: open
-    description: 完整 Ubuntu GNOME 测试曾失败，安装器用例仍有旧 X11 及组件预期；profile 单独通过不能代表完整安装链通过。
+    description: Ubuntu GNOME 16、Plasma 安装 11、保存 5、GNOME 会话 15／进程 31／管理生命周期 17 及 Java 801 项通过；宽泛旧 desktop-scripts 夹具仍依赖旧运行路径和启动时缓存，未通过，不能宣称全仓库脚本回归完成。
+
+  - id: SAVE_ONLY_INITIALIZATION
+    severity: high
+    status: resolved
+    description: 按用户纠正移除启动阶段静态校验、默认配置生成、主题及缓存初始化和文件部署；保存完成才发布会话描述。实际冷启动未重写静态文件，缺少保存结果直接失败，无自动初始化／修复。

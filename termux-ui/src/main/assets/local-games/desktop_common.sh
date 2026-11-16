@@ -20,7 +20,7 @@ desktop_audio_run() {
     timeout -k 1 3 "$@"
 }
 
-start_desktop_audio() {
+prepare_desktop_audio() {
     [ "${1:-}" = host-pulseaudio ] || {
         log 'Explicit DESKTOP_AUDIO_MODE=host-pulseaudio is required.'
         return 64
@@ -66,6 +66,16 @@ start_desktop_audio() {
     export PULSE_SERVER="$desktop_pulse_server"
     unset PULSE_SINK PULSE_SOURCE
     log "Desktop audio ready: mode=host-pulseaudio server=$PULSE_SERVER sink=$desktop_android_sink"
+}
+
+start_desktop_audio() {
+    [ "${1:-}" = host-pulseaudio ] || return 64
+    desktop_audio_run env -u PULSE_SERVER "$PREFIX/bin/pulseaudio" --start --exit-idle-time=-1 \
+        --log-target="file:$HOME/.termux/desktop-pulseaudio.log" \
+        --load='module-native-protocol-tcp listen=127.0.0.1 port=4713 auth-anonymous=1' \
+        >> "$DESKTOP_LOG_FILE" 2>&1 || return 70
+    export PULSE_SERVER=tcp:127.0.0.1:4713
+    unset PULSE_SINK PULSE_SOURCE
 }
 
 read_pid() {
