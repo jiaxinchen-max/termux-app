@@ -560,7 +560,7 @@
     <string name="desktop_de_hyprland">Hyprland</string>
     <string name="desktop_de_hyprland_desc">Wayland tiling compositor (preview)</string>
     <string name="desktop_de_ubuntu_gnome">Ubuntu GNOME</string>
-    <string name="desktop_de_ubuntu_gnome_desc">Ubuntu 24.04 LTS with Yaru, Ubuntu Dock and desktop icons</string>
+    <string name="desktop_de_ubuntu_gnome_desc">Ubuntu 26.04 LTS with Yaru, Ubuntu Dock and desktop icons</string>
     <string name="desktop_container_debian">Debian</string>
     <string name="desktop_container_debian_desc">rootfs tarball cached after first install · reused by every instance</string>
     <string name="desktop_container_more">More distros</string>

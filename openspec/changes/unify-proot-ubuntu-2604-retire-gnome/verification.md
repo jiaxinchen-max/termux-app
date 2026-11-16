@@ -149,3 +149,5 @@ App 仓库独立公开 prerelease `desktop-adapted-20261116-4b1ee426` 包含 APK
 测试中 run-as 安装器创建的 PulseAudio 进程与真实 App SELinux 上下文不同；已只清理该验证进程。随后有几次内部 Activity 调用被 Android 后台启动限制阻止，不计为冷启动尝试。另有一次真实 App 冷启动，音频服务已起但 3 秒客户端限时使调用返回 124，桌面按规则退出 70；单次成功不能覆盖该问题。现将实际服务启动单独限为 15 秒，成功立即继续，客户端查询仍为 3 秒，启动不增加探针、配置写入或重试，失败日志保留原始返回码。6 项保存／启动回归通过，含真实子进程延迟 4 秒；旧 helper 的负对照在同一用例以 70 失败。最终含此修正 APK 的构建和冷启动待记录。
 
 严格 Harness gate 仍缺失；Native、另外三类全新安装、真实 USB／高通 GPU／Discover 不在本轮验证范围。产品一致性 Pending，不归档。
+
+保存路径真实 UI 复测：在 71ce7f62 APK 的桌面设置点击 Save，prepare 返回 exit:0，运行目录 desktop_common.sh 与新源码 SHA256 e6d31fbe9c26ef065d7a84189a18e60ba4ee29b2e038caa30c5c529c13fefe5e 一致。设置页发现残留 Ubuntu 24.04／Xlorie 文案；已在中英文描述与渲染提示同步实际 Ubuntu 26.04／GNOME 50 原生合成器及 LLVMpipe 容器应用，不修改运行逻辑或增加启动行为。最终 APK 将包含这些文本修正。
