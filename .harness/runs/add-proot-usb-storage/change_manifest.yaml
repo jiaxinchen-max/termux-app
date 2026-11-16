@@ -1,6 +1,6 @@
 change_id: add-proot-usb-storage
-stage: verification
-scope_status: approved_storage_first
+stage: user_validation
+scope_status: approved_read_write_extension
 api_docs:
   status: N/A
   reason: 复用现有本机鉴权 WebDAV、Android USB FD 与 Unix 控制协议；不新增或变更 HTTP 合约
@@ -8,19 +8,20 @@ product_docs:
   status: Required
   documents:
     - docs/product/desktop-external-devices.md
-  planned_knowledge: 四类 PRoot 的只读 USB 存储、Android 授权、文件管理器入口与设备支持边界；最终验收后编写
+  planned_knowledge: 四类 PRoot 的只读/读写 USB 存储、Android 授权、文件管理器入口与设备支持边界；最终验收后编写
   consistency:
     status: Pending
     evidence: .harness/runs/add-proot-usb-storage/evidence.md
     findings: .harness/runs/add-proot-usb-storage/review-findings.yaml
 approval:
   requirement: 用户于 2026-11-16 批准执行
-  device_category: 已确认首期为四类 PRoot 的 USB 存储只读访问
+  device_category: 已确认首期只读及后续四类 PRoot 的显式读写增量
   git_progress: 此前用户已要求任务结束推送代码保存进度；本次保存经批准的实现、验证与交付进度
-  implementation: completed
+  implementation: read_write_extension_completed
+  read_write: 用户在说明写入范围、Android 卸载、独占和刷盘后于本轮批准；沿用既有保存阶段与推送授权
 protected_paths:
   status: inventory_unavailable
-  reason: 仓库缺少规则文件；已批准修改桌面 UI、策略、安装/会话脚本及相关测试；未修改签名、凭据、CI、原生组件和七个已有 dirty 子模块
+  reason: 仓库缺少规则文件；已批准修改桌面 UI、策略、安装/会话脚本及相关测试；读写增量增加内置 USB 的只查询 IPC 和客户端；未修改签名、凭据、CI、原生组件和七个已有 dirty 子模块
 harness_gate:
   status: unavailable
   reason: 仓库缺少 .harness/scripts/verify.sh 和 bootstrap 文件，环境无 openspec CLI；人工规划检查不等于严格门禁通过

@@ -1,6 +1,6 @@
 <resources>
     <string name="desktop_usb_title">External storage</string>
-    <string name="desktop_usb_scope">Read files from authorized FAT/exFAT USB storage. Access is read-only; files can be copied into the container. Keep the App visible when requesting Android USB permission.</string>
+    <string name="desktop_usb_scope">Browse authorized FAT/exFAT USB storage. Keep the App visible when requesting Android USB permission.</string>
     <string name="desktop_usb_enable_read_only">Enable USB storage (read-only)</string>
     <string name="desktop_usb_plasma_unsupported">Plasma Dolphin uses Solid/UDisks2. Its device sidebar is not supported by this GIO bridge; USB storage cannot be enabled for this desktop.</string>
     <string name="desktop_usb_loading">Reading USB status…</string>
@@ -14,7 +14,7 @@
     <string name="desktop_usb_start_required">Start the desktop to use its USB volume service.</string>
     <string name="desktop_usb_bridge_error">USB service unavailable: %1$s</string>
     <string name="desktop_usb_enumeration_error">USB enumeration failed; existing devices are retained: %1$s</string>
-    <string name="desktop_usb_connected">USB volume service connected. Access is read-only.</string>
+    <string name="desktop_usb_connected">USB volume service connected.</string>
     <string name="desktop_usb_no_storage">No authorized or pending USB storage devices were found.</string>
     <string name="desktop_usb_authorize">Request Android USB permission</string>
     <string name="desktop_usb_mount">Connect GIO volume</string>
@@ -34,4 +34,10 @@
     <string name="desktop_usb_status_failed">Could not read USB status: %1$s. Tap Refresh devices to retry.</string>
     <string name="desktop_usb_native_unsupported">This Native desktop does not support USB storage. Use a supported PRoot desktop.</string>
     <string name="desktop_usb_plasma_files">Open USB Files in the application menu to browse USB storage.</string>
+    <string name="desktop_usb_mode_off">USB storage off</string>
+    <string name="desktop_usb_enable_read_write">Enable USB storage (read/write)</string>
+    <string name="desktop_usb_write_notice">Read/write mode connects devices manually. First unmount removable storage in Android, then connect it here or in the desktop file manager. Other mounted USB drives or SD cards also prevent write access. Disconnect or eject successfully before unplugging.</string>
+    <string name="desktop_usb_mounted_read_write">Connected as a read/write GIO volume</string>
+    <string name="desktop_usb_read_write_proot_only">Read/write access requires a supported PRoot desktop.</string>
+    <string name="desktop_usb_release_warning">USB warning: %1$s</string>
 </resources>

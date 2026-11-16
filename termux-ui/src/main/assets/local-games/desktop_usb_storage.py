@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""App-owned, read-only USB GIO coordinator inside the selected desktop D-Bus session."""
+"""App-owned USB GIO coordinator inside the selected desktop D-Bus session."""
 import argparse
 import hashlib
 import json
@@ -41,7 +41,7 @@ def prepare_guest_mount(root, guest_parent):
 
 class Session:
     """An owned coordinator; readiness is IPC only, never device enumeration or permission."""
-    def __init__(self, prefix, desktop_id, environment, gio_command, log_path):
+    def __init__(self, prefix, desktop_id, environment, gio_command, log_path, mode='read-only'):
         self.parent, self.guest_parent = paths(prefix, desktop_id)
         self.runtime = self.parent / 'desktop'
         self.process = None
@@ -50,7 +50,7 @@ class Session:
         for key in ('LD_PRELOAD', 'LD_LIBRARY_PATH'):
             self.environment.pop(key, None)
         self.command = [str(prefix / 'bin/python3'), '-I', '-B', str(Path(__file__).resolve()),
-            '--mode', 'read-only', '--run-mode', 'proot', '--runtime', str(self.runtime),
+            '--mode', mode, '--run-mode', 'proot', '--runtime', str(self.runtime),
             '--broker-socket', str(self.parent / 'broker.sock'),
             '--termux-usb', str(prefix / 'libexec/termux-usb-app'),
             '--gio-command-json', json.dumps(gio_command),
@@ -105,7 +105,7 @@ class Session:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--mode', choices=('read-only',), required=True)
+    parser.add_argument('--mode', choices=('read-only', 'read-write'), required=True)
     parser.add_argument('--run-mode', choices=('native', 'proot'), required=True)
     parser.add_argument('--runtime', type=Path, required=True)
     parser.add_argument('--broker-socket', type=Path, required=True)
@@ -113,6 +113,8 @@ def main():
     parser.add_argument('--gio-command-json')
     parser.add_argument('--guest-runtime', type=Path)
     args = parser.parse_args()
+    if args.mode == 'read-write' and args.run_mode != 'proot':
+        parser.error('USB read-write requires PRoot')
     if not os.environ.get('DBUS_SESSION_BUS_ADDRESS') or not os.environ.get('XDG_RUNTIME_DIR'):
         parser.error('the desktop session D-Bus and XDG runtime are required')
     if not args.runtime.is_absolute() or not args.broker_socket.is_absolute():
@@ -164,6 +166,7 @@ def main():
             super().__init__(settings)
             self.enumeration_error = 'USB enumeration has not completed'
             self.last_poll_millis = 0
+            self.storage_warning = ''
 
         def start_broker(self):
             # Never reuse a daemon whose backend may belong to another USB API.
@@ -183,6 +186,48 @@ def main():
                     env=self.environment, check=True, timeout=90, stdout=subprocess.DEVNULL)
             return super().classify(record, authorize=False)
 
+        def mount(self, record):
+            if record['status'] == 'mounted':
+                return
+            if record.get('unsafe_disconnect'):
+                raise RuntimeError('Previous USB flush/release failed; reinsert the device before reconnecting')
+            if self.args.read_write:
+                # A desktop-side click must leave unauthorized devices actionable in the App.
+                # Do not turn permission-required into a generic error or prompt in the background.
+                if record.get('capabilities') is None and not self.classify(record, authorize=False):
+                    raise PermissionError('Android USB permission required; authorize in the foreground App')
+                try:
+                    result = subprocess.run([str(args.termux_usb), '--check-write', record['path']],
+                        env=self.environment, capture_output=True, text=True, timeout=15)
+                    if result.returncode:
+                        raise PermissionError(result.stderr.strip() or 'Cannot verify Android storage ownership')
+                except (OSError, subprocess.SubprocessError) as error:
+                    record['status'] = 'error'
+                    record['error'] = str(error)[:2048]
+                    self.publish()
+                    raise
+            return super().mount(record)
+
+        def unmount(self, record, disconnected=False):
+            if record.get('unsafe_disconnect') and not disconnected:
+                raise RuntimeError('Previous USB flush/release failed; safe removal is not confirmed; reinsert the device')
+            had_files = record.get('files') is not None
+            try:
+                result = super().unmount(record, disconnected=disconnected)
+            except Exception as error:
+                # GVfs busy retains the live file service and can be retried. Once the file
+                # service has ended, a flush/release failure must stay latched until reinsert.
+                if record.get('files') is None and had_files:
+                    record['unsafe_disconnect'] = True
+                    record['status'] = 'error'
+                record['error'] = str(error)[:2048]
+                self.storage_warning = record['error']
+                self.publish()
+                raise
+            if disconnected and had_files and self.args.read_write:
+                self.storage_warning = 'Writable USB volume disconnected unexpectedly; safe flush is not confirmed'
+            return result
+
         def poll(self):
             try:
                 super().poll()
@@ -201,8 +246,12 @@ def main():
                     return json.dumps(dict(schemaVersion=1, storageMode=args.mode,
                         runMode=args.run_mode, pid=os.getpid(),
                         enumerationError=self.enumeration_error,
-                        lastPollMillis=self.last_poll_millis,
+                        lastPollMillis=self.last_poll_millis, storageWarning=self.storage_warning,
                         devices=json.loads(super().action('status', ''))), ensure_ascii=False)
+            if command == 'eject':
+                record = self.records.get(key) or self.records.get(desktop.identifier(key))
+                if record and record.get('unsafe_disconnect'):
+                    raise RuntimeError('USB release failed; safe removal is not confirmed; reinsert the device')
             return super().action(command, key)
 
         def cleanup(self):
@@ -228,8 +277,8 @@ def main():
 
     desktop.Manager = AppStorageManager
     settings = SimpleNamespace(runtime=args.runtime, broker_socket=str(args.broker_socket),
-        request_permission=False, no_automount=False, no_camera=True, no_gamepad=True,
-        read_write=False, interval=1.0, test_manifest=None)
+        request_permission=False, no_automount=args.mode == 'read-write', no_camera=True, no_gamepad=True,
+        read_write=args.mode == 'read-write', interval=1.0, test_manifest=None)
     import logging
     logging.basicConfig(level=logging.INFO, format='%(name)s: %(message)s')
     desktop.serve(settings)

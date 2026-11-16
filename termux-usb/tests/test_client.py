@@ -183,6 +183,22 @@ class ClientTests(unittest.TestCase):
                     usb.main(arguments)
             call.assert_not_called()
 
+    def test_write_check_is_explicit_no_fd_and_never_requests_permission(self):
+        with patch.object(usb, "transact", return_value=(True, None)) as call:
+            self.assertEqual(0, usb.main(["--check-write", "/dev/bus/usb/001/002"]))
+            self.assertEqual(dict(version=1, action="write-check", device="/dev/bus/usb/001/002", request=False),
+                call.call_args.args[0])
+        self.assertEqual((True, None), self.exchange(PacketSocket(self.packet(True)), "write-check"))
+        with tempfile.TemporaryFile() as source:
+            fd = os.dup(source.fileno())
+            with self.assertRaises(OSError):
+                self.exchange(PacketSocket(self.packet(True), [fd]), "write-check")
+            with self.assertRaises(OSError): os.fstat(fd)
+        for extra in (["-r"], ["-e", "cat"], ["-l"]):
+            with patch.object(usb, "transact") as call, self.assertRaises(SystemExit):
+                usb.main(["--check-write", "/dev/bus/usb/001/002", *extra])
+            call.assert_not_called()
+
     def callback_probe(self, as_environment):
         with tempfile.TemporaryDirectory() as directory:
             device = Path(directory) / "device"

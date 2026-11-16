@@ -1,8 +1,8 @@
 package com.termux.ui.desktop.domain;
 
-/** Per-desktop USB storage policy; read-write access is not supported. */
+/** Per-desktop USB storage policy; writes require explicit PRoot selection. */
 public enum DesktopUsbStorageMode {
-    OFF("off"), READ_ONLY("read-only");
+    OFF("off"), READ_ONLY("read-only"), READ_WRITE("read-write");
     private final String storageValue;
     DesktopUsbStorageMode(String value) { storageValue=value; }
     public String getStorageValue() { return storageValue; }

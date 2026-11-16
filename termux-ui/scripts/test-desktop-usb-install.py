@@ -13,7 +13,7 @@ CONTRACT = runpy.run_path(str(ROOT / 'termux-ui/scripts/test-desktop-ubuntu-plas
 class UsbInstallTests(unittest.TestCase):
     def test_each_proot_desktop_prepares_glibc_usb_without_reinstalling_or_invalidating_desktop(self):
         for de in ('xfce4', 'kwin_plasma', 'ubuntu_gnome', 'hyprland'):
-            for mode in ('off', 'read-only'):
+            for mode in ('off', 'read-only', 'read-write'):
                 with self.subTest(de=de, mode=mode):
                     fixture = CONTRACT['UbuntuPlasmaInstallTests'](); fixture.setUp()
                     try:
@@ -54,7 +54,7 @@ class UsbInstallTests(unittest.TestCase):
                         self.assertFalse(any('/tmp/desktop_container_discover_catalog.sh' in c for c in calls))
                         self.assertTrue(any(any('desktop_initialize.py' in arg for arg in c) for c in calls))
                         guest = [c for c in calls if '/tmp/desktop_container_plasma_apt.sh' in c]
-                        if mode == 'read-only':
+                        if mode != 'off':
                             self.assertEqual(1, len(guest), calls)
                             self.assertIn('gvfs-backends', guest[0])
                             self.assertEqual(de == 'kwin_plasma', 'thunar' in guest[0])

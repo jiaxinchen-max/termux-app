@@ -20,7 +20,7 @@ desktop_resolve_rendering() {
         [ "${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}:${DESKTOP_GNOME_SESSION_STARTUP:-}" = android:system:direct ] || return 64
     elif [ "${DESKTOP_DE:-}" = ubuntu_gnome ]; then
         [ "${DESKTOP_CONTAINER_BASE:-}:${DESKTOP_CONTAINER_CODENAME:-}:${DESKTOP_GNOME_SESSION_PROFILE:-}" = ubuntu:resolute:resolute:ubuntu ] || return 64
-        case "${DESKTOP_USB_STORAGE:-}" in off|read-only) ;; *) return 64 ;; esac
+        case "${DESKTOP_USB_STORAGE:-}" in off|read-only|read-write) ;; *) return 64 ;; esac
         [ "${DESKTOP_GNOME_BACKEND:-}:${DESKTOP_GNOME_RENDERER:-}:${DESKTOP_GNOME_SESSION_STARTUP:-}:${DESKTOP_GNOME_APPLICATION_RENDERER:-}:${DESKTOP_REFRESH_RATE:-}" = android:system:direct:llvmpipe:60 ] || return 64
         [ -z "${DESKTOP_GNOME_DISPLAY_GL_MODE:-}${DESKTOP_GNOME_DISPLAY_BUFFER_MODE:-}" ] || return 64
     fi

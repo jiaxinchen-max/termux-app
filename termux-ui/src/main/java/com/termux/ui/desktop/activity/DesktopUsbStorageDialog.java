@@ -4,7 +4,9 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.Button;
-import android.widget.CheckBox;
+import android.widget.RadioGroup;
+import android.widget.RadioButton;
+import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -16,7 +18,7 @@ import com.termux.ui.R;
 import com.termux.ui.activity.FrostedWindow;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.radiobutton.MaterialRadioButton;
 import com.termux.ui.desktop.domain.DesktopDe;
 import com.termux.ui.activity.PrefixSetupConsoleDialog;
 import com.termux.ui.desktop.api.DesktopTasks;
@@ -28,7 +30,7 @@ import com.termux.ui.desktop.domain.DesktopUsbStorageMode;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Read-only USB management; all authorization remains with the Android USB permission dialog. */
+/** USB storage management; all authorization remains with the Android USB permission dialog. */
 final class DesktopUsbStorageDialog {
     private final AppCompatActivity activity;
     private final Context themedContext;
@@ -38,7 +40,8 @@ final class DesktopUsbStorageDialog {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final LinearLayout body, devices;
-    private final CheckBox enabled;
+    private final RadioGroup modes;
+    private final RadioButton off, readOnly, readWrite;
     private final TextView status;
     private final Button install, refresh;
     private AlertDialog dialog;
@@ -58,7 +61,10 @@ final class DesktopUsbStorageDialog {
         body = new LinearLayout(themedContext); body.setOrientation(LinearLayout.VERTICAL);
         int padding = dp(20); body.setPadding(padding, dp(8), padding, padding);
         text(body, activity.getString(R.string.desktop_usb_scope));
-        enabled = new MaterialCheckBox(themedContext); enabled.setText(R.string.desktop_usb_enable_read_only); body.addView(enabled);
+        modes = new RadioGroup(themedContext); body.addView(modes);
+        off = mode(R.string.desktop_usb_mode_off);
+        readOnly = mode(R.string.desktop_usb_enable_read_only);
+        readWrite = mode(R.string.desktop_usb_enable_read_write);
         status = text(body, activity.getString(R.string.desktop_usb_loading));
         install = button(body, R.string.desktop_usb_install, () -> work(this::initializeDesktop));
         refresh = button(body, R.string.desktop_usb_refresh, this::reload);
@@ -70,13 +76,26 @@ final class DesktopUsbStorageDialog {
         setControlsEnabled(false);
         dialog.setOnDismissListener(ignored -> { closed = true; handler.removeCallbacks(refreshTick); io.shutdown(); });
         dialog.setOnShowListener(ignored -> reload());
-        enabled.setOnCheckedChangeListener((view, checked) -> {
+        modes.setOnCheckedChangeListener((group, selected) -> {
             if (rendering || busy || closed) return;
-            work(() -> {
-                showTask(usb.setEnabled(this.distro, checked));
-            });
+            DesktopUsbStorageMode mode = selected == readWrite.getId() ? DesktopUsbStorageMode.READ_WRITE
+                : selected == readOnly.getId() ? DesktopUsbStorageMode.READ_ONLY : DesktopUsbStorageMode.OFF;
+            if (mode == this.distro.getUsbStorage()) return;
+            if (mode == DesktopUsbStorageMode.READ_WRITE) {
+                solidBuilder().setTitle(R.string.desktop_usb_enable_read_write)
+                    .setMessage(R.string.desktop_usb_write_notice)
+                    .setPositiveButton(android.R.string.ok, (d, which) -> work(() -> showTask(usb.setMode(this.distro, mode))))
+                    .setNegativeButton(android.R.string.cancel, (d, which) -> reload())
+                    .setOnCancelListener(d -> reload()).show();
+            } else work(() -> showTask(usb.setMode(this.distro, mode)));
         });
     }
+    private RadioButton mode(int label) {
+        RadioButton option = new MaterialRadioButton(themedContext);
+        option.setId(View.generateViewId()); option.setText(label); modes.addView(option);
+        return option;
+    }
+
     private boolean usable() { return !closed && !activity.isFinishing() && !activity.isDestroyed(); }
     private MaterialAlertDialogBuilder solidBuilder() {
         return new MaterialAlertDialogBuilder(activity).setBackground(FrostedWindow.surface(
@@ -86,7 +105,9 @@ final class DesktopUsbStorageDialog {
         return R.string.desktop_usb_native_unsupported;
     }
     private void setControlsEnabled(boolean value) {
-        enabled.setEnabled(value); install.setEnabled(value); refresh.setEnabled(value);
+        off.setEnabled(value); readOnly.setEnabled(value);
+        readWrite.setEnabled(value && distro.getRunMode() == com.termux.ui.desktop.domain.DesktopRunMode.PROOT);
+        install.setEnabled(value); refresh.setEnabled(value);
         for (int index = 0; index < devices.getChildCount(); index++) devices.getChildAt(index).setEnabled(value);
     }
     private void reload() {
@@ -109,10 +130,10 @@ final class DesktopUsbStorageDialog {
             try {
                 dependencies = usb.dependencies(distro);
                 state = desktops.state(distro);
-                if (distro.getUsbStorage() == DesktopUsbStorageMode.READ_ONLY
+                if (distro.getUsbStorage() != DesktopUsbStorageMode.OFF
                     && state == DesktopSessionState.RUNNING) {
                     health = usb.health(distro);
-                } else if (distro.getUsbStorage() == DesktopUsbStorageMode.READ_ONLY
+                } else if (distro.getUsbStorage() != DesktopUsbStorageMode.OFF
                     && state == DesktopSessionState.FAILED) {
                     error = usb.diagnostics(distro);
                 }
@@ -140,8 +161,14 @@ final class DesktopUsbStorageDialog {
                         DesktopUsbStorageTasks.Health health, String error) {
         boolean supported = DesktopUsbStorageTasks.supported(distro);
         boolean active = state.isActive();
-        boolean on = distro.getUsbStorage() == DesktopUsbStorageMode.READ_ONLY;
-        rendering = true; enabled.setChecked(on); enabled.setEnabled(supported && !active && !busy); rendering = false;
+        boolean on = distro.getUsbStorage() != DesktopUsbStorageMode.OFF;
+        rendering = true;
+        modes.check(distro.getUsbStorage() == DesktopUsbStorageMode.READ_WRITE ? readWrite.getId()
+            : on ? readOnly.getId() : off.getId());
+        off.setEnabled(supported && !active && !busy); readOnly.setEnabled(supported && !active && !busy);
+        readWrite.setEnabled(supported && !active && !busy
+            && distro.getRunMode() == com.termux.ui.desktop.domain.DesktopRunMode.PROOT);
+        rendering = false;
         install.setEnabled(supported && on && !active && !busy); refresh.setEnabled(!busy);
         StringBuilder summary = new StringBuilder();
         if (distro.getDe() == DesktopDe.KWIN_PLASMA)
@@ -160,6 +187,10 @@ final class DesktopUsbStorageDialog {
         else if (health != null && health.enumerationError != null)
             summary.append(activity.getString(R.string.desktop_usb_enumeration_error, health.enumerationError));
         else if (health != null) summary.append(activity.getString(R.string.desktop_usb_connected));
+        if (distro.getUsbStorage() == DesktopUsbStorageMode.READ_WRITE)
+            summary.append('\n').append(activity.getString(R.string.desktop_usb_write_notice));
+        if (health != null && !health.storageWarning.isEmpty())
+            summary.append('\n').append(activity.getString(R.string.desktop_usb_release_warning, health.storageWarning));
         status.setText(summary.toString());
         devices.removeAllViews();
         if (health == null) return;
@@ -190,6 +221,8 @@ final class DesktopUsbStorageDialog {
             case "available": resource = R.string.desktop_usb_available; break;
             default: resource = R.string.desktop_usb_device_error;
         }
+        if ("mounted".equals(state) && distro.getUsbStorage() == DesktopUsbStorageMode.READ_WRITE)
+            resource = R.string.desktop_usb_mounted_read_write;
         return activity.getString(resource);
     }
     private void initializeDesktop() throws Exception {
@@ -229,6 +262,8 @@ final class DesktopUsbStorageDialog {
         if ("desktop_usb_storage_requires_gio_sidebar".equals(message)
             || "desktop_usb_environment_unsupported".equals(message))
             return activity.getString(unsupportedReason());
+        if ("desktop_usb_read_write_requires_proot".equals(message))
+            return activity.getString(R.string.desktop_usb_read_write_proot_only);
         return message == null ? error.getClass().getSimpleName() : message;
     }
     private TextView text(LinearLayout parent, String value) {

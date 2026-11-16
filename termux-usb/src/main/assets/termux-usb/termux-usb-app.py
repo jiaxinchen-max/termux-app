@@ -100,6 +100,7 @@ def valid_device(path):
 
 def main(arguments=None):
     parser = argparse.ArgumentParser(description="Use the App's embedded Android USB API")
+    parser.add_argument("--check-write", action="store_true", help="require Android removable storage to be unmounted; no FD or authorization")
     parser.add_argument("-l", action="store_true", help="list USB devices")
     parser.add_argument("-r", action="store_true", help="request permission while the App is visible")
     parser.add_argument("-e", metavar="COMMAND", help="execute argv with the USB FD appended")
@@ -107,16 +108,18 @@ def main(arguments=None):
     parser.add_argument("device", nargs="?")
     args = parser.parse_args(arguments)
     if args.l:
-        if args.device or args.r or args.e or args.E:
+        if args.device or args.r or args.e or args.E or args.check_write:
             parser.error("-l cannot be combined with a device, permission request, or callback")
     elif not valid_device(args.device):
         parser.error("a /dev/bus/usb/BBB/DDD device path is required")
     if args.E and not args.e:
         parser.error("-E requires -e")
+    if args.check_write and (args.r or args.e or args.E):
+        parser.error("--check-write cannot request permission or open a device")
     command = shlex.split(args.e) if args.e is not None else None
     if command == []:
         parser.error("callback command is empty")
-    request = {"version": 1, "action": "list" if args.l else "open" if command else "permission",
+    request = {"version": 1, "action": "list" if args.l else "write-check" if args.check_write else "open" if command else "permission",
                "device": args.device, "request": args.r}
     result, fd = transact(request)
     if args.l:
@@ -133,7 +136,7 @@ def main(arguments=None):
         finally:
             os.close(fd)
     else:
-        print("Permission granted.")
+        print("Android removable storage is unmounted." if args.check_write else "Permission granted.")
     return 0
 
 

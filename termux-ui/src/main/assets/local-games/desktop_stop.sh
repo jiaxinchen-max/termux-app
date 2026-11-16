@@ -12,7 +12,7 @@ SPEC_PATH="${1:?Usage: $0 <desktop_spec>}"
 printf 'stopping\n' > "$DESKTOP_STATUS_FILE"
 owned_storage_session=0
 case "${DESKTOP_DE:-}:${DESKTOP_USB_STORAGE:-off}" in
-    gnome:*|ubuntu_gnome:*|hyprland:*|xfce4:read-only) owned_storage_session=1 ;;
+    gnome:*|ubuntu_gnome:*|hyprland:*|xfce4:read-only|xfce4:read-write) owned_storage_session=1 ;;
 esac
 [ "${DESKTOP_MODE:-}:${DESKTOP_DE:-}" != proot:xfce4 ] || owned_storage_session=1
 stop_failure=0

@@ -71,3 +71,16 @@
 `openspec/specs/`、`docs/product/` 目前不存在。产品文档目标已登记为 `docs/product/desktop-external-devices.md`，一致性保持 Pending；未最终编写、未同步基线、未归档。
 
 无可操作的物理 USB 设备，因此 Android 授权拒绝/超时、真实磁盘文件系统、Android 占用、热插拔、四类完整 GUI 的实物验收仍待完成。
+
+## 已批准的读写增量（2026-11-16）
+
+详细记录见 `read-write-verification.json`、`read-write-code-review.md`、`read-write-review-findings.yaml`、`read-write-delivery.json`。此前章节是首期只读交付记录。
+
+- 增加显式 off/read-only/read-write，四类 PRoot 全链路传递；Native XFCE 继续只读，Native 读写在 Java/shell/launcher 入口拒绝。模式成功准备后才提交，四类两种开启模式均执行事务成功/失败验证。
+- 读写模式不自动挂载，USB 授权后也不自动接管。真实 bridge Manager 夹具验证轮询/授权不启动文件服务；未授权设备从文件管理器点击连接后仍显示待授权，不在后台弹窗。每次手动连接先用内置 IPC write-check 核对 Android 设备/权限和可移动卷；任何非 unmounted/removed 状态、查询异常都拒绝。公开 Android API 无法稳定将存储卷映射至 USB 路径，因此其他已挂载 SD/USB 也会阻止连接，界面已说明。这不是跨进程的原子系统卸载，也未经实体设备验证。
+- 未增加桌面启动前预检/初始化；仅在设备连接动作查询 Android。关闭/只读行为保持。读取健康状态精确校验模式。
+- GIO 卷忙保留运行服务可重试；文件服务非零退出/刷盘失败锁定 error，不能再标记为安全弹出，必须重插。可写卷意外断开保留警告；正常清理顺序不变。真实父 Manager 的忙碌/非零退出路径已执行。
+- 28 个 Java 测试与 92 个 Python 测试通过，其中安装单项含 12 个桌面/模式组合，事务单项含 8 个桌面/开启模式组合。原持久化测试将 read-write 当作非法值，已依新合约改为正确读写回读和 unknown-mode 拒绝。Python AST、shell 语法及 diff 空白检查通过。
+- 模拟器先 force-stop，确认无 App PID，再启动默认 Activity（未改默认 UI）；启动因设备负载延迟，确认进程出现后才发起一次测试。仅通过 TermuxService 执行独立镜像测试，不安装新 APK、不修改用户桌面根目录。第一次镜像测试缺少 staging Bionic 依赖库路径而在创建磁盘前退出；修正测试启动环境，并清除 guest 继承的 host LD 路径后通过。
+- `device-write-image-test.log` / `.py` 记录实际发布 Bionic FS → localhost 鉴权 WebDAV → 普通 termux UID 10216 的 glibc GIO/GVfs。64 MiB exFAT 真正完成 mkdir、PUT/二进制回读、MOVE、COPY、DELETE 及 helper 卸载；关闭文件系统后只读重新打开，同文件内容一致。只读 PUT=403，镜像整体 SHA256 不变，rootfs 的 host PREFIX 占位权限仍为 000。测试镜像、口令、endpoint 和读回文件已清理。
+- 组件复用首期已发布固定版本，无 DEB/资产发布，无新增 APK 大型资产。APK 原签名、arm64、非 testOnly，包含全部 74 个桌面资源和匹配的内置 USB 客户端。新 APK 未装入模拟器，因此新 Android API 的实体授权/卸载/插拔及四个完整 GUI 仍待用户验收。严格 Harness 仍不可执行，产品一致性保持 Pending，不归档。

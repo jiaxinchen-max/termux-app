@@ -69,9 +69,12 @@ public final class DesktopRendererPolicy {
     public static void requireSupported(DesktopDistro distro) {
         if (!distro.getDe().isCreatable())
             throw new IllegalArgumentException("Independent GNOME is retired; create Ubuntu GNOME instead. Existing records can still be deleted.");
-        if (distro.getUsbStorage()==DesktopUsbStorageMode.READ_ONLY
+        if (distro.getUsbStorage()!=DesktopUsbStorageMode.OFF
                 && !supportsUsb(distro))
             throw new IllegalArgumentException("desktop_usb_storage_requires_gio_sidebar");
+        if (distro.getUsbStorage()==DesktopUsbStorageMode.READ_WRITE
+                && distro.getRunMode()!=DesktopRunMode.PROOT)
+            throw new IllegalArgumentException("desktop_usb_read_write_requires_proot");
         if (!supports(distro.getRunMode(),distro.getDe(),distro.getHostGlMode(),distro.getGuestGlMode()))
             throw new IllegalArgumentException("desktop_renderer_explicit_required");
         if (distro.getDe().isGnomeSession()

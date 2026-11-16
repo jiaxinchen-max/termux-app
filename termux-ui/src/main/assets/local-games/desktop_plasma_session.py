@@ -171,7 +171,7 @@ def main():
     parser.add_argument('--guest-icd', required=True)
     parser.add_argument('--guest-software', required=True)
     parser.add_argument('--desktop-id', required=True)
-    parser.add_argument('--usb-storage', choices=('off', 'read-only'), required=True)
+    parser.add_argument('--usb-storage', choices=('off', 'read-only', 'read-write'), required=True)
     args = parser.parse_args()
     prefix = Path(os.environ['PREFIX'])
     assets = Path(__file__).resolve().parent
@@ -181,7 +181,7 @@ def main():
     usb = None
     usb_module = runpy.run_path(str(assets / 'desktop_usb_storage.py'))
     usb_parent, guest_usb_parent = usb_module['paths'](prefix, args.desktop_id)
-    if args.usb_storage == 'read-only':
+    if args.usb_storage != 'off':
         usb_parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         usb_parent.chmod(0o700)
         gio_command = [str(prefix / 'bin/proot-distro'), 'login', args.alias, '--user', 'termux',
@@ -193,7 +193,7 @@ def main():
             '/usr/local/libexec/tusb-gio-mount']
         usb = usb_module['Session'](prefix, args.desktop_id,
             dict(env, DBUS_SESSION_BUS_ADDRESS='unix:path=' + str(args.runtime / 'user/bs/session.sock')),
-            gio_command, args.runtime / 'usb-storage.log')
+            gio_command, args.runtime / 'usb-storage.log', mode=args.usb_storage)
 
     def container_command(token, started_cs):
         command = [str(prefix / 'bin/proot-distro'), 'login', args.alias, '--user', 'root',

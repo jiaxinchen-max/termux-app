@@ -11,3 +11,11 @@
 产品文档一致性保持 Pending；物理 OTG、授权拒绝/热拔插、设备占用和四桌面完整 GUI 验收待用户实测。仓库缺少 Harness 严格门禁脚本和 OpenSpec CLI，不能声称 strict-run 通过；未归档。自审结果见 code-review.md 和 review-findings.yaml，当前无未解决 MUST_FIX。
 
 实现代码已推送 `fbd0f1b7`；本次随后提交补充最终模拟器证据和分发记录。
+
+## 最新进度：读写增量已交付待实物验收
+
+用户批准后接入四类 PRoot 的 read-write，并保留只读/off、Native 仅 XFCE 只读的边界。读写不自动挂载，先在 Android 卸载可移动卷，再手动连接；系统占用/未知状态拒绝接管。刷盘失败不标记为安全弹出。新增 Android 查询只在设备连接动作执行，不放到桌面启动预检。
+
+28 Java、92 Python 测试及模拟器真实 GIO/GVfs exFAT 镜像写入/重新打开验证通过。新 APK 为 44,549,869 字节，约 42.5 MiB；原签名、非 testOnly、组件继续在资产库。新交付详见 read-write-delivery.json，APK 未替用户安装。
+
+用户验证步骤：停止桌面→外接存储选择读写并完成保存任务→启动桌面→Android 系统卸载可移动存储→App 前台授权并手动连接→文件管理器写入→成功断开/弹出后再拔出。其他挂载 SD/USB 也会被保守拒绝，界面有说明。实体 OTG/系统卸载/四桌面 GUI 尚待验证，产品一致性 Pending，严格 Harness 不可用，未归档。

@@ -1,0 +1,94 @@
+{
+  "scope": "approved USB read/write extension",
+  "python_suites": [
+    {
+      "suite": "test-desktop-usb-control.py",
+      "log": "/home/user/workspace/artifacts/proot-usb-write-20261116/test-desktop-usb-control.py.log",
+      "sha256": "ca86b58679f6c6a0ea1dd0b0f4670566c78a5238f90b0b5cb88bec3525b2fd4a"
+    },
+    {
+      "suite": "test-desktop-usb-sessions.py",
+      "log": "/home/user/workspace/artifacts/proot-usb-write-20261116/test-desktop-usb-sessions.py.log",
+      "sha256": "5b8e16679dc235d2d54a7d0101f9728ba0733506b9eddd25e8097912056db27f"
+    },
+    {
+      "suite": "test-desktop-usb-install.py",
+      "log": "/home/user/workspace/artifacts/proot-usb-write-20261116/test-desktop-usb-install.py.log",
+      "sha256": "62be5b9572f68aaf8d2cc5f2ecb3de16ecd50674e37047fdb57a2e2b2497c78c"
+    },
+    {
+      "suite": "test-desktop-hyprland.py",
+      "log": "/home/user/workspace/artifacts/proot-usb-write-20261116/test-desktop-hyprland.py.log",
+      "sha256": "51709d08290dec3cad4b53aa756d2c0bbcbff25b1fd1385c221b4c1d51c740a6"
+    },
+    {
+      "suite": "test-desktop-gnome-session.py",
+      "log": "/home/user/workspace/artifacts/proot-usb-write-20261116/test-desktop-gnome-session.py.log",
+      "sha256": "39698989ac3b8a642e631887320c24ef65791ca26496f1be82929e515015400b"
+    },
+    {
+      "suite": "test-desktop-rendering.py",
+      "log": "/home/user/workspace/artifacts/proot-usb-write-20261116/test-desktop-rendering.py.log",
+      "sha256": "2b735b31f7d05202a1d4181c7e5b347bab319a849c9191693e7a1f592b8d3a5c"
+    },
+    {
+      "suite": "test-container-plasma-startup.py",
+      "log": "/home/user/workspace/artifacts/proot-usb-write-20261116/test-container-plasma-startup.py.log",
+      "sha256": "334ab6750c1d44c4571e42fe8c116c6825047b851f4bd2f4a05424ec2ddc2ced"
+    },
+    {
+      "suite": "test-desktop-ubuntu-plasma.py",
+      "log": "/home/user/workspace/artifacts/proot-usb-write-20261116/test-desktop-ubuntu-plasma.py.log",
+      "sha256": "3fbdd1952d09f4676649c37b4374cf9db5d3486effd4d35c2ea70ccd1369cb10"
+    },
+    {
+      "suite": "test-client.py",
+      "log": "/home/user/workspace/artifacts/proot-usb-write-20261116/test-client.py.log",
+      "sha256": "989683a592e26faaa227d8777cdb331d5ba2c8d5f8a62121529aed31a1253d20"
+    }
+  ],
+  "java": [
+    {
+      "suite": "com.termux.ui.desktop.data.FileDesktopDistroRepositoryTest",
+      "tests": 9,
+      "sha256": "fca20068e864873e963936655ac06cd16d55378b61f1b56978d03042a4fc1c27"
+    },
+    {
+      "suite": "com.termux.ui.desktop.runtime.DesktopRendererPolicyTest",
+      "tests": 5,
+      "sha256": "d6744e7c6c6ceed651f22dab5d733c6c08ccf6e3d2eea903fa87ae6c33b8553e"
+    },
+    {
+      "suite": "com.termux.ui.desktop.data.UsbSelectionTransactionTest",
+      "tests": 1,
+      "sha256": "4f7fb1052aaf712e67fb86c7d86e06232900581b400e9b8f162ea2c0cc90d4a6"
+    },
+    {
+      "suite": "com.termux.ui.desktop.runtime.DesktopLaunchSpecTest",
+      "tests": 12,
+      "sha256": "c25787a01ddd441809971e1b4ed477158ba3b97fb3c38cc3c6fa0887b957f6fd"
+    },
+    {
+      "suite": "com.termux.ui.desktop.runtime.UsbStorageWritePolicyTest",
+      "tests": 1,
+      "sha256": "355945538e9886f92fcea1f0e61702c29146d4d90b05ced28b59af9c8769ae34"
+    }
+  ],
+  "emulator": {
+    "image_write_and_reopen": "passed",
+    "driver_sha256": "f656d0cf02c631bd54681d2285ab9bd64c6b1292df1a3e3564f69f43ba60149b",
+    "physical_usb": "not_run",
+    "new_apk_installed": "not_run"
+  },
+  "harness_strict": "unavailable",
+  "gradle": {
+    "log": "/home/user/workspace/artifacts/proot-usb-write-20261116/gradle.log",
+    "sha256": "ceb9d834593000e63c77532a4916d54b2243e2e57bffb25c83738c3083016873",
+    "result": "passed"
+  },
+  "final_apk_build": {
+    "result": "passed",
+    "log": "/home/user/workspace/artifacts/proot-usb-write-20261116/gradle-apk-final.log",
+    "sha256": "8b7ad87cd894f118d58549c906dd9a4ab9a257d3e8c7e561f5fe869266556ce2"
+  }
+}

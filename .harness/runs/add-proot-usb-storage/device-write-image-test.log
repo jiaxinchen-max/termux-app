@@ -1,0 +1,87 @@
+WRITE_IMAGE_DRIVER_STARTED
+127.0.0.1 - - [17/Nov/2026 00:55:35] "OPTIONS / HTTP/1.1" 401 -
+127.0.0.1 - - [17/Nov/2026 00:55:35] "OPTIONS / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Nov/2026 00:55:35] "PROPFIND / HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "MKCOL /%E7%9B%AE%E5%BD%95/ HTTP/1.1" 201 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 404 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 404 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PUT /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 201 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "GET /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 200 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /renamed.bin HTTP/1.1" 404 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /renamed.bin HTTP/1.1" 404 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "MOVE /%E7%9B%AE%E5%BD%95/payload.bin HTTP/1.1" 201 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /%E7%9B%AE%E5%BD%95 HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "DELETE /%E7%9B%AE%E5%BD%95 HTTP/1.1" 204 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /copy.bin HTTP/1.1" 404 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /renamed.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /copy.bin HTTP/1.1" 404 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "COPY /renamed.bin HTTP/1.1" 201 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "PROPFIND /copy.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:36] "DELETE /copy.bin HTTP/1.1" 204 -
+guest uid=10216 mode=rw
+PASS actual glibc GVfs mkdir, binary PUT/readback, MOVE, COPY, DELETE
+PASS helper unmount rw
+
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Activating service name='org.gtk.vfs.Daemon' requested by ':1.0' (uid=10216 pid=19418 comm="/tmp/tusb-image-test/guest/usr/local/libexec/tusb-" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Successfully activated service 'org.gtk.vfs.Daemon'
+
+(process:19431): GLib-GIO-CRITICAL **: 16:55:36.534: GFileInfo created without standard::size
+
+(process:19431): GLib-GIO-CRITICAL **: 16:55:36.536: file ../../../gio/gfileinfo.c: line 1865 (g_file_info_get_size): should not be reached
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Activating service name='org.gtk.vfs.UDisks2VolumeMonitor' requested by ':1.12' (uid=10216 pid=19501 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+
+(process:19506): GVFS-UDisks2-WARNING **: 16:55:36.951: Failed to connect to UDisks: Could not connect: No such file or directory
+
+(process:19506): GVFS-RemoteVolumeMonitorDaemon-WARNING **: 16:55:36.953: monitor says it's not supported
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Successfully activated service 'org.gtk.vfs.UDisks2VolumeMonitor'
+
+(process:19506): GVFS-RemoteVolumeMonitorDaemon-WARNING **: 16:55:36.978: monitor says it's not supported
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Activating service name='org.gtk.vfs.AfcVolumeMonitor' requested by ':1.12' (uid=10216 pid=19501 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Successfully activated service 'org.gtk.vfs.AfcVolumeMonitor'
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Activating service name='org.gtk.vfs.MTPVolumeMonitor' requested by ':1.12' (uid=10216 pid=19501 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Successfully activated service 'org.gtk.vfs.MTPVolumeMonitor'
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Activating service name='org.gtk.vfs.GPhoto2VolumeMonitor' requested by ':1.12' (uid=10216 pid=19501 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Successfully activated service 'org.gtk.vfs.GPhoto2VolumeMonitor'
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Activating service name='org.gtk.vfs.GoaVolumeMonitor' requested by ':1.12' (uid=10216 pid=19501 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[19412]: [session uid=10216 pid=19412 pidfd=4] Successfully activated service 'org.gtk.vfs.GoaVolumeMonitor'
+
+PASS clean fs close, image changed for write
+127.0.0.1 - - [17/Nov/2026 00:55:39] "OPTIONS / HTTP/1.1" 401 -
+127.0.0.1 - - [17/Nov/2026 00:55:39] "OPTIONS / HTTP/1.1" 200 -
+127.0.0.1 - - [17/Nov/2026 00:55:39] "PROPFIND / HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:39] "PROPFIND /renamed.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:39] "PROPFIND /renamed.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:39] "GET /renamed.bin HTTP/1.1" 200 -
+127.0.0.1 - - [17/Nov/2026 00:55:39] "PROPFIND /renamed.bin HTTP/1.1" 207 -
+127.0.0.1 - - [17/Nov/2026 00:55:39] "PROPFIND /denied.bin HTTP/1.1" 404 -
+127.0.0.1 - - [17/Nov/2026 00:55:39] "PROPFIND /denied.bin HTTP/1.1" 404 -
+127.0.0.1 - - [17/Nov/2026 00:55:39] "PUT /denied.bin HTTP/1.1" 403 -
+guest uid=10216 mode=ro
+PASS reopened exFAT via glibc GVfs durable binary readback and read-only PUT rejection
+PASS helper unmount ro
+
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Activating service name='org.gtk.vfs.Daemon' requested by ':1.0' (uid=10216 pid=19569 comm="/tmp/tusb-image-test/guest/usr/local/libexec/tusb-" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Successfully activated service 'org.gtk.vfs.Daemon'
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Activating service name='org.gtk.vfs.UDisks2VolumeMonitor' requested by ':1.7' (uid=10216 pid=19609 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+
+(process:19614): GVFS-UDisks2-WARNING **: 16:55:39.449: Failed to connect to UDisks: Could not connect: No such file or directory
+
+(process:19614): GVFS-RemoteVolumeMonitorDaemon-WARNING **: 16:55:39.450: monitor says it's not supported
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Successfully activated service 'org.gtk.vfs.UDisks2VolumeMonitor'
+
+(process:19614): GVFS-RemoteVolumeMonitorDaemon-WARNING **: 16:55:39.474: monitor says it's not supported
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Activating service name='org.gtk.vfs.AfcVolumeMonitor' requested by ':1.7' (uid=10216 pid=19609 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Successfully activated service 'org.gtk.vfs.AfcVolumeMonitor'
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Activating service name='org.gtk.vfs.MTPVolumeMonitor' requested by ':1.7' (uid=10216 pid=19609 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Successfully activated service 'org.gtk.vfs.MTPVolumeMonitor'
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Activating service name='org.gtk.vfs.GPhoto2VolumeMonitor' requested by ':1.7' (uid=10216 pid=19609 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Successfully activated service 'org.gtk.vfs.GPhoto2VolumeMonitor'
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Activating service name='org.gtk.vfs.GoaVolumeMonitor' requested by ':1.7' (uid=10216 pid=19609 comm="gio mount -li" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[19566]: [session uid=10216 pid=19566 pidfd=4] Successfully activated service 'org.gtk.vfs.GoaVolumeMonitor'
+
+PASS clean fs close, image unchanged in read-only
+WRITE_IMAGE_PASS

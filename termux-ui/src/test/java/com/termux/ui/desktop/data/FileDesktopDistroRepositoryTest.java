@@ -99,7 +99,7 @@ public class FileDesktopDistroRepositoryTest {
     }
 
 
-    @Test public void gnomeUsbSettingsRoundTripAndOldRecordsDefaultOff() throws Exception {
+    @Test public void usbSettingsRoundTripAndUnknownModeRejected() throws Exception {
         FileDesktopDistroRepository repository=repository();
         DesktopDistro gnome=new DesktopDistro("gnome", "GNOME", DesktopRunMode.PROOT, "debian-gnome-1", DesktopDe.GNOME, DesktopGlMode.SYSTEM, DesktopGuestGlMode.LLVMPIPE, "1280x720", 60, DesktopUsbStorageMode.OFF).withUsbStorage(DesktopUsbStorageMode.READ_ONLY);
         repository.save(gnome);
@@ -112,6 +112,9 @@ public class FileDesktopDistroRepositoryTest {
         try(FileOutputStream out=new FileOutputStream(file)){props.store(out,null);}
         assertEquals(DesktopUsbStorageMode.OFF,repository.find("gnome").get().getUsbStorage());
         props.setProperty("usbStorage","read-write");
+        try(FileOutputStream out=new FileOutputStream(file)){props.store(out,null);}
+        assertEquals(DesktopUsbStorageMode.READ_WRITE, repository.find("gnome").get().getUsbStorage());
+        props.setProperty("usbStorage", "unknown-mode");
         try(FileOutputStream out=new FileOutputStream(file)){props.store(out,null);}
         assertThrows(IOException.class,()->repository.find("gnome"));
     }

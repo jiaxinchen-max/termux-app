@@ -435,7 +435,7 @@ def initialize(args):
         if args.guest_gl_mode == 'zink':
             gpu = runpy.run_path(str(ASSETS / 'desktop_hyprland_gpu.py'))
             gpu['validate_host'](gpu['host_probe']())
-    if args.usb_storage == 'read-only':
+    if args.usb_storage != 'off':
         executable(prefix / 'libexec/termux-usb-app')
         required(root / ('usr/local/lib/termux-usb-bridge/gio/modules' if guest else 'lib/gio/modules') /
                  'libtusb-volume-monitor.so')
@@ -521,7 +521,7 @@ def initialize(args):
             desktop_id=args.desktop_id, ready_file=args.ready_file, run_mode=args.run_mode,
             alias=args.alias, client_gl_mode=args.guest_gl_mode if guest else 'default', usb_storage=args.usb_storage,
             width=width, height=height, refresh=args.refresh_rate))
-    elif args.de == 'xfce4' and (guest or args.usb_storage == 'read-only'):
+    elif args.de == 'xfce4' and (guest or args.usb_storage != 'off'):
         from types import SimpleNamespace
         runpy.run_path(str(ASSETS / 'desktop_xfce_session.py'))['prepare'](SimpleNamespace(
             desktop_id=args.desktop_id, run_mode=args.run_mode, alias=args.alias), prefix)
@@ -549,10 +549,12 @@ def main():
         install.add_argument('--theme-id')
         install.add_argument('--host-gl-mode', choices=('system', 'zink', 'llvmpipe'), required=True)
         install.add_argument('--guest-gl-mode', choices=('none', 'default', 'zink', 'llvmpipe'), required=True)
-        install.add_argument('--usb-storage', choices=('off', 'read-only'), required=True)
+        install.add_argument('--usb-storage', choices=('off', 'read-only', 'read-write'), required=True)
         if command == 'restore':
             install.add_argument('--rendering-output', type=Path, required=True)
     args = parser.parse_args()
+    if args.command != 'prepare-plasma' and args.usb_storage == 'read-write' and args.run_mode != 'proot':
+        parser.error('USB read-write requires PRoot')
     if args.command == 'prepare-plasma':
         prepare_plasma(args.prefix)
     else:

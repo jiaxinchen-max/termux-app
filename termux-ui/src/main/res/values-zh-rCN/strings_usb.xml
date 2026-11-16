@@ -1,6 +1,6 @@
 <resources>
     <string name="desktop_usb_title">外接存储</string>
-    <string name="desktop_usb_scope">只读浏览已授权的 FAT/exFAT USB 存储，可将文件复制到容器。请求 Android USB 授权时请保持 App 在前台。</string>
+    <string name="desktop_usb_scope">浏览已授权的 FAT/exFAT USB 存储。请求 Android USB 授权时请保持 App 在前台。</string>
     <string name="desktop_usb_enable_read_only">启用 USB 存储（只读）</string>
     <string name="desktop_usb_plasma_unsupported">Plasma Dolphin 使用 Solid/UDisks2；本 GIO 桥接不支持其设备侧栏，此桌面不能启用 USB 存储。</string>
     <string name="desktop_usb_loading">正在读取 USB 状态…</string>
@@ -14,7 +14,7 @@
     <string name="desktop_usb_start_required">启动桌面后才能使用其 USB 卷服务。</string>
     <string name="desktop_usb_bridge_error">USB 服务不可用：%1$s</string>
     <string name="desktop_usb_enumeration_error">USB 枚举失败，保留已有设备状态：%1$s</string>
-    <string name="desktop_usb_connected">已连接 USB 卷服务，访问模式为只读。</string>
+    <string name="desktop_usb_connected">已连接 USB 卷服务。</string>
     <string name="desktop_usb_no_storage">未发现已授权或待授权的 USB 存储设备。</string>
     <string name="desktop_usb_authorize">请求 Android USB 授权</string>
     <string name="desktop_usb_mount">连接 GIO 卷</string>
@@ -34,4 +34,10 @@
     <string name="desktop_usb_status_failed">读取 USB 状态失败：%1$s。点击“刷新设备”重试。</string>
     <string name="desktop_usb_native_unsupported">此原生桌面暂不支持 USB 存储，请使用支持的 PRoot 桌面。</string>
     <string name="desktop_usb_plasma_files">在应用菜单打开“USB 文件”即可浏览外接存储。</string>
+    <string name="desktop_usb_mode_off">关闭 USB 存储</string>
+    <string name="desktop_usb_enable_read_write">启用 USB 存储（读写）</string>
+    <string name="desktop_usb_write_notice">读写模式需手动连接。先在 Android 系统卸载可移动存储，再在此处或桌面文件管理器中连接。其他已挂载的 U 盘或 SD 卡也会阻止写入。拔出前须成功断开或弹出。</string>
+    <string name="desktop_usb_mounted_read_write">已连接为可读写 GIO 卷</string>
+    <string name="desktop_usb_read_write_proot_only">读写模式仅支持 PRoot 桌面。</string>
+    <string name="desktop_usb_release_warning">USB 警告：%1$s</string>
 </resources>

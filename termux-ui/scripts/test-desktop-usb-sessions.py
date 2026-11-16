@@ -42,7 +42,8 @@ class SessionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='usb-run-', dir='/tmp') as folder:
             prefix = Path(folder)
             session = usb.Session(prefix, 'desktop-test', {'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/guest-bus'},
-                                  ['/guest/gio'], prefix / 'service.log')
+                                  ['/guest/gio'], prefix / 'service.log', mode='read-write')
+            self.assertEqual('read-write', session.command[session.command.index('--mode') + 1])
             runtime = session.runtime
             program = '''import pathlib,signal,socket,time,sys
 p=pathlib.Path(sys.argv[1]);p.mkdir(parents=True)
@@ -83,7 +84,7 @@ time.sleep(90) # represents an unavailable device; IPC must become ready first
         with tempfile.TemporaryDirectory() as folder, patch.object(hypr, 'PREFIX', Path(folder)):
             work = Path(folder) / 'home/.termux/hyprland-desktop-usb'
             commands = [hypr.container_command(work, 'ubuntu-hyprland-1', 'default', program,
-                        'owned-session', 'read-only') for program in (['thunar'], ['/usr/local/libexec/tusb-gio-mount'])]
+                        'owned-session', mode) for mode in ('read-only', 'read-write') for program in (['thunar'], ['/usr/local/libexec/tusb-gio-mount'])]
             for command in commands:
                 self.assertIn('DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/hyprland-runtime/guest-session-bus', command)
                 self.assertIn('GIO_EXTRA_MODULES=/usr/local/lib/termux-usb-bridge/gio/modules', command)

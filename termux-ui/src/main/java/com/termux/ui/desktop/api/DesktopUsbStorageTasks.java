@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Same-UID control of the real, read-only coordinator owned by one desktop session. */
+/** Same-UID control of the real USB coordinator owned by one desktop session. */
 public final class DesktopUsbStorageTasks {
     public enum ApiState { READY, UNAVAILABLE }
     public static final class Dependencies {
@@ -42,10 +42,10 @@ public final class DesktopUsbStorageTasks {
         }
     }
     public static final class Health {
-        public final String enumerationError;
+        public final String enumerationError, storageWarning;
         public final List<Device> devices;
-        Health(String enumerationError, List<Device> devices) {
-            this.enumerationError = enumerationError;
+        Health(String enumerationError, String storageWarning, List<Device> devices) {
+            this.enumerationError = enumerationError; this.storageWarning = storageWarning;
             this.devices = Collections.unmodifiableList(devices);
         }
     }
@@ -85,15 +85,15 @@ public final class DesktopUsbStorageTasks {
         }
         return new Dependencies(api, missing);
     }
-    public String setEnabled(DesktopDistro distro, boolean enabled) throws IOException, com.termux.ui.api.LaunchHostException {
-        if (enabled && !supported(distro)) throw new IOException("desktop_usb_environment_unsupported");
-        return new DesktopTasks(context).configureUsb(distro, enabled
-            ? DesktopUsbStorageMode.READ_ONLY : DesktopUsbStorageMode.OFF);
+    public String setMode(DesktopDistro distro, DesktopUsbStorageMode mode) throws IOException, com.termux.ui.api.LaunchHostException {
+        if (mode != DesktopUsbStorageMode.OFF && !supported(distro))
+            throw new IOException("desktop_usb_environment_unsupported");
+        return new DesktopTasks(context).configureUsb(distro, mode);
     }
     public Health health(DesktopDistro distro) throws IOException {
         try {
             JSONObject value = new JSONObject(request(distro, "health", ""));
-            if (value.getInt("schemaVersion") != 1 || !"read-only".equals(value.getString("storageMode"))
+            if (value.getInt("schemaVersion") != 1 || !distro.getUsbStorage().getStorageValue().equals(value.getString("storageMode"))
                 || !distro.getRunMode().getStorageValue().equals(value.getString("runMode"))) {
                 throw new IOException("desktop_usb_protocol_mismatch");
             }
@@ -111,7 +111,8 @@ public final class DesktopUsbStorageTasks {
                 devices.add(new Device(path, label.isEmpty() ? path : label,
                     device.getString("status"), device.optString("error", "")));
             }
-            return new Health(value.isNull("enumerationError") ? null : value.getString("enumerationError"), devices);
+            return new Health(value.isNull("enumerationError") ? null : value.getString("enumerationError"),
+                value.optString("storageWarning", ""), devices);
         } catch (org.json.JSONException error) { throw new IOException("desktop_usb_invalid_response", error); }
     }
     public String diagnostics(DesktopDistro distro) {
@@ -132,7 +133,7 @@ public final class DesktopUsbStorageTasks {
         if (!path.matches("/dev/bus/usb/[0-9]{3}/[0-9]{3}")) throw new IOException("desktop_usb_invalid_device");
     }
     private String request(DesktopDistro distro, String command, String key) throws IOException {
-        if (!supported(distro) || distro.getUsbStorage() != DesktopUsbStorageMode.READ_ONLY)
+        if (!supported(distro) || distro.getUsbStorage() == DesktopUsbStorageMode.OFF)
             throw new IOException("desktop_usb_disabled");
         File control = new File(runtime(distro), "control.sock");
         if (!control.exists()) throw new IOException("desktop_usb_coordinator_not_running");

@@ -228,7 +228,7 @@ def container_command(work, alias, client_mode, program, token, usb_storage='off
                       'QSG_RHI_BACKEND=vulkan', 'QT_OPENGL=desktop',
                       'QT_WAYLAND_CLIENT_BUFFER_INTEGRATION=wayland-egl']
     binds = []
-    if usb_storage == 'read-only':
+    if usb_storage != 'off':
         desktop_id = work.name[len('hyprland-'):]
         usb = runpy.run_path(str(Path(__file__).with_name('desktop_usb_storage.py')))
         parent, guest_parent = usb['paths'](PREFIX, desktop_id)
@@ -370,7 +370,7 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
         executable = [str(PREFIX / "bin/env"), "-u", "LD_LIBRARY_PATH", "-u", "LD_PRELOAD", *program]
         if args.run_mode == 'proot':
             executable = container_command(work, args.alias, client_mode,
-                program if getattr(args, 'usb_storage', 'off') == 'read-only' else ['dbus-run-session', '--', *program],
+                program if getattr(args, 'usb_storage', 'off') != 'off' else ['dbus-run-session', '--', *program],
                 '__LIVE_SESSION_TOKEN__', getattr(args, 'usb_storage', 'off'))
         wrapper = bin_dir / ('termux-hyprland-' + action)
         wrapper.write_text('#!' + str(PREFIX / 'bin/sh') + '\nexec ' + shlex.join(executable).replace('TERMUX_HYPRLAND_SESSION=__LIVE_SESSION_TOKEN__', '"TERMUX_HYPRLAND_SESSION=${TERMUX_HYPRLAND_SESSION:?}"') + ' "$@"\n')
@@ -493,7 +493,7 @@ def _session_locked(args, work, client_mode, prepared):
                     stderr=subprocess.STDOUT, start_new_session=True)
                 service_clients.append(packages)
                 software['wait_ready'](packages, runtime)
-                if args.usb_storage == 'read-only':
+                if args.usb_storage != 'off':
                     usb_module = runpy.run_path(str(Path(__file__).with_name('desktop_usb_storage.py')))
                     usb_parent, _ = usb_module['paths'](PREFIX, args.desktop_id)
                     usb_parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -501,7 +501,7 @@ def _session_locked(args, work, client_mode, prepared):
                     guest_bus_command = container_command(work, args.alias, client_mode,
                         ['dbus-daemon', '--session', '--nofork', '--nopidfile',
                          '--address=unix:path=/tmp/hyprland-runtime/guest-session-bus'],
-                        env['TERMUX_HYPRLAND_SESSION'], 'read-only')
+                        env['TERMUX_HYPRLAND_SESSION'], args.usb_storage)
                     guest_bus = subprocess.Popen(guest_bus_command, env=env, stdout=log,
                         stderr=subprocess.STDOUT, start_new_session=True)
                     service_clients.append(guest_bus)
@@ -511,10 +511,10 @@ def _session_locked(args, work, client_mode, prepared):
                             raise RuntimeError('Hyprland guest session D-Bus failed to start')
                         time.sleep(.05)
                     gio_command = container_command(work, args.alias, client_mode,
-                        ['/usr/local/libexec/tusb-gio-mount'], env['TERMUX_HYPRLAND_SESSION'], 'read-only')
+                        ['/usr/local/libexec/tusb-gio-mount'], env['TERMUX_HYPRLAND_SESSION'], args.usb_storage)
                     usb = usb_module['Session'](PREFIX, args.desktop_id,
                         dict(env, DBUS_SESSION_BUS_ADDRESS='unix:path=' + str(runtime / 'guest-session-bus')),
-                        gio_command, runtime / 'usb-storage.log')
+                        gio_command, runtime / 'usb-storage.log', mode=args.usb_storage)
                     usb.start()
             # Host GTK clients must use the installed libraries, not compositor-private ones.
             client_env = env.copy()
@@ -670,7 +670,7 @@ def main():
     p.add_argument('--desktop-id', required=True); p.add_argument('--ready-file', type=Path, required=True)
     p.add_argument('--run-mode', choices=['native','proot'], required=True); p.add_argument('--alias')
     p.add_argument('--client-gl-mode', choices=['default','zink'], default='default')
-    p.add_argument('--usb-storage', choices=['off', 'read-only'], required=True)
+    p.add_argument('--usb-storage', choices=['off', 'read-only', 'read-write'], required=True)
     p.add_argument('--width', type=int, required=True); p.add_argument('--height', type=int, required=True)
     p.add_argument('--refresh', type=int, required=True)
     p = sub.add_parser('action')

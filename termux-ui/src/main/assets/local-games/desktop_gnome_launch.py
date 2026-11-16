@@ -51,12 +51,14 @@ def main():
     ap.add_argument('--refresh-rate', type=int, required=True)
     ap.add_argument('--render-socket', type=Path, required=True)
     ap.add_argument('--wayland-display', required=True)
-    ap.add_argument('--usb-storage', choices=('off', 'read-only'), required=True)
+    ap.add_argument('--usb-storage', choices=('off', 'read-only', 'read-write'), required=True)
     ap.add_argument('--rootfs', type=Path)
     ap.add_argument('--work', type=Path, required=True)
     ap.add_argument('--display', required=True)
     ap.add_argument('--service-policy', choices=('core',), required=True)
     args = ap.parse_args()
+    if args.usb_storage == 'read-write' and args.run_mode != 'proot':
+        ap.error('USB read-write requires PRoot')
     if not args.prepare:
         return run_prepared(args)
     import fcntl
@@ -116,7 +118,7 @@ def main():
     runtime = Path(termux_home) / ('.cache/gnome-' + desktop_key)
     usb_parent = prefix / ('tmp/tusb-' + desktop_key)
     usb_runtime = usb_parent / 'desktop'
-    if args.usb_storage == 'read-only':
+    if args.usb_storage != 'off':
         usb_parent.mkdir(parents=True, exist_ok=True)
         usb_parent.chmod(0o700)
     w = args.work.resolve()
@@ -217,7 +219,7 @@ def main():
             break
         else:
             raise RuntimeError('Android linker configuration is unavailable for the native compositor')
-        if args.usb_storage == 'read-only':
+        if args.usb_storage != 'off':
             guest_usb_parent = Path('/tmp') / usb_parent.name
             runpy.run_path(str(Path(__file__).with_name('desktop_usb_storage.py')))['prepare_guest_mount'](root, guest_usb_parent)
             base += ['-b', str(usb_parent) + ':' + str(guest_usb_parent)]
@@ -254,7 +256,7 @@ def main():
                       PATH='/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
                       GIO_USE_NETWORK_MONITOR='base',
                       XDG_DATA_DIRS=('/usr/share/ubuntu:/usr/local/share:/usr/share' if ubuntu else '/usr/local/share:/usr/share'), XDG_CONFIG_DIRS='/etc/xdg')
-        if args.usb_storage == 'read-only':
+        if args.usb_storage != 'off':
             values['GIO_EXTRA_MODULES'] = '/usr/local/lib/termux-usb-bridge/gio/modules'
             values['TERMUX_USB_DESKTOP_DIR'] = str(guest_usb_parent / 'desktop')
         base += [k + '=' + v for k, v in values.items()]
@@ -263,7 +265,7 @@ def main():
                       XDG_CONFIG_DIRS=str(prefix / 'etc/xdg'),
                       GST_PLUGIN_PATH=str(prefix / 'lib/termux-usb-bridge/gstreamer-1.0') +
                           (':' + os.environ['GST_PLUGIN_PATH'] if os.environ.get('GST_PLUGIN_PATH') else ''))
-        if args.usb_storage == 'read-only':
+        if args.usb_storage != 'off':
             values['GIO_EXTRA_MODULES'] = str(prefix / 'lib/gio/modules')
         guest.update(values)
         host.update(values)
@@ -501,10 +503,10 @@ def run_prepared(args):
         (w / 'host-session.env').chmod(0o600)
         # USB storage is attached here, after this exact desktop session bus is ready.
         # Its helper must be a supervised child and receive host/guest session environments.
-        if args.usb_storage == 'read-only':
+        if args.usb_storage != 'off':
             helper = Path(__file__).with_name('desktop_usb_storage.py')
             command = [str(prefix / 'bin/python3'), '-I', '-B', str(helper),
-                '--mode', 'read-only', '--run-mode', args.run_mode,
+                '--mode', args.usb_storage, '--run-mode', args.run_mode,
                 '--termux-usb', str(prefix / 'libexec/termux-usb-app'),
                 '--runtime', str(usb_runtime), '--broker-socket', str(usb_parent / 'broker.sock')]
             if args.rootfs:

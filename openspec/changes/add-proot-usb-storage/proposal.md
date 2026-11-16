@@ -25,3 +25,9 @@ Native 保持现有能力；废弃的独立 GNOME PRoot 不恢复。沿用导出
 api_docs 为 N/A：复用已有 USB FD 协议、会话内控制协议和本机鉴权 WebDAV，不新增或更改 HTTP 合约。product_docs 为 Required，验收后拟创建 `docs/product/desktop-external-devices.md`；一致性 Pending，当前不固化为产品基线。
 
 主要风险是 PRoot 路径/ABI 混用、会话总线生命周期、Android 占用设备和物理设备覆盖不足。实现须保留 rootfs 内宿主 PREFIX 的 000 隔离权限。回退使用 USB off 并在保存阶段重新生成会话；代码可回退本次实现，安装的配套依赖不自动删除。详细验证及边界见 design 和 tasks。
+
+## 已批准增量：USB 写入（2026-11-16）
+
+用户询问写入能力，并在说明 FAT/exFAT 写操作、Android 先卸载、容器独占和停止刷盘后回复“批准”。本增量将四类 PRoot 增加显式 read-write 选项，保留 off/read-only 以及 Native XFCE 原有只读范围。依赖与持久配置仍在保存期完成。读写设备不自动挂载，连接时向 Android 查询可移动卷状态；系统仍占用或状态无法确认则拒绝接管，用户在系统卸载后手动连接。正常断开必须完成 GVfs 卸载及文件服务刷盘，错误不能显示为安全弹出。
+
+复用现有 WebDAV 写方法，不新增 HTTP 合约，api_docs 仍 N/A；内置同 UID USB IPC 增加无 FD 的 write-check 动作。product_docs 仍 Required/Pending，目标保持 docs/product/desktop-external-devices.md。实物验证缺口必须明确保留，不承诺未测试的 OTG 行为。

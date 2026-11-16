@@ -53,7 +53,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--desktop-id', required=True)
     parser.add_argument('--run-mode', choices=('native', 'proot'), required=True)
-    parser.add_argument('--usb-storage', choices=('off', 'read-only'), required=True)
+    parser.add_argument('--usb-storage', choices=('off', 'read-only', 'read-write'), required=True)
     parser.add_argument('--display', choices=(':0',), required=True)
     parser.add_argument('--alias')
     args = parser.parse_args()
@@ -62,6 +62,8 @@ def main():
     if args.run_mode == 'proot':
         if not args.alias or not re.fullmatch(r'[a-z0-9][a-z0-9._-]{0,63}', args.alias):
             parser.error('PRoot requires an explicit container alias')
+    elif args.usb_storage == 'read-write':
+        parser.error('USB read-write requires PRoot')
     elif args.alias:
         parser.error('Native mode does not accept a container alias')
     prefix = Path(os.environ['PREFIX'])
@@ -93,7 +95,7 @@ def main():
                     'TERMUX_USB_DESKTOP_DIR=' + str(guest_parent / 'desktop'),
                     'DBUS_SYSTEM_BUS_ADDRESS=unix:path=' + str(guest_runtime / 'system-bus'),
                     'GIO_USE_NETWORK_MONITOR=base', 'GDK_BACKEND=x11']
-    if args.usb_storage == 'read-only':
+    if args.usb_storage != 'off':
         module_dir = (prefix / 'var/lib/proot-distro/containers' / args.alias /
                       'rootfs/usr/local/lib/termux-usb-bridge/gio/modules' if args.run_mode == 'proot'
                       else prefix / 'lib/gio/modules')
@@ -139,9 +141,9 @@ def main():
         host['DBUS_SESSION_BUS_ADDRESS'] = guest_address.replace(
             'unix:path=' + str(guest_runtime / 'session-bus'),
             'unix:path=' + str(runtime / 'session-bus'), 1)
-        if args.usb_storage == 'read-only':
+        if args.usb_storage != 'off':
             command = [str(prefix / 'bin/python3'), '-I', '-B',
-                       str(Path(__file__).with_name('desktop_usb_storage.py')), '--mode', 'read-only',
+                       str(Path(__file__).with_name('desktop_usb_storage.py')), '--mode', args.usb_storage,
                        '--run-mode', args.run_mode, '--runtime', str(usb_runtime),
                        '--broker-socket', str(parent / 'broker.sock'),
                        '--termux-usb', str(prefix / 'libexec/termux-usb-app')]

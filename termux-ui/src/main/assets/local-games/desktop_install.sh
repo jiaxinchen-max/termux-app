@@ -89,8 +89,12 @@ fi
 if [ "$OPERATION" = host-prerequisites ] && [ "${DESKTOP_USB_STORAGE:-off}" != off ]; then
     log 'Container archive prerequisites require USB storage off'; exit 64
 fi
-case "${DESKTOP_USB_STORAGE:-}" in off|read-only) ;; *) log 'Explicit USB storage mode off|read-only required'; exit 64 ;; esac
-if [ "$DESKTOP_MODE" = native ] && [ "$DESKTOP_USB_STORAGE" = read-only ] && [ "$DESKTOP_DE" != xfce4 ]; then
+if [ "$DESKTOP_MODE:${DESKTOP_USB_STORAGE:-off}" = native:read-write ]; then
+    log 'USB read-write requires a supported PRoot desktop.'
+    exit 64
+fi
+case "${DESKTOP_USB_STORAGE:-}" in off|read-only|read-write) ;; *) log 'Explicit USB storage mode off|read-only|read-write required'; exit 64 ;; esac
+if [ "$DESKTOP_MODE" = native ] && [ "$DESKTOP_USB_STORAGE" != off ] && [ "$DESKTOP_DE" != xfce4 ]; then
     log 'USB storage in this Native desktop is unsupported.'; exit 64
 fi
 
@@ -742,13 +746,13 @@ initialize_desktop() {
 }
 
 install_usb_host() {
-    [ "$DESKTOP_USB_STORAGE" = read-only ] || return 0
+    [ "$DESKTOP_USB_STORAGE" != off ] || return 0
     usb_paths=$(fetch_verified_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$USB_DEBS") || fail 'downloading USB storage bridge'
     run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold $usb_paths || fail 'installing USB bridge'
 }
 
 install_usb_guest() {
-    [ "$DESKTOP_MODE:$DESKTOP_USB_STORAGE" = proot:read-only ] || return 0
+    [ "$DESKTOP_MODE" = proot ] && [ "$DESKTOP_USB_STORAGE" != off ] || return 0
     usb_browser_packages=''
     [ "$DESKTOP_DE" != kwin_plasma ] || usb_browser_packages=thunar
         # The guest must load glibc GIO code. Never bind a host Bionic module into it.
@@ -886,7 +890,7 @@ if [ "$DESKTOP_MODE:$DESKTOP_DE" = native:ubuntu_gnome ]; then
     native_app_paths=$(fetch_verified_debs "$NATIVE_GNOME_APPS_TAG" "$NATIVE_GNOME_APPS_URL" "$NATIVE_GNOME_APPS_DEBS") || fail 'downloading verified native GNOME applications'
     DEB_PATHS="$DEB_PATHS $native_app_paths"
 fi
-if [ "$DESKTOP_USB_STORAGE" = read-only ]; then
+if [ "$DESKTOP_USB_STORAGE" != off ]; then
     USB_PATHS=$(fetch_verified_debs "$GNOME_USB_RELEASE_TAG" "$GNOME_USB_BASE_URL" "$USB_DEBS") || fail 'downloading USB storage bridge'
     DEB_PATHS="$DEB_PATHS $USB_PATHS"
 fi
@@ -1006,7 +1010,7 @@ $GNOME_NATIVE_DEBS" ;;
 esac
 [ "$DESKTOP_MODE:$DESKTOP_DE" != native:ubuntu_gnome ] || verification_manifest="$verification_manifest
 $NATIVE_GNOME_APPS_DEBS"
-[ "$DESKTOP_USB_STORAGE" != read-only ] || verification_manifest="$verification_manifest
+[ "$DESKTOP_USB_STORAGE" = off ] || verification_manifest="$verification_manifest
 $USB_DEBS"
 printf '%s\n' "$verification_manifest" > "$DESKTOP_LOG_FILE.verify-manifest.$$" || fail 'writing final verification manifest'
 while read -r name digest; do

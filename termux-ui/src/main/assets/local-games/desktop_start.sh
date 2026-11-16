@@ -93,8 +93,12 @@ if [ "$DESKTOP_MODE" = "proot" ] && [ "${DESKTOP_DE:-kwin_plasma}" = "kwin_plasm
     exit 64
 fi
 log "Requested host=$DESKTOP_HOST_GL_MODE container=$DESKTOP_GUEST_GL_MODE ($DESKTOP_MODE/${DESKTOP_DE:-kwin_plasma}); renderer fallback is disabled."
-case "${DESKTOP_USB_STORAGE:-off}" in off|read-only) ;; *)
-    log 'Unsupported USB storage policy; select off or read-only explicitly.'
+if [ "$DESKTOP_MODE:${DESKTOP_USB_STORAGE:-off}" = native:read-write ]; then
+    log 'USB read-write requires a supported PRoot desktop.'
+    printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64
+fi
+case "${DESKTOP_USB_STORAGE:-off}" in off|read-only|read-write) ;; *)
+    log 'Unsupported USB storage policy; select off, read-only or read-write explicitly.'
     printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
 esac
 if [ "$DESKTOP_MODE:${DESKTOP_USB_STORAGE:-off}" = native:read-only ] && [ "${DESKTOP_DE:-}" != xfce4 ]; then
@@ -124,8 +128,8 @@ if [ "${DESKTOP_DE:-}" = gnome ] || [ "${DESKTOP_DE:-}" = ubuntu_gnome ]; then
         *) log 'GNOME requires the native Android/System EGL compositor explicitly.'
            printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
     esac
-    case "${DESKTOP_USB_STORAGE:-}" in off|read-only) ;; *)
-        log 'Explicit DESKTOP_USB_STORAGE=off|read-only is required.'
+    case "${DESKTOP_USB_STORAGE:-}" in off|read-only|read-write) ;; *)
+        log 'Explicit DESKTOP_USB_STORAGE=off|read-only|read-write is required.'
         printf 'exit:64\n' > "$DESKTOP_STATUS_FILE"; exit 64 ;;
     esac
 fi
@@ -332,7 +336,7 @@ if [ "$DESKTOP_DE" = "xfce4" ]; then
     fi
     export DISPLAY=:0
     log "Starting the $DESKTOP_MODE XFCE4 session (DISPLAY=:0, XLORIE_GL_MODE=$gl_mode)"
-    if [ "$DESKTOP_MODE" = proot ] || [ "${DESKTOP_USB_STORAGE:-off}" = read-only ]; then
+    if [ "$DESKTOP_MODE" = proot ] || [ "${DESKTOP_USB_STORAGE:-off}" != off ]; then
         printf 'xfce4-usb\n' > "$DESKTOP_PID_FILE.owned-session" || { code=74; finish_desktop; }
         XFCE_LAUNCHER="$(dirname "$0")/desktop_xfce_session.py"
         set -- --desktop-id "$DESKTOP_ID" --run-mode "$DESKTOP_MODE" \

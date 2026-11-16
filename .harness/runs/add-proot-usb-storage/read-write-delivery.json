@@ -1,0 +1,28 @@
+{
+  "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "bytes": 44549869,
+  "sha256": "a2976510fa9419c5d34efd8b535ad5ddfbf6878c330e8958fac4bd477670f237",
+  "signature": "verified v1/v2",
+  "test_only": false,
+  "abi": "arm64-v8a",
+  "source_assets_verified": 74,
+  "clean_repack": true,
+  "large_assets": [
+    {
+      "name": "assets/wine.tar",
+      "bytes": 7577600
+    }
+  ],
+  "device_installation": "Pending",
+  "public_download": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122146279517675520/port/54357/termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "embedded_usb_client_verified": true,
+  "source_base_commit": "87f2d13db098c8809d948339ca56536ccd3360cd",
+  "source_commit": "pending_progress_commit",
+  "directory": "/home/user/workspace/artifacts/proot-usb-write-20261116",
+  "local_head": "200, correct MIME and length",
+  "proxy_access": "requires signed-in DE session; anonymous access not claimed",
+  "user_installation": "pending; APK was not sent to ADB",
+  "emulator_image_write_reopen": "passed",
+  "physical_usb": "not_run",
+  "harness_strict": "unavailable"
+}

@@ -18,6 +18,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.os.Process;
+import android.os.storage.StorageManager;
+import android.os.storage.StorageVolume;
 import android.system.Os;
 import android.util.Log;
 
@@ -202,12 +204,19 @@ public final class EmbeddedUsbApi implements Application.ActivityLifecycleCallba
                     reply(connection, new JSONArray(paths), null);
                     return;
                 }
-                if (!"permission".equals(action) && !"open".equals(action))
+                if (!"permission".equals(action) && !"open".equals(action) && !"write-check".equals(action))
                     throw new UsbFailure(22, "Unknown embedded USB action");
                 String path = request.getString("device");
                 requireDevice(path);
                 UsbDevice device = manager.getDeviceList().get(path);
                 if (device == null) throw new UsbFailure(19, "No such USB device");
+                if ("write-check".equals(action)) {
+                    if (authorize) throw new UsbFailure(22, "Write check cannot request permission");
+                    if (!manager.hasPermission(device)) throw new UsbFailure(13, "Android USB permission required");
+                    requireStorageUnmounted();
+                    reply(connection, true, null);
+                    return;
+                }
                 if (!manager.hasPermission(device)) {
                     if (!authorize) throw new UsbFailure(13, "Android USB permission required");
                     requestPermission(manager, device);
@@ -236,6 +245,20 @@ public final class EmbeddedUsbApi implements Application.ActivityLifecycleCallba
             }
         } catch (IOException failure) {
             Log.w(TAG, "Embedded USB connection failed", failure);
+        }
+    }
+
+    /** Only called by a manual device connection, never during desktop startup. */
+    private void requireStorageUnmounted() throws UsbFailure {
+        StorageManager storage = (StorageManager) application.getSystemService(Context.STORAGE_SERVICE);
+        if (storage == null) throw new UsbFailure(38, "Cannot verify Android storage ownership");
+        // Public Android APIs cannot reliably map a volume to a USB bus path. Be conservative:
+        // require every visible removable volume to be unmounted, including SD cards.
+        for (StorageVolume volume : storage.getStorageVolumes()) {
+            if (volume.isRemovable()
+                    && !UsbStorageWritePolicy.isUnmounted(volume.getState()))
+                throw new UsbFailure(16, "Unmount removable storage in Android before connecting for write access: "
+                    + volume.getDescription(application) + " (" + volume.getState() + ")");
         }
     }
 

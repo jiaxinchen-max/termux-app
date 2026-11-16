@@ -1,0 +1,33 @@
+schema: review_findings_v1
+change_id: add-proot-usb-storage
+stage: read_write_implementation_review
+status: APPROVED_FOR_PROGRESS_AND_MANUAL_TESTING
+method: 主代理直接源码自审，没有独立审查者
+findings: []
+resolved_findings:
+  - id: writable-automount
+    severity: MUST_FIX
+    status: resolved
+    summary: 读写轮询和授权不自动挂载；仅手动连接执行 Android 占用查询
+    evidence: termux-ui/scripts/test-desktop-usb-control.py
+  - id: flush-failure-safe-removal
+    severity: MUST_FIX
+    status: resolved
+    summary: 刷盘或文件服务退出错误锁定至重插；GIO 忙保留服务可重试
+    evidence: termux-ui/scripts/test-desktop-usb-control.py
+  - id: writable-permission-entry
+    severity: MUST_FIX
+    status: resolved
+    summary: 未授权设备从文件管理器点击连接后保留待授权入口，不在后台请求授权
+    evidence: termux-ui/scripts/test-desktop-usb-control.py
+checks:
+  java: 28_passed
+  python: 92_passed
+  configuration_combinations: 12_passed
+  emulator_real_gio_image_write_reopen: passed
+  apk: build_signature_assets_passed
+  harness_strict: unavailable
+limitations:
+  - Android 可移动卷查询与底层 USB claim 不构成原子操作，且不能精确映射目标卷
+  - 没有实体设备；新 APK 未替用户安装，四个完整 GUI 未验证
+  - 产品一致性 Pending，不归档

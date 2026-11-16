@@ -10,12 +10,13 @@ import java.util.Collections;
 import static org.junit.Assert.*;
 
 public class DesktopRendererPolicyTest {
-    @Test public void allCurrentProotDesktopsAllowReadOnlyUsb() {
+    @Test public void allCurrentProotDesktopsAllowBothUsbAccessModes() {
         for (DesktopDe de : new DesktopDe[] {DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA,
                 DesktopDe.UBUNTU_GNOME, DesktopDe.HYPRLAND}) {
             DesktopDistro desktop = new DesktopDistro("usb", "USB", DesktopRunMode.PROOT, "ubuntu-usb-1", de,
                 DesktopGlMode.SYSTEM, DesktopRendererPolicy.guestModes(DesktopRunMode.PROOT, de).get(0),
                 "1280x720", 60, DesktopUsbStorageMode.READ_ONLY);
+            DesktopRendererPolicy.requireSupported(desktop.withUsbStorage(DesktopUsbStorageMode.READ_WRITE));
             DesktopRendererPolicy.requireSupported(desktop);
             assertTrue(DesktopRendererPolicy.supportsUsb(desktop));
         }
@@ -29,6 +30,14 @@ public class DesktopRendererPolicyTest {
             else assertEquals("desktop_usb_storage_requires_gio_sidebar",assertThrows(IllegalArgumentException.class,
                 ()->DesktopRendererPolicy.requireSupported(desktop)).getMessage());
         }
+    }
+
+    @Test public void nativeXfceRejectsWriteWhileKeepingReadOnly() {
+        DesktopDistro desktop = new DesktopDistro("usb", "USB", DesktopRunMode.NATIVE, "", DesktopDe.XFCE4,
+            DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 60, DesktopUsbStorageMode.READ_ONLY);
+        DesktopRendererPolicy.requireSupported(desktop);
+        assertEquals("desktop_usb_read_write_requires_proot", assertThrows(IllegalArgumentException.class,
+            () -> DesktopRendererPolicy.requireSupported(desktop.withUsbStorage(DesktopUsbStorageMode.READ_WRITE))).getMessage());
     }
 
     @Test public void retiredGnomeIsRejectedInBothModesWhileUbuntuRemainsSupported() {
