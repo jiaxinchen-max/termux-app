@@ -47,12 +47,27 @@ class ThemeTests(unittest.TestCase):
                 theme.dispatch(Path('/private'), 'focus', '0x123;evil')
             ipc.assert_not_called()
 
-    def testPRootLauncherContainsOnlyGuestRoutedApps(self):
+    def testHostCannotIndexContainerApplications(self):
+        with self.assertRaisesRegex(RuntimeError, 'inside Ubuntu'):
+            theme.apps(Path('/private'), 'proot')
+
+    def testNativeDiscoversHostAppsWithoutAddingGuestSoftware(self):
         with tempfile.TemporaryDirectory() as temp:
-            work = Path(temp)
-            items = theme.apps(work, 'proot')
-            self.assertEqual(['Terminal', 'Files'], [i['name'] for i in items])
-            self.assertTrue(all(str(work / 'bin') in i['command'][0] for i in items))
+            home = Path(temp) / 'home'
+            applications = home / '.local/share/applications'
+            applications.mkdir(parents=True)
+            desktop = applications / 'editor.desktop'
+            desktop.write_text('[Desktop Entry]\nType=Application\nName=Host editor\nExec=editor\n')
+            (applications / 'hidden.desktop').write_text(
+                '[Desktop Entry]\nType=Application\nName=Hidden editor\nHidden=true\n')
+            work = Path(temp) / 'work'
+            with patch.object(theme, 'HOME', home):
+                items = theme.apps(work, 'native')
+                self.assertEqual(['Terminal', 'Files', 'Host editor'], [i['name'] for i in items])
+                self.assertEqual([str(theme.PREFIX / 'bin/gio'), 'launch', str(desktop)],
+                                 items[-1]['command'])
+                with self.assertRaises(RuntimeError):
+                    theme.apps(work, 'proot')
 
     def testPrivateTerminalAndThemePreserveUserEditsAcrossPrepare(self):
         with tempfile.TemporaryDirectory() as temp:

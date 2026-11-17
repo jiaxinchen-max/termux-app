@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import shlex
 import subprocess
 import tarfile
 import tempfile
@@ -199,6 +200,7 @@ Description: Installed bridge fixture
         metadata = subprocess.check_output(["dpkg-deb", "--field", str(ASSETS / DEB_NAME)],
                                            text=True)
         fields = dict(line.split(": ", 1) for line in metadata.splitlines() if ": " in line)
+        self.assertEqual("termux-x11-nightly", fields["Package"])
         self.assertEqual("1.04.10-0", fields["Version"])
         self.assertEqual("xkeyboard-config", fields["Depends"])
         payload = subprocess.check_output(["dpkg-deb", "--fsys-tarfile", str(ASSETS / DEB_NAME)])
@@ -210,12 +212,62 @@ Description: Installed bridge fixture
             for directory in ("termux-x11", "termux-display"):
                 member = archive.getmember(prefix + "libexec/" + directory + "/loader.apk")
                 self.assertGreater(member.size, 0)
+                self.assertEqual(0o755, member.mode)
         controls = subprocess.check_output(["dpkg-deb", "--ctrl-tarfile", str(ASSETS / DEB_NAME)])
         with tarfile.open(fileobj=io.BytesIO(controls)) as archive:
             self.assertEqual(0o755, archive.getmember("./postinst").mode)
         self.assertEqual((ROOT / "install").read_bytes(), (ASSETS / "install").read_bytes())
         self.assertEqual([DEB_NAME], sorted(path.name for path in ASSETS.glob("*.deb")))
         self.assertEqual([], list(ASSETS.glob("*.pkg.tar.xz")))
+
+    def test_postinst_removes_loader_write_permissions_and_preserves_launchers(self):
+        payload = subprocess.check_output(["dpkg-deb", "--fsys-tarfile", str(ASSETS / DEB_NAME)])
+        package_prefix = "./data/data/com.termux/files/usr/"
+        fixture = self.root / "installed prefix"
+        with tarfile.open(fileobj=io.BytesIO(payload)) as archive:
+            files = [member for member in archive.getmembers()
+                     if member.isfile() and member.name.startswith(package_prefix)]
+            for member in files:
+                target = fixture / member.name[len(package_prefix):]
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(archive.extractfile(member).read())
+                target.chmod(0o755)  # Exercise migration from the broken installed mode.
+        controls = subprocess.check_output(["dpkg-deb", "--ctrl-tarfile", str(ASSETS / DEB_NAME)])
+        with tarfile.open(fileobj=io.BytesIO(controls)) as archive:
+            postinst = archive.extractfile("./postinst").read().decode()
+        script = postinst.replace("/data/data/com.termux/files/usr", shlex.quote(str(fixture)))
+        subprocess.run(["sh", "-c", script], check=True, capture_output=True)
+        for relative in ("libexec/termux-x11/loader.apk", "libexec/termux-display/loader.apk"):
+            self.assertEqual(0o444, (fixture / relative).stat().st_mode & 0o777)
+        for target in (fixture / "bin").iterdir():
+            self.assertEqual(0o755, target.stat().st_mode & 0o777)
+
+    @unittest.skipUnless(shutil.which("dpkg") and os.geteuid() != 0,
+                         "requires real dpkg running as an unprivileged user")
+    def test_unprivileged_dpkg_safely_unpacks_and_reinstalls_readonly_loaders(self):
+        fixture = self.root / "isolated dpkg root"
+        fixture.mkdir()
+        prefix = fixture / "data/data/com.termux/files/usr"
+        controls = subprocess.check_output(["dpkg-deb", "--ctrl-tarfile", str(ASSETS / DEB_NAME)])
+        with tarfile.open(fileobj=io.BytesIO(controls)) as archive:
+            # Unpack below never runs maintainer scripts or uses the host database.
+            self.assertFalse(any(member.name.endswith(("/preinst", "/postrm", "/prerm"))
+                                 for member in archive.getmembers()))
+            postinst = archive.extractfile("./postinst").read().decode()
+        script = postinst.replace("/data/data/com.termux/files/usr", shlex.quote(str(prefix)))
+        for attempt in range(2):
+            with self.subTest(attempt=attempt):
+                result = subprocess.run(
+                    ["dpkg", "--force-not-root", "--force-bad-path", "--no-force-unsafe-io",
+                     "--root=" + str(fixture), "--log=" + str(fixture / "dpkg.log"),
+                     "--unpack", str(ASSETS / DEB_NAME)],
+                    capture_output=True, text=True, timeout=30)
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                subprocess.run(["sh", "-c", script], check=True, capture_output=True)
+                for command in ("termux-x11", "termux-display"):
+                    self.assertEqual(0o444, (prefix / "libexec" / command / "loader.apk")
+                                     .stat().st_mode & 0o777)
+                self.assertEqual(0o755, (prefix / "bin/termux-x11").stat().st_mode & 0o777)
 
 
 if __name__ == "__main__":

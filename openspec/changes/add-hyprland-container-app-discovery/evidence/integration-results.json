@@ -1,0 +1,26 @@
+[
+  {
+    "theme": "m3ww-v1",
+    "ready": false,
+    "exited_before_stop": null,
+    "exit_code": -9,
+    "ready_cleared": true,
+    "query_count": 136,
+    "layer_names": [
+      "wallpaper"
+    ],
+    "limitation": "Headless Sway; Hyprland query socket adapted from actual Wayland requests. Android GUI/arm64 untested."
+  },
+  {
+    "theme": "classic-r7",
+    "ready": false,
+    "exited_before_stop": null,
+    "exit_code": -9,
+    "ready_cleared": true,
+    "query_count": 98,
+    "layer_names": [
+      "wallpaper"
+    ],
+    "limitation": "Headless Sway; Hyprland query socket adapted from actual Wayland requests. Android GUI/arm64 untested."
+  }
+]

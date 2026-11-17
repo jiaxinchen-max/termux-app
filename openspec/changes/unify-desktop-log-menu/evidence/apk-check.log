@@ -1,0 +1,19 @@
+{
+  "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "bytes": 45465159,
+  "sha256": "4af6e6c9d5b6b379a2e84167b11a43f8ebcee331c74831c1c7075b81025343b1",
+  "abis": [
+    "arm64-v8a"
+  ],
+  "source_assets_verified": 77,
+  "signature": {
+    "v1": true,
+    "v2": true,
+    "matches_repository_certificate": true,
+    "certificate_sha256": "b6da01480eefd5fbf2cd3771b8d1021ec791304bdd6c4bf41d3faabad48ee5e1"
+  },
+  "test_only": false,
+  "source_commit": "68858272719da9adccbb2ed1d9ff31029163da6a",
+  "source_state": "Approved Hyprland container-owned desktop session, GIO app discovery and existing GNOME activation fixes; uncommitted working tree",
+  "device_validation": "Pending; APK not installed by agent"
+}

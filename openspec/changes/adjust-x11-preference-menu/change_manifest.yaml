@@ -1,0 +1,29 @@
+change_id: adjust-x11-preference-menu
+stage: local-verification-complete
+approval:
+  requirement: 用户直接指定 UI Mode 位置与 Render bridge 名称
+  implementation: Approved_Direct_User_Request
+api_docs:
+  status: N/A
+  reason: 仅调整本地 Android 菜单顺序与文案，无 HTTP 合约
+product_docs:
+  status: Required
+  documents: [docs/product/x11-preferences.md]
+  consistency:
+    status: Pending
+    evidence: .harness/runs/adjust-x11-preference-menu/product-consistency-evidence.json
+    findings: .harness/runs/adjust-x11-preference-menu/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  impact: 本地偏好设置菜单顺序和标题
+  rollback: 恢复原顺序及字符串资源
+  verification: 资源编译、排序审查和现有安装回归
+  approval: Approved_Direct_User_Request
+tooling:
+  harness_bootstrap: Missing
+  openspec_cli: Missing
+  strict_gate: Unavailable
+apk_filename: termux-app_apt-android-7-debug_arm64-v8a.apk
+device_deployment: NotAuthorized
+acceptance: Pending
+archive: NotAuthorized

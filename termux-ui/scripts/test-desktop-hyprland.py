@@ -59,9 +59,20 @@ class ComponentTests(unittest.TestCase):
                 tar.addfile(extra,io.BytesIO(b'x') if extra.isfile() else None)
         return archive
 
-    def install(self,archive):
+    def install(self,archive, **kwargs):
         with patch.object(h,'ARCHIVE_SHA256',h.digest(archive)), patch.object(h,'MANIFEST_SHA256',self.manifest_digest):
-            h.install(archive)
+            h.install(archive, **kwargs)
+
+    def testExplicitReinstallReplacesVerifiedRuntimeAndPreservesUserFiles(self):
+        archive = self.archive(); self.install(archive)
+        extra = h.runtime_root() / 'old-runtime-file'; extra.write_text('old')
+        user = h.HOME / 'documents/keep'; user.parent.mkdir(parents=True); user.write_text('user data')
+        self.install(archive)
+        self.assertTrue(extra.exists())
+        self.install(archive, reinstall=True)
+        self.assertFalse(extra.exists())
+        self.assertEqual('user data', user.read_text())
+        self.assertEqual(self.manifest_digest, (h.runtime_root()/'.installed').read_text().strip())
 
     def testVerifiedInstallIsIdempotentAndDoesNotTouchSharedLibraries(self):
         shared = h.PREFIX/'lib/existing.so'; shared.parent.mkdir(parents=True);shared.write_text('preserve')
@@ -111,13 +122,25 @@ class ComponentTests(unittest.TestCase):
         self.assertTrue(path.is_socket())
 
     def testReadyFixtureUsesItsOwnSocketAndCleansItOnCompositorExit(self):
+        self.runReadyFixture()
+
+    def testActivationEnvironmentFailureNeverPublishesReadinessAndCleansSession(self):
+        self.runReadyFixture(activation_error=True)
+
+    def testPreparedCompositorActuallyReceivesNewNativeOutputPixels(self):
+        self.runReadyFixture(output_size=(2400, 1080))
+
+    def runReadyFixture(self, activation_error=False, output_size=(1280, 720)):
         import threading
         root=h.runtime_root();(root/'bin').mkdir(parents=True)
         (h.PREFIX/'bin').mkdir()
-        for name,target in [('env','/usr/bin/env'),('sh','/bin/sh'),('dbus-daemon','/usr/bin/dbus-daemon')]:
+        for name,target in [('env','/usr/bin/env'),('sh','/bin/sh'),('dbus-daemon','/usr/bin/dbus-daemon'),
+                            ('dbus-update-activation-environment','/usr/bin/dbus-update-activation-environment')]:
             (h.PREFIX/'bin'/name).symlink_to(target)
         compositor=root/'bin/Hyprland'
         compositor.write_text("#!/usr/bin/python3\nimport os,socket,time\nfrom pathlib import Path\nr=Path(os.environ['XDG_RUNTIME_DIR'])\n(r/'fake.pid').write_text(str(os.getpid()))\ns=socket.socket(socket.AF_UNIX);s.bind(str(r/'wayland-1'));s.listen(4)\ntime.sleep(1.5)\n")
+        compositor.write_text(compositor.read_text().replace('r=Path(os.environ',
+            'Path(' + repr(str(self.root / 'output-environment')) + ').write_text(repr((os.environ["AQ_ANDROID_WIDTH"], os.environ["AQ_ANDROID_HEIGHT"], os.environ["AQ_ANDROID_REFRESH"])))\nr=Path(os.environ'))
         compositor.chmod(0o755)
         for binary in [root/'bin/hyprland-smoke-client',h.PREFIX/'bin/xfce4-terminal']:
             binary.write_text('#!/bin/sh\nexec /bin/sleep 30\n');binary.chmod(0o755)
@@ -139,17 +162,27 @@ class ComponentTests(unittest.TestCase):
             if arguments[-1]=='instances':
                 pid=int((work/'runtime/fake.pid').read_text())
                 return json.dumps([{'pid':pid,'instance':'own-instance','wl_socket':'wayland-1'}])
-            return json.dumps([{'name':'ANDROID-1','width':1280,'height':720,'refreshRate':60}])
+            return json.dumps([{'name':'ANDROID-1','width':args.width,'height':args.height,'refreshRate':args.refresh}])
         watcher=threading.Thread(target=watch);watcher.start()
         try:
             with patch.object(h,'verify'),patch.object(h,'verify_shell'),patch.object(h,'prepare_shell',return_value=[]),patch.object(h,'ipc',side_effect=ipc):
                 h.prepare(args)
+                args.width, args.height = output_size
                 with patch.object(h, 'prepare_shell', side_effect=AssertionError('startup initialization')), patch.dict(h.COMPONENTS, verify_theme=lambda *a: self.fail('startup theme scan')):
-                    self.assertEqual(0,h.session(args))
+                    if activation_error:
+                        with patch.object(h, 'update_activation_environment', side_effect=RuntimeError('activation denied')):
+                            with self.assertRaisesRegex(RuntimeError, 'activation denied'):
+                                h.session(args)
+                    else:
+                        self.assertEqual(0,h.session(args))
         finally:
             watcher.join()
-        self.assertEqual([True],observed)
-        self.assertEqual('(None, None)',(self.root/'client-environment').read_text())
+        self.assertEqual([] if activation_error else [True],observed)
+        if activation_error:
+            self.assertFalse((self.root/'client-environment').exists())
+        else:
+            self.assertEqual('(None, None)',(self.root/'client-environment').read_text())
+        self.assertEqual(repr((str(output_size[0]), str(output_size[1]), '60')), (self.root / 'output-environment').read_text())
         self.assertFalse(ready.exists());self.assertFalse((work/'session.json').exists())
         self.assertEqual([],list((work/'runtime').iterdir()))
 
@@ -205,13 +238,17 @@ class ComponentTests(unittest.TestCase):
             'gnome-software','gnome-software-plugin-deb','packagekit','appstream','apt-config-icons',
             'polkitd','python3-gi','gir1.2-polkit-1.0','zenity')))
         for name in ('usr/bin/gnome-software','usr/bin/zenity','usr/bin/python3','usr/bin/dbus-daemon',
-                     'usr/bin/appstreamcli','usr/lib/polkit-1/polkitd','usr/libexec/packagekitd'):
+                     'usr/bin/appstreamcli','usr/lib/polkit-1/polkitd','usr/libexec/packagekitd','usr/bin/xfce4-terminal','usr/bin/thunar','usr/bin/swaybg',
+                     'usr/bin/foot','usr/bin/fish','usr/bin/starship',
+                     'usr/local/lib/termux-hyprland/bin/eww','usr/lib/aarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd'):
             target = guest / name; target.parent.mkdir(parents=True, exist_ok=True)
             target.touch(); target.chmod(0o755)
         args = types.SimpleNamespace(runtime_id=h.VERSION, theme_id='m3ww-v1',
             desktop_id='guest-token', ready_file=self.root/'ready', run_mode='proot',usb_storage='off',
             alias='ubuntu-test', client_gl_mode='default', width=1280,height=720,refresh=60)
-        with patch.object(h, 'prepare_shell', return_value=[]):
+        original_install = h.COMPONENTS['install_theme']
+        archive = Path(__file__).resolve().parents[2] / 'distribution/hyprland-themes/build/hyprland-theme-m3ww-v1.tgz'
+        with patch.dict(h.COMPONENTS, install_theme=lambda runtime, theme: original_install(runtime, theme, archive)), patch.object(h, 'verify_guest_images'):
             h.prepare(args)
         wrapper = h.work_for(args.desktop_id) / 'bin/termux-hyprland-terminal'
         content = wrapper.read_bytes()
@@ -219,6 +256,9 @@ class ComponentTests(unittest.TestCase):
             command = json.loads(subprocess.check_output([str(wrapper)],
                 env=dict(os.environ, TERMUX_HYPRLAND_SESSION=token), text=True))
             self.assertIn('TERMUX_HYPRLAND_SESSION=' + token, command)
+            self.assertIn('DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/hyprland-runtime/guest-session-bus', command)
+            self.assertNotIn('dbus-run-session', command)
+            self.assertIn('/usr/local/lib/termux-hyprland/desktop_hyprland_guest.py', command)
             self.assertNotIn(token.encode(), content)
             self.assertEqual(content, wrapper.read_bytes())
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-17T06:21:10" hostname="skynet-env-362805450227519488-378012184997830656-vjdrl" time="6.82">
+  <properties/>
+  <testcase name="existingSettingsAndConflictingContainerIdSurviveInitializationAndRecreation" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="0.474"/>
+  <testcase name="emptyProotAlwaysOffersVisibleAddAndImportCards" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="0.133"/>
+  <testcase name="emptyNativeCreatesFourStableEntriesWithoutInstallingAnything" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="0.193"/>
+  <testcase name="containersAndRetiredNativeRecordsStillOfferDeletion" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="0.287"/>
+  <testcase name="nightNativeAndEmptyProotRemainVisibleAcrossLayoutsWidthsAndRepeatedSwitches" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="3.139"/>
+  <testcase name="nativeAndEmptyProotRemainVisibleAcrossLayoutsWidthsAndRepeatedSwitches" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="2.593"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

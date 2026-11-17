@@ -1,0 +1,104 @@
+Tue Nov 17 15:09:41 CST 2026
+package:/data/app/~~Sa0UEK4TdfTN6vOXzftcvQ==/com.termux-kQ0sAgaC_3N9c_ln_7dACQ==/base.apk
+starting
+DEBUG ]: [CCompositor::initManagers] Creating the MonitorState!
+DEBUG ]: [CCompositor::initManagers] Creating the WorkspaceState!
+DEBUG ]: [CCompositor::initManagers] Creating the ConfigManager!
+DEBUG ]: [Config::initConfigManager] [cfg] Config is either explicit or special
+DEBUG ]: [CCompositor::initManagers] Creating the Error Overlay!
+DEBUG ]: [CCompositor::initManagers] Creating the LayoutManager!
+DEBUG ]: [CCompositor::initManagers] Creating the TokenManager!
+DEBUG ]: [Config::Lua::CConfigManager::postConfigReload] Disabling stdout logs (debug.enable_stdout_logs = 0). Further logs will be written to /data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f/hypr/a_1794899218_2d88c308/hyprland.log
+DEBUG ]: [CCompositor::initManagers] Creating the PointerManager!
+DEBUG ]: [CCompositor::initManagers] Creating the AsyncResourceGatherer!
+[2026-11-17 15:06:58] INFO  : setScreenConfig width=1280 height=720 framerate=30 format=5 type=3 keycode_format=1
+[2026-11-17 15:06:58] INFO  : connectToRender start socket=/data/data/com.termux/files/home/tmp/termux-render type=SOCK_STREAM sizeof(lorieEvent)=32
+[2026-11-17 15:06:58] INFO  : Connected to render socket, event_fd=13 attempt=1/5
+[2026-11-17 15:06:58] INFO  : Created render event thread
+[2026-11-17 15:06:58] INFO  : Render blocking event loop started, event_fd=13 sizeof(lorieEvent)=32
+[2026-11-17 15:06:58] INFO  : Sent handshake magic length=11
+[2026-11-17 15:06:58] INFO  : Waiting for buffer initialization
+[2026-11-17 15:06:58] INFO  : Received event type=20 (EVENT_SERVER_VERIFY_SUCCEED)
+[2026-11-17 15:06:58] INFO  : Handling EVENT_SERVER_VERIFY_SUCCEED
+[2026-11-17 15:06:58] INFO  : Sent EVENT_APPLY_BUFFER
+[2026-11-17 15:06:58] INFO  : Sent EVENT_SCREEN_SIZE width=1280 height=720 framerate=30 format=5 type=3 keycode_format=1
+[2026-11-17 15:06:58] INFO  : Received event type=2 (EVENT_ADD_BUFFER)
+[2026-11-17 15:06:58] INFO  : Handling EVENT_ADD_BUFFER
+[2026-11-17 15:06:58] INFO  : Receiving LorieBuffer from socket fd=13 sizeof(LorieBuffer)=120 sizeof(desc)=40
+[2026-11-17 15:06:58] INFO  : Received raw LorieBuffer desc width=1280 stride=1280 height=720 format=5 type=3 id=0 fd=-1
+[2026-11-17 15:06:58] INFO  : Received raw AHardwareBuffer dma-buf fd=14 fds=2 metadata=140 bytes
+[2026-11-17 15:06:58] INFO  : LorieBuffer receive completed out=0xb40000750b3680e0
+[2026-11-17 15:06:58] INFO  : Received buffer width=1280 stride=1280 height=720 format=5 type=3 id=0
+[2026-11-17 15:06:58] INFO  : Sent EVENT_APPLY_SERVER_STATE
+[2026-11-17 15:06:58] INFO  : Received event type=1 (EVENT_SHARED_SERVER_STATE)
+[2026-11-17 15:06:58] INFO  : Handling EVENT_SHARED_SERVER_STATE
+[2026-11-17 15:06:58] INFO  : ancil_recv_fd sock=13 fd=15
+[2026-11-17 15:06:58] INFO  : Received shared server state fd=15
+[2026-11-17 15:06:58] INFO  : Mapped shared server state at 0x73a9051000
+[2026-11-17 15:06:58] INFO  : Sent EVENT_APPLY_EVENT_FD
+[2026-11-17 15:06:58] INFO  : Received event type=19 (EVENT_SHARED_EVENT_FD)
+[2026-11-17 15:06:58] INFO  : Handling EVENT_SHARED_EVENT_FD
+[2026-11-17 15:06:58] INFO  : ancil_recv_fd sock=13 fd=15
+[2026-11-17 15:06:58] INFO  : Received input event fd=15
+[2026-11-17 15:06:58] INFO  : Sent EVENT_CLIENT_VERIFY_SUCCEED
+[2026-11-17 15:06:58] INFO  : Buffer initialization completed
+[2026-11-17 15:06:58] INFO  : Received event type=23 (EVENT_RENDERER_WAKEUP_COND)
+[2026-11-17 15:06:58] INFO  : ancil_recv_fd sock=13 fd=17
+[2026-11-17 15:06:58] INFO  : Mapped renderer wakeup cond var from fd=17
+[2026-11-17 15:06:58] INFO  : Loaded Android platform library /system/lib64/libandroid.so
+[2026-11-17 15:06:58] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=0
+[2026-11-17 15:06:58] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=1
+[2026-11-17 15:06:58] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=2
+2026-11-17 15:06:59 - [src/main.c:333] Found config * for output ANDROID-1 ((null))
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.xfce.Xfconf' requested by ':1.1' (uid=10215 pid=31732 comm="/data/data/com.termux/files/usr/lib/xfce4/notifyd/" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.xfce.Xfconf'
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.gtk.vfs.Daemon' requested by ':1.1' (uid=10215 pid=31732 comm="/data/data/com.termux/files/usr/lib/xfce4/notifyd/" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.gtk.vfs.Daemon'
+ 2026-11-17T07:06:59.529Z INFO  eww::paths > Creating log dir
+ 2026-11-17T07:06:59.530Z INFO  eww        > Initializing Eww server. (/data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f/eww-server_80950c1248359099)
+Run `/data/data/com.termux/files/usr/bin/eww logs` to see any errors while editing your configuration.
+ 2026-11-17T07:06:59.532Z INFO  eww::server > Loading paths: config-dir: /data/data/com.termux/files/home/.termux/hyprland-native-hyprland/config/themes/m3ww-v1, ipc-socket: /data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f/eww-server_80950c1248359099, log-file: /data/data/com.termux/files/home/.termux/hyprland-native-hyprland/cache/eww/eww_80950c1248359099.log
+
+┏━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Initializing eww daemon┃
+┗━━━━━━━━━━━━━━━━━━━━━━━┛
+    
+ 2026-11-17T07:06:59.601Z ERROR eww::config::inbuilt > Couldn't get the battery capacity: Eww doesn't support your OS for getting the battery capacity
+ 2026-11-17T07:06:59.607Z INFO  eww::ipc_server      > IPC server initialized
+ 2026-11-17T07:06:59.739Z INFO  eww::app             > Opening window bar as 'bar'
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.kde.kwalletmanager' requested by ':1.10' (uid=10215 pid=31912 comm="/data/data/com.termux/files/usr/bin/gio launch /da" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+Failed to create wl_display (No such file or directory)
+qt.qpa.plugin: Could not load the Qt platform plugin "wayland" in "" even though it was found.
+qt.qpa.xcb: could not connect to display 
+qt.qpa.plugin: From 6.5.0, xcb-cursor0 or libxcb-cursor0 is needed to load the Qt xcb platform plugin.
+qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it was found.
+This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+
+Available platform plugins are: vkkhrdisplay, vnc, wayland-brcm, wayland-egl, wayland, xcb, eglfs, minimal, offscreen, minimalegl.
+
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activated service 'org.kde.kwalletmanager' failed: Process org.kde.kwalletmanager received signal 6
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.gtk.vfs.Metadata' requested by ':1.13' (uid=10215 pid=31983 comm="thunar" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.gtk.vfs.Metadata'
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.freedesktop.thumbnails.Thumbnailer1' requested by ':1.13' (uid=10215 pid=31983 comm="thunar" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+
+(tumblerd:32010): tumblerd-WARNING **: 15:07:49.215: Couldn't change nice value of process.
+
+(tumblerd:32010): tumbler-WARNING **: 15:07:49.219: Failed to load plugin "tumbler-gepub-thumbnailer.so": dlopen failed: library "libgepub-0.7.so" not found: needed by /data/data/com.termux/files/usr/lib/tumbler-1/plugins/tumbler-gepub-thumbnailer.so in namespace (default)
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.freedesktop.thumbnails.Thumbnailer1'
+ok
+
+ok
+
+ok
+
+ok
+
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.gnome.TextEditor' requested by ':1.25' (uid=10215 pid=32492 comm="/data/data/com.termux/files/usr/bin/gio launch /da" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+
+(process:32498): GLib-GObject-CRITICAL **: 15:09:36.103: g_type_module_use: assertion 'G_IS_TYPE_MODULE (module)' failed
+
+(process:32498): GLib-GIO-WARNING **: 15:09:36.104: Tried to implement non-registered extension point gsettings-backend
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.gnome.TextEditor'
+
+(gnome-text-editor:32498): Gtk-WARNING **: 15:09:36.111: Failed to open display
+{"supervisor": 31718, "env": {"TERMUX_APP__SE_INFO": "default:targetSdkVersion=28:complete", "DEX2OATBOOTCLASSPATH": "/apex/com.android.art/javalib/core-oj.jar:/apex/com.android.art/javalib/core-libart.jar:/apex/com.android.art/javalib/okhttp.jar:/apex/com.android.art/javalib/bouncycastle.jar:/apex/com.android.art/javalib/apache-xml.jar:/system/framework/framework.jar:/system/framework/framework-graphics.jar:/system/framework/framework-location.jar:/system/framework/ext.jar:/system/framework/telephony-common.jar:/system/framework/voip-common.jar:/system/framework/ims-common.jar:/apex/com.android.i18n/javalib/core-icu4j.jar", "TERMUX_APP__PACKAGE_MANAGER": "apt", "EXTERNAL_STORAGE": "/sdcard", "SHELL_CMD__SHELL_ID": "2", "HOME": "/data/data/com.termux/files/home", "TERMUX_APP__USER_ID": "0", "TERMUX_APP__SE_FILE_CONTEXT": "u:object_r:app_data_file:s0:c215,c256,c512,c768", "TERMUX_APP__APK_RELEASE": "GITHUB", "SHELL_CMD__APP_SHELL_NUMBER_SINCE_APP_START": "0", "ANDROID_ASSETS": "/system/app", "BOOTCLASSPATH": "/apex/com.android.art/javalib/core-oj.jar:/apex/com.android.art/javalib/core-libart.jar:/apex/com.android.art/javalib/okhttp.jar:/apex/com.android.art/javalib/bouncycastle.jar:/apex/com.android.art/javalib/apache-xml.jar:/system/framework/framework.jar:/system/framework/framework-graphics.jar:/system/framework/framework-location.jar:/system/framework/ext.jar:/system/framework/telephony-common.jar:/system/framework/voip-common.jar:/system/framework/ims-common.jar:/apex/com.android.i18n/javalib/core-icu4j.jar:/apex/com.android.adservices/javalib/framework-adservices.jar:/apex/com.android.adservices/javalib/framework-sdksandbox.jar:/apex/com.android.appsearch/javalib/framework-appsearch.jar:/apex/com.android.btservices/javalib/framework-bluetooth.jar:/apex/com.android.configinfrastructure/javalib/framework-configinfrastructure.jar:/apex/com.android.conscrypt/javalib/conscrypt.jar:/apex/com.android.devicelock/javalib/framework-devicelock.jar:/apex/com.android.healthfitness/javalib/framework-healthfitness.jar:/apex/com.android.ipsec/javalib/android.net.ipsec.ike.jar:/apex/com.android.media/javalib/updatable-media.jar:/apex/com.android.mediaprovider/javalib/framework-mediaprovider.jar:/apex/com.android.mediaprovider/javalib/framework-pdf.jar:/apex/com.android.mediaprovider/javalib/framework-pdf-v.jar:/apex/com.android.nfcservices/javalib/framework-nfc.jar:/apex/com.android.ondevicepersonalization/javalib/framework-ondevicepersonalization.jar:/apex/com.android.os.statsd/javalib/framework-statsd.jar:/apex/com.android.permission/javalib/framework-permission.jar:/apex/com.android.permission/javalib/framework-permission-s.jar:/apex/com.android.profiling/javalib/framework-profiling.jar:/apex/com.android.scheduling/javalib/framework-scheduling.jar:/apex/com.android.sdkext/javalib/framework-sdkextensions.jar:/apex/com.android.tethering/javalib/framework-connectivity.jar:/apex/com.android.tethering/javalib/framework-connectivity-t.jar:/apex/com.android.tethering/javalib/framework-tethering.jar:/apex/com.android.uwb/javalib/framework-uwb.jar:/apex/com.android.virt/javalib/framework-virtualization.jar:/apex/com.android.wifi/javalib/framework-wifi.jar", "TERMUX_APP__IS_INSTALLED_ON_EXTERNAL_STORAGE": "false", "COLORTERM": "truecolor", "TERMUX_APP__AM_SOCKET_SERVER_ENABLED": "true", "TMPDIR": "/data/data/com.termux/files/usr/tmp", "TERMUX_APP__IS_DEBUGGABLE_BUILD": "true", "PULSE_SERVER": "tcp:127.0.0.1:4713", "TERMUX_VERSION": "0.118.0", "SHELL_CMD__RUNNER_NAME": "app-shell", "TERMUX_APP__PACKAGE_NAME": "com.termux", "TERM": "xterm-256color", "ANDROID_DATA": "/data", "PATH": "/data/data/com.termux/files/home/.termux/hyprland-native-hyprland/bin:/data/data/com.termux/files/usr/opt/termux-hyprland/0.57.0-r7/bin:/data/data/com.termux/files/usr/bin:/system/bin", "ANDROID_I18N_ROOT": "/apex/com.android.i18n", "ANDROID_ROOT": "/system", "LANG": "en_US.UTF-8", "TERMUX_APP__PID": "30757", "TERMUX_APP__FILES_DIR": "/data/user/0/com.termux/files", "PREFIX": "/data/data/com.termux/files/usr", "TERMUX_APP__PACKAGE_VARIANT": "apt-android-7", "ANDROID_TZDATA_ROOT": "/apex/com.android.tzdata", "SHELL_CMD__APP_SHELL_NUMBER_SINCE_BOOT": "41", "TERMUX_APP__SE_PROCESS_CONTEXT": "u:r:untrusted_app_27:s0:c215,c256,c512,c768", "TERMUX_APP__UID": "10215", "TERMUX_APP__VERSION_CODE": "118", "TERMUX_APP__APK_PATH": "/data/app/~~Sa0UEK4TdfTN6vOXzftcvQ==/com.termux-kQ0sAgaC_3N9c_ln_7dACQ==/base.apk", "ASEC_MOUNTPOINT": "/mnt/asec", "PWD": "/data/user/0/com.termux/files/front/runtime", "SYSTEMSERVERCLASSPATH": "/system/framework/com.android.location.provider.jar:/system/framework/services.jar:/apex/com.android.adservices/javalib/service-adservices.jar:/apex/com.android.adservices/javalib/service-sdksandbox.jar:/apex/com.android.appsearch/javalib/service-appsearch.jar:/apex/com.android.art/javalib/service-art.jar:/apex/com.android.configinfrastructure/javalib/service-configinfrastructure.jar:/apex/com.android.healthfitness/javalib/service-healthfitness.jar:/apex/com.android.media/javalib/service-media-s.jar:/apex/com.android.ondevicepersonalization/javalib/service-ondevicepersonalization.jar:/apex/com.android.permission/javalib/service-permission.jar:/apex/com.android.rkpd/javalib/service-rkp.jar:/apex/com.android.virt/javalib/service-virtualization.jar", "TERMUX_APP__TARGET_SDK": "28", "SHELL_CMD__PACKAGE_NAME": "com.termux", "TERMUX_APP__VERSION_NAME": "0.118.0", "ANDROID_STORAGE": "/storage", "ANDROID_ART_ROOT": "/apex/com.android.art", "SHELL_CMD__SHELL_NAME": "local-games-desktop-start-native-hyprland-1794899218487", "LD_LIBRARY_PATH": "/data/data/com.termux/files/usr/opt/termux-hyprland/0.57.0-r7/lib:/data/data/com.termux/files/usr/lib", "XDG_RUNTIME_DIR": "/data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f", "XDG_CONFIG_HOME": "/data/data/com.termux/files/home/.termux/hyprland-native-hyprland/config", "XDG_CACHE_HOME": "/data/data/com.termux/files/home/.termux/hyprland-native-hyprland/cache", "XDG_DATA_HOME": "/data/data/com.termux/files/home/.termux/hyprland-native-hyprland/data", "XDG_DATA_DIRS": "/data/data/com.termux/files/usr/opt/termux-hyprland/0.57.0-r7/share:/data/data/com.termux/files/usr/share", "XDG_CURRENT_DESKTOP": "Hyprland", "XDG_SESSION_TYPE": "wayland", "XKB_CONFIG_ROOT": "/data/data/com.termux/files/usr/opt/termux-hyprland/0.57.0-r7/share/X11/xkb", "HYPRLAND_ANDROID_BACKEND": "1", "HYPRLAND_NO_RT": "1", "TERMUX_HYPRLAND_SESSION": "aca14f2e643b536532c1895237230bb2", "AQ_ANDROID_WIDTH": "1280", "AQ_ANDROID_HEIGHT": "720", "AQ_ANDROID_REFRESH": "30", "DBUS_SESSION_BUS_ADDRESS": "unix:path=/data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f/session-bus", "HYPRLAND_INSTANCE_SIGNATURE": "a_1794899218_2d88c308", "WAYLAND_DISPLAY": "wayland-1", "GDK_BACKEND": "wayland"}, "host_gl_mode": "system", "client_gl_mode": "default", "runtime_id": "0.57.0-r7", "theme_id": "m3ww-v1"}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.desktop.activity.DesktopCreateRenderingTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-17T05:27:57" hostname="skynet-env-362805450227519488-378012184997830656-vjdrl" time="13.43">
+  <properties/>
+  <testcase name="nativeKeepsCreatedCardsAndSelectsFirstAvailableUntilFull" classname="com.termux.ui.desktop.activity.DesktopCreateRenderingTest" time="4.085"/>
+  <testcase name="prootAllowsRepeatsAndReflowRetainsSelectionAndEditedName" classname="com.termux.ui.desktop.activity.DesktopCreateRenderingTest" time="0.297"/>
+  <testcase name="creationCardsStayCompactInFiniteViewportsAndKeepLabelsInside" classname="com.termux.ui.desktop.activity.DesktopCreateRenderingTest" time="6.464"/>
+  <testcase name="nightCreationCardsStayCompactInFiniteViewportsAndKeepLabelsInside" classname="com.termux.ui.desktop.activity.DesktopCreateRenderingTest" time="1.67"/>
+  <testcase name="recreationRetainsSelectedDesktopAndEditedName" classname="com.termux.ui.desktop.activity.DesktopCreateRenderingTest" time="0.374"/>
+  <testcase name="creationShowsSupportedDesktopCardsAndExplicitRendererLayers" classname="com.termux.ui.desktop.activity.DesktopCreateRenderingTest" time="0.241"/>
+  <testcase name="desktopScriptsDeployTheRequiredPairValidatorAndRepairIt" classname="com.termux.ui.desktop.activity.DesktopCreateRenderingTest" time="0.08"/>
+  <testcase name="nativeUbuntuHasFourCardsAndItsOwnStyleHint" classname="com.termux.ui.desktop.activity.DesktopCreateRenderingTest" time="0.213"/>
+  <system-out><![CDATA[Called loadFromPath(/system/framework/framework-res.apk, true); mode=binary sdk=28
+Called loadFromPath(/system/framework/framework-res.apk, true); mode=binary sdk=28
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

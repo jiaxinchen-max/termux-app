@@ -27,6 +27,7 @@ import com.termux.ui.desktop.domain.DesktopDistro;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -166,11 +167,31 @@ final class DesktopArchiveFlow {
                 String date = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(new Date());
                 begin(current -> current.exportDesktop(distro.getId(),
                     com.termux.ui.platform.ExternalBackupLocation.newArchive(activity,
-                        distro.getId() + "-" + date + EXTENSION)));
+                        archiveName(distro, date))));
 
             })
             .setOnDismissListener(dialog -> confirmation = null)
             .show();
+    }
+
+    private static String archiveName(DesktopDistro distro, String date) {
+        String original = distro.getName().trim();
+        StringBuilder name = new StringBuilder();
+        int bytes = 0;
+        for (int offset = 0; offset < original.length();) {
+            int codePoint = original.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            if (Character.isISOControl(codePoint) || "/\\:*?\"<>|".indexOf(codePoint) >= 0
+                || (name.length() == 0 && codePoint == '.')) codePoint = '_';
+            String character = new String(Character.toChars(codePoint));
+            int length = character.getBytes(StandardCharsets.UTF_8).length;
+            // Leave room for the ID, timestamp, archive suffix and collision counter.
+            if (bytes + length > 80) break;
+            name.append(character);
+            bytes += length;
+        }
+        return (name.length() == 0 ? "container" : name.toString())
+            + "-" + distro.getId() + "-" + date + EXTENSION;
     }
 
     private boolean refuseBusy() {

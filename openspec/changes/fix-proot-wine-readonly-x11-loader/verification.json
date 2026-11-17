@@ -1,0 +1,117 @@
+{
+  "change_id": "fix-proot-wine-readonly-x11-loader",
+  "recorded_at": "2026-11-17T09:02:29.651457+00:00",
+  "root_cause": "此前将 deb 数据中 loader 模式改为 0444，非 root dpkg 在安全同步阶段以 O_WRONLY 重开 .dpkg-new 时失败；原验证未覆盖此阶段。",
+  "correction": "归档数据恢复既有 0755；postinst/post_install 后及 Games 加载前移除写权限。保留安全同步、名称、版本、依赖及其他功能。",
+  "approval": "Direct_User_Request_Restore_Working_Installation",
+  "source_sha256": {
+    "build_termux_package": "a938044a18b1784b9276885387f9d27111d6292c450cdcb7760758bb2fb4c692",
+    "app/src/main/assets/termux-x11-nightly-1.04.10-0-all.deb": "6935adb931f2fb2143d1a28ee29e9e2d8baea3562671374fc6d136a77c429ebc",
+    "app/src/test/scripts/test_x11_bridge_install.py": "d08805943acfc9ed8410f68fdc6b8107d10bff29c6a45b122363dff568c70dc5",
+    "app/src/main/java/com/termux/app/localgames/TermuxGamesX11BridgeInstaller.java": "37c4936e7ecc8e2d15487d62b278f3f7049bed38a6ecceba02e1a41e23eaab47",
+    "app/src/test/java/com/termux/app/localgames/TermuxGamesX11BridgeMigrationTest.java": "feb1715c4a78092c9379a7fbb95a31426cf48acea5e18d28696993e9e09b7361"
+  },
+  "checks": [
+    {
+      "name": "真实普通 UID dpkg 复现用户错误",
+      "status": "Passed",
+      "expected_exit_code": 1,
+      "evidence": "/home/user/workspace/artifacts/bridge-install-regression/unprivileged-dpkg-before-fix.log"
+    },
+    {
+      "name": "新增真实 dpkg 回归先红",
+      "status": "Passed",
+      "expected_test_failures": 2,
+      "evidence": "/home/user/workspace/artifacts/bridge-install-regression/dpkg-regression-red.log"
+    },
+    {
+      "name": "桥接安装 Python 测试",
+      "status": "Passed",
+      "tests": 8,
+      "exit_code": 0,
+      "evidence": "/home/user/workspace/artifacts/bridge-install-regression/bridge-tests-green.log"
+    },
+    {
+      "name": "模拟器真实 Termux dpkg 隔离首次解包",
+      "status": "Passed",
+      "exit_code": 0,
+      "evidence": "/home/user/workspace/artifacts/bridge-install-regression/device-isolated-dpkg-first.log"
+    },
+    {
+      "name": "模拟器隔离目录只读旧 loader 重装、安装钩子及 Android 动态加载",
+      "status": "Passed",
+      "exit_code": 0,
+      "evidence": "/home/user/workspace/artifacts/bridge-install-regression/device-isolated-dpkg-reinstall-and-loader.log"
+    },
+    {
+      "name": "Pacman 包内权限和真实 post_install 执行",
+      "status": "Passed",
+      "evidence": "/home/user/workspace/artifacts/bridge-install-regression/pacman-verification.json"
+    },
+    {
+      "name": "先前 Java 测试及启动脚本集成",
+      "status": "Reused_NoRelevantSourceChanges",
+      "java_tests": 8,
+      "evidence": "/home/user/workspace/artifacts/proot-wine-xserver/verification.json"
+    },
+    {
+      "name": "原名 arm64 APK 构建和签名/资产校验",
+      "status": "Passed",
+      "evidence": "/home/user/workspace/artifacts/bridge-install-regression/candidate/apk-verification.json"
+    },
+    {
+      "name": "APK 原文件名、应用包名、版本及全部语言标签对比",
+      "status": "Passed",
+      "evidence": "/home/user/workspace/artifacts/bridge-install-regression/naming-verification.json"
+    },
+    {
+      "name": "下载及哈希侧文件",
+      "status": "Passed",
+      "evidence": "/home/user/workspace/artifacts/bridge-install-regression/download-verification.json"
+    },
+    {
+      "name": "git diff --check",
+      "status": "Passed",
+      "exit_code": 0
+    },
+    {
+      "name": "Harness 严格门禁",
+      "status": "Unavailable",
+      "exit_code": 127,
+      "reason": "仓库缺少 .harness/scripts/verify.sh",
+      "evidence": "/home/user/workspace/artifacts/bridge-install-regression/strict-gate.log"
+    },
+    {
+      "name": "完整 Wine 会话及新 APK 设备安装",
+      "status": "Pending_NotPerformed"
+    }
+  ],
+  "evidence_sha256": {
+    "device-package-state.txt": "5fd48e8e48211a4258073646722222e73627862a88f185a04bc1142d501fc665",
+    "withdrawal.json": "a921c756b0b1928c2a72da906c4470bb0ed0c5aa8f44033f2ac784be07ef6f19",
+    "unprivileged-dpkg-before-fix.log": "176af49b28408cfb21bb432083ba6451a4256bf81a20130ac463c84ccd161f8a",
+    "dpkg-regression-red.log": "c2526cdbc2aa13117a1f5fbbd431aa994de0036865f505204c710d5cc16aae71",
+    "build-bridge-package.log": "596768f19d0431ceb51a6c0942d17e259ba6bb57969d4921677bbd71b3f1e3b9",
+    "bridge-tests-green.log": "df2bdbffb57ec68fc477ad5e47a1e681b300631212f7ff5422ae675b962797d2",
+    "device-isolated-dpkg-first.log": "971be67546d45020588d24e10b5dbc0045912a2bcbc3fb5beaa298f17f66cb6c",
+    "build-apk.log": "72166626824bb43ef48acc402c9f7fb169f0bb7d8bd8004cc054dd06b508a59d",
+    "strict-gate.log": "311d57e1a6080076fedd98f0673846d77a2930bec78acbe6a41a87c87215fda0",
+    "device-isolated-dpkg-reinstall-and-loader.log": "11d211b97c8673255aae609c394dd5a465b13508313d147ffee63390afd4d07f",
+    "apk-verification.log": "f3f58bab56c409f91862c2543d0ae68b2a03efcdb6f7aa78df6b15a21ad2b57d",
+    "naming-verification.json": "4d544caa67901ce810eddcaae90ba3a31f3940c9cdd3b1892982f217ff4054c5",
+    "pacman-verification.json": "a3ba9c06e2207b7b1aba8ef8c8754d3b1431c62858e961c869ec153e2cea8e8e",
+    "download-verification.json": "e3de930b84e3c4904f7b07a271524edc36ba18a2d29f82e909801184c50eb801"
+  },
+  "delivery": {
+    "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "bytes": 45484302,
+    "sha256": "78cbb91812ece05dd966ca09f140d8a4d259b3ad997afdfae745795004b0f1af",
+    "download_matches": true,
+    "sidecar_matches": true,
+    "previous_apk_bytes": 45484304,
+    "size_change_from_previous_good": -2
+  },
+  "product_consistency": "Pending",
+  "archive": "NotRequested",
+  "git_operations": "NoStageCommitPushOrBranchSwitch"
+}

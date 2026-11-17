@@ -1,0 +1,8 @@
+{
+  "change_id": "restore-native-desktop-entries",
+  "status": "Pending",
+  "reason": "等待用户真机验收；未创建或改写正式产品知识",
+  "planned_document": "docs/product/desktops.md",
+  "local_evidence": "verification.json",
+  "code_review": "implementation-review.yaml"
+}

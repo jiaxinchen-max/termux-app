@@ -1,0 +1,6 @@
+fresh default-renderer launch
+stopped diagnostic instance 1492
+new pid 1819
+exit None output 
+mapped clients [('foot', 32061, True, True), ('thunar', 31983, True, True), ('org.kde.kwalletmanager', 873, True, True), ('org.gnome.TextEditor', 1220, True, True), ('org.gnome.Calculator', 1669, True, True), ('org.gnome.Calculator', 1819, True, True)]
+new environment {'WAYLAND_DISPLAY': 'wayland-1', 'XDG_RUNTIME_DIR': '/data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f', 'LD_LIBRARY_PATH': None, 'GSK_RENDERER': None, 'GTK_A11Y': None}

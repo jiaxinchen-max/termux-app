@@ -43,16 +43,12 @@ class ShellTests(unittest.TestCase):
             for name, text in originals.items():
                 self.assertEqual(text, (work / name).read_text())
 
-    def testContainerMenuOnlyAdvertisesRoutedClientsAndDesktopControls(self):
+    def testHostCannotPrepareContainerUi(self):
         with tempfile.TemporaryDirectory() as temp:
             work = Path(temp)
-            (work / 'bin').mkdir()
-            h.prepare(work, 'proot', 'classic-r7')
-            menu = (work / 'config/menus/hyprland-applications.menu').read_text()
-            self.assertNotIn('<All', menu)
-            for action in ['terminal', 'files']:
-                desktop = (work / ('data/applications/termux-hyprland-' + action + '.desktop')).read_text()
-                self.assertIn(str(work / ('bin/termux-hyprland-' + action)), desktop)
+            with self.assertRaisesRegex(RuntimeError, 'inside Ubuntu'):
+                h.prepare(work, 'proot', 'classic-r7')
+            self.assertFalse((work / 'data/applications').exists())
 
     def testBatteryRequiresFreshValidAndroidData(self):
         with tempfile.TemporaryDirectory() as temp:

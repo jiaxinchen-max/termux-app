@@ -28,7 +28,9 @@ def digest(path):
 def resolve(runtime_id, theme_id):
     runtime = CATALOG['runtimes'].get(runtime_id)
     theme = CATALOG['themes'].get(theme_id)
-    if runtime is None or theme is None or runtime_id not in theme['runtime_ids']:
+    # None denotes Ubuntu client resources, not a compositor/theme version pair.
+    if theme is None or (runtime_id is not None and
+                         (runtime is None or runtime_id not in theme['runtime_ids'])):
         raise ValueError('Unsupported Hyprland runtime/theme combination')
     return runtime, theme
 
@@ -45,7 +47,7 @@ def verify_theme(root, runtime_id, theme_id):
         raise RuntimeError('Hyprland theme manifest mismatch: ' + theme_id)
     manifest = json.loads((root / 'manifest.json').read_text())
     if (manifest.get('schema') != 1 or manifest.get('id') != theme_id
-            or runtime_id not in manifest.get('runtime_ids', [])):
+            or (runtime_id is not None and runtime_id not in manifest.get('runtime_ids', []))):
         raise RuntimeError('Hyprland theme identity mismatch')
     actual = set()
     for path in root.rglob('*'):
@@ -200,7 +202,7 @@ def install_theme(runtime_id, theme_id, archive=None):
 
 
 def resources(theme_id):
-    return verify_theme(theme_root(theme_id), '0.57.0-r7', theme_id)
+    return verify_theme(theme_root(theme_id), None if os.environ.get('TERMUX_HYPRLAND_GUEST') == '1' else '0.57.0-r7', theme_id)
 
 
 if __name__ == '__main__':

@@ -13,6 +13,7 @@ import re
 import runpy
 import shlex
 import shutil
+import signal
 import subprocess
 import time
 import unicodedata
@@ -20,6 +21,16 @@ import unicodedata
 PREFIX = Path(os.environ.get('PREFIX', '/data/data/com.termux/files/usr'))
 HOME = Path(os.environ.get('HOME', '/data/data/com.termux/files/home'))
 VERSION = 'm3ww-v1'
+GUEST = os.environ.get('TERMUX_HYPRLAND_GUEST') == '1'
+
+def guest_module():
+    return runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_guest.py')))
+
+def battery_path():
+    return Path(os.environ.get('TERMUX_HYPRLAND_BATTERY', str(HOME.parent/'front/desktop/state/android-battery.json')))
+
+def notify_binary():
+    return next((str(p) for p in (PREFIX/'lib').glob('**/xfce4/notifyd/xfce4-notifyd')), str(PREFIX/'lib/xfce4/notifyd/xfce4-notifyd'))
 
 def default(path, text):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -87,7 +98,7 @@ def prepare(work, run_mode):
     terminal = work / 'bin/termux-hyprland-terminal-themed'
     terminal.write_text('#!'+str(PREFIX/'bin/sh')+'\nexec '+shlex.join([str(PREFIX/'bin/env'),'-u','LD_LIBRARY_PATH','-u','LD_PRELOAD',str(PREFIX/'bin/foot'),'--working-directory='+str(HOME),'--config='+str(theme/'foot.ini'),str(PREFIX/'bin/fish'),'--no-config','--init-command=source '+shlex.quote(str(theme/'fish/config.fish'))])+' "$@"\n')
     terminal.chmod(0o700)
-    if run_mode == 'native':
+    if run_mode in ('native', 'guest'):
         (work/'bin/termux-hyprland-terminal').write_text('#!'+str(PREFIX/'bin/sh')+'\nexec '+shlex.quote(str(terminal))+' "$@"\n')
     fonts = work / 'data/fonts'
     fonts.mkdir(parents=True,exist_ok=True)
@@ -104,7 +115,7 @@ def prepare(work, run_mode):
     blur = 'true' if effects.read_text().strip()=='blur' else 'false'
     # A launch overlay loads the untouched user file before the chosen theme settings.
     overlay = theme/'session.lua'
-    overlay.write_text('dofile('+json.dumps(str(work/'config/hyprland.lua'))+')\n'+'''hl.config({ general = { gaps_in = 5, gaps_out = 12, border_size = 2,
+    overlay.write_text(('' if GUEST else 'dofile('+json.dumps(str(work/'config/hyprland.lua'))+')\n')+'''hl.config({ general = { gaps_in = 5, gaps_out = 12, border_size = 2,
  col = { active_border = { colors = {"rgba(a6c9ffff)", "rgba(c8b6ffff)"}, angle = 45 }, inactive_border = "rgba(514f7388)" } },
  decoration = { rounding = 15, blur = { enabled = '''+blur+''', size = 3, passes = 1 }, shadow = { enabled = true, range = 12, render_power = 3, color = "rgba(05091888)" } },
  animations = { enabled = true },
@@ -119,16 +130,21 @@ hl.bind("SUPER + Space", hl.dsp.exec_cmd("termux-hyprland-theme launcher"))
     (work/'theme-session-config').write_text(str(overlay))
     (theme/'run-mode').write_text(run_mode)
     return [[str(PREFIX/'bin/swaybg'),'-i',str(theme/'wallpaper.svg'),'-m','fill'],
-            [str(PREFIX/'lib/xfce4/notifyd/xfce4-notifyd')],
+            [notify_binary()],
             [str(launcher),'serve']]
 
 def session(work):
     state=json.loads((work/'session.json').read_text())
     if not (Path('/proc')/str(state['supervisor'])).exists():
         raise RuntimeError('Desktop is not running')
+    if GUEST and state.get('token') != os.environ.get('TERMUX_HYPRLAND_SESSION'):
+        raise RuntimeError('Desktop session identity changed')
     return state
 
 def ipc(work,*args):
+    if GUEST:
+        session(work)
+        return guest_module()['ipc'](*args)
     state=session(work)
     executable=next((Path(p)/'hyprctl' for p in state['env']['PATH'].split(':') if (Path(p)/'hyprctl').is_file()),None)
     if executable is None:raise RuntimeError('Hyprland IPC missing')
@@ -164,6 +180,10 @@ def task_markup(work,clients,active):
     return '(box :space-evenly false :spacing 4 '+' '.join(buttons)+')'
 
 def apps(work,run_mode):
+    if GUEST:
+        return guest_module()['apps']()
+    if run_mode == 'proot':
+        raise RuntimeError('Container applications must be discovered inside Ubuntu')
     result=[dict(name='Terminal',description='Foot · Fish · Starship' if run_mode=='native' else 'Container terminal',icon='utilities-terminal',command=[str(work/'bin/termux-hyprland-terminal')]),dict(name='Files',description='File manager',icon='system-file-manager',command=[str(work/'bin/termux-hyprland-files')])]
     if run_mode=='native':
         seen=set()
@@ -193,7 +213,7 @@ def dialog(work, kind):
     import gi
     gi.require_version('Gtk', '3.0')
     gi.require_version('GtkLayerShell', '0.1')
-    from gi.repository import Gtk, Gdk, GtkLayerShell
+    from gi.repository import Gtk, Gdk, GtkLayerShell, GLib
     Gtk.init([])
     window = Gtk.Window(title='Hyprland desktop')
     window.set_default_size(600, 520)
@@ -247,15 +267,24 @@ def dialog(work, kind):
         root.pack_start(scroll, True, True, 0)
         listing = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         scroll.add(listing)
-        items = apps(work, (theme / 'run-mode').read_text())
         rows = []
         def launch(item):
-            subprocess.Popen(item['command'], cwd=str(HOME), close_fds=True)
+            if GUEST and 'desktop_id' in item:
+                try:
+                    guest_module()['launch'](item['desktop_id'])
+                except (OSError, ValueError, RuntimeError, GLib.Error) as error:
+                    label(str(error), 'muted')
+                    return
+            else:
+                subprocess.Popen(item['command'], cwd=str(HOME), close_fds=True)
             window.destroy()
-        for item in items:
+        def add_app(item):
             row = Gtk.Button()
             rowbox = Gtk.Box(spacing=14)
-            rowbox.pack_start(Gtk.Image.new_from_icon_name(item['icon'], Gtk.IconSize.DIALOG), False, False, 0)
+            icon = (Gtk.Image.new_from_gicon(item['icon'], Gtk.IconSize.DIALOG)
+                    if GUEST and item['icon'] is not None else
+                    Gtk.Image.new_from_icon_name(item['icon'] if not GUEST else 'application-x-executable', Gtk.IconSize.DIALOG))
+            rowbox.pack_start(icon, False, False, 0)
             text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
             label(item['name'], parent=text)
             label(item['description'], 'muted', text)
@@ -264,11 +293,38 @@ def dialog(work, kind):
             row.connect('clicked', lambda _, item=item: launch(item))
             listing.pack_start(row, False, False, 0)
             rows.append((row, item))
+        try:
+            initial_apps = apps(work, (theme / 'run-mode').read_text())
+        except (OSError, ValueError, RuntimeError, GLib.Error) as error:
+            label('Application directory unavailable: ' + str(error), 'muted')
+            initial_apps = []
+        for item in initial_apps:
+            add_app(item)
         def search(*_):
             query = entry.get_text().casefold()
             for row, item in rows:
                 row.set_visible(query in (item['name'] + ' ' + item['description']).casefold())
         entry.connect('search-changed', search)
+        if GUEST:
+            from gi.repository import Gio
+            def refresh_apps():
+                try:
+                    items = apps(work, 'guest')
+                except (OSError, ValueError, RuntimeError, GLib.Error) as error:
+                    entry.set_placeholder_text('Application directory unavailable: ' + str(error))
+                    items = []
+                for row, item in list(rows):
+                    if 'desktop_id' in item:
+                        row.destroy(); rows.remove((row, item))
+                for item in items:
+                    add_app(item)
+                listing.show_all(); search()
+                return True
+            timer = GLib.timeout_add_seconds(3, refresh_apps)
+            monitor = Gio.AppInfoMonitor.get()
+            changed = monitor.connect('changed', lambda *_: refresh_apps())
+            window.connect('destroy', lambda *_: GLib.source_remove(timer))
+            window.connect('destroy', lambda *_: monitor.disconnect(changed))
         def accept(*_):
             query = entry.get_text().casefold()
             for row, item in rows:
@@ -288,7 +344,7 @@ def dialog(work, kind):
         entry.grab_focus()
     elif kind == 'dashboard':
         label(datetime.datetime.now().strftime('%H:%M'), 'heading')
-        label(battery(HOME.parent / 'front/desktop/state/android-battery.json'), 'muted')
+        label(battery(battery_path()), 'muted')
         root.pack_start(Gtk.Calendar(), True, True, 0)
         window.show_all()
     else:
@@ -355,12 +411,18 @@ def dispatch(work,action,value=None):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--work',type=Path,required=True);parser.add_argument('action',choices=['serve','watch','launcher','dashboard','settings','workspace','focus','float','close']);parser.add_argument('value',nargs='?');a=parser.parse_args();work=a.work
-    if work.parent!=HOME/'.termux' or not re.fullmatch(r'hyprland-desktop-[A-Za-z0-9._-]+',work.name):parser.error('Invalid desktop path')
+    expected_parent = HOME/'.local/share/termux-hyprland' if GUEST else HOME/'.termux'
+    # The fixed Native entry uses native-hyprland; older entries use desktop-*.
+    pattern = r'desktop-[A-Za-z0-9._-]+' if GUEST else r'hyprland-(?:native-hyprland|desktop-[A-Za-z0-9._-]+)'
+    if work.parent!=expected_parent or not re.fullmatch(pattern,work.name):parser.error('Invalid desktop path')
     theme=work/'config/themes'/VERSION
     if a.action=='serve':
-        cmd=[str(PREFIX/'bin/eww'),'--config',str(theme)]
+        cmd=[os.environ.get('TERMUX_HYPRLAND_EWW',str(PREFIX/'bin/eww')),'--config',str(theme)]
         # Foreground daemon stays under the session supervisor; no stale detached server.
         process=subprocess.Popen([*cmd,'daemon','--force-wayland','--no-daemonize'])
+        def stop(signum, frame):
+            raise KeyboardInterrupt
+        signal.signal(signal.SIGTERM, stop)
         try:
             for _ in range(60):
                 if process.poll() is not None:raise RuntimeError('EWW daemon exited')
@@ -369,6 +431,8 @@ def main():
                 time.sleep(.1)
             else:raise RuntimeError('EWW bar did not open')
             raise SystemExit(process.wait())
+        except KeyboardInterrupt:
+            return
         finally:
             process.terminate()
             try:process.wait(timeout=3)
@@ -377,7 +441,7 @@ def main():
         while True:
             try:
                 clients=json.loads(ipc(work,'-j','clients'));active=json.loads(ipc(work,'-j','activewindow'));workspace=json.loads(ipc(work,'-j','activeworkspace'))
-                value=dict(workspace=workspace['id'],tasks=task_markup(work,clients,active.get('address')),battery=battery(HOME.parent/'front/desktop/state/android-battery.json'),clock=datetime.datetime.now().strftime('%H:%M'),date=datetime.datetime.now().strftime('%A · %d %B %Y'),count=len(clients))
+                value=dict(workspace=workspace['id'],tasks=task_markup(work,clients,active.get('address')),battery=battery(battery_path()),clock=datetime.datetime.now().strftime('%H:%M'),date=datetime.datetime.now().strftime('%A · %d %B %Y'),count=len(clients))
                 print(json.dumps(value,ensure_ascii=False),flush=True)
             except (OSError,ValueError,KeyError,RuntimeError,subprocess.SubprocessError):
                 if not (work/'session.json').exists():return

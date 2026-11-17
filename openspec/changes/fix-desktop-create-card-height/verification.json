@@ -1,0 +1,68 @@
+{
+  "change_id": "fix-desktop-create-card-height",
+  "tests": {
+    "DesktopCreateRenderingTest": {
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "DesktopCreateInstallTest": {
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "DesktopGalleryRefreshTest": {
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "total_tests": 18,
+  "reproduction": "Before fix: NATIVE font=1.0 viewport=96x320 expected 52, actual 314; assertion failure retained",
+  "geometry_matrix": "64 viewport/mode/font/theme configurations, four cards each; Android native graphics measurement",
+  "build": "Passed_arm64_debug",
+  "apk": "Verified",
+  "previous_apk_comparison": {
+    "added": [],
+    "removed": [],
+    "changed": [
+      "META-INF/CERT.RSA",
+      "META-INF/CERT.SF",
+      "META-INF/MANIFEST.MF",
+      "classes2.dex",
+      "res/layout/item_desktop_option.xml"
+    ]
+  },
+  "device": "Pending; adb lists no connected devices",
+  "strict_gate": "Unavailable_missing_script_exit_127",
+  "product_consistency": "Pending",
+  "download": {
+    "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "http_status": 200,
+    "downloaded_bytes": 46707904,
+    "sha256": "d8129dca3735af11353cd7a8a45b7bac29a2e1b856a990aa8790ee6adee0db63",
+    "matches_verified_apk": true,
+    "proxy": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122516548376911873/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "proxy_validation": "User authenticated proxy not tested; full localhost download verified"
+  },
+  "source_sha256": {
+    "termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopCreateActivity.java": "1b76c5375f0659857bf19c41ccd9bc01804031880517a0754a33c7db31778472",
+    "termux-ui/src/main/res/layout/item_desktop_option.xml": "267f3b30dcb19582c811feed9e6a13e4ff166a5820be812014775bbfb7aaf91d",
+    "app/src/test/java/com/termux/ui/desktop/activity/DesktopCreateRenderingTest.java": "1117cb77249019f78b79ed1efddd250db1d262eda6a592be27a8fdd298123a9f",
+    "termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopActivity.java": "650e3bc06ceb7dc8ffbced94eb5f9a083ce3acfdce05d334bc732cbcfaf9268c"
+  },
+  "evidence_sha256": {
+    "build.log": "51d158af72f4fd3ce800fdf73427f257d4d2bfe21c7974c54c6d03597738d4ad",
+    "tests.log": "826987d75248be7aba6e75784de8a3d05263ca3a6e35c2da675f74e81bbbd49d",
+    "reproduction.log": "d190e6ec73c2a1f4ac78b3c15cafa6489fa12847d8e3edb663e6e79d6a76fe59",
+    "reproduction.xml": "a94c69686c675dacf391f71d322db2d4fae768c68591fc553d22dc8b2913c272",
+    "strict-gate.log": "311d57e1a6080076fedd98f0673846d77a2930bec78acbe6a41a87c87215fda0",
+    "download-verification.json": "4ea94cb7217410b89183d5913d46bc8e2e9aabf97b6cabd8b3d065321bb55115",
+    "TEST-com.termux.ui.desktop.activity.DesktopCreateRenderingTest.xml": "c47ee6b23346de786954235e928c1dbdb579af92f07758ac7bf3e406b2797697",
+    "TEST-com.termux.ui.desktop.activity.DesktopCreateInstallTest.xml": "507ff40381762da6fe400e6287aa32022abb1c0e7a2ade05d04f98550f6a59ef",
+    "TEST-com.termux.ui.desktop.activity.DesktopGalleryRefreshTest.xml": "10f1e5f596d6b3e3731f378cab183166d26bb47b421257c7d3488acad3e2b7b8"
+  }
+}

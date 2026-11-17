@@ -66,11 +66,20 @@ public class DesktopRestoreInitializationTest {
         compositorRestore(DesktopDe.HYPRLAND, 0);
     }
 
+    @Test public void nativeOutputRestoresWithNumericPreparationForBothCompositors() throws Exception {
+        compositorRestore(DesktopDe.UBUNTU_GNOME, 0, true);
+        compositorRestore(DesktopDe.HYPRLAND, 0, true);
+    }
+
     @Test public void audioFailureCannotPublishSuccessfulHyprlandRestoration() throws Exception {
         compositorRestore(DesktopDe.HYPRLAND, 72);
     }
 
     private void compositorRestore(DesktopDe de, int audioExit) throws Exception {
+        compositorRestore(de, audioExit, false);
+    }
+
+    private void compositorRestore(DesktopDe de, int audioExit, boolean nativeOutput) throws Exception {
         File folder = work.newFolder(de.getStorageValue() + " task " + audioExit);
         File assets = new File(folder, "trusted assets");
         assertTrue(assets.mkdir());
@@ -84,7 +93,7 @@ public class DesktopRestoreInitializationTest {
         DesktopDistro restored = new DesktopDistro(id, "Restored desktop", DesktopRunMode.PROOT,
             alias, de, DesktopGlMode.SYSTEM,
             de == DesktopDe.HYPRLAND ? DesktopGuestGlMode.DEFAULT : DesktopGuestGlMode.LLVMPIPE,
-            "1280x720", 60, DesktopUsbStorageMode.OFF,
+            nativeOutput ? "native" : "1280x720", 60, DesktopUsbStorageMode.OFF,
             de == DesktopDe.HYPRLAND ? "0.57.0-r7" : "", de == DesktopDe.HYPRLAND ? "classic-r7" : "");
         File ready = new File(folder, "persistent state/" + id + ".pid."
             + (de == DesktopDe.HYPRLAND ? "hyprland" : "gnome") + "-ready");

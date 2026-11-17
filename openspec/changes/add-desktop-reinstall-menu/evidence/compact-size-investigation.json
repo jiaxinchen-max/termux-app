@@ -1,0 +1,100 @@
+{
+  "before-desktop-reinstall-menu": {
+    "bytes": 46708524,
+    "sha256": "443f45e7e155e154dcfa18ff59cbc72b406620a989f163e37d30047a87c67c37",
+    "entries": 2486,
+    "compressed_payload_bytes": 45030240,
+    "gap_bytes": 1247360,
+    "largest_gaps": [
+      {
+        "bytes": 834302,
+        "after": "META-INF/CERT.SF"
+      },
+      {
+        "bytes": 218715,
+        "after": "org/commonmark/internal/util/entities.properties"
+      },
+      {
+        "bytes": 112711,
+        "after": "META-INF/MANIFEST.MF"
+      },
+      {
+        "bytes": 47071,
+        "after": "assets/local-games/desktop_hyprland_gpu.py"
+      },
+      {
+        "bytes": 11387,
+        "after": "assets/local-games/desktop_gnome_launch.py"
+      },
+      {
+        "bytes": 7687,
+        "after": "assets/wine.tar"
+      },
+      {
+        "bytes": 4289,
+        "after": "assets/local-games/desktop_hyprland_guest.py"
+      },
+      {
+        "bytes": 4096,
+        "after": "classes2.dex"
+      },
+      {
+        "bytes": 3247,
+        "after": "assets/local-games/desktop_hyprland_action.sh"
+      },
+      {
+        "bytes": 1731,
+        "after": "META-INF/CERT.RSA"
+      }
+    ]
+  },
+  "ubuntu-gnome-software-apk": {
+    "bytes": 47357104,
+    "sha256": "7c6e11d9246320078b8e142aa10e21cd21012f3896d60e964c235a94bcde291a",
+    "entries": 2486,
+    "compressed_payload_bytes": 45031833,
+    "gap_bytes": 1894344,
+    "largest_gaps": [
+      {
+        "bytes": 879177,
+        "after": "classes2.dex"
+      },
+      {
+        "bytes": 621743,
+        "after": "META-INF/CERT.SF"
+      },
+      {
+        "bytes": 131657,
+        "after": "classes5.dex"
+      },
+      {
+        "bytes": 106301,
+        "after": "assets/local-games/hyprland-eww-Cargo.lock"
+      },
+      {
+        "bytes": 47071,
+        "after": "assets/local-games/desktop_hyprland_gpu.py"
+      },
+      {
+        "bytes": 11387,
+        "after": "assets/local-games/desktop_gnome_launch.py"
+      },
+      {
+        "bytes": 8825,
+        "after": "res/layout/activity_desktop_create.xml"
+      },
+      {
+        "bytes": 7687,
+        "after": "assets/wine.tar"
+      },
+      {
+        "bytes": 5634,
+        "after": "res/layout/item_game_log_line.xml"
+      },
+      {
+        "bytes": 4884,
+        "after": "res/xml/nfc_tech_filter.xml"
+      }
+    ]
+  }
+}

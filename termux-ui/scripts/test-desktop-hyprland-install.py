@@ -11,12 +11,12 @@ ASSETS = Path(__file__).resolve().parents[1] / 'src/main/assets/local-games'
 PIN = '51aa11a8e7bc8c98bc9e852b260ee2dac99392b4ee8658182e4837c309818faf'
 
 class InstallTests(unittest.TestCase):
-    def run_install(self, mode='zink', failure='', de='hyprland', theme='m3ww-v1', switch=False):
+    def run_install(self, mode='zink', failure='', de='hyprland', theme='m3ww-v1', switch=False, reinstall='0', prepare=False):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary); prefix = base / 'usr'; (prefix / 'bin').mkdir(parents=True); (prefix / 'tmp').mkdir()
             assets = base / 'assets'; assets.mkdir()
             (prefix/'etc/tls').mkdir(parents=True); shutil.copy('/etc/ssl/certs/ca-certificates.crt', prefix/'etc/tls/cert.pem')
-            for name in ['desktop_container_user.sh', 'desktop_common.sh', 'desktop_rendering.sh', 'hyprland-components.sh', 'desktop_container_plasma_apt.sh', 'desktop_container_apt_sources.sh', 'desktop_container_statx_setup.sh', 'desktop_container_run_config.sh', 'desktop_container_statx_aarch64.bin']:
+            for name in ['desktop_container_user.sh', 'desktop_install_eww.py', 'hyprland-eww-Cargo.lock', 'desktop_container_discover_catalog.sh', 'desktop_common.sh', 'desktop_rendering.sh', 'hyprland-components.sh', 'desktop_container_plasma_apt.sh', 'desktop_container_apt_sources.sh', 'desktop_container_statx_setup.sh', 'desktop_container_run_config.sh', 'desktop_container_statx_aarch64.bin']:
                 shutil.copyfile(ASSETS / name, assets / name)
             container = prefix / 'var/lib/proot-distro/containers/debian-1'; rootfs = container / 'rootfs'
             (rootfs / 'etc').mkdir(parents=True); (rootfs / 'etc/os-release').write_text('ID=ubuntu\nVERSION_CODENAME=resolute\n')
@@ -33,10 +33,15 @@ run() {
         *dependencies=*) [ "$FIXTURE_FAIL" != ldd ] || return 43 ;;
         *"import gi;"*) [ "$FIXTURE_FAIL" != gi ] || return 44 ;;
         *"apt-mark showhold"*) printf 'preexisting-hold\n' ;;
+        *"desktop_hyprland.py install "*) [ "$FIXTURE_FAIL" != runtime ] || return 45 ;;
     esac
     return 0
 }
 fetch_debs() { printf '%s\n' "$3" >> "$FIXTURE_TRACE"; printf '%s' "$PREFIX/tmp/component.tar.gz"; }
+fetch_verified_debs() { fetch_debs "$@"; }
+register_embedded_host_packages() { :; }
+proot_valid() { return 0; }
+proot_distro_valid() { return 0; }
 ensure_container_instance() { :; }
 initialize_desktop() { printf initialization-verified >> "$FIXTURE_TRACE"; [ "$FIXTURE_FAIL" != initialization ] || exit 72; }
 dpkg() { :; }
@@ -47,9 +52,12 @@ dpkg() { :; }
                 source = source.replace('\nif [ "$DESKTOP_DE" = hyprland ]; then\n    log "Installing', '\n'+mocks+'\nif [ "$DESKTOP_DE" = hyprland ]; then\n    log "Installing')
             # Architecture is an external platform identity, not part of this fixture.
             (prefix / 'bin/uname').write_text('#!/bin/sh\nprintf aarch64\n'); (prefix / 'bin/uname').chmod(0o755)
+            for name in ('pulseaudio', 'pactl', 'proot', 'proot-distro'):
+                binary=prefix/'bin'/name; binary.write_text('#!/bin/sh\nexit 0\n'); binary.chmod(0o755)
             script = assets / 'desktop_install.sh'; script.write_text(source)
             spec = base / 'spec'
             values = dict(DESKTOP_MODE='proot', DESKTOP_DE=de, DESKTOP_SPEC_VERSION='3', DESKTOP_HOST_GL_MODE='zink' if de=='gnome' else 'system',
+                DESKTOP_REINSTALL=reinstall, DESKTOP_PREPARE_ONLY='1' if prepare else '0',
                 DESKTOP_GUEST_GL_MODE='zink' if mode=='zink' else 'default', DESKTOP_PROOT_DISTRO='debian-1',
                 DESKTOP_USB_STORAGE='off', DESKTOP_HYPRLAND_BACKEND='android',
                 DESKTOP_HYPRLAND_COMPONENT_SWITCH='1' if switch else '0', DESKTOP_HYPRLAND_RUNTIME_ID='0.57.0-r7', DESKTOP_HYPRLAND_THEME_ID=theme, DESKTOP_HYPRLAND_HOST_GL_MODE='system',
@@ -95,7 +103,9 @@ dpkg() { :; }
         self.assertIn('xfce4-panel', result['trace'])
         self.assertNotIn('eww foot fish starship', result['trace'])
         self.assertNotIn('hyprland-android-runtime-aarch64', result['trace'])
-        self.assertIn('desktop_hyprland_components.py install', result['trace'])
+        self.assertNotIn('desktop_hyprland_components.py install', result['trace'])
+        self.assertNotIn('check-shell', result['trace'])
+        self.assertNotIn('desktop_install_eww.py', result['trace'])
 
     def testThemeSwitchPreservesContainerReceiptsOnSuccessAndFailure(self):
         for failure, code in [('', 0), ('initialization', 72)]:
@@ -112,5 +122,30 @@ dpkg() { :; }
         result = self.run_install(de='gnome')
         self.assertEqual(64, result['code'], result['output'])
         self.assertEqual('', result['trace'])
+
+    def testExplicitReinstallDoesNotSkipVerifiedRuntimeOrGuestPackages(self):
+        result = self.run_install(mode='system', reinstall='1')
+        self.assertEqual(0, result['code'], result['output'])
+        lines = result['trace'].splitlines()
+        installs = [line for line in lines if 'desktop_hyprland.py install ' in line]
+        self.assertEqual(1, len(installs), result['trace'])
+        self.assertIn('--reinstall', installs[0])
+        guest = [line for line in lines if 'desktop_container_plasma_apt.sh' in line]
+        self.assertEqual(2, len(guest), result['trace'])
+        self.assertTrue(all('--reinstall' in line for line in guest), result['trace'])
+        self.assertTrue(any('apt install ' in line and '--reinstall' in line for line in lines))
+
+    def testReinstallRuntimeFailureNeverPublishesSuccess(self):
+        result = self.run_install(mode='system', reinstall='1', failure='runtime')
+        self.assertNotEqual(0, result['code'])
+        self.assertFalse(result['base_marker'])
+        self.assertEqual('exit:1\n', result['status'])
+
+    def testInvalidOrMixedReinstallModeCannotReachPackageOperations(self):
+        for options in [dict(reinstall='yes'), dict(reinstall='1', switch=True), dict(reinstall='1', prepare=True)]:
+            with self.subTest(options=options):
+                result = self.run_install(**options)
+                self.assertEqual(64, result['code'], result['output'])
+                self.assertEqual('', result['trace'])
 
 if __name__ == '__main__': unittest.main()

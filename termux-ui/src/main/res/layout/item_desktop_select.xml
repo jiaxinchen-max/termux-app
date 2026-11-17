@@ -38,9 +38,19 @@
             android:textColor="@color/local_games_on_surface_secondary"
             android:textSize="12sp"
             tools:text="1280x720" />
+
+        <TextView
+            android:id="@+id/desktop_select_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textColor="@color/local_games_on_surface_secondary"
+            android:textSize="12sp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <TextView
+        android:id="@+id/desktop_select_arrow"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"

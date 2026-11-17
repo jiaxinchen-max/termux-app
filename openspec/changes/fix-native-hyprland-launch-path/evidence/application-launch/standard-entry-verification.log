@@ -1,0 +1,6 @@
+starting standard desktop-entry verification
+standard entry 0 
+mapped clients [('foot', 32061, True, True), ('thunar', 31983, True, True), ('org.kde.kwalletmanager', 873, True, True), ('org.gnome.TextEditor', 1220, True, True), ('org.gnome.Calculator', 1492, True, True)]
+application environment org.kde.kwalletmanager {'WAYLAND_DISPLAY': 'wayland-1', 'XDG_RUNTIME_DIR': '/data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f', 'LD_LIBRARY_PATH': '', 'GSK_RENDERER': None}
+application environment org.gnome.TextEditor {'WAYLAND_DISPLAY': 'wayland-1', 'XDG_RUNTIME_DIR': '/data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f', 'LD_LIBRARY_PATH': '', 'GSK_RENDERER': None}
+application environment org.gnome.Calculator {'WAYLAND_DISPLAY': 'wayland-1', 'XDG_RUNTIME_DIR': '/data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f', 'LD_LIBRARY_PATH': None, 'GSK_RENDERER': 'cairo'}

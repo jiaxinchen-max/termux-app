@@ -16,11 +16,16 @@ import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.desktop.data.DesktopDistroRepository;
 import com.termux.ui.desktop.data.FileDesktopDistroRepository;
 import com.termux.ui.desktop.domain.DesktopDe;
+import com.termux.ui.desktop.domain.DesktopGlMode;
+import com.termux.ui.desktop.domain.DesktopGuestGlMode;
+import com.termux.ui.desktop.domain.DesktopUsbStorageMode;
+import com.termux.ui.desktop.runtime.DesktopCreationCatalog;
 import com.termux.ui.desktop.domain.DesktopDistro;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 import com.termux.ui.desktop.domain.DesktopSessionState;
 import com.termux.ui.desktop.runtime.DesktopEnvironment;
 import com.termux.ui.desktop.runtime.DesktopLaunchSpec;
+import com.termux.ui.desktop.runtime.DesktopDisplayPolicy;
 import com.termux.ui.desktop.runtime.DesktopRendererPolicy;
 import com.termux.ui.desktop.runtime.DesktopSessionStateResolver;
 import com.termux.ui.domain.LaunchExecutionMode;
@@ -53,6 +58,36 @@ public final class DesktopTasks {
         this.environment = new DesktopEnvironment(filesDirectory);
         this.selections = new com.termux.ui.desktop.data.HyprlandSelectionTransaction(
             new File(paths.getDesktopDistrosDirectory(), "pending-hyprland"), repository, filesDirectory);
+    }
+
+    /** Restore fixed Native access without deploying scripts, installing or replacing settings. */
+    public void ensureNativeEntries() throws IOException {
+        synchronized (DesktopOperationGate.LOCK) {
+            List<DesktopDistro> existing = new java.util.ArrayList<>(repository.list());
+            java.util.Set<String> ids = new java.util.HashSet<>();
+            for (DesktopDistro entry : existing) ids.add(entry.getId());
+            for (DesktopDe de : DesktopCreationCatalog.nativeOptions(existing)) {
+                DesktopOperationGate.requireAvailable();
+                String base = "native-" + de.getStorageValue();
+                String id = base;
+                for (int suffix = 2; ids.contains(id); suffix++) id = base + "-" + suffix;
+                int label;
+                switch (de) {
+                    case XFCE4: label = com.termux.ui.R.string.desktop_de_xfce4; break;
+                    case KWIN_PLASMA: label = com.termux.ui.R.string.desktop_de_kwin_plasma; break;
+                    case HYPRLAND: label = com.termux.ui.R.string.desktop_de_hyprland; break;
+                    case UBUNTU_GNOME: label = com.termux.ui.R.string.desktop_de_ubuntu_gnome; break;
+                    default: throw new IOException("unsupported_native_desktop");
+                }
+                DesktopDistro entry = new DesktopDistro(id, context.getString(label), DesktopRunMode.NATIVE,
+                    "", de, DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, DesktopDistro.DEFAULT_RESOLUTION,
+                    de.isGnomeSession() ? 60 : DesktopDistro.DEFAULT_REFRESH_RATE, DesktopUsbStorageMode.OFF);
+                DesktopRendererPolicy.requireSupported(entry);
+                repository.save(entry);
+                ids.add(id);
+                existing.add(entry);
+            }
+        }
     }
 
     @NonNull public List<DesktopDistro> list() throws IOException {
@@ -299,6 +334,29 @@ public final class DesktopTasks {
         return install(distro, false, false);
     }
 
+    /** Stop desktop process trees before replacing their shared host and guest components. */
+    @NonNull
+    public String reinstall(@NonNull DesktopDistro desktop) throws LaunchHostException {
+        synchronized (DesktopOperationGate.LOCK) {
+            try {
+                DesktopDistro current = repository.find(desktop.getId()).orElseThrow(
+                    () -> new IOException("desktop_not_found"));
+                DesktopRendererPolicy.requireSupported(current);
+                String existing = activeInstallTask(current);
+                if (existing != null) return existing;
+                DesktopOperationGate.requireAvailable();
+                List<DesktopDistro> desktops = repository.list();
+                // Check every installation before stopping anything: never kill an active dpkg.
+                for (DesktopDistro entry : desktops) requireNoInstallation(entry);
+                // Stop even stale/orphan sessions. The host waits for the scoped trees to exit.
+                for (DesktopDistro entry : desktops) forceStop(entry);
+                return install(current, false, false, false, false, true);
+            } catch (IOException | IllegalArgumentException error) {
+                throw new LaunchHostException(error.getMessage(), true, error);
+            }
+        }
+    }
+
     /** Prepare changed settings during Save, without downloading or reinstalling packages. */
     public String prepare(@NonNull DesktopDistro distro) throws LaunchHostException {
         return install(distro, false, false, true);
@@ -315,6 +373,11 @@ public final class DesktopTasks {
 
     private String install(DesktopDistro distro, boolean componentSelection, boolean themeOnly,
                            boolean prepareOnly, boolean usbSelection) throws LaunchHostException {
+        return install(distro, componentSelection, themeOnly, prepareOnly, usbSelection, false);
+    }
+
+    private String install(DesktopDistro distro, boolean componentSelection, boolean themeOnly,
+                           boolean prepareOnly, boolean usbSelection, boolean reinstall) throws LaunchHostException {
         synchronized (DesktopOperationGate.LOCK) {
             String existing = activeInstallTask(distro);
             if (existing != null) return existing;
@@ -328,6 +391,12 @@ public final class DesktopTasks {
                 if (usbSelection) selections.stage(distro, taskId, usbManagedFiles(distro));
                 LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
                 commandStatus(distro, "installing");
+                if (reinstall) {
+                    try (FileOutputStream output = new FileOutputStream(paths.getDesktopSpecFile(distro.getId()), true)) {
+                        output.write("DESKTOP_REINSTALL=1\n".getBytes(StandardCharsets.US_ASCII));
+                        output.getFD().sync();
+                    }
+                }
                 if (usbOnly) {
                     try (FileOutputStream output = new FileOutputStream(paths.getDesktopSpecFile(distro.getId()), true)) {
                         output.write("DESKTOP_USB_CONFIGURE_ONLY=1\n".getBytes(StandardCharsets.US_ASCII));
@@ -418,6 +487,28 @@ public final class DesktopTasks {
      * after, so call this once the session view is bound.
      */
     public void start(@NonNull DesktopDistro distro) throws LaunchHostException {
+        start(distro, null);
+    }
+
+    /** Resolves Native once per session; a running compositor retains its original geometry. */
+    public String sessionOutputResolution(@NonNull DesktopDistro distro, int width, int height)
+        throws IOException {
+        synchronized (DesktopOperationGate.LOCK) {
+            if (distro.isNativeResolution() && sessionState(distro).isActive()) {
+                java.util.Properties spec = new java.util.Properties();
+                try (java.io.FileInputStream input = new java.io.FileInputStream(paths.getDesktopSpecFile(distro.getId()))) {
+                    spec.load(input);
+                }
+                String output = spec.getProperty("DESKTOP_WIDTH", "") + "x" + spec.getProperty("DESKTOP_HEIGHT", "");
+                try { DesktopDisplayPolicy.requireOutputResolution(distro, output); }
+                catch (IllegalArgumentException error) { throw new IOException("desktop_active_output_invalid", error); }
+                return output;
+            }
+            return DesktopDisplayPolicy.resolveResolution(distro, width, height);
+        }
+    }
+
+    public void start(@NonNull DesktopDistro distro, @Nullable String outputResolution) throws LaunchHostException {
         if (!distro.getDe().isCreatable())
             throw new LaunchHostException("desktop_type_retired", true, null);
         synchronized (DesktopOperationGate.LOCK) {
@@ -425,7 +516,21 @@ public final class DesktopTasks {
                 throw new LaunchHostException("desktop_archive_busy", true, busy);
             }
             requireNotStoppingForLaunch(distro);
+            if (distro.isNativeResolution()) {
+                try { DesktopDisplayPolicy.requireOutputResolution(distro, outputResolution); }
+                catch (IllegalArgumentException error) {
+                    throw new LaunchHostException("desktop_output_invalid", true, error);
+                }
+                // Another request may have started this desktop while the view was binding.
+                if (sessionState(distro).isActive()) return;
+            }
             File startScript = new File(paths.getRuntimeDirectory(), "desktop_start.sh");
+            try {
+                new LaunchScriptInstaller(context, paths).installDesktopScripts();
+                if (distro.isNativeResolution()) writeSpec(distro, false, outputResolution);
+            } catch (IOException error) {
+                throw new LaunchHostException("desktop_prepare_failed", true, error);
+            }
             LocalGamesHost host = LocalGames.requireHost(context);
             commandStatus(distro, "starting");
             try {
@@ -571,6 +676,10 @@ public final class DesktopTasks {
     }
 
     private void writeSpec(DesktopDistro distro, boolean componentSelection) throws IOException {
+        writeSpec(distro, componentSelection, DesktopDisplayPolicy.preparationResolution(distro));
+    }
+
+    private void writeSpec(DesktopDistro distro, boolean componentSelection, String outputResolution) throws IOException {
         File spec = paths.getDesktopSpecFile(distro.getId());
         File directory = spec.getParentFile();
         if (!directory.isDirectory() && !directory.mkdirs()) {
@@ -579,7 +688,7 @@ public final class DesktopTasks {
         String content = DesktopLaunchSpec.encode(distro,
             paths.getDesktopPidFile(distro.getId()).getPath(),
             paths.getDesktopStatusFile(distro.getId()).getPath(),
-            paths.getDesktopLogFile(distro.getId()).getPath());
+            paths.getDesktopLogFile(distro.getId()).getPath(), outputResolution);
         if (componentSelection) content += "DESKTOP_HYPRLAND_COMPONENT_SWITCH=1\n";
         File temporary = new File(directory, spec.getName() + ".tmp");
         try (FileOutputStream output = new FileOutputStream(temporary)) {

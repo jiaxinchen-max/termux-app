@@ -1,0 +1,29 @@
+change_id: include-container-name-in-proot-export
+stage: local-verification-complete
+approval:
+  requirement: 用户直接要求导出 PRoot 时文件名加入原容器名称
+  implementation: Approved_Direct_User_Request
+api_docs:
+  status: N/A
+  reason: 本地导出文件名调整，无 HTTP 合约变化
+product_docs:
+  status: Required
+  documents: [docs/product/desktop-container-archive.md]
+  consistency:
+    status: Pending
+    evidence: .harness/runs/include-container-name-in-proot-export/product-consistency-evidence.json
+    findings: .harness/runs/include-container-name-in-proot-export/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  impact: PRoot 导出文件名显示名称
+  rollback: 恢复 DesktopArchiveFlow 原 ID 加时间生成方式
+  verification: 源码审查、现有存档及共享目录回归、arm64 构建
+  approval: Approved_Direct_User_Request
+tooling:
+  harness_bootstrap: Missing
+  openspec_cli: Missing
+  strict_gate: Unavailable
+apk_filename: termux-app_apt-android-7-debug_arm64-v8a.apk
+device_deployment: NotAuthorized
+acceptance: Pending
+archive: NotAuthorized

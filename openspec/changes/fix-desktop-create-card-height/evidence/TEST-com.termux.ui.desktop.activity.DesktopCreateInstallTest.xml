@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.desktop.activity.DesktopCreateInstallTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-17T05:28:10" hostname="skynet-env-362805450227519488-378012184997830656-vjdrl" time="2.722">
+  <properties/>
+  <testcase name="invalidOrCancelledResultDoesNotInstall" classname="com.termux.ui.desktop.activity.DesktopCreateInstallTest" time="0.428"/>
+  <testcase name="failedSaveDoesNotReturnSuccessAndAllowsRetry" classname="com.termux.ui.desktop.activity.DesktopCreateInstallTest" time="0.371"/>
+  <testcase name="failedInstallPreservesRecordAndManualRetryStillWorks" classname="com.termux.ui.desktop.activity.DesktopCreateInstallTest" time="0.524"/>
+  <testcase name="bothModesSaveOnceAndImmediatelyInstallWithoutAnotherConfirmation" classname="com.termux.ui.desktop.activity.DesktopCreateInstallTest" time="1.398"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

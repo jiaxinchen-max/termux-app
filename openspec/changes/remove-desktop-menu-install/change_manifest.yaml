@@ -1,0 +1,40 @@
+change_id: remove-desktop-menu-install
+stage: local_delivery
+approval:
+  requirement: 用户截图圈出更多菜单中的Install并明确要求去除
+  planning: 用户明确指定具体菜单项及删除行为，按该原范围实施
+  implementation: Approved_Explicit_User_Request
+api_docs:
+  status: N/A
+  reason: 仅本地桌面菜单删除，无HTTP合约变更
+product_docs:
+  status: Required
+  documents: [docs/product/desktops.md]
+  reason: 修改用户可见的桌面操作菜单
+  consistency:
+    status: Pending
+    evidence: .harness/runs/remove-desktop-menu-install/product-consistency-evidence.json
+    findings: .harness/runs/remove-desktop-menu-install/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  reason: 未发现保护策略；仅修改普通Activity菜单和本变更记录
+tooling:
+  openspec_cli: Missing
+  harness_bootstrap: Missing
+  strict_gate: Unavailable
+  baseline_specs: Missing
+  product_knowledge: Missing
+scope: 仅删除更多菜单安装项；安装状态混用问题未在本变更处理
+apk_filename: termux-app_apt-android-7-debug_arm64-v8a.apk
+git_operations: 未授权暂存、提交、推送或PR
+deployment: 未授权
+verification:
+  local_tests: Passed_13
+  build: Passed_arm64_debug
+  apk: Verified
+  evidence: verification.json
+  code_review: implementation-review.yaml
+  device: Pending
+  strict_gate: Unavailable
+acceptance: Pending
+archive: NotAuthorized

@@ -37,7 +37,14 @@ public final class DesktopLaunchSpec {
 
     public static String encode(DesktopDistro distro, String pidFile, String statusFile,
                                 String logFile) {
+        return encode(distro, pidFile, statusFile, logFile, DesktopDisplayPolicy.preparationResolution(distro));
+    }
+
+    public static String encode(DesktopDistro distro, String pidFile, String statusFile,
+                                String logFile, String outputResolution) {
         DesktopRendererPolicy.requireSupported(distro);
+        DesktopDisplayPolicy.requireOutputResolution(distro, outputResolution);
+        DesktopDistro output = distro.withOutput(outputResolution, distro.getRefreshRate());
         StringBuilder spec = new StringBuilder();
         put(spec, "DESKTOP_SPEC_VERSION", Integer.toString(SCHEMA_VERSION));
         put(spec, "DESKTOP_ID", distro.getId());
@@ -50,8 +57,8 @@ public final class DesktopLaunchSpec {
         put(spec, "DESKTOP_USB_STORAGE", distro.getUsbStorage().getStorageValue());
         put(spec, "DESKTOP_PROOT_DISTRO", distro.getProotDistro());
         put(spec, "DESKTOP_RESOLUTION", distro.getResolution());
-        put(spec, "DESKTOP_WIDTH", Integer.toString(distro.getWidth()));
-        put(spec, "DESKTOP_HEIGHT", Integer.toString(distro.getHeight()));
+        put(spec, "DESKTOP_WIDTH", Integer.toString(output.getWidth()));
+        put(spec, "DESKTOP_HEIGHT", Integer.toString(output.getHeight()));
         put(spec, "DESKTOP_REFRESH_RATE", Integer.toString(distro.getRefreshRate()));
         put(spec, "DESKTOP_PID_FILE", requirePath(pidFile));
         put(spec, "DESKTOP_STATUS_FILE", requirePath(statusFile));

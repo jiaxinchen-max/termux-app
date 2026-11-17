@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.desktop.api.DesktopReinstallTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-17T06:42:11" hostname="skynet-env-362805450227519488-378012184997830656-vjdrl" time="0.207">
+  <properties/>
+  <testcase name="stopsAllManagedSessionsBeforeSubmittingAndUsesLatestSettings" classname="com.termux.ui.desktop.api.DesktopReinstallTest" time="0.045"/>
+  <testcase name="removedRecordCannotBeResurrectedByStaleMenu" classname="com.termux.ui.desktop.api.DesktopReinstallTest" time="0.025"/>
+  <testcase name="archiveConflictNeverKillsOrSubmits" classname="com.termux.ui.desktop.api.DesktopReinstallTest" time="0.023"/>
+  <testcase name="anotherInstallationIsProtectedBeforeAnyProcessIsKilled" classname="com.termux.ui.desktop.api.DesktopReinstallTest" time="0.045"/>
+  <testcase name="normalInstallAndPrepareDoNotForceReinstall" classname="com.termux.ui.desktop.api.DesktopReinstallTest" time="0.047"/>
+  <testcase name="failedStopLeavesSpecAndInventoryAndNeverInstalls" classname="com.termux.ui.desktop.api.DesktopReinstallTest" time="0.022"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,17 @@
+Hyprland private runtime installed and verified
+Hyprland runtime already verified
+E
+======================================================================
+ERROR: testExplicitReinstallReplacesVerifiedRuntimeAndPreservesUserFiles (__main__.ComponentTests.testExplicitReinstallReplacesVerifiedRuntimeAndPreservesUserFiles)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland.py", line 72, in testExplicitReinstallReplacesVerifiedRuntimeAndPreservesUserFiles
+    self.install(archive, reinstall=True)
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland.py", line 64, in install
+    h.install(archive, **kwargs)
+TypeError: install() got an unexpected keyword argument 'reinstall'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.037s
+
+FAILED (errors=1)

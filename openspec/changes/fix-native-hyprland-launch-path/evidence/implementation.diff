@@ -1,0 +1,33 @@
+--- before/desktop_hyprland_theme.py
++++ after/desktop_hyprland_theme.py
+@@ -412,7 +412,8 @@
+ def main():
+     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--work',type=Path,required=True);parser.add_argument('action',choices=['serve','watch','launcher','dashboard','settings','workspace','focus','float','close']);parser.add_argument('value',nargs='?');a=parser.parse_args();work=a.work
+     expected_parent = HOME/'.local/share/termux-hyprland' if GUEST else HOME/'.termux'
+-    pattern = r'desktop-[A-Za-z0-9._-]+' if GUEST else r'hyprland-desktop-[A-Za-z0-9._-]+'
++    # The fixed Native entry uses native-hyprland; older entries use desktop-*.
++    pattern = r'desktop-[A-Za-z0-9._-]+' if GUEST else r'hyprland-(?:native-hyprland|desktop-[A-Za-z0-9._-]+)'
+     if work.parent!=expected_parent or not re.fullmatch(pattern,work.name):parser.error('Invalid desktop path')
+     theme=work/'config/themes'/VERSION
+     if a.action=='serve':
+--- before/desktop_hyprland_shell.py
++++ after/desktop_hyprland_shell.py
+@@ -6,6 +6,7 @@
+ import json
+ import os
+ from pathlib import Path
++import re
+ import shlex
+ import subprocess
+ import time
+@@ -188,7 +189,9 @@
+     parser.add_argument('number', nargs='?', type=int)
+     args = parser.parse_args()
+     parent = HOME / '.local/share/termux-hyprland' if GUEST else HOME / '.termux'
+-    if args.work.parent != parent or not args.work.name.startswith('desktop-' if GUEST else 'hyprland-desktop-'):
++    # Keep fixed Native entries and legacy desktop-* entries under the same path policy.
++    pattern = r'desktop-[A-Za-z0-9._-]+' if GUEST else r'hyprland-(?:native-hyprland|desktop-[A-Za-z0-9._-]+)'
++    if args.work.parent != parent or not re.fullmatch(pattern, args.work.name):
+         parser.error('Invalid private desktop path')
+     if args.action == 'battery-status':
+         print(battery_status(Path(os.environ.get('TERMUX_HYPRLAND_BATTERY', str(HOME.parent / 'front/desktop/state/android-battery.json')))))

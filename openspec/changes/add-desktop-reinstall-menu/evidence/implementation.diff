@@ -1,0 +1,322 @@
+--- termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopActivity.java before
++++ termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopActivity.java
+@@ -74,6 +74,7 @@
+     private static final int MENU_EXPORT = 6;
+     private static final int MENU_USB_STORAGE = 7;
+     private static final int MENU_ARCHIVE_PROGRESS = 8;
++    private static final int MENU_REINSTALL = 9;
+ 
+     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
+         new Thread(runnable, "DesktopIo"));
+@@ -393,6 +394,9 @@
+         boolean installing = state == DesktopSessionState.INSTALLING;
+         PopupMenu menu = new PopupMenu(this, anchor);
+         Menu items = menu.getMenu();
++        if (distro.getDe().isCreatable())
++            items.add(Menu.NONE, MENU_REINSTALL, Menu.NONE, R.string.local_games_component_reinstall)
++                .setEnabled(!installing && !DesktopArchiveFlow.instance().isBusy());
+         if (active && !installing && state != DesktopSessionState.STOPPING)
+             items.add(Menu.NONE, MENU_STOP, Menu.NONE, R.string.desktop_action_stop);
+         items.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.desktop_action_settings).setEnabled(!installing);
+@@ -412,6 +416,7 @@
+         items.add(Menu.NONE, MENU_LOGS, Menu.NONE, R.string.desktop_action_logs);
+         menu.setOnMenuItemClickListener(item -> {
+             switch (item.getItemId()) {
++                case MENU_REINSTALL: confirmReinstall(distro); return true;
+                 case MENU_STOP: stop(distro); return true;
+                 case MENU_SETTINGS:
+                     runHostAction(() -> {
+@@ -557,6 +562,21 @@
+             .show();
+     }
+ 
++    private void confirmReinstall(DesktopDistro distro) {
++        new FrostedDialogBuilder(this)
++            .setTitle(R.string.local_games_component_reinstall)
++            .setMessage(R.string.desktop_reinstall_hint)
++            .setNegativeButton(android.R.string.cancel, null)
++            .setPositiveButton(R.string.local_games_component_reinstall, (dialog, which) ->
++                runHostAction(() -> {
++                    String taskId = tasks.reinstall(distro);
++                    runOnUiThread(() -> {
++                        if (!destroyed) showInstallConsole(taskId);
++                    });
++                }))
++            .show();
++    }
++
+     /** Both creation and manual retry attach to the same real installation terminal. */
+     void installAndShowConsole(DesktopDistro distro) throws LaunchHostException {
+         String taskId = tasks.install(distro);
+--- termux-ui/src/main/java/com/termux/ui/desktop/api/DesktopTasks.java before
++++ termux-ui/src/main/java/com/termux/ui/desktop/api/DesktopTasks.java
+@@ -333,6 +333,29 @@
+         return install(distro, false, false);
+     }
+ 
++    /** Stop desktop process trees before replacing their shared host and guest components. */
++    @NonNull
++    public String reinstall(@NonNull DesktopDistro desktop) throws LaunchHostException {
++        synchronized (DesktopOperationGate.LOCK) {
++            try {
++                DesktopDistro current = repository.find(desktop.getId()).orElseThrow(
++                    () -> new IOException("desktop_not_found"));
++                DesktopRendererPolicy.requireSupported(current);
++                String existing = activeInstallTask(current);
++                if (existing != null) return existing;
++                DesktopOperationGate.requireAvailable();
++                List<DesktopDistro> desktops = repository.list();
++                // Check every installation before stopping anything: never kill an active dpkg.
++                for (DesktopDistro entry : desktops) requireNoInstallation(entry);
++                // Stop even stale/orphan sessions. The host waits for the scoped trees to exit.
++                for (DesktopDistro entry : desktops) forceStop(entry);
++                return install(current, false, false, false, false, true);
++            } catch (IOException | IllegalArgumentException error) {
++                throw new LaunchHostException(error.getMessage(), true, error);
++            }
++        }
++    }
++
+     /** Prepare changed settings during Save, without downloading or reinstalling packages. */
+     public String prepare(@NonNull DesktopDistro distro) throws LaunchHostException {
+         return install(distro, false, false, true);
+@@ -349,6 +372,11 @@
+ 
+     private String install(DesktopDistro distro, boolean componentSelection, boolean themeOnly,
+                            boolean prepareOnly, boolean usbSelection) throws LaunchHostException {
++        return install(distro, componentSelection, themeOnly, prepareOnly, usbSelection, false);
++    }
++
++    private String install(DesktopDistro distro, boolean componentSelection, boolean themeOnly,
++                           boolean prepareOnly, boolean usbSelection, boolean reinstall) throws LaunchHostException {
+         synchronized (DesktopOperationGate.LOCK) {
+             String existing = activeInstallTask(distro);
+             if (existing != null) return existing;
+@@ -362,6 +390,12 @@
+                 if (usbSelection) selections.stage(distro, taskId, usbManagedFiles(distro));
+                 LaunchScriptInstaller.DesktopScripts scripts = deploy(distro);
+                 commandStatus(distro, "installing");
++                if (reinstall) {
++                    try (FileOutputStream output = new FileOutputStream(paths.getDesktopSpecFile(distro.getId()), true)) {
++                        output.write("DESKTOP_REINSTALL=1\n".getBytes(StandardCharsets.US_ASCII));
++                        output.getFD().sync();
++                    }
++                }
+                 if (usbOnly) {
+                     try (FileOutputStream output = new FileOutputStream(paths.getDesktopSpecFile(distro.getId()), true)) {
+                         output.write("DESKTOP_USB_CONFIGURE_ONLY=1\n".getBytes(StandardCharsets.US_ASCII));
+--- termux-ui/src/main/assets/local-games/desktop_install.sh before
++++ termux-ui/src/main/assets/local-games/desktop_install.sh
+@@ -66,6 +66,15 @@
+ trap 'exit 143' TERM
+ trap 'exit 129' HUP
+ [ "$OPERATION" != install ] || printf 'installing\n' > "$DESKTOP_STATUS_FILE" || exit 74
++case "${DESKTOP_REINSTALL:-0}" in 0|1) ;; *) log 'Invalid explicit reinstall flag'; exit 64 ;; esac
++REINSTALL_OPTION=''
++if [ "${DESKTOP_REINSTALL:-0}" = 1 ]; then
++    if [ "$OPERATION" != install ] || [ "${DESKTOP_PREPARE_ONLY:-0}" != 0 ] ||
++        [ "${DESKTOP_USB_CONFIGURE_ONLY:-0}" != 0 ] || [ "${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" != 0 ]; then
++        log 'Reinstall cannot be combined with preparation, USB, theme switch or host prerequisites'; exit 64
++    fi
++    REINSTALL_OPTION=--reinstall
++fi
+ . "$(dirname "$0")/desktop_rendering.sh"
+ desktop_resolve_rendering || { log 'Unsupported host/container renderer pair; choose compatible renderers explicitly.'; exit 64; }
+ case "${DESKTOP_MODE:-}" in native|proot) ;; *) log 'Explicit desktop run mode required'; exit 64 ;; esac
+@@ -675,7 +684,7 @@
+     fi
+     # shellcheck disable=SC2086
+     run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+-        --statx-backend=proc-fdinfo --no-install-recommends $guest_shell_packages || fail 'Ubuntu desktop dependencies'
++        --statx-backend=proc-fdinfo --no-install-recommends $REINSTALL_OPTION $guest_shell_packages || fail 'Ubuntu desktop dependencies'
+     if [ "$DESKTOP_HYPRLAND_THEME_ID" = m3ww-v1 ]; then
+         for helper in desktop_install_eww.py hyprland-eww-Cargo.lock; do
+             cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail 'staging Ubuntu EWW builder'
+@@ -708,20 +717,22 @@
+         "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-shell \
+             --theme-id "$DESKTOP_HYPRLAND_THEME_ID" >/dev/null 2>&1 || missing_support=1
+     fi
+-    if [ "$missing_support" = 1 ]; then
++    if [ "$missing_support" = 1 ] || [ "${DESKTOP_REINSTALL:-0}" = 1 ]; then
+         run pkg install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold x11-repo || fail 'x11-repo'
+         run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold || fail 'pkg update'
+         # shellcheck disable=SC2086
+-        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold $support || fail 'Hyprland runtime/client dependencies'
++        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold $REINSTALL_OPTION $support || fail 'Hyprland runtime/client dependencies'
+     else
+         log 'Hyprland host dependencies satisfied; no package update required.'
+     fi
+-    if run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-runtime; then
++    if [ "${DESKTOP_REINSTALL:-0}" != 1 ] && run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-runtime; then
+         log 'Selected Hyprland compositor already verified; preserving its files'
+     else
+         artifact=$(fetch_debs "$HYPRLAND_RELEASE" "$HYPRLAND_BASE_URL" "$HYPRLAND_ASSET $HYPRLAND_ARCHIVE_SHA256") || fail 'downloading Hyprland component'
+         artifact="${artifact# }"
+-        if ! run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" install "$artifact"; then
++        # REINSTALL_OPTION is either empty or the single validated --reinstall switch.
++        # shellcheck disable=SC2086
++        if ! run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" install "$artifact" $REINSTALL_OPTION; then
+             rm -f "$artifact"
+             fail 'Hyprland runtime verification/install failed; retry will download the component again'
+         fi
+@@ -860,7 +871,7 @@
+         fi
+         # shellcheck disable=SC2086
+         run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+-            --statx-backend=proc-fdinfo --no-install-recommends xfce4-terminal thunar dbus-x11 adwaita-icon-theme passwd sudo $SOFTWARE_CENTER_PACKAGES $zink_packages || fail 'Hyprland container desktop'
++            --statx-backend=proc-fdinfo --no-install-recommends $REINSTALL_OPTION xfce4-terminal thunar dbus-x11 adwaita-icon-theme passwd sudo $SOFTWARE_CENTER_PACKAGES $zink_packages || fail 'Hyprland container desktop'
+         ensure_hyprland_guest_shell
+         cp "$(dirname "$0")/desktop_container_discover_catalog.sh" "$PREFIX/tmp/desktop_container_discover_catalog.sh" || fail 'staging software catalog helper'
+         run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_discover_catalog.sh \
+@@ -999,7 +1010,11 @@
+     fi
+     recommend_option=''
+     { [ "$DESKTOP_DE" != gnome ] && [ "$DESKTOP_DE" != ubuntu_gnome ]; } || recommend_option=--no-install-recommends
+-    [ "$DESKTOP_DE" != ubuntu_gnome ] || recommend_option="--no-install-recommends --reinstall"
++    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
++        recommend_option="--no-install-recommends --reinstall"
++    elif [ "${DESKTOP_REINSTALL:-0}" = 1 ]; then
++        recommend_option="$recommend_option --reinstall"
++    fi
+     # A prior Turnip overlay can leave distro EGL linked to an absent LLVM ABI.
+     # Reinstall matching distro Mesa on emulators; preserve existing apt hold selections.
+     if [ "$PLASMA_EMULATOR" = 1 ]; then
+--- termux-ui/src/main/assets/local-games/desktop_hyprland.py before
++++ termux-ui/src/main/assets/local-games/desktop_hyprland.py
+@@ -60,7 +60,7 @@
+     return manifest
+ 
+ 
+-def install(archive):
++def install(archive, reinstall=False):
+     if digest(archive) != ARCHIVE_SHA256:
+         raise RuntimeError('Hyprland archive SHA-256 mismatch')
+     root = runtime_root()
+@@ -69,7 +69,7 @@
+         raise RuntimeError('Hyprland installation path must not be a symlink')
+     install_lock = (root.parent / '.install.lock').open('w')
+     fcntl.flock(install_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+-    if root.exists():
++    if root.exists() and not reinstall:
+         try:
+             verify(root)
+             print('Hyprland runtime already verified', flush=True)
+@@ -702,6 +702,7 @@
+     parser = argparse.ArgumentParser(description=__doc__)
+     sub = parser.add_subparsers(dest='command', required=True)
+     p = sub.add_parser('install'); p.add_argument('archive', type=Path)
++    p.add_argument('--reinstall', action='store_true')
+     sub.add_parser('check')
+     sub.add_parser('check-runtime')
+     p = sub.add_parser('check-shell')
+@@ -719,7 +720,7 @@
+     p.add_argument('action', choices=['terminal','files','close','next','float'])
+     args = parser.parse_args()
+     if args.command == 'install':
+-        install(args.archive)
++        install(args.archive, reinstall=args.reinstall)
+     elif args.command == 'check-runtime':
+         verify(runtime_root())
+     elif args.command == 'check-shell':
+--- termux-ui/src/main/res/values/strings.xml before
++++ termux-ui/src/main/res/values/strings.xml
+@@ -612,6 +612,7 @@
+     <string name="desktop_create_invalid">Check the name, resolution and refresh rate.</string>
+     <string name="desktop_install_started">Install started in a Termux session.</string>
+     <string name="desktop_install_hint">The runtime required by this desktop will be downloaded and installed.</string>
++    <string name="desktop_reinstall_hint">All managed desktop sessions will be stopped before reinstalling this desktop’s components. Existing containers, settings and user files will be preserved.</string>
+     <string name="desktop_stop_requested">Stopping the desktop…</string>
+     <string name="desktop_error">Could not complete the request (%1$s).</string>
+     <string name="desktop_delete_running">Stop the desktop before deleting it.</string>
+--- termux-ui/src/main/res/values-zh-rCN/strings.xml before
++++ termux-ui/src/main/res/values-zh-rCN/strings.xml
+@@ -594,6 +594,7 @@
+     <string name="desktop_create_invalid">请检查名称、分辨率和刷新率。</string>
+     <string name="desktop_install_started">已在 Termux 会话中开始安装。</string>
+     <string name="desktop_install_hint">将下载并安装此桌面所需的运行环境。</string>
++    <string name="desktop_reinstall_hint">将先结束所有受管理的桌面会话，再重新安装此桌面的组件。保留现有容器、设置和用户文件。</string>
+     <string name="desktop_stop_requested">正在停止桌面…</string>
+     <string name="desktop_error">无法完成请求（%1$s）。</string>
+     <string name="desktop_delete_running">请先停止桌面再删除。</string>
+--- termux-ui/scripts/test-desktop-hyprland-install.py before
++++ termux-ui/scripts/test-desktop-hyprland-install.py
+@@ -11,7 +11,7 @@
+ PIN = '51aa11a8e7bc8c98bc9e852b260ee2dac99392b4ee8658182e4837c309818faf'
+ 
+ class InstallTests(unittest.TestCase):
+-    def run_install(self, mode='zink', failure='', de='hyprland', theme='m3ww-v1', switch=False):
++    def run_install(self, mode='zink', failure='', de='hyprland', theme='m3ww-v1', switch=False, reinstall='0', prepare=False):
+         with tempfile.TemporaryDirectory() as temporary:
+             base = Path(temporary); prefix = base / 'usr'; (prefix / 'bin').mkdir(parents=True); (prefix / 'tmp').mkdir()
+             assets = base / 'assets'; assets.mkdir()
+@@ -33,6 +33,7 @@
+         *dependencies=*) [ "$FIXTURE_FAIL" != ldd ] || return 43 ;;
+         *"import gi;"*) [ "$FIXTURE_FAIL" != gi ] || return 44 ;;
+         *"apt-mark showhold"*) printf 'preexisting-hold\n' ;;
++        *"desktop_hyprland.py install "*) [ "$FIXTURE_FAIL" != runtime ] || return 45 ;;
+     esac
+     return 0
+ }
+@@ -56,6 +57,7 @@
+             script = assets / 'desktop_install.sh'; script.write_text(source)
+             spec = base / 'spec'
+             values = dict(DESKTOP_MODE='proot', DESKTOP_DE=de, DESKTOP_SPEC_VERSION='3', DESKTOP_HOST_GL_MODE='zink' if de=='gnome' else 'system',
++                DESKTOP_REINSTALL=reinstall, DESKTOP_PREPARE_ONLY='1' if prepare else '0',
+                 DESKTOP_GUEST_GL_MODE='zink' if mode=='zink' else 'default', DESKTOP_PROOT_DISTRO='debian-1',
+                 DESKTOP_USB_STORAGE='off', DESKTOP_HYPRLAND_BACKEND='android',
+                 DESKTOP_HYPRLAND_COMPONENT_SWITCH='1' if switch else '0', DESKTOP_HYPRLAND_RUNTIME_ID='0.57.0-r7', DESKTOP_HYPRLAND_THEME_ID=theme, DESKTOP_HYPRLAND_HOST_GL_MODE='system',
+@@ -121,4 +123,29 @@
+         self.assertEqual(64, result['code'], result['output'])
+         self.assertEqual('', result['trace'])
+ 
++    def testExplicitReinstallDoesNotSkipVerifiedRuntimeOrGuestPackages(self):
++        result = self.run_install(mode='system', reinstall='1')
++        self.assertEqual(0, result['code'], result['output'])
++        lines = result['trace'].splitlines()
++        installs = [line for line in lines if 'desktop_hyprland.py install ' in line]
++        self.assertEqual(1, len(installs), result['trace'])
++        self.assertIn('--reinstall', installs[0])
++        guest = [line for line in lines if 'desktop_container_plasma_apt.sh' in line]
++        self.assertEqual(2, len(guest), result['trace'])
++        self.assertTrue(all('--reinstall' in line for line in guest), result['trace'])
++        self.assertTrue(any('apt install ' in line and '--reinstall' in line for line in lines))
++
++    def testReinstallRuntimeFailureNeverPublishesSuccess(self):
++        result = self.run_install(mode='system', reinstall='1', failure='runtime')
++        self.assertNotEqual(0, result['code'])
++        self.assertFalse(result['base_marker'])
++        self.assertEqual('exit:1\n', result['status'])
++
++    def testInvalidOrMixedReinstallModeCannotReachPackageOperations(self):
++        for options in [dict(reinstall='yes'), dict(reinstall='1', switch=True), dict(reinstall='1', prepare=True)]:
++            with self.subTest(options=options):
++                result = self.run_install(**options)
++                self.assertEqual(64, result['code'], result['output'])
++                self.assertEqual('', result['trace'])
++
+ if __name__ == '__main__': unittest.main()
+--- termux-ui/scripts/test-desktop-hyprland.py before
++++ termux-ui/scripts/test-desktop-hyprland.py
+@@ -59,9 +59,20 @@
+                 tar.addfile(extra,io.BytesIO(b'x') if extra.isfile() else None)
+         return archive
+ 
+-    def install(self,archive):
++    def install(self,archive, **kwargs):
+         with patch.object(h,'ARCHIVE_SHA256',h.digest(archive)), patch.object(h,'MANIFEST_SHA256',self.manifest_digest):
+-            h.install(archive)
++            h.install(archive, **kwargs)
++
++    def testExplicitReinstallReplacesVerifiedRuntimeAndPreservesUserFiles(self):
++        archive = self.archive(); self.install(archive)
++        extra = h.runtime_root() / 'old-runtime-file'; extra.write_text('old')
++        user = h.HOME / 'documents/keep'; user.parent.mkdir(parents=True); user.write_text('user data')
++        self.install(archive)
++        self.assertTrue(extra.exists())
++        self.install(archive, reinstall=True)
++        self.assertFalse(extra.exists())
++        self.assertEqual('user data', user.read_text())
++        self.assertEqual(self.manifest_digest, (h.runtime_root()/'.installed').read_text().strip())
+ 
+     def testVerifiedInstallIsIdempotentAndDoesNotTouchSharedLibraries(self):
+         shared = h.PREFIX/'lib/existing.so'; shared.parent.mkdir(parents=True);shared.write_text('preserve')

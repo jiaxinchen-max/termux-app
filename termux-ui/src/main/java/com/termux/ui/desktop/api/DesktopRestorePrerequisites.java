@@ -217,7 +217,7 @@ public final class DesktopRestorePrerequisites {
                 || distro.getDe() == com.termux.ui.desktop.domain.DesktopDe.HYPRLAND) {
             command += " --desktop-id " + quote(distro.getId())
                 + " --ready-file " + quote(readyFile.getPath())
-                + " --size " + quote(distro.getResolution())
+                + " --size " + quote(com.termux.ui.desktop.runtime.DesktopDisplayPolicy.preparationResolution(distro))
                 + " --refresh-rate " + distro.getRefreshRate()
                 + " --render-socket " + quote(DesktopLaunchSpec.RENDER_SOCKET_PATH);
             preparation = "DESKTOP_LOG_FILE=" + quote(log.getPath()) + "\n"

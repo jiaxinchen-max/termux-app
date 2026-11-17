@@ -1,0 +1,16 @@
+schema: review_findings_v1
+change_id: remove-desktop-menu-install
+stage: code-review
+status: LOCAL_REVIEW_PASSED_DEVICE_PENDING
+method: 直接源码差异、编译产物及APK内容比较；未使用子代理
+findings: []
+verification:
+  tests: Passed_13
+  build: Passed_arm64_debug
+  compiled_menu: No_MENU_INSTALL
+  apk_signature_abi_assets_and_original_name: Passed
+  full_http_download: Passed
+limitations:
+  - 无Android设备，菜单最终人工验收Pending
+  - Harness严格门禁缺脚本
+  - 安装失败状态混用为已知独立问题，本次不声明修复

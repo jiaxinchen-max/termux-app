@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import socket
 import subprocess
 import sys
@@ -142,7 +143,8 @@ class LauncherIntegration(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             work = Path(folder); runtime = work/'runtime'; runtime.mkdir()
             args = SimpleNamespace(work=work, rootfs=work/'rootfs', session_profile='ubuntu',
-                                   ready_file=work/'ready', usb_storage='off')
+                                   ready_file=work/'ready', usb_storage='off',
+                                   size='1280x720', refresh_rate=60)
             m = module('desktop_gnome_launch')
             base = ['proot', '--kill-on-exit', '-i', '1000:1000', '-r', str(args.rootfs),
                     '/usr/bin/env', '-i', 'HOME=/home/termux']
@@ -242,6 +244,76 @@ while True:time.sleep(.05)
             for call in calls:
                 with self.assertRaises(ProcessLookupError):os.kill(call[0],0)
             self.assertTrue((root/'.termux/xfce-test/session.sh').exists())
+
+
+@unittest.skipUnless(shutil.which('dbus-daemon') and shutil.which('gdbus'),
+                     'requires real D-Bus tools')
+class GnomeActivation(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='software-bus-', dir='/tmp')
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.work = self.root / 'work'
+        self.work.mkdir()
+        self.launcher = module('desktop_gnome_launch')
+        self.prefix = self.root / 'prefix'
+        self.rootfs = self.root / 'rootfs'
+        for directory in (self.prefix / 'share/dbus-1/services',
+                          self.rootfs / 'usr/share/dbus-1/services'):
+            directory.mkdir(parents=True)
+            for name in ('ca.desrt.dconf', 'org.gtk.vfs.Daemon', 'org.gnome.Nautilus',
+                         'org.gnome.Terminal', 'org.gnome.TextEditor',
+                         'org.gnome.Settings', 'org.gnome.clocks', 'org.gnome.Software',
+                         'org.example.Unapproved'):
+                (directory / (name + '.service')).write_text(
+                    '[D-BUS Service]\nName=' + name + '\nExec=/bin/false\n')
+
+    def prepare(self, rootfs):
+        self.launcher.prepare_core_session_bus(
+            self.work, self.prefix, rootfs, str(self.work), str(self.work), True)
+
+    def start_bus(self):
+        bus = subprocess.Popen(['dbus-daemon', '--nofork', '--print-address=1',
+            '--config-file=' + str(self.work / 'sessionbus.conf')],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        def stop():
+            bus.terminate()
+            bus.communicate(timeout=5)
+        self.addCleanup(stop)
+        address = bus.stdout.readline().strip()
+        self.assertTrue(address.startswith('unix:'), address)
+        return dict(os.environ, DBUS_SESSION_BUS_ADDRESS=address)
+
+    def call(self, env, method, *args):
+        return subprocess.run(['gdbus', 'call', '--session', '--dest', 'org.freedesktop.DBus',
+            '--object-path', '/org/freedesktop/DBus',
+            '--method', 'org.freedesktop.DBus.' + method, *args],
+            env=env, capture_output=True, text=True, timeout=5)
+
+    def test_proot_software_entry_reaches_service_executable_on_real_bus(self):
+        self.prepare(self.rootfs)
+        env = self.start_bus()
+        names = self.call(env, 'ListActivatableNames')
+        self.assertEqual(0, names.returncode, names.stderr)
+        self.assertIn('org.gnome.Software', names.stdout)
+        self.assertNotIn('org.example.Unapproved', names.stdout)
+        result = self.call(env, 'StartServiceByName', 'org.gnome.Software', '0')
+        # /bin/false is an explicit application fixture. Its child exit proves
+        # activation reached Exec; it does not claim a real Software GUI ran.
+        self.assertIn('org.freedesktop.DBus.Error.Spawn.ChildExited', result.stderr)
+
+    def test_missing_software_service_rejects_preparation(self):
+        (self.rootfs / 'usr/share/dbus-1/services/org.gnome.Software.service').unlink()
+        with self.assertRaisesRegex(RuntimeError, 'org.gnome.Software.service'):
+            self.prepare(self.rootfs)
+        self.assertFalse((self.work / 'sessionbus.conf').exists())
+
+    def test_native_ubuntu_keeps_software_service_unavailable(self):
+        self.prepare(None)
+        env = self.start_bus()
+        result = self.call(env, 'StartServiceByName', 'org.gnome.Software', '0')
+        self.assertIn('org.freedesktop.DBus.Error.ServiceUnknown', result.stderr)
+        self.assertFalse((self.work / 'dbus-services/org.gnome.Software.service').exists())
 
 
 class Error(Exception):

@@ -1,0 +1,38 @@
+change_id: restore-native-desktop-entries
+stage: local_delivery
+approval:
+  requirement: 用户明确指出Native固定入口被修没并提供空白截图
+  planning: 恢复固定入口、保留配置、验证空列表及PRoot互切
+  implementation: Approved_User_Reported_Omission
+api_docs:
+  status: N/A
+  reason: 本地桌面库存和Android界面，不改变HTTP合约
+product_docs:
+  status: Required
+  documents: [docs/product/desktops.md]
+  consistency:
+    status: Pending
+    evidence: .harness/runs/restore-native-desktop-entries/product-consistency-evidence.json
+    findings: .harness/runs/restore-native-desktop-entries/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  reason: 未发现保护路径定义，仅桌面Java逻辑和测试
+tooling:
+  harness_bootstrap: Missing
+  openspec_cli: Missing
+  strict_gate: Unavailable
+acceptance: Pending
+archive: NotAuthorized
+apk_filename: termux-app_apt-android-7-debug_arm64-v8a.apk
+verification:
+  local_tests: Passed_25
+  layout_red_green: Verified_same_final_test
+  build: Passed_arm64_debug
+  apk: Verified_original_filename
+  http_download: Verified
+  device: Pending
+  strict_gate: Unavailable
+  review: implementation-review.yaml
+  known_existing_failure: 退役GNOME安装后状态测试与原始源码同样失败，留存基线
+git_operations: 未暂存、提交、推送或PR
+deployment: 未执行

@@ -52,29 +52,48 @@ public class DesktopCreateInstallTest {
     private static void created(DesktopActivity a,String id) throws Exception {
         Method m=DesktopActivity.class.getDeclaredMethod("installCreatedDesktop",String.class);m.setAccessible(true);m.invoke(a,id);
     }
-    @Test public void bothModesSaveOnceAndImmediatelyInstallWithoutAnotherConfirmation() throws Exception {
+    @Test public void containerSaveInstallsOnceAndSurvivesRecreation() throws Exception {
         Context c=RuntimeEnvironment.getApplication();
-        for(DesktopRunMode mode:DesktopRunMode.values()) {
-            try(ActivityController<DesktopActivity> list=Robolectric.buildActivity(DesktopActivity.class).create().start().resume();
-                ActivityController<DesktopCreateActivity> create=Robolectric.buildActivity(DesktopCreateActivity.class,DesktopCreateActivity.createIntent(c,mode)).create().start().resume()) {
-                DesktopCreateActivity a=create.get();
-                Method p=DesktopCreateActivity.class.getDeclaredMethod("populate");p.setAccessible(true);p.invoke(a);
-                a.findViewById(R.id.desktop_create_action).performClick();a.findViewById(R.id.desktop_create_action).performClick();
-                await(a::isFinishing);
-                assertEquals(Activity.RESULT_OK,Shadows.shadowOf(a).getResultCode());
-                Intent data=Shadows.shadowOf(a).getResultIntent();String id=data.getStringExtra(DesktopCreateActivity.EXTRA_CREATED_ID);
-                FileDesktopDistroRepository repo=new FileDesktopDistroRepository(new GameStoragePaths(c.getFilesDir()).getDesktopDistrosDirectory());
-                assertEquals(1,repo.list().stream().filter(d->d.getId().equals(id)).count());
-                int before=installs;created(list.get(),id);created(list.get(),id);
-                await(()->installs==before+1);await(()->ShadowDialog.getLatestDialog() instanceof PrefixSetupConsoleDialog);
-                Bundle state=new Bundle();list.saveInstanceState(state);list.pause().stop().destroy();
-                try(ActivityController<DesktopActivity> restored=Robolectric.buildActivity(DesktopActivity.class).create(state)){
-                    created(restored.get(),id);Thread.sleep(100);assertEquals(before+1,installs);
-                }
-                ShadowDialog.getLatestDialog().dismiss();
+        DesktopRunMode mode = DesktopRunMode.PROOT;
+        try(ActivityController<DesktopActivity> list=Robolectric.buildActivity(DesktopActivity.class).create().start().resume();
+            ActivityController<DesktopCreateActivity> create=Robolectric.buildActivity(DesktopCreateActivity.class,DesktopCreateActivity.createIntent(c,mode)).create().start().resume()) {
+            DesktopCreateActivity a=create.get();
+            Method p=DesktopCreateActivity.class.getDeclaredMethod("populate");p.setAccessible(true);p.invoke(a);
+            a.findViewById(R.id.desktop_create_action).performClick();a.findViewById(R.id.desktop_create_action).performClick();
+            await(a::isFinishing);
+            assertEquals(Activity.RESULT_OK,Shadows.shadowOf(a).getResultCode());
+            Intent data=Shadows.shadowOf(a).getResultIntent();String id=data.getStringExtra(DesktopCreateActivity.EXTRA_CREATED_ID);
+            FileDesktopDistroRepository repo=new FileDesktopDistroRepository(new GameStoragePaths(c.getFilesDir()).getDesktopDistrosDirectory());
+            assertEquals(1,repo.list().stream().filter(d->d.getId().equals(id)).count());
+            int before=installs;created(list.get(),id);created(list.get(),id);
+            await(()->installs==before+1);await(()->ShadowDialog.getLatestDialog() instanceof PrefixSetupConsoleDialog);
+            Bundle state=new Bundle();list.saveInstanceState(state);list.pause().stop().destroy();
+            try(ActivityController<DesktopActivity> restored=Robolectric.buildActivity(DesktopActivity.class).create(state)){
+                created(restored.get(),id);Thread.sleep(100);assertEquals(before+1,installs);
             }
+            ShadowDialog.getLatestDialog().dismiss();
         }
     }
+    @Test public void fixedNativeEntryInstallsFromItsPrimaryButtonOnlyAfterConfirmation() throws Exception {
+        Context context = RuntimeEnvironment.getApplication();
+        context.getSharedPreferences("local_games_settings", 0).edit().putBoolean("desktop_proot", false).commit();
+        try (ActivityController<DesktopActivity> controller = Robolectric.buildActivity(DesktopActivity.class)
+                .create().start().resume()) {
+            DesktopActivity activity = controller.get();
+            await(() -> activity.findViewById(R.id.desktop_primary) != null);
+            assertEquals(0, installs);
+            android.widget.TextView primary = activity.findViewById(R.id.desktop_primary);
+            assertEquals(activity.getString(R.string.desktop_action_install), primary.getText().toString());
+            primary.performClick();
+            await(() -> ShadowDialog.getLatestDialog() instanceof androidx.appcompat.app.AlertDialog);
+            assertEquals(0, installs);
+            androidx.appcompat.app.AlertDialog dialog = (androidx.appcompat.app.AlertDialog) ShadowDialog.getLatestDialog();
+            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick();
+            await(() -> installs == 1);
+            await(() -> ShadowDialog.getLatestDialog() instanceof PrefixSetupConsoleDialog);
+        }
+    }
+
     @Test public void invalidOrCancelledResultDoesNotInstall() throws Exception {
         try(ActivityController<DesktopActivity> list=Robolectric.buildActivity(DesktopActivity.class).create()) {
             created(list.get(),null);created(list.get(),"../invalid");Thread.sleep(80);assertEquals(0,installs);

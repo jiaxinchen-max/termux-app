@@ -1,0 +1,9 @@
+schema: review_findings_v1
+change_id: remove-desktop-menu-install
+stage: planning-review
+status: APPROVED_FOR_EXPLICIT_SCOPE
+method: 直接核对用户截图、源码和规划；未使用子代理
+findings: []
+limitations:
+  - OpenSpec及Harness工具缺失
+  - 安装失败状态混用不在本次删除入口的实施范围

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-17T05:28:13" hostname="skynet-env-362805450227519488-378012184997830656-vjdrl" time="3.322">
+  <properties/>
+  <testcase name="cancelNeverEntersAndRepeatedConfirmationEntersOnlyOnce" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="1.126"/>
+  <testcase name="unchangedPollKeepsPressedCardAttached" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="0.2"/>
+  <testcase name="fixedCardsKeepActionsInsideFiniteViewportsWithLongNamesAndLargeFonts" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="0.724"/>
+  <testcase name="changedStateAndSettingsStillUpdateCards" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="0.223"/>
+  <testcase name="cardBodyIsInertAndStartingOrStoppingDisablesPrimary" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="0.203"/>
+  <testcase name="confirmationAndBodyClicksMatchInDarkTheme" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="0.845"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+]]></system-err>
+</testsuite>

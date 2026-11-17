@@ -1,0 +1,31 @@
+change_id: fix-native-hyprland-launch-path
+stage: local-verification-complete
+approval:
+  requirement: 用户更正为 Native Hyprland 并要求解决重新安装后仍无法启动
+  implementation: Approved_Direct_User_Request
+api_docs:
+  status: N/A
+  reason: 本地桌面启动、升级脚本刷新和 D-Bus 激活，不涉及 HTTP 合约
+product_docs:
+  status: Required
+  reason: Native Hyprland 固定入口、覆盖升级和应用启动兼容性
+  documents: [docs/product/desktops.md]
+  consistency:
+    status: Pending
+    evidence: .harness/runs/fix-native-hyprland-launch-path/product-consistency-evidence.json
+    findings: .harness/runs/fix-native-hyprland-launch-path/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  reason: 无已注册保护路径，仅普通桌面启动、受管脚本刷新与测试
+  impact: 固定入口校验、D-Bus 激活环境和启动前脚本更新，保留规格及用户配置
+  rollback: 撤销固定入口校验、激活环境同步和启动前脚本刷新，无数据迁移
+  verification: 真实 CLI、D-Bus 激活、失败清理及 Robolectric 升级和冲突保护回归
+  approval: Approved_Direct_User_Request
+tooling:
+  harness_bootstrap: Missing
+  strict_gate: Unavailable
+  openspec_cli: Missing
+apk_filename: termux-app_apt-android-7-debug_arm64-v8a.apk
+device_deployment: NotAuthorized
+acceptance: Pending
+archive: NotAuthorized

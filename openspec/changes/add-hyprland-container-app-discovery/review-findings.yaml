@@ -1,0 +1,15 @@
+schema: review_findings_v1
+change_id: add-hyprland-container-app-discovery
+stage: planning-review
+revision: container_owned_desktop_session
+status: READY_FOR_USER_CONFIRMATION
+method: 直接源码与规格自审；未使用子代理
+findings: []
+implementation_risks:
+  - Ubuntu glibc版EWW与Classic组件实际供应及Wayland协议能力须先验证
+  - 合成器exec运行宿主，必须适配入口，不能假定容器dotfiles原样可用
+  - 统一guest session bus与USB和PackageKit生命周期需要回归
+limitations:
+  - 新方案未实现，未迁移已有用户桌面
+  - Harness及OpenSpec工具缺失，未声称严格门禁通过
+  - 实际Android图形、输入和USB待设备验收

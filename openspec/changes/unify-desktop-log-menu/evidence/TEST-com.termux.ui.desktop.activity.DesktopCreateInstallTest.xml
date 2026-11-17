@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.desktop.activity.DesktopCreateInstallTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-17T06:41:55" hostname="skynet-env-362805450227519488-378012184997830656-vjdrl" time="2.085">
+  <properties/>
+  <testcase name="invalidOrCancelledResultDoesNotInstall" classname="com.termux.ui.desktop.activity.DesktopCreateInstallTest" time="0.228"/>
+  <testcase name="failedSaveDoesNotReturnSuccessAndAllowsRetry" classname="com.termux.ui.desktop.activity.DesktopCreateInstallTest" time="0.439"/>
+  <testcase name="failedInstallPreservesRecordAndManualRetryStillWorks" classname="com.termux.ui.desktop.activity.DesktopCreateInstallTest" time="0.232"/>
+  <testcase name="fixedNativeEntryInstallsFromItsPrimaryButtonOnlyAfterConfirmation" classname="com.termux.ui.desktop.activity.DesktopCreateInstallTest" time="0.508"/>
+  <testcase name="containerSaveInstallsOnceAndSurvivesRecreation" classname="com.termux.ui.desktop.activity.DesktopCreateInstallTest" time="0.678"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+]]></system-err>
+</testsuite>

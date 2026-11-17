@@ -1,0 +1,5 @@
+schema: review_findings_v1
+change_id: fix-native-hyprland-launch-path
+review: planning
+verdict: APPROVED
+findings: []

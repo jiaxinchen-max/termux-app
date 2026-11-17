@@ -1,0 +1,5 @@
+schema: review_findings_v1
+change_id: restore-native-desktop-entries
+verdict: APPROVED
+findings: []
+limits: [缺少仓库Harness工具和基线, 真机验收待用户]

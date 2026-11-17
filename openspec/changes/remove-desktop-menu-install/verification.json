@@ -1,0 +1,55 @@
+{
+  "change_id": "remove-desktop-menu-install",
+  "tests": {
+    "DesktopInstallStateTest": {
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "DesktopSessionStateResolverTest": {
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "total_tests": 13,
+  "build": "Passed_arm64_debug",
+  "apk": "Verified",
+  "source_review": "Only requested menu ID, addition and click branch removed; other source bytes retained",
+  "compiled_activity": "javap confirms no MENU_INSTALL; primary/creation/install methods retained",
+  "previous_apk_comparison": {
+    "added": [],
+    "removed": [],
+    "changed": [
+      "META-INF/CERT.RSA",
+      "META-INF/CERT.SF",
+      "META-INF/MANIFEST.MF",
+      "classes2.dex"
+    ]
+  },
+  "new_tests": "Not added: reversible five-line menu removal; existing tests, compilation and source/bytecode review used",
+  "device": "Pending; no Android device connected",
+  "strict_gate": "Unavailable_missing_script_exit_127",
+  "product_consistency": "Pending",
+  "download": {
+    "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "http_status": 200,
+    "downloaded_bytes": 46707691,
+    "sha256": "121c49e3129005989e10a799569443e4810bcb2407237319ea1fcb23a3f3ea21",
+    "matches_verified_apk": true,
+    "proxy": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122516548376911873/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "proxy_validation": "Authenticated proxy requires user browser; localhost full download verified"
+  },
+  "evidence_sha256": {
+    "build.log": "a910d1905518c7de49afb92767a437a023187bf8847b5461cd0f0c54423cdf95",
+    "strict-gate.log": "311d57e1a6080076fedd98f0673846d77a2930bec78acbe6a41a87c87215fda0",
+    "download-verification.json": "1b439feb014facd21226c786695693a487f105b14ad9198fff719341863612f7",
+    "TEST-com.termux.ui.desktop.runtime.DesktopInstallStateTest.xml": "1162f272b2e698392768d1045c8ca26faa727d954a264380601341591486446b",
+    "TEST-com.termux.ui.desktop.runtime.DesktopSessionStateResolverTest.xml": "7ae2f8597e915e54d3728c8907acde2ff7e3ebc875301e0865b65fba5b0eb226"
+  },
+  "source_sha256": {
+    "termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopActivity.java": "650e3bc06ceb7dc8ffbced94eb5f9a083ce3acfdce05d334bc732cbcfaf9268c"
+  }
+}

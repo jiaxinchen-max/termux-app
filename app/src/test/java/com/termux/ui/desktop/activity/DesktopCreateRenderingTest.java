@@ -28,6 +28,75 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class DesktopCreateRenderingTest {
+    @Test @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    public void creationCardsStayCompactInFiniteViewportsAndKeepLabelsInside() throws Exception {
+        verifyCreationCardBounds();
+    }
+
+    @Test @Config(qualifiers = "night")
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    public void nightCreationCardsStayCompactInFiniteViewportsAndKeepLabelsInside() throws Exception {
+        verifyCreationCardBounds();
+    }
+
+    private static void verifyCreationCardBounds() throws Exception {
+        Context context = RuntimeEnvironment.getApplication();
+        try {
+            for (float scale : new float[]{1f, 2f}) {
+                RuntimeEnvironment.setFontScale(scale);
+                for (DesktopRunMode mode : DesktopRunMode.values()) {
+                    try (ActivityController<DesktopCreateActivity> controller = Robolectric.buildActivity(
+                            DesktopCreateActivity.class, DesktopCreateActivity.createIntent(context, mode))) {
+                        DesktopCreateActivity activity = controller.create().get();
+                        if (mode == DesktopRunMode.NATIVE) {
+                            List<DesktopDistro> entries = new ArrayList<>();
+                            entries.add(new DesktopDistro("native-existing", "XFCE", mode, "", DesktopDe.XFCE4,
+                                DesktopGlMode.SYSTEM, DesktopGuestGlMode.NONE, "1280x720", 60, DesktopUsbStorageMode.OFF));
+                            existing(activity, entries);
+                        }
+                        GridLayout cards = activity.findViewById(R.id.desktop_create_des);
+                        float density = activity.getResources().getDisplayMetrics().density;
+                        for (int widthDp : new int[]{96, 240, 360, 840}) {
+                            int width = Math.round(widthDp * density);
+                            cards.layout(0, 0, width, 1);
+                            populate(activity);
+                            for (int heightDp : new int[]{320, 660}) {
+                                for (int pass = 0; pass < 2; pass++) {
+                                    cards.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                                        View.MeasureSpec.makeMeasureSpec(Math.round(heightDp * density), View.MeasureSpec.AT_MOST));
+                                    cards.layout(0, 0, width, cards.getMeasuredHeight());
+                                }
+                                assertEquals(4, cards.getChildCount());
+                                for (int index = 0; index < cards.getChildCount(); index++) {
+                                    View card = cards.getChildAt(index);
+                                    String location = mode + " font=" + scale + " viewport=" + widthDp + "x" + heightDp;
+                                    assertEquals(location, Math.round(52 * density * scale), card.getHeight());
+                                    assertTrue(location, card.getLeft() >= 0 && card.getRight() <= width);
+                                    TextView title = card.findViewById(R.id.desktop_option_title);
+                                    TextView check = card.findViewById(R.id.desktop_option_check);
+                                    TextView created = card.findViewById(R.id.desktop_option_soon);
+                                    if (check.getVisibility() == View.VISIBLE) assertTrue(location, title.getTop() >= check.getBottom());
+                                    if (created.getVisibility() == View.VISIBLE) assertTrue(location, title.getTop() >= created.getBottom());
+                                    assertTrue(location, title.getBottom() <= card.getHeight());
+                                    assertTrue(location, title.getHeight() - title.getCompoundPaddingTop()
+                                        - title.getCompoundPaddingBottom() >= title.getLayout().getHeight());
+                                    for (TextView badge : new TextView[]{check, created}) {
+                                        if (badge.getVisibility() == View.VISIBLE) {
+                                            assertTrue(location, badge.getHeight() - badge.getCompoundPaddingTop()
+                                                - badge.getCompoundPaddingBottom() >= badge.getLayout().getHeight());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } finally {
+            RuntimeEnvironment.setFontScale(1f);
+        }
+    }
+
     @Test public void creationShowsSupportedDesktopCardsAndExplicitRendererLayers() throws Exception {
         Context context = RuntimeEnvironment.getApplication();
         try (ActivityController<DesktopCreateActivity> controller = Robolectric.buildActivity(

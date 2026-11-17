@@ -11,3 +11,23 @@ product_docs:
     findings: .harness/runs/add-proot-software-centers/review.yaml
 approval: 用户批准执行；此前授权任务结束推送进度
 harness_gate: unavailable
+
+current_iteration:
+  id: hyprland-software-launcher-20261117
+  approval: 用户明确要求“那就修复Hyprland”，承接已批准本地APK交付；不包含Git发布或部署
+  run_manifest: .harness/runs/add-proot-software-centers/manifest.yaml
+  evidence: .harness/runs/add-proot-software-centers/activation-verification.json
+  product_consistency: Pending
+
+apk_delivery:
+  status: BuiltAndLocallyVerified
+  approval: 用户再次回复“批准”，继续本地APK构建交付
+  evidence: openspec/changes/add-proot-software-centers/hyprland-apk-verification.json
+  device_acceptance: Pending
+  proxy_download: 需浏览器登录态，无登录态请求401
+
+hyprland_iteration:
+  approval: 用户明确要求修复 Hyprland；保留原始 APK 文件名称
+  evidence: openspec/changes/add-proot-software-centers/hyprland-verification.json
+  review: openspec/changes/add-proot-software-centers/hyprland-review.yaml
+  device_acceptance: Pending

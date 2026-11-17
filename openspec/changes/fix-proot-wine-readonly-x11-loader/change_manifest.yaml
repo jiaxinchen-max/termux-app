@@ -1,0 +1,47 @@
+change_id: fix-proot-wine-readonly-x11-loader
+stage: user-acceptance
+approval:
+  requirement: 用户反馈 PRoot Wine 启动故障并要求排查处理
+  implementation: Approved_Direct_User_Request
+  device_repair: Reversible_Mode_Only_ExistingRuntime_NoAPKDeployment
+api_docs:
+  status: N/A
+  reason: 仅本地桥接加载器权限与包安装状态修复，无 HTTP 合约
+product_docs:
+  status: Required
+  documents: [docs/product/wine-runtime.md]
+  consistency:
+    status: Pending
+    evidence: .harness/runs/fix-proot-wine-readonly-x11-loader/product-consistency-evidence.json
+    findings: .harness/runs/fix-proot-wine-readonly-x11-loader/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  impact: 桥接包数据和安装钩子，以及已安装桥接准备路径
+  rollback: 恢复生成器/Java/内嵌deb；设备加载器恢复0755
+  verification: 文件系统真实权限回归、包钩子执行回归、现有启动脚本和设备Xserver复验
+  approval: Approved_Direct_User_Request
+tooling:
+  harness_bootstrap: Missing
+  strict_gate: Unavailable
+apk_filename: termux-app_apt-android-7-debug_arm64-v8a.apk
+device_deployment: NotAuthorized
+acceptance: Pending
+archive: NotAuthorized
+implementation_status: CorrectedInstallationRegression
+verification:
+  local: Passed
+  strict_gate: Unavailable
+  wine_device_e2e: Pending
+  report: .harness/runs/fix-proot-wine-readonly-x11-loader/verification.json
+correction:
+  approval: Direct_User_Request_Restore_Working_Installation
+  root_cause: 包内 loader 只读导致非 root dpkg 安全同步无法写打开
+  plan: 包内恢复0755，安装完成及加载前只读；保持原名，不禁用安全同步
+  regression_evidence: /home/user/workspace/artifacts/bridge-install-regression/unprivileged-dpkg-before-fix.log
+correction_result:
+  local_tests: Passed_8
+  device_isolated_dpkg_first_and_reinstall: Passed
+  readonly_dynamic_loader: Passed
+  original_names: VerifiedUnchanged
+  original_filename_apk: BuiltAndDownloadVerified
+  device_apk_deployment: NotPerformed

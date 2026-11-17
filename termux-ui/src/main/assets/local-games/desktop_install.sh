@@ -66,6 +66,15 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
 [ "$OPERATION" != install ] || printf 'installing\n' > "$DESKTOP_STATUS_FILE" || exit 74
+case "${DESKTOP_REINSTALL:-0}" in 0|1) ;; *) log 'Invalid explicit reinstall flag'; exit 64 ;; esac
+REINSTALL_OPTION=''
+if [ "${DESKTOP_REINSTALL:-0}" = 1 ]; then
+    if [ "$OPERATION" != install ] || [ "${DESKTOP_PREPARE_ONLY:-0}" != 0 ] ||
+        [ "${DESKTOP_USB_CONFIGURE_ONLY:-0}" != 0 ] || [ "${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" != 0 ]; then
+        log 'Reinstall cannot be combined with preparation, USB, theme switch or host prerequisites'; exit 64
+    fi
+    REINSTALL_OPTION=--reinstall
+fi
 . "$(dirname "$0")/desktop_rendering.sh"
 desktop_resolve_rendering || { log 'Unsupported host/container renderer pair; choose compatible renderers explicitly.'; exit 64; }
 case "${DESKTOP_MODE:-}" in native|proot) ;; *) log 'Explicit desktop run mode required'; exit 64 ;; esac
@@ -663,8 +672,38 @@ $name $digest $release $url"
     log 'Host prerequisites finished; no container was created or modified.'
 }
 
+ensure_hyprland_guest_shell() {
+    for helper in desktop_container_plasma_apt.sh desktop_container_apt_sources.sh desktop_container_statx_setup.sh desktop_container_run_config.sh desktop_container_statx_aarch64.bin; do
+        cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail 'staging container desktop helper'
+    done
+    guest_shell_packages='python3-gi gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1 swaybg xfce4-notifyd librsvg2-common xdg-terminal-exec'
+    if [ "$DESKTOP_HYPRLAND_THEME_ID" = m3ww-v1 ]; then
+        guest_shell_packages="$guest_shell_packages foot fish starship fontconfig cargo rustc build-essential pkg-config libgtk-3-dev libgtk-layer-shell-dev libdbusmenu-gtk3-dev"
+    else
+        guest_shell_packages="$guest_shell_packages xfce4-panel xfce4-genmon-plugin"
+    fi
+    # shellcheck disable=SC2086
+    run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
+        --statx-backend=proc-fdinfo --no-install-recommends $REINSTALL_OPTION $guest_shell_packages || fail 'Ubuntu desktop dependencies'
+    if [ "$DESKTOP_HYPRLAND_THEME_ID" = m3ww-v1 ]; then
+        for helper in desktop_install_eww.py hyprland-eww-Cargo.lock; do
+            cp "$(dirname "$0")/$helper" "$PREFIX/tmp/$helper" || fail 'staging Ubuntu EWW builder'
+        done
+        run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- \
+            sh /tmp/desktop_container_run_config.sh --statx-backend=proc-fdinfo python3 /tmp/desktop_install_eww.py || fail 'building Ubuntu EWW'
+    fi
+    # Resolute GTK uses Glycin; reuse the verified glibc adapter used by Ubuntu GNOME.
+    # Only the current PRoot view binds it; distribution libraries are preserved.
+    hyprland_rootfs="$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/rootfs"
+    glycin_archive=$(fetch_verified_debs "$GNOME_RESOLUTE_TAG" "$GNOME_RESOLUTE_URL" "$GNOME_GLYCIN_ARTIFACT") || fail 'downloading verified Resolute image decoder'
+    glycin_archive=$(readlink -f "${glycin_archive# }") || fail 'resolving image decoder archive'
+    run python3 -I -B "$(dirname "$0")/desktop_install_glycin.py" --archive "$glycin_archive" \
+        --rootfs "$hyprland_rootfs" || fail 'installing verified Resolute image decoder'
+}
+
 ensure_hyprland_host() {
     support="$HYPRLAND_SUPPORT"
+    if [ "$DESKTOP_MODE" = proot ]; then support='python dbus pulseaudio'; fi
     if [ "$DESKTOP_MODE" = native ]; then support="$support thunar"; else support="$support proot proot-distro"; fi
     missing_support=0
     for package in $support; do
@@ -674,30 +713,36 @@ ensure_hyprland_host() {
     if [ "$DESKTOP_MODE" = proot ]; then
         proot_valid && proot_distro_valid || missing_support=1
     fi
-    "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-shell \
-        --theme-id "$DESKTOP_HYPRLAND_THEME_ID" >/dev/null 2>&1 || missing_support=1
-    if [ "$missing_support" = 1 ]; then
+    if [ "$DESKTOP_MODE" = native ]; then
+        "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-shell \
+            --theme-id "$DESKTOP_HYPRLAND_THEME_ID" >/dev/null 2>&1 || missing_support=1
+    fi
+    if [ "$missing_support" = 1 ] || [ "${DESKTOP_REINSTALL:-0}" = 1 ]; then
         run pkg install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold x11-repo || fail 'x11-repo'
         run pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold || fail 'pkg update'
         # shellcheck disable=SC2086
-        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold $support || fail 'Hyprland runtime/client dependencies'
+        run apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold $REINSTALL_OPTION $support || fail 'Hyprland runtime/client dependencies'
     else
         log 'Hyprland host dependencies satisfied; no package update required.'
     fi
-    if run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-runtime; then
+    if [ "${DESKTOP_REINSTALL:-0}" != 1 ] && run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-runtime; then
         log 'Selected Hyprland compositor already verified; preserving its files'
     else
         artifact=$(fetch_debs "$HYPRLAND_RELEASE" "$HYPRLAND_BASE_URL" "$HYPRLAND_ASSET $HYPRLAND_ARCHIVE_SHA256") || fail 'downloading Hyprland component'
         artifact="${artifact# }"
-        if ! run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" install "$artifact"; then
+        # REINSTALL_OPTION is either empty or the single validated --reinstall switch.
+        # shellcheck disable=SC2086
+        if ! run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" install "$artifact" $REINSTALL_OPTION; then
             rm -f "$artifact"
             fail 'Hyprland runtime verification/install failed; retry will download the component again'
         fi
     fi
-    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland_components.py" install \
+    if [ "$DESKTOP_MODE" = native ]; then
+        run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland_components.py" install \
         --runtime "$DESKTOP_HYPRLAND_RUNTIME_ID" --theme "$DESKTOP_HYPRLAND_THEME_ID" || fail 'Hyprland theme verification/install'
-    run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-shell \
+        run "$PREFIX/bin/python3" -I -B "$(dirname "$0")/desktop_hyprland.py" check-shell \
         --theme-id "$DESKTOP_HYPRLAND_THEME_ID" || fail 'Hyprland shell verification'
+    fi
     [ -x "$PREFIX/bin/pulseaudio" ] && [ -x "$PREFIX/bin/pactl" ] || fail 'Host audio support missing'
     if [ "$DESKTOP_MODE" = proot ]; then
         proot_valid && proot_distro_valid || fail 'Hyprland PRoot host prerequisites invalid'
@@ -800,6 +845,7 @@ if [ "$DESKTOP_DE" = hyprland ]; then
         exit 0
     fi
     if [ "${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" = 1 ]; then
+        if [ "$DESKTOP_MODE" = proot ]; then ensure_hyprland_guest_shell; fi
         # A theme transaction must preserve the previous container and completion receipts.
         # Initialization validates the candidate's clients/renderers without installing a guest.
         initialize_desktop
@@ -825,7 +871,8 @@ if [ "$DESKTOP_DE" = hyprland ]; then
         fi
         # shellcheck disable=SC2086
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh \
-            --statx-backend=proc-fdinfo --no-install-recommends xfce4-terminal thunar dbus-x11 adwaita-icon-theme passwd sudo $SOFTWARE_CENTER_PACKAGES $zink_packages || fail 'Hyprland container clients'
+            --statx-backend=proc-fdinfo --no-install-recommends $REINSTALL_OPTION xfce4-terminal thunar dbus-x11 adwaita-icon-theme passwd sudo $SOFTWARE_CENTER_PACKAGES $zink_packages || fail 'Hyprland container desktop'
+        ensure_hyprland_guest_shell
         cp "$(dirname "$0")/desktop_container_discover_catalog.sh" "$PREFIX/tmp/desktop_container_discover_catalog.sh" || fail 'staging software catalog helper'
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- sh /tmp/desktop_container_discover_catalog.sh \
             --statx-backend=proc-fdinfo || fail 'preparing software application catalog'
@@ -963,7 +1010,11 @@ else
     fi
     recommend_option=''
     { [ "$DESKTOP_DE" != gnome ] && [ "$DESKTOP_DE" != ubuntu_gnome ]; } || recommend_option=--no-install-recommends
-    [ "$DESKTOP_DE" != ubuntu_gnome ] || recommend_option="--no-install-recommends --reinstall"
+    if [ "$DESKTOP_DE" = ubuntu_gnome ]; then
+        recommend_option="--no-install-recommends --reinstall"
+    elif [ "${DESKTOP_REINSTALL:-0}" = 1 ]; then
+        recommend_option="$recommend_option --reinstall"
+    fi
     # A prior Turnip overlay can leave distro EGL linked to an absent LLVM ABI.
     # Reinstall matching distro Mesa on emulators; preserve existing apt hold selections.
     if [ "$PLASMA_EMULATOR" = 1 ]; then

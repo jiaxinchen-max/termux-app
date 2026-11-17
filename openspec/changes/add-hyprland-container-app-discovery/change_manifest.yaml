@@ -1,0 +1,46 @@
+change_id: add-hyprland-container-app-discovery
+stage: local_delivery
+approval:
+  request: 用户要求增加Hyprland容器应用发现，并进一步提出Native仅提供合成器，其余由容器处理
+  planning: 用户回复“据此实施”确认修订方案
+  implementation: Approved
+api_docs:
+  status: N/A
+  reason: 仅本地容器应用发现、菜单展示和启动，不新增或修改HTTP合约
+product_docs:
+  status: Required
+  documents: [docs/product/desktops.md]
+  reason: 新增用户可见的容器应用自动发现及动态菜单能力，验收后再建立产品文档
+  consistency:
+    status: Pending
+    evidence: .harness/runs/add-hyprland-container-app-discovery/product-consistency-evidence.json
+    findings: .harness/runs/add-hyprland-container-app-discovery/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  reason: 未找到保护策略；拟修改桌面脚本、资产登记及测试，实施前再次核对
+tooling:
+  openspec_cli: Missing
+  harness_bootstrap: Missing
+  strict_gate: Unavailable
+  baseline_specs: Missing
+  product_knowledge: Missing
+git_operations: 未授权暂存、提交、推送或PR
+deployment: 未授权
+apk_filename: termux-app_apt-android-7-debug_arm64-v8a.apk
+
+architecture_revision:
+  id: container_owned_desktop_session
+  supersedes: 宿主扫描容器应用并镜像菜单的未实施方案
+  component_validation: LocalProbesPassed_Arm64DevicePending
+  external_component_publication: 未授权
+  native_mode: 保持当前架构
+
+verification:
+  local_tests: Passed_107
+  apk: Verified
+  evidence: verification.json
+  code_review: implementation-review.yaml
+  device: Pending
+  strict_gate: Unavailable
+acceptance: Pending
+archive: NotAuthorized

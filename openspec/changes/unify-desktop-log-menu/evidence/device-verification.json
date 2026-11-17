@@ -1,0 +1,12 @@
+{
+  "target": "120.24.191.156:8057",
+  "scope": "Read-only archive journal and owning inventory record",
+  "desktopId": "desktop-893fb3fb",
+  "de": "kwin_plasma",
+  "runMode": "proot",
+  "archiveOperation": "export",
+  "archiveStatus": "SUCCEEDED",
+  "finding": "This matching historical snapshot triggered the extra card menu item",
+  "candidateInstalled": false,
+  "desktopTaskExecuted": false
+}

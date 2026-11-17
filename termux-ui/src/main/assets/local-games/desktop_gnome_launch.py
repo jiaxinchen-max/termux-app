@@ -36,6 +36,40 @@ def probe_session(command, env, timeout=5):
         return subprocess.CompletedProcess(command, 124, 'Session probe timed out')
 
 
+def prepare_core_session_bus(w, prefix, rootfs, gw, gr, ubuntu):
+    """Prepare only explicit session activation services during save/install."""
+    services = w / 'dbus-services'
+    services.mkdir(exist_ok=True)
+    for old in services.glob('*.service'):
+        old.unlink()
+    service_root = (rootfs.resolve() / 'usr/share/dbus-1/services' if rootfs
+                    else prefix / 'share/dbus-1/services')
+    required_services = {'ca.desrt.dconf', 'org.gtk.vfs.Daemon', 'org.gnome.Nautilus'}
+    service_names = ['ca.desrt.dconf', 'org.gtk.vfs.Daemon', 'org.gtk.vfs.Metadata',
+                     'org.gnome.Nautilus', 'org.gnome.Shell.Notifications', 'org.gnome.ScreenSaver']
+    if ubuntu:
+        application_services = {'org.gnome.Terminal', 'org.gnome.TextEditor', 'org.gnome.Settings', 'org.gnome.clocks'}
+        required_services.update(application_services)
+        service_names += sorted(application_services)
+        service_names += ['org.gnome.Calculator', 'org.gnome.Calculator.SearchProvider', 'org.gnome.eog']
+    if rootfs:
+        # Software's desktop entry uses D-Bus activation. PRoot installs it;
+        # native sessions retain their existing service/dependency contract.
+        required_services.add('org.gnome.Software')
+        service_names.append('org.gnome.Software')
+    for name in service_names:
+        source = service_root / (name + '.service')
+        if source.is_file():
+            shutil.copyfile(source, services / source.name)
+        elif name in required_services:
+            raise RuntimeError('Required GNOME D-Bus activation service is missing: ' + str(source))
+    (w / 'sessionbus.conf').write_text('<busconfig><type>session</type><listen>unix:path=' +
+        escape(gr + '/session-bus') + '</listen><auth>EXTERNAL</auth><servicedir>' +
+        escape(gw + '/dbus-services') + '</servicedir><policy context="default">'
+        '<allow user="*"/><allow own="*"/><allow send_destination="*"/>'
+        '<allow receive_sender="*"/></policy></busconfig>')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--prepare', action='store_true', help='Save/install phase only: prepare and validate this session')
@@ -318,31 +352,7 @@ printf '%s\\n' "$$" > "$shell_pid_file"
 mv -f "$shell_pid_file" ''' + shlex.quote(gw + '/shell.pid') + '\nexec ' + shlex.join(compositor) + '\n')
     session_bus_args = ['dbus-run-session', '--config-file=' + gw + '/sessionbus.conf']
     if args.service_policy == 'core':
-        services = w / 'dbus-services'
-        services.mkdir(exist_ok=True)
-        for old in services.glob('*.service'):
-            old.unlink()
-        service_root = (args.rootfs.resolve() / 'usr/share/dbus-1/services' if args.rootfs
-                        else prefix / 'share/dbus-1/services')
-        required_services = {'ca.desrt.dconf', 'org.gtk.vfs.Daemon', 'org.gnome.Nautilus'}
-        service_names = ['ca.desrt.dconf', 'org.gtk.vfs.Daemon', 'org.gtk.vfs.Metadata',
-                         'org.gnome.Nautilus', 'org.gnome.Shell.Notifications', 'org.gnome.ScreenSaver']
-        if ubuntu or native_ubuntu:
-            application_services = {'org.gnome.Terminal', 'org.gnome.TextEditor', 'org.gnome.Settings', 'org.gnome.clocks'}
-            required_services.update(application_services)
-            service_names += sorted(application_services)
-            service_names += ['org.gnome.Calculator', 'org.gnome.Calculator.SearchProvider', 'org.gnome.eog']
-        for name in service_names:
-            source = service_root / (name + '.service')
-            if source.is_file():
-                shutil.copyfile(source, services / source.name)
-            elif name in required_services:
-                raise RuntimeError('Required GNOME D-Bus activation service is missing: ' + str(source))
-        (w / 'sessionbus.conf').write_text('<busconfig><type>session</type><listen>unix:path=' +
-            escape(gr + '/session-bus') + '</listen><auth>EXTERNAL</auth><servicedir>' +
-            escape(gw + '/dbus-services') + '</servicedir><policy context="default">'
-            '<allow user="*"/><allow own="*"/><allow send_destination="*"/>'
-            '<allow receive_sender="*"/></policy></busconfig>')
+        prepare_core_session_bus(w, prefix, args.rootfs, gw, gr, ubuntu)
     else:
         (w / 'sessionbus.conf').write_text('<busconfig><type>session</type><listen>unix:path=' +
             escape(gr + '/session-bus') + '</listen><auth>EXTERNAL</auth>'
@@ -386,6 +396,44 @@ def session_request(args):
             for key, value in vars(args).items() if key != 'prepare'}
 
 
+def output_dimensions(args):
+    size = re.fullmatch(r'([0-9]{3,4})x([0-9]{3,4})', args.size)
+    if not size or not (320 <= int(size[1]) <= 8192 and 240 <= int(size[2]) <= 8192):
+        raise ValueError('GNOME size must be WIDTHxHEIGHT (320..8192 by 240..8192)')
+    if args.refresh_rate != 60:
+        raise ValueError('GNOME Android output supports exactly 60 Hz')
+    return size[1], size[2]
+
+
+def prepared_request_matches(prepared, args):
+    if not isinstance(prepared, dict):
+        return False
+    # Geometry does not change installed resources. All other settings stay pinned.
+    return {key: value for key, value in prepared.items() if key != 'size'} == {
+        key: value for key, value in session_request(args).items() if key != 'size'}
+
+
+def session_output_script(work, guest_work, prepared, args):
+    width, height = output_dimensions(args)
+    if prepared['request'].get('size') == args.size:
+        return guest_work + '/session.sh'
+    # Older preparation results embed geometry in session.sh. Derive only a launch
+    # command from it; never rerun setup or modify the saved script/user settings.
+    script = (work / 'session.sh').read_text()
+    for key, value in (('MUTTER_ANDROID_WIDTH', width), ('MUTTER_ANDROID_HEIGHT', height)):
+        script, count = re.subn(r'\b' + key + r'=[0-9]+\b', key + '=' + value, script)
+        if count != 1:
+            raise RuntimeError('Prepared GNOME output command is invalid; save the desktop settings')
+    temporary = work / 'session-output.sh.tmp'
+    try:
+        temporary.write_text(script)
+        temporary.chmod(0o600)
+        temporary.replace(work / 'session-output.sh')
+    finally:
+        temporary.unlink(missing_ok=True)
+    return guest_work + '/session-output.sh'
+
+
 def parent_environment():
     # Do not inherit another compositor's renderer selection.
     host = {key: value for key, value in os.environ.items()
@@ -411,8 +459,9 @@ def run_prepared(args):
     from types import SimpleNamespace
     import fcntl
     w = args.work.resolve()
+    output_dimensions(args)
     config = json.loads((w / 'prepared-session.json').read_text())
-    if config.get('schema') != 1 or config.get('request') != session_request(args):
+    if config.get('schema') != 1 or not prepared_request_matches(config.get('request'), args):
         raise RuntimeError('Desktop settings are not prepared; save/install the desktop first')
     prefix = Path(os.environ['PREFIX'])
     runtime, usb_parent = Path(config['runtime']), Path(config['usb_parent'])
@@ -429,6 +478,7 @@ def run_prepared(args):
         guest.pop(key, None)
     lock = (w / 'session.lock').open('w')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    session_script = session_output_script(w, gw, config, args)
     args.ready_file.unlink(missing_ok=True)
     children, logs, optional = [], [], []
     storage = None
@@ -467,7 +517,7 @@ def run_prepared(args):
             if bus.poll() is not None or time.monotonic() > deadline:
                 raise RuntimeError('Private system D-Bus startup failed; inspect work logs')
             time.sleep(.1)
-        session = start('session', base + session_bus_args + ['--', '/bin/sh' if args.rootfs else str(prefix / 'bin/sh'), gw + '/session.sh'], guest)
+        session = start('session', base + session_bus_args + ['--', '/bin/sh' if args.rootfs else str(prefix / 'bin/sh'), session_script], guest)
         deadline = time.monotonic() + 30
         while not (w / 'session.env').exists():
             if session.poll() is not None or time.monotonic() > deadline:

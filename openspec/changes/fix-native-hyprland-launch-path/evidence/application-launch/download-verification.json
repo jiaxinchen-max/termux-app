@@ -1,0 +1,9 @@
+{
+  "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "http_status": 200,
+  "downloaded_bytes": 45465526,
+  "sha256": "cfbd2a67ea3dbb96fc4bfe7f4831d1b738ebabbff8ba415633bb039b0231ea02",
+  "matches_verified_apk": true,
+  "proxy": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122516548376911873/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "proxy_validation": "Full localhost HTTP download verified; public proxy requires user authentication"
+}

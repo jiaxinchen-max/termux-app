@@ -55,6 +55,9 @@ public class DesktopDistroTest {
             .withName("USB").withOutput("1920x1080",60).withRenderers(DesktopGlMode.LLVMPIPE,DesktopGuestGlMode.NONE);
         assertEquals(DesktopUsbStorageMode.READ_ONLY,changed.getUsbStorage());
         assertThrows(IllegalArgumentException.class,()->changed.withUsbStorage(null));
-        assertThrows(IllegalArgumentException.class,()->DesktopUsbStorageMode.fromStorageValue("read-write"));
+        assertEquals(DesktopUsbStorageMode.READ_WRITE, DesktopUsbStorageMode.fromStorageValue("read-write"));
+        assertEquals(DesktopUsbStorageMode.READ_WRITE,
+            changed.withUsbStorage(DesktopUsbStorageMode.READ_WRITE).withName("Writable USB").getUsbStorage());
+        assertThrows(IllegalArgumentException.class,()->DesktopUsbStorageMode.fromStorageValue("unknown"));
     }
 }

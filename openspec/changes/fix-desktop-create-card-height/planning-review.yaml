@@ -1,0 +1,9 @@
+schema: review_findings_v1
+change_id: fix-desktop-create-card-height
+stage: planning-review
+status: APPROVED_FOR_REPORTED_OMISSION
+method: 直接核对用户截图、既有规格、XML和Activity源码，未使用子代理
+findings: []
+limitations:
+  - Harness与OpenSpec工具缺失
+  - 无连接Android设备，最终界面验收Pending

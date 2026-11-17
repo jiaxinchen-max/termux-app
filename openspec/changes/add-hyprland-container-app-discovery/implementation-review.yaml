@@ -1,0 +1,19 @@
+schema: review_findings_v1
+change_id: add-hyprland-container-app-discovery
+stage: implementation-review
+status: LOCAL_REVIEW_APPROVED_DEVICE_ACCEPTANCE_PENDING
+method: 直接源码/差异审查与本地实测；未使用子代理
+findings: []
+reviewed:
+  - PRoot无宿主UI兜底；固定快捷入口转入容器，无按应用包装器/镜像索引
+  - 普通termux用户、统一guest session bus、独立system bus、token与故障撤销
+  - USB停止顺序保留，桌面子进程先于总线退出
+  - GIO隐藏/覆盖/本地化/Terminal/DBus/动态更新/参数与工作目录
+  - 主题归档哈希保持；glibc源码构建有来源锁定与收据；Native回归
+  - 复用固定Glycin适配器并仅当前容器视图绑定，保留发行版文件
+  - APK原名、77项运行资产、arm64、签名和非testOnly核验
+limitations:
+  - 未完成Android图形/输入/窗口/USB及arm64首次EWW构建
+  - Linux完整Ubuntu会话的bubblewrap边界仍未通过；协议探针单列
+  - Harness strict-run不可用，未声称通过
+product_consistency: Pending

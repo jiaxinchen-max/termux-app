@@ -33,3 +33,36 @@
 
 ## 其他桌面同类问题检查
 以 87357f8a 检查其余三个桌面的保存/安装/恢复路径，未发现当前支持组合会触发 XFCE 的 000 PREFIX 写入错误。4 项隔离路径审计、10 项 Plasma 启动监督和 5 项普通用户会话测试通过。Ubuntu GNOME 的 USB read-only 旧分支包含类似写法，但当前 UI 和启动参数契约禁止该组合，未更改业务逻辑；未来开放前必须修正。模拟器目前没有 GNOME/Hyprland PRoot 桌面，本次不声称其完整安装或 GUI 验收通过。详见 docs/desktop-testing/desktop-path-permission-audit-20261116.md。
+
+# 2026-11-17 GNOME Software 激活修正
+
+用户在诊断后回复“批准”，确认本轮修复方向。沿用 add-proot-software-centers，先补充中文规划及已批准任务，再修改代码。没有继承历史 Git 发布授权。
+
+## 实现与验证
+- 提取原有 core 会话准备函数，在 PRoot 增加 org.gnome.Software 必需服务，缺失时准备失败；Native 范围、系统总线和授权规则保持原有契约。
+- 新增测试在原行为上三项中两项失败（缺失不报错、服务无法激活），修复后全部通过。真实 D-Bus 使用 /bin/false 作为明确应用替身，Spawn.ChildExited 证明调用到达 Exec，不代表真实 GUI 成功。
+- 软件中心21项、安装路由3项、GNOME会话15项，共39项定向验证通过。
+- Ubuntu GNOME完整安装套件18项报告7条失败；在未修改68858272719da9adccbb2ed1d9ff31029163da6a独立导出源码上重跑，失败项一致。旧夹具未复制现有安装器需要的desktop_software_center.py等运行脚本，不改写夹具来掩盖历史失败。
+- 变更Python文件内存编译及git diff --check通过。源文件、命令日志及SHA256见activation-verification.json。
+
+## 生效与回退
+更新运行资产后，对已有Ubuntu GNOME容器重新保存桌面设置并重启，使保存期重新生成激活清单；普通启动不迁移。回退源码后重新保存即可，不删除容器数据或已安装软件包。
+
+## 限制
+仓库缺少Harness bootstrap、verify.sh和OpenSpec CLI，严格门禁未运行。ADB无设备，真实窗口、密码与DEB交易待设备验收。本轮未构建APK或执行Git发布。api_docs=N/A；product_docs=Required、consistency=Pending，未固化产品资料或归档。run目录受仓库/.harness/忽略规则影响，审查与验证摘要同时写入change目录供审阅。
+
+## 2026-11-17 再次批准后的 APK 交付
+用户再次回复“批准”后，继续本地构建与打包核验。arm64 构建成功；首次ABI定向构建的testOnly=true被交付检查拒绝，显式关闭该标志后重建通过，没有交付首次产物。最终APK签名v1/v2通过，证书与仓库配置一致，非testOnly，74个运行源资产逐字节一致（包含本轮修复），未包含pyc。
+
+最终文件：termux-app_apt-android-7-debug_arm64-v8a.apk；45,547,355字节；SHA256：79838cb7563d584d9920522ce67c16c10bfbca40c0067eaa24098e5bcea0355e。本地HTTP完整下载200、长度与摘要一致。沙箱代理地址从无浏览器登录态请求返回401，供已登录Digital Worker的用户访问，不能声称已通过外部代理完整下载核验。下载地址和详细证据见activation-apk-verification.json。
+
+安装后对已有Ubuntu GNOME容器重新保存桌面设置并重启；不需删除容器。未替用户安装APK，实机GUI/密码交易仍待验收，严格Harness门禁仍不可用。未暂存、提交、推送或部署。构建器按仓库既有CMake流程向七个C/C++子模块应用了现有补丁，未增加手工业务修改或改变gitlink提交；修改文件摘要已记录。产品文档一致性仍Pending，不归档。
+
+## 2026-11-17 Hyprland m3ww 菜单修复与交付
+用户明确要求修复Hyprland。按已批准范围先补充规划，再为m3ww PRoot应用列表追加Software，命令复用termux-hyprland-software；Native桌面文件发现保持不变。PRoot目前没有容器应用通用自动发现，此次不扩展应用索引。
+
+新增回归在修改前6项中1项失败，明确复现Software缺失；修改后主题6项、Classic菜单3项、Hyprland运行/包装器13项、软件中心服务21项、安装路由3项共46项全部通过。确定性主题构建及--check通过，生成的目录/Java/shell资产无源码差异；Python语法和git diff --check通过。直接源码审查见hyprland-review.yaml，命令输出及源码摘要见hyprland-verification.json。
+
+arm64本地APK构建13秒成功；保留原名termux-app_apt-android-7-debug_arm64-v8a.apk，45,653,521字节，SHA256为3f21a3017d6ef5d30ec2f634dc7590b77dc5cea31f3f677e9e9d68f968a28d98。签名v1/v2与仓库证书一致，非testOnly，74个打包运行文件逐字节等于源码，包含desktop_hyprland_theme.py和既有GNOME激活修复。HTTP本地完整下载200且长度/摘要一致，下载入口沿用相同原始文件名；未重新验证带浏览器登录态的外部代理下载。七个子模块既有构建补丁摘要与上一轮完全相同。详见hyprland-apk-verification.json。
+
+用户安装更新后停止并重新启动Hyprland；如沿用旧运行资产，先重新保存桌面设置。不需要删除容器。未连接ADB设备，实际图形窗口、认证和DEB交易待实机验收。Harness严格脚本仍缺失，不宣称严格门禁通过。产品资料一致性Pending；未执行Git发布、安装、部署或归档。

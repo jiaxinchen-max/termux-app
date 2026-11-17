@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.GridLayout;
-import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -30,6 +29,7 @@ import com.termux.ui.desktop.domain.DesktopUsbStorageMode;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 import com.termux.ui.desktop.runtime.DesktopCreationCatalog;
 import com.termux.ui.desktop.runtime.DesktopRendererPolicy;
+import com.termux.ui.desktop.runtime.DesktopDisplayPolicy;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,9 +43,6 @@ import java.util.UUID;
 public final class DesktopCreateActivity extends AppUiActivity {
 
     private static final String EXTRA_MODE = "com.termux.ui.extra.DESKTOP_CREATE_MODE";
-
-    private static final String[] RESOLUTIONS = {"1280x720", "1600x900", "1920x1080", "2560x1440"};
-    private static final int[] REFRESH_RATES = {30, 60, 90, 120};
 
     static final String EXTRA_CREATED_ID = "com.termux.ui.extra.DESKTOP_CREATED_ID";
 
@@ -120,11 +117,10 @@ public final class DesktopCreateActivity extends AppUiActivity {
         binding.desktopCreateAlias.setVisibility(
             mode == DesktopRunMode.PROOT ? View.VISIBLE : View.GONE);
 
-        bindSelect(binding.desktopCreateResolution, R.string.desktop_select_resolution,
-            RESOLUTIONS, () -> resolution, value -> resolution = value);
-        bindSelect(binding.desktopCreateRefresh, R.string.desktop_select_refresh,
-            this::refreshLabels, () -> refreshRate + " Hz",
-            value -> refreshRate = Integer.parseInt(value.substring(0, value.length() - 3)));
+        DesktopDisplaySettings.bindResolution(this, binding.desktopCreateResolution,
+            () -> resolution, value -> { if (!saveState.saving) resolution = value; });
+        DesktopDisplaySettings.bindRefresh(this, binding.desktopCreateRefresh, () -> de,
+            () -> refreshRate, value -> { if (!saveState.saving) refreshRate = value; });
         bindSelect(binding.desktopCreateHostRenderer, R.string.desktop_renderer_host,
             this::hostRendererLabels, () -> hostLabel(this, hostGlMode), value -> hostGlMode = hostOf(this, value));
         bindSelect(binding.desktopCreateRenderer, R.string.desktop_renderer_guest,
@@ -190,14 +186,15 @@ public final class DesktopCreateActivity extends AppUiActivity {
         float scale = getResources().getConfiguration().fontScale;
         int columns = DesktopCardLayout.columns(availableDp, scale);
         binding.desktopCreateDes.setColumnCount(columns);
-        if (de != null && de.isGnomeSession()) refreshRate = 60;
         for (int index = 0; index < options.size(); index++) {
             DesktopDe candidate = options.get(index);
             boolean creatable = available.contains(candidate);
             View card = optionCard(inflater, candidate, creatable, candidate == de);
             GridLayout.LayoutParams params = new GridLayout.LayoutParams();
             params.width = Math.round(DesktopCardLayout.widthDp(availableDp, scale) * density);
-            params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            // Decorative match-parent layers must not size themselves to the whole viewport.
+            params.height = Math.round(getResources().getDimensionPixelSize(
+                R.dimen.desktop_card_cover_height) * Math.max(1f, scale));
             params.columnSpec = GridLayout.spec(index % columns);
             params.rowSpec = GridLayout.spec(index / columns);
             int margin = Math.round(3 * density);
@@ -234,12 +231,13 @@ public final class DesktopCreateActivity extends AppUiActivity {
         if (de == null) return;
         binding.desktopCreateHyprlandRuntime.getRoot().setVisibility(de == DesktopDe.HYPRLAND ? View.VISIBLE : View.GONE);
         binding.desktopCreateHyprlandTheme.getRoot().setVisibility(de == DesktopDe.HYPRLAND ? View.VISIBLE : View.GONE);
-        binding.desktopCreateResolution.desktopSelectValue.setText(resolution);
-        binding.desktopCreateRefresh.desktopSelectValue.setText(refreshRate + " Hz");
+        DesktopDisplaySettings.updateResolution(this, binding.desktopCreateResolution, resolution);
+        DesktopDisplaySettings.updateRefresh(this, binding.desktopCreateRefresh, de, refreshRate);
         binding.desktopCreateHostRenderer.desktopSelectValue.setText(hostLabel(this, hostGlMode));
         binding.desktopCreateRenderer.desktopSelectValue.setText(guestLabel(this, guestGlMode));
         binding.desktopCreateRenderer.getRoot().setVisibility(mode == DesktopRunMode.PROOT ? View.VISIBLE : View.GONE);
-        binding.desktopCreateRenderer.desktopSelectRoot.setEnabled(de != DesktopDe.XFCE4);
+        DesktopDisplaySettings.setSelectable(binding.desktopCreateHostRenderer, hostRendererLabels().length > 1);
+        DesktopDisplaySettings.setSelectable(binding.desktopCreateRenderer, guestRendererLabels().length > 1);
         binding.desktopCreateRendererLabel.setText(R.string.desktop_create_section_renderer);
         binding.desktopCreateNote.setText(renderingHint(this, mode, de));
         if (mode == DesktopRunMode.PROOT) {
@@ -260,7 +258,7 @@ public final class DesktopCreateActivity extends AppUiActivity {
     /** A stand-in entry so {@link DesktopCreationCatalog#instanceLabel} numbers the next one. */
     private DesktopDistro placeholder(String alias) {
         return new DesktopDistro("next", alias, DesktopRunMode.PROOT, alias, de, hostGlMode, guestGlMode,
-            resolution, refreshRate, DesktopUsbStorageMode.OFF);
+            resolution, DesktopDisplayPolicy.effectiveRefreshRate(de, refreshRate), DesktopUsbStorageMode.OFF);
     }
 
     private void create() {
@@ -277,7 +275,7 @@ public final class DesktopCreateActivity extends AppUiActivity {
         if (name.trim().isEmpty()) name = deLabel(de);
         DesktopDistro distro = new DesktopDistro(
             "desktop-" + UUID.randomUUID().toString().substring(0, 8), name.trim(), mode, alias,
-            de, hostGlMode, guestGlMode, resolution, refreshRate, DesktopUsbStorageMode.OFF);
+            de, hostGlMode, guestGlMode, resolution, DesktopDisplayPolicy.effectiveRefreshRate(de, refreshRate), DesktopUsbStorageMode.OFF);
         if (de == DesktopDe.HYPRLAND) distro = distro.withHyprlandComponents(HyprlandComponents.RUNTIME_ID, hyprlandTheme);
         binding.desktopCreateAction.setEnabled(false);
         saveState.save(tasks, distro);
@@ -358,9 +356,11 @@ public final class DesktopCreateActivity extends AppUiActivity {
                             Getter current, Setter apply) {
         row.desktopSelectLabel.setText(labelRes);
         row.desktopSelectValue.setText(current.get());
+        DesktopDisplaySettings.setSelectable(row, choices.get().length > 1);
         row.desktopSelectRoot.setOnClickListener(view -> {
             if (saveState.saving) return;
             String[] values = choices.get();
+            if (values.length <= 1) return;
             new FrostedDialogBuilder(this)
                 .setTitle(labelRes)
                 .setSingleChoiceItems(values, indexOf(values, current.get()),
@@ -378,13 +378,6 @@ public final class DesktopCreateActivity extends AppUiActivity {
     private static int indexOf(String[] values, String current) {
         for (int i = 0; i < values.length; i++) if (values[i].equals(current)) return i;
         return -1;
-    }
-
-    private String[] refreshLabels() {
-        if (de != null && de.isGnomeSession()) return new String[]{"60 Hz"};
-        String[] labels = new String[REFRESH_RATES.length];
-        for (int i = 0; i < REFRESH_RATES.length; i++) labels[i] = REFRESH_RATES[i] + " Hz";
-        return labels;
     }
 
     private String[] hostRendererLabels() {

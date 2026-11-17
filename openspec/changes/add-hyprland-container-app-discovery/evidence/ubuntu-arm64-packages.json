@@ -1,0 +1,68 @@
+{
+  "python3-gi": {
+    "Version": "3.56.2-1",
+    "Filename": "pool/main/p/pygobject/python3-gi_3.56.2-1_arm64.deb",
+    "SHA256": "ff873ceac8288dd3b5385503fc5fb1c7b61dbf7781108fa3ca8cf1de92148559",
+    "Depends": "gir1.2-glib-2.0 (>= 2.86.0-7~), gir1.2-girepository-3.0 (>= 2.86.0-7~), python3 (<< 3.15), python3 (>= 3.14~), python3:any, libc6 (>= 2.17), libffi8 (>= 3.4), libgirepository-2.0-0 (>= 2.86.0-7~), libgirepository-2.0-0-with-libffi8 (>= 2.86.0-7~), libglib2.0-0t64 (>= 2.86.0-7~)"
+  },
+  "xdg-terminal-exec": {
+    "Version": "0.14.0-1",
+    "Filename": "pool/main/x/xdg-terminal-exec/xdg-terminal-exec_0.14.0-1_all.deb",
+    "SHA256": "9dabdeac03c05d18257833fa05a93d29642304fbff741c9b59b74742543b891c",
+    "Depends": "user-session-migration"
+  },
+  "fish": {
+    "Version": "4.2.1-3.2",
+    "Filename": "pool/universe/f/fish/fish_4.2.1-3.2_arm64.deb",
+    "SHA256": "05af585b4fc921e5245f34e5579aee6be5ba5e2b924bda734c75e47c66900f29",
+    "Depends": "fish-common (= 4.2.1-3.2), bsdextrautils, groff-base, man-db, procps, python3, libc6 (>= 2.39), libgcc-s1 (>= 4.2), libpcre2-32-0 (>= 10.22), libpcre2-8-0 (>= 10.22)"
+  },
+  "foot": {
+    "Version": "1.25.0-1",
+    "Filename": "pool/universe/f/foot/foot_1.25.0-1_arm64.deb",
+    "SHA256": "4e74c89720bbd05889a02421260bad350f76aacd00da79011b9947afc0862c89",
+    "Depends": "init-system-helpers (>= 1.52), libc6 (>= 2.38), libfcft4t64 (>= 3.3.1), libfontconfig1 (>= 2.12.6), libpixman-1-0 (>= 0.30.0), libutf8proc3 (>= 2.9.0), libwayland-client0 (>= 1.20.0), libwayland-cursor0 (>= 1.0.2), libxkbcommon0 (>= 1.0.0), ncurses-term (>= 6.4+20230625-2)"
+  },
+  "gir1.2-gtklayershell-0.1": {
+    "Version": "0.10.0-1",
+    "Filename": "pool/universe/g/gtk-layer-shell/gir1.2-gtklayershell-0.1_0.10.0-1_arm64.deb",
+    "SHA256": "e36bba3fc97fc1644126c2e2c3f61823f8aba12b5f69cc10b80fd2b572809064",
+    "Depends": "gir1.2-gtk-3.0 (>= 3.24.48), libgtk-layer-shell0 (>= 0.10.0)"
+  },
+  "libgtk-layer-shell0": {
+    "Version": "0.10.0-1",
+    "Filename": "pool/universe/g/gtk-layer-shell/libgtk-layer-shell0_0.10.0-1_arm64.deb",
+    "SHA256": "e79deb1cf0b5cfd672a18dd41e98016161f36dd61f801dd74ffe15ec58120836",
+    "Depends": "libc6 (>= 2.17), libglib2.0-0t64 (>= 2.42.0), libgtk-3-0t64 (>= 3.24.48), libwayland-client0 (>= 1.20.0)"
+  },
+  "starship": {
+    "Version": "1.22.1-9ubuntu1",
+    "Filename": "pool/universe/s/starship/starship_1.22.1-9ubuntu1_arm64.deb",
+    "SHA256": "a8d00e2529a41fc5336cc89573a655ee2c7a8969c17ed3c9e06840e6927474fb",
+    "Depends": "libc6 (>= 2.39), libgcc-s1 (>= 4.2)"
+  },
+  "swaybg": {
+    "Version": "1.2.1-1build1",
+    "Filename": "pool/universe/s/swaybg/swaybg_1.2.1-1build1_arm64.deb",
+    "SHA256": "04ec808bb5b536398d77e0e01e09f5ad5da17318aa48e453ea6c40979aef49ca",
+    "Depends": "libc6 (>= 2.34), libcairo2 (>= 1.2.4), libgdk-pixbuf-2.0-0 (>= 2.31.1), libglib2.0-0t64 (>= 2.12.0), libwayland-client0 (>= 1.20.0)"
+  },
+  "xfce4-genmon-plugin": {
+    "Version": "4.3.0-1",
+    "Filename": "pool/universe/x/xfce4-genmon-plugin/xfce4-genmon-plugin_4.3.0-1_arm64.deb",
+    "SHA256": "7e7d620c9475bdac21c238233cb20df12a1f7babbbae93fa58b78310ef9adda7",
+    "Depends": "libc6 (>= 2.38), libglib2.0-0t64 (>= 2.18.0), libgtk-3-0t64 (>= 3.16.2), libpango-1.0-0 (>= 1.14.0), libxfce4panel-2.0-4 (>= 4.13.0), libxfce4ui-2-0 (>= 4.15.6), libxfce4util7 (>= 4.9.0), libxfconf-0-3 (>= 4.6.0)"
+  },
+  "xfce4-notifyd": {
+    "Version": "0.9.7-2build1",
+    "Filename": "pool/universe/x/xfce4-notifyd/xfce4-notifyd_0.9.7-2build1_arm64.deb",
+    "SHA256": "a943448ea0bc7a735e85a5931014393a73e73da508f4ab8d8daf2c50302a48bb",
+    "Depends": "libatk1.0-0t64 (>= 1.12.4), libc6 (>= 2.34), libcairo2 (>= 1.14.0), libgdk-pixbuf-2.0-0 (>= 2.22.0), libglib2.0-0t64 (>= 2.68.0), libgtk-3-0t64 (>= 3.21.5), libgtk-layer-shell0 (>= 0.5.1), libnotify4 (>= 0.7.0), libsqlite3-0 (>= 3.7.15), libx11-6, libxfce4panel-2.0-4 (>= 4.13.0), libxfce4ui-2-0 (>= 4.11.1), libxfce4util7 (>= 4.9.0), libxfconf-0-3 (>= 4.6.0)"
+  },
+  "xfce4-panel": {
+    "Version": "4.20.7-1",
+    "Filename": "pool/universe/x/xfce4-panel/xfce4-panel_4.20.7-1_arm64.deb",
+    "SHA256": "0e5953e574c08dd435639cf358dce29ce2bcfd46f61e69d7a3185de0edc16dc7",
+    "Depends": "exo-utils, libatk1.0-0t64 (>= 1.12.4), libc6 (>= 2.34), libcairo2 (>= 1.2.4), libdbusmenu-gtk3-4 (>= 0.4.2), libexo-2-0 (>= 0.11.0), libgarcon-1-0 (>= 4.17.0), libgarcon-gtk3-1-0 (>= 4.17.0), libgdk-pixbuf-2.0-0 (>= 2.25.2), libglib2.0-0t64 (>= 2.70.0), libgtk-3-0t64 (>= 3.22.29), libgtk-layer-shell0 (>= 0.6.0), libpango-1.0-0 (>= 1.14.0), libpangocairo-1.0-0 (>= 1.14.0), libwayland-client0 (>= 1.20.0), libwnck-3-0 (>= 43.0), libx11-6, libxext6, libxfce4panel-2.0-4 (>= 4.20.3), libxfce4ui-2-0 (>= 4.17.2), libxfce4util7 (>= 4.17.2), libxfce4windowing-0-0 (>= 4.20.1), libxfconf-0-3 (>= 4.12.1)"
+  }
+}

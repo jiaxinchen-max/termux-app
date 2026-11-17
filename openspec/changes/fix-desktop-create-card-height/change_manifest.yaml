@@ -1,0 +1,41 @@
+change_id: fix-desktop-create-card-height
+stage: local_delivery
+approval:
+  requirement: 用户提供Native新建页截图并指出遗漏修复
+  planning: 仅补修截图中的卡片被纵向拉长，共用PRoot新建页一并覆盖
+  implementation: Approved_User_Reported_Omission
+api_docs:
+  status: N/A
+  reason: 只修本地创建页布局，不涉及HTTP合约
+product_docs:
+  status: Required
+  documents: [docs/product/desktops.md]
+  reason: 修复用户可见的新建桌面卡片及表单可达性
+  consistency:
+    status: Pending
+    evidence: .harness/runs/fix-desktop-create-card-height/product-consistency-evidence.json
+    findings: .harness/runs/fix-desktop-create-card-height/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  reason: 未发现额外保护策略，仅普通UI布局、Activity和测试
+tooling:
+  openspec_cli: Missing
+  harness_bootstrap: Missing
+  strict_gate: Unavailable
+  baseline_specs: Missing
+  product_knowledge: Missing
+apk_filename: termux-app_apt-android-7-debug_arm64-v8a.apk
+git_operations: 未授权暂存、提交、推送或PR
+deployment: 未授权
+verification:
+  reproduction: Failed_Before_Fix_52_versus_314
+  local_tests: Passed_18
+  geometry_configurations: 64
+  build: Passed_arm64_debug
+  apk: Verified
+  evidence: verification.json
+  code_review: implementation-review.yaml
+  device: Pending
+  strict_gate: Unavailable
+acceptance: Pending
+archive: NotAuthorized

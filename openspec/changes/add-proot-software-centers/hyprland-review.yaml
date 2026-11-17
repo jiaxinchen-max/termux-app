@@ -1,0 +1,28 @@
+schema: review_findings_v1
+change_id: add-proot-software-centers
+iteration: hyprland-software-launcher-20261117
+stage: code-review
+status: APPROVED_WITH_LIMITATIONS
+method: 直接源码自审、菜单回归和真实包装器已有测试；未使用子代理
+human_confirmation: 用户明确要求修复Hyprland
+findings:
+  - id: HYPRLAND-SOFTWARE-001
+    severity: MUST_FIX
+    status: resolved
+    file: termux-ui/src/main/assets/local-games/desktop_hyprland_theme.py
+    description: m3ww PRoot应用列表仅列出Terminal和Files，遗漏已准备的软件中心包装器
+    resolution: 仅proot分支追加Software，精确指向同一桌面的termux-hyprland-software
+    verification: 新菜单回归在修复前唯一失败，修复后通过；Native宿主应用发现与PRoot宿主隔离受回归覆盖
+reviewed:
+  - GTK菜单用参数数组直接Popen包装器，新增入口不经过命令拼接
+  - 包装器在准备阶段已通过container_command生成；保留会话token、普通用户及guest system bus
+  - 不修改容器服务、权限、认证、安装或保存期契约
+  - Native分支和Classic菜单既有行为保持不变
+  - 软件中心描述含中文，可按Software或应用中心搜索
+  - 主题构建器只生成缺失的本地夹具；既有目录、Java和shell生成文件无diff
+verification: 46项定向测试、语法和diff检查通过；APK构建、74个运行资产、签名及本地完整HTTP下载通过
+limitations:
+  - 无ADB设备；真实图形窗口、PAM密码和DEB交易仍需用户实机验收
+  - Harness严格门禁及bootstrap缺失，不能声称严格门禁通过
+  - PRoot全部应用自动发现尚未实现；本轮仅修复用户确认的软件中心入口
+  - 未执行Git暂存、提交、推送、部署或归档；产品一致性仍Pending

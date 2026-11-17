@@ -1,0 +1,72 @@
+{
+  "results": [
+    {
+      "command": [
+        "python3",
+        "-B",
+        "docs/desktop-testing/test-software-centers.py"
+      ],
+      "exit_code": 0,
+      "log": ".harness/runs/add-proot-software-centers/test-software-centers.log",
+      "log_sha256": "440a0958f7397bcc9f38793fe04ab6c177b06100c2beef831ddea38b1ab7635c"
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "docs/desktop-testing/test-software-center-install.py"
+      ],
+      "exit_code": 0,
+      "log": ".harness/runs/add-proot-software-centers/test-software-center-install.log",
+      "log_sha256": "e1e5b9731847460a69cf870cc23dd8f06c46b66813675afc45f5202621959197"
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "termux-ui/scripts/test-desktop-gnome-session.py"
+      ],
+      "exit_code": 0,
+      "log": ".harness/runs/add-proot-software-centers/test-desktop-gnome-session.log",
+      "log_sha256": "30f0e799b80255cd174139ef77e3c14a9f62c26e88d01785e1dd77f0b0e3e7c8"
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "termux-ui/scripts/test-desktop-ubuntu-gnome.py"
+      ],
+      "exit_code": 1,
+      "log": ".harness/runs/add-proot-software-centers/test-desktop-ubuntu-gnome.log",
+      "log_sha256": "21cd0d55b0d8b5a2a1d3f9a081d0455752d1496be05aaa50d797288d35aeab67"
+    }
+  ],
+  "ubuntu_gnome_baseline": {
+    "commit": "68858272719da9adccbb2ed1d9ff31029163da6a",
+    "exit_code": 1,
+    "same_failing_tests": true,
+    "failures": [
+      "test_explicit_reinstall_reapplies_guest_packages_and_rechecks_files (__main__.UbuntuInstallTests.test_explicit_reinstall_reapplies_guest_packages_and_rechecks_files)",
+      "test_incomplete_existing_marker_is_removed (__main__.UbuntuInstallTests.test_incomplete_existing_marker_is_removed)",
+      "test_install_failure_preserves_status_and_never_marks_ready (__main__.UbuntuInstallTests.test_install_failure_preserves_status_and_never_marks_ready) (failure='apt')",
+      "test_install_failure_preserves_status_and_never_marks_ready (__main__.UbuntuInstallTests.test_install_failure_preserves_status_and_never_marks_ready) (failure='files')",
+      "test_install_routes_resolute_and_matching_native_compositor_without_xlorie (__main__.UbuntuInstallTests.test_install_routes_resolute_and_matching_native_compositor_without_xlorie)",
+      "test_proot_fetches_offline_shell_dependencies_without_native_file_manager (__main__.UbuntuInstallTests.test_proot_fetches_offline_shell_dependencies_without_native_file_manager)",
+      "test_unknown_ding_source_removes_existing_success_marker (__main__.UbuntuInstallTests.test_unknown_ding_source_removes_existing_success_marker)"
+    ],
+    "log": ".harness/runs/add-proot-software-centers/ubuntu-gnome-baseline.log"
+  },
+  "source_hashes": {
+    "termux-ui/src/main/assets/local-games/desktop_gnome_launch.py": "6276beb04d4657fd40432c76aa452eba3d3d15314666181082e601743f00eb7a",
+    "docs/desktop-testing/test-software-centers.py": "67315547a9e4458ce420e4cb2aab9b200a584937f1e180652778c9e7db567cb0"
+  },
+  "baseline_log_sha256": "8fa86a3c5265d0466dd22f3bcf2c19913a554e73de6ba884832fd813c86007ce",
+  "before_fix_log_sha256": "28269b9d86505fee1264a270c4d51ec8297a2a71bf3415d0bcd48ff8739058e6",
+  "strict_gate": {
+    "status": "Unavailable",
+    "reason": "缺少.harness/scripts/verify.sh与OpenSpec CLI"
+  },
+  "device": "ADB无设备，GUI与实际软件交易未验证",
+  "python_syntax": "Passed; compile() without bytecode output",
+  "diff_check": "Passed"
+}

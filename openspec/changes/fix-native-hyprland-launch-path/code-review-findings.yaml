@@ -1,0 +1,9 @@
+schema: review_findings_v1
+change_id: fix-native-hyprland-launch-path
+review: application-launch-and-upgrade
+verdict: APPROVED
+findings: []
+limitations:
+  - Harness 严格门禁脚本缺失，未宣称通过
+  - 候选 APK 未安装，完整覆盖升级设备验证待完成
+  - 产品验收及产品文档一致性 Pending

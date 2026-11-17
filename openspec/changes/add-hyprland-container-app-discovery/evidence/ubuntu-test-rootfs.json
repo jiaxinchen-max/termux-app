@@ -1,0 +1,6 @@
+{
+  "url": "https://cdimage.ubuntu.com/ubuntu-base/releases/26.04/release/ubuntu-base-26.04.1-base-amd64.tar.gz",
+  "sha256": "a496a960472ce474a59590b8987d3a1135d3cbef1991f3b1abe8cacfea8bf85a",
+  "architecture": "amd64",
+  "purpose": "Linux/Ubuntu component integration, not Android/arm64 GUI acceptance"
+}

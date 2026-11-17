@@ -1,0 +1,8 @@
+{
+  "open_code": 0,
+  "open_output": "\n",
+  "status": "bar: bar\n",
+  "alive": true,
+  "namespace": true,
+  "limitation": "Linux x86_64/headless Sway; static widget data. Android and guest image adapter not validated."
+}

@@ -1,0 +1,7 @@
+{
+  "exit_code": 0,
+  "stdout": "{\"layer_shell\": true}\n",
+  "layer_namespace": true,
+  "configured": true,
+  "limitation": "Real Ubuntu 26.04 amd64 GI/GtkLayerShell on headless Sway; no Android/arm64 claim."
+}

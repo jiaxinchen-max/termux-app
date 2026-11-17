@@ -1,0 +1,102 @@
+test_explicit_reinstall_reapplies_guest_packages_and_rechecks_files (__main__.UbuntuInstallTests.test_explicit_reinstall_reapplies_guest_packages_and_rechecks_files) ... FAIL
+test_incomplete_existing_marker_is_removed (__main__.UbuntuInstallTests.test_incomplete_existing_marker_is_removed) ... FAIL
+test_install_failure_preserves_status_and_never_marks_ready (__main__.UbuntuInstallTests.test_install_failure_preserves_status_and_never_marks_ready) ... 
+  test_install_failure_preserves_status_and_never_marks_ready (__main__.UbuntuInstallTests.test_install_failure_preserves_status_and_never_marks_ready) (failure='apt') ... FAIL
+  test_install_failure_preserves_status_and_never_marks_ready (__main__.UbuntuInstallTests.test_install_failure_preserves_status_and_never_marks_ready) (failure='files') ... FAIL
+test_install_routes_resolute_and_matching_native_compositor_without_xlorie (__main__.UbuntuInstallTests.test_install_routes_resolute_and_matching_native_compositor_without_xlorie) ... FAIL
+test_invalid_saved_policy_does_not_stop_an_existing_desktop (__main__.UbuntuInstallTests.test_invalid_saved_policy_does_not_stop_an_existing_desktop) ... ok
+test_missing_shell_dependency_download_fails_before_host_apt (__main__.UbuntuInstallTests.test_missing_shell_dependency_download_fails_before_host_apt) ... ok
+test_proot_fetches_offline_shell_dependencies_without_native_file_manager (__main__.UbuntuInstallTests.test_proot_fetches_offline_shell_dependencies_without_native_file_manager) ... FAIL
+test_unknown_ding_source_removes_existing_success_marker (__main__.UbuntuInstallTests.test_unknown_ding_source_removes_existing_success_marker) ... FAIL
+test_unsupported_gpu_profile_and_base_fail_before_install (__main__.UbuntuInstallTests.test_unsupported_gpu_profile_and_base_fail_before_install) ... ok
+test_debian_or_wrong_ubuntu_release_rejected (__main__.UbuntuProfileTests.test_debian_or_wrong_ubuntu_release_rejected) ... ok
+test_ding_source_outside_rootfs_is_rejected (__main__.UbuntuProfileTests.test_ding_source_outside_rootfs_is_rejected) ... ok
+test_each_required_file_is_checked (__main__.UbuntuProfileTests.test_each_required_file_is_checked) ... ok
+test_extensions_must_match_uuid_and_shell_version (__main__.UbuntuProfileTests.test_extensions_must_match_uuid_and_shell_version) ... ok
+test_known_ding_source_is_patched_once_and_unknown_source_is_rejected (__main__.UbuntuProfileTests.test_known_ding_source_is_patched_once_and_unknown_source_is_rejected) ... ok
+test_managed_mode_preserves_ubuntu_appearance_and_user_extension_support (__main__.UbuntuProfileTests.test_managed_mode_preserves_ubuntu_appearance_and_user_extension_support) ... ok
+test_plain_gnome_mode_is_rejected (__main__.UbuntuProfileTests.test_plain_gnome_mode_is_rejected) ... ok
+test_session_initialization_preserves_user_customizations_on_restart (__main__.UbuntuProfileTests.test_session_initialization_preserves_user_customizations_on_restart) ... ok
+test_valid_official_profile_layout (__main__.UbuntuProfileTests.test_valid_official_profile_layout) ... ok
+
+======================================================================
+FAIL: test_explicit_reinstall_reapplies_guest_packages_and_rechecks_files (__main__.UbuntuInstallTests.test_explicit_reinstall_reapplies_guest_packages_and_rechecks_files)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "termux-ui/scripts/test-desktop-ubuntu-gnome.py", line 280, in test_explicit_reinstall_reapplies_guest_packages_and_rechecks_files
+    self.assertEqual(0, code, output)
+AssertionError: 0 != 1 : Installing Ubuntu GNOME desktop packages (proot mode)
+Desktop install failed: installing desktop_software_center.py
+cp: cannot stat '/tmp/ubuntu-install-1gtg_z9z/scripts/desktop_software_center.py': No such file or directory
+
+
+======================================================================
+FAIL: test_incomplete_existing_marker_is_removed (__main__.UbuntuInstallTests.test_incomplete_existing_marker_is_removed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "termux-ui/scripts/test-desktop-ubuntu-gnome.py", line 287, in test_incomplete_existing_marker_is_removed
+    self.assertEqual(65, code, output)
+AssertionError: 65 != 1 : Installing Ubuntu GNOME desktop packages (proot mode)
+Desktop install failed: installing desktop_software_center.py
+cp: cannot stat '/tmp/ubuntu-install-ic588ema/scripts/desktop_software_center.py': No such file or directory
+
+
+======================================================================
+FAIL: test_install_failure_preserves_status_and_never_marks_ready (__main__.UbuntuInstallTests.test_install_failure_preserves_status_and_never_marks_ready) (failure='apt')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "termux-ui/scripts/test-desktop-ubuntu-gnome.py", line 252, in test_install_failure_preserves_status_and_never_marks_ready
+    self.assertEqual(expected, code, output)
+AssertionError: 37 != 1 : Installing Ubuntu GNOME desktop packages (proot mode)
+Desktop install failed: installing desktop_software_center.py
+cp: cannot stat '/tmp/ubuntu-install-2h1lhuh3/scripts/desktop_software_center.py': No such file or directory
+
+
+======================================================================
+FAIL: test_install_failure_preserves_status_and_never_marks_ready (__main__.UbuntuInstallTests.test_install_failure_preserves_status_and_never_marks_ready) (failure='files')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "termux-ui/scripts/test-desktop-ubuntu-gnome.py", line 252, in test_install_failure_preserves_status_and_never_marks_ready
+    self.assertEqual(expected, code, output)
+AssertionError: 65 != 1 : Installing Ubuntu GNOME desktop packages (proot mode)
+Desktop install failed: installing desktop_software_center.py
+cp: cannot stat '/tmp/ubuntu-install-4_41ptcv/scripts/desktop_software_center.py': No such file or directory
+
+
+======================================================================
+FAIL: test_install_routes_resolute_and_matching_native_compositor_without_xlorie (__main__.UbuntuInstallTests.test_install_routes_resolute_and_matching_native_compositor_without_xlorie)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "termux-ui/scripts/test-desktop-ubuntu-gnome.py", line 226, in test_install_routes_resolute_and_matching_native_compositor_without_xlorie
+    self.assertEqual(0, code, output)
+AssertionError: 0 != 1 : Installing Ubuntu GNOME desktop packages (proot mode)
+Desktop install failed: installing desktop_software_center.py
+cp: cannot stat '/tmp/ubuntu-install-2i3bxcy9/scripts/desktop_software_center.py': No such file or directory
+
+
+======================================================================
+FAIL: test_proot_fetches_offline_shell_dependencies_without_native_file_manager (__main__.UbuntuInstallTests.test_proot_fetches_offline_shell_dependencies_without_native_file_manager)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "termux-ui/scripts/test-desktop-ubuntu-gnome.py", line 257, in test_proot_fetches_offline_shell_dependencies_without_native_file_manager
+    self.assertEqual(0, code, output)
+AssertionError: 0 != 1 : Installing Ubuntu GNOME desktop packages (proot mode)
+Desktop install failed: installing desktop_software_center.py
+cp: cannot stat '/tmp/ubuntu-install-drl9woji/scripts/desktop_software_center.py': No such file or directory
+
+
+======================================================================
+FAIL: test_unknown_ding_source_removes_existing_success_marker (__main__.UbuntuInstallTests.test_unknown_ding_source_removes_existing_success_marker)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "termux-ui/scripts/test-desktop-ubuntu-gnome.py", line 274, in test_unknown_ding_source_removes_existing_success_marker
+    self.assertEqual(65, code, output)
+AssertionError: 65 != 1 : Installing Ubuntu GNOME desktop packages (proot mode)
+Desktop install failed: installing desktop_software_center.py
+cp: cannot stat '/tmp/ubuntu-install-2y55h0jy/scripts/desktop_software_center.py': No such file or directory
+
+
+----------------------------------------------------------------------
+Ran 18 tests in 0.640s
+
+FAILED (failures=7)

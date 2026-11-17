@@ -1,0 +1,165 @@
+Requested host=system container=none (native/hyprland); renderer fallback is disabled.
+Reusing host PulseAudio: tcp:127.0.0.1:4713
+Hyprland: Hyprland desktop service exited during startup; see session.log
+Hyprland: Hyprland desktop service exited during startup; see session.log
+Hyprland: Hyprland desktop service exited during startup; see session.log
+Hyprland: Hyprland desktop service exited during startup; see session.log
+[2026-11-17 14:48:53] INFO  : Sent EVENT_APPLY_BUFFER
+[2026-11-17 14:48:53] INFO  : Sent EVENT_SCREEN_SIZE width=1280 height=720 framerate=30 format=5 type=3 keycode_format=1
+[2026-11-17 14:48:53] INFO  : Received event type=2 (EVENT_ADD_BUFFER)
+[2026-11-17 14:48:53] INFO  : Handling EVENT_ADD_BUFFER
+[2026-11-17 14:48:53] INFO  : Receiving LorieBuffer from socket fd=13 sizeof(LorieBuffer)=120 sizeof(desc)=40
+[2026-11-17 14:48:53] INFO  : Received raw LorieBuffer desc width=1280 stride=1280 height=720 format=5 type=3 id=0 fd=-1
+[2026-11-17 14:48:53] INFO  : Received raw AHardwareBuffer dma-buf fd=14 fds=2 metadata=140 bytes
+[2026-11-17 14:48:53] INFO  : LorieBuffer receive completed out=0xb4000076aac32e10
+[2026-11-17 14:48:53] INFO  : Received buffer width=1280 stride=1280 height=720 format=5 type=3 id=0
+[2026-11-17 14:48:53] INFO  : Sent EVENT_APPLY_SERVER_STATE
+[2026-11-17 14:48:53] INFO  : Received event type=1 (EVENT_SHARED_SERVER_STATE)
+[2026-11-17 14:48:53] INFO  : Handling EVENT_SHARED_SERVER_STATE
+[2026-11-17 14:48:53] INFO  : ancil_recv_fd sock=13 fd=15
+[2026-11-17 14:48:53] INFO  : Received shared server state fd=15
+[2026-11-17 14:48:53] INFO  : Mapped shared server state at 0x754891b000
+[2026-11-17 14:48:53] INFO  : Sent EVENT_APPLY_EVENT_FD
+[2026-11-17 14:48:53] INFO  : Received event type=19 (EVENT_SHARED_EVENT_FD)
+[2026-11-17 14:48:53] INFO  : Handling EVENT_SHARED_EVENT_FD
+[2026-11-17 14:48:53] INFO  : ancil_recv_fd sock=13 fd=15
+[2026-11-17 14:48:53] INFO  : Received input event fd=15
+[2026-11-17 14:48:53] INFO  : Sent EVENT_CLIENT_VERIFY_SUCCEED
+[2026-11-17 14:48:53] INFO  : Buffer initialization completed
+[2026-11-17 14:48:53] INFO  : Received event type=23 (EVENT_RENDERER_WAKEUP_COND)
+[2026-11-17 14:48:53] INFO  : ancil_recv_fd sock=13 fd=17
+[2026-11-17 14:48:53] INFO  : Mapped renderer wakeup cond var from fd=17
+[2026-11-17 14:48:53] INFO  : Loaded Android platform library /system/lib64/libandroid.so
+[2026-11-17 14:48:53] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=0
+[2026-11-17 14:48:53] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=1
+[2026-11-17 14:48:53] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=2
+2026-11-17 14:48:53 - [src/main.c:333] Found config * for output ANDROID-1 ((null))
+dbus-daemon[28481]: [session uid=10215 pid=28481] Activating service name='org.xfce.Xfconf' requested by ':1.0' (uid=10215 pid=28493 comm="/data/data/com.termux/files/usr/lib/xfce4/notifyd/" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[28481]: [session uid=10215 pid=28481] Successfully activated service 'org.xfce.Xfconf'
+dbus-daemon[28481]: [session uid=10215 pid=28481] Activating service name='org.gtk.vfs.Daemon' requested by ':1.0' (uid=10215 pid=28493 comm="/data/data/com.termux/files/usr/lib/xfce4/notifyd/" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[28481]: [session uid=10215 pid=28481] Successfully activated service 'org.gtk.vfs.Daemon'
+usage: desktop_hyprland_theme.py [-h] --work WORK
+                                 {serve,watch,launcher,dashboard,settings,workspace,focus,float,close}
+                                 [value]
+desktop_hyprland_theme.py: error: Invalid desktop path
+[2026-11-17 14:48:53] ERROR : Connection closed
+[2026-11-17 14:48:53] ERROR : Render event loop cleanup, buffer_ready=1 event_fd=13 conn_fd=15
+Hyprland: Hyprland desktop service exited during startup; see session.log
+Hyprland: Hyprland desktop service exited during startup; see session.log
+Hyprland: Hyprland desktop service exited during startup; see session.log
+Hyprland: Hyprland desktop service exited during startup; see session.log
+exit:1
+#Tue Nov 17 14:04:07 GMT+08:00 2026
+de=hyprland
+schemaVersion=4
+hyprlandRuntimeId=0.57.0-r7
+hostGlMode=system
+resolution=1280x720
+guestGlMode=none
+runMode=native
+refreshRate=30
+name=Hyprland
+id=native-hyprland
+usbStorage=off
+prootDistro=
+hyprlandThemeId=m3ww-v1
+Welcome to Hyprland!
+
+
+                     YY    UJ
+                    YYY    UUJ
+                   XXXY    UUUU
+                  zXXXX    UUUUU
+                zzzzX        UUUUJ
+               cczzz          UUUUJ
+             vccccz            UUUUUJ
+            vvcccc              UUUUUJ
+           vvvvv                  UUUUJ
+          uuuvv                    UUUUJ
+         uuuuu                      UUUUU
+        nnnuu                        UUUUU
+       nnnnn                          YUUUU
+       xxnn                            YUUU
+       xxxn                            YYUU
+      xxxx                              YYUU
+      rxxx                              YYYY
+      rrrx                              YYYY
+       rrrx                            XXXY
+       rrrr                            XXXX
+        rrrr                          zzXX
+         rrrr                        zzzz
+          rrrrr                    ccczz
+           rrrrrx                vccccc
+             rrrrxxxx        uuvvvvvc
+                rrxxxxxxnnnnuuuuuv
+                    xxxxxnnnnu
+
+
+
+[!!WARNING!!] XDG_RUNTIME_DIR looks non-standard. Proceeding anyways...
+DEBUG ]: [CCompositor::bumpNofile] Old rlimit: soft -> 32768, hard -> 32768
+DEBUG ]: [CCompositor::bumpNofile] New rlimit: soft -> 32768, hard -> 32768
+WARN ]: [main] WARNING: Hyprland is being launched without start-hyprland. This is highly advised against.
+DEBUG ]: [CCompositor::initManagers] Creating the EventLoopManager!
+DEBUG ]: [CCompositor::initManagers] Creating the KeybindManager!
+DEBUG ]: [CCompositor::initManagers] Creating the AnimationManager!
+DEBUG ]: [CCompositor::initManagers] Creating the DynamicPermissionManager!
+DEBUG ]: [CCompositor::initManagers] Creating the MonitorState!
+DEBUG ]: [CCompositor::initManagers] Creating the WorkspaceState!
+DEBUG ]: [CCompositor::initManagers] Creating the ConfigManager!
+DEBUG ]: [Config::initConfigManager] [cfg] Config is either explicit or special
+DEBUG ]: [CCompositor::initManagers] Creating the Error Overlay!
+DEBUG ]: [CCompositor::initManagers] Creating the LayoutManager!
+DEBUG ]: [CCompositor::initManagers] Creating the TokenManager!
+DEBUG ]: [Config::Lua::CConfigManager::postConfigReload] Disabling stdout logs (debug.enable_stdout_logs = 0). Further logs will be written to /data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f/hypr/a_1794898133_204ce04c/hyprland.log
+DEBUG ]: [CCompositor::initManagers] Creating the PointerManager!
+DEBUG ]: [CCompositor::initManagers] Creating the AsyncResourceGatherer!
+[2026-11-17 14:48:53] INFO  : setScreenConfig width=1280 height=720 framerate=30 format=5 type=3 keycode_format=1
+[2026-11-17 14:48:53] INFO  : connectToRender start socket=/data/data/com.termux/files/home/tmp/termux-render type=SOCK_STREAM sizeof(lorieEvent)=32
+[2026-11-17 14:48:53] INFO  : Connected to render socket, event_fd=13 attempt=1/5
+[2026-11-17 14:48:53] INFO  : Created render event thread
+[2026-11-17 14:48:53] INFO  : Sent handshake magic length=11
+[2026-11-17 14:48:53] INFO  : Waiting for buffer initialization
+[2026-11-17 14:48:53] INFO  : Render blocking event loop started, event_fd=13 sizeof(lorieEvent)=32
+[2026-11-17 14:48:53] INFO  : Received event type=20 (EVENT_SERVER_VERIFY_SUCCEED)
+[2026-11-17 14:48:53] INFO  : Handling EVENT_SERVER_VERIFY_SUCCEED
+[2026-11-17 14:48:53] INFO  : Sent EVENT_APPLY_BUFFER
+[2026-11-17 14:48:53] INFO  : Sent EVENT_SCREEN_SIZE width=1280 height=720 framerate=30 format=5 type=3 keycode_format=1
+[2026-11-17 14:48:53] INFO  : Received event type=2 (EVENT_ADD_BUFFER)
+[2026-11-17 14:48:53] INFO  : Handling EVENT_ADD_BUFFER
+[2026-11-17 14:48:53] INFO  : Receiving LorieBuffer from socket fd=13 sizeof(LorieBuffer)=120 sizeof(desc)=40
+[2026-11-17 14:48:53] INFO  : Received raw LorieBuffer desc width=1280 stride=1280 height=720 format=5 type=3 id=0 fd=-1
+[2026-11-17 14:48:53] INFO  : Received raw AHardwareBuffer dma-buf fd=14 fds=2 metadata=140 bytes
+[2026-11-17 14:48:53] INFO  : LorieBuffer receive completed out=0xb4000076aac32e10
+[2026-11-17 14:48:53] INFO  : Received buffer width=1280 stride=1280 height=720 format=5 type=3 id=0
+[2026-11-17 14:48:53] INFO  : Sent EVENT_APPLY_SERVER_STATE
+[2026-11-17 14:48:53] INFO  : Received event type=1 (EVENT_SHARED_SERVER_STATE)
+[2026-11-17 14:48:53] INFO  : Handling EVENT_SHARED_SERVER_STATE
+[2026-11-17 14:48:53] INFO  : ancil_recv_fd sock=13 fd=15
+[2026-11-17 14:48:53] INFO  : Received shared server state fd=15
+[2026-11-17 14:48:53] INFO  : Mapped shared server state at 0x754891b000
+[2026-11-17 14:48:53] INFO  : Sent EVENT_APPLY_EVENT_FD
+[2026-11-17 14:48:53] INFO  : Received event type=19 (EVENT_SHARED_EVENT_FD)
+[2026-11-17 14:48:53] INFO  : Handling EVENT_SHARED_EVENT_FD
+[2026-11-17 14:48:53] INFO  : ancil_recv_fd sock=13 fd=15
+[2026-11-17 14:48:53] INFO  : Received input event fd=15
+[2026-11-17 14:48:53] INFO  : Sent EVENT_CLIENT_VERIFY_SUCCEED
+[2026-11-17 14:48:53] INFO  : Buffer initialization completed
+[2026-11-17 14:48:53] INFO  : Received event type=23 (EVENT_RENDERER_WAKEUP_COND)
+[2026-11-17 14:48:53] INFO  : ancil_recv_fd sock=13 fd=17
+[2026-11-17 14:48:53] INFO  : Mapped renderer wakeup cond var from fd=17
+[2026-11-17 14:48:53] INFO  : Loaded Android platform library /system/lib64/libandroid.so
+[2026-11-17 14:48:53] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=0
+[2026-11-17 14:48:53] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=1
+[2026-11-17 14:48:53] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=2
+2026-11-17 14:48:53 - [src/main.c:333] Found config * for output ANDROID-1 ((null))
+dbus-daemon[28481]: [session uid=10215 pid=28481] Activating service name='org.xfce.Xfconf' requested by ':1.0' (uid=10215 pid=28493 comm="/data/data/com.termux/files/usr/lib/xfce4/notifyd/" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[28481]: [session uid=10215 pid=28481] Successfully activated service 'org.xfce.Xfconf'
+dbus-daemon[28481]: [session uid=10215 pid=28481] Activating service name='org.gtk.vfs.Daemon' requested by ':1.0' (uid=10215 pid=28493 comm="/data/data/com.termux/files/usr/lib/xfce4/notifyd/" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[28481]: [session uid=10215 pid=28481] Successfully activated service 'org.gtk.vfs.Daemon'
+usage: desktop_hyprland_theme.py [-h] --work WORK
+                                 {serve,watch,launcher,dashboard,settings,workspace,focus,float,close}
+                                 [value]
+desktop_hyprland_theme.py: error: Invalid desktop path
+[2026-11-17 14:48:53] ERROR : Connection closed
+[2026-11-17 14:48:53] ERROR : Render event loop cleanup, buffer_ready=1 event_fd=13 conn_fd=15

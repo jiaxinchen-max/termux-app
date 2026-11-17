@@ -1,0 +1,84 @@
+{
+  "iteration": "hyprland-software-launcher-20261117",
+  "results": [
+    {
+      "command": [
+        "python3",
+        "-B",
+        "termux-ui/scripts/test-desktop-hyprland-theme.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "......\n----------------------------------------------------------------------\nRan 6 tests in 0.379s\n\nOK\n"
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "termux-ui/scripts/test-desktop-hyprland-shell.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.179s\n\nOK\n"
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "termux-ui/scripts/test-desktop-hyprland.py"
+      ],
+      "exit_code": 0,
+      "stdout": "Hyprland Android output and IPC ready; visual/input validation pending\nHyprland private runtime installed and verified\nHyprland runtime already verified\nHyprland private runtime installed and verified\nRepairing damaged Hyprland runtime from verified archive\nHyprland private runtime installed and verified\n",
+      "stderr": ".............\n----------------------------------------------------------------------\nRan 13 tests in 32.905s\n\nOK\n"
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "docs/desktop-testing/test-software-centers.py"
+      ],
+      "exit_code": 0,
+      "stdout": "Guest DEB application services ready\nGuest DEB application services ready\n",
+      "stderr": ".....................\n----------------------------------------------------------------------\nRan 21 tests in 1.481s\n\nOK\n"
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "docs/desktop-testing/test-software-center-install.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "...\n----------------------------------------------------------------------\nRan 3 tests in 20.544s\n\nOK\n"
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "tools/build-hyprland-themes.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "Checked distribution/hyprland-themes/build/hyprland-theme-classic-r7.tgz\nChecked distribution/hyprland-themes/build/hyprland-theme-m3ww-v1.tgz\nChecked termux-ui/src/main/assets/local-games/hyprland-components.json\nChecked termux-ui/src/main/java/com/termux/ui/desktop/domain/HyprlandComponents.java\nChecked termux-ui/src/main/assets/local-games/hyprland-components.sh\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "source_hashes": {
+    "termux-ui/src/main/assets/local-games/desktop_hyprland_theme.py": "7ffdba325b572ae40adae43c1f6c0e31ed1d4b5038b737568f036ca10165682c",
+    "termux-ui/scripts/test-desktop-hyprland-theme.py": "f0623c2009112098df9a13174614ba9c2601dc846087da5866207c799cf1ba4f"
+  },
+  "red_before_fix": "Theme suite: 6 tests; only missing Software regression failed before code fix",
+  "syntax": "Passed via ast.parse; no pyc generated",
+  "strict_gate": "Unavailable: repository lacks Harness verify.sh",
+  "device_validation": "Pending: no ADB device connected"
+}

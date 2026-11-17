@@ -1,0 +1,143 @@
+{
+  "change_id": "add-hyprland-container-app-discovery",
+  "status": "LocalVerificationPassed_DeviceAcceptancePending",
+  "date": "2026-11-17",
+  "tests": {
+    "guest": {
+      "tests": 12,
+      "status": "Passed",
+      "log": "evidence/test-guest.log"
+    },
+    "runtime": {
+      "tests": 13,
+      "status": "Passed",
+      "log": "evidence/test-runtime.log"
+    },
+    "theme": {
+      "tests": 6,
+      "status": "Passed",
+      "log": "evidence/test-theme.log"
+    },
+    "shell": {
+      "tests": 3,
+      "status": "Passed",
+      "log": "evidence/test-shell.log"
+    },
+    "components": {
+      "tests": 17,
+      "status": "Passed",
+      "log": "evidence/test-components.log"
+    },
+    "install": {
+      "tests": 6,
+      "status": "Passed",
+      "log": "evidence/test-install.log"
+    },
+    "glycin": {
+      "tests": 5,
+      "status": "Passed",
+      "log": "evidence/test-glycin.log"
+    },
+    "eww-install": {
+      "tests": 4,
+      "status": "Passed",
+      "log": "evidence/test-eww-install.log"
+    },
+    "software-centers": {
+      "tests": 21,
+      "status": "Passed",
+      "log": "evidence/test-software-centers.log"
+    },
+    "software-install": {
+      "tests": 3,
+      "status": "Passed",
+      "log": "evidence/test-software-install.log"
+    },
+    "java-environment": {
+      "tests": 17,
+      "status": "Passed",
+      "log": "evidence/TEST-com.termux.ui.desktop.runtime.DesktopEnvironmentTest.xml"
+    }
+  },
+  "total_tests": 107,
+  "python_syntax": "Passed",
+  "shell_syntax": "Passed",
+  "diff_check": "Passed",
+  "source_sha256": {
+    "termux-ui/src/main/assets/local-games/desktop_hyprland.py": "8c12c68befcd5ac916d07e9b3963711f95d1e477a1a8909b62dfaaacfd4acd5d",
+    "termux-ui/src/main/assets/local-games/desktop_hyprland_components.py": "1f9a252bfd241b646270f553dc53703e5fe85285d5054f1e51350a90ec133e1e",
+    "termux-ui/src/main/assets/local-games/desktop_hyprland_gpu.py": "ec46d532bacbcfbec564afedbcb0003d2c13d622882eabbcbefb9b7ca29c800b",
+    "termux-ui/src/main/assets/local-games/desktop_hyprland_guest.py": "66493eea75757c7c81b786dfe081d3c6cb8d2df6a72c06aa2a909696ad177a6c",
+    "termux-ui/src/main/assets/local-games/desktop_hyprland_shell.py": "07229862330a79722b31afbf8b5f427a4f10c7a65303f52dc5ee17530505d704",
+    "termux-ui/src/main/assets/local-games/desktop_hyprland_theme.py": "1803b39e171c6253dd714038192c3d4599de405c7a4f92da4e5eef653bc31dcc",
+    "termux-ui/src/main/assets/local-games/desktop_install_eww.py": "e550dc5455e4dab965a416df54c680e52a4d49f8164d1694b68419c5dae743bf",
+    "termux-ui/src/main/assets/local-games/hyprland-eww-Cargo.lock": "cc8b1d7f7b2033921d39d28613cac5fd27f1ec86445a81da09ee133e5d144f57",
+    "termux-ui/src/main/assets/local-games/desktop_install.sh": "9409c69b7ab7efdd94346148682b08039572e01f2c57f2fa3339ea04400b6deb",
+    "termux-ui/src/main/assets/local-games/desktop_initialize.py": "9dc00a0cd28e692966e194402a8a0bf33fc0df14f25ec85e6d6a57078c42ff40",
+    "termux-ui/src/main/java/com/termux/ui/desktop/runtime/DesktopEnvironment.java": "7020ed7bc4a6572f6d1fa8ecd97965a8e6e637df51893c6745ba8ceac8df4f45",
+    "termux-ui/src/main/java/com/termux/ui/service/LaunchScriptInstaller.java": "2017441a41b494288a4d5c9a4d11bcf77d2872824dd23218f2a797a05cd02317",
+    "termux-ui/scripts/test-desktop-hyprland-components.py": "5d95b41d97f1ccf1595dbce0720324d50f6ad8cd6a6dfb969e14b8f35706f2f2",
+    "termux-ui/scripts/test-desktop-hyprland-gpu.py": "468326aad57bcc76a21d00fd7c001953ad16dcd759cfdc558c930ee9d876ce4a",
+    "termux-ui/scripts/test-desktop-hyprland-guest.py": "2f3167bbbd0f2862db1332ae957bf508f71dafb413a4bcd5b7b8e8c3a0b526fe",
+    "termux-ui/scripts/test-desktop-hyprland-install.py": "7cd41a91cbc8b00e579e54d9d9a2ec497c41103375cb17937e88df32f73f51db",
+    "termux-ui/scripts/test-desktop-hyprland-shell.py": "3083e623536442cd929216dfd11607a7c53faaba1de3d639760c1f3de1326ce2",
+    "termux-ui/scripts/test-desktop-hyprland-theme.py": "a2b3a26ad79c09ced3c23a878e3e559d901ae4f54a8822b49256dec367aa8f05",
+    "termux-ui/scripts/test-desktop-hyprland.py": "e55b62c8009f55a6f123f180a4ca7cf01d608bb7d421ee0f7633a20a2eef79ce",
+    "termux-ui/scripts/test-desktop-install-eww.py": "5cafc0482373e25553c6ce41901c76a09112839fe9e91e3fba16820749c879df"
+  },
+  "evidence_sha256": {
+    "TEST-com.termux.ui.desktop.runtime.DesktopEnvironmentTest.xml": "3bdf2e95319d20be46c604fefd4fac98f386ca2b5738e6303c23710294a2513d",
+    "build-apk-final.log": "a53a2ce1ff2b430080553163764a50b8ed6a0fad971145580e13b4c6fe9aec13",
+    "eww-build.log": "942f0e8a3eb340cc098423da6b7715d8c83d8467704ab70e5bfd789c6f703d0c",
+    "eww-lock-update.log": "370329c08cc372e2c47469ba4f01d6c3a0cf375c716d36d09235bfa3d28c8e7f",
+    "eww-source.json": "0d5eef7a2f2577b8b562273c0b7c2f0aedf8b7e758f7ece6cade3c5607137a2b",
+    "host-classic-probe.json": "b199a2dfe1b072dabcb4eed3f6ecef472882e30fd4fd0700bea8a9b3c3160b9d",
+    "host-classic-probe.log": "9a3d098d7ee7b837b28bf64192734b0fa466d04d1d7ef90963c59f1aa75eac7d",
+    "host-eww-probe.json": "c5fde82ac2e7191f2f9839e43053a6ab0cf47301e34d4e48bb9cc72db49d7e09",
+    "host-eww-probe.log": "cd4f0356a8bd8264acfff56012ab801cd6608a334de7a2f19cb80db704524e57",
+    "integration-results.json": "efa2505c6cd1c26cf93738527ae395d9ba9ebeb46a92726e9a2dcc3d83441598",
+    "test-components.log": "72ac7fc211c4e3833cc0060e8ecbd8d6addafd1ecf879f3c7a1f23ef71d56d77",
+    "test-eww-install.log": "66b03ee3a6917e0002d711e3bba9c1848550461ac94d8b605209c77978bdf400",
+    "test-glycin.log": "5a0df550367bcff1da3a511cddb8f3e051f7e2c36fce0b03d796bf71a803248d",
+    "test-guest.log": "fd6a36484ac2197bbd2bbf7b4be59621320b274406d2f3647078f0a9e339dbc0",
+    "test-install.log": "62df98ed2e9d485677e2ced36fedfe71625394b0268ce2db934c47422ccde67c",
+    "test-runtime.log": "8e3000a4a1bfc95904d5ede1f779bcc1e94df78d6c5958044e48de98f9035c5c",
+    "test-shell.log": "a8976e4fd2144d396e2b302259d511099915252d05a2cb08a3083afad05bfa80",
+    "test-software-centers.log": "65df9aa9badfce51a0724bc29278aef24be2047b4ca384b1d084a3600ac586c9",
+    "test-software-install.log": "3931b7a307feb3ea534753a7d1f0b9e6dd003b553dd531dbe91c0112107ec6d0",
+    "test-theme.log": "366e6715149ef9d53d9d9904c3791615b9b356b64ed5afaf2955e85236b3b74f",
+    "ubuntu-arm64-packages.json": "95e6422340ded86841ffb52d51d1c4e9fa6ca17d3976f75542727bcd5dc58fa6",
+    "ubuntu-classic-r7-session.log": "5a6d99fc3a1a67b4e313eeff10e2538246f22c7947cea51fedccd28a093ffe27",
+    "ubuntu-configure.log": "35f2936580236c1dff4e1d4a2bd5c6775556e5d1d80bb47cbd7281f86c55f068",
+    "ubuntu-gtk-probe.json": "1f396e2a8115ede26114e70b2b344d640bc042cff89e40b28b2cbcda922a215f",
+    "ubuntu-gtk-probe.log": "7e90edb5f788dbda8198198fd3785d0f14bfdc06fa605e07c1eb2599d915e289",
+    "ubuntu-m3ww-v1-session.log": "47a3781d0d545bec262f9e2a15194fa6fbd421be841508300f4851f3d4acf78c",
+    "ubuntu-test-rootfs.json": "6d7e7b3beaf7abf0f1737f4cfbb194bdd0c202e3fe01f31a75b9ad185316032e",
+    "ubuntu-user-prepare.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "download-verification.json": "fac31f4b29c0cac2cfbc2e2614a1b09738a2c644310ded067e7c5c415a5cc2b4",
+    "strict-gate.log": "311d57e1a6080076fedd98f0673846d77a2930bec78acbe6a41a87c87215fda0"
+  },
+  "apk": {
+    "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "sha256": "31028258101a52e83667e4debec93ae40345454f18df69ee23d73ee3e28ca245",
+    "bytes": 46925527,
+    "source_assets_verified": 77
+  },
+  "limitations": [
+    "无 Android 设备，未安装 APK；图形/输入/窗口/USB 及 arm64 EWW 首次编译待设备验收。",
+    "Linux 完整 Ubuntu 会话受 bubblewrap/PRoot 兼容边界阻断；保留失败日志，不声称完整会话通过。",
+    "Harness/OpenSpec 工具及 baseline specs 缺失，strict-run 门禁不可用。",
+    "产品知识一致性 Pending；未取得最终用户验收，不归档。"
+  ],
+  "git_operations": "No stage/commit/push/PR",
+  "deployment": "None",
+  "download": {
+    "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "http_status": 200,
+    "downloaded_bytes": 46925527,
+    "sha256": "31028258101a52e83667e4debec93ae40345454f18df69ee23d73ee3e28ca245",
+    "matches_verified_apk": true,
+    "proxy": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122516548376911873/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "proxy_validation": "Requires user browser login; authenticated proxy not tested"
+  }
+}

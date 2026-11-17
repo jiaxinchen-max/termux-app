@@ -1,0 +1,33 @@
+{
+  "change_id": "adjust-x11-preference-menu",
+  "status": "LocalVerificationPassed",
+  "bridge_java_tests": 6,
+  "bridge_python_tests": 6,
+  "tests_passed": 12,
+  "build": "Passed_arm64_debug",
+  "source_review": "source-review.json",
+  "compiled_default_and_chinese_title": "Render bridge",
+  "strict_gate": {
+    "status": "Unavailable",
+    "exit_code": 127,
+    "reason": "仓库缺少 .harness/scripts/verify.sh"
+  },
+  "apk": {
+    "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "bytes": 45484304,
+    "sha256": "49e5321463337079f3881a8b589f10c244b08aa361c74827bd4d07383ffe2763",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "source_assets_verified": 77
+  },
+  "download": {
+    "verified": true,
+    "bytes": 45484304,
+    "sha256": "49e5321463337079f3881a8b589f10c244b08aa361c74827bd4d07383ffe2763",
+    "url": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122516548376911873/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk"
+  },
+  "device_deployment": "NotAuthorized_NotDeployed",
+  "product_consistency": "PendingAcceptance",
+  "evidence_directory": "/home/user/workspace/artifacts/x11-preference-menu"
+}

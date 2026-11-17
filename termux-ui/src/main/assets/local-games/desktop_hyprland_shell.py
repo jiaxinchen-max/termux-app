@@ -6,6 +6,7 @@ import html
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import subprocess
 import time
@@ -13,6 +14,7 @@ import xml.etree.ElementTree as ET
 
 PREFIX = Path(os.environ.get('PREFIX', '/data/data/com.termux/files/usr'))
 HOME = Path(os.environ.get('HOME', '/data/data/com.termux/files/home'))
+GUEST = os.environ.get('TERMUX_HYPRLAND_GUEST') == '1'
 
 
 def create_default(path, content):
@@ -78,6 +80,8 @@ def panel_config(menu, launcher):
 
 def prepare(work, run_mode, theme_id):
     """Return host shell commands; applications route through session-local wrappers."""
+    if run_mode == 'proot':
+        raise RuntimeError('PRoot desktop components must be prepared inside Ubuntu')
     import runpy
     components = runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_components.py')))
     components['resources'].__globals__['PREFIX'] = PREFIX
@@ -97,9 +101,9 @@ def prepare(work, run_mode, theme_id):
         ('theme-r7', 'Restore r7 theme (restart)', '恢复 r7 外观（重启生效）', 'preferences-desktop-theme', str(launcher) + ' theme-r7', 'Desktop'),
         ('display', 'Display information', '显示能力说明', 'video-display', str(launcher) + ' display', 'Desktop'),
     ]
-    if run_mode == 'proot':
-        entries.append(('software', 'Software', '应用中心', 'org.gnome.Software',
-                        str(work / 'bin/termux-hyprland-software'), 'Applications'))
+    if GUEST:
+        # Applications are provided by Ubuntu's normal desktop files, including Software.
+        entries = [entry for entry in entries if entry[0] not in ('terminal', 'files', 'theme-m3ww', 'theme-r7')]
     for index in range(1, 5):
         entries.append(('workspace-' + str(index), 'Workspace ' + str(index), '工作区 ' + str(index),
                         'preferences-desktop-workspaces', str(launcher) + ' workspace ' + str(index), 'Workspaces'))
@@ -115,11 +119,11 @@ def prepare(work, run_mode, theme_id):
         directory = data / 'desktop-directories' / ('termux-hyprland-' + name + '.directory')
         create_default(directory, '[Desktop Entry]\nType=Directory\nName=' + name + '\nName[zh_CN]=' + chinese + '\nIcon=applications-other\n')
         include = '<Category>Termux' + name + '</Category>'
-        if name == 'Applications' and run_mode == 'native':
+        if name == 'Applications' and run_mode in ('native', 'guest'):
             include += '<All/>'
         # Keep controls in their own submenus even when listing installed native applications.
         exclude = ''
-        if name == 'Applications' and run_mode == 'native':
+        if name == 'Applications' and run_mode in ('native', 'guest'):
             exclude = '<Exclude>' + ''.join('<Category>Termux' + c + '</Category>' for c in ['Windows', 'Workspaces', 'Desktop']) + '</Exclude>'
         sections.append('<Menu><Name>' + name + '</Name><Directory>' + directory.name
                         + '</Directory><Include>' + include + '</Include>' + exclude + '</Menu>')
@@ -143,6 +147,8 @@ def prepare(work, run_mode, theme_id):
                     '窗口操作：任务栏可切换窗口，右键任务可关闭窗口；应用菜单的 Windows\n'
                     '子菜单可切换浮动/平铺。Workspaces 子菜单可选择工作区。\n')
     notifyd = PREFIX / 'lib/xfce4/notifyd/xfce4-notifyd'
+    if GUEST:
+        notifyd = next((PREFIX / 'lib').glob('**/xfce4/notifyd/xfce4-notifyd'))
     import runpy
     theme = runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_theme.py')))
     if theme_id == theme['VERSION']:
@@ -152,6 +158,9 @@ def prepare(work, run_mode, theme_id):
 
 
 def call_ipc(state, *args):
+    if GUEST:
+        import runpy
+        return runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_guest.py')))['ipc'](*args)
     root = state['env']['PATH'].split(':')
     executable = next((Path(p) / 'hyprctl' for p in root if (Path(p) / 'hyprctl').is_file()), None)
     if executable is None:
@@ -179,15 +188,20 @@ def main():
     parser.add_argument('action', choices=['workspace-status', 'workspace', 'workspace-next', 'battery-status', 'float', 'close', 'display', 'theme-m3ww', 'theme-r7'])
     parser.add_argument('number', nargs='?', type=int)
     args = parser.parse_args()
-    if args.work.parent != HOME / '.termux' or not args.work.name.startswith('hyprland-desktop-'):
+    parent = HOME / '.local/share/termux-hyprland' if GUEST else HOME / '.termux'
+    # Keep fixed Native entries and legacy desktop-* entries under the same path policy.
+    pattern = r'desktop-[A-Za-z0-9._-]+' if GUEST else r'hyprland-(?:native-hyprland|desktop-[A-Za-z0-9._-]+)'
+    if args.work.parent != parent or not re.fullmatch(pattern, args.work.name):
         parser.error('Invalid private desktop path')
     if args.action == 'battery-status':
-        print(battery_status(HOME.parent / 'front/desktop/state/android-battery.json'))
+        print(battery_status(Path(os.environ.get('TERMUX_HYPRLAND_BATTERY', str(HOME.parent / 'front/desktop/state/android-battery.json')))))
         return
     if args.action.startswith('theme-'):
         subprocess.Popen([str(PREFIX / 'bin/notify-send'), 'Desktop appearance', 'Stop the desktop and choose its theme in App settings.'])
         return
     state = json.loads((args.work / 'session.json').read_text())
+    if GUEST and state.get('token') != os.environ.get('TERMUX_HYPRLAND_SESSION'):
+        raise RuntimeError('Desktop session identity changed')
     if not (Path('/proc') / str(state['supervisor'])).exists():
         raise RuntimeError('Hyprland supervisor is no longer running')
     if args.action.startswith('workspace'):

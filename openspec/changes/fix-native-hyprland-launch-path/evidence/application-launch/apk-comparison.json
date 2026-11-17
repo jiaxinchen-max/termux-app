@@ -1,0 +1,13 @@
+{
+  "previous_bytes": 45465324,
+  "bytes": 45465526,
+  "increase": 202,
+  "previous_sha256": "42d5fa1f956c1f21d66ae7c476b8e28ddab040957c756657059c85ff33ef6530",
+  "changed_entries": [
+    "classes2.dex",
+    "assets/local-games/desktop_hyprland.py",
+    "META-INF/CERT.SF",
+    "META-INF/CERT.RSA",
+    "META-INF/MANIFEST.MF"
+  ]
+}

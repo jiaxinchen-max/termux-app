@@ -20,6 +20,7 @@ import com.termux.ui.desktop.domain.DesktopGuestGlMode;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 import com.termux.ui.desktop.domain.DesktopSessionState;
 import com.termux.ui.desktop.runtime.DesktopRendererPolicy;
+import com.termux.ui.desktop.runtime.DesktopDisplayPolicy;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,9 +31,6 @@ import java.util.List;
  * rows. Orientation is deliberately absent: it is a global Settings entry.
  */
 final class DesktopSettingsDialog {
-
-    private static final String[] RESOLUTIONS = {"1280x720", "1600x900", "1920x1080", "2560x1440"};
-    private static final int[] REFRESH_RATES = {30, 60, 90, 120};
 
     private DesktopSettingsDialog() {}
 
@@ -70,16 +68,14 @@ final class DesktopSettingsDialog {
                 value -> theme[0] = DesktopCreateActivity.themeOf(activity, value));
         }
         final String[] resolution = {distro.getResolution()};
-        final int[] refresh = {distro.getRefreshRate()};
+        final int[] refresh = {DesktopDisplayPolicy.effectiveRefreshRate(distro.getDe(), distro.getRefreshRate())};
         final DesktopGlMode[] host = {distro.getHostGlMode()};
         final DesktopGuestGlMode[] guest = {distro.getGuestGlMode()};
 
-        bind(activity, sheet.desktopSettingsResolution, R.string.desktop_select_resolution,
-            RESOLUTIONS, () -> resolution[0], value -> resolution[0] = value);
-        bind(activity, sheet.desktopSettingsRefresh, R.string.desktop_select_refresh,
-            distro.getDe().isGnomeSession() ? new String[]{"60 Hz"} : refreshLabels(),
-            () -> refresh[0] + " Hz",
-            value -> refresh[0] = Integer.parseInt(value.substring(0, value.length() - 3)));
+        DesktopDisplaySettings.bindResolution(activity, sheet.desktopSettingsResolution,
+            () -> resolution[0], value -> resolution[0] = value);
+        DesktopDisplaySettings.bindRefresh(activity, sheet.desktopSettingsRefresh, distro::getDe,
+            () -> refresh[0], value -> refresh[0] = value);
         List<String> hosts = new ArrayList<>();
         for (DesktopGlMode value : DesktopRendererPolicy.hostModes(distro.getRunMode(), distro.getDe()))
             hosts.add(DesktopCreateActivity.hostLabel(activity, value));
@@ -93,7 +89,6 @@ final class DesktopSettingsDialog {
             guests.toArray(new String[0]), () -> DesktopCreateActivity.guestLabel(activity, guest[0]),
             value -> guest[0] = DesktopCreateActivity.guestOf(activity, value));
         sheet.desktopSettingsRenderer.getRoot().setVisibility(container ? View.VISIBLE : View.GONE);
-        sheet.desktopSettingsRenderer.desktopSelectRoot.setEnabled(distro.getDe() != DesktopDe.XFCE4);
 
         sheet.desktopSettingsCancel.setOnClickListener(view -> dialog.dismiss());
         sheet.desktopSettingsSave.setOnClickListener(view -> {
@@ -147,7 +142,9 @@ final class DesktopSettingsDialog {
                              String[] values, Getter current, Setter apply) {
         row.desktopSelectLabel.setText(labelRes);
         row.desktopSelectValue.setText(current.get());
-        row.desktopSelectRoot.setOnClickListener(view ->
+        DesktopDisplaySettings.setSelectable(row, values.length > 1);
+        row.desktopSelectRoot.setOnClickListener(view -> {
+            if (values.length <= 1) return;
             new FrostedDialogBuilder(activity)
                 .setTitle(labelRes)
                 .setSingleChoiceItems(values, indexOf(values, current.get()),
@@ -156,7 +153,8 @@ final class DesktopSettingsDialog {
                         row.desktopSelectValue.setText(current.get());
                         dialog.dismiss();
                     })
-                .show());
+                .show();
+        });
     }
 
     private static int indexOf(String[] values, String current) {
@@ -164,10 +162,6 @@ final class DesktopSettingsDialog {
         return -1;
     }
 
-    private static String[] refreshLabels() {
-        String[] labels = new String[REFRESH_RATES.length];
-        for (int i = 0; i < REFRESH_RATES.length; i++) labels[i] = REFRESH_RATES[i] + " Hz";
-        return labels;
-    }
+
 
 }

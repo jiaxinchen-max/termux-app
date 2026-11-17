@@ -261,7 +261,7 @@ public final class LoriePreferences {
             if (getActivity() instanceof TerminalActions) {
                 TerminalActions actions = (TerminalActions) getActivity();
                 if ("main".equals(screen.getKey())) {
-                    addTerminalAction(screen, "front_ui", R.string.terminal_open_ui, 90, actions::openFrontUi);
+                    addTerminalAction(screen, "front_ui", R.string.terminal_open_ui, 98, actions::openFrontUi);
                     Preference data = new Preference(requireContext());
                     data.setKey("terminal_data");
                     data.setTitle(R.string.terminal_data);
@@ -500,7 +500,7 @@ public final class LoriePreferences {
                 desc.setMovementMethod(LinkMovementMethod.getInstance());
                 new android.app.AlertDialog.Builder(getActivity())
                     .setView(view)
-                    .setTitle("X11 server bridge installer")
+                    .setTitle(R.string.install_x11_server_bridge)
                     .setPositiveButton("OK",
                         (dialog, whichButton) -> {
                             getPreferenceHost().installX11ServerBridge();

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" tests="17" skipped="0" failures="0" errors="0" timestamp="2026-11-17T04:24:56" hostname="skynet-env-362805450227519488-378012184997830656-vjdrl" time="0.2">
+  <properties/>
+  <testcase name="ubuntuProotUsesItsOwnNativeWaylandSocket" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.008"/>
+  <testcase name="prootNeedsKwinProotDistroAndTheContainer" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.004"/>
+  <testcase name="prootAcceptsTheLegacyInstalledRootfsLayout" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.002"/>
+  <testcase name="missingMarkerIsNotReady" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.001"/>
+  <testcase name="oldHyprlandReadinessNeverMarksNewSupervisorReady" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.002"/>
+  <testcase name="waylandSocketPathFollowsKwinsRuntimeLayout" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.0"/>
+  <testcase name="hyprlandUpgradeRequiresTheFixedRuntimeAndMatchingManifest" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.014"/>
+  <testcase name="retiredGnomeNativeNeverCountsAsInstalled" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.002"/>
+  <testcase name="markerNearTheStartStaysReadyEvenInAHugeLog" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.096"/>
+  <testcase name="retiredGnomeProotNeverCountsAsInstalled" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.001"/>
+  <testcase name="nativeUbuntuNeedsItsOwnProfileAndRuntime" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.005"/>
+  <testcase name="nativeNeedsStartPlasma" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.0"/>
+  <testcase name="tailReadsFromTheEndOfTheLog" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.001"/>
+  <testcase name="ubuntuShellAndMarkerAloneDoNotCountAsInstalled" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.002"/>
+  <testcase name="gnomeReadyMarkerMustIdentifyTheCurrentLauncher" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.056"/>
+  <testcase name="prootNeedsTheNamedContainerNotAnyContainer" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.002"/>
+  <testcase name="plasmaRequiresMatchingCurrentSessionAndRejectsRecycledPidEvidence" classname="com.termux.ui.desktop.runtime.DesktopEnvironmentTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

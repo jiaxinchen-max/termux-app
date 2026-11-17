@@ -60,7 +60,7 @@ def verify(root):
     return manifest
 
 
-def install(archive):
+def install(archive, reinstall=False):
     if digest(archive) != ARCHIVE_SHA256:
         raise RuntimeError('Hyprland archive SHA-256 mismatch')
     root = runtime_root()
@@ -69,7 +69,7 @@ def install(archive):
         raise RuntimeError('Hyprland installation path must not be a symlink')
     install_lock = (root.parent / '.install.lock').open('w')
     fcntl.flock(install_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    if root.exists():
+    if root.exists() and not reinstall:
         try:
             verify(root)
             print('Hyprland runtime already verified', flush=True)
@@ -153,6 +153,17 @@ def clean_environment(work):
     return env
 
 
+def update_activation_environment(client_env):
+    # The private bus starts before the compositor selects its Wayland socket.
+    # Updating the caller's environment alone does not update activated services.
+    activation = dict(client_env, LD_LIBRARY_PATH='', LD_PRELOAD='')
+    result = subprocess.run([str(PREFIX / 'bin/dbus-update-activation-environment'),
+                             *[key + '=' + value for key, value in sorted(activation.items())]],
+                            env=client_env, capture_output=True, text=True, timeout=5)
+    if result.returncode:
+        raise RuntimeError('Hyprland D-Bus activation environment update failed: ' + result.stderr[-1000:])
+
+
 def ipc(env, *arguments):
     return subprocess.check_output([str(runtime_root() / 'bin/hyprctl'), *arguments],
                                    env=env, text=True, stderr=subprocess.STDOUT, timeout=5)
@@ -204,6 +215,7 @@ CLIENT_CLEAN_KEYS = (
     'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_DATA_DIRS', 'XDG_CACHE_HOME',
     'DBUS_SESSION_BUS_ADDRESS', 'DBUS_SYSTEM_BUS_ADDRESS', 'DISPLAY',
     'GIO_EXTRA_MODULES', 'TERMUX_USB_DESKTOP_DIR',
+    'TERMUX_HYPRLAND_GUEST', 'TERMUX_HYPRLAND_EWW', 'TERMUX_HYPRLAND_BATTERY',
 )
 
 
@@ -219,6 +231,7 @@ def container_command(work, alias, client_mode, program, token, usb_storage='off
                  'XDG_CURRENT_DESKTOP=Hyprland', 'PULSE_SERVER=tcp:127.0.0.1:4713',
                  'TERMUX_HYPRLAND_SESSION=' + token,
                  'DBUS_SYSTEM_BUS_ADDRESS=unix:path=/tmp/hyprland-runtime/system-bus',
+                 'DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/hyprland-runtime/guest-session-bus',
                  'GIO_USE_NETWORK_MONITOR=base']
     if client_mode == 'zink':
         guest_env += ['VK_DRIVER_FILES=/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json',
@@ -227,7 +240,9 @@ def container_command(work, alias, client_mode, program, token, usb_storage='off
                       'LIBGL_ALWAYS_SOFTWARE=0', 'EGL_PLATFORM=wayland',
                       'QSG_RHI_BACKEND=vulkan', 'QT_OPENGL=desktop',
                       'QT_WAYLAND_CLIENT_BUFFER_INTEGRATION=wayland-egl']
-    binds = []
+    rootfs = PREFIX / 'var/lib/proot-distro/containers' / alias / 'rootfs'
+    binds = ['--bind', str(rootfs / 'usr/local/lib/termux-gnome/libglycin-2.so.0')
+             + ':/usr/lib/aarch64-linux-gnu/libglycin-2.so.0']
     if usb_storage != 'off':
         desktop_id = work.name[len('hyprland-'):]
         usb = runpy.run_path(str(Path(__file__).with_name('desktop_usb_storage.py')))
@@ -295,8 +310,18 @@ def verify_zink_client(work, env, alias, log, clients):
 
 
 def session_request(args):
-    return {key: str(value) if isinstance(value, Path) else value
-            for key, value in vars(args).items() if key not in ('command',)}
+    request = {key: str(value) if isinstance(value, Path) else value
+               for key, value in vars(args).items() if key not in ('command',)}
+    if args.run_mode == 'proot':
+        request['client_session_schema'] = 2
+    return request
+
+
+def prepared_request_matches(prepared, args):
+    if not isinstance(prepared, dict):
+        return False
+    return {key: value for key, value in prepared.items() if key not in ('width', 'height')} == {
+        key: value for key, value in session_request(args).items() if key not in ('width', 'height')}
 
 
 def prepare(args):
@@ -311,6 +336,10 @@ def prepare(args):
         return _prepare_locked(args, work)
 
 
+def verify_guest_images(rootfs):
+    return runpy.run_path(str(Path(__file__).with_name('desktop_install_glycin.py')))['verify_installed'](rootfs)
+
+
 def _prepare_locked(args, work):
     client_mode = getattr(args, 'client_gl_mode', 'default')
     for name in ['config', 'cache', 'data']:
@@ -319,11 +348,12 @@ def _prepare_locked(args, work):
             raise RuntimeError('Unsafe Hyprland private directory: ' + name)
         directory.mkdir(mode=0o700, exist_ok=True)
         directory.chmod(0o700)
-    COMPONENTS['resolve'](args.runtime_id, args.theme_id)
+    COMPONENTS['resolve'](None if args.run_mode == 'proot' else args.runtime_id, args.theme_id)
     if args.runtime_id != VERSION:
         raise ValueError('Unsupported Hyprland runtime')
     COMPONENTS['theme_root'].__globals__['PREFIX'] = PREFIX
-    COMPONENTS['verify_theme'](COMPONENTS['theme_root'](args.theme_id), args.runtime_id, args.theme_id)
+    if args.run_mode != 'proot':
+        COMPONENTS['verify_theme'](COMPONENTS['theme_root'](args.theme_id), args.runtime_id, args.theme_id)
     runtime = session_runtime(work)
     runtime.parent.mkdir(parents=True, exist_ok=True)
     alias = work / 'runtime'
@@ -362,21 +392,38 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
     bin_dir.mkdir(exist_ok=True)
     actions = [('terminal', ['xfce4-terminal', '--disable-server']), ('files', ['thunar'])]
     if args.run_mode == 'proot':
+        guest = runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_guest.py')))
+        rootfs = PREFIX / 'var/lib/proot-distro/containers' / args.alias / 'rootfs'
+        verify_guest_images(rootfs)
+        guest_work = guest['prepare'](rootfs, work, args.desktop_id, args.theme_id, COMPONENTS)
+        prepare_command = [str(PREFIX / 'bin/proot-distro'), 'login', args.alias, '--user', 'termux', '--',
+                           '/usr/bin/python3', '-I', '-B', str(guest['LIB'] / 'desktop_hyprland_guest.py'),
+                           '--desktop-id', args.desktop_id, 'prepare', '--theme', args.theme_id]
+        subprocess.run(prepare_command, check=True, timeout=60)
         software = runpy.run_path(str(Path(__file__).with_name('desktop_software_center.py')))
         software['prepare'](PREFIX / 'var/lib/proot-distro/containers' / args.alias / 'rootfs',
                             '/tmp/hyprland-runtime')
-        actions.append(('software', ['gnome-software']))
+        actions.append(('theme', ['launcher']))
     for action, program in actions:
         executable = [str(PREFIX / "bin/env"), "-u", "LD_LIBRARY_PATH", "-u", "LD_PRELOAD", *program]
         if args.run_mode == 'proot':
             executable = container_command(work, args.alias, client_mode,
-                program if getattr(args, 'usb_storage', 'off') != 'off' else ['dbus-run-session', '--', *program],
+                ['/usr/bin/python3', '-I', '-B', str(guest['LIB'] / 'desktop_hyprland_guest.py'),
+                 '--desktop-id', args.desktop_id, action if action != 'theme' else 'launcher'],
                 '__LIVE_SESSION_TOKEN__', getattr(args, 'usb_storage', 'off'))
         wrapper = bin_dir / ('termux-hyprland-' + action)
-        wrapper.write_text('#!' + str(PREFIX / 'bin/sh') + '\nexec ' + shlex.join(executable).replace('TERMUX_HYPRLAND_SESSION=__LIVE_SESSION_TOKEN__', '"TERMUX_HYPRLAND_SESSION=${TERMUX_HYPRLAND_SESSION:?}"') + ' "$@"\n')
+        wrapper.write_text('#!' + str(PREFIX / 'bin/sh') + '\nexec ' + shlex.join(executable).replace('TERMUX_HYPRLAND_SESSION=__LIVE_SESSION_TOKEN__', '"TERMUX_HYPRLAND_SESSION=${TERMUX_HYPRLAND_SESSION:?}"') + (' "$@"\n' if args.run_mode == 'native' else '\n'))
         wrapper.chmod(0o700)
     (work / 'theme-session-config').unlink(missing_ok=True)
-    shell_commands = prepare_shell(work, args.run_mode, args.theme_id)
+    if args.run_mode == 'proot':
+        shell_commands = []
+        if args.theme_id == 'm3ww-v1':
+            overlay = work / 'config/guest-compositor.lua'
+            overlay.write_text('dofile(' + json.dumps(str(work / 'config/hyprland.lua')) + ')\n' +
+                'dofile(' + json.dumps(str(rootfs / str(guest_work / 'config/themes/m3ww-v1/session.lua').lstrip('/'))) + ')\n')
+            (work / 'theme-session-config').write_text(str(overlay))
+    else:
+        shell_commands = prepare_shell(work, args.run_mode, args.theme_id)
     themed = work / 'theme-session-config'
     if themed.exists():
         command[-1] = themed.read_text()
@@ -390,6 +437,8 @@ hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
 
 
 def session(args):
+    if not (16 <= args.width <= 8192 and 16 <= args.height <= 8192 and 1 <= args.refresh <= 240):
+        raise ValueError('Invalid Hyprland output dimensions/refresh rate')
     if args.run_mode != 'proot' and args.usb_storage != 'off':
         raise ValueError('Native Hyprland does not support USB storage')
     client_mode = getattr(args, 'client_gl_mode', 'default')
@@ -402,7 +451,7 @@ def session(args):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         args.ready_file.unlink(missing_ok=True)
         prepared = json.loads((work / 'prepared-session.json').read_text())
-        if prepared.get('schema') != 1 or prepared.get('request') != session_request(args):
+        if prepared.get('schema') != 1 or not prepared_request_matches(prepared.get('request'), args):
             raise RuntimeError('Desktop settings are not prepared; save/install the desktop first')
         return _session_locked(args, work, client_mode, prepared)
 
@@ -484,6 +533,11 @@ def _session_locked(args, work, client_mode, prepared):
                 raise RuntimeError('Hyprland Android output/IPC/socket readiness timed out')
             (work / 'runtime/wayland-hyprland').symlink_to(env['WAYLAND_DISPLAY'])
             env['GDK_BACKEND'] = 'wayland'
+            # Both direct clients and D-Bus activated clients use host libraries.
+            client_env = env.copy()
+            client_env.pop('LD_LIBRARY_PATH', None)
+            client_env.pop('LD_PRELOAD', None)
+            update_activation_environment(client_env)
             if args.run_mode == 'proot':
                 software = runpy.run_path(str(Path(__file__).with_name('desktop_software_center.py')))
                 package_command = container_command(work, args.alias, client_mode,
@@ -493,38 +547,37 @@ def _session_locked(args, work, client_mode, prepared):
                     stderr=subprocess.STDOUT, start_new_session=True)
                 service_clients.append(packages)
                 software['wait_ready'](packages, runtime)
+                guest = runpy.run_path(str(Path(__file__).with_name('desktop_hyprland_guest.py')))
+                desktop_command = container_command(work, args.alias, client_mode,
+                    ['env', 'HYPRLAND_INSTANCE_SIGNATURE=' + env['HYPRLAND_INSTANCE_SIGNATURE'],
+                     '/usr/bin/python3', '-I', '-B', str(guest['LIB'] / 'desktop_hyprland_guest.py'),
+                     '--desktop-id', args.desktop_id, 'session'],
+                    env['TERMUX_HYPRLAND_SESSION'], args.usb_storage)
+                desktop = subprocess.Popen(desktop_command, env=env, stdout=log,
+                    stderr=subprocess.STDOUT, start_new_session=True)
+                service_clients.append(desktop)
+                desktop_deadline = time.monotonic() + 35
+                marker = runtime / 'guest-desktop.ready'
+                while not marker.is_file() or marker.read_text().strip() != env['TERMUX_HYPRLAND_SESSION']:
+                    if desktop.poll() is not None or time.monotonic() >= desktop_deadline:
+                        raise RuntimeError('Container desktop failed to become ready; inspect session.log')
+                    time.sleep(.1)
                 if args.usb_storage != 'off':
                     usb_module = runpy.run_path(str(Path(__file__).with_name('desktop_usb_storage.py')))
                     usb_parent, _ = usb_module['paths'](PREFIX, args.desktop_id)
                     usb_parent.mkdir(mode=0o700, parents=True, exist_ok=True)
                     usb_parent.chmod(0o700)
-                    guest_bus_command = container_command(work, args.alias, client_mode,
-                        ['dbus-daemon', '--session', '--nofork', '--nopidfile',
-                         '--address=unix:path=/tmp/hyprland-runtime/guest-session-bus'],
-                        env['TERMUX_HYPRLAND_SESSION'], args.usb_storage)
-                    guest_bus = subprocess.Popen(guest_bus_command, env=env, stdout=log,
-                        stderr=subprocess.STDOUT, start_new_session=True)
-                    service_clients.append(guest_bus)
-                    bus_deadline = time.monotonic() + 10
-                    while not (runtime / 'guest-session-bus').is_socket():
-                        if guest_bus.poll() is not None or time.monotonic() >= bus_deadline:
-                            raise RuntimeError('Hyprland guest session D-Bus failed to start')
-                        time.sleep(.05)
                     gio_command = container_command(work, args.alias, client_mode,
                         ['/usr/local/libexec/tusb-gio-mount'], env['TERMUX_HYPRLAND_SESSION'], args.usb_storage)
                     usb = usb_module['Session'](PREFIX, args.desktop_id,
                         dict(env, DBUS_SESSION_BUS_ADDRESS='unix:path=' + str(runtime / 'guest-session-bus')),
                         gio_command, runtime / 'usb-storage.log', mode=args.usb_storage)
                     usb.start()
-            # Host GTK clients must use the installed libraries, not compositor-private ones.
-            client_env = env.copy()
-            client_env.pop('LD_LIBRARY_PATH', None)
-            client_env.pop('LD_PRELOAD', None)
             (work / 'session.json').write_text(json.dumps({'supervisor': os.getpid(), 'env': env}) + '\n')
             for shell_command in shell_commands:
                 clients.append(subprocess.Popen(shell_command, env=client_env, stdout=log,
                                                 stderr=subprocess.STDOUT, start_new_session=True))
-            if not shell_commands:
+            if not shell_commands and args.run_mode == 'native':
                 clients.append(subprocess.Popen([str(bin_dir / 'termux-hyprland-terminal')],
                                                 env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True))
             shell_deadline = time.monotonic() + 15
@@ -557,6 +610,15 @@ def _session_locked(args, work, client_mode, prepared):
             temporary.replace(args.ready_file)
             print('Hyprland Android output and IPC ready; visual/input validation pending', flush=True)
             while process.poll() is None:
+                if args.run_mode == 'proot':
+                    source = HOME.parent / 'front/desktop/state/android-battery.json'
+                    try:
+                        if source.is_file():
+                            battery = runtime / 'android-battery.json.tmp'
+                            battery.write_bytes(source.read_bytes()[:4096])
+                            battery.replace(runtime / 'android-battery.json')
+                    except OSError:
+                        pass  # Optional Android status must not stop the desktop.
                 if usb is not None:
                     usb.require_alive()
                 if any(client.poll() is not None for client in service_clients):
@@ -661,6 +723,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
     p = sub.add_parser('install'); p.add_argument('archive', type=Path)
+    p.add_argument('--reinstall', action='store_true')
     sub.add_parser('check')
     sub.add_parser('check-runtime')
     p = sub.add_parser('check-shell')
@@ -678,7 +741,7 @@ def main():
     p.add_argument('action', choices=['terminal','files','close','next','float'])
     args = parser.parse_args()
     if args.command == 'install':
-        install(args.archive)
+        install(args.archive, reinstall=args.reinstall)
     elif args.command == 'check-runtime':
         verify(runtime_root())
     elif args.command == 'check-shell':

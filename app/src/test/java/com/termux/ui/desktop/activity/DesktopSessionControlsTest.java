@@ -12,6 +12,7 @@ import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.desktop.data.FileDesktopDistroRepository;
 import com.termux.ui.desktop.domain.*;
 import com.termux.x11.X11SessionView;
+import java.io.File;
 import java.lang.reflect.*;
 import java.util.concurrent.*;
 import java.util.function.BooleanSupplier;
@@ -48,6 +49,12 @@ public class DesktopSessionControlsTest {
                 if (release != null) try { release.await(5, TimeUnit.SECONDS); }
                     catch (InterruptedException e) { Thread.currentThread().interrupt(); }
                 if (failStop) throw new LaunchHostException("test_stop_failed", true, null);
+                // The real stop supervisor publishes completion. This test host must do so too.
+                File status = new GameStoragePaths(c.getFilesDir()).getDesktopStatusFile("desktop-controls");
+                try {
+                    status.getParentFile().mkdirs();
+                    java.nio.file.Files.write(status.toPath(), "stopped\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                } catch (java.io.IOException error) { throw new AssertionError(error); }
             }
         });
     }

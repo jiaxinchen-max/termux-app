@@ -52,8 +52,8 @@ import java.util.concurrent.Executors;
 /**
  * Inventory of the managed desktops, isolated per run mode: the Native tab lists the host
  * compositors (one instance per environment), the Proot selection the container instances (repeatable).
- * Creation happens in {@link DesktopCreateActivity}; this screen drives install, open, stop,
- * settings, logs and delete.
+ * Native entries are fixed; containers are created in {@link DesktopCreateActivity}.
+ * This screen drives install, open, stop, settings, logs and container deletion.
  */
 public final class DesktopActivity extends AppUiActivity {
 
@@ -67,14 +67,13 @@ public final class DesktopActivity extends AppUiActivity {
 
     private static final long REFRESH_INTERVAL_MS = 2000;
     private static final int LOG_TAIL_BYTES = 24 * 1024;
-    private static final int MENU_INSTALL = 1;
     private static final int MENU_STOP = 2;
     private static final int MENU_SETTINGS = 5;
     private static final int MENU_LOGS = 3;
     private static final int MENU_DELETE = 4;
     private static final int MENU_EXPORT = 6;
     private static final int MENU_USB_STORAGE = 7;
-    private static final int MENU_ARCHIVE_PROGRESS = 8;
+    private static final int MENU_REINSTALL = 9;
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
         new Thread(runnable, "DesktopIo"));
@@ -105,7 +104,12 @@ public final class DesktopActivity extends AppUiActivity {
         tasks = new DesktopTasks(this);
         binding.desktopItems.addOnLayoutChangeListener((view, left, top, right, bottom,
                 oldLeft, oldTop, oldRight, oldBottom) -> {
-            if (!destroyed && right - left != oldRight - oldLeft) render(shownDistros, shownStates);
+            if (right - left != oldRight - oldLeft) {
+                // Replacing children during layout can leave them at zero size until another event.
+                handler.post(() -> {
+                    if (!destroyed && binding != null) render(shownDistros, shownStates);
+                });
+            }
         });
         if (savedInstanceState != null) {
             ArrayList<String> handled = savedInstanceState.getStringArrayList("desktop-handled-creations");
@@ -202,6 +206,7 @@ public final class DesktopActivity extends AppUiActivity {
             List<DesktopDistro> distros;
             List<DesktopSessionState> states = new ArrayList<>();
             try {
+                tasks.ensureNativeEntries();
                 distros = tasks.list();
             } catch (IOException error) {
                 toastOnUi(getString(R.string.desktop_error, "desktop_list_failed"));
@@ -249,7 +254,6 @@ public final class DesktopActivity extends AppUiActivity {
         }
         // Keep the touched/focused views attached during unchanged inventory polls.
         if (key.equals(renderedKey)) return;
-        renderedKey = key;
         List<DesktopDistro> modeDistros = new ArrayList<>();
         List<DesktopSessionState> modeStates = new ArrayList<>();
         for (int index = 0; index < distros.size(); index++) {
@@ -274,13 +278,13 @@ public final class DesktopActivity extends AppUiActivity {
             place(card.getRoot(), index, columns, gridWidth);
             grid.addView(card.getRoot());
         }
-        ItemDesktopAddBinding add = ItemDesktopAddBinding.bind(getLayoutInflater().inflate(
-            collectionToolbar.isList() ? R.layout.item_desktop_add_list : R.layout.item_desktop_add,
-            grid, false));
-        add.getRoot().setOnClickListener(view -> openCreate());
-        place(add.getRoot(), modeDistros.size(), columns, gridWidth);
-        grid.addView(add.getRoot());
         if (tab == DesktopRunMode.PROOT) {
+            ItemDesktopAddBinding add = ItemDesktopAddBinding.bind(getLayoutInflater().inflate(
+                collectionToolbar.isList() ? R.layout.item_desktop_add_list : R.layout.item_desktop_add,
+                grid, false));
+            add.getRoot().setOnClickListener(view -> openCreate());
+            place(add.getRoot(), modeDistros.size(), columns, gridWidth);
+            grid.addView(add.getRoot());
             importCard = ItemDesktopImportBinding.bind(getLayoutInflater().inflate(
                 collectionToolbar.isList() ? R.layout.item_desktop_import_list : R.layout.item_desktop_import,
                 grid, false));
@@ -302,6 +306,8 @@ public final class DesktopActivity extends AppUiActivity {
             grid.addView(importCard.getRoot());
             updateImportAvailability();
         }
+        // A failed rebuild must remain eligible for the next refresh.
+        renderedKey = key;
     }
 
     private void openCreate() {
@@ -349,7 +355,7 @@ public final class DesktopActivity extends AppUiActivity {
         card.desktopDetail.setText(getString(R.string.desktop_card_detail,
             getString(R.string.desktop_host_summary, DesktopCreateActivity.hostLabel(this, distro.getHostGlMode()))
                 + (distro.getRunMode() == DesktopRunMode.PROOT ? " · " + getString(R.string.desktop_guest_summary,
-                    DesktopCreateActivity.guestLabel(this, distro.getGuestGlMode())) : ""), distro.getResolution(), distro.getRefreshRate()));
+                    DesktopCreateActivity.guestLabel(this, distro.getGuestGlMode())) : ""), DesktopDisplaySettings.resolutionLabel(this, distro.getResolution()), distro.getRefreshRate()));
         if (distro.getDe() == DesktopDe.HYPRLAND) {
             card.desktopDetail.append("\n" + getString(R.string.desktop_hyprland_components_summary,
                 distro.getHyprlandRuntimeId(), DesktopCreateActivity.themeLabel(this, distro.getHyprlandThemeId())));
@@ -387,15 +393,12 @@ public final class DesktopActivity extends AppUiActivity {
         boolean installing = state == DesktopSessionState.INSTALLING;
         PopupMenu menu = new PopupMenu(this, anchor);
         Menu items = menu.getMenu();
-        if (distro.getDe().isCreatable() && state != DesktopSessionState.NOT_INSTALLED && !active) {
-            items.add(Menu.NONE, MENU_INSTALL, Menu.NONE, R.string.desktop_action_install);
-        }
+        if (distro.getDe().isCreatable())
+            items.add(Menu.NONE, MENU_REINSTALL, Menu.NONE, R.string.local_games_component_reinstall)
+                .setEnabled(!installing && !DesktopArchiveFlow.instance().isBusy());
         if (active && !installing && state != DesktopSessionState.STOPPING)
             items.add(Menu.NONE, MENU_STOP, Menu.NONE, R.string.desktop_action_stop);
         items.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.desktop_action_settings).setEnabled(!installing);
-        if (DesktopArchiveFlow.instance().hasProgressFor(distro.getId())) {
-            items.add(Menu.NONE, MENU_ARCHIVE_PROGRESS, Menu.NONE, R.string.desktop_archive_view_progress);
-        }
         items.add(Menu.NONE, MENU_USB_STORAGE, Menu.NONE, R.string.desktop_usb_title)
             .setEnabled(!installing && state != DesktopSessionState.STOPPING);
         if (distro.getRunMode() == DesktopRunMode.PROOT
@@ -404,11 +407,12 @@ public final class DesktopActivity extends AppUiActivity {
             items.add(Menu.NONE, MENU_EXPORT, Menu.NONE, R.string.desktop_archive_export)
                 .setEnabled(!anyDesktopActive() && !DesktopArchiveFlow.instance().isBusy());
         }
-        items.add(Menu.NONE, MENU_DELETE, Menu.NONE, R.string.desktop_action_delete).setEnabled(!installing);
+        if (distro.getRunMode() == DesktopRunMode.PROOT || !distro.getDe().supportsNative())
+            items.add(Menu.NONE, MENU_DELETE, Menu.NONE, R.string.desktop_action_delete).setEnabled(!installing);
         items.add(Menu.NONE, MENU_LOGS, Menu.NONE, R.string.desktop_action_logs);
         menu.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
-                case MENU_INSTALL: confirmInstall(distro); return true;
+                case MENU_REINSTALL: confirmReinstall(distro); return true;
                 case MENU_STOP: stop(distro); return true;
                 case MENU_SETTINGS:
                     runHostAction(() -> {
@@ -418,9 +422,6 @@ public final class DesktopActivity extends AppUiActivity {
                     });
                     return true;
                 case MENU_LOGS: showLogs(distro); return true;
-                case MENU_ARCHIVE_PROGRESS:
-                    DesktopArchiveFlow.instance().showProgressFor(distro.getId());
-                    return true;
                 case MENU_DELETE: confirmDelete(distro); return true;
                 case MENU_USB_STORAGE:
                     DesktopUsbStorageDialog.show(this, tasks, distro, this::refresh);
@@ -554,6 +555,21 @@ public final class DesktopActivity extends AppUiActivity {
             .show();
     }
 
+    private void confirmReinstall(DesktopDistro distro) {
+        new FrostedDialogBuilder(this)
+            .setTitle(R.string.local_games_component_reinstall)
+            .setMessage(R.string.desktop_reinstall_hint)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.local_games_component_reinstall, (dialog, which) ->
+                runHostAction(() -> {
+                    String taskId = tasks.reinstall(distro);
+                    runOnUiThread(() -> {
+                        if (!destroyed) showInstallConsole(taskId);
+                    });
+                }))
+            .show();
+    }
+
     /** Both creation and manual retry attach to the same real installation terminal. */
     void installAndShowConsole(DesktopDistro distro) throws LaunchHostException {
         String taskId = tasks.install(distro);
@@ -610,11 +626,16 @@ public final class DesktopActivity extends AppUiActivity {
                 ScrollView scroll = new ScrollView(this);
                 scroll.addView(view);
                 scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
-                new FrostedDialogBuilder(this)
-                    .setTitle(R.string.desktop_logs_title)
+                FrostedDialogBuilder dialog = new FrostedDialogBuilder(this);
+                dialog.setTitle(R.string.desktop_logs_title)
                     .setView(scroll)
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show();
+                    .setPositiveButton(android.R.string.ok, null);
+                DesktopArchiveFlow archive = DesktopArchiveFlow.instance();
+                if (archive.hasProgressFor(distro.getId())) {
+                    dialog.setNeutralButton(R.string.desktop_archive_view_progress,
+                        (ignored, which) -> archive.showProgressFor(distro.getId()));
+                }
+                dialog.show();
             });
         });
     }

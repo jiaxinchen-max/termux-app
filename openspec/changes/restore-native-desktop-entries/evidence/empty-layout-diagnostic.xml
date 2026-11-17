@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-17T05:39:34" hostname="skynet-env-362805450227519488-378012184997830656-vjdrl" time="3.791">
+  <properties/>
+  <testcase name="emptyInventoryAddCardHasVisibleBoundsBeforeFixedEntryInitialization" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="3.791"/>
+  <system-out><![CDATA[Called loadFromPath(/system/framework/framework-res.apk, true); mode=binary sdk=28
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,12 @@
+......Hyprland Android output and IPC ready; visual/input validation pending
+.["login", "ubuntu-test", "--user", "termux", "--", "/usr/bin/python3", "-I", "-B", "/usr/local/lib/termux-hyprland/desktop_hyprland_guest.py", "--desktop-id", "guest-token", "prepare", "--theme", "m3ww-v1"]
+....Hyprland private runtime installed and verified
+Hyprland runtime already verified
+.Hyprland private runtime installed and verified
+Repairing damaged Hyprland runtime from verified archive
+Hyprland private runtime installed and verified
+.
+----------------------------------------------------------------------
+Ran 13 tests in 33.128s
+
+OK

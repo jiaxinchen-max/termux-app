@@ -1,0 +1,7 @@
+schema: review_findings_v1
+change_id: add-desktop-reinstall-menu
+stage: implementation-review
+status: APPROVED_LOCAL_SCOPE
+reviewer: primary_agent_direct_source_review
+findings: []
+limits: [Harness工具缺失, 新版设备验证未执行, 产品验收Pending, GNOME旧夹具存在已复现基线失败]

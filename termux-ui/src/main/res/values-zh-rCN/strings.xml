@@ -545,6 +545,9 @@
     <string name="desktop_container_more">更多发行版</string>
     <string name="desktop_container_more_desc">Ubuntu / Arch 容器后续支持</string>
     <string name="desktop_select_resolution">分辨率</string>
+    <string name="desktop_resolution_native">Native（窗口原生尺寸）</string>
+    <string name="desktop_resolution_native_hint">按启动时窗口的像素尺寸显示；窗口大小改变后，重启桌面生效。</string>
+    <string name="desktop_refresh_gnome_fixed_hint">当前 GNOME Android 后端仅支持 60 Hz。</string>
     <string name="desktop_select_refresh">刷新率</string>
     <string name="desktop_select_renderer">渲染器</string>
     <string name="desktop_gl_auto">自动</string>
@@ -594,6 +597,7 @@
     <string name="desktop_create_invalid">请检查名称、分辨率和刷新率。</string>
     <string name="desktop_install_started">已在 Termux 会话中开始安装。</string>
     <string name="desktop_install_hint">将下载并安装此桌面所需的运行环境。</string>
+    <string name="desktop_reinstall_hint">将先结束所有受管理的桌面会话，再重新安装此桌面的组件。保留现有容器、设置和用户文件。</string>
     <string name="desktop_stop_requested">正在停止桌面…</string>
     <string name="desktop_error">无法完成请求（%1$s）。</string>
     <string name="desktop_delete_running">请先停止桌面再删除。</string>

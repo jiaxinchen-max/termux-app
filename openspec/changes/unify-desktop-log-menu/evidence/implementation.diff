@@ -1,0 +1,51 @@
+--- termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopActivity.java before
++++ termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopActivity.java
+@@ -73,7 +73,6 @@
+     private static final int MENU_DELETE = 4;
+     private static final int MENU_EXPORT = 6;
+     private static final int MENU_USB_STORAGE = 7;
+-    private static final int MENU_ARCHIVE_PROGRESS = 8;
+     private static final int MENU_REINSTALL = 9;
+ 
+     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
+@@ -400,9 +399,6 @@
+         if (active && !installing && state != DesktopSessionState.STOPPING)
+             items.add(Menu.NONE, MENU_STOP, Menu.NONE, R.string.desktop_action_stop);
+         items.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.desktop_action_settings).setEnabled(!installing);
+-        if (DesktopArchiveFlow.instance().hasProgressFor(distro.getId())) {
+-            items.add(Menu.NONE, MENU_ARCHIVE_PROGRESS, Menu.NONE, R.string.desktop_archive_view_progress);
+-        }
+         items.add(Menu.NONE, MENU_USB_STORAGE, Menu.NONE, R.string.desktop_usb_title)
+             .setEnabled(!installing && state != DesktopSessionState.STOPPING);
+         if (distro.getRunMode() == DesktopRunMode.PROOT
+@@ -426,9 +422,6 @@
+                     });
+                     return true;
+                 case MENU_LOGS: showLogs(distro); return true;
+-                case MENU_ARCHIVE_PROGRESS:
+-                    DesktopArchiveFlow.instance().showProgressFor(distro.getId());
+-                    return true;
+                 case MENU_DELETE: confirmDelete(distro); return true;
+                 case MENU_USB_STORAGE:
+                     DesktopUsbStorageDialog.show(this, tasks, distro, this::refresh);
+@@ -633,11 +626,16 @@
+                 ScrollView scroll = new ScrollView(this);
+                 scroll.addView(view);
+                 scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
+-                new FrostedDialogBuilder(this)
+-                    .setTitle(R.string.desktop_logs_title)
++                FrostedDialogBuilder dialog = new FrostedDialogBuilder(this);
++                dialog.setTitle(R.string.desktop_logs_title)
+                     .setView(scroll)
+-                    .setPositiveButton(android.R.string.ok, null)
+-                    .show();
++                    .setPositiveButton(android.R.string.ok, null);
++                DesktopArchiveFlow archive = DesktopArchiveFlow.instance();
++                if (archive.hasProgressFor(distro.getId())) {
++                    dialog.setNeutralButton(R.string.desktop_archive_view_progress,
++                        (ignored, which) -> archive.showProgressFor(distro.getId()));
++                }
++                dialog.show();
+             });
+         });
+     }

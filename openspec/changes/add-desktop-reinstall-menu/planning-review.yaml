@@ -1,0 +1,7 @@
+schema: review_findings_v1
+change_id: add-desktop-reinstall-menu
+stage: planning-review
+status: APPROVED_DIRECT_REQUEST
+findings: []
+user_correction: 有桌面会话先杀死进程再重装，不得因会话置灰或拒绝
+limits: [设备安装命令未授权, 产品验收Pending, Harness工具缺失]

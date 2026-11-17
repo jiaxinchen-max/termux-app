@@ -1,0 +1,33 @@
+change_id: add-desktop-reinstall-menu
+stage: local-verification-complete
+approval:
+  requirement: 用户明确要求添加重新安装菜单并执行重新安装逻辑
+  planning: 双模式统一菜单、确认后先杀死相关桌面进程并确认退出再真实重装、保留容器和用户文件
+  implementation: Approved_Direct_User_Request
+api_docs:
+  status: N/A
+  reason: 本地Android桌面与安装脚本，不涉及HTTP合约
+product_docs:
+  status: Required
+  reason: 新增用户可见桌面重装入口和流程
+  documents: [docs/product/desktops.md]
+  consistency:
+    status: Pending
+    evidence: .harness/runs/add-desktop-reinstall-menu/product-consistency-evidence.json
+    findings: .harness/runs/add-desktop-reinstall-menu/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  reason: 未发现保护路径定义，仅桌面模块普通逻辑、资源、脚本与测试
+tooling:
+  harness_bootstrap: Missing
+  strict_gate: Unavailable
+  openspec_cli: Missing
+device:
+  target: 120.24.191.156:8057
+  connection: Authorized
+  existing_apk_sha256: 443f45e7e155e154dcfa18ff59cbc72b406620a989f163e37d30047a87c67c37
+  apk_installation: NotAuthorized
+  desktop_reinstallation: NotExecuted
+apk_filename: termux-app_apt-android-7-debug_arm64-v8a.apk
+acceptance: Pending
+archive: NotAuthorized

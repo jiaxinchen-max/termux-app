@@ -1,0 +1,33 @@
+change_id: unify-desktop-display-settings
+stage: local-verification-complete
+approval:
+  requirement: 用户要求检查 Native/PRoot 并统一能统一的设置项，补 Native 分辨率
+  implementation: Approved_Direct_User_Request
+api_docs:
+  status: N/A
+  reason: 本地桌面显示设置及启动参数，不涉及 HTTP 合约
+product_docs:
+  status: Required
+  reason: Native 分辨率和统一显示选项为用户可见能力
+  documents: [docs/product/desktops.md]
+  consistency:
+    status: Pending
+    evidence: .harness/runs/unify-desktop-display-settings/product-consistency-evidence.json
+    findings: .harness/runs/unify-desktop-display-settings/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  impact: 桌面显示设置、模型和受管会话启动
+  rollback: 撤销本次代码；使用 Native 的记录先切回固定分辨率
+  verification: 模型与仓库往返、界面交互、启动参数及准备缓存回归
+  approval: Approved_Direct_User_Request
+tooling:
+  harness_bootstrap: Missing
+  strict_gate: Unavailable
+  openspec_cli: Missing
+apk_filename: termux-app_apt-android-7-debug_arm64-v8a.apk
+device_deployment: NotAuthorized
+acceptance: Pending
+archive: NotAuthorized
+local_tests: Passed_105
+apk_sha256: 2192906b6cca718d8763b38799733b060f71dfcb91c03fa803e14e7d61b9eb73
+apk_bytes: 45484340

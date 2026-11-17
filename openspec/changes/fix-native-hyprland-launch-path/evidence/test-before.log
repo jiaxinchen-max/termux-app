@@ -1,0 +1,79 @@
+test_fixed_native_entry_runs_desktop_action (__main__.NativeEntryTests.test_fixed_native_entry_runs_desktop_action) ... FAIL
+test_fixed_native_entry_starts_foreground_theme_service (__main__.NativeEntryTests.test_fixed_native_entry_starts_foreground_theme_service) ... FAIL
+test_guest_rejects_native_and_outside_paths (__main__.NativeEntryTests.test_guest_rejects_native_and_outside_paths) ... 
+  test_guest_rejects_native_and_outside_paths (__main__.NativeEntryTests.test_guest_rejects_native_and_outside_paths) (relative='.local/share/termux-hyprland/desktop-', helper='shell') ... FAIL
+  test_guest_rejects_native_and_outside_paths (__main__.NativeEntryTests.test_guest_rejects_native_and_outside_paths) (relative='.local/share/termux-hyprland/desktop-bad name', helper='shell') ... FAIL
+test_invalid_host_paths_are_rejected_before_actions (__main__.NativeEntryTests.test_invalid_host_paths_are_rejected_before_actions) ... 
+  test_invalid_host_paths_are_rejected_before_actions (__main__.NativeEntryTests.test_invalid_host_paths_are_rejected_before_actions) (work=PosixPath('/tmp/hyprland-native-entry-k22sz6ed/home/.termux/hyprland-desktop-'), helper='shell') ... FAIL
+  test_invalid_host_paths_are_rejected_before_actions (__main__.NativeEntryTests.test_invalid_host_paths_are_rejected_before_actions) (work=PosixPath('/tmp/hyprland-native-entry-k22sz6ed/home/.termux/hyprland-desktop-bad name'), helper='shell') ... FAIL
+  test_invalid_host_paths_are_rejected_before_actions (__main__.NativeEntryTests.test_invalid_host_paths_are_rejected_before_actions) (work=PosixPath('/tmp/hyprland-native-entry-k22sz6ed/home/.termux/hyprland-desktop-bad;command'), helper='shell') ... FAIL
+test_legacy_native_and_guest_entries_remain_compatible (__main__.NativeEntryTests.test_legacy_native_and_guest_entries_remain_compatible) ... ok
+
+======================================================================
+FAIL: test_fixed_native_entry_runs_desktop_action (__main__.NativeEntryTests.test_fixed_native_entry_runs_desktop_action)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-native-entry.py", line 63, in test_fixed_native_entry_runs_desktop_action
+    self.assertEqual(0, result.returncode, result.stderr)
+AssertionError: 0 != 2 : usage: desktop_hyprland_shell.py [-h] --work WORK
+                                 {workspace-status,workspace,workspace-next,battery-status,float,close,display,theme-m3ww,theme-r7}
+                                 [number]
+desktop_hyprland_shell.py: error: Invalid private desktop path
+
+
+======================================================================
+FAIL: test_fixed_native_entry_starts_foreground_theme_service (__main__.NativeEntryTests.test_fixed_native_entry_starts_foreground_theme_service)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-native-entry.py", line 57, in test_fixed_native_entry_starts_foreground_theme_service
+    self.assertEqual(0, result.returncode, result.stderr)
+AssertionError: 0 != 2 : usage: desktop_hyprland_theme.py [-h] --work WORK
+                                 {serve,watch,launcher,dashboard,settings,workspace,focus,float,close}
+                                 [value]
+desktop_hyprland_theme.py: error: Invalid desktop path
+
+
+======================================================================
+FAIL: test_guest_rejects_native_and_outside_paths (__main__.NativeEntryTests.test_guest_rejects_native_and_outside_paths) (relative='.local/share/termux-hyprland/desktop-', helper='shell')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-native-entry.py", line 104, in test_guest_rejects_native_and_outside_paths
+    self.assertEqual(2, result.returncode, result.stderr)
+AssertionError: 2 != 0 : 
+
+======================================================================
+FAIL: test_guest_rejects_native_and_outside_paths (__main__.NativeEntryTests.test_guest_rejects_native_and_outside_paths) (relative='.local/share/termux-hyprland/desktop-bad name', helper='shell')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-native-entry.py", line 104, in test_guest_rejects_native_and_outside_paths
+    self.assertEqual(2, result.returncode, result.stderr)
+AssertionError: 2 != 0 : 
+
+======================================================================
+FAIL: test_invalid_host_paths_are_rejected_before_actions (__main__.NativeEntryTests.test_invalid_host_paths_are_rejected_before_actions) (work=PosixPath('/tmp/hyprland-native-entry-k22sz6ed/home/.termux/hyprland-desktop-'), helper='shell')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-native-entry.py", line 90, in test_invalid_host_paths_are_rejected_before_actions
+    self.assertEqual(2, result.returncode, result.stderr)
+AssertionError: 2 != 0 : 
+
+======================================================================
+FAIL: test_invalid_host_paths_are_rejected_before_actions (__main__.NativeEntryTests.test_invalid_host_paths_are_rejected_before_actions) (work=PosixPath('/tmp/hyprland-native-entry-k22sz6ed/home/.termux/hyprland-desktop-bad name'), helper='shell')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-native-entry.py", line 90, in test_invalid_host_paths_are_rejected_before_actions
+    self.assertEqual(2, result.returncode, result.stderr)
+AssertionError: 2 != 0 : 
+
+======================================================================
+FAIL: test_invalid_host_paths_are_rejected_before_actions (__main__.NativeEntryTests.test_invalid_host_paths_are_rejected_before_actions) (work=PosixPath('/tmp/hyprland-native-entry-k22sz6ed/home/.termux/hyprland-desktop-bad;command'), helper='shell')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-native-entry.py", line 90, in test_invalid_host_paths_are_rejected_before_actions
+    self.assertEqual(2, result.returncode, result.stderr)
+AssertionError: 2 != 0 : 
+
+----------------------------------------------------------------------
+Ran 5 tests in 6.420s
+
+FAILED (failures=7)

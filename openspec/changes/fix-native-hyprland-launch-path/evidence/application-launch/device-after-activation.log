@@ -1,0 +1,120 @@
+WARN ]: [main] WARNING: Hyprland is being launched without start-hyprland. This is highly advised against.
+DEBUG ]: [CCompositor::initManagers] Creating the EventLoopManager!
+DEBUG ]: [CCompositor::initManagers] Creating the KeybindManager!
+DEBUG ]: [CCompositor::initManagers] Creating the AnimationManager!
+DEBUG ]: [CCompositor::initManagers] Creating the DynamicPermissionManager!
+DEBUG ]: [CCompositor::initManagers] Creating the MonitorState!
+DEBUG ]: [CCompositor::initManagers] Creating the WorkspaceState!
+DEBUG ]: [CCompositor::initManagers] Creating the ConfigManager!
+DEBUG ]: [Config::initConfigManager] [cfg] Config is either explicit or special
+DEBUG ]: [CCompositor::initManagers] Creating the Error Overlay!
+DEBUG ]: [CCompositor::initManagers] Creating the LayoutManager!
+DEBUG ]: [CCompositor::initManagers] Creating the TokenManager!
+DEBUG ]: [Config::Lua::CConfigManager::postConfigReload] Disabling stdout logs (debug.enable_stdout_logs = 0). Further logs will be written to /data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f/hypr/a_1794899218_2d88c308/hyprland.log
+DEBUG ]: [CCompositor::initManagers] Creating the PointerManager!
+DEBUG ]: [CCompositor::initManagers] Creating the AsyncResourceGatherer!
+[2026-11-17 15:06:58] INFO  : setScreenConfig width=1280 height=720 framerate=30 format=5 type=3 keycode_format=1
+[2026-11-17 15:06:58] INFO  : connectToRender start socket=/data/data/com.termux/files/home/tmp/termux-render type=SOCK_STREAM sizeof(lorieEvent)=32
+[2026-11-17 15:06:58] INFO  : Connected to render socket, event_fd=13 attempt=1/5
+[2026-11-17 15:06:58] INFO  : Created render event thread
+[2026-11-17 15:06:58] INFO  : Render blocking event loop started, event_fd=13 sizeof(lorieEvent)=32
+[2026-11-17 15:06:58] INFO  : Sent handshake magic length=11
+[2026-11-17 15:06:58] INFO  : Waiting for buffer initialization
+[2026-11-17 15:06:58] INFO  : Received event type=20 (EVENT_SERVER_VERIFY_SUCCEED)
+[2026-11-17 15:06:58] INFO  : Handling EVENT_SERVER_VERIFY_SUCCEED
+[2026-11-17 15:06:58] INFO  : Sent EVENT_APPLY_BUFFER
+[2026-11-17 15:06:58] INFO  : Sent EVENT_SCREEN_SIZE width=1280 height=720 framerate=30 format=5 type=3 keycode_format=1
+[2026-11-17 15:06:58] INFO  : Received event type=2 (EVENT_ADD_BUFFER)
+[2026-11-17 15:06:58] INFO  : Handling EVENT_ADD_BUFFER
+[2026-11-17 15:06:58] INFO  : Receiving LorieBuffer from socket fd=13 sizeof(LorieBuffer)=120 sizeof(desc)=40
+[2026-11-17 15:06:58] INFO  : Received raw LorieBuffer desc width=1280 stride=1280 height=720 format=5 type=3 id=0 fd=-1
+[2026-11-17 15:06:58] INFO  : Received raw AHardwareBuffer dma-buf fd=14 fds=2 metadata=140 bytes
+[2026-11-17 15:06:58] INFO  : LorieBuffer receive completed out=0xb40000750b3680e0
+[2026-11-17 15:06:58] INFO  : Received buffer width=1280 stride=1280 height=720 format=5 type=3 id=0
+[2026-11-17 15:06:58] INFO  : Sent EVENT_APPLY_SERVER_STATE
+[2026-11-17 15:06:58] INFO  : Received event type=1 (EVENT_SHARED_SERVER_STATE)
+[2026-11-17 15:06:58] INFO  : Handling EVENT_SHARED_SERVER_STATE
+[2026-11-17 15:06:58] INFO  : ancil_recv_fd sock=13 fd=15
+[2026-11-17 15:06:58] INFO  : Received shared server state fd=15
+[2026-11-17 15:06:58] INFO  : Mapped shared server state at 0x73a9051000
+[2026-11-17 15:06:58] INFO  : Sent EVENT_APPLY_EVENT_FD
+[2026-11-17 15:06:58] INFO  : Received event type=19 (EVENT_SHARED_EVENT_FD)
+[2026-11-17 15:06:58] INFO  : Handling EVENT_SHARED_EVENT_FD
+[2026-11-17 15:06:58] INFO  : ancil_recv_fd sock=13 fd=15
+[2026-11-17 15:06:58] INFO  : Received input event fd=15
+[2026-11-17 15:06:58] INFO  : Sent EVENT_CLIENT_VERIFY_SUCCEED
+[2026-11-17 15:06:58] INFO  : Buffer initialization completed
+[2026-11-17 15:06:58] INFO  : Received event type=23 (EVENT_RENDERER_WAKEUP_COND)
+[2026-11-17 15:06:58] INFO  : ancil_recv_fd sock=13 fd=17
+[2026-11-17 15:06:58] INFO  : Mapped renderer wakeup cond var from fd=17
+[2026-11-17 15:06:58] INFO  : Loaded Android platform library /system/lib64/libandroid.so
+[2026-11-17 15:06:58] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=0
+[2026-11-17 15:06:58] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=1
+[2026-11-17 15:06:58] INFO  : Sending LorieBuffer payload sizeof(LorieBuffer)=120 sizeof(desc)=40 width=1280 stride=1280 height=720 format=5 type=3 id=2
+2026-11-17 15:06:59 - [src/main.c:333] Found config * for output ANDROID-1 ((null))
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.xfce.Xfconf' requested by ':1.1' (uid=10215 pid=31732 comm="/data/data/com.termux/files/usr/lib/xfce4/notifyd/" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.xfce.Xfconf'
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.gtk.vfs.Daemon' requested by ':1.1' (uid=10215 pid=31732 comm="/data/data/com.termux/files/usr/lib/xfce4/notifyd/" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.gtk.vfs.Daemon'
+ 2026-11-17T07:06:59.529Z INFO  eww::paths > Creating log dir
+ 2026-11-17T07:06:59.530Z INFO  eww        > Initializing Eww server. (/data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f/eww-server_80950c1248359099)
+Run `/data/data/com.termux/files/usr/bin/eww logs` to see any errors while editing your configuration.
+ 2026-11-17T07:06:59.532Z INFO  eww::server > Loading paths: config-dir: /data/data/com.termux/files/home/.termux/hyprland-native-hyprland/config/themes/m3ww-v1, ipc-socket: /data/data/com.termux/files/usr/tmp/hyprland-b2e40f9b0ca9042f/eww-server_80950c1248359099, log-file: /data/data/com.termux/files/home/.termux/hyprland-native-hyprland/cache/eww/eww_80950c1248359099.log
+
+┏━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Initializing eww daemon┃
+┗━━━━━━━━━━━━━━━━━━━━━━━┛
+    
+ 2026-11-17T07:06:59.601Z ERROR eww::config::inbuilt > Couldn't get the battery capacity: Eww doesn't support your OS for getting the battery capacity
+ 2026-11-17T07:06:59.607Z INFO  eww::ipc_server      > IPC server initialized
+ 2026-11-17T07:06:59.739Z INFO  eww::app             > Opening window bar as 'bar'
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.kde.kwalletmanager' requested by ':1.10' (uid=10215 pid=31912 comm="/data/data/com.termux/files/usr/bin/gio launch /da" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+Failed to create wl_display (No such file or directory)
+qt.qpa.plugin: Could not load the Qt platform plugin "wayland" in "" even though it was found.
+qt.qpa.xcb: could not connect to display 
+qt.qpa.plugin: From 6.5.0, xcb-cursor0 or libxcb-cursor0 is needed to load the Qt xcb platform plugin.
+qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it was found.
+This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+
+Available platform plugins are: vkkhrdisplay, vnc, wayland-brcm, wayland-egl, wayland, xcb, eglfs, minimal, offscreen, minimalegl.
+
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activated service 'org.kde.kwalletmanager' failed: Process org.kde.kwalletmanager received signal 6
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.gtk.vfs.Metadata' requested by ':1.13' (uid=10215 pid=31983 comm="thunar" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.gtk.vfs.Metadata'
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.freedesktop.thumbnails.Thumbnailer1' requested by ':1.13' (uid=10215 pid=31983 comm="thunar" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+
+(tumblerd:32010): tumblerd-WARNING **: 15:07:49.215: Couldn't change nice value of process.
+
+(tumblerd:32010): tumbler-WARNING **: 15:07:49.219: Failed to load plugin "tumbler-gepub-thumbnailer.so": dlopen failed: library "libgepub-0.7.so" not found: needed by /data/data/com.termux/files/usr/lib/tumbler-1/plugins/tumbler-gepub-thumbnailer.so in namespace (default)
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.freedesktop.thumbnails.Thumbnailer1'
+ok
+
+ok
+
+ok
+
+ok
+
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.gnome.TextEditor' requested by ':1.25' (uid=10215 pid=32492 comm="/data/data/com.termux/files/usr/bin/gio launch /da" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+
+(process:32498): GLib-GObject-CRITICAL **: 15:09:36.103: g_type_module_use: assertion 'G_IS_TYPE_MODULE (module)' failed
+
+(process:32498): GLib-GIO-WARNING **: 15:09:36.104: Tried to implement non-registered extension point gsettings-backend
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.gnome.TextEditor'
+
+(gnome-text-editor:32498): Gtk-WARNING **: 15:09:36.111: Failed to open display
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.kde.kwalletmanager' requested by ':1.29' (uid=10215 pid=866 comm="" label="u:r:runas_app:s0:c215,c256,c512,c768")
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.kde.kwalletmanager'
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.kde.kwalletd6' requested by ':1.30' (uid=10215 pid=873 comm="/data/data/com.termux/files/usr/bin/kwalletmanager" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.kde.secretservicecompat' requested by ':1.32' (uid=10215 pid=882 comm="/data/data/com.termux/files/usr/bin/kwalletd6" label="u:r:untrusted_app_27:s0:c215,c256,c512,c768")
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.kde.secretservicecompat'
+qt.qpa.services: Failed to register with host portal QDBusError("org.freedesktop.DBus.Error.ServiceUnknown", "The name org.freedesktop.portal.Desktop was not provided by any .service files")
+dbus-daemon[31720]: [session uid=10215 pid=31720] Activating service name='org.a11y.Bus' requested by ':1.34' (uid=10215 pid=897 comm="" label="u:r:runas_app:s0:c215,c256,c512,c768")
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[31720]: [session uid=10215 pid=31720] Successfully activated service 'org.kde.kwalletd6'
+Secret Service availability changed: Available
+qt.dbus.integration: QDBusConnection: name 'org.kde.secretservicecompat' had owner '' but we thought it was ':1.35'
+qt.qpa.services: Failed to register with host portal QDBusError("org.freedesktop.DBus.Error.ServiceUnknown", "The name org.freedesktop.portal.Desktop was not provided by any .service files")
+Connecting to deprecated signal QDBusConnectionInterface::serviceOwnerChanged(QString,QString,QString)
+qt.qpa.services: Failed to register with host portal QDBusError("org.freedesktop.DBus.Error.ServiceUnknown", "The name org.freedesktop.portal.Desktop was not provided by any .service files")
+qt.qpa.wayland.textinput: virtual void QtWaylandClient::QWaylandTextInputv3::disableSurface(struct ::wl_surface *) Trying to disable 0xb40000778c04c7a0 but 0x0 is focused

@@ -1,0 +1,23 @@
+before [('foot', 32061, '0xb40000752b369a10'), ('thunar', 31983, '0xb40000752b368d20')]
+activation update succeeded
+launch org.gnome.TextEditor.desktop 0  
+clients [('foot', 32061, '0xb40000752b369a10'), ('thunar', 31983, '0xb40000752b368d20')]
+launch org.kde.kwalletmanager.desktop 0  
+clients [('foot', 32061, '0xb40000752b369a10'), ('thunar', 31983, '0xb40000752b368d20')]
+Traceback (most recent call last):
+  File "<string>", line 18, in <module>
+    r=subprocess.run([str(PREFIX/'bin/gio'),'launch',str(PREFIX/'share/applications'/desktop)],env=env,capture_output=True,text=True,timeout=8)
+  File "/data/data/com.termux/files/usr/lib/python3.14/subprocess.py", line 557, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.14/subprocess.py", line 1221, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.14/subprocess.py", line 2152, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.14/subprocess.py", line 1268, in _check_timeout
+    raise TimeoutExpired(
+    ...<2 lines>...
+            stderr=b''.join(stderr_seq) if stderr_seq else None)
+subprocess.TimeoutExpired: Command '['/data/data/com.termux/files/usr/bin/gio', 'launch', '/data/data/com.termux/files/usr/share/applications/org.gnome.Calculator.desktop']' timed out after 8 seconds

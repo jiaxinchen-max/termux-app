@@ -1,0 +1,22 @@
+{
+  "cause": "Android incremental APK packaging retained unused local ZIP records/gaps; compressed payload grew 1593 bytes while APK grew 648580 bytes",
+  "before_bytes": 47357104,
+  "after_bytes": 45465161,
+  "saved_bytes": 1891943,
+  "all_zip_entry_contents_identical": true,
+  "entry_count": 2486,
+  "compressed_payload_bytes": 45031833,
+  "signature": {
+    "v1": true,
+    "v2": true,
+    "matches_repository_certificate": true,
+    "certificate_sha256": "b6da01480eefd5fbf2cd3771b8d1021ec791304bdd6c4bf41d3faabad48ee5e1"
+  },
+  "zipalign": "Passed -c -p 4",
+  "http_status": 200,
+  "downloaded_bytes": 45465161,
+  "download_sha256": "d73e0b9c9bccd18f9fa63bca7fc028683b64c684ba055f30928746d343728813",
+  "original_filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "tests": "No business code changed; all package entry contents identical; previous 66 focused test results retained",
+  "device": "No new installation or reinstallation executed"
+}

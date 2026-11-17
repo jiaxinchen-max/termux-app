@@ -22,7 +22,10 @@ final class TermuxGamesX11BridgeInstaller {
     static void ensureInstalled(Context context) throws IOException {
         synchronized (INSTALL_LOCK) {
             File files = context.getFilesDir();
-            if (isInstalled(files)) return;
+            if (isInstalled(files)) {
+                makeLoadersReadOnly(files);
+                return;
+            }
 
             File temporary = new File(TermuxConstants.TERMUX_HOME_DIR_PATH, ".termux/tmp");
             ensureDirectory(temporary);
@@ -59,6 +62,17 @@ final class TermuxGamesX11BridgeInstaller {
             if (exitCode != 0 || !isInstalled(files)) {
                 throw new IOException("x11_bridge_install_failed:" + exitCode + ":" +
                     sanitize(output.toString()));
+            }
+            makeLoadersReadOnly(files);
+        }
+    }
+
+    private static void makeLoadersReadOnly(File filesDirectory) throws IOException {
+        // Migrate existing packages too: Android 14+ rejects writable dynamic dex files.
+        for (String command : new String[] {"termux-x11", "termux-display"}) {
+            File loader = new File(filesDirectory, "usr/libexec/" + command + "/loader.apk");
+            if (loader.isFile() && !loader.setReadOnly()) {
+                throw new IOException("x11_bridge_loader_readonly_failed:" + command);
             }
         }
     }

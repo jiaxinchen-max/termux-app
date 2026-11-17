@@ -1,0 +1,15 @@
+schema: review_findings_v1
+change_id: fix-desktop-create-card-height
+stage: code-review
+status: LOCAL_REVIEW_PASSED_DEVICE_PENDING
+method: 直接源码/XML审查和真实Android布局红绿回归，未使用子代理
+findings: []
+verification:
+  reproduction: 旧实现期望52实际314，已记录失败
+  geometry_configurations: 64
+  local_tests: Passed_18
+  build: Passed_arm64_debug
+limitations:
+  - 未连接Android设备，最终界面验收Pending
+  - Harness strict脚本缺失
+  - 产品知识一致性等待最终用户验收

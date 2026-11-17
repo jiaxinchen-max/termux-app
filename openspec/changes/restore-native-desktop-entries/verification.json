@@ -1,0 +1,92 @@
+{
+  "change_id": "restore-native-desktop-entries",
+  "tests": {
+    "DesktopNativeEntriesTest": {
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "DesktopCreateRenderingTest": {
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "DesktopCreateInstallTest": {
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "DesktopGalleryRefreshTest": {
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "total_tests": 25,
+  "reproduction": {
+    "inventory": "Before fix fresh Native: expected 4 fixed entries, actual 1 Add card",
+    "layout": "Same final test with old synchronous width callback: zero-width card; deferred callback passes"
+  },
+  "layout_matrix": "32 mode/layout/font/width/theme combinations, two Native-PRoot cycles per combination",
+  "build": "Passed_arm64_debug",
+  "apk": "Verified",
+  "download": {
+    "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "http_status": 200,
+    "downloaded_bytes": 46708524,
+    "sha256": "443f45e7e155e154dcfa18ff59cbc72b406620a989f163e37d30047a87c67c37",
+    "matches_verified_apk": true,
+    "proxy": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122516548376911873/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "proxy_validation": "Authenticated proxy not tested; full localhost download verified"
+  },
+  "previous_apk_comparison": {
+    "added": [],
+    "removed": [],
+    "changed": [
+      "META-INF/CERT.RSA",
+      "META-INF/CERT.SF",
+      "META-INF/MANIFEST.MF",
+      "classes2.dex"
+    ],
+    "assets_and_native_libraries": "All bytes identical to previous creation-height APK"
+  },
+  "known_existing_failure": {
+    "test": "DesktopMutationTest.retiredRecordsCanBeDeletedButNeverSavedInstalledOrLaunched",
+    "expected": "stopped",
+    "actual": "exit:1",
+    "baseline": "Same failure with original DesktopTasks and DesktopActivity; retained baseline logs and XML; installation state machine outside this correction"
+  },
+  "device": "Pending; no connected adb device",
+  "strict_gate": "Unavailable_missing_script_exit_127",
+  "product_consistency": "Pending",
+  "source_sha256": {
+    "termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopActivity.java": "868df40fcc3c06a92389c890db4198d90139d911b94f30fe59bdfe487ae9616f",
+    "termux-ui/src/main/java/com/termux/ui/desktop/api/DesktopTasks.java": "460a28029c5aa1bf36692ebc956144772ace17f7f12ad2fe9b40fb63e7ccc698",
+    "app/src/test/java/com/termux/ui/desktop/activity/DesktopNativeEntriesTest.java": "cd19fb87999a6c005ba1c576664329b429ab2bf2e26c88bbe942ecd972d5fb60",
+    "app/src/test/java/com/termux/ui/desktop/activity/DesktopCreateInstallTest.java": "672ad19812c7282bf2b0c2182c66d8147a47f3a60d7d5cd2cd105b3621e0a016",
+    "termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopCreateActivity.java": "1b76c5375f0659857bf19c41ccd9bc01804031880517a0754a33c7db31778472",
+    "termux-ui/src/main/res/layout/item_desktop_option.xml": "267f3b30dcb19582c811feed9e6a13e4ff166a5820be812014775bbfb7aaf91d"
+  },
+  "evidence_sha256": {
+    "final-build-tests.log": "7bf3db845c5ee953fb3118d3d4707c1a3d46e2e3ef2b071ed193ce6a93083dfe",
+    "reproduction.log": "955970039c6946771bf5dc076882688f6f8a2acb749101572a0aac28d7b86203",
+    "reproduction.xml": "c43838c6bd559b257086e4114e2e5b0acd8f6e502100a76eeb3c6b5a785af167",
+    "empty-layout-diagnostic.log": "08bfa0ecb56430e143956cbbbe201b28f265b4ad2a441e7859806bd2c518bfb4",
+    "empty-layout-diagnostic.xml": "cf0e48c32ab13d4a77b2aba2c585d0d647e0124e61cb69af00f45b92b59a75f6",
+    "baseline-layout.log": "2cf79af56326e6e7ec9f3f6179b84e508cd39fc85787b01490ac72d071d64371",
+    "baseline-layout.xml": "f651548cf82fd57000d84f45a860ac7c355b2b74c94127c10823d473ed8a5cf0",
+    "baseline-mutation.log": "24259d8989cb8fb457c8b13b7bc540eeb4eb611f2a5c52c3f7eceff977e67171",
+    "baseline-mutation.xml": "e7ed3c4b90a9d108b483fb2dd2a92c7ccf934c48dec9ad545fdf978ca97234a6",
+    "strict-gate.log": "311d57e1a6080076fedd98f0673846d77a2930bec78acbe6a41a87c87215fda0",
+    "investigation.md": "f1abbddfefef42e315f329f5cf1259f418c9a3ba33bb276e59d6df8c1ff29181",
+    "download-verification.json": "462145cdd4044ee5d0ad9084fcaae1f7e77a61b364503244a3acb70e9f103500",
+    "TEST-com.termux.ui.desktop.activity.DesktopNativeEntriesTest.xml": "62041bfd6055060568782fcd04b77e591567b11157c08b2e7fafe8003abc835f",
+    "TEST-com.termux.ui.desktop.activity.DesktopCreateRenderingTest.xml": "fb63b01b2a4085b1f30ff21c561f3ae5e00c786d640c27f5359ea21c6a1b2014",
+    "TEST-com.termux.ui.desktop.activity.DesktopCreateInstallTest.xml": "4f3a0b4230e03387b775bd5a4d0a888ae384242168d3186ecc68fa5cbd257fea",
+    "TEST-com.termux.ui.desktop.activity.DesktopGalleryRefreshTest.xml": "e8a39d8adf0bbae696e4f211edf3faac9dc14e16a9343dd36c5de9c8bebff873"
+  }
+}

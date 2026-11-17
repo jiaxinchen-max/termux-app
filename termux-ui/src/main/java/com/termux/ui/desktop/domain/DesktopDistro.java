@@ -12,6 +12,7 @@ public final class DesktopDistro {
     public static final int SCHEMA_VERSION = 3;
     public static final String DEFAULT_PROOT_DISTRO = "debian";
     public static final String DEFAULT_RESOLUTION = "1280x720";
+    public static final String NATIVE_RESOLUTION = "native";
     public static final int DEFAULT_REFRESH_RATE = 30;
     public static final int MAX_REFRESH_RATE = 120;
 
@@ -92,13 +93,18 @@ public final class DesktopDistro {
     public DesktopDe getDe() { return de; }
     public DesktopGlMode getHostGlMode() { return hostGlMode; }
     public DesktopGuestGlMode getGuestGlMode() { return guestGlMode; }
-    /** {@code WIDTHxHEIGHT}, also the X11 display resolution of the session view. */
+    /** {@code WIDTHxHEIGHT}, or {@code native} resolved when the session starts. */
     public String getResolution() { return resolution; }
+    public boolean isNativeResolution() { return NATIVE_RESOLUTION.equals(resolution); }
     public int getRefreshRate() { return refreshRate; }
     public DesktopUsbStorageMode getUsbStorage() { return usbStorage; }
 
-    public int getWidth() { return Integer.parseInt(resolution.substring(0, resolution.indexOf('x'))); }
-    public int getHeight() { return Integer.parseInt(resolution.substring(resolution.indexOf('x') + 1)); }
+    public int getWidth() { requireFixedResolution(); return Integer.parseInt(resolution.substring(0, resolution.indexOf('x'))); }
+    public int getHeight() { requireFixedResolution(); return Integer.parseInt(resolution.substring(resolution.indexOf('x') + 1)); }
+
+    private void requireFixedResolution() {
+        if (isNativeResolution()) throw new IllegalStateException("desktop_native_resolution_requires_window_size");
+    }
 
     public DesktopDistro withName(String newName) {
         return new DesktopDistro(id, newName, runMode, prootDistro, de, hostGlMode, guestGlMode, resolution,
@@ -129,6 +135,7 @@ public final class DesktopDistro {
     }
 
     private static String requireResolution(String value) {
+        if (NATIVE_RESOLUTION.equals(value)) return value;
         if (value == null || !value.matches("[1-9][0-9]{2,4}x[1-9][0-9]{2,4}")) {
             throw new IllegalArgumentException("invalidDesktopResolution");
         }

@@ -1,0 +1,14 @@
+testActivatedApplicationReceivesFinalDisplayWithoutCompositorLibraries (<run_path>.ActivationTests.testActivatedApplicationReceivesFinalDisplayWithoutCompositorLibraries) ... FAIL
+
+======================================================================
+FAIL: testActivatedApplicationReceivesFinalDisplayWithoutCompositorLibraries (<run_path>.ActivationTests.testActivatedApplicationReceivesFinalDisplayWithoutCompositorLibraries)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "termux-ui/scripts/test-desktop-hyprland-activation.py", line 65, in testActivatedApplicationReceivesFinalDisplayWithoutCompositorLibraries
+    self.assertEqual(env[key], actual.get(key), key)
+AssertionError: 'wayland-test' != None : WAYLAND_DISPLAY
+
+----------------------------------------------------------------------
+Ran 1 test in 0.144s
+
+FAILED (failures=1)

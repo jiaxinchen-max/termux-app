@@ -1,0 +1,57 @@
+--- /home/user/workspace/artifacts/native-hyprland-app-launch/desktop_hyprland.before.py
++++ termux-ui/src/main/assets/local-games/desktop_hyprland.py
+@@ -151,6 +151,17 @@
+                XKB_CONFIG_ROOT=str(root / 'share/X11/xkb'),
+                HYPRLAND_ANDROID_BACKEND='1', HYPRLAND_NO_RT='1')
+     return env
++
++
++def update_activation_environment(client_env):
++    # The private bus starts before the compositor selects its Wayland socket.
++    # Updating the caller's environment alone does not update activated services.
++    activation = dict(client_env, LD_LIBRARY_PATH='', LD_PRELOAD='')
++    result = subprocess.run([str(PREFIX / 'bin/dbus-update-activation-environment'),
++                             *[key + '=' + value for key, value in sorted(activation.items())]],
++                            env=client_env, capture_output=True, text=True, timeout=5)
++    if result.returncode:
++        raise RuntimeError('Hyprland D-Bus activation environment update failed: ' + result.stderr[-1000:])
+ 
+ 
+ def ipc(env, *arguments):
+@@ -513,6 +524,11 @@
+                 raise RuntimeError('Hyprland Android output/IPC/socket readiness timed out')
+             (work / 'runtime/wayland-hyprland').symlink_to(env['WAYLAND_DISPLAY'])
+             env['GDK_BACKEND'] = 'wayland'
++            # Both direct clients and D-Bus activated clients use host libraries.
++            client_env = env.copy()
++            client_env.pop('LD_LIBRARY_PATH', None)
++            client_env.pop('LD_PRELOAD', None)
++            update_activation_environment(client_env)
+             if args.run_mode == 'proot':
+                 software = runpy.run_path(str(Path(__file__).with_name('desktop_software_center.py')))
+                 package_command = container_command(work, args.alias, client_mode,
+@@ -548,10 +564,6 @@
+                         dict(env, DBUS_SESSION_BUS_ADDRESS='unix:path=' + str(runtime / 'guest-session-bus')),
+                         gio_command, runtime / 'usb-storage.log', mode=args.usb_storage)
+                     usb.start()
+-            # Host GTK clients must use the installed libraries, not compositor-private ones.
+-            client_env = env.copy()
+-            client_env.pop('LD_LIBRARY_PATH', None)
+-            client_env.pop('LD_PRELOAD', None)
+             (work / 'session.json').write_text(json.dumps({'supervisor': os.getpid(), 'env': env}) + '\n')
+             for shell_command in shell_commands:
+                 clients.append(subprocess.Popen(shell_command, env=client_env, stdout=log,
+--- /home/user/workspace/artifacts/native-hyprland-upgrade/DesktopTasks.before.java
++++ termux-ui/src/main/java/com/termux/ui/desktop/api/DesktopTasks.java
+@@ -494,6 +494,11 @@
+             }
+             requireNotStoppingForLaunch(distro);
+             File startScript = new File(paths.getRuntimeDirectory(), "desktop_start.sh");
++            try {
++                new LaunchScriptInstaller(context, paths).installDesktopScripts();
++            } catch (IOException error) {
++                throw new LaunchHostException("desktop_prepare_failed", true, error);
++            }
+             LocalGamesHost host = LocalGames.requireHost(context);
+             commandStatus(distro, "starting");
+             try {

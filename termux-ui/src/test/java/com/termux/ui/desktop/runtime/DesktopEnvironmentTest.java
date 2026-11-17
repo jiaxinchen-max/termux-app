@@ -118,12 +118,23 @@ public class DesktopEnvironmentTest {
         writeRelease(container, "ubuntu", "resolute");
         touch(container + ".desktop-de-hyprland");
         DesktopDistro guest = new DesktopDistro("hy-guest", "Hyprland", DesktopRunMode.PROOT, "debian-hyprland-1", DesktopDe.HYPRLAND, DesktopGlMode.SYSTEM, DesktopGuestGlMode.DEFAULT, "1280x720", 30, DesktopUsbStorageMode.OFF);
+        assertFalse(environment.isInstalled(guest)); // Host theme cannot stand in for a guest session.
+        for (String name : new String[]{"usr/bin/python3", "usr/bin/dbus-daemon", "usr/bin/swaybg",
+                "usr/bin/foot", "usr/bin/fish", "usr/bin/starship",
+                "usr/local/lib/termux-hyprland/bin/eww", "usr/local/lib/termux-hyprland/desktop_hyprland_guest.py",
+                "usr/local/lib/termux-gnome/libglycin-2.so.0", "usr/local/lib/termux-gnome/glycin-build-manifest.json"})
+            touch(container + "rootfs/" + name);
+        String guestTheme = "usr/share/termux-hyprland/themes/m3ww-v1/";
+        for (String name : com.termux.ui.desktop.domain.HyprlandComponents.resourceFiles("m3ww-v1"))
+            touch(container + "rootfs/" + guestTheme + name);
+        try (FileWriter writer = new FileWriter(touch(container + "rootfs/" + guestTheme + ".installed"))) {
+            writer.write(com.termux.ui.desktop.domain.HyprlandComponents.themeManifest("m3ww-v1"));
+        }
         assertTrue(environment.isInstalled(guest));
         assertFalse(environment.isInstalled(guest.withRenderers(DesktopGlMode.SYSTEM,DesktopGuestGlMode.ZINK)));
         File zinkMarker = touch(container + ".desktop-de-hyprland-zink");
         touch(container + "rootfs/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json");
         touch(container + "rootfs/usr/lib/aarch64-linux-gnu/libvulkan_freedreno.so");
-        touch(container + "rootfs/usr/bin/python3");
         assertFalse(environment.isInstalled(guest.withRenderers(DesktopGlMode.SYSTEM,DesktopGuestGlMode.ZINK)));
         try (FileWriter writer = new FileWriter(zinkMarker)) {
             writer.write("51aa11a8e7bc8c98bc9e852b260ee2dac99392b4ee8658182e4837c309818faf\n");
@@ -134,6 +145,7 @@ public class DesktopEnvironmentTest {
         assertFalse(environment.isInstalled(distro.withHyprlandComponents("0.57.0-r7", "classic-r7")));
         assertTrue(new File(temporaryFolder.getRoot(), "usr/bin/eww").delete());
         assertFalse(environment.isInstalled(distro));
+        assertTrue(environment.isInstalled(guest)); // Guest UI has no host EWW dependency.
     }
 
     @Test

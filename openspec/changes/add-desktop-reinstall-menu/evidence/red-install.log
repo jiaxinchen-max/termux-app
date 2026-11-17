@@ -1,0 +1,66 @@
+...F.FFFF..
+======================================================================
+FAIL: testExplicitReinstallDoesNotSkipVerifiedRuntimeOrGuestPackages (__main__.InstallTests.testExplicitReinstallDoesNotSkipVerifiedRuntimeOrGuestPackages)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-install.py", line 131, in testExplicitReinstallDoesNotSkipVerifiedRuntimeOrGuestPackages
+    self.assertEqual(1, len(installs), result['trace'])
+AssertionError: 1 != 0 : pkg install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold x11-repo
+pkg update -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold
+apt install -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold python dbus pulseaudio proot proot-distro
+/tmp/tmpiw_t9qai/usr/bin/python3 -I -B /tmp/tmpiw_t9qai/assets/desktop_hyprland.py check-runtime
+proot-distro login debian-1 --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh --statx-backend=proc-fdinfo --no-install-recommends xfce4-terminal thunar dbus-x11 adwaita-icon-theme passwd sudo gnome-software gnome-software-plugin-deb packagekit appstream apt-config-icons polkitd python3 python3-gi gir1.2-polkit-1.0 zenity
+proot-distro login debian-1 --user root --shared-tmp -- sh /tmp/desktop_container_plasma_apt.sh --statx-backend=proc-fdinfo --no-install-recommends python3-gi gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1 swaybg xfce4-notifyd librsvg2-common xdg-terminal-exec foot fish starship fontconfig cargo rustc build-essential pkg-config libgtk-3-dev libgtk-layer-shell-dev libdbusmenu-gtk3-dev
+proot-distro login debian-1 --user root --shared-tmp -- sh /tmp/desktop_container_run_config.sh --statx-backend=proc-fdinfo python3 /tmp/desktop_install_eww.py
+termux-gnome-glycin-resolute-aarch64-2.1.1-r1.tar.gz cb72b99666baacb5cd8b4fd62960f3a54568c49c04a05bd8b5f9280ba8493eb9
+python3 -I -B /tmp/tmpiw_t9qai/assets/desktop_install_glycin.py --archive /tmp/tmpiw_t9qai/usr/tmp/component.tar.gz --rootfs /tmp/tmpiw_t9qai/usr/var/lib/proot-distro/containers/debian-1/rootfs
+proot-distro login debian-1 --user root --shared-tmp -- sh /tmp/desktop_container_discover_catalog.sh --statx-backend=proc-fdinfo
+proot-distro login debian-1 -- test -x /usr/bin/xfce4-terminal
+proot-distro login debian-1 -- test -x /usr/bin/thunar
+proot-distro login debian-1 --user root --shared-tmp -- sh /tmp/desktop_container_user.sh
+initialization-verified
+
+======================================================================
+FAIL: testInvalidOrMixedReinstallModeCannotReachPackageOperations (__main__.InstallTests.testInvalidOrMixedReinstallModeCannotReachPackageOperations) (options={'reinstall': 'yes'})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-install.py", line 148, in testInvalidOrMixedReinstallModeCannotReachPackageOperations
+    self.assertEqual(64, result['code'], result['output'])
+AssertionError: 64 != 0 : Installing Hyprland Android candidate (proot); device validation pending
+Selected Hyprland compositor already verified; preserving its files
+Initialized Ubuntu HTTPS trust from the existing host CA bundle
+Hyprland candidate installed. Runtime and input await manual device validation.
+
+
+======================================================================
+FAIL: testInvalidOrMixedReinstallModeCannotReachPackageOperations (__main__.InstallTests.testInvalidOrMixedReinstallModeCannotReachPackageOperations) (options={'reinstall': '1', 'switch': True})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-install.py", line 148, in testInvalidOrMixedReinstallModeCannotReachPackageOperations
+    self.assertEqual(64, result['code'], result['output'])
+AssertionError: 64 != 0 : Installing Hyprland Android candidate (proot); device validation pending
+Selected Hyprland compositor already verified; preserving its files
+Hyprland theme candidate verified; App will commit the selection
+
+
+======================================================================
+FAIL: testInvalidOrMixedReinstallModeCannotReachPackageOperations (__main__.InstallTests.testInvalidOrMixedReinstallModeCannotReachPackageOperations) (options={'reinstall': '1', 'prepare': True})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-install.py", line 148, in testInvalidOrMixedReinstallModeCannotReachPackageOperations
+    self.assertEqual(64, result['code'], result['output'])
+AssertionError: 64 != 2 : /tmp/tmpnmsnz3fx/assets/desktop_install.sh: 753: DESKTOP_ID: parameter not set
+
+
+======================================================================
+FAIL: testReinstallRuntimeFailureNeverPublishesSuccess (__main__.InstallTests.testReinstallRuntimeFailureNeverPublishesSuccess)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/workspace/idap-2031193509335416832/submodule/termux-ui/scripts/test-desktop-hyprland-install.py", line 140, in testReinstallRuntimeFailureNeverPublishesSuccess
+    self.assertNotEqual(0, result['code'])
+AssertionError: 0 == 0
+
+----------------------------------------------------------------------
+Ran 9 tests in 1.706s
+
+FAILED (failures=5)

@@ -30,6 +30,20 @@ public class DesktopArchiveMetadataTest {
         assertFalse(json.contains("hyprlandThemeId"));
         assertArrayEquals(bytes, DesktopArchiveMetadata.decode(bytes, "com.termux", "aarch64").encode());
     }
+    @Test public void nativeResolutionSurvivesArchivesForEveryContainerDesktop() throws Exception {
+        for (DesktopDe de : DesktopDe.values()) if (de.isCreatable()) {
+            DesktopDistro desktop = new DesktopDistro("output-archive", "Output", DesktopRunMode.PROOT,
+                "ubuntu-output-1", de, DesktopGlMode.SYSTEM,
+                de == DesktopDe.KWIN_PLASMA || de.isGnomeSession() ? DesktopGuestGlMode.LLVMPIPE : DesktopGuestGlMode.DEFAULT,
+                "native", 60, DesktopUsbStorageMode.OFF);
+            byte[] bytes = DesktopArchiveMetadata.create("com.termux", "aarch64", "resolute", desktop, null, null).encode();
+            DesktopDistro restored = DesktopArchiveMetadata.decode(bytes, "com.termux", "aarch64").getDesktop();
+            assertEquals("native", restored.getResolution());
+            assertEquals("2400x1080", com.termux.ui.desktop.runtime.DesktopDisplayPolicy.resolveResolution(restored, 2400, 1080));
+            assertArrayEquals(bytes, DesktopArchiveMetadata.decode(bytes, "com.termux", "aarch64").encode());
+        }
+    }
+
     @Test public void invalidOrAmbiguousComponentsAreRejectedRatherThanDefaulted() throws Exception {
         String valid = new String(archive(DesktopDe.HYPRLAND, HyprlandComponents.CLASSIC), StandardCharsets.UTF_8);
         for (String json : new String[] {

@@ -428,10 +428,13 @@ def initialize(args):
     if args.de == 'hyprland':
         module = runpy.run_path(str(ASSETS / 'desktop_hyprland.py'))
         module['verify'](module['runtime_root']())
-        module['COMPONENTS']['resolve'](args.runtime_id, args.theme_id)
-        module['verify_shell'](args.theme_id)
-        components = module['COMPONENTS']
-        components['verify_theme'](components['theme_root'](args.theme_id), args.runtime_id, args.theme_id)
+        module['COMPONENTS']['resolve'](None if guest else args.runtime_id, args.theme_id)
+        if guest:
+            runpy.run_path(str(ASSETS / 'desktop_hyprland_guest.py'))['validate_rootfs'](root, args.theme_id)
+        else:
+            module['verify_shell'](args.theme_id)
+            components = module['COMPONENTS']
+            components['verify_theme'](components['theme_root'](args.theme_id), args.runtime_id, args.theme_id)
         if args.guest_gl_mode == 'zink':
             gpu = runpy.run_path(str(ASSETS / 'desktop_hyprland_gpu.py'))
             gpu['validate_host'](gpu['host_probe']())

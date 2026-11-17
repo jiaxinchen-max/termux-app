@@ -1,0 +1,10 @@
+test_fixed_native_entry_runs_desktop_action (__main__.NativeEntryTests.test_fixed_native_entry_runs_desktop_action) ... ok
+test_fixed_native_entry_starts_foreground_theme_service (__main__.NativeEntryTests.test_fixed_native_entry_starts_foreground_theme_service) ... ok
+test_guest_rejects_native_and_outside_paths (__main__.NativeEntryTests.test_guest_rejects_native_and_outside_paths) ... ok
+test_invalid_host_paths_are_rejected_before_actions (__main__.NativeEntryTests.test_invalid_host_paths_are_rejected_before_actions) ... ok
+test_legacy_native_and_guest_entries_remain_compatible (__main__.NativeEntryTests.test_legacy_native_and_guest_entries_remain_compatible) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 6.495s
+
+OK

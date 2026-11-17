@@ -1,0 +1,40 @@
+{
+  "change_id": "include-container-name-in-proot-export",
+  "status": "LocalVerificationPassed",
+  "tests": {
+    "tests": {
+      "com.termux.ui.desktop.archive.DesktopArchiveDistributionTest": 4,
+      "com.termux.ui.desktop.archive.DesktopArchiveEngineTest": 38,
+      "com.termux.ui.desktop.archive.DesktopArchiveLaunchSpecTest": 4,
+      "com.termux.ui.desktop.archive.DesktopArchiveMetadataTest": 4,
+      "com.termux.ui.platform.ExternalStoragePathsTest": 7,
+      "com.termux.ui.desktop.activity.DesktopLogMenuTest": 4
+    },
+    "total_passed": 61
+  },
+  "build": "Passed_arm64_debug",
+  "source_review": "source-review.json",
+  "strict_gate": {
+    "status": "Unavailable",
+    "exit_code": 127,
+    "reason": "仓库缺少 .harness/scripts/verify.sh"
+  },
+  "apk": {
+    "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "bytes": 45484304,
+    "sha256": "b183fedf3f7cdb49c7cc8b9fb1e16f4f5ba10bb94d0108248dee4cbbf642082e",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "source_assets_verified": 77
+  },
+  "download": {
+    "verified": true,
+    "bytes": 45484304,
+    "sha256": "b183fedf3f7cdb49c7cc8b9fb1e16f4f5ba10bb94d0108248dee4cbbf642082e",
+    "url": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122516548376911873/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk"
+  },
+  "device_deployment": "NotAuthorized_NotDeployed",
+  "product_consistency": "PendingAcceptance",
+  "evidence_directory": "/home/user/workspace/artifacts/proot-export-filename"
+}

@@ -566,6 +566,9 @@
     <string name="desktop_container_more">More distros</string>
     <string name="desktop_container_more_desc">Ubuntu / Arch containers later</string>
     <string name="desktop_select_resolution">Resolution</string>
+    <string name="desktop_resolution_native">Native (window size)</string>
+    <string name="desktop_resolution_native_hint">Uses the window pixels at startup. Restart the desktop to use a changed window size.</string>
+    <string name="desktop_refresh_gnome_fixed_hint">The current GNOME Android backend supports only 60 Hz.</string>
     <string name="desktop_select_refresh">Refresh rate</string>
     <string name="desktop_select_renderer">Renderer</string>
     <string name="desktop_gl_auto">Auto</string>
@@ -612,6 +615,7 @@
     <string name="desktop_create_invalid">Check the name, resolution and refresh rate.</string>
     <string name="desktop_install_started">Install started in a Termux session.</string>
     <string name="desktop_install_hint">The runtime required by this desktop will be downloaded and installed.</string>
+    <string name="desktop_reinstall_hint">All managed desktop sessions will be stopped before reinstalling this desktop’s components. Existing containers, settings and user files will be preserved.</string>
     <string name="desktop_stop_requested">Stopping the desktop…</string>
     <string name="desktop_error">Could not complete the request (%1$s).</string>
     <string name="desktop_delete_running">Stop the desktop before deleting it.</string>

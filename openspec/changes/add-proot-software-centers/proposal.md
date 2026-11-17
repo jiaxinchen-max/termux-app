@@ -8,3 +8,9 @@
 
 ## 文档分类
 api_docs 为 N/A：没有 HTTP 合约变化。product_docs 为 Required，目标 docs/product/desktop-software-center.md；一致性 Pending，用户最终验收后再固化，当前不归档。
+
+## 2026-11-17 已批准的 GNOME 激活修正
+用户在只读诊断后回复“批准”，确认修复 Ubuntu GNOME PRoot 软件中心点击无窗口的问题。软件中心通过会话 D-Bus 激活，而现有 core 白名单遗漏 org.gnome.Software。本轮只补齐该入口、保存期缺失校验及对应回归；不改变 Native、系统总线或授权规则。
+
+## 2026-11-17 已批准的 Hyprland 菜单修正
+用户明确要求“那就修复Hyprland”，确认补齐 m3ww PRoot 启动器的软件中心入口。现有容器启动包装器和 Classic 入口已具备，仅 m3ww 固定应用列表遗漏；本轮复用既有包装器，Native 的桌面文件自动发现保持不变。解释目前 PRoot 尚未实现容器应用自动发现，不扩展为全部应用索引。交付 APK 保留 termux-app_apt-android-7-debug_arm64-v8a.apk 原始名称。

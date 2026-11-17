@@ -1,0 +1,151 @@
+[{
+    "address": "0xb40000752b369a10",
+    "mapped": true,
+    "hidden": false,
+    "visible": true,
+    "acceptsInput": true,
+    "at": [14, 80],
+    "size": [619, 306],
+    "workspace": {
+        "address": "1",
+        "id": 1,
+        "type": "normal",
+        "name": "1"
+    },
+    "floating": false,
+    "monitor": 0,
+    "class": "foot",
+    "title": "~",
+    "initialClass": "foot",
+    "initialTitle": "foot",
+    "pid": 32061,
+    "xwayland": false,
+    "pinned": false,
+    "pinFullscreened": false,
+    "fullscreen": 0,
+    "fullscreenClient": 0,
+    "fullscreenHandler": "default",
+    "allowedOverFullscreen": true,
+    "grouped": [],
+    "tags": [],
+    "swallowing": "0x0",
+    "focusHistoryID": 1,
+    "inhibitingIdle": false,
+    "xdgTag": "",
+    "xdgDescription": "",
+    "contentType": "none",
+    "tearingHint": false,
+    "stableId": "18000001"
+},{
+    "address": "0xb40000752b368d20",
+    "mapped": true,
+    "hidden": false,
+    "visible": true,
+    "acceptsInput": true,
+    "at": [647, 80],
+    "size": [619, 626],
+    "workspace": {
+        "address": "1",
+        "id": 1,
+        "type": "normal",
+        "name": "1"
+    },
+    "floating": false,
+    "monitor": 0,
+    "class": "thunar",
+    "title": "home - Thunar",
+    "initialClass": "thunar",
+    "initialTitle": "home - Thunar",
+    "pid": 31983,
+    "xwayland": false,
+    "pinned": false,
+    "pinFullscreened": false,
+    "fullscreen": 0,
+    "fullscreenClient": 0,
+    "fullscreenHandler": "default",
+    "allowedOverFullscreen": true,
+    "grouped": [],
+    "tags": [],
+    "swallowing": "0x0",
+    "focusHistoryID": 2,
+    "inhibitingIdle": false,
+    "xdgTag": "",
+    "xdgDescription": "",
+    "contentType": "none",
+    "tearingHint": false,
+    "stableId": "18000000"
+},{
+    "address": "0xb40000752b371fc0",
+    "mapped": true,
+    "hidden": false,
+    "visible": true,
+    "acceptsInput": true,
+    "at": [14, 400],
+    "size": [619, 306],
+    "workspace": {
+        "address": "1",
+        "id": 1,
+        "type": "normal",
+        "name": "1"
+    },
+    "floating": false,
+    "monitor": 0,
+    "class": "org.kde.kwalletmanager",
+    "title": "Wallet Manager",
+    "initialClass": "org.kde.kwalletmanager",
+    "initialTitle": "Wallet Manager",
+    "pid": 873,
+    "xwayland": false,
+    "pinned": false,
+    "pinFullscreened": false,
+    "fullscreen": 0,
+    "fullscreenClient": 0,
+    "fullscreenHandler": "default",
+    "allowedOverFullscreen": true,
+    "grouped": [],
+    "tags": [],
+    "swallowing": "0x0",
+    "focusHistoryID": 0,
+    "inhibitingIdle": false,
+    "xdgTag": "",
+    "xdgDescription": "",
+    "contentType": "none",
+    "tearingHint": false,
+    "stableId": "18000002"
+}]
+
+org.gnome.TextEditor  Error: GDBus.Error:org.freedesktop.DBus.Error.NameHasNoOwner: Could not get PID of name 'org.gnome.TextEditor': no such name
+
+org.kde.kwalletmanager (uint32 873,)
+ 
+   PID   PPID NAME                       
+   873      1 kwalletmanager5
+   882      1 kwalletd6
+   895      1 ksecretd
+   916      1 at-spi-bus-launcher
+   922    916 dbus-daemon
+  1051   1047 python3
+  1078   1051 ps
+ 12951      1 python3
+ 12968  12951 bwrap
+ 12969  12968 [bwrap]
+ 22346      1 pulseaudio
+ 30757   9198 com.termux
+ 30808  30757 bash
+ 31696  30757 sh
+ 31718  31696 python3
+ 31720  31718 dbus-daemon
+ 31721  31718 Hyprland
+ 31731  31718 swaybg
+ 31732  31718 xfce4-notifyd
+ 31733  31718 python3
+ 31748      1 gvfsd
+ 31754  31733 eww
+ 31780  31754 python3
+ 31983      1 thunar
+ 31995      1 gvfsd-metadata
+ 32000  31748 gvfsd-trash
+ 32061      1 foot
+ 32062  32061 fish
+ 32141      1 foot
+

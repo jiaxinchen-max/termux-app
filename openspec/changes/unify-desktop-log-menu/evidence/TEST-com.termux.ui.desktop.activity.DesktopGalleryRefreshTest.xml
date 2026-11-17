@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-17T06:41:57" hostname="skynet-env-362805450227519488-378012184997830656-vjdrl" time="6.352">
+  <properties/>
+  <testcase name="cancelNeverEntersAndRepeatedConfirmationEntersOnlyOnce" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="0.857"/>
+  <testcase name="unchangedPollKeepsPressedCardAttached" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="0.157"/>
+  <testcase name="fixedCardsKeepActionsInsideFiniteViewportsWithLongNamesAndLargeFonts" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="4.287"/>
+  <testcase name="changedStateAndSettingsStillUpdateCards" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="0.176"/>
+  <testcase name="cardBodyIsInertAndStartingOrStoppingDisablesPrimary" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="0.166"/>
+  <testcase name="confirmationAndBodyClicksMatchInDarkTheme" classname="com.termux.ui.desktop.activity.DesktopGalleryRefreshTest" time="0.709"/>
+  <system-out><![CDATA[Called loadFromPath(/system/framework/framework-res.apk, true); mode=binary sdk=28
+]]></system-out>
+  <system-err><![CDATA[Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+Invalid ID 0x00000000.
+]]></system-err>
+</testsuite>

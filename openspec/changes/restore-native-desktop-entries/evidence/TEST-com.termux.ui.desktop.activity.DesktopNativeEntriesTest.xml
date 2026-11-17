@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-17T05:44:54" hostname="skynet-env-362805450227519488-378012184997830656-vjdrl" time="19.142">
+  <properties/>
+  <testcase name="existingSettingsAndConflictingContainerIdSurviveInitializationAndRecreation" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="7.707"/>
+  <testcase name="emptyProotAlwaysOffersVisibleAddAndImportCards" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="0.497"/>
+  <testcase name="emptyNativeCreatesFourStableEntriesWithoutInstallingAnything" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="0.682"/>
+  <testcase name="containersAndRetiredNativeRecordsStillOfferDeletion" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="1.171"/>
+  <testcase name="nightNativeAndEmptyProotRemainVisibleAcrossLayoutsWidthsAndRepeatedSwitches" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="5.878"/>
+  <testcase name="nativeAndEmptyProotRemainVisibleAcrossLayoutsWidthsAndRepeatedSwitches" classname="com.termux.ui.desktop.activity.DesktopNativeEntriesTest" time="3.207"/>
+  <system-out><![CDATA[Called loadFromPath(/system/framework/framework-res.apk, true); mode=binary sdk=28
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

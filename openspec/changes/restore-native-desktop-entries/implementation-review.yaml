@@ -1,0 +1,23 @@
+schema: review_findings_v1
+change_id: restore-native-desktop-entries
+stage: code-review
+status: LOCAL_REVIEW_PASSED_DEVICE_PENDING
+method: 直接源码审查、真实仓库和Android布局红绿回归，未使用子代理
+findings: []
+verification:
+  tests: Passed_25
+  inventory_red: expected_4_fixed_entries_actual_1_add_card
+  layout_red: same_final_test_with_original_callback_zero_width
+  build: Passed_arm64_debug
+  apk: Signature_ABI_Assets_Filename_Verified
+  full_http_download: Verified
+limitations:
+  - 没有连接Android设备，用户验收Pending
+  - 缺少Harness严格门禁脚本
+  - 产品知识文档缺失，最终用户验收前保持Pending
+known_existing_failure:
+  test: DesktopMutationTest.retiredRecordsCanBeDeletedButNeverSavedInstalledOrLaunched
+  expected: stopped
+  actual: exit:1
+  original_source_baseline: Reproduced
+  evidence: evidence/baseline-mutation.xml

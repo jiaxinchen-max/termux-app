@@ -1,0 +1,27 @@
+schema: review_findings_v1
+change_id: add-proot-software-centers
+iteration: gnome-software-activation-20261117
+stage: code-review
+status: APPROVED_WITH_LIMITATIONS
+method: 直接源码自审、真实私有 D-Bus 行为测试与独立导出基线对照；未使用子代理
+human_confirmation: 用户在诊断后回复“批准”
+findings:
+  - id: GNOME-ACTIVATION-001
+    severity: MUST_FIX
+    status: resolved
+    file: termux-ui/src/main/assets/local-games/desktop_gnome_launch.py
+    description: core 会话缺少 org.gnome.Software 激活服务，菜单入口无法通过 D-Bus 启动
+    resolution: 仅在 PRoot 准备阶段发布并强制校验该服务；保留 Native 与其他服务白名单
+    verification: 原行为三项新增测试中两项失败；修复后21项软件中心测试全部通过，真实总线到达受控 Exec
+reviewed:
+  - ubuntu 布尔值原定义已覆盖 ubuntu 和 native-ubuntu，提取函数保留原有分支语义
+  - main 在准备开始移除 prepared-session.json，缺少必需服务时不会写入新的成功配置
+  - 仅增加指定会话服务，不开放标准服务目录，不改变 system bus、PAM 或 PolicyKit
+  - 普通运行不调用准备函数，既有配置必须显式重新保存，不引入启动修复
+  - Native 即使安装了服务描述仍不可激活该服务；未批准的服务也不可激活
+  - 39项定向测试全部通过，Python语法与diff检查通过
+limitations:
+  - 18项Ubuntu GNOME安装测试报告7条失败；未修改68858272独立导出基线上失败项一致，夹具缺少已有安装器所需脚本
+  - 未连接ADB设备；没有声称实际软件中心窗口、密码或包交易验收通过
+  - Harness严格门禁脚本、bootstrap及OpenSpec CLI缺失，不能声称严格门禁通过
+  - APK已在用户再次批准后构建并通过签名、资产及本地完整HTTP下载核验；未暂存、提交、推送或归档，实机验收及产品一致性仍为Pending

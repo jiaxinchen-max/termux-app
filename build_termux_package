@@ -20,6 +20,9 @@ PACMAN_PACKAGE_PATH=app/build/outputs/apk/debug/${TERMUX_PKG_NAME}-${TERMUX_PKG_
 ASSETS_PATH=app/src/main/assets/
 
 INTERMEDIATES=shell-loader/build/intermediates
+LOADER_APK=shell-loader/build/outputs/apk/debug/shell-loader-debug.apk
+[ -f "$LOADER_APK" ] || LOADER_APK="$INTERMEDIATES/apk/debug/shell-loader-debug.apk"
+[ -s "$LOADER_APK" ] || { echo 'Build :shell-loader:assembleDebug before packaging.' >&2; exit 1; }
 DATA_DIR=$INTERMEDIATES/data
 CONTROL_DIR=$INTERMEDIATES/control
 PACKAGE_DIR=$INTERMEDIATES/package
@@ -37,12 +40,14 @@ mv $PREFIX/bin/termux-x11-app $PREFIX/bin/termux-x11
 cp termux-x11-display $PREFIX/bin/
 mv $PREFIX/bin/termux-x11-display $PREFIX/bin/termux-display
 cp termux-x11-preference $PREFIX/bin/
-cp shell-loader/build/outputs/apk/debug/shell-loader-debug.apk \
+cp "$LOADER_APK" \
     $PREFIX/libexec/termux-x11/loader.apk
-cp shell-loader/build/outputs/apk/debug/shell-loader-debug.apk \
+cp "$LOADER_APK" \
     $PREFIX/libexec/termux-display/loader.apk
 cp stopserver $PREFIX/bin/
 cp startxserver $PREFIX/bin/
+# Non-root dpkg reopens staged files for writing during safe fsync. Keep the
+# original payload mode; install hooks make dynamic dex read-only afterwards.
 chmod 755 "$PREFIX/bin/"* "$PREFIX/libexec/termux-x11/loader.apk" "$PREFIX/libexec/termux-display/loader.apk"
 
 cp install $ASSETS_PATH
@@ -61,8 +66,8 @@ EOF
 cat <<EOF >$CONTROL_DIR/postinst
 #!/data/data/com.termux/files/usr/bin/sh
 set -e
-chmod 755 /data/data/com.termux/files/usr/libexec/termux-x11/loader.apk
-chmod 755 /data/data/com.termux/files/usr/libexec/termux-display/loader.apk
+chmod 444 /data/data/com.termux/files/usr/libexec/termux-x11/loader.apk
+chmod 444 /data/data/com.termux/files/usr/libexec/termux-display/loader.apk
 chmod 755 /data/data/com.termux/files/usr/bin/startxserver
 chmod 755 /data/data/com.termux/files/usr/bin/stopserver
 chmod 755 /data/data/com.termux/files/usr/bin/termux-x11
@@ -110,8 +115,8 @@ BUILD_DATE=$(date +%s)
 } >$DATA_DIR/.BUILDINFO
 {
     echo "post_install() {"
-    echo "    chmod 755 /data/data/com.termux/files/usr/libexec/termux-x11/loader.apk"
-    echo "    chmod 755 /data/data/com.termux/files/usr/libexec/termux-display/loader.apk"
+    echo "    chmod 444 /data/data/com.termux/files/usr/libexec/termux-x11/loader.apk"
+    echo "    chmod 444 /data/data/com.termux/files/usr/libexec/termux-display/loader.apk"
     echo "    chmod 755 /data/data/com.termux/files/usr/bin/startxserver"
     echo "    chmod 755 /data/data/com.termux/files/usr/bin/stopserver"
     echo "    chmod 755 /data/data/com.termux/files/usr/bin/termux-x11"

@@ -150,6 +150,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
     @Nullable private TaskManagerPanel processPanel;
     private boolean hostResumed;
     private boolean displayConnected;
+    private String outputResolution;
     private final PerformanceMetricsSampler metricsSampler = new PerformanceMetricsSampler();
     private PerformanceMetricsRecorder metricsRecorder;
     @Nullable private GameLogPanel logPanel;
@@ -198,19 +199,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
         binding.desktopSessionX11.setDialogPaletteProvider(() -> GameDialogPalettes.frosted(this));
         binding.desktopSessionX11.setImmersive(true);
-        binding.desktopSessionX11.bind(this, distro.getResolution(), distro.getRefreshRate(), new X11SessionView.Listener() {
-            @Override public void onConnectionChanged(boolean connected) {
-                displayConnected = connected;
-                updateMetricsSampling();
-            }
-            @Override public void onFirstFramePresented() {
-                firstFrame = true;
-                showDesktop();
-            }
-            @Override public void onControlCenterRequested() { showControlDrawer(); }
-            @Override public void onExitRequested() { showExitChoice(); }
-            @Override public boolean onProcessManagerRequested() { return showPerformancePage(); }
-        });
+        if (!distro.isNativeResolution()) bindDisplay(distro.getResolution());
         applyTouchMode();
         metricsRecorder = new PerformanceMetricsRecorder(this, metricsSampler,
             X11SessionView::getRenderedFrameCount);
@@ -228,13 +217,68 @@ public final class DesktopSessionActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() { handleSessionBack(); }
         });
-        poll();
+        if (distro.isNativeResolution()) {
+            // Measure the immersive window before choosing compositor and display geometry.
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+            androidx.core.view.WindowInsetsControllerCompat insets =
+                androidx.core.view.WindowCompat.getInsetsController(getWindow(), binding.getRoot());
+            insets.setSystemBarsBehavior(androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            insets.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+            binding.desktopSessionX11.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+                @Override public boolean onPreDraw() {
+                    if (destroyed || binding == null) return true;
+                    int width = binding.desktopSessionX11.getWidth(), height = binding.desktopSessionX11.getHeight();
+                    if (width <= 0 || height <= 0) return true;
+                    binding.desktopSessionX11.getViewTreeObserver().removeOnPreDrawListener(this);
+                    ioExecutor.execute(() -> {
+                        try {
+                            String output = tasks.sessionOutputResolution(distro, width, height);
+                            runOnUiThread(() -> {
+                                if (destroyed || isFinishing()) return;
+                                bindDisplay(output);
+                                poll();
+                            });
+                        } catch (IOException | IllegalArgumentException error) {
+                            runOnUiThread(() -> {
+                                if (!destroyed && !isFinishing())
+                                    exitAfterStartFailure(getString(R.string.desktop_error, "desktop_output_invalid"));
+                            });
+                        }
+                    });
+                    return true;
+                }
+            });
+        } else {
+            poll();
+        }
+    }
+
+    private void bindDisplay(String output) {
+        outputResolution = output;
+        binding.desktopSessionX11.bind(this, outputResolution, distro.getRefreshRate(), new X11SessionView.Listener() {
+            @Override public void onConnectionChanged(boolean connected) {
+                displayConnected = connected;
+                updateMetricsSampling();
+            }
+            @Override public void onFirstFramePresented() {
+                firstFrame = true;
+                showDesktop();
+            }
+            @Override public void onControlCenterRequested() { showControlDrawer(); }
+            @Override public void onExitRequested() { showExitChoice(); }
+            @Override public boolean onProcessManagerRequested() { return showPerformancePage(); }
+        });
+        applyTouchMode();
+        if (hostResumed) {
+            binding.desktopSessionX11.onHostResume();
+            binding.desktopSessionX11.onHostWindowFocusChanged(hasWindowFocus());
+        }
     }
 
     /** Starts the desktop once, after the display bridge is up, then follows its state. */
     private void poll() {
         handler.removeCallbacks(pollTick);
-        if (destroyed || distro == null) return;
+        if (destroyed || distro == null || (outputResolution == null && !exitRequested)) return;
         ioExecutor.execute(() -> {
             DesktopSessionState observed = tasks.sessionState(distro);
             if (!startRequested && observed != DesktopSessionState.NOT_INSTALLED
@@ -242,7 +286,7 @@ public final class DesktopSessionActivity extends AppCompatActivity {
                 startRequested = true;
                 startRequestedAtMs = System.currentTimeMillis();
                 try {
-                    tasks.start(distro);
+                    tasks.start(distro, outputResolution);
                 } catch (LaunchHostException error) {
                     runOnUiThread(() -> {
                         if ("desktop_stopping".equals(error.getErrorCode())) {

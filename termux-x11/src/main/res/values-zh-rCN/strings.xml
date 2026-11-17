@@ -110,7 +110,7 @@
         <string name="select_controller">选择控制器</string>
         <string name="select_controller_summary">使用控制器, 打开preference->keyboard->scan code 开关</string>
         <string name="progress_manager">任务管理器</string>
-        <string name="install_x11_server_bridge">重建依赖</string>
+        <string name="install_x11_server_bridge">Render bridge</string>
         <string name="stop_desktop">关闭显示器</string>
     <!--    <string name="stretch_to_fit_display">拉伸以适合显示屏</string>-->
     <!--    <string name="pip_mode">画中画模式</string>-->

@@ -1,0 +1,15 @@
+schema: review_findings_v1
+change_id: fix-proot-wine-readonly-x11-loader
+stage: code-review
+verdict: APPROVED
+findings: []
+supersedes: 上次缺少真实非 root 解包验证的批准已被本轮回归证伪，旧证据保存在 artifacts/bridge-install-regression/prior-records
+resolved_regression:
+  cause: 包内0444令非root dpkg在安全同步时无法写打开dpkg-new
+  resolution: 包内恢复0755，安装完成及加载前才只读，不禁用安全同步
+  verification: 主机真实dpkg先红后绿；模拟器隔离首次解包和只读旧文件重装退出0，安装后loader444且Android动态加载退出0
+naming: 原deb包名和版本、APK文件名、Android包名及应用标签对比一致
+limits:
+  - 新APK未安装，完整Wine会话未复验
+  - Harness严格门禁脚本缺失，exit127，不宣称通过
+  - 产品一致性及用户验收Pending

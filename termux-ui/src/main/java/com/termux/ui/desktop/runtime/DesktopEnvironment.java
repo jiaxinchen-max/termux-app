@@ -106,6 +106,24 @@ public final class DesktopEnvironment {
 
     public boolean hyprlandThemeInstalled(DesktopDistro distro) {
         String theme = distro.getHyprlandThemeId();
+        if (distro.getRunMode() == DesktopRunMode.PROOT) {
+            File container = containerDir(distro.getProotDistro());
+            if (container == null) return false;
+            File guest = new File(container, "rootfs");
+            for (String name : new String[]{"usr/bin/python3", "usr/bin/dbus-daemon", "usr/bin/swaybg",
+                    "usr/local/lib/termux-hyprland/desktop_hyprland_guest.py",
+                    "usr/local/lib/termux-gnome/libglycin-2.so.0", "usr/local/lib/termux-gnome/glycin-build-manifest.json"})
+                if (!new File(guest, name).isFile()) return false;
+            String[] clients = HyprlandComponents.CLASSIC.equals(theme)
+                ? new String[]{"usr/bin/xfce4-panel", "usr/bin/xfconf-query"}
+                : new String[]{"usr/bin/foot", "usr/bin/fish", "usr/bin/starship", "usr/local/lib/termux-hyprland/bin/eww"};
+            for (String name : clients) if (!new File(guest, name).isFile()) return false;
+            File resources = new File(guest, "usr/share/termux-hyprland/themes/" + theme);
+            if (!HyprlandComponents.themeManifest(theme).equals(head(new File(resources, ".installed"), 80).trim())) return false;
+            for (String name : HyprlandComponents.resourceFiles(theme))
+                if (!new File(resources, name).isFile() || java.nio.file.Files.isSymbolicLink(new File(resources, name).toPath())) return false;
+            return true;
+        }
         for (String file : HyprlandComponents.requiredFiles(theme))
             if (!new File(prefix, file).isFile()) return false;
         File root = new File(prefix, "share/termux-hyprland/themes/" + theme);

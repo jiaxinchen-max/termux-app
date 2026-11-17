@@ -1,0 +1,159 @@
+{
+  "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "bytes": 45547355,
+  "sha256": "79838cb7563d584d9920522ce67c16c10bfbca40c0067eaa24098e5bcea0355e",
+  "abis": [
+    "arm64-v8a"
+  ],
+  "source_assets_verified": 74,
+  "asset_hashes": {
+    "assets/local-games/audit-rootfs-elf.py": "25f11b61a5fe92fd3c581112b578cff5e0a9693e383b6b571742e82d9ce1417a",
+    "assets/local-games/backup_restore_rootfs.sh": "1c330ff86b1837d4ec57195b493538976ed8c51a1018f44b7bbfd67e15679a79",
+    "assets/local-games/controller_runtime.sh": "e9649489ea010e08decdaddb01139067da74ce3768349beb945cf4ef083da2b5",
+    "assets/local-games/desktop_audio_service.py": "e726ecaa902dd579059d86b97ce049a26a24941191d3c2dbf85b80a8d11c6fb2",
+    "assets/local-games/desktop_common.sh": "abad180fe14b88eea2c82dc104d52da5000a9fce933f7b237d03b97c2e7e7572",
+    "assets/local-games/desktop_container_apt_sources.sh": "cd37e90b3aa8c0aaab6f46461e126376f4a33d18078204fa3567d036739194b0",
+    "assets/local-games/desktop_container_discover_catalog.sh": "c8db041b2bd93cf2631ce52ed73a0015065163fc308e716e5065f8d230ad6b73",
+    "assets/local-games/desktop_container_plasma_apt.sh": "db0e7dfcbbe2a760c580b3596984ce82381284ee015f9b1de3d1f1b9729c18bd",
+    "assets/local-games/desktop_container_polkit_agent.py": "50febe4e0d6fb583ccd6565c21b0bff261b29eacf39cebbd820e7a4225c03851",
+    "assets/local-games/desktop_container_run_config.sh": "7fb5be9b08d81760155d20e084e450ad3c940d0b1f3e5fc855cb7dbb13ad6710",
+    "assets/local-games/desktop_container_session.sh": "0b3a78058582fea09094179b93392702884802cdba8a03edfdd21700c2bfa771",
+    "assets/local-games/desktop_container_software_services.py": "1684c7b1af22eae9191336d99d4ca38a9dce60461b1b6c2a28f6acdef07401f1",
+    "assets/local-games/desktop_container_statx_aarch64.bin": "cc47aae3d46589bda4138b1fee328476d3beb51b5b56865731826b633ab8b997",
+    "assets/local-games/desktop_container_statx_setup.sh": "b5cd1770d0552a7936a3c56fec5f5d8cb6edcbe9cb34d2342643594de4903d48",
+    "assets/local-games/desktop_container_user.sh": "3afc3c6bdd0ecd4a0097140333787366a3b5556bc8e6fe4b743be895818f626f",
+    "assets/local-games/desktop_gnome_launch.py": "6276beb04d4657fd40432c76aa452eba3d3d15314666181082e601743f00eb7a",
+    "assets/local-games/desktop_hyprland.py": "290cc698615b91276a3b7aa62d0760c9e5005eed5d245ec54902c6e17c0b271a",
+    "assets/local-games/desktop_hyprland_action.sh": "eda7742d22f8e9a6488ef232d21370559be779fbc306f3d09a23c456cf43bf47",
+    "assets/local-games/desktop_hyprland_components.py": "561f5b608d1ffeb901bb2104086268f333adb3881f89ab28b4f41bb99109465f",
+    "assets/local-games/desktop_hyprland_gpu.py": "ec46d532bacbcfbec564afedbcb0003d2c13d622882eabbcbefb9b7ca29c800b",
+    "assets/local-games/desktop_hyprland_shell.py": "014385595ae2cda8125eaff699a7a10001c6492a79c0930bee548b2c03cc1940",
+    "assets/local-games/desktop_hyprland_theme.py": "808ae506abbf35eda92c84b401cfa5bddb0ed63025cf9288baead42d12d7b5a7",
+    "assets/local-games/desktop_initialize.py": "a651249df737656d2a2deb27c8ecbbbd2ad970d3d37d1e2e7379272d216db4b2",
+    "assets/local-games/desktop_install.sh": "2c92f2f542a53d65afdafada6b147f4a9f1eb9411606a03bec1fadc12d54c72e",
+    "assets/local-games/desktop_install_gio.py": "bfda31648beb482a7dc353e30e6c4ead4cba10cb9afe04fe330b2f029d82aec9",
+    "assets/local-games/desktop_install_glycin.py": "15c1d217530268a230638273bbfcd9354292bb2c8a17a2084c780288efac50b3",
+    "assets/local-games/desktop_install_mesa.py": "1493a05c63ac61f63ae8cb5b276f1b0acf88670855b7dde7b9dffa4b803418ac",
+    "assets/local-games/desktop_native_ubuntu.py": "2dd73cd90a9f10af058513d7e8f37b0182122e3590ac61b74b2932c18929e03c",
+    "assets/local-games/desktop_plasma_session.py": "8f66023ba2510d6cedc679b506a621adaa47d145ef714ab8fac8c9bf4692e66d",
+    "assets/local-games/desktop_remove.sh": "d39b18e8566fcd252ad0199e2d6f7b7cc68df9ae09bb72ef2286313c40aa8dd3",
+    "assets/local-games/desktop_rendering.sh": "96950e13ce83e561efbd7d97a449d7e4e8b03d2e0723ebdf84e33c9089e343cc",
+    "assets/local-games/desktop_software_center.py": "9c9f10c3f494da3b4de92f0b4e4e6c352c48bf94b40a4be67b4236370ccdf7f9",
+    "assets/local-games/desktop_start.sh": "dfa5a2db0034b5ac9c0e7fd4bd1e196563a4e54ee50736763c2561fbd5e5a418",
+    "assets/local-games/desktop_stop.sh": "c8583a5bba52c2d94aad6d98d884400ffef1d41e1e7cf68b8b80be27d8ad575f",
+    "assets/local-games/desktop_ubuntu_gnome.py": "c4812aab0eaae5f0e0ce019f5bb866cc46475c7bd18aeda052f2107620ca760b",
+    "assets/local-games/desktop_usb_storage.py": "92b7f0d28c8cd545fcfa71266fd01b1c8983cc7509301180c714bc6b7e128960",
+    "assets/local-games/desktop_xfce_session.py": "74b807cad17bcae1cb4fb6fcd531c5d0d81479d2fd43baebeda9d25a5f5e2bb8",
+    "assets/local-games/glibc_prefix_extras.sh": "ef71580f334f302e54b5648be1c2f006958ae5c0f519b021707930a70d11e094",
+    "assets/local-games/hyprland-components.json": "43563e567862bc30f4f4811362a8a40a1de1ee7d72988d668f6e2ca60dd8e9fb",
+    "assets/local-games/hyprland-components.sh": "ad468f37398396e9a464730f4d2c5cc2da35b7649c57351850d70979196e8eb2",
+    "assets/local-games/install_custom_glibc_wine_component.sh": "5c92c205bac5f1c92af756d0e117b5367a0cbb5413923ed9b7787d95985ee5a2",
+    "assets/local-games/install_custom_rootfs_component.sh": "794ed4c06bcc020b7f97b8f18fa8edc355b9f6c700914d6b135cbbe130d85d12",
+    "assets/local-games/install_termux_glibc_runtime.sh": "c09711dbaef451a699f14c1e9c2132b53cc37dc971d7ffc0f8d027b43cc46459",
+    "assets/local-games/minimize-rootfs.py": "657b209cce1ac067d39a484a91f538d925239b1a7ecafa25084266ccbc232928",
+    "assets/local-games/native-prefix/glibc_proton_11.0/bundle.json": "b620082be863ccb8ac68bede7db3646a7af0c1a16c2fe74fc0de7179e0cac1ec",
+    "assets/local-games/native-prefix/glibc_wine_10.0/bundle.json": "7313cc05e3a92b0064bcfb1f06a6c36c4d815992fa395b6e933d3a8d187986e5",
+    "assets/local-games/native-prefix/glibc_wine_8.18-staging/bundle.json": "b60401cf8e29c7a563f99c65c96876ca5f7d272d9113a276d04be0073f0353ce",
+    "assets/local-games/native-prefix/glibc_wine_9.0-staging/bundle.json": "af3f362312169cfde7b3f8435e053381039e787aad4b40ec60db8fa4fc242f98",
+    "assets/local-games/native-prefix/glibc_wine_9.3-vanilla/bundle.json": "12b8c082066fee06d06cfc8defe9d61e123a7e7b8db72afe528edb1df898e106",
+    "assets/local-games/native_runtime_components.sh": "b1e8d8bf654b2b0341dfc894a6d40afa3396c14e8de6d1f1c6eb7ecb736236c8",
+    "assets/local-games/prebuilt_rootfs.py": "d2d033a50176aa607fcc5e2b2ea0bd71c8f906c241e674b6ee16d74bb9419105",
+    "assets/local-games/proot_component_bindings.sh": "23250145d1e6ccec21016623d698cfcaa5a04c40e92aee877f244af0af932f17",
+    "assets/local-games/relocate_rootfs_links.py": "18513ae8b2d2ae87bc36546cd36d0d3f6a624abe32af51875f70af54180c6233",
+    "assets/local-games/reset_termux_glibc_runtime.sh": "c4e5c31a3a6695b11466d548318d07f9a9dc5b4ee597e5eae313162851fc5c74",
+    "assets/local-games/restore_wine_prefix.py": "d2f5e151c2700cff50cdd354c73c72ec4197a15205346d05e8e9ea76dc742d25",
+    "assets/local-games/rootfs_prefix_warmup.sh": "48124beb885733fddd7c1669c64a534251b1a4fe987586a4c187b5dcc52ff7ce",
+    "assets/local-games/rootfs_script_common.sh": "5fe73fc97987a84791d84dc094e52e547baef856ba6947f422da5f4c3a7d040e",
+    "assets/local-games/runtime-rootfs-v12/image.json": "fc77a5d3faf173d86e0af5b6f63270db4802fda02277c899e55286fdcf28492c",
+    "assets/local-games/runtime-rootfs-v12/prefix-hangover-pdb2/bundle.json": "b1f8962e2d1f9c2274d78358a5b6ae7ad00e63af22c60a459ccfef940fc8a8bc",
+    "assets/local-games/runtime-rootfs-v12/prefix-proton11-wow64/bundle.json": "f404e277464c8b8d88b25716933468d330fe26525e102ecc5b61561d6127dffe",
+    "assets/local-games/runtime-rootfs-v12/prefix-wine10-wow64/bundle.json": "f1d5a927c311b800dbb73d0e353e8ca5eae4f1e8bbe48550d1280fe8e4544bd8",
+    "assets/local-games/runtime-rootfs-v12/setup-container.sh": "dbc47d72b32d5703ca5158d48150f8e7b2cd259ba29196381139b66a85618eb8",
+    "assets/local-games/runtime-rootfs-v12/wine-runtime.properties": "fcf6c58de5f07d1759e45c7ed21ef685cdda54c1e2b11d00d04a5d8be4d6815d",
+    "assets/local-games/setup_glibc_prefix.sh": "73c7f7ea7f22e8ba4e0fe62fc40b4ebe43b3bde29c5d562be6b348b27ca14f19",
+    "assets/local-games/setup_rootfs_runtime.sh": "91b278f492f0f2a5285e6ba3e729e0d9a1920bc7f837e1f75a243803a58eeee6",
+    "assets/local-games/start_local_game.sh": "af9fada9d19b0ab48a914f036d93bcb34b71803204ac0b8c60a20183d4f6c1b8",
+    "assets/local-games/start_rootfs_game.sh": "82ed20986340050d773fc7f3f88dfd677f4bd7f99fccf1d73204376b7d7b0258",
+    "assets/local-games/start_termux_box_game.sh": "3e411996cd08e8b8ed34958e9d4e10ef4786df0dfde6b6cee22b56f05f8f5ff7",
+    "assets/local-games/x-server-packages.txt": "4b50f7737ad0a9633866b074f076a768a3c511e824c41751617ad30453412794",
+    "assets/local-games/x_server_common.sh": "e06797275bd122cf5bafe29c5acef8ead30119610235d4a37c6b67bed3141f02",
+    "assets/local-games/x_server_dimensions.py": "d6ee33cc28ae1ba88ff5ff54cdade8fb1ab157e175b2a65820c151c888967640",
+    "assets/local-games/x_server_legacy.sh": "60f5fadc3a89144e8bbda3870911632ef4ea5fc4b09c1c127ef65a11bbbc2bdc",
+    "assets/local-games/x_server_xlorie.sh": "e8ced0a91b7354873386e295f75965e6d36f950c64ac8e429a8eef1be206193b",
+    "assets/local-games/xlorie_install.sh": "8f9f301ce114459741cd0f9a20ff508f8e538b10a10a3c1eda14d139fce3bd51"
+  },
+  "signature": {
+    "v1": true,
+    "v2": true,
+    "matches_repository_certificate": true,
+    "certificate_sha256": "b6da01480eefd5fbf2cd3771b8d1021ec791304bdd6c4bf41d3faabad48ee5e1"
+  },
+  "test_only": false,
+  "source_commit": "68858272719da9adccbb2ed1d9ff31029163da6a",
+  "source_state": "Working tree with approved GNOME Software activation fix",
+  "device_validation": "Pending; APK not installed by agent",
+  "download_url": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122516548376911873/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "local_http": {
+    "status": 200,
+    "bytes": 45547355,
+    "sha256": "79838cb7563d584d9920522ce67c16c10bfbca40c0067eaa24098e5bcea0355e"
+  },
+  "proxy_http": {
+    "error": "HTTP Error 401: Unauthorized"
+  },
+  "build_command": [
+    "./gradlew",
+    ":app:assembleDebug",
+    "-Pandroid.injected.build.abi=arm64-v8a",
+    "-Pandroid.injected.testOnly=false",
+    "--no-daemon",
+    "--max-workers=2",
+    "--console=plain"
+  ],
+  "build_log_sha256": "ab5349ef3ac12a3119c2fae4bb464769fd802b36afacb5eb01ae6d61ca7302e4",
+  "packaging_gate": "首次ABI定向构建带testOnly=true，已被检查拒绝；显式关闭testOnly后重建并通过完整核验，首次产物未交付",
+  "build_applied_submodule_patches": {
+    "termux-x11/src/main/cpp/libepoxy": {
+      "src/gen_dispatch.py": "990c17335891e2779ff458db386ed655cb239b1b729e77269af71ad993f45232"
+    },
+    "termux-x11/src/main/cpp/libx11": {
+      "src/Quarks.c": "46d4fd8b01eb4ca1d14bf842a249c64c1c56dec8f24a4363bfe113267845e731",
+      "src/Xrm.c": "4e62bf611ed20b02a472b7069c3c28d03bf253617aaa080dc39be00baaffdbc6"
+    },
+    "termux-x11/src/main/cpp/libxkbfile": {
+      "src/xkbatom.c": "8c19477e72d6743e2cd0c460d01321490617dc440f9631efb7d007a2a5054b13"
+    },
+    "termux-x11/src/main/cpp/libxtrans": {
+      "Xtranssock.c": "67b4aeecde71b9a37265f87646c29f3000c696a68b2448267bc7cb43cd90b2bf",
+      "Xtransutil.c": "10520d5ca62daadaa507102f1adc13c4859236b049e0bdc11fbb811a6d2f1a8f"
+    },
+    "termux-x11/src/main/cpp/pixman": {
+      "pixman/pixman-arm.c": "823771307408bd7c3bf35df2f3b111eb3ba151a77c33a5e84ecf8c993b4c7e7e"
+    },
+    "termux-x11/src/main/cpp/xkbcomp": {
+      "alias.c": "168f491ed5b1bfdc1e18f4956789f160da23995a37a2833cc2a1b83921540c8f",
+      "compat.c": "30d1b57127f05c51b34c9918107f2b66da684543b8feba5785cf72ec9d47270f",
+      "compat.h": "c094fa47f3972e84d4cac75e717853157f0c50f26cb75df314c1e9147576ed09",
+      "indicators.c": "8cb565282c74f8de1cf164a6ff05c9ff0cc581908554bd655d82d997e9a67b0b",
+      "xkbcomp.c": "a5efe84b0ef5c5b227686341f3a3e5e43c5547ba676bb000952b2a4deba40898"
+    },
+    "termux-x11/src/main/cpp/xserver": {
+      "Xext/shm.c": "6c29834007b60de46185a87f3b5bbcad534d9b3cd98a2cd8f97ed1e4a57a372f",
+      "Xext/shmint.h": "ab0404528a7587d50d0cf4c3ec4821ed0d19078006cf0e54986ea66dafa68e65",
+      "dix/dixutils.c": "f7d9a525581c5db7b0a6d630902e6439245c85e45e3f6adda6f45ae6ae7d50a5",
+      "dix/enterleave.c": "f56bc1a4c67a68c6e0770eb755c4be95a8e2a425e15c15dd7c5b49e8bf4a42fa",
+      "dix/main.c": "dcc0108658a3568fb0858cfec8d28f554df937dfb580d6a67fed84e9e97355da",
+      "include/os.h": "2937ea49097ed66d357fc87e5eed48cc9b16a5cf1b3ca4dc7c2692cb78d25c56",
+      "include/xkbfile.h": "f1c008a12662e6a4d4e5555f4f40457a7086594608b52b6add6450f9cd0f0202",
+      "os/connection.c": "1e075217908ff2b0c3317f39da0d04b081f7ad3f2dd4d101d9416c8d15b4a9d6",
+      "os/osinit.c": "a3d56b070712388118710334226902a31f455e2c2f9487ce9c7ca6354b7bd33f",
+      "os/utils.c": "8632cdbcf76793f562cce84e1d37860db80e12d63cbdde791f2009ffe71ee76a",
+      "present/present.h": "03f7bb8bd42677c88669cb9cfbf9fd3e24700e9d0c3d8e419026ca5cd6e38fcc",
+      "present/present_execute.c": "19b7716173ba2eb385fc9b639bf4b24eefd22b36d41ab6573be805c0600b2fad",
+      "present/present_priv.h": "939c7ebe26a8311c8ce6287b15a4866a52d06ddd6e49d071748444157c017e72",
+      "present/present_scmd.c": "5fa5e8f406825d07d5f6ce2f9413919b1c6acbbd46721ab27cfea681a27ebb20",
+      "present/present_vblank.c": "e9cb6a1ac50f6acf01113f8394afd9baf4aa05856f9c27e2ab420e754656bbb7",
+      "xkb/ddxLoad.c": "7e90eeac4d3003f3a9f26ec29ed32516e0d6484b3dd7bb5e9294b8b46537dd28"
+    }
+  }
+}

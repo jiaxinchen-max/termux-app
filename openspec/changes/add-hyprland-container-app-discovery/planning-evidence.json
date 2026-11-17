@@ -1,0 +1,18 @@
+{
+  "change_id": "add-hyprland-container-app-discovery",
+  "stage": "planning",
+  "revision": "container_owned_desktop_session",
+  "artifact_hashes": {
+    ".openspec.yaml": "b75d296d3b54880b00a14fd17257d690f593cd5d3db17201d597c19528a9f905",
+    "change_manifest.yaml": "56ebd265aca466b7127bf79545f903d632a19890c104160b8d492d27e7d14e79",
+    "design.md": "b887bce1fabfbe35f91fdf91eecd2a295db15b3da0e0e9ec4c7687a42fd322b6",
+    "proposal.md": "11a60d7d6af6d45550bf68746547a1e1fc4e2ceb03f632f515b5c93bb5b9600f",
+    "review-findings.yaml": "248c701bd1984e807fc8378cad2733989ed93af7b5e4b6342e03ef31753c8006",
+    "review.md": "ba18979fdab132ab20298ec622425097448d88bf3e2c1fe11041f17cc9ea9783",
+    "specs/hyprland-container-apps/spec.md": "19d2615dee15b2fb3c48c763add2419ffed91aef6c9209d020972b4f53334965",
+    "tasks.md": "d12755d85c33c7ea4d33436070563d90fcf8ec0d448fa1b87d1eb079a8d99c36"
+  },
+  "code_changed_for_this_feature": false,
+  "strict_gate": "Unavailable",
+  "component_availability": "Pending implementation verification"
+}

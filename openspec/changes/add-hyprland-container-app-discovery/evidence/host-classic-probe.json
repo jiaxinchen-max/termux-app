@@ -1,0 +1,6 @@
+{
+  "alive": true,
+  "namespace": true,
+  "configured": true,
+  "limitation": "Linux x86_64/headless Sway; Ubuntu-generated panel config with Debian panel. Android menu/input untested."
+}
