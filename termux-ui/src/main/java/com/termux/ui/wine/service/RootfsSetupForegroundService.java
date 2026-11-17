@@ -296,10 +296,11 @@ public final class RootfsSetupForegroundService extends Service {
             com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(getFilesDir());
             synchronized (RuntimeEditingStop.LOCK) {
                 RuntimeEditingStop.requireNotCancelled(getFilesDir(), task.getTaskId());
-            host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
-                assets.script.getCanonicalPath(), spec.getCanonicalPath(),
-                paths.getRuntimeSetupDirectory().getCanonicalPath(),
-                SetupPreparationLog.file(getFilesDir(), task.getTaskId()).getCanonicalPath()));
+                if (task.isBaseOnly()) RuntimeEditingStop.sharedRootfs(getFilesDir(), host);
+                host.startRuntimeSetup(new RuntimeSetupRequest(task.getTaskId(),
+                    assets.script.getCanonicalPath(), spec.getCanonicalPath(),
+                    paths.getRuntimeSetupDirectory().getCanonicalPath(),
+                    SetupPreparationLog.file(getFilesDir(), task.getTaskId()).getCanonicalPath()));
             }
             transition(preparing, RuntimeSetupTaskState.BUILDING, "");
         } catch (Exception error) {

@@ -184,7 +184,7 @@ public class GameEditorReadinessTest {
         GameStoragePaths paths = paths(); RuntimeProfile p = profile(GameRuntimeBackendType.ROOTFS_PROOT);
         task(paths, p, "success", RuntimeSetupTaskState.SUCCEEDED, 1);
         File root = paths.getSharedRootfsDirectory();
-        write(new File(root, "etc/wine-runtime.properties"), "schemaVersion=3\nlayout=external-components-v1\n");
+        write(new File(root, "etc/wine-runtime.properties"), "schemaVersion=3\nlayout=external-components-v1\nbaseImage=ubuntu:resolute\nrecipeVersion=13\n");
         for (String name : new String[] {"env", "wine", "wineboot"}) {
             File command = new File(root, "usr/bin/" + name); write(command, "x"); assertTrue(command.setExecutable(true));
         }

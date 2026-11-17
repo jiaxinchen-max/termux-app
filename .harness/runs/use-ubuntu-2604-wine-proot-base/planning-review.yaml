@@ -1,0 +1,12 @@
+schema: review_findings_v1
+change_id: use-ubuntu-2604-wine-proot-base
+stage: planning-review
+verdict: APPROVED
+findings: []
+implementation_approved: true
+limits:
+  - 官方镜像digest及Ubuntu运行兼容性待实际核实
+  - 尚无新制品，不启用默认下载
+  - 产品一致性及最终验收Pending
+  - Harness及OpenSpec CLI缺失，未声明严格门禁通过
+approval: 用户明确开始执行并取消历史兼容要求

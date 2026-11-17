@@ -129,7 +129,7 @@ class SetupInputsTest(unittest.TestCase):
         self.recipe = self.runtime / 'recipes/base'
         self.component = self.private / 'components/install/rootfs_hangover_11.16/versions/v1-aaaa'
         self.component.mkdir(parents=True)
-        self.values = dict(taskId='task', packageName='debian-13-games-rootfs', version='12',
+        self.values = dict(taskId='task', packageName='ubuntu-26.04-games-rootfs', version='13',
             recipeSha256=SHA, containerId='container', containerName='container', baseOnly='true',
             buildContext=str(self.context), recipeDirectory=str(self.recipe),
             eventsPath=str(self.events), logPath=str(self.log), winePackage='',

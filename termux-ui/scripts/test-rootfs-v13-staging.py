@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the real v12 shell publication transaction against isolated host fixtures."""
+"""Run the real v13 shell publication transaction against isolated host fixtures."""
 import base64
 import importlib.util
 import json
@@ -24,7 +24,7 @@ def write(path,text,executable=False):
 class StagingTests(unittest.TestCase):
     def run_case(self,case):
         with tempfile.TemporaryDirectory() as td:
-            files=Path(td)/'files';front=files/'front';runtime=front/'runtime';recipe=runtime/'setup/recipes/debian-v12';host=files/'usr';shared=host/'var/lib/proot-distro/games-shared-rootfs';scratch=host/'var/lib/proot-distro/containers/tmpl-build';cache=front/'wine/templates';identity='a'*64
+            files=Path(td)/'files';front=files/'front';runtime=front/'runtime';recipe=runtime/'setup/recipes/ubuntu-v13';host=files/'usr';shared=host/'var/lib/proot-distro/games-shared-rootfs';scratch=host/'var/lib/proot-distro/containers/tmpl-build';cache=front/'wine/templates';identity='a'*64
             seed=fixture.ImageTests();seed.setUp()
             try:
                 seed.build();component=front/'components/image';component.mkdir(parents=True);shutil.copy2(seed.archive,component/seed.archive.name);recipe.mkdir(parents=True);shutil.copy2(seed.descriptor,recipe/'image.json')
@@ -46,6 +46,9 @@ class StagingTests(unittest.TestCase):
                     descriptor=json.loads((recipe/'image.json').read_text());descriptor['sha256']='c'*64
                     (recipe/'image.json').write_text(json.dumps(descriptor))
                 if case=='damaged-image':(shared/'rootfs/usr/bin/wine').write_bytes(b'corrupt')
+                if case=='old-base':
+                    props=shared/'rootfs/etc/wine-runtime.properties'
+                    props.write_text(props.read_text().replace('baseImage=ubuntu:resolute','baseImage=debian:trixie').replace('recipeVersion=13','recipeVersion=12'))
                 if case=='changed':write(cache/'wine-rootfs-base.recipe','b'*64)
                 for name in ('python','zstd'):
                     (host/'bin').mkdir(parents=True,exist_ok=True);(host/'bin'/name).symlink_to(sys.executable if name=='python' else shutil.which('zstd'))
@@ -73,7 +76,7 @@ prepare_external_prefix_template() { :; }
 warmup_rootfs_prefix() { mkdir -p "$PREFIX_PATH/.games-runtime"; }
 require_external_prepared_prefix() { :; }
 ''')
-                values={'taskId':'task','packageName':'debian-13-games-rootfs','version':'12','recipeSha256':identity,'containerId':'container','containerName':'container','buildContext':runtime/'setup/staging/task','recipeDirectory':recipe,'eventsPath':runtime/'setup/events/task.jsonl','logPath':runtime/'setup/logs/task.log','baseOnly':'false' if case in ('reuse','changed','recipe-update','wrong-image','damaged-image') else 'true','winePrefixDirectory':front/'wine/test/prefix','homeDirectory':front/'wine/test/home','winePackage':'rootfs_hangover_11.16','prefixWarmupScript':runtime/'warmup.sh','runtimeTranslator':'hangover','box64ComponentId':''}
+                values={'taskId':'task','packageName':'ubuntu-26.04-games-rootfs','version':'13','recipeSha256':identity,'containerId':'container','containerName':'container','buildContext':runtime/'setup/staging/task','recipeDirectory':recipe,'eventsPath':runtime/'setup/events/task.jsonl','logPath':runtime/'setup/logs/task.log','baseOnly':'false' if case in ('reuse','changed','recipe-update','wrong-image','damaged-image','old-base') else 'true','winePrefixDirectory':front/'wine/test/prefix','homeDirectory':front/'wine/test/home','winePackage':'rootfs_hangover_11.16','prefixWarmupScript':runtime/'warmup.sh','runtimeTranslator':'hangover','box64ComponentId':''}
                 lines=['schemaVersion=4']+[k+'='+base64.b64encode(str(v).encode()).decode() for k,v in values.items()]+['componentCount=1','component.0.id='+base64.b64encode(fixture.m.IMAGE_ID.encode()).decode(),'component.0.directory='+base64.b64encode(str(component).encode()).decode(),'bindingCount=0']
                 specpath=runtime/'setup/specs/task.setupspec';write(specpath,'\n'.join(lines)+'\n')
                 command=['sh',str(ASSETS/'setup_rootfs_runtime.sh'),str(specpath)]
@@ -111,6 +114,6 @@ require_external_prepared_prefix() { :; }
                 self.assertNotIn('apt-get',log);self.assertNotIn('proot-distro install',log)
             finally:seed.doCleanups()
 
-for case in ('fresh','explicit','reuse','recipe-update','wrong-image','damaged-image','changed','bad-package','interrupted','unowned','locale-failure','publish-failure','receipt-failure','cancel'):
+for case in ('fresh','explicit','reuse','recipe-update','wrong-image','damaged-image','changed','bad-package','interrupted','unowned','locale-failure','publish-failure','receipt-failure','cancel','old-base'):
     setattr(StagingTests,'test_'+case.replace('-','_'),lambda self,c=case:self.run_case(c))
 if __name__=='__main__':unittest.main()

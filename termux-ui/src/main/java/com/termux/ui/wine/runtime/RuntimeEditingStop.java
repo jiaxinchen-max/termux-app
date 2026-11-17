@@ -115,6 +115,19 @@ public final class RuntimeEditingStop {
         }
     }
 
+    /** The host waits for matching process trees to exit before the shared root is replaced. */
+    public static void sharedRootfs(File files, LocalGamesHost host) throws IOException {
+        synchronized (LOCK) {
+            GameStoragePaths paths = new GameStoragePaths(files);
+            List<String> scopes = new ArrayList<>();
+            scopes.add(paths.getSharedRootfsDirectory().getCanonicalPath());
+            // Also catch launch shells that have not entered PRoot yet.
+            scopes.add(new File(paths.getRuntimeDirectory(), "start_rootfs_game.sh").getCanonicalPath());
+            try { host.forceStopRuntimeProcesses(scopes); }
+            catch (LaunchHostException error) { throw new IOException(error.getErrorCode(), error); }
+        }
+    }
+
     private static void writeMarker(File files, String id) throws IOException {
         File marker = marker(files, id);
         if (!marker.getParentFile().isDirectory() && !marker.getParentFile().mkdirs()) throw new IOException("runtime_cancel_directory_failed");

@@ -1555,7 +1555,7 @@ public final class LocalGamesActivity extends AppUiActivity {
         // Shared environment setup has no game context. enqueueBaseOnly requires a real, non-DEFAULT_ID
         // containerId even though a BASE_ONLY build never creates a container under it. Use a
         // disposable id instead of forcing a game context here.
-        String taskId = RuntimeSetupTasks.enqueueBaseOnly(this, "debian-13-games-rootfs",
+        String taskId = RuntimeSetupTasks.enqueueBaseOnly(this, "ubuntu-26.04-games-rootfs",
             "shared-rebuild-" + UUID.randomUUID());
         RuntimeSetupConsoleDialog.show(this, taskId, R.string.local_games_component_console_title)
             .setOnDismissListener(dialog -> renderRuntimeStatus());

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "state": "BuiltNotRuntimeQualified",
+  "version": "11.16~ubuntu26.04+idap.pdb2.1",
+  "originalComponentSha256": "ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1",
+  "sourceCommit": "3ea3a14941b6a122b892c84141ce9662c008081e",
+  "buildEvidenceSha256": "75edf12b7c621ee462bc71d74d5073187fd2631c3d4c62f12da3580b9f49a5f6",
+  "changedPackagePaths": [
+    "DEBIAN/control",
+    "DEBIAN/md5sums",
+    "usr/lib/wine/aarch64-unix/winedmo.so"
+  ],
+  "moduleSha256": "12d20b9be996b54a831b4a85d20fcf50957f7a7917763448c50e75e909c77836",
+  "file": "rootfs_hangover_11.16.tar",
+  "bytes": 125532160,
+  "sha256": "8deeb1286d8227d267d261420ecd04321c9670802a3ce1b70da807a4d8d54885",
+  "members": {
+    "hangover-wine_11.16~ubuntu26.04+idap.pdb2.1_arm64.deb": "0b6931c7c4a22ce2d25502072c1381687c4b7d6ae29494439e549af33ebd8980",
+    "dxvk-v2.7.1.tar.gz": "36be8b5803d800abc3f707e36256c77b374a108d73c03a7e34fb42b5f71be8aa",
+    "hangover-libarm64ecfex_11.16_arm64.deb": "a4a197b04f63fd340bfdfe53049be6abd196e23b4c1c528cc80536b363e19ad0",
+    "hangover-libwow64fex_11.16_arm64.deb": "20151edd29fbbf2dccb207fa01c816c122ed30060b28d64416bd76b9b763b9e1",
+    "hangover-wowbox64_11.16_arm64.deb": "ceeb3ec77eee073a2c867725d1153bc8c697bcacefb896149c9a7a45c798635a"
+  }
+}

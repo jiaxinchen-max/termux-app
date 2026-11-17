@@ -62,7 +62,7 @@ public class GameRuntimeBackendTest {
             "rootfs-llvmpipe", "rootfs_dxvk_2.7", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
             Collections.emptyMap(), GameRuntimeBackendType.ROOTFS_PROOT,
-            "debian-13-games-rootfs", "container-game-1");
+            "ubuntu-26.04-games-rootfs", "container-game-1");
 
         // Optional components stay independent; an unrelated DXVK or translator is not pulled.
         Set<String> components = backend.requiredComponentIds(withDxvk);
@@ -102,7 +102,7 @@ public class GameRuntimeBackendTest {
         assertTrue(new File(rootfs, "mnt/games/game").mkdirs());
         assertTrue(new File(rootfs, "mnt/games/prefix").mkdirs());
         write(new File(rootfs, "etc/wine-runtime.properties"), properties(
-            "schemaVersion", "2", "runtimeBackend", "rootfs_proot",
+            "schemaVersion", "2", "baseImage", "ubuntu:resolute", "recipeVersion", "13", "runtimeBackend", "rootfs_proot",
             "architecture", "aarch64",
             "runtimePackages", "rootfs_hangover_11.16,box64-wine-stable",
             "graphicsDrivers", "rootfs-virgl-mesa,rootfs-llvmpipe",
@@ -150,7 +150,7 @@ public class GameRuntimeBackendTest {
             "rootfs-virgl-mesa", "rootfs_dxvk_2.7", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs");
 
         try {
             new RootfsProotBackend().requiredComponentIds(profile);
@@ -167,7 +167,7 @@ public class GameRuntimeBackendTest {
             "rootfs-virgl-mesa", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs");
 
         assertTrue(new RootfsProotBackend().requiredHostCapabilityIds(virgl)
             .contains("virgl-server"));
@@ -181,7 +181,7 @@ public class GameRuntimeBackendTest {
             "rootfs-vortek", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs");
 
         try {
             new RootfsProotBackend().requiredComponentIds(profile);
@@ -197,7 +197,7 @@ public class GameRuntimeBackendTest {
             "rootfs-virgl-mesa", "rootfs-wined3d", "alsa", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs");
 
         try {
             new RootfsProotBackend().requiredComponentIds(profile);
@@ -212,7 +212,7 @@ public class GameRuntimeBackendTest {
             "rootfs-wined3d", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
             Collections.emptyMap(), GameRuntimeBackendType.ROOTFS_PROOT,
-            "debian-13-games-rootfs", "container-game-1");
+            "ubuntu-26.04-games-rootfs", "container-game-1");
     }
 
     private static RuntimeProfile glibcProfile() {

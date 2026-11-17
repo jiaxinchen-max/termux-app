@@ -72,7 +72,7 @@ public final class CustomComponentSelectionTest {
         File rootfs = paths.getSharedRootfsDirectory();
         assertTrue(new File(rootfs, "mnt/games/game").mkdirs());
         assertTrue(new File(rootfs, "mnt/games/prefix").mkdirs());
-        write(new File(rootfs, "etc/wine-runtime.properties"), "schemaVersion=2\nruntimeBackend=rootfs_proot\narchitecture=aarch64\nruntimePackages=rootfs_wine_10.0\ngraphicsDrivers=rootfs-llvmpipe\ndxWrappers=rootfs-wined3d\naudioDrivers=pulseaudio\n");
+        write(new File(rootfs, "etc/wine-runtime.properties"), "schemaVersion=2\nbaseImage=ubuntu:resolute\nrecipeVersion=13\nruntimeBackend=rootfs_proot\narchitecture=aarch64\nruntimePackages=rootfs_wine_10.0\ngraphicsDrivers=rootfs-llvmpipe\ndxWrappers=rootfs-wined3d\naudioDrivers=pulseaudio\n");
         assertEquals(rootfs.getCanonicalPath(), new RootfsProotBackend().resolveRuntimeRoot(paths,
             new com.termux.ui.components.ComponentStoragePaths(rootfs),
             profile(GameRuntimeBackendType.ROOTFS_PROOT, "rootfs-llvmpipe", "custom-dxvk-test", "")));
@@ -149,7 +149,7 @@ public final class CustomComponentSelectionTest {
             "rootfs_wine_10.0" : "glibc_wine_9.3-vanilla", graphics, dx, "pulseaudio", "1280x720", "INTERMEDIATE",
             box64.isEmpty() ? Collections.emptyMap() : Collections.singletonMap("GAMES_CUSTOM_BOX64_ID", box64),
             "xinput", LaunchExecutionMode.APP_SHELL, Collections.emptyMap(), backend,
-            backend == GameRuntimeBackendType.ROOTFS_PROOT ? "debian-13-games-rootfs" : "", "game-container");
+            backend == GameRuntimeBackendType.ROOTFS_PROOT ? "ubuntu-26.04-games-rootfs" : "", "game-container");
     }
     static void write(File file, String content) throws Exception {
         assertTrue(file.getParentFile().isDirectory() || file.getParentFile().mkdirs());

@@ -31,9 +31,9 @@ public class PrebuiltPrefixAssetsTest {
     }
 
     @Test public void independentResourcesAreSelectedOnlyForTheirWine() {
-        assertEquals("rootfs_prefix_hangover_pdb2", PrebuiltPrefixAssets.componentId("rootfs_hangover_11.16"));
-        assertEquals("rootfs_prefix_wine10_wow64", PrebuiltPrefixAssets.componentId("rootfs_wine_10.0"));
-        assertEquals("rootfs_prefix_proton11_wow64", PrebuiltPrefixAssets.componentId("rootfs_proton_11.0"));
+        assertEquals("rootfs_prefix_hangover_pdb2_ubuntu2604", PrebuiltPrefixAssets.componentId("rootfs_hangover_11.16"));
+        assertEquals("rootfs_prefix_wine10_wow64_ubuntu2604", PrebuiltPrefixAssets.componentId("rootfs_wine_10.0"));
+        assertEquals("rootfs_prefix_proton11_wow64_ubuntu2604", PrebuiltPrefixAssets.componentId("rootfs_proton_11.0"));
         assertNull(PrebuiltPrefixAssets.componentId("custom-wine-example"));
     }
 

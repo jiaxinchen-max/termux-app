@@ -19,7 +19,7 @@ final class PrebuiltPrefixAssets {
 
     static String componentId(String wine) {
         String folder = folder(wine);
-        return folder == null ? null : "rootfs_" + folder.replace('-', '_');
+        return folder == null ? null : "rootfs_" + folder.replace('-', '_') + "_ubuntu2604";
     }
 
     static void copy(File source, File target, byte[] trustedBundle) throws IOException {

@@ -29,25 +29,25 @@ public class ComponentIndexParserTest {
 
         assertEquals(2, index.getSchemaVersion());
         assertEquals("2026-11-10T10:46:24Z", index.getGeneratedAt());
-        assertEquals(43, index.getComponents().size());
-        ComponentDescriptor image = index.find("rootfs_debian13_hangover_pdb2_minimal").get();
+        assertEquals(47, index.getComponents().size());
+        ComponentDescriptor image = index.find("rootfs_ubuntu2604_hangover_pdb2_minimal").get();
         assertEquals(ComponentType.IMAGE_FS, image.getType());
         assertTrue(image.isBase());
         assertTrue(image.isRecommended());
         assertFalse(image.isSelectable());
         assertTrue(image.supportsBackend(GameRuntimeBackendType.ROOTFS_PROOT));
-        assertEquals(2, image.getVersion());
+        assertEquals(1, image.getVersion());
         assertEquals("https://github.com/jiaxinchen-max/termux-app-packages/releases/download/"
-            + "rootfs-debian13-hangover-pdb2-minimal-v2/"
-            + "rootfs-debian13-hangover-pdb2-minimal-v2.tar.zst", image.getUrl());
-        assertEquals(320439261L, image.getSize());
-        assertEquals("e480a35af360dfd916d961be3cfaa2a7ab5208118e3899cca14662f84cda5b4f",
+            + "rootfs-ubuntu2604-hangover-pdb2-minimal-v1/"
+            + "rootfs-ubuntu2604-hangover-pdb2-minimal-v1.tar.zst", image.getUrl());
+        assertEquals(421418301L, image.getSize());
+        assertEquals("656b0a9214f2188c3f8b48c9d218c3275e97753690f827b52784536300bb8877",
             image.getSha256());
         assertFalse(index.find("termux-glibc").isPresent());
         assertFalse(index.find("rootfs_hangover_11.16").isPresent());
         assertTrue(index.find("glibc_box64_0.4.4").isPresent());
         for (String automatic : new String[]{"glibc_scripts_29", "glibc_fonts_1", "glibc_prefix-apps_3",
-                "glibc_box64_0.2.8", "rootfs_debian13_hangover_pdb2_minimal"}) {
+                "glibc_box64_0.2.8", "rootfs_ubuntu2604_hangover_pdb2_minimal"}) {
             assertTrue("automatic component must remain available internally but hidden: " + automatic,
                 index.find(automatic).get().isHidden());
         }
@@ -74,8 +74,8 @@ public class ComponentIndexParserTest {
         assertEquals(2, boxProton.getVersion());
         assertEquals("acf200a1116c7557910afda81d4a853efe679bced5d63f120d46cf98861ed6b9",
             boxProton.getSha256());
-        for (String id : new String[]{"rootfs_prefix_hangover_pdb2", "rootfs_prefix_wine10_wow64",
-                "rootfs_prefix_proton11_wow64"}) {
+        for (String id : new String[]{"rootfs_prefix_hangover_pdb2_ubuntu2604", "rootfs_prefix_wine10_wow64_ubuntu2604",
+                "rootfs_prefix_proton11_wow64_ubuntu2604"}) {
             ComponentDescriptor prefix = index.find(id).get();
             assertTrue(prefix.isHidden());
             assertFalse(prefix.isSelectable());

@@ -174,7 +174,7 @@ case "$SETUP_SCHEMA" in
             [ -z "$SETUP_PENDING_COMPONENT" ] || fail invalid_setup_spec 64 ;;
     *) fail unsupported_setup_spec 64 ;;
 esac
-[ "$SETUP_SCHEMA" = 4 ] && [ "$VERSION" = 12 ] || fail unsupported_setup_spec 64
+[ "$SETUP_SCHEMA" = 4 ] && [ "$VERSION" = 13 ] || fail unsupported_setup_spec 64
 case "$BASE_ONLY" in true|false) ;; *) fail invalid_setup_spec 64 ;; esac
 # Required unconditionally, even for BASE_ONLY: that path also builds the shared template Wine
 # prefix (see below), sourcing the same rootfs_prefix_warmup.sh functions a per-container warmup
@@ -272,7 +272,7 @@ PREVIOUS_ROOTFS="$SHARED_ROOTFS_CONTAINER_DIRECTORY.previous"
 IMAGE_HELPER="$RECIPE_DIRECTORY/prebuilt_rootfs.py"
 IMAGE_DESCRIPTOR="$RECIPE_DIRECTORY/image.json"
 IMAGE_OWNER="$BUILD_DIRECTORY/.idap-image-owner"
-IMAGE_COMPONENT=rootfs_debian13_hangover_pdb2_minimal
+IMAGE_COMPONENT=rootfs_ubuntu2604_hangover_pdb2_minimal
 warmup_fail() { fail "$1" 70; }
 . "$PREFIX_WARMUP_SCRIPT"
 

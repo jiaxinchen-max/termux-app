@@ -1,0 +1,16 @@
+schema: review_findings_v1
+change_id: use-ubuntu-2604-wine-proot-base
+stage: pre-push-review
+verdict: APPROVED
+scope: 本次Ubuntu26.04 Wine PRoot迁移主应用提交推送
+findings: []
+reviewed:
+  - 用户最新明确授权stage、commit及push，无需重复询问。
+  - 105项既有实施摘要全部一致，沿用已记录的48项Java回归、18项运行验证及APK核验。
+  - 远端master-x11-submodule-tmp与当前HEAD同为572b115151160c509b6d27a86d9278c2a4ca8d48，使用非force推送。
+  - 提交只包含本次迁移源码、OpenSpec与本run台账；七个native子模块、wrapper索引、pycache及大型制品排除。
+  - 待提交内容未发现GitHub令牌或私钥模式，无大于1MB文件。
+limitations:
+  - strict脚本缺失，已有实际exit127证据，不能宣称严格门禁通过。
+  - 单一builder CLI从零完整执行、App UI及硬件GPU验收、产品一致性和最终用户接受仍Pending。
+  - 不安装APK、不归档，不更改原名APK或其构建来源记录。

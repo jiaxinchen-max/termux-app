@@ -51,7 +51,7 @@ public class ComponentCatalogProjectionTest {
             index.find("glibc_box64_0.4.4").get().getDisplayName());
         assertFalse(index.find("rootfs_hangover_11.16").isPresent());
         assertEquals(ComponentType.IMAGE_FS,
-            index.find("rootfs_debian13_hangover_pdb2_minimal").get().getType());
+            index.find("rootfs_ubuntu2604_hangover_pdb2_minimal").get().getType());
         assertEquals(ComponentType.RUNTIME_SUPPORT,
             index.find("glibc_scripts_29").get().getType());
         assertFalse(index.find("termux-glibc").isPresent());

@@ -1,0 +1,6 @@
+schema: review_findings_v1
+change_id: use-ubuntu-2604-wine-proot-base
+stage: product-consistency
+verdict: PENDING
+findings: []
+reason: 隔离验证、候选发布及APK交付完成；App/GPU及最终用户接受待完成，当前不开展最终一致性认定

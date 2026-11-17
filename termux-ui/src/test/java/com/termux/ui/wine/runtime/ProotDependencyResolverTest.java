@@ -20,7 +20,7 @@ public class ProotDependencyResolverTest {
         RuntimeProfile p = new RuntimeProfile("game", wine, graphics, dx, "pulseaudio",
             "1280x720", "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", "container");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs", "container");
         return new ProotDependencyResolver().requiredComponentIds(p, null);
     }
     @Test public void hangoverWined3dOnlyNeedsBaseSource() {

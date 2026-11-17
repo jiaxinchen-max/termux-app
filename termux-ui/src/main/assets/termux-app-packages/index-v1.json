@@ -861,6 +861,86 @@
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/native_prefix_proton_11.0-v1/native_prefix_proton_11.0-v1.tar.gz",
       "size": 4185376,
       "sha256": "83a696d24b261444f03184b65fb28f9b75ea6a094e2b942677c8a8c099f4560f"
+    },
+    {
+      "id": "rootfs_ubuntu2604_hangover_pdb2_minimal",
+      "category": "runtime",
+      "type": "image_fs",
+      "displayName": "Ubuntu 26.04 + Hangover (minimal)",
+      "versionName": "pdb2 minimal v1",
+      "summary": "Preinstalled minimal Ubuntu 26.04 RootFS with Hangover; extracted and verified without guest package installation.",
+      "framework": "Ubuntu PRoot",
+      "base": true,
+      "recommended": true,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "rootfs_proot"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-ubuntu2604-hangover-pdb2-minimal-v1/rootfs-ubuntu2604-hangover-pdb2-minimal-v1.tar.zst",
+      "size": 421418301,
+      "sha256": "656b0a9214f2188c3f8b48c9d218c3275e97753690f827b52784536300bb8877"
+    },
+    {
+      "id": "rootfs_prefix_hangover_pdb2_ubuntu2604",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Wine environment",
+      "versionName": "Ubuntu 26.04 v1",
+      "summary": "Automatically prepared Wine environment.",
+      "framework": "ROOTFS",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "rootfs_proot"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-hangover-pdb2-ubuntu2604-v1/rootfs-prefix-hangover-pdb2-ubuntu2604-v1.tar.gz",
+      "size": 4455741,
+      "sha256": "129f42647f034f29cafe9c6a0f0aa8106db54a5eb8885a380492a866e2535b6f"
+    },
+    {
+      "id": "rootfs_prefix_wine10_wow64_ubuntu2604",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Wine environment",
+      "versionName": "Ubuntu 26.04 v1",
+      "summary": "Automatically prepared Wine environment.",
+      "framework": "ROOTFS",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "rootfs_proot"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-wine10-wow64-ubuntu2604-v1/rootfs-prefix-wine10-wow64-ubuntu2604-v1.tar.gz",
+      "size": 2210153,
+      "sha256": "28393042e4aab5e949cc524ff155702e17626177f0c08b50564ab415c95b028d"
+    },
+    {
+      "id": "rootfs_prefix_proton11_wow64_ubuntu2604",
+      "category": "runtime",
+      "type": "runtime_support",
+      "displayName": "Wine environment",
+      "versionName": "Ubuntu 26.04 v1",
+      "summary": "Automatically prepared Wine environment.",
+      "framework": "ROOTFS",
+      "base": false,
+      "recommended": false,
+      "hidden": true,
+      "profileValue": "",
+      "runtimeBackends": [
+        "rootfs_proot"
+      ],
+      "version": 1,
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-proton11-wow64-ubuntu2604-v1/rootfs-prefix-proton11-wow64-ubuntu2604-v1.tar.gz",
+      "size": 2506910,
+      "sha256": "e5e6ba50b3ae77d43bde84c77875f2a9798c38d566d215dd035a08e19ba70bc2"
     }
   ]
 }

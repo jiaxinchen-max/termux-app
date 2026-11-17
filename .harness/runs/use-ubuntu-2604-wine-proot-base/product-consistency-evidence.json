@@ -1,0 +1,9 @@
+{
+  "change_id": "use-ubuntu-2604-wine-proot-base",
+  "status": "Pending",
+  "reason": "隔离测试、候选发布及原名APK交付已完成；App/GPU及最终用户接受待完成，产品基线尚不存在",
+  "documents": [
+    "docs/product/wine-runtime.md"
+  ],
+  "claims": []
+}

@@ -23,7 +23,7 @@ import time
 
 REVISION = 'pdb2-incremental-1'
 MARKER = '.wine-minimize-candidate.json'
-PACKAGE = '11.16~trixie+idap.pdb2'
+PACKAGE = '11.16~ubuntu26.04+idap.pdb2.1'
 LIVE = 'games-shared-rootfs'
 BUILD_BATCHES = ('development', 'resources', 'fonts', 'build-tools', 'gpu-drivers')  # Expand only after each batch passes device validation.
 TRIM_RECEIPT = 'etc/wine-rootfs-trim.json'
@@ -200,7 +200,7 @@ def external_wine_protected(root):
 def protect(root, assets, snapshot=None):
     metadata = json.loads((assets / 'bundle.json').read_text())
     require(metadata['sourceComponentSha256'] ==
-            'ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1', 'component_identity')
+            '8deeb1286d8227d267d261420ecd04321c9670802a3ce1b70da807a4d8d54885', 'component_identity')
     require(digest(assets / 'manifest.json') == metadata['assets']['manifest.json'], 'manifest_digest')
     records = json.loads((assets / 'manifest.json').read_text())
     protected = {}
@@ -292,8 +292,9 @@ def candidate_root(root):
 def build_root(root, termux_files):
     require(termux_files.is_dir() and termux_files == termux_files.resolve(strict=True),
             'build_owner_alias')
-    expected = termux_files / 'usr/var/lib/proot-distro/containers/tmpl-build/rootfs'
-    require(root == expected and root.is_dir() and root == root.resolve(strict=True),
+    containers = termux_files / 'usr/var/lib/proot-distro/containers'
+    allowed = {containers / name / 'rootfs' for name in ('tmpl-build', 'wine-ubuntu2604-build')}
+    require(root in allowed and root.is_dir() and root == root.resolve(strict=True),
             'not_private_build_root')
     require(LIVE not in root.parts, 'live_build_forbidden')
     idle(root)

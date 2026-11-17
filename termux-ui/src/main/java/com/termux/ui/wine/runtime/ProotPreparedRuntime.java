@@ -24,11 +24,13 @@ public final class ProotPreparedRuntime {
         if (!"external-components-v1".equals(manifest.getProperty("layout"))) {
             throw new IOException("rootfs_runtime_layout_unsupported");
         }
+        requireUbuntuBase(rootfs);
         return true;
     }
 
     public static ProotBindingSnapshot require(GameStoragePaths paths, RuntimeProfile profile)
         throws IOException {
+        requireUbuntuBase(paths.getSharedRootfsDirectory());
         Properties manifest = manifest(paths.getSharedRootfsDirectory());
         if (!"3".equals(manifest.getProperty("schemaVersion")) ||
             !"external-components-v1".equals(manifest.getProperty("layout"))) {
@@ -51,6 +53,14 @@ public final class ProotPreparedRuntime {
         new ProotBindingResolver(new ComponentStoragePaths(paths.getTermuxPrefixDirectory().getParentFile()).getInstallDirectory())
             .validate(snapshot.getBindings());
         return snapshot;
+    }
+
+    static void requireUbuntuBase(File rootfs) throws IOException {
+        Properties value = manifest(rootfs);
+        if (!"ubuntu:resolute".equals(value.getProperty("baseImage")) ||
+            !Integer.toString(RootfsSetupRecipe.DEFAULT_VERSION).equals(value.getProperty("recipeVersion"))) {
+            throw new IOException("rootfs_ubuntu_setup_required");
+        }
     }
 
     private static Properties manifest(File rootfs) throws IOException {

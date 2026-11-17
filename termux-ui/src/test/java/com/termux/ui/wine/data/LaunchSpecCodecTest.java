@@ -125,7 +125,7 @@ public class LaunchSpecCodecTest {
             base.getLaunchExecutionMode(), base.getEnvironment(), base.getEventPath(),
             base.getLogPath(), base.getLockPath(), base.getCancelPath(),
             base.getTimeoutSeconds(), GameRuntimeBackendType.ROOTFS_PROOT,
-            "debian-13-games-rootfs",
+            "ubuntu-26.04-games-rootfs",
             "/data/data/com.termux/files/front/components/install/debian/versions/v1/rootfs",
             "/data/data/com.termux/files/front/wine/container-1/home-rootfs_proot");
         File target = temporary.newFile("rootfs.launchspec");
@@ -134,7 +134,7 @@ public class LaunchSpecCodecTest {
         LaunchSpec restored = new LaunchSpecCodec().read(target);
 
         assertEquals(GameRuntimeBackendType.ROOTFS_PROOT, restored.getRuntimeBackendType());
-        assertEquals("debian-13-games-rootfs", restored.getRootfsPackage());
+        assertEquals("ubuntu-26.04-games-rootfs", restored.getRootfsPackage());
         assertEquals(rootfs.getRuntimeRootPath(), restored.getRuntimeRootPath());
         assertEquals(rootfs.getHomeDirectoryPath(), restored.getHomeDirectoryPath());
     }
@@ -231,7 +231,7 @@ public class LaunchSpecCodecTest {
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", b.getResolution(), b.getBox64Preset(),
             b.getInputProfileId(), b.getLaunchExecutionMode(), b.getEnvironment(), b.getEventPath(),
             b.getLogPath(), b.getLockPath(), b.getCancelPath(), b.getTimeoutSeconds(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", "/private/rootfs",
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs", "/private/rootfs",
             "/private/home", false, Collections.singletonList(binding));
     }
 

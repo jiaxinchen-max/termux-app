@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-11-17T18:00:53.180975+00:00",
+  "sourceHashesCompared": 105,
+  "sourceHashMismatches": [],
+  "largeFilesOver1MB": [],
+  "credentialPatternFiles": [],
+  "diffCheck": "Passed",
+  "remoteRef": "refs/heads/master-x11-submodule-tmp",
+  "remoteCommitBefore": "572b115151160c509b6d27a86d9278c2a4ca8d48",
+  "existingChecksReused": true,
+  "nativeSubmodulesExcluded": true,
+  "strictGate": "Unavailable_ExistingExit127Evidence",
+  "status": "ReadyForAuthorizedStageCommitPush"
+}

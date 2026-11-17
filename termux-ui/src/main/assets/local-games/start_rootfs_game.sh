@@ -340,6 +340,8 @@ manifest_has() {
 }
 
 MANIFEST_SCHEMA=$(manifest_value schemaVersion 2>/dev/null) || terminal_failure rootfs_runtime_manifest_unsupported
+[ "$(manifest_value baseImage 2>/dev/null)" = ubuntu:resolute ] &&
+    [ "$(manifest_value recipeVersion 2>/dev/null)" = 13 ] || terminal_failure rootfs_ubuntu_setup_required
 case "$MANIFEST_SCHEMA" in 1|2|3) ;; *) terminal_failure rootfs_runtime_manifest_unsupported ;; esac
 if [ "$MANIFEST_SCHEMA" != 1 ]; then
     [ "$(manifest_value runtimeBackend 2>/dev/null)" = rootfs_proot ] || terminal_failure rootfs_runtime_backend_mismatch

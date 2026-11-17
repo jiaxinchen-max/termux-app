@@ -105,13 +105,13 @@ public class FileRuntimeProfileRepositoryTest {
             "rootfs-virgl-mesa", "rootfs-wined3d", base.getAudioDriver(), base.getResolution(),
             base.getBox64Preset(), base.getEnvironment(), base.getInputProfileId(),
             base.getLaunchExecutionMode(), base.getComponentVersions(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs");
 
         repository.save(rootfs);
 
         RuntimeProfile restored = repository.find("game-1").get();
         assertEquals(GameRuntimeBackendType.ROOTFS_PROOT, restored.getRuntimeBackendType());
-        assertEquals("debian-13-games-rootfs", restored.getRootfsPackage());
+        assertEquals("ubuntu-26.04-games-rootfs", restored.getRootfsPackage());
     }
 
     @Test public void eachBackendPersistsItsExactBox64038Selection() throws Exception {
@@ -125,7 +125,7 @@ public class FileRuntimeProfileRepositoryTest {
                 base.getAudioDriver(), base.getResolution(), base.getBox64Preset(),
                 java.util.Collections.singletonMap("GAMES_CUSTOM_BOX64_ID", id), base.getInputProfileId(),
                 base.getLaunchExecutionMode(), base.getComponentVersions(), backend,
-                proot ? "debian-13-games-rootfs" : "");
+                proot ? "ubuntu-26.04-games-rootfs" : "");
             repository.save(profile);
             assertEquals(id, repository.find(profile.getId()).get().getEnvironment().get("GAMES_CUSTOM_BOX64_ID"));
         }

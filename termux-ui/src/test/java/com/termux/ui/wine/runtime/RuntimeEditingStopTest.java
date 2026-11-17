@@ -17,6 +17,41 @@ public class RuntimeEditingStopTest {
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
     private static final String SHA = String.join("", Collections.nCopies(64, "a"));
 
+    @Test public void sharedRebuildBlocksEveryProotContainerButNotNativeWine() throws Exception {
+        File files = temporary.newFolder(); GameStoragePaths paths = new GameStoragePaths(files);
+        FileRuntimeProfileRepository profiles = new FileRuntimeProfileRepository(paths.getProfilesDirectory());
+        profiles.save(profile(GameRuntimeBackendType.ROOTFS_PROOT, "one", "container-one"));
+        profiles.save(profile(GameRuntimeBackendType.ROOTFS_PROOT, "two", "container-two"));
+        profiles.save(profile(GameRuntimeBackendType.GLIBC_TERMUX_BOX, "native", "default"));
+        FileRuntimeSetupTaskRepository tasks = new FileRuntimeSetupTaskRepository(paths.getRuntimeSetupTasksDirectory());
+        RuntimeSetupTask rebuild = RuntimeSetupTask.queued("rebuild", RootfsSetupRecipe.DEFAULT_PACKAGE,
+            RootfsSetupRecipe.DEFAULT_VERSION, SHA, RootfsSetupRecipe.IMAGE_COMPONENT,
+            "shared-rebuild", "shared-rebuild", true, 1);
+        tasks.save(rebuild);
+        for (String id : Arrays.asList("one", "two"))
+            assertEquals("rebuild", com.termux.ui.wine.api.ActiveWineInstallation.find(files, id).taskId);
+        assertNull(com.termux.ui.wine.api.ActiveWineInstallation.find(files, "native"));
+        tasks.save(rebuild.transition(RuntimeSetupTaskState.FAILED, "test_failure", 2));
+        assertNull(com.termux.ui.wine.api.ActiveWineInstallation.find(files, "one"));
+    }
+
+    @Test public void sharedRebuildStopsRootAndPendingShellsAndPropagatesFailure() throws Exception {
+        File files = temporary.newFolder(); GameStoragePaths paths = new GameStoragePaths(files);
+        List<String> stopped = new ArrayList<>();
+        RuntimeEditingStop.sharedRootfs(files, new Host() {
+            public void forceStopRuntimeProcesses(List<String> scopes) { stopped.addAll(scopes); }
+        });
+        assertEquals(Arrays.asList(paths.getSharedRootfsDirectory().getCanonicalPath(),
+            new File(paths.getRuntimeDirectory(), "start_rootfs_game.sh").getCanonicalPath()), stopped);
+        IOException failure = assertThrows(IOException.class, () -> RuntimeEditingStop.sharedRootfs(files,
+            new Host() {
+                public void forceStopRuntimeProcesses(List<String> scopes) throws LaunchHostException {
+                    throw new LaunchHostException("runtime_force_stop_failed", true, null);
+                }
+            }));
+        assertEquals("runtime_force_stop_failed", failure.getMessage());
+    }
+
     @Test public void bothBackendsProtectInstallationAndOnlyStopAfterItEnds() throws Exception {
         for (GameRuntimeBackendType backend : GameRuntimeBackendType.values()) {
             for (RuntimeSetupTaskState state : RuntimeSetupTaskState.values()) {

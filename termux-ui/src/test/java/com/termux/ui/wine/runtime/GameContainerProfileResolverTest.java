@@ -58,9 +58,9 @@ public final class GameContainerProfileResolverTest {
         RuntimeProfile gameProfile = new RuntimeProfile("game-2", "rootfs_wine_10.0",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "", LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", "container-stale");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs", "container-stale");
         GameContainer staleContainer = new GameContainer("container-stale", "Independent container",
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", RuntimeTranslator.HANGOVER,
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs", RuntimeTranslator.HANGOVER,
             "rootfs_hangover_11.16", "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap());
 

@@ -1,0 +1,47 @@
+{
+  "state": "Published_PublicDownloadsAndIndexesVerified",
+  "approval": "Approved_ExplicitUser_FourNewPrereleases",
+  "productionIndexEnabled": true,
+  "urlState": "Published_PublicDownloadVerified",
+  "entry": "../prebuilt-rootfs-index-entry.json",
+  "descriptor": "../../../termux-ui/src/main/assets/local-games/runtime-rootfs-v13/image.json",
+  "remoteIndexPush": "Completed",
+  "assets": [
+    {
+      "componentId": "rootfs_ubuntu2604_hangover_pdb2_minimal",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-ubuntu2604-hangover-pdb2-minimal-v1/rootfs-ubuntu2604-hangover-pdb2-minimal-v1.tar.zst",
+      "bytes": 421418301,
+      "sha256": "656b0a9214f2188c3f8b48c9d218c3275e97753690f827b52784536300bb8877",
+      "releaseUrl": "https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/rootfs-ubuntu2604-hangover-pdb2-minimal-v1"
+    },
+    {
+      "componentId": "rootfs_prefix_hangover_pdb2_ubuntu2604",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-hangover-pdb2-ubuntu2604-v1/rootfs-prefix-hangover-pdb2-ubuntu2604-v1.tar.gz",
+      "bytes": 4455741,
+      "sha256": "129f42647f034f29cafe9c6a0f0aa8106db54a5eb8885a380492a866e2535b6f",
+      "releaseUrl": "https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/rootfs-prefix-hangover-pdb2-ubuntu2604-v1"
+    },
+    {
+      "componentId": "rootfs_prefix_wine10_wow64_ubuntu2604",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-wine10-wow64-ubuntu2604-v1/rootfs-prefix-wine10-wow64-ubuntu2604-v1.tar.gz",
+      "bytes": 2210153,
+      "sha256": "28393042e4aab5e949cc524ff155702e17626177f0c08b50564ab415c95b028d",
+      "releaseUrl": "https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/rootfs-prefix-wine10-wow64-ubuntu2604-v1"
+    },
+    {
+      "componentId": "rootfs_prefix_proton11_wow64_ubuntu2604",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-proton11-wow64-ubuntu2604-v1/rootfs-prefix-proton11-wow64-ubuntu2604-v1.tar.gz",
+      "bytes": 2506910,
+      "sha256": "e5e6ba50b3ae77d43bde84c77875f2a9798c38d566d215dd035a08e19ba70bc2",
+      "releaseUrl": "https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/rootfs-prefix-proton11-wow64-ubuntu2604-v1"
+    }
+  ],
+  "assetIndexCommit": "7d2bb960ee1847ee92e93b76e06363d739239ecc",
+  "apk": {
+    "file": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "bytes": 45485383,
+    "sha256": "5cdf36d6ed9ed957ee9f389d7ec0da207dd43480e68d10d2811d3c8c5c61ceb3",
+    "installation": "NotPerformed",
+    "acceptance": "Pending_AppUI_HardwareGPU"
+  }
+}

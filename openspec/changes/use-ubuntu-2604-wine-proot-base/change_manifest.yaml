@@ -1,0 +1,62 @@
+change_id: use-ubuntu-2604-wine-proot-base
+stage: verification
+status: InProgress
+approval:
+  requirement: 用户要求Wine PRoot底包与Desktop PRoot统一为Ubuntu26.04
+  planning: Approved_User_2026_11_17_No_Legacy_Compatibility
+  implementation: Approved_Direct_User_Request
+  existing_fixes_git_push: Completed_572b115151160c509b6d27a86d9278c2a4ca8d48
+  main_application_git_operations: Authorized_User_ExplicitPush_2026_11_17
+  asset_index_push: Completed_7d2bb960ee1847ee92e93b76e06363d739239ecc
+  release_publication: Completed_FourNewPrereleases_PublicFullDownloadsVerified
+  device_deployment: NotAuthorized
+api_docs:
+  status: N/A
+  reason: 仅本地运行环境与静态组件元数据，不新增或修改HTTP接口合约
+product_docs:
+  status: Required
+  reason: 改变用户可见基础发行版、重建及旧容器兼容边界
+  documents: [docs/product/wine-runtime.md]
+  consistency:
+    status: Pending
+    evidence: .harness/runs/use-ubuntu-2604-wine-proot-base/product-consistency-evidence.json
+    findings: .harness/runs/use-ubuntu-2604-wine-proot-base/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  reason: 未发现仓库保护路径定义，实施前复核新出现的适用规则
+  impact: 运行身份、组件索引、共享根和模板路径、安装启动及备份恢复
+  rollback: 沿用共享根暂存与previous原子回滚，不实现历史数据兼容
+  verification: ABI及来源核验、故障回归、真实Android隔离验证和原名APK核验
+  approval: Approved_User_Implementation_Request
+tooling:
+  harness_bootstrap: Missing
+  strict_gate: Unavailable
+  openspec_cli: Missing
+  baseline_specs: Missing
+  product_docs: Missing
+apk_filename: termux-app_apt-android-7-debug_arm64-v8a.apk
+acceptance: Pending
+archive: NotAuthorized
+
+implementation_evidence:
+  current_summary: .harness/runs/use-ubuntu-2604-wine-proot-base/summary.md
+  review: .harness/runs/use-ubuntu-2604-wine-proot-base/implementation-review.yaml
+  artifacts: /home/user/workspace/artifacts/ubuntu-wine-rootfs
+  cli_exit_137: RawEvidenceRetained_NotStandaloneMigrationGate
+  jit_and_production_exit_behavior: Unchanged
+  runtime_acceptance: Pending_AppUI_HardwareGPU
+  default_downloads: Switched_FourPublicVerifiedAssets
+  candidate_state: Published_OriginalNameApkDelivered
+  source_metadata: RealImageAndThreeBundlesVerified
+  public_runtime_tests: 18_Passed
+  media_cleanup: 12_Completed
+  raw_probe_exits: 18_Zero
+  native_elf: 1511_NoDirectMissingDependencies
+  gst_factories: 14_Loaded
+  final_archive: FullStream15448MembersVerified_NotRepeatedDiskRestore
+  monolithic_builder_from_scratch: NotRun
+  verification_index: .harness/runs/use-ubuntu-2604-wine-proot-base/verification-evidence.json
+  publication_review: /home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/release-review.md
+  planned_indexes: Bundled43To47_Repository21To25_ExistingEntriesUnchanged
+  apk_delivery: /home/user/workspace/artifacts/ubuntu-wine-rootfs/apk-download-verification.json
+  published_index_java_tests: 48_Passed

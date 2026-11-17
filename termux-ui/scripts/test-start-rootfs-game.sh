@@ -116,6 +116,8 @@ printf '#!/bin/sh\n[ -z "${PULSE_SERVER+x}" ] || exit 64\nprintf "%%s\\n" "$*" >
 printf '#!/bin/sh\nprintf "aarch64\\n"\n' > "$FAKE_BIN/uname"
 cat > "$ROOTFS/etc/wine-runtime.properties" <<'EOF'
 schemaVersion=2
+baseImage=ubuntu:resolute
+recipeVersion=13
 runtimeBackend=rootfs_proot
 architecture=aarch64
 runtimePackages=rootfs_hangover_11.16,rootfs_wine_10.0
@@ -155,7 +157,7 @@ encode() { printf '%s' "$1" | base64 | tr -d '\n'; }
     printf 'inputProfileId=%s\n' "$(encode xinput)"
     printf 'launchExecutionMode=%s\n' "$(encode app_shell)"
     printf 'runtimeBackendType=%s\n' "$(encode rootfs_proot)"
-    printf 'rootfsPackage=%s\n' "$(encode debian-13-games-rootfs)"
+    printf 'rootfsPackage=%s\n' "$(encode ubuntu-26.04-games-rootfs)"
     printf 'runtimeRootPath=%s\n' "$(encode "$ROOTFS")"
     printf 'homeDirectory=%s\n' "$(encode "$HOME_PATH")"
     printf 'desktopOnly=0\n'
@@ -368,6 +370,8 @@ assert_frozen_bind_argv
 # optional capabilities. Ordinary launch must consume the prepared identity and never wineboot.
 cat > "$ROOTFS/etc/wine-runtime.properties" <<'V11MANIFEST'
 schemaVersion=3
+baseImage=ubuntu:resolute
+recipeVersion=13
 layout=external-components-v1
 recipeSha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 runtimeBackend=rootfs_proot

@@ -177,7 +177,7 @@ public class RuntimeEnvironmentStatusTest {
         assertTrue(new File(root, "opt/box64/rootfs_box64_0.4.4/bin/box64").delete());
         File manifest = new File(root, "etc/wine-runtime.properties");
         java.nio.file.Files.write(manifest.toPath(),
-            "schemaVersion=3\nlayout=external-components-v1\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            "schemaVersion=3\nlayout=external-components-v1\nbaseImage=ubuntu:resolute\nrecipeVersion=13\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         assertEquals(RuntimeReadinessState.READY, new RuntimeEnvironmentStatus(paths).rootfsState());
         java.nio.file.Files.write(manifest.toPath(),
             "schemaVersion=3\nlayout=unknown\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -226,7 +226,7 @@ public class RuntimeEnvironmentStatusTest {
         assertTrue(font.createNewFile());
         File manifest = new File(root, "etc/wine-runtime.properties");
         assertTrue(manifest.getParentFile().mkdirs());
-        assertTrue(manifest.createNewFile());
+        java.nio.file.Files.write(manifest.toPath(), "schemaVersion=3\nlayout=external-components-v1\nbaseImage=ubuntu:resolute\nrecipeVersion=13\n".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
         assertTrue(new File(root, "mnt/games/game").mkdirs());
         assertTrue(new File(root, "mnt/games/prefix").mkdirs());
         return root;

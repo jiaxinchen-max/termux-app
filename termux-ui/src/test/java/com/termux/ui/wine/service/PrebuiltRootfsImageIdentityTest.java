@@ -8,18 +8,18 @@ import static org.junit.Assert.*;
 
 public class PrebuiltRootfsImageIdentityTest {
     private static final String SHA = new String(new char[64]).replace('\0', 'a');
-    private static final String SOURCE = "ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1";
+    private static final String SOURCE = "8deeb1286d8227d267d261420ecd04321c9670802a3ce1b70da807a4d8d54885";
     private static final String IMAGE = "{\"imageId\":\"" + RootfsSetupRecipe.IMAGE_COMPONENT +
         "\",\"sourceComponentSha256\":\"" + SOURCE + "\",\"sha256\":\"" + SHA + "\"}";
     @Test public void imageAndWineSourceAreSeparate() throws Exception {
         RootfsSetupAssetInstaller.requireImageSource(IMAGE, new String[]{SHA});
         RootfsSetupRecipe recipe = RootfsSetupRecipe.require(RootfsSetupRecipe.DEFAULT_PACKAGE);
-        assertEquals(12, recipe.getVersion());
+        assertEquals(13, recipe.getVersion());
         assertEquals(Collections.singletonList(RootfsSetupRecipe.IMAGE_COMPONENT), recipe.getBaseComponentIds());
         assertNotEquals(RootfsSetupRecipe.DEFAULT_SOURCE, recipe.getSourceComponentId());
     }
     @Test public void legacyRecipesAreRejectedBeforeReadingAssets() {
-        for (int version : new int[]{10, 11}) {
+        for (int version : new int[]{10, 11, 12}) {
             try {
                 RootfsSetupRecipe.require(RootfsSetupRecipe.DEFAULT_PACKAGE, version);
                 fail("obsolete recipe accepted: " + version);
@@ -41,7 +41,7 @@ public class PrebuiltRootfsImageIdentityTest {
         RootfsSetupAssetInstaller.requireImageSource("{}", new String[]{SHA});
     }
     @Test public void candidateCatalogMatchesPinnedAssetAndRetainsWineSource() throws Exception {
-        java.nio.file.Path base = java.nio.file.Paths.get("src/main/assets/local-games/runtime-rootfs-v12");
+        java.nio.file.Path base = java.nio.file.Paths.get("src/main/assets/local-games/runtime-rootfs-v13");
         org.json.JSONObject image = new org.json.JSONObject(new String(java.nio.file.Files.readAllBytes(base.resolve("image.json")), java.nio.charset.StandardCharsets.UTF_8));
         java.nio.file.Path entryPath = java.nio.file.Paths.get("../distribution/termux-app-packages/prebuilt-rootfs-index-entry.json");
         String entry = new String(java.nio.file.Files.readAllBytes(entryPath), java.nio.charset.StandardCharsets.UTF_8);

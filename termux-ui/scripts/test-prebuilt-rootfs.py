@@ -21,7 +21,7 @@ class ImageTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name); self.root = self.base / 'restored'; self.archive = self.base / 'test.tar.zst'; self.descriptor = self.base / 'image.json'; self.recipe = 'a' * 64
-        self.files = {'etc/wine-runtime.properties': b'layout=external-components-v1\n', 'usr/bin/wine': b'wine', '.l2s/one': b'data'}
+        self.files = {'etc/wine-runtime.properties': b'layout=external-components-v1\nbaseImage=ubuntu:resolute\nrecipeVersion=13\n', 'usr/bin/wine': b'wine', '.l2s/one': b'data'}
         self.records = [{'path': n, 'type': 'file', 'mode': 0o644, 'bytes': len(v), 'sha256': m.sha_bytes(v)} for n, v in self.files.items()]
         self.links = {'bin': '/usr/bin', 'usr/bin/linked': '../../.l2s/one'}
         self.records += [{'path': n, 'type': 'symlink', 'mode': 0o777, 'link': v} for n, v in self.links.items()]
@@ -64,9 +64,21 @@ class ImageTests(unittest.TestCase):
         self.assertEqual(m.verify(self.root, self.descriptor, self.recipe, True)['state'], 'Ready')
 
     def test_different_content_restores_without_digest_gate(self):
-        self.build(members=[dict(self.records[0],payload=b'X'*len(self.files[self.records[0]['path']]))]+self.records[1:])
+        self.build(members=self.records[:2]+[dict(self.records[2],payload=b'X'*len(self.files[self.records[2]['path']]))]+self.records[3:])
         self.restore()
         self.assertEqual(m.verify(self.root,self.descriptor,self.recipe)['state'], 'Ready')
+
+    def test_old_or_ambiguous_base_cannot_be_reused_as_ubuntu(self):
+        self.build(); self.restore()
+        props = self.root / 'etc/wine-runtime.properties'
+        original = props.read_text()
+        for value in (original.replace('ubuntu:resolute', 'debian:trixie'),
+                      original.replace('recipeVersion=13', 'recipeVersion=12'),
+                      original + 'baseImage=debian:trixie\n'):
+            with self.subTest(properties=value):
+                props.write_text(value)
+                with self.assertRaisesRegex(ValueError, 'image_ubuntu_setup_required'):
+                    m.verify(self.root, self.descriptor, self.recipe)
 
     def test_path_escape_is_still_rejected(self):
         self.build(records=[dict(self.records[0],path='../outside')])
@@ -94,9 +106,9 @@ class ImageTests(unittest.TestCase):
     def test_duplicate_member(self): self.build(members=self.records+[self.records[0]]); self.rejected()
     def test_missing_member(self): self.build(members=self.records[:-1]); self.rejected()
     def test_unexpected_member(self): self.build(members=self.records+[dict(self.records[0],path='extra')]); self.rejected()
-    def test_wrong_file_data(self):
+    def test_non_ubuntu_properties_rejected_on_import(self):
         self.build(members=[dict(self.records[0],payload=b'X'*len(self.files[self.records[0]['path']]))]+self.records[1:])
-        self.restore()
+        self.rejected()
     def test_decoder_failed(self):
         self.build(); self.archive.write_bytes(self.archive.read_bytes()[:-4]);d=json.loads(self.descriptor.read_text());d.update(bytes=self.archive.stat().st_size,sha256=m.digest(self.archive));self.descriptor.write_bytes(m.raw_json(d));self.rejected()
     def test_trailing_nonzero_data(self): self.build(trailing=b'hostile'); self.rejected()

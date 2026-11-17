@@ -33,7 +33,7 @@ public class ProotPreparedRuntimeTest {
         new File(root, "mnt/games/game").mkdirs();
         new File(root, "mnt/games/prefix").mkdirs();
         Files.write(new File(root, "etc/wine-runtime.properties").toPath(),
-            ("schemaVersion=3\nlayout=external-components-v1\nruntimeBackend=rootfs_proot\n" +
+            ("schemaVersion=3\nlayout=external-components-v1\nbaseImage=ubuntu:resolute\nrecipeVersion=13\nruntimeBackend=rootfs_proot\n" +
              "architecture=aarch64\nruntimePackages=rootfs_hangover_11.16\ndxWrappers=rootfs-wined3d\n" +
              "graphicsDrivers=rootfs-llvmpipe\naudioDrivers=pulseaudio\nrecipeSha256="+SHA+"\n")
                 .getBytes(StandardCharsets.US_ASCII));

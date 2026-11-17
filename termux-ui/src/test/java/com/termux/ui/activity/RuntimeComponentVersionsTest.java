@@ -48,7 +48,7 @@ public class RuntimeComponentVersionsTest {
         assertTrue(RuntimeComponentVersions.accepts(wine, CustomRuntimeComponent.Kind.WINE, prootBackend, RuntimeTranslator.BOX64));
         assertFalse(RuntimeComponentVersions.accepts(wine, CustomRuntimeComponent.Kind.WINE, prootBackend, RuntimeTranslator.HANGOVER));
         for (String id : new String[] {"glibc_scripts_29", "glibc_fonts_1", "glibc_prefix-apps_3",
-                "rootfs_debian13_hangover_pdb2_minimal"}) {
+                "rootfs_ubuntu2604_hangover_pdb2_minimal"}) {
             for (CustomRuntimeComponent.Kind kind : CustomRuntimeComponent.Kind.values()) {
                 assertFalse(RuntimeComponentVersions.accepts(index.find(id).get(), kind, nativeBackend, null));
                 assertFalse(RuntimeComponentVersions.accepts(index.find(id).get(), kind, prootBackend, null));

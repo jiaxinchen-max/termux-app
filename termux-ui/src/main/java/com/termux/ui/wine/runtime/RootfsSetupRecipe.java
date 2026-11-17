@@ -5,7 +5,7 @@ import java.util.List;
 
 /** Versioned recipe identity; payload bytes are bundled as Games assets. */
 public final class RootfsSetupRecipe {
-    public static final String DEFAULT_PACKAGE = "debian-13-games-rootfs";
+    public static final String DEFAULT_PACKAGE = "ubuntu-26.04-games-rootfs";
     /** Stable game Wine selection; the preinstalled image has its own component identity. */
     public static final String DEFAULT_SOURCE = "rootfs_hangover_11.16";
     /** Kron4ek's vanilla Wine build, used by the standalone-Box64-translator path. */
@@ -13,10 +13,10 @@ public final class RootfsSetupRecipe {
     /** Kron4ek's "Proton" build -- Valve's Proton wine patches without Proton's python wrapper or
      *  bundled DXVK/vkd3d-proton, same box64-translated shape as BOX64_WINE_COMPONENT. */
     public static final String BOX64_PROTON_COMPONENT = "rootfs_proton_11.0";
-    // New installations restore the preinstalled v12 image; old tasks are rejected by setup.
-    public static final int DEFAULT_VERSION = 12;
-    public static final int EXTERNAL_COMPONENTS_VERSION = 12;
-    public static final String IMAGE_COMPONENT = "rootfs_debian13_hangover_pdb2_minimal";
+    // New installations restore the preinstalled v13 Ubuntu image; old tasks are rejected by setup.
+    public static final int DEFAULT_VERSION = 13;
+    public static final int EXTERNAL_COMPONENTS_VERSION = 13;
+    public static final String IMAGE_COMPONENT = "rootfs_ubuntu2604_hangover_pdb2_minimal";
 
 
     private final String packageName;
@@ -53,6 +53,6 @@ public final class RootfsSetupRecipe {
     /** Full ordered set of components the shared base image is built from. */
     public List<String> getBaseComponentIds() { return baseComponentIds; }
     public String getSetupScriptAssetPath() { return "local-games/setup_rootfs_runtime.sh"; }
-    public String getAssetDirectory() { return "local-games/runtime-rootfs-v12"; }
-    public String getContainerPrefix() { return "games-debian13-hangover119-v" + version + "-"; }
+    public String getAssetDirectory() { return "local-games/runtime-rootfs-v13"; }
+    public String getContainerPrefix() { return "games-ubuntu2604-hangover-v" + version + "-"; }
 }

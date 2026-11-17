@@ -1,0 +1,46 @@
+schema: review_findings_v1
+change_id: use-ubuntu-2604-wine-proot-base
+stage: implementation-review
+verdict: APPROVED
+scope: 已批准的候选发布、四组件索引、原名APK交付及本次Ubuntu迁移主应用提交推送；不包含最终用户接受、设备安装或归档
+findings:
+  - id: WINE-UBUNTU-001
+    severity: MUST_FIX
+    status: Resolved
+    path: termux-ui/src/main/assets/local-games/runtime-rootfs-v13/image.json
+    description: 四个新prerelease已匿名全量核对，真实image/bundle与两份生产索引一致，原名arm64 APK已构建并验证。
+    action: 已完成用户明确批准的发布及资产索引推送；不覆盖旧制品，主应用提交推送已获用户新增明确授权，App/GPU与最终接受继续Pending。
+    verification: publication/public-download-verification.json、public-index-verification.json、published-index-java-results.json共48项、apk/apk-verification.json及apk-download-verification.json。
+  - id: WINE-UBUNTU-002
+    severity: MUST_FIX
+    status: Resolved
+    path: distribution/termux-app-packages/ubuntu-wine-rootfs/wine-dshow-smoke.c
+    description: Ubuntu 官方媒体插件及必需运行库已集成；三类 PE32/64 的18项公开功能/PCM/WMV2播放通过，本轮12次媒体释放均Completed且探针原始退出码均0。
+    action: 结果分别记录公开播放、COM释放与原始退出；此前Wine10偶发释放死锁和超时原样保留，未修改生产退出或JIT。
+    verification: candidate/public-media-v5-results.json，12次cleanup均Completed；private-test-cleanup-v5.json确认X13/Pulse4714退出，无测试Wine会话残留。
+  - id: WINE-UBUNTU-003
+    severity: MUST_FIX
+    status: Resolved
+    path: distribution/termux-app-packages/ubuntu-wine-rootfs/ubuntu-media-lock.json
+    description: Proton所需GStreamer GL与libgudev、转换插件已用未修改Ubuntu原包补齐；最终镜像全归档逐成员核对通过。
+    action: 静态缺依赖与公开媒体验证均已完成；不将本结果扩大为全部外置模块或硬件GPU验收。
+    verification: qualified-metadata/media-v4-native-build.json及restored各1511项无问题，14个工厂加载通过；此前external-audit-final-media.json媒体模块缺依赖0，全模块19项问题与raw1保留。
+  - id: WINE-UBUNTU-004
+    severity: MUST_FIX
+    status: Resolved
+    path: termux-ui/src/main/assets/local-games/prebuilt_rootfs.py
+    description: 结构可用的旧 Debian 根会在安装阶段复用，后续启动才拒绝，形成错误成功状态。
+    action: 安装校验显式要求唯一的 Ubuntu Resolute 与配方 13；旧根、旧版本和冲突属性均拒绝，保持既有摘要策略不变。
+    verification: prebuilt-ubuntu-admission-fixed-check.log 与 staging-old-base-check.log
+reviewed:
+  - 新 Ubuntu 配方身份与旧值拒绝逻辑，沿用现有共享根。
+  - 基础重建在 RuntimeEditingStop.LOCK 内先停止共享根及未进入 PRoot 的启动脚本树。
+  - 安装事务沿用暂存与 previous 回滚；既有摘要 gate 差异未在此次顺手改写。
+  - 兼容库整包和逐成员摘要、链接及目的地冲突预检；仅写私有根usr/local及锁定的默认目录libgst普通插件文件。
+  - 真实image/bundle与归档、配方SHA、维护候选及两份索引差异，旧条目保持不变，生产索引在发布及匿名完整下载核验后启用。
+  - Rust coreutils 试验在设备拒绝后已撤销，未保留生产修改；仅调整压缩窗口。
+limitations:
+  - 本次提交推送范围已复核105项既有实施摘要全部一致，新增Git授权及提交范围检查见pre-push-review.yaml；不代表最终用户验收。
+  - Harness strict 脚本缺失，已实际尝试并记录失败，不能宣称完整门禁通过。
+  - 新版 builder CLI 从零完整执行和实际 App UI 验收仍 Pending。
+  - 此前Wine10复测发生一次COM释放死锁；后续分开记录播放和释放的本轮18项通过、12次释放完成，旧失败与raw124保留，不能称上游释放竞争已修复。

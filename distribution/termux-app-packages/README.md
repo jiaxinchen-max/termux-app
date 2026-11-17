@@ -228,7 +228,23 @@ runtime loading. Bind the report to both input Debian package SHA-256 values.
 
 ## 运行目录与镜像构建输入
 
-App 的 PRoot「Build from network」恢复预装 Debian 13 + Hangover 镜像；
+当前工作树已接入 Ubuntu 26.04 的 v13 配方，构建输入与验证边界见
+[Ubuntu Wine 构建说明](ubuntu-wine-rootfs/README.md)。新的镜像和三类前缀使用独立组件身份；
+四个候选制品获明确授权后已发布为新 prerelease，匿名完整下载的大小和 SHA256 全部核对一致，
+两个索引已接入。实际 App 界面、硬件 GPU 和最终用户接受仍待完成；
+下文 v12 的 SHA、Release 和运行结果保留为历史记录。
+
+`prebuilt-rootfs-index-entry.json` 是 v13 的维护用目录项，与实际发布的镜像一致；
+发布状态见 `ubuntu-wine-rootfs/publication-status.json`。v13 的 `image.json` 与三个
+`bundle.json` 已接入实际制品摘要。APK 内索引新增四项至47项，资产仓库索引新增四项至25项，
+原有目录项保持不变；资产仓库提交为 `7d2bb960ee1847ee92e93b76e06363d739239ecc`。
+
+v13 原名 arm64 debug APK 已构建：45,485,383 字节，比上一版增加 1,081 字节；
+v1/v2 原证书签名、testOnly=false、源码资产及包内索引、完整 HTTP 下载校验通过。
+包内 v13 配方与描述合计 15,307 字节，完整镜像和前缀载荷继续外置下载。
+本轮没有安装 APK；App/GPU 验收及单一 builder 从零复现仍待完成。
+
+历史 v12 的 PRoot「Build from network」恢复预装 Debian 13 + Hangover 镜像；
 Hangover 是预装 Wine 选项，不再提供独立下载/手动安装条目。
 `hangover-runtime-build-input.json` 单独记录镜像构建使用的
 `rootfs_hangover_11.16-v2` 运行归档（100,485,120 bytes）。其 SHA-256 为
@@ -247,9 +263,9 @@ Wine、可选图形组件和自定义组件管理继续保留。自编译 Native
 
 ### 预构建 prefix 与当前镜像配方
 
-APK 只携带 `local-games/runtime-rootfs-v12/` 的配方与小型 bundle 描述，
+v13 APK 只携带 `local-games/runtime-rootfs-v13/` 的配方与小型 bundle 描述，
 prefix 归档从资产仓库/缓存恢复；不在设备上运行 wineboot 或失败后重新初始化。
-旧 v10/v11 配方不再打入 APK，其参数明确拒绝执行，不做迁移或回退。
+旧 v10/v11/v12 配方不再打入 APK，其参数明确拒绝执行，不做迁移或回退。
 `distribution/termux-app-packages/legacy-prefix-assets/` 是现有恢复回归测试的输入，
 保留在构建仓库中，不打入 APK。
 
@@ -373,7 +389,7 @@ locale-gen、deb安装或再次裁剪，不回退到旧构建。基础环境就�
 沿用APK小模板直接还原；可选Wine/Box64/DXVK按选择独立下载。完整游戏/硬件兼容需另验。
 
 定向验证：`python3 termux-ui/scripts/test-prebuilt-rootfs.py`及
-`python3 termux-ui/scripts/test-rootfs-v12-staging.py`。新Release资产必须使用不可变新版本，
+`python3 termux-ui/scripts/test-rootfs-v13-staging.py`。新Release资产必须使用不可变新版本，
 核对实际URL/大小/SHA后才作为正式交付；本版本已于2026-11-08经用户授权发布并完成公开下载全文件校验。
 
 ### 预装精简镜像（v12，已发布）
@@ -387,8 +403,8 @@ zstd、PulseAudio、dbus 和 libexpat。每个游戏继续从 APK 差量模板�
 本轮正式镜像：`rootfs-debian13-hangover-pdb2-minimal-v1.tar.zst`，
 322915320 字节，展开普通文件 1526870401 字节，12698 个成员，SHA-256：
 `22734affd772ccfc99b99d850c6bdefa22683827c4a7b9204ca1a2595c03fbce`。
-正式目录项见 `prebuilt-rootfs-index-entry.json`，镜像描述见 APK 资产
-`local-games/runtime-rootfs-v12/image.json`。Wine 来源 SHA 与镜像 SHA 独立，
+当时的目录项记录于 v12 历史提交，镜像描述当时位于 APK 资产
+`local-games/runtime-rootfs-v12/image.json`（当前已迁移为 v13）。Wine 来源 SHA 与镜像 SHA 独立，
 前缀 manifest/delta/runtimeFiles 保持不变，仅重绑基础配方。
 
 工具用法（绝对路径，zstd 可指定宿主可执行文件）：

@@ -1,0 +1,21 @@
+{
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/apk/apk-verification.json": "2d308bdedcaa84e3acb2824ae64516551ecd9745ff3a22cbd391a409343d0a83",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/apk-download-verification.json": "44f1b1ab20e553f06319f7209f10bd089f59eb30a4298ecb98e10f1b916a76b1",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/public-download-verification.json": "085d306a77594ace22e3add0818f984f0c36ac8cee6a27ffe043beb3484f4ddd",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/public-index-verification.json": "4e1bb4bfca80a2b2000c0338750c3ae4d5c1db2d5828b7c2bbb02d6f80192360",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-prefix-hangover-pdb2-ubuntu2604-v1.asset.json": "74f9698b5df375dc4c1b8fb7225e8f6df08f585f1a8a008cf3f584dc3b02276d",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-prefix-hangover-pdb2-ubuntu2604-v1.draft-resumed.json": "1151d8ee5ff5690a7475b1b61bee6052c969e1ca5a4822c7f90df91e1e70c56e",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-prefix-hangover-pdb2-ubuntu2604-v1.published.json": "83dd61f6078815d120afeb93c4d474db101352d5bdbca672dd114cefb5f4b6e7",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-prefix-proton11-wow64-ubuntu2604-v1.asset.json": "36d77335671404095930a60ad013d6cc4f9eb97cfd4fec498a253d632448229c",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-prefix-proton11-wow64-ubuntu2604-v1.draft-resumed.json": "b7cfc5d2f765a601ba8a9c075142f12d43294ad7e33e333d3105b81340b0c7c3",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-prefix-proton11-wow64-ubuntu2604-v1.published.json": "68a724f6267c1547d4c90e8d734fa859d9ef674cde160e466bd0e64bb39ffa46",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-prefix-wine10-wow64-ubuntu2604-v1.asset.json": "26d3bc8f41cb019a3b3b580e75aed95ba9895b4fd466c9a7969ed6c618478618",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-prefix-wine10-wow64-ubuntu2604-v1.draft-resumed.json": "be0f82d6eeb468f66cfeead9d4006268c99ada080af01f13ec217622b8a5d532",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-prefix-wine10-wow64-ubuntu2604-v1.published.json": "94be431f1c30f6f2c4304926074755abe19e234c9a3f33452d98a32714783ce9",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-ubuntu2604-hangover-pdb2-minimal-v1.asset.json": "3da7d8903f4cd5e9845c164f2435a07e42cd3f9cbdd20cd904236587d21147c7",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-ubuntu2604-hangover-pdb2-minimal-v1.draft-resumed.json": "f41b26582fd2d050354f410dd4e691c60b6efb47e3f45169454854080c6b21e6",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-ubuntu2604-hangover-pdb2-minimal-v1.draft.json": "75a3c41144b8899f1e2124904f5e2f5590980cdc34edc906bea29c2386737b75",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/rootfs-ubuntu2604-hangover-pdb2-minimal-v1.published.json": "80b61995de05cae152ac781d7dd535c6711d35bdd9930d94b06b9c6519b91803",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication-plan.json": "f667095318712eec22ad04994df5cdb5807b9c4d0dbd66c6c460205e34bb99e1",
+  "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication-result.md": "344456dbc5a7508615068a9c535966bd78b4a9b00440ae50b48c6c4768bfa50d"
+}

@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "state": "BuiltNotRuntimeQualified",
+  "version": "4.4.8",
+  "sourceSha256": "c73848c4ae283d9eaee7be3b276affbc3543380483555500d0dd2c9b7e1c39c3",
+  "buildLogSha256": "47189767b1f7497bb7d841fc78430ee11b4fef3e662470919f3f8b2b021e3fc9",
+  "file": "ffmpeg4-ubuntu2604-arm64-v1.tar.xz",
+  "bytes": 5716632,
+  "sha256": "c48cefe8912df623b4f597ec5fc5b989dcd5cce19a544150db1098389a8f8842",
+  "members": {
+    "usr/local/lib/libavcodec.so.58.134.100": {
+      "type": "file",
+      "bytes": 11561448,
+      "sha256": "b41a168dfcaefee7946237521b6e45bc6672dd5bd35fb20071f7ef8cb4ea8dd5",
+      "soname": "libavcodec.so.58",
+      "needed": [
+        "libswresample.so.3",
+        "libavutil.so.56",
+        "libm.so.6",
+        "libc.so.6",
+        "ld-linux-aarch64.so.1"
+      ]
+    },
+    "usr/local/lib/libavcodec.so.58": {
+      "type": "symlink",
+      "link": "libavcodec.so.58.134.100"
+    },
+    "usr/local/lib/libavformat.so.58.76.100": {
+      "type": "file",
+      "bytes": 2519128,
+      "sha256": "ce1d29c77a89b5ca22c493bf7826ba03f000daadcae17a5fa094fa69059fd83e",
+      "soname": "libavformat.so.58",
+      "needed": [
+        "libavcodec.so.58",
+        "libavutil.so.56",
+        "libm.so.6",
+        "libc.so.6",
+        "ld-linux-aarch64.so.1"
+      ]
+    },
+    "usr/local/lib/libavformat.so.58": {
+      "type": "symlink",
+      "link": "libavformat.so.58.76.100"
+    },
+    "usr/local/lib/libavutil.so.56.70.100": {
+      "type": "file",
+      "bytes": 527968,
+      "sha256": "6dc605b349d1ace0bc8ed44b1be82128a70afd6879e8b4e696e5fe6eb0ecceeb",
+      "soname": "libavutil.so.56",
+      "needed": [
+        "libm.so.6",
+        "libc.so.6",
+        "ld-linux-aarch64.so.1"
+      ]
+    },
+    "usr/local/lib/libavutil.so.56": {
+      "type": "symlink",
+      "link": "libavutil.so.56.70.100"
+    },
+    "usr/local/lib/libswresample.so.3.9.100": {
+      "type": "file",
+      "bytes": 133480,
+      "sha256": "3762a3c9ccb177ee2881a9dc35bd3d832901845aaa22b17a06f8c06501c2fc30",
+      "soname": "libswresample.so.3",
+      "needed": [
+        "libavutil.so.56",
+        "libm.so.6",
+        "libc.so.6",
+        "ld-linux-aarch64.so.1"
+      ]
+    },
+    "usr/local/lib/libswresample.so.3": {
+      "type": "symlink",
+      "link": "libswresample.so.3.9.100"
+    },
+    "usr/local/lib/libswscale.so.5.9.100": {
+      "type": "file",
+      "bytes": 461136,
+      "sha256": "072a7e4945734bfa39835dce8c0c442aee687179fa3599c43638eba3f11124bf",
+      "soname": "libswscale.so.5",
+      "needed": [
+        "libavutil.so.56",
+        "libm.so.6",
+        "libc.so.6",
+        "ld-linux-aarch64.so.1"
+      ]
+    },
+    "usr/local/lib/libswscale.so.5": {
+      "type": "symlink",
+      "link": "libswscale.so.5.9.100"
+    },
+    "usr/local/share/doc/idap-ffmpeg4/COPYING.LGPLv2.1": {
+      "type": "file",
+      "bytes": 26517,
+      "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+    },
+    "usr/local/share/doc/idap-ffmpeg4/LICENSE.md": {
+      "type": "file",
+      "bytes": 4376,
+      "sha256": "cb48bf09a11f5fb576cddb0431c8f5ed0a60157a9ec942adffc13907cbe083f2"
+    }
+  }
+}

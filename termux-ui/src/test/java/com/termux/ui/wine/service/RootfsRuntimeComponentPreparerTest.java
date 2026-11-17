@@ -130,6 +130,8 @@ public class RootfsRuntimeComponentPreparerTest {
     private static ComponentIndex index(byte[] payload) throws Exception {
         JSONObject entry = new JSONObject(new String(Files.readAllBytes(Paths.get(
             "../distribution/termux-app-packages/prebuilt-rootfs-index-entry.json")), StandardCharsets.UTF_8));
+        // Keep this same-version replacement fixture independent of the catalog revision.
+        entry.put("version", 2);
         entry.put("size", payload.length);
         StringBuilder sha = new StringBuilder();
         for (byte b : MessageDigest.getInstance("SHA-256").digest(payload)) sha.append(String.format("%02x", b & 255));

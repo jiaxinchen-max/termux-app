@@ -42,7 +42,8 @@ public final class ActiveWineInstallation {
             if (profile != null && profile.getRuntimeBackendType() ==
                 com.termux.ui.wine.domain.GameRuntimeBackendType.ROOTFS_PROOT) for (RuntimeSetupTask task : new FileRuntimeSetupTaskRepository(
                 paths.getRuntimeSetupTasksDirectory()).list())
-                if (task.getContainerId().equals(profile.getContainerId()) && !task.getState().isTerminal())
+                if ((task.isBaseOnly() || task.getContainerId().equals(profile.getContainerId()))
+                    && !task.getState().isTerminal())
                     return new ActiveWineInstallation(task.getTaskId(), true);
             return null;
         }

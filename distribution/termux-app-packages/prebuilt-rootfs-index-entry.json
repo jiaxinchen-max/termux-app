@@ -1,11 +1,11 @@
 {
-  "id": "rootfs_debian13_hangover_pdb2_minimal",
+  "id": "rootfs_ubuntu2604_hangover_pdb2_minimal",
   "category": "runtime",
   "type": "image_fs",
-  "displayName": "Debian 13 + Hangover (minimal)",
-  "versionName": "pdb2 minimal v2",
-  "summary": "Preinstalled minimal Debian RootFS with Hangover; extracted and verified without guest package installation.",
-  "framework": "Debian PRoot",
+  "displayName": "Ubuntu 26.04 + Hangover (minimal)",
+  "versionName": "pdb2 minimal v1",
+  "summary": "Preinstalled minimal Ubuntu 26.04 RootFS with Hangover; extracted and verified without guest package installation.",
+  "framework": "Ubuntu PRoot",
   "base": true,
   "recommended": true,
   "hidden": true,
@@ -13,8 +13,8 @@
   "runtimeBackends": [
     "rootfs_proot"
   ],
-  "version": 2,
-  "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-debian13-hangover-pdb2-minimal-v2/rootfs-debian13-hangover-pdb2-minimal-v2.tar.zst",
-  "size": 320439261,
-  "sha256": "e480a35af360dfd916d961be3cfaa2a7ab5208118e3899cca14662f84cda5b4f"
+  "version": 1,
+  "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-ubuntu2604-hangover-pdb2-minimal-v1/rootfs-ubuntu2604-hangover-pdb2-minimal-v1.tar.zst",
+  "size": 421418301,
+  "sha256": "656b0a9214f2188c3f8b48c9d218c3275e97753690f827b52784536300bb8877"
 }

@@ -36,7 +36,7 @@ class Minimize(unittest.TestCase):
                     'usr/lib/wine/aarch64-windows/ntdll.dll')}]
         (self.assets / 'manifest.json').write_text(json.dumps(records))
         self.metadata = {'sourceComponentSha256':
-                        'ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1',
+                        '8deeb1286d8227d267d261420ecd04321c9670802a3ce1b70da807a4d8d54885',
                         'assets': {'manifest.json': m.digest(self.assets / 'manifest.json')},
                         'runtimeFiles': {'usr/bin/wine': m.digest(self.source / 'usr/bin/wine')}}
         self.write_metadata()
@@ -484,6 +484,18 @@ class Minimize(unittest.TestCase):
         receipt.symlink_to(external)
         with self.assertRaisesRegex(ValueError, 'build_receipt_alias'):
             m.verify_build(root, 'a' * 64)
+
+    def test_ubuntu_build_root_is_allowed_but_arbitrary_container_is_refused(self):
+        owner, root, report = self.build_fixture()
+        ubuntu = root.parents[1] / 'wine-ubuntu2604-build/rootfs'
+        ubuntu.parent.mkdir()
+        root.rename(ubuntu)
+        m.build_root(ubuntu, owner)
+        other = ubuntu.parents[1] / 'other/rootfs'
+        other.parent.mkdir()
+        ubuntu.rename(other)
+        with self.assertRaisesRegex(ValueError, 'not_private_build_root'):
+            m.build_root(other, owner)
 
     def test_build_refuses_live_or_game_tree_and_alias(self):
         owner, root, report = self.build_fixture()

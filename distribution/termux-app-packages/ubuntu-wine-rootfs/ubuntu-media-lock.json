@@ -1,0 +1,1472 @@
+{
+  "schemaVersion": 1,
+  "state": "SourceVerifiedRuntimePending",
+  "installation": "SupplementalUnmodifiedUbuntuLibrariesOutsideDpkg",
+  "file": "ubuntu-media-ubuntu2604-arm64-v4.tar.xz",
+  "bytes": 21217588,
+  "sha256": "550dec5e25de30abfd5c8bea956179f3d2e0d520dcd3ee756135d79d2c171942",
+  "packages": [
+    {
+      "package": "libgstreamer-gl1.0-0",
+      "version": "1.28.2-1ubuntu0.3",
+      "architecture": "arm64",
+      "suite": "resolute-updates",
+      "url": "http://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-base1.0/libgstreamer-gl1.0-0_1.28.2-1ubuntu0.3_arm64.deb",
+      "bytes": 222396,
+      "sha256": "90e8eeefd236fb1cfa48696458700fadd149bb04a8e802ec5e9f669fdff8e050",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libgstgl-1.0.so.0.2802.0",
+          "destination": "usr/local/lib/libgstgl-1.0.so.0.2802.0",
+          "type": "file",
+          "bytes": 659112,
+          "sha256": "d2f05df89513207e8dd2d8fb5a762fa6dfa3b92dde103ba3a16f0bcc98ada73e"
+        },
+        {
+          "source": "usr/share/doc/libgstreamer-gl1.0-0/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libgstreamer-gl1.0-0-copyright",
+          "type": "file",
+          "bytes": 55918,
+          "sha256": "81e84c076067fd9b53aa847c6205b9b993946f77d3093ad6a6023832f0831990"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libgstgl-1.0.so.0",
+          "destination": "usr/local/lib/libgstgl-1.0.so.0",
+          "type": "symlink",
+          "link": "libgstgl-1.0.so.0.2802.0"
+        }
+      ]
+    },
+    {
+      "package": "libgudev-1.0-0",
+      "version": "1:238-7build1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "http://archive.ubuntu.com/ubuntu/pool/main/libg/libgudev/libgudev-1.0-0_238-7build1_arm64.deb",
+      "bytes": 15450,
+      "sha256": "59187dafd345c4369883a5ad47874a16247c078f7272e7a10bd1c7222bf697d5",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libgudev-1.0.so.0.3.0",
+          "destination": "usr/local/lib/libgudev-1.0.so.0.3.0",
+          "type": "file",
+          "bytes": 67704,
+          "sha256": "9213266e549b6a1754c10c5e0bf0d8630a7fd6806d4144049f5582601b681026"
+        },
+        {
+          "source": "usr/share/doc/libgudev-1.0-0/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libgudev-1.0-0-copyright",
+          "type": "file",
+          "bytes": 1056,
+          "sha256": "e8208610819fd05fca6ea4776156858bb934e29c408ae9bdac4a8266a53178e3"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libgudev-1.0.so.0",
+          "destination": "usr/local/lib/libgudev-1.0.so.0",
+          "type": "symlink",
+          "link": "libgudev-1.0.so.0.3.0"
+        }
+      ]
+    },
+    {
+      "package": "gstreamer1.0-plugins-base",
+      "version": "1.28.2-1ubuntu0.3",
+      "architecture": "arm64",
+      "suite": "resolute-updates",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-base1.0/gstreamer1.0-plugins-base_1.28.2-1ubuntu0.3_arm64.deb",
+      "bytes": 712358,
+      "sha256": "3e715cdf9ae45f27aee8016a99caa9aeb0956ec21be085db98634ebcfb84544a",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstaudioconvert.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstaudioconvert.so",
+          "type": "file",
+          "bytes": 68304,
+          "sha256": "2b27174468f66eaa79d5c45e1dd1d26a40e05c8c7cc7b01e940999a0db568aea"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstaudioresample.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstaudioresample.so",
+          "type": "file",
+          "bytes": 68016,
+          "sha256": "b1c9ccd80a7fa7ff86aa2d2b7fff0bc66eb6d7c2f0ea00d5d535e8ce8c472c8d"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstplayback.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstplayback.so",
+          "type": "file",
+          "bytes": 660384,
+          "sha256": "edd6ecfced00952e71a207da7a94842af09933cb5431559fe2ea82a123236d50"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgsttypefindfunctions.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgsttypefindfunctions.so",
+          "type": "file",
+          "bytes": 138656,
+          "sha256": "bf69f0108090e1c1c50cd69dfe059dc7110adf8a8180f637fb227b9e7a367ef1"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvideoconvertscale.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvideoconvertscale.so",
+          "type": "file",
+          "bytes": 67984,
+          "sha256": "73df3801e065901aac58efd5f13f55709fb5eef517dcb32d6e0c4d976d09e85d"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvideorate.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvideorate.so",
+          "type": "file",
+          "bytes": 68016,
+          "sha256": "273272f97584b1d9d84964c0dc8025d1b927e2babe9e44f3f42674fd91f54718"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvolume.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvolume.so",
+          "type": "file",
+          "bytes": 67880,
+          "sha256": "eddaba8a942ebb59f8a60e8cf48a0e9d77de80f23ebeab3703f976259a55565d"
+        },
+        {
+          "source": "usr/share/doc/gstreamer1.0-plugins-base/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/gstreamer1.0-plugins-base-copyright",
+          "type": "file",
+          "bytes": 55918,
+          "sha256": "81e84c076067fd9b53aa847c6205b9b993946f77d3093ad6a6023832f0831990"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstapp.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstapp.so",
+          "type": "file",
+          "bytes": 67728,
+          "sha256": "1818961f41d62c43d8087eab21d952c445df73df9581efa24f93e94a52cdf0a3"
+        }
+      ]
+    },
+    {
+      "package": "gstreamer1.0-plugins-good",
+      "version": "1.28.2-2ubuntu0.4",
+      "architecture": "arm64",
+      "suite": "resolute-updates",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-good1.0/gstreamer1.0-plugins-good_1.28.2-2ubuntu0.4_arm64.deb",
+      "bytes": 2188316,
+      "sha256": "321a0220bc01f8393ca51fcb70d8cc943a7a999c57ae249353e67c77a024d765",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstavi.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstavi.so",
+          "type": "file",
+          "bytes": 199376,
+          "sha256": "cd32ee7db6d1b9d24e8dc846fc0ace32b5e4f9da92ec3a6e44ddda3c6373914e"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstwavparse.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstwavparse.so",
+          "type": "file",
+          "bytes": 67952,
+          "sha256": "5bb89795d9dbad62d9be2cbf5111b242c4d6c9e1b5cfd4c8b56366c97ba7237e"
+        },
+        {
+          "source": "usr/share/doc/gstreamer1.0-plugins-good/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/gstreamer1.0-plugins-good-copyright",
+          "type": "file",
+          "bytes": 53674,
+          "sha256": "f7d199b24827adda9da7c375db2bfdafd4cb422f93d5db97c35ed70296342207"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstdeinterlace.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstdeinterlace.so",
+          "type": "file",
+          "bytes": 199184,
+          "sha256": "3b6a303adb96bec44d0fc3b45ae10645268d1fc4f2039872eea2b4862daa2a44"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvideofilter.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvideofilter.so",
+          "type": "file",
+          "bytes": 68544,
+          "sha256": "da8b5cbf19fe52426b267270a873b6a2d939cc29d932d82bdcc390c94ea2868a"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstdebug.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstdebug.so",
+          "type": "file",
+          "bytes": 134464,
+          "sha256": "bacc273a3b88e8e7e3d0af7acb0a4acdb066ef1270ae5a507e23af6f38406166"
+        }
+      ]
+    },
+    {
+      "package": "gstreamer1.0-libav",
+      "version": "1.28.2-1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/g/gst-libav1.0/gstreamer1.0-libav_1.28.2-1_arm64.deb",
+      "bytes": 100862,
+      "sha256": "79f52647236acd87111df5e07b18ee933e24aa48260a84ef9ae3624db0cef30e",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstlibav.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstlibav.so",
+          "type": "file",
+          "bytes": 265104,
+          "sha256": "0b8bc0eaf121dc4a02d3c91b448ea60fa513d6ecb8e663419b07d7e953d6fee7"
+        },
+        {
+          "source": "usr/share/doc/gstreamer1.0-libav/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/gstreamer1.0-libav-copyright",
+          "type": "file",
+          "bytes": 1207,
+          "sha256": "2141b275d66a099c88e4c1f4341bcd80c867ae5edb6c03c077f43e91e66e1ac3"
+        }
+      ]
+    },
+    {
+      "package": "libunibreak6",
+      "version": "6.1-3build1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/libu/libunibreak/libunibreak6_6.1-3build1_arm64.deb",
+      "bytes": 25256,
+      "sha256": "f403e66be4efb69f6a00f1a7ab5081e1e2fc3993445fd9cb1c17932ae692affc",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libunibreak.so.6.0.1",
+          "destination": "usr/local/lib/libunibreak.so.6.0.1",
+          "type": "file",
+          "bytes": 133376,
+          "sha256": "dac7e1f29037e36a05852153dd83a2d55daf04ead52c1080de226bb1df0b9535"
+        },
+        {
+          "source": "usr/share/doc/libunibreak6/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libunibreak6-copyright",
+          "type": "file",
+          "bytes": 4411,
+          "sha256": "b3470fe912c697024754b5fd352d9f3b856b6696c4e7f85c34e91a044de276cd"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libunibreak.so.6",
+          "destination": "usr/local/lib/libunibreak.so.6",
+          "type": "symlink",
+          "link": "libunibreak.so.6.0.1"
+        }
+      ]
+    },
+    {
+      "package": "libass9",
+      "version": "1:0.17.4-2",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/liba/libass/libass9_0.17.4-2_arm64.deb",
+      "bytes": 102696,
+      "sha256": "b7732c029a59187e2ac8eaf34f725304b1e7e36fcb8a3d88fd7cbce9788d361a",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libass.so.9.4.1",
+          "destination": "usr/local/lib/libass.so.9.4.1",
+          "type": "file",
+          "bytes": 264376,
+          "sha256": "7dce7d7f6c8c6966cf704236418eee69df0263ded20bd7d445a3c6b7b98a2df8"
+        },
+        {
+          "source": "usr/share/doc/libass9/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libass9-copyright",
+          "type": "file",
+          "bytes": 5882,
+          "sha256": "c3eb686a3786caa0e3033ee78908b6996a60fe9d163ecf7dc1c61871e19f88b7"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libass.so.9",
+          "destination": "usr/local/lib/libass.so.9",
+          "type": "symlink",
+          "link": "libass.so.9.4.1"
+        }
+      ]
+    },
+    {
+      "package": "libbs2b0",
+      "version": "3.1.0+dfsg-8build1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/libb/libbs2b/libbs2b0_3.1.0+dfsg-8build1_arm64.deb",
+      "bytes": 10646,
+      "sha256": "fd643dd7ba55c3d58d761b99a0663364e6cfb8aeefb114eeacccf25d531ba370",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libbs2b.so.0.0.0",
+          "destination": "usr/local/lib/libbs2b.so.0.0.0",
+          "type": "file",
+          "bytes": 67720,
+          "sha256": "62888dcd4d3ea3a8e5d50ee5d575f85aaf63e4a9c22d11f86002fbd2f3760c81"
+        },
+        {
+          "source": "usr/share/doc/libbs2b0/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libbs2b0-copyright",
+          "type": "file",
+          "bytes": 4925,
+          "sha256": "4eae2784b24067760ee71be463d4db0dc17839c847f1bf66b2acee86cd417b6c"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libbs2b.so.0",
+          "destination": "usr/local/lib/libbs2b.so.0",
+          "type": "symlink",
+          "link": "libbs2b.so.0.0.0"
+        }
+      ]
+    },
+    {
+      "package": "libflite1",
+      "version": "2.2-7build1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/f/flite/libflite1_2.2-7build1_arm64.deb",
+      "bytes": 13517454,
+      "sha256": "1b28cf2661a60bc7ff5261a15d047d3489442932fcea8b89eb119d84851c24ce",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite.so.2.2",
+          "destination": "usr/local/lib/libflite.so.2.2",
+          "type": "file",
+          "bytes": 264304,
+          "sha256": "4211ceae5f23cedd6a30dfd892fbb878f418b85d1d3f80f8bc7bbfc66ffd80ab"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_grapheme_lang.so.2.2",
+          "destination": "usr/local/lib/libflite_cmu_grapheme_lang.so.2.2",
+          "type": "file",
+          "bytes": 67752,
+          "sha256": "706b698e115635ed5e93fab070912b199e761a69ad6eaa9712f395b11ca8374c"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_grapheme_lex.so.2.2",
+          "destination": "usr/local/lib/libflite_cmu_grapheme_lex.so.2.2",
+          "type": "file",
+          "bytes": 2295976,
+          "sha256": "15cece2f80d22c106c20becb18c75c49fb4ab279042d2e551d25284f879f0d10"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_indic_lang.so.2.2",
+          "destination": "usr/local/lib/libflite_cmu_indic_lang.so.2.2",
+          "type": "file",
+          "bytes": 198824,
+          "sha256": "80aff4f5c920397b0f96b0de9bcb7b4b7b577b93f636f1f5732b4755d880821d"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_indic_lex.so.2.2",
+          "destination": "usr/local/lib/libflite_cmu_indic_lex.so.2.2",
+          "type": "file",
+          "bytes": 67752,
+          "sha256": "2b1c5994e85000cb2ec3b7138610fdba5bff272a52d4cd49d07034ecd25fea47"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_time_awb.so.2.2",
+          "destination": "usr/local/lib/libflite_cmu_time_awb.so.2.2",
+          "type": "file",
+          "bytes": 4720976,
+          "sha256": "ea2d5b50d74b3aed54536fd24c2da10314d55c5c22a252385b1d1a6025b28b1a"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_us_awb.so.2.2",
+          "destination": "usr/local/lib/libflite_cmu_us_awb.so.2.2",
+          "type": "file",
+          "bytes": 3999824,
+          "sha256": "e3465b46240ee808a617188e40b9fd7f68cd69b3fd1a8c8b8ca3ec9677cb5d1e"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_us_kal.so.2.2",
+          "destination": "usr/local/lib/libflite_cmu_us_kal.so.2.2",
+          "type": "file",
+          "bytes": 1509464,
+          "sha256": "135c289233d38a6c1371ae6b838e4070f49793a13ce22696ca9067b45ab168f7"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_us_kal16.so.2.2",
+          "destination": "usr/local/lib/libflite_cmu_us_kal16.so.2.2",
+          "type": "file",
+          "bytes": 4065368,
+          "sha256": "1b54f2888d34bd7fab20b8d4ff87c4bc9be43496e7c7094edde4191350e800dd"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_us_rms.so.2.2",
+          "destination": "usr/local/lib/libflite_cmu_us_rms.so.2.2",
+          "type": "file",
+          "bytes": 4655184,
+          "sha256": "ebe8dce70357b2a0656c7671585fe22e82ff989654ca0ba614732b67fe065299"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_us_slt.so.2.2",
+          "destination": "usr/local/lib/libflite_cmu_us_slt.so.2.2",
+          "type": "file",
+          "bytes": 4065360,
+          "sha256": "cc126930085a5ecc8c8f62b8d56e3b8cddd681d63d4d75f2aba42814881a69ec"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmulex.so.2.2",
+          "destination": "usr/local/lib/libflite_cmulex.so.2.2",
+          "type": "file",
+          "bytes": 657576,
+          "sha256": "c3a62265237615bdbe547b9e91ee41148918224d98d1b055cb68d71adc908ca6"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_usenglish.so.2.2",
+          "destination": "usr/local/lib/libflite_usenglish.so.2.2",
+          "type": "file",
+          "bytes": 198824,
+          "sha256": "9f6fadcffd77a8b1e48c8781ba164aad502d447dc2bfce126c4520a526dac9b2"
+        },
+        {
+          "source": "usr/share/doc/libflite1/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libflite1-copyright",
+          "type": "file",
+          "bytes": 16340,
+          "sha256": "77d13a5e6cbe7277b4721033f9ad15707241c2832baa8c74ec823c9ee5ebf71c"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite.so.1",
+          "destination": "usr/local/lib/libflite.so.1",
+          "type": "symlink",
+          "link": "libflite.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_grapheme_lang.so.1",
+          "destination": "usr/local/lib/libflite_cmu_grapheme_lang.so.1",
+          "type": "symlink",
+          "link": "libflite_cmu_grapheme_lang.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_grapheme_lex.so.1",
+          "destination": "usr/local/lib/libflite_cmu_grapheme_lex.so.1",
+          "type": "symlink",
+          "link": "libflite_cmu_grapheme_lex.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_indic_lang.so.1",
+          "destination": "usr/local/lib/libflite_cmu_indic_lang.so.1",
+          "type": "symlink",
+          "link": "libflite_cmu_indic_lang.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_indic_lex.so.1",
+          "destination": "usr/local/lib/libflite_cmu_indic_lex.so.1",
+          "type": "symlink",
+          "link": "libflite_cmu_indic_lex.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_time_awb.so.1",
+          "destination": "usr/local/lib/libflite_cmu_time_awb.so.1",
+          "type": "symlink",
+          "link": "libflite_cmu_time_awb.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_us_awb.so.1",
+          "destination": "usr/local/lib/libflite_cmu_us_awb.so.1",
+          "type": "symlink",
+          "link": "libflite_cmu_us_awb.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_us_kal.so.1",
+          "destination": "usr/local/lib/libflite_cmu_us_kal.so.1",
+          "type": "symlink",
+          "link": "libflite_cmu_us_kal.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_us_kal16.so.1",
+          "destination": "usr/local/lib/libflite_cmu_us_kal16.so.1",
+          "type": "symlink",
+          "link": "libflite_cmu_us_kal16.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_us_rms.so.1",
+          "destination": "usr/local/lib/libflite_cmu_us_rms.so.1",
+          "type": "symlink",
+          "link": "libflite_cmu_us_rms.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmu_us_slt.so.1",
+          "destination": "usr/local/lib/libflite_cmu_us_slt.so.1",
+          "type": "symlink",
+          "link": "libflite_cmu_us_slt.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_cmulex.so.1",
+          "destination": "usr/local/lib/libflite_cmulex.so.1",
+          "type": "symlink",
+          "link": "libflite_cmulex.so.2.2"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libflite_usenglish.so.1",
+          "destination": "usr/local/lib/libflite_usenglish.so.1",
+          "type": "symlink",
+          "link": "libflite_usenglish.so.2.2"
+        }
+      ]
+    },
+    {
+      "package": "libserd-0-0",
+      "version": "0.32.6-1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/s/serd/libserd-0-0_0.32.6-1_arm64.deb",
+      "bytes": 44220,
+      "sha256": "79d61c51a3b7fd31ddd48a2c87e7ac6145636ec9f65853131653d396bf6a615a",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libserd-0.so.0.32.6",
+          "destination": "usr/local/lib/libserd-0.so.0.32.6",
+          "type": "file",
+          "bytes": 133048,
+          "sha256": "df613376695274db43326e37a0fade2a002f871ab540b16cc02207fe0c96061a"
+        },
+        {
+          "source": "usr/share/doc/libserd-0-0/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libserd-0-0-copyright",
+          "type": "file",
+          "bytes": 3883,
+          "sha256": "4a42ae294f96da07eade9797d7fd0d7f5659c3a945e1ef4f7287eeb06d9398d9"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libserd-0.so.0",
+          "destination": "usr/local/lib/libserd-0.so.0",
+          "type": "symlink",
+          "link": "libserd-0.so.0.32.6"
+        }
+      ]
+    },
+    {
+      "package": "libzix-0-0",
+      "version": "0.8.0-1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/z/zix/libzix-0-0_0.8.0-1_arm64.deb",
+      "bytes": 25746,
+      "sha256": "b1393cc4da05cc32526af92b0d77448bd1fdd0cc508167eb1c5248676f2d2e31",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libzix-0.so.0.8.0",
+          "destination": "usr/local/lib/libzix-0.so.0.8.0",
+          "type": "file",
+          "bytes": 68056,
+          "sha256": "9aee897fb680c47914d8c588c16f15d779b3fd8b8c7a099695607af38d3aaefd"
+        },
+        {
+          "source": "usr/share/doc/libzix-0-0/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libzix-0-0-copyright",
+          "type": "file",
+          "bytes": 2302,
+          "sha256": "0460f90b9445d5f84bfb17bc0a4a6efced0bca86bfe46e3400770e5ba868d471"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libzix-0.so.0",
+          "destination": "usr/local/lib/libzix-0.so.0",
+          "type": "symlink",
+          "link": "libzix-0.so.0.8.0"
+        }
+      ]
+    },
+    {
+      "package": "libsord-0-0",
+      "version": "0.16.20-1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/s/sord/libsord-0-0_0.16.20-1_arm64.deb",
+      "bytes": 15962,
+      "sha256": "6f717e7e184c6bd331e3600661b1506ff190ea63d75eb1d7d6e1fdf2ee8236f6",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libsord-0.so.0.16.20",
+          "destination": "usr/local/lib/libsord-0.so.0.16.20",
+          "type": "file",
+          "bytes": 67512,
+          "sha256": "281f87e599458fbeada659a0de1983dcf26c0bf69382f34e6a3aa24152d7e60f"
+        },
+        {
+          "source": "usr/share/doc/libsord-0-0/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libsord-0-0-copyright",
+          "type": "file",
+          "bytes": 2018,
+          "sha256": "80b04cb1571245377a66951e3b2a339b7dbe7d844a096d0595483539059cfdaf"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libsord-0.so.0",
+          "destination": "usr/local/lib/libsord-0.so.0",
+          "type": "symlink",
+          "link": "libsord-0.so.0.16.20"
+        }
+      ]
+    },
+    {
+      "package": "libsratom-0-0",
+      "version": "0.6.20-1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/s/sratom/libsratom-0-0_0.6.20-1_arm64.deb",
+      "bytes": 16342,
+      "sha256": "4baf3faf2a3c112401f5eb4620fbf4a7d7f75fe376504d10f5f5b2ce6f4b2c74",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libsratom-0.so.0.6.20",
+          "destination": "usr/local/lib/libsratom-0.so.0.6.20",
+          "type": "file",
+          "bytes": 67512,
+          "sha256": "1492b75e7675d585aba0e5c834d9db707e30a22138da6f03afc7eccfd6c1f059"
+        },
+        {
+          "source": "usr/share/doc/libsratom-0-0/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libsratom-0-0-copyright",
+          "type": "file",
+          "bytes": 2278,
+          "sha256": "892618b130b655368611eaad45c7458242a8fc37aa049da999793fa65c201d6b"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libsratom-0.so.0",
+          "destination": "usr/local/lib/libsratom-0.so.0",
+          "type": "symlink",
+          "link": "libsratom-0.so.0.6.20"
+        }
+      ]
+    },
+    {
+      "package": "liblilv-0-0",
+      "version": "0.26.2-1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/l/lilv/liblilv-0-0_0.26.2-1_arm64.deb",
+      "bytes": 43696,
+      "sha256": "c14d363ed112d27136ff05518c78253490aa68267f9dbec504a38fe44e7a0b63",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/liblilv-0.so.0.26.2",
+          "destination": "usr/local/lib/liblilv-0.so.0.26.2",
+          "type": "file",
+          "bytes": 133048,
+          "sha256": "4399ee0598d749c330f7c951efae77f4312cb02dd58a9a166bcfe7b4fc868296"
+        },
+        {
+          "source": "usr/share/doc/liblilv-0-0/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/liblilv-0-0-copyright",
+          "type": "file",
+          "bytes": 2189,
+          "sha256": "96d6d24fc294b9b21982d012da3424136c967e6a3545d3123a4fc66f28424dc5"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/liblilv-0.so.0",
+          "destination": "usr/local/lib/liblilv-0.so.0",
+          "type": "symlink",
+          "link": "liblilv-0.so.0.26.2"
+        }
+      ]
+    },
+    {
+      "package": "libmysofa1",
+      "version": "1.3.3+dfsg-1ubuntu2",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/libm/libmysofa/libmysofa1_1.3.3+dfsg-1ubuntu2_arm64.deb",
+      "bytes": 1157232,
+      "sha256": "dbf870ceef15154dbe669537c550e33085013419fc773e1dab18fe204f2917c4",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libmysofa.so.1.3.3",
+          "destination": "usr/local/lib/libmysofa.so.1.3.3",
+          "type": "file",
+          "bytes": 67632,
+          "sha256": "9fbba0af6e3996cc010caf03aef371c20745733fe5aacb40ffc67bcf769323cb"
+        },
+        {
+          "source": "usr/share/doc/libmysofa1/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libmysofa1-copyright",
+          "type": "file",
+          "bytes": 42219,
+          "sha256": "99aab76301ca56da29c87971d0f57a41e11651c453a601b01d51baf0b81be39c"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libmysofa.so.1",
+          "destination": "usr/local/lib/libmysofa.so.1",
+          "type": "symlink",
+          "link": "libmysofa.so.1.3.3"
+        }
+      ]
+    },
+    {
+      "package": "libplacebo360",
+      "version": "7.360.0-3",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/libp/libplacebo/libplacebo360_7.360.0-3_arm64.deb",
+      "bytes": 2894722,
+      "sha256": "4d57a614eb801c447a3dcb9c1379be5a9626edf952962f5eb64f63b626770957",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libplacebo.so.360",
+          "destination": "usr/local/lib/libplacebo.so.360",
+          "type": "file",
+          "bytes": 9200672,
+          "sha256": "e7a14f066095b979675b5a32f38eca6ff076418ba902898e39b5598ff3f13644"
+        },
+        {
+          "source": "usr/share/doc/libplacebo360/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libplacebo360-copyright",
+          "type": "file",
+          "bytes": 10272,
+          "sha256": "2f21107885f2aacf42577624c94de149f16400b1e052bda8e87a85a050fa5cac"
+        }
+      ]
+    },
+    {
+      "package": "libfftw3-double3",
+      "version": "3.3.10-2fakesync1build3",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/f/fftw3/libfftw3-double3_3.3.10-2fakesync1build3_arm64.deb",
+      "bytes": 388096,
+      "sha256": "5e8528a56a99c63d2f368e3b1b4315c3052338da0f3a4268ef3365d35abca4f0",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libfftw3.so.3.6.10",
+          "destination": "usr/local/lib/libfftw3.so.3.6.10",
+          "type": "file",
+          "bytes": 788528,
+          "sha256": "4511f8cd842ab5284bbb6e4bdf7cbcc98a7d38d5b085b8cbb9d1228f7b05a69e"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libfftw3_omp.so.3.6.10",
+          "destination": "usr/local/lib/libfftw3_omp.so.3.6.10",
+          "type": "file",
+          "bytes": 67624,
+          "sha256": "8676642e371970b9753b875d4ef35648ca5fdac9a4b512a0f96891afa57b111c"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libfftw3_threads.so.3.6.10",
+          "destination": "usr/local/lib/libfftw3_threads.so.3.6.10",
+          "type": "file",
+          "bytes": 67624,
+          "sha256": "597a475b4ead3f302b8017422beab490b3270469c5acb7912969d30cbd0a217b"
+        },
+        {
+          "source": "usr/share/doc/libfftw3-double3/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libfftw3-double3-copyright",
+          "type": "file",
+          "bytes": 1195,
+          "sha256": "8da846cb9e375187ccee28953159c233ba788ec1e74b2089a63c27e75f5795d3"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libfftw3.so.3",
+          "destination": "usr/local/lib/libfftw3.so.3",
+          "type": "symlink",
+          "link": "libfftw3.so.3.6.10"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libfftw3_omp.so.3",
+          "destination": "usr/local/lib/libfftw3_omp.so.3",
+          "type": "symlink",
+          "link": "libfftw3_omp.so.3.6.10"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libfftw3_threads.so.3",
+          "destination": "usr/local/lib/libfftw3_threads.so.3",
+          "type": "symlink",
+          "link": "libfftw3_threads.so.3.6.10"
+        }
+      ]
+    },
+    {
+      "package": "librubberband3",
+      "version": "4.0.0+dfsg-2ubuntu1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/r/rubberband/librubberband3_4.0.0+dfsg-2ubuntu1_arm64.deb",
+      "bytes": 137692,
+      "sha256": "d5766318d6944e757d3dd13a192c925cb24b1d494c9c73cb4a543d3a0ffaafa4",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/librubberband.so.3.0.0",
+          "destination": "usr/local/lib/librubberband.so.3.0.0",
+          "type": "file",
+          "bytes": 395488,
+          "sha256": "8ddc385248969983a7d6dbc2d51481c194df9911c4486a320cea8b1f0fa98815"
+        },
+        {
+          "source": "usr/share/doc/librubberband3/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/librubberband3-copyright",
+          "type": "file",
+          "bytes": 6042,
+          "sha256": "98f38598448d973d6f2ce5ce6ecb735c8c23c94086e0c73d16ea0f911f448272"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/librubberband.so.3",
+          "destination": "usr/local/lib/librubberband.so.3",
+          "type": "symlink",
+          "link": "librubberband.so.3.0.0"
+        }
+      ]
+    },
+    {
+      "package": "libswscale9",
+      "version": "7:8.0.1-3ubuntu2",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/f/ffmpeg/libswscale9_8.0.1-3ubuntu2_arm64.deb",
+      "bytes": 387188,
+      "sha256": "956462eafe212044549864a78aa40d314a7d32c8cce9f914e16da73a8f7296f9",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libswscale.so.9.1.100",
+          "destination": "usr/local/lib/libswscale.so.9.1.100",
+          "type": "file",
+          "bytes": 1050744,
+          "sha256": "06de9321d9c1398752bab4a2b2f7433de906e13536e980dc62f2ffb18d66f4ed"
+        },
+        {
+          "source": "usr/share/doc/libswscale9/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libswscale9-copyright",
+          "type": "file",
+          "bytes": 49188,
+          "sha256": "3a48e975751c49cc38db6f7254afba9f1065062b12cf65941c400f1009012cf3"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libswscale.so.9",
+          "destination": "usr/local/lib/libswscale.so.9",
+          "type": "symlink",
+          "link": "libswscale.so.9.1.100"
+        }
+      ]
+    },
+    {
+      "package": "libvidstab1.1",
+      "version": "1.1.0-2.1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/libv/libvidstab/libvidstab1.1_1.1.0-2.1_arm64.deb",
+      "bytes": 38726,
+      "sha256": "e2f9862c3416bd91cab9677d95f1981712ffa1a357ce31acecb2d2d5346e4859",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libvidstab.so.1.1",
+          "destination": "usr/local/lib/libvidstab.so.1.1",
+          "type": "file",
+          "bytes": 133528,
+          "sha256": "4333fc011d51a2cea6d821d7a4a446103d2056d6cd9b15fead889e21d2b8f126"
+        },
+        {
+          "source": "usr/share/doc/libvidstab1.1/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libvidstab1.1-copyright",
+          "type": "file",
+          "bytes": 1204,
+          "sha256": "c784a3d8760a64cb193f13425f8d667a4a183ff678d7cf0c151bb1dd0e30f3cc"
+        }
+      ]
+    },
+    {
+      "package": "libzimg2",
+      "version": "3.0.6+ds1-1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/z/zimg/libzimg2_3.0.6+ds1-1_arm64.deb",
+      "bytes": 120212,
+      "sha256": "17bd227309d0e972db6ee317c5fd11fe8457a2ee5aeea61ff818eb00fd43308c",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libzimg.so.2.0.0",
+          "destination": "usr/local/lib/libzimg.so.2.0.0",
+          "type": "file",
+          "bytes": 330536,
+          "sha256": "02eaa100027c90a394a7f86202649c8d41bbe90b412597dc7bf4e71ac601baeb"
+        },
+        {
+          "source": "usr/share/doc/libzimg2/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libzimg2-copyright",
+          "type": "file",
+          "bytes": 2721,
+          "sha256": "b302dc2568943b3326d3be15d03fe968888d1673962891ea93050a2f41e6e609"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libzimg.so.2",
+          "destination": "usr/local/lib/libzimg.so.2",
+          "type": "symlink",
+          "link": "libzimg.so.2.0.0"
+        }
+      ]
+    },
+    {
+      "package": "libavfilter11",
+      "version": "7:8.0.1-3ubuntu2",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/universe/f/ffmpeg/libavfilter11_8.0.1-3ubuntu2_arm64.deb",
+      "bytes": 4692138,
+      "sha256": "18f47ebb13576e48fda7fe0653a3388fcd3d930f92e9c9294a0918d034a4ff05",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libavfilter.so.11.4.100",
+          "destination": "usr/local/lib/libavfilter.so.11.4.100",
+          "type": "file",
+          "bytes": 14230728,
+          "sha256": "5d01c5a9bebb7011e2fdce6a2e6f13b2fb55f3406ad275a3045d7549e55d9c70"
+        },
+        {
+          "source": "usr/share/doc/libavfilter11/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libavfilter11-copyright",
+          "type": "file",
+          "bytes": 49188,
+          "sha256": "3a48e975751c49cc38db6f7254afba9f1065062b12cf65941c400f1009012cf3"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libavfilter.so.11",
+          "destination": "usr/local/lib/libavfilter.so.11",
+          "type": "symlink",
+          "link": "libavfilter.so.11.4.100"
+        }
+      ]
+    },
+    {
+      "package": "gstreamer1.0-gl",
+      "version": "1.28.2-1ubuntu0.3",
+      "architecture": "arm64",
+      "suite": "resolute-updates",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-base1.0/gstreamer1.0-gl_1.28.2-1ubuntu0.3_arm64.deb",
+      "bytes": 125654,
+      "sha256": "050447d59fbac26720fc4e0fec583b5f4039ae82ff193181f1423ac2bf25cb10",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstopengl.so",
+          "destination": "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstopengl.so",
+          "type": "file",
+          "bytes": 397024,
+          "sha256": "eda532ae8878a5b3c36832309f022652227aaf357061fe819c30d46643756d05"
+        },
+        {
+          "source": "usr/share/doc/gstreamer1.0-gl/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/gstreamer1.0-gl-copyright",
+          "type": "file",
+          "bytes": 55918,
+          "sha256": "81e84c076067fd9b53aa847c6205b9b993946f77d3093ad6a6023832f0831990"
+        }
+      ]
+    },
+    {
+      "package": "libgraphene-1.0-0",
+      "version": "1.10.8-5build1",
+      "architecture": "arm64",
+      "suite": "resolute",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/graphene/libgraphene-1.0-0_1.10.8-5build1_arm64.deb",
+      "bytes": 47084,
+      "sha256": "a77a0c4658a54d15b84f7db6d4344a189a77c6f07e9f28d4748a42b3605df757",
+      "files": [
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libgraphene-1.0.so.0.1000.8",
+          "destination": "usr/local/lib/libgraphene-1.0.so.0.1000.8",
+          "type": "file",
+          "bytes": 133048,
+          "sha256": "98c7cbfdffd59bb0012eda8322aad0fc97cce46b590183f73e9bea00bfefdd15"
+        },
+        {
+          "source": "usr/share/doc/libgraphene-1.0-0/copyright",
+          "destination": "usr/local/share/doc/idap-ubuntu-media/libgraphene-1.0-0-copyright",
+          "type": "file",
+          "bytes": 1479,
+          "sha256": "59477df6c16df1f26679ea572b611be5c87c81e8842409086b38f8a0e7ff6743"
+        },
+        {
+          "source": "usr/lib/aarch64-linux-gnu/libgraphene-1.0.so.0",
+          "destination": "usr/local/lib/libgraphene-1.0.so.0",
+          "type": "symlink",
+          "link": "libgraphene-1.0.so.0.1000.8"
+        }
+      ]
+    }
+  ],
+  "members": {
+    "usr/local/lib/libgstgl-1.0.so.0.2802.0": {
+      "type": "file",
+      "bytes": 659112,
+      "sha256": "d2f05df89513207e8dd2d8fb5a762fa6dfa3b92dde103ba3a16f0bcc98ada73e"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libgstreamer-gl1.0-0-copyright": {
+      "type": "file",
+      "bytes": 55918,
+      "sha256": "81e84c076067fd9b53aa847c6205b9b993946f77d3093ad6a6023832f0831990"
+    },
+    "usr/local/lib/libgstgl-1.0.so.0": {
+      "type": "symlink",
+      "link": "libgstgl-1.0.so.0.2802.0"
+    },
+    "usr/local/lib/libgudev-1.0.so.0.3.0": {
+      "type": "file",
+      "bytes": 67704,
+      "sha256": "9213266e549b6a1754c10c5e0bf0d8630a7fd6806d4144049f5582601b681026"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libgudev-1.0-0-copyright": {
+      "type": "file",
+      "bytes": 1056,
+      "sha256": "e8208610819fd05fca6ea4776156858bb934e29c408ae9bdac4a8266a53178e3"
+    },
+    "usr/local/lib/libgudev-1.0.so.0": {
+      "type": "symlink",
+      "link": "libgudev-1.0.so.0.3.0"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstaudioconvert.so": {
+      "type": "file",
+      "bytes": 68304,
+      "sha256": "2b27174468f66eaa79d5c45e1dd1d26a40e05c8c7cc7b01e940999a0db568aea"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstaudioresample.so": {
+      "type": "file",
+      "bytes": 68016,
+      "sha256": "b1c9ccd80a7fa7ff86aa2d2b7fff0bc66eb6d7c2f0ea00d5d535e8ce8c472c8d"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstplayback.so": {
+      "type": "file",
+      "bytes": 660384,
+      "sha256": "edd6ecfced00952e71a207da7a94842af09933cb5431559fe2ea82a123236d50"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgsttypefindfunctions.so": {
+      "type": "file",
+      "bytes": 138656,
+      "sha256": "bf69f0108090e1c1c50cd69dfe059dc7110adf8a8180f637fb227b9e7a367ef1"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvideoconvertscale.so": {
+      "type": "file",
+      "bytes": 67984,
+      "sha256": "73df3801e065901aac58efd5f13f55709fb5eef517dcb32d6e0c4d976d09e85d"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvideorate.so": {
+      "type": "file",
+      "bytes": 68016,
+      "sha256": "273272f97584b1d9d84964c0dc8025d1b927e2babe9e44f3f42674fd91f54718"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvolume.so": {
+      "type": "file",
+      "bytes": 67880,
+      "sha256": "eddaba8a942ebb59f8a60e8cf48a0e9d77de80f23ebeab3703f976259a55565d"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/gstreamer1.0-plugins-base-copyright": {
+      "type": "file",
+      "bytes": 55918,
+      "sha256": "81e84c076067fd9b53aa847c6205b9b993946f77d3093ad6a6023832f0831990"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstavi.so": {
+      "type": "file",
+      "bytes": 199376,
+      "sha256": "cd32ee7db6d1b9d24e8dc846fc0ace32b5e4f9da92ec3a6e44ddda3c6373914e"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstwavparse.so": {
+      "type": "file",
+      "bytes": 67952,
+      "sha256": "5bb89795d9dbad62d9be2cbf5111b242c4d6c9e1b5cfd4c8b56366c97ba7237e"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/gstreamer1.0-plugins-good-copyright": {
+      "type": "file",
+      "bytes": 53674,
+      "sha256": "f7d199b24827adda9da7c375db2bfdafd4cb422f93d5db97c35ed70296342207"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstlibav.so": {
+      "type": "file",
+      "bytes": 265104,
+      "sha256": "0b8bc0eaf121dc4a02d3c91b448ea60fa513d6ecb8e663419b07d7e953d6fee7"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/gstreamer1.0-libav-copyright": {
+      "type": "file",
+      "bytes": 1207,
+      "sha256": "2141b275d66a099c88e4c1f4341bcd80c867ae5edb6c03c077f43e91e66e1ac3"
+    },
+    "usr/local/lib/libunibreak.so.6.0.1": {
+      "type": "file",
+      "bytes": 133376,
+      "sha256": "dac7e1f29037e36a05852153dd83a2d55daf04ead52c1080de226bb1df0b9535"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libunibreak6-copyright": {
+      "type": "file",
+      "bytes": 4411,
+      "sha256": "b3470fe912c697024754b5fd352d9f3b856b6696c4e7f85c34e91a044de276cd"
+    },
+    "usr/local/lib/libunibreak.so.6": {
+      "type": "symlink",
+      "link": "libunibreak.so.6.0.1"
+    },
+    "usr/local/lib/libass.so.9.4.1": {
+      "type": "file",
+      "bytes": 264376,
+      "sha256": "7dce7d7f6c8c6966cf704236418eee69df0263ded20bd7d445a3c6b7b98a2df8"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libass9-copyright": {
+      "type": "file",
+      "bytes": 5882,
+      "sha256": "c3eb686a3786caa0e3033ee78908b6996a60fe9d163ecf7dc1c61871e19f88b7"
+    },
+    "usr/local/lib/libass.so.9": {
+      "type": "symlink",
+      "link": "libass.so.9.4.1"
+    },
+    "usr/local/lib/libbs2b.so.0.0.0": {
+      "type": "file",
+      "bytes": 67720,
+      "sha256": "62888dcd4d3ea3a8e5d50ee5d575f85aaf63e4a9c22d11f86002fbd2f3760c81"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libbs2b0-copyright": {
+      "type": "file",
+      "bytes": 4925,
+      "sha256": "4eae2784b24067760ee71be463d4db0dc17839c847f1bf66b2acee86cd417b6c"
+    },
+    "usr/local/lib/libbs2b.so.0": {
+      "type": "symlink",
+      "link": "libbs2b.so.0.0.0"
+    },
+    "usr/local/lib/libflite.so.2.2": {
+      "type": "file",
+      "bytes": 264304,
+      "sha256": "4211ceae5f23cedd6a30dfd892fbb878f418b85d1d3f80f8bc7bbfc66ffd80ab"
+    },
+    "usr/local/lib/libflite_cmu_grapheme_lang.so.2.2": {
+      "type": "file",
+      "bytes": 67752,
+      "sha256": "706b698e115635ed5e93fab070912b199e761a69ad6eaa9712f395b11ca8374c"
+    },
+    "usr/local/lib/libflite_cmu_grapheme_lex.so.2.2": {
+      "type": "file",
+      "bytes": 2295976,
+      "sha256": "15cece2f80d22c106c20becb18c75c49fb4ab279042d2e551d25284f879f0d10"
+    },
+    "usr/local/lib/libflite_cmu_indic_lang.so.2.2": {
+      "type": "file",
+      "bytes": 198824,
+      "sha256": "80aff4f5c920397b0f96b0de9bcb7b4b7b577b93f636f1f5732b4755d880821d"
+    },
+    "usr/local/lib/libflite_cmu_indic_lex.so.2.2": {
+      "type": "file",
+      "bytes": 67752,
+      "sha256": "2b1c5994e85000cb2ec3b7138610fdba5bff272a52d4cd49d07034ecd25fea47"
+    },
+    "usr/local/lib/libflite_cmu_time_awb.so.2.2": {
+      "type": "file",
+      "bytes": 4720976,
+      "sha256": "ea2d5b50d74b3aed54536fd24c2da10314d55c5c22a252385b1d1a6025b28b1a"
+    },
+    "usr/local/lib/libflite_cmu_us_awb.so.2.2": {
+      "type": "file",
+      "bytes": 3999824,
+      "sha256": "e3465b46240ee808a617188e40b9fd7f68cd69b3fd1a8c8b8ca3ec9677cb5d1e"
+    },
+    "usr/local/lib/libflite_cmu_us_kal.so.2.2": {
+      "type": "file",
+      "bytes": 1509464,
+      "sha256": "135c289233d38a6c1371ae6b838e4070f49793a13ce22696ca9067b45ab168f7"
+    },
+    "usr/local/lib/libflite_cmu_us_kal16.so.2.2": {
+      "type": "file",
+      "bytes": 4065368,
+      "sha256": "1b54f2888d34bd7fab20b8d4ff87c4bc9be43496e7c7094edde4191350e800dd"
+    },
+    "usr/local/lib/libflite_cmu_us_rms.so.2.2": {
+      "type": "file",
+      "bytes": 4655184,
+      "sha256": "ebe8dce70357b2a0656c7671585fe22e82ff989654ca0ba614732b67fe065299"
+    },
+    "usr/local/lib/libflite_cmu_us_slt.so.2.2": {
+      "type": "file",
+      "bytes": 4065360,
+      "sha256": "cc126930085a5ecc8c8f62b8d56e3b8cddd681d63d4d75f2aba42814881a69ec"
+    },
+    "usr/local/lib/libflite_cmulex.so.2.2": {
+      "type": "file",
+      "bytes": 657576,
+      "sha256": "c3a62265237615bdbe547b9e91ee41148918224d98d1b055cb68d71adc908ca6"
+    },
+    "usr/local/lib/libflite_usenglish.so.2.2": {
+      "type": "file",
+      "bytes": 198824,
+      "sha256": "9f6fadcffd77a8b1e48c8781ba164aad502d447dc2bfce126c4520a526dac9b2"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libflite1-copyright": {
+      "type": "file",
+      "bytes": 16340,
+      "sha256": "77d13a5e6cbe7277b4721033f9ad15707241c2832baa8c74ec823c9ee5ebf71c"
+    },
+    "usr/local/lib/libflite.so.1": {
+      "type": "symlink",
+      "link": "libflite.so.2.2"
+    },
+    "usr/local/lib/libflite_cmu_grapheme_lang.so.1": {
+      "type": "symlink",
+      "link": "libflite_cmu_grapheme_lang.so.2.2"
+    },
+    "usr/local/lib/libflite_cmu_grapheme_lex.so.1": {
+      "type": "symlink",
+      "link": "libflite_cmu_grapheme_lex.so.2.2"
+    },
+    "usr/local/lib/libflite_cmu_indic_lang.so.1": {
+      "type": "symlink",
+      "link": "libflite_cmu_indic_lang.so.2.2"
+    },
+    "usr/local/lib/libflite_cmu_indic_lex.so.1": {
+      "type": "symlink",
+      "link": "libflite_cmu_indic_lex.so.2.2"
+    },
+    "usr/local/lib/libflite_cmu_time_awb.so.1": {
+      "type": "symlink",
+      "link": "libflite_cmu_time_awb.so.2.2"
+    },
+    "usr/local/lib/libflite_cmu_us_awb.so.1": {
+      "type": "symlink",
+      "link": "libflite_cmu_us_awb.so.2.2"
+    },
+    "usr/local/lib/libflite_cmu_us_kal.so.1": {
+      "type": "symlink",
+      "link": "libflite_cmu_us_kal.so.2.2"
+    },
+    "usr/local/lib/libflite_cmu_us_kal16.so.1": {
+      "type": "symlink",
+      "link": "libflite_cmu_us_kal16.so.2.2"
+    },
+    "usr/local/lib/libflite_cmu_us_rms.so.1": {
+      "type": "symlink",
+      "link": "libflite_cmu_us_rms.so.2.2"
+    },
+    "usr/local/lib/libflite_cmu_us_slt.so.1": {
+      "type": "symlink",
+      "link": "libflite_cmu_us_slt.so.2.2"
+    },
+    "usr/local/lib/libflite_cmulex.so.1": {
+      "type": "symlink",
+      "link": "libflite_cmulex.so.2.2"
+    },
+    "usr/local/lib/libflite_usenglish.so.1": {
+      "type": "symlink",
+      "link": "libflite_usenglish.so.2.2"
+    },
+    "usr/local/lib/libserd-0.so.0.32.6": {
+      "type": "file",
+      "bytes": 133048,
+      "sha256": "df613376695274db43326e37a0fade2a002f871ab540b16cc02207fe0c96061a"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libserd-0-0-copyright": {
+      "type": "file",
+      "bytes": 3883,
+      "sha256": "4a42ae294f96da07eade9797d7fd0d7f5659c3a945e1ef4f7287eeb06d9398d9"
+    },
+    "usr/local/lib/libserd-0.so.0": {
+      "type": "symlink",
+      "link": "libserd-0.so.0.32.6"
+    },
+    "usr/local/lib/libzix-0.so.0.8.0": {
+      "type": "file",
+      "bytes": 68056,
+      "sha256": "9aee897fb680c47914d8c588c16f15d779b3fd8b8c7a099695607af38d3aaefd"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libzix-0-0-copyright": {
+      "type": "file",
+      "bytes": 2302,
+      "sha256": "0460f90b9445d5f84bfb17bc0a4a6efced0bca86bfe46e3400770e5ba868d471"
+    },
+    "usr/local/lib/libzix-0.so.0": {
+      "type": "symlink",
+      "link": "libzix-0.so.0.8.0"
+    },
+    "usr/local/lib/libsord-0.so.0.16.20": {
+      "type": "file",
+      "bytes": 67512,
+      "sha256": "281f87e599458fbeada659a0de1983dcf26c0bf69382f34e6a3aa24152d7e60f"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libsord-0-0-copyright": {
+      "type": "file",
+      "bytes": 2018,
+      "sha256": "80b04cb1571245377a66951e3b2a339b7dbe7d844a096d0595483539059cfdaf"
+    },
+    "usr/local/lib/libsord-0.so.0": {
+      "type": "symlink",
+      "link": "libsord-0.so.0.16.20"
+    },
+    "usr/local/lib/libsratom-0.so.0.6.20": {
+      "type": "file",
+      "bytes": 67512,
+      "sha256": "1492b75e7675d585aba0e5c834d9db707e30a22138da6f03afc7eccfd6c1f059"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libsratom-0-0-copyright": {
+      "type": "file",
+      "bytes": 2278,
+      "sha256": "892618b130b655368611eaad45c7458242a8fc37aa049da999793fa65c201d6b"
+    },
+    "usr/local/lib/libsratom-0.so.0": {
+      "type": "symlink",
+      "link": "libsratom-0.so.0.6.20"
+    },
+    "usr/local/lib/liblilv-0.so.0.26.2": {
+      "type": "file",
+      "bytes": 133048,
+      "sha256": "4399ee0598d749c330f7c951efae77f4312cb02dd58a9a166bcfe7b4fc868296"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/liblilv-0-0-copyright": {
+      "type": "file",
+      "bytes": 2189,
+      "sha256": "96d6d24fc294b9b21982d012da3424136c967e6a3545d3123a4fc66f28424dc5"
+    },
+    "usr/local/lib/liblilv-0.so.0": {
+      "type": "symlink",
+      "link": "liblilv-0.so.0.26.2"
+    },
+    "usr/local/lib/libmysofa.so.1.3.3": {
+      "type": "file",
+      "bytes": 67632,
+      "sha256": "9fbba0af6e3996cc010caf03aef371c20745733fe5aacb40ffc67bcf769323cb"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libmysofa1-copyright": {
+      "type": "file",
+      "bytes": 42219,
+      "sha256": "99aab76301ca56da29c87971d0f57a41e11651c453a601b01d51baf0b81be39c"
+    },
+    "usr/local/lib/libmysofa.so.1": {
+      "type": "symlink",
+      "link": "libmysofa.so.1.3.3"
+    },
+    "usr/local/lib/libplacebo.so.360": {
+      "type": "file",
+      "bytes": 9200672,
+      "sha256": "e7a14f066095b979675b5a32f38eca6ff076418ba902898e39b5598ff3f13644"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libplacebo360-copyright": {
+      "type": "file",
+      "bytes": 10272,
+      "sha256": "2f21107885f2aacf42577624c94de149f16400b1e052bda8e87a85a050fa5cac"
+    },
+    "usr/local/lib/libfftw3.so.3.6.10": {
+      "type": "file",
+      "bytes": 788528,
+      "sha256": "4511f8cd842ab5284bbb6e4bdf7cbcc98a7d38d5b085b8cbb9d1228f7b05a69e"
+    },
+    "usr/local/lib/libfftw3_omp.so.3.6.10": {
+      "type": "file",
+      "bytes": 67624,
+      "sha256": "8676642e371970b9753b875d4ef35648ca5fdac9a4b512a0f96891afa57b111c"
+    },
+    "usr/local/lib/libfftw3_threads.so.3.6.10": {
+      "type": "file",
+      "bytes": 67624,
+      "sha256": "597a475b4ead3f302b8017422beab490b3270469c5acb7912969d30cbd0a217b"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libfftw3-double3-copyright": {
+      "type": "file",
+      "bytes": 1195,
+      "sha256": "8da846cb9e375187ccee28953159c233ba788ec1e74b2089a63c27e75f5795d3"
+    },
+    "usr/local/lib/libfftw3.so.3": {
+      "type": "symlink",
+      "link": "libfftw3.so.3.6.10"
+    },
+    "usr/local/lib/libfftw3_omp.so.3": {
+      "type": "symlink",
+      "link": "libfftw3_omp.so.3.6.10"
+    },
+    "usr/local/lib/libfftw3_threads.so.3": {
+      "type": "symlink",
+      "link": "libfftw3_threads.so.3.6.10"
+    },
+    "usr/local/lib/librubberband.so.3.0.0": {
+      "type": "file",
+      "bytes": 395488,
+      "sha256": "8ddc385248969983a7d6dbc2d51481c194df9911c4486a320cea8b1f0fa98815"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/librubberband3-copyright": {
+      "type": "file",
+      "bytes": 6042,
+      "sha256": "98f38598448d973d6f2ce5ce6ecb735c8c23c94086e0c73d16ea0f911f448272"
+    },
+    "usr/local/lib/librubberband.so.3": {
+      "type": "symlink",
+      "link": "librubberband.so.3.0.0"
+    },
+    "usr/local/lib/libswscale.so.9.1.100": {
+      "type": "file",
+      "bytes": 1050744,
+      "sha256": "06de9321d9c1398752bab4a2b2f7433de906e13536e980dc62f2ffb18d66f4ed"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libswscale9-copyright": {
+      "type": "file",
+      "bytes": 49188,
+      "sha256": "3a48e975751c49cc38db6f7254afba9f1065062b12cf65941c400f1009012cf3"
+    },
+    "usr/local/lib/libswscale.so.9": {
+      "type": "symlink",
+      "link": "libswscale.so.9.1.100"
+    },
+    "usr/local/lib/libvidstab.so.1.1": {
+      "type": "file",
+      "bytes": 133528,
+      "sha256": "4333fc011d51a2cea6d821d7a4a446103d2056d6cd9b15fead889e21d2b8f126"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libvidstab1.1-copyright": {
+      "type": "file",
+      "bytes": 1204,
+      "sha256": "c784a3d8760a64cb193f13425f8d667a4a183ff678d7cf0c151bb1dd0e30f3cc"
+    },
+    "usr/local/lib/libzimg.so.2.0.0": {
+      "type": "file",
+      "bytes": 330536,
+      "sha256": "02eaa100027c90a394a7f86202649c8d41bbe90b412597dc7bf4e71ac601baeb"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libzimg2-copyright": {
+      "type": "file",
+      "bytes": 2721,
+      "sha256": "b302dc2568943b3326d3be15d03fe968888d1673962891ea93050a2f41e6e609"
+    },
+    "usr/local/lib/libzimg.so.2": {
+      "type": "symlink",
+      "link": "libzimg.so.2.0.0"
+    },
+    "usr/local/lib/libavfilter.so.11.4.100": {
+      "type": "file",
+      "bytes": 14230728,
+      "sha256": "5d01c5a9bebb7011e2fdce6a2e6f13b2fb55f3406ad275a3045d7549e55d9c70"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libavfilter11-copyright": {
+      "type": "file",
+      "bytes": 49188,
+      "sha256": "3a48e975751c49cc38db6f7254afba9f1065062b12cf65941c400f1009012cf3"
+    },
+    "usr/local/lib/libavfilter.so.11": {
+      "type": "symlink",
+      "link": "libavfilter.so.11.4.100"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstapp.so": {
+      "type": "file",
+      "bytes": 67728,
+      "sha256": "1818961f41d62c43d8087eab21d952c445df73df9581efa24f93e94a52cdf0a3"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstdeinterlace.so": {
+      "type": "file",
+      "bytes": 199184,
+      "sha256": "3b6a303adb96bec44d0fc3b45ae10645268d1fc4f2039872eea2b4862daa2a44"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstvideofilter.so": {
+      "type": "file",
+      "bytes": 68544,
+      "sha256": "da8b5cbf19fe52426b267270a873b6a2d939cc29d932d82bdcc390c94ea2868a"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstdebug.so": {
+      "type": "file",
+      "bytes": 134464,
+      "sha256": "bacc273a3b88e8e7e3d0af7acb0a4acdb066ef1270ae5a507e23af6f38406166"
+    },
+    "usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstopengl.so": {
+      "type": "file",
+      "bytes": 397024,
+      "sha256": "eda532ae8878a5b3c36832309f022652227aaf357061fe819c30d46643756d05"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/gstreamer1.0-gl-copyright": {
+      "type": "file",
+      "bytes": 55918,
+      "sha256": "81e84c076067fd9b53aa847c6205b9b993946f77d3093ad6a6023832f0831990"
+    },
+    "usr/local/lib/libgraphene-1.0.so.0.1000.8": {
+      "type": "file",
+      "bytes": 133048,
+      "sha256": "98c7cbfdffd59bb0012eda8322aad0fc97cce46b590183f73e9bea00bfefdd15"
+    },
+    "usr/local/share/doc/idap-ubuntu-media/libgraphene-1.0-0-copyright": {
+      "type": "file",
+      "bytes": 1479,
+      "sha256": "59477df6c16df1f26679ea572b611be5c87c81e8842409086b38f8a0e7ff6743"
+    },
+    "usr/local/lib/libgraphene-1.0.so.0": {
+      "type": "symlink",
+      "link": "libgraphene-1.0.so.0.1000.8"
+    }
+  }
+}

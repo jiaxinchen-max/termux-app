@@ -96,7 +96,7 @@ public class LaunchPreflightEvaluatorTest {
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs");
         Map<String, InstalledComponentVersion> installed = installed(index);
         addHostCapability(installed, "termux-x11");
         addHostCapability(installed, "proot");
@@ -119,7 +119,7 @@ public class LaunchPreflightEvaluatorTest {
             "rootfs-virgl-mesa", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs");
 
         LaunchPreflightResult result = new LaunchPreflightEvaluator(index,
             LaunchPreflightEvaluator.DEFAULT_PREFIX_RESERVE_BYTES,
@@ -138,7 +138,7 @@ public class LaunchPreflightEvaluatorTest {
             "rootfs-virgl-mesa", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs");
         Map<String, InstalledComponentVersion> installed = installed(index);
         installed.put("proot", new InstalledComponentVersion(1,
             "0000000000000000000000000000000000000000000000000000000000000000"));
@@ -206,7 +206,7 @@ public class LaunchPreflightEvaluatorTest {
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720",
             "INTERMEDIATE", Collections.emptyMap(), "xinput",
             LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs");
         return new LaunchPreflightEvaluator(index,
             LaunchPreflightEvaluator.DEFAULT_PREFIX_RESERVE_BYTES,
             new RootfsProotBackend()).evaluate(profile, GameAccessState.ACCESSIBLE,

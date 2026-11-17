@@ -1,0 +1,22 @@
+{
+  "authorizedAt": "2026-11-17T18:00:53.180975+00:00",
+  "authority": "用户最新明确指令：推送代码",
+  "approved": [
+    "Stage this Ubuntu Wine migration source, OpenSpec and this run ledger",
+    "Commit reviewed migration",
+    "Non-force push HEAD to refs/heads/master-x11-submodule-tmp"
+  ],
+  "baseCommit": "572b115151160c509b6d27a86d9278c2a4ca8d48",
+  "remote": "https://github.com/jiaxinchen-max/termux-app.git",
+  "targetRef": "refs/heads/master-x11-submodule-tmp",
+  "remoteBaseVerified": "572b115151160c509b6d27a86d9278c2a4ca8d48",
+  "excluded": [
+    "Seven pre-existing dirty native submodules and their gitlinks",
+    "Wrapper repository index/gitlink",
+    "APK installation",
+    "Archive",
+    "Final user acceptance"
+  ],
+  "previousPublicationAuthorization": "publication-authorization.json (historical snapshot retained)",
+  "receipt": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/main-application-push-result.json"
+}

@@ -1,0 +1,198 @@
+{
+  "change_id": "use-ubuntu-2604-wine-proot-base",
+  "results": [
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/builder-gstreamer-check.log",
+      "sha256": "f2e92f6f11b9465ed8fc8112334f943f0c86cf5997be8dac04bfe6c227fc42a3",
+      "count": 14,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/prebuilt-ubuntu-admission-fixed-check.log",
+      "sha256": "486015e35819a09bfa6420a293a71d39205f7d12fea5c4ae938f02c93f962550",
+      "count": 28,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/staging-old-base-check.log",
+      "sha256": "7d76c8300cfea1ffab6ea9377e48d2bb855aa06d7b134a99a59913a39e73c4ff",
+      "count": 15,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/ubuntu-prefix-stop-java-check.log",
+      "sha256": "f922bcd1f62970c64e5b5bfb1f57a134777a4fef0cdbaf293dee4949200e2d60",
+      "count": 21,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/media-v4-reproduction.log",
+      "sha256": "b5ca910d48434a1832e1751cb86f671b620add0c60dd1b5b22e799bc3a38ec0e",
+      "count": null,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/media-v4-prerequisites/media-v4/prepare.log",
+      "sha256": "ca1772acd6ae59b31507c985d48746a17586a441df8d07f8954ef2c1bad42975",
+      "count": null,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/media-v4-prerequisites/results/qualify-media-v4-app.log",
+      "sha256": "785588d2f1528506789965996a8d808618e2555c9aa40ac106d380915d04a7c7",
+      "count": null,
+      "state": "HistoricalFailuresRetained_FactoriesPassed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/qualified-metadata/results/media-v5-public-results.json",
+      "sha256": "f9c77b09d02a352e9dee93b2a8bbb43baf6c714efdeb88c0291578e173410c11",
+      "count": 18,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/qualified-metadata/media-v5-final-archive-check.json",
+      "sha256": "325d903cd8d2130f464c1cb6b667edbf9227f3f395c1122cb19772680d8b9d53",
+      "count": 15448,
+      "state": "FullArchiveStreamVerified"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/qualified-metadata/final-build-provenance.json",
+      "sha256": "384e1f8fe7086b37d02093184ca600baefc815e19ee42aecbb89bb1a68312357",
+      "count": null,
+      "state": "Collected_LockedMediaMatches"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/qualified-integration-verification.json",
+      "sha256": "5b8837306b1b1952e7f101cd10ce56554672157f28dc2f1e8bdb44f772f25d79",
+      "count": null,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/prefix-archive-verification.json",
+      "sha256": "324a0a01274801ebd15876b6c3335c52c0b669fdc26a053a69b66e4642480fe9",
+      "count": 3,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/device-evidence/private-test-cleanup-v5.json",
+      "sha256": "b4b271ba268e64fd7ff355357d2754250c14d00eff758e3ebb6f51b3e5f20310",
+      "count": 2,
+      "state": "Exited"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/qualified-metadata-java-check.log",
+      "sha256": "edad01a87b08987a30fea9064b0fa03945f5e547c16cc9c9cfef7941ab5939ff",
+      "count": 14,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/final-source-diff-check.log",
+      "sha256": "6549d1becc10ae458944a30483539a3f8b989d7003078908d1ce4e7c553cb7d7",
+      "count": null,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/public-download-verification.json",
+      "sha256": "085d306a77594ace22e3add0818f984f0c36ac8cee6a27ffe043beb3484f4ddd",
+      "count": 4,
+      "state": "Passed_UnauthenticatedFullPublicBytes"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication/public-index-verification.json",
+      "sha256": "4e1bb4bfca80a2b2000c0338750c3ae4d5c1db2d5828b7c2bbb02d6f80192360",
+      "count": 2,
+      "state": "Passed_PublicMainAndPinnedCommit"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/published-index-java-results.json",
+      "sha256": "d7aad1afb2cf72c48013d959f8dff17bd2c79cb591cd57838d41ddb4b6268631",
+      "count": 48,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/published-index-java-fixed-check.log",
+      "sha256": "07716c06879c0b359c7e324d40035b39fde6fd6467e24ba0d7661f87768c1912",
+      "count": 48,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/published-index-java-check.log",
+      "sha256": "487eabac716a3894a0c181e68d8de1326bec75461b6e6f33c878e6b4a7f65c5f",
+      "count": 48,
+      "state": "HistoricalSnapshotFailure_CorrectedBeforePush"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication-progress.log",
+      "sha256": "4c3c4be9b47e2ed25e45b2209c26de9818f6712806216137ad8414befeee9aa5",
+      "count": null,
+      "state": "HistoricalDraftTemporaryURLAssertion_CorrectedWithoutReupload"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/publication-resume-progress.log",
+      "sha256": "a1297ce14d6b96fc39c87c133024161ea1240f51b8501347d1647dbf49b21361",
+      "count": 4,
+      "state": "Published"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/asset-index-push.log",
+      "sha256": "91d54f8afad164635cf09ac4e62c5924b7b3a0e087b57f3e0564e99a93ddce16",
+      "count": 1,
+      "state": "Pushed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/build-ubuntu-wine-apk.log",
+      "sha256": "62dc1a9564c04090d0ad90589dda2cf26a565929e61f02fc4a0f67180d4ad87a",
+      "count": null,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/apk/apk-verification.json",
+      "sha256": "2d308bdedcaa84e3acb2824ae64516551ecd9745ff3a22cbd391a409343d0a83",
+      "count": null,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/apk-download-verification.json",
+      "sha256": "44f1b1ab20e553f06319f7209f10bd089f59eb30a4298ecb98e10f1b916a76b1",
+      "count": null,
+      "state": "Passed"
+    },
+    {
+      "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/candidate/native-submodules-after-apk.json",
+      "sha256": "8128ec30e629cdc1d8f1fc2c85ea4248c18e7d0dc346e7bab30ae6f761048f8f",
+      "count": 7,
+      "state": "Unchanged"
+    }
+  ],
+  "strictGate": {
+    "state": "Unavailable",
+    "exitCode": 127,
+    "log": "/home/user/workspace/artifacts/ubuntu-wine-rootfs/publication-strict-gate.log",
+    "sha256": "5f39015ff721e09ea8054362e7ca069eae4641f946652cf33af26f4cb1b23807"
+  },
+  "appAcceptance": "Pending",
+  "productConsistency": "Pending",
+  "publication": "Completed_FourNewPrereleases_PublicFullDownloadsVerified",
+  "assetIndexCommit": "7d2bb960ee1847ee92e93b76e06363d739239ecc",
+  "mainApplicationGit": "Authorized_User_ExplicitPush_2026_11_17_ReceiptInExternalArtifacts",
+  "deviceDeployment": {
+    "status": "N/A",
+    "reason": "本轮仅授权候选发布、资产索引推送及APK构建，APK安装未授权；App/GPU风险保持Pending"
+  },
+  "apk": {
+    "file": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "bytes": 45485383,
+    "sha256": "5cdf36d6ed9ed957ee9f389d7ec0da207dd43480e68d10d2811d3c8c5c61ceb3",
+    "download": {
+      "filename": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+      "httpStatus": 200,
+      "bytes": 45485383,
+      "sha256": "5cdf36d6ed9ed957ee9f389d7ec0da207dd43480e68d10d2811d3c8c5c61ceb3",
+      "matchesVerifiedApk": true,
+      "originalFilenamePreserved": true,
+      "proxy": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122516548376911873/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk",
+      "proxyVerification": "Authenticated user proxy untested; complete localhost download verified",
+      "previousBackup": "/home/user/workspace/artifacts/ubuntu-gnome-software-apk/.previous/before-ubuntu2604-wine-v13"
+    }
+  }
+}

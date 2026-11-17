@@ -83,7 +83,7 @@ public class XServerBackendSelectionTest {
         RuntimeProfile rootfs = new RuntimeProfile("game-1", "rootfs_hangover_11.16",
             "rootfs-llvmpipe", "rootfs-wined3d", "pulseaudio", "1280x720", "INTERMEDIATE",
             Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", "container-game-1");
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs", "container-game-1");
 
         Set<String> legacyGlibc = new GlibcTermuxBoxBackend().requiredHostCapabilityIds(glibc, paths());
         Set<String> legacyRootfs = new RootfsProotBackend().requiredHostCapabilityIds(rootfs, paths());

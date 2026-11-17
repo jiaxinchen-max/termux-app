@@ -28,6 +28,8 @@ OWNER_CONTEXTS = {
     },
     'usr/lib/aarch64-linux-gnu/systemd/': {
         'libsystemd-shared-257.so': 'usr/lib/aarch64-linux-gnu/systemd/libsystemd-shared-257.so',
+        'libsystemd-shared-259.so': 'usr/lib/aarch64-linux-gnu/systemd/libsystemd-shared-259.so',
+        'libsystemd-core-259.so': 'usr/lib/aarch64-linux-gnu/systemd/libsystemd-core-259.so',
     },
 }
 
@@ -192,7 +194,7 @@ def scan(root, machine=183, contexts=None, emulated=None):
             'declaredOwnerContexts': contexts,
             'limitations': ['Direct ELF edges only; dlopen, driver selection and inherited RPATH require separate review.',
                             'Owner preloads are explicit contexts; systemd execution is not tested.',
-                            'Fixed Debian aarch64 default search paths; unsupported paths fail closed.']}
+                            'Fixed aarch64 multiarch search paths; unsupported paths fail closed.']}
 
 
 def main():

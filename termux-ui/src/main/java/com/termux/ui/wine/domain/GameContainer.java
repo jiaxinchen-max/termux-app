@@ -13,8 +13,7 @@ public final class GameContainer {
     public static final int SCHEMA_VERSION = 1;
     public static final String DEFAULT_ID = "default";
     /** Runtime activation ID; this is distinct from the component that supplies its recipe. */
-    public static final String ROOTFS_RUNTIME_PACKAGE = "debian-13-games-rootfs";
-    private static final String ROOTFS_RECIPE_SOURCE = "rootfs_hangover_11.16";
+    public static final String ROOTFS_RUNTIME_PACKAGE = "ubuntu-26.04-games-rootfs";
 
     private final String id;
     private final String name;
@@ -39,12 +38,7 @@ public final class GameContainer {
         if (backendType == null) throw new IllegalArgumentException("containerBackendRequired");
         if (translator == null) throw new IllegalArgumentException("containerTranslatorRequired");
         this.backendType = backendType;
-        String requestedRootfsPackage = DomainValidation.optionalText(rootfsPackage);
-        // Earlier container UI code persisted the recipe source component here.  The launcher
-        // must resolve the activated runtime package instead, otherwise every PRoot launch is
-        // rejected before its script can run.
-        this.rootfsPackage = ROOTFS_RECIPE_SOURCE.equals(requestedRootfsPackage)
-            ? ROOTFS_RUNTIME_PACKAGE : requestedRootfsPackage;
+        this.rootfsPackage = DomainValidation.optionalText(rootfsPackage);
         if (!this.rootfsPackage.isEmpty() && !this.rootfsPackage.matches("[A-Za-z0-9._-]{1,128}")) {
             throw new IllegalArgumentException("invalidContainerRootfs");
         }

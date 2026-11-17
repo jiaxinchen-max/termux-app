@@ -15,8 +15,8 @@ import sys
 import tarfile
 import tempfile
 
-IMAGE_ID = 'rootfs_debian13_hangover_pdb2_minimal'
-SOURCE_SHA = 'ed206c70ca889b1bbbcedaa93d4018d315b3512a861dec551da8093f9a1807c1'
+IMAGE_ID = 'rootfs_ubuntu2604_hangover_pdb2_minimal'
+SOURCE_SHA = '8deeb1286d8227d267d261420ecd04321c9670802a3ce1b70da807a4d8d54885'
 MANIFEST = '.idap-image-manifest.json'
 RECEIPT = 'etc/wine-image-install.json'
 MAX_MANIFEST = 24 * 1024 * 1024
@@ -113,7 +113,7 @@ def clean_bytes(path, name):
     if name in RESET:
         return RESET[name]
     if name == 'etc/wine-runtime.properties':
-        return ('\n'.join('recipeVersion=12' if x.startswith('recipeVersion=') else x
+        return ('\n'.join('recipeVersion=13' if x.startswith('recipeVersion=') else x
                           for x in path.read_text().splitlines() if not x.startswith('recipeSha256=')) + '\n').encode()
     return None
 
@@ -197,7 +197,7 @@ def pack(root, output, descriptor_path, assets, zstd):
                   'expandedBytes': sum(r.get('bytes', 0) for r in entries), 'entryCount': len(entries)}
     validate_manifest(manifest, descriptor)
     with output.open('xb') as dest:
-        proc = subprocess.Popen([zstd, '-T2', '-6', '-c'], stdin=subprocess.PIPE, stdout=dest)
+        proc = subprocess.Popen([zstd, '-T2', '-6', '--long=25', '-c'], stdin=subprocess.PIPE, stdout=dest)
         try:
             with tarfile.open(fileobj=proc.stdin, mode='w|', format=tarfile.PAX_FORMAT) as tar:
                 info = tarfile.TarInfo(MANIFEST); info.size = len(manifest); info.mode = 0o644
@@ -249,6 +249,10 @@ def verify(root, descriptor, recipe, full=False):
                         'recipeSha256': recipe}, 'image_install_identity')
     data = leaf(root, MANIFEST).read_bytes(); m = validate_manifest(data, d)
     props = leaf(root, 'etc/wine-runtime.properties').read_text()
+    for key, expected in (('baseImage', 'ubuntu:resolute'), ('recipeVersion', '13')):
+        values = [line.split('=', 1)[1].strip() for line in props.splitlines()
+                  if '=' in line and line.split('=', 1)[0].strip() == key]
+        require(values == [expected], 'image_ubuntu_setup_required')
     require(props.splitlines().count('recipeSha256=' + recipe) == 1, 'image_recipe_mismatch')
     guards = m['protectedFiles'] if full else m['runtimeFiles']
     for name, expected in guards.items():

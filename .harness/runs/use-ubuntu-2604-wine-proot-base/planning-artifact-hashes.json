@@ -1,0 +1,9 @@
+{
+  "openspec/changes/use-ubuntu-2604-wine-proot-base/proposal.md": "68d9c6d8e9e1eec15b5b65274dfd26bec531ce2f063163f998e2cb071ece7382",
+  "openspec/changes/use-ubuntu-2604-wine-proot-base/design.md": "c301be45170ad036181a1591a7c64e2a7f6e8fb7cd1aa0bae87480fb960b232b",
+  "openspec/changes/use-ubuntu-2604-wine-proot-base/tasks.md": "f3012de67656a9308fa3ec89d36c1e3e3452e09dacc6b1682adc8bb9137aade7",
+  "openspec/changes/use-ubuntu-2604-wine-proot-base/specs/wine-proot-base/spec.md": "61756e2d23e3b6a115d4c4701226f48db4ab6e45aed909e8289904cb773d0b67",
+  "openspec/changes/use-ubuntu-2604-wine-proot-base/change_manifest.yaml": "9d83cede3af2013caa4c7094c998b31a0e5f946c3c37551c1ae5733306982f65",
+  "openspec/changes/use-ubuntu-2604-wine-proot-base/planning-review.md": "a47d04976206c87d9cadcebd99d838fc18698090713726b1b94945fb45388be3",
+  "openspec/changes/use-ubuntu-2604-wine-proot-base/planning-review.yaml": "8b4c91455c8c21971982f3701d0c61b21b00eb9f1fb13d151be0c72415e704fe"
+}

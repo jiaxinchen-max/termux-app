@@ -24,7 +24,7 @@ public class ProotBindingResolverTest {
         "rootfs-llvmpipe", ID, "pulseaudio", "1280x720", "INTERMEDIATE",
         Collections.emptyMap(), "xinput", LaunchExecutionMode.APP_SHELL,
         Collections.emptyMap(), GameRuntimeBackendType.ROOTFS_PROOT,
-        "debian-13-games-rootfs", "container");
+        "ubuntu-26.04-games-rootfs", "container");
 
     @Test public void activeUpdateDoesNotRedirectFrozenVersion() throws Exception {
         File install = temp.newFolder("install $' =");

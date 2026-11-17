@@ -199,7 +199,7 @@ public class GameUninstallerTest {
         return new RuntimeProfile(gameId, "rootfs_hangover_11.16", "rootfs-llvmpipe", "rootfs-wined3d",
             "pulseaudio", "1280x720", "INTERMEDIATE", Collections.emptyMap(), "",
             LaunchExecutionMode.TERMINAL_SESSION, Collections.emptyMap(),
-            GameRuntimeBackendType.ROOTFS_PROOT, "debian-13-games-rootfs", containerId);
+            GameRuntimeBackendType.ROOTFS_PROOT, "ubuntu-26.04-games-rootfs", containerId);
     }
 
     private Fixture fixture(String directory, String gameId) throws Exception {

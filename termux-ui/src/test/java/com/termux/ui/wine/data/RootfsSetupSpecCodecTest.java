@@ -14,7 +14,7 @@ import static org.junit.Assert.*;
 public class RootfsSetupSpecCodecTest {
     @Rule public TemporaryFolder temp = new TemporaryFolder();
     private RuntimeSetupTask task() {
-        return RuntimeSetupTask.queued("task", "debian-13-games-rootfs", 11,
+        return RuntimeSetupTask.queued("task", "ubuntu-26.04-games-rootfs", 11,
             String.join("", Collections.nCopies(64, "a")), "rootfs_hangover_11.16",
             "container", "container", true, 0);
     }
