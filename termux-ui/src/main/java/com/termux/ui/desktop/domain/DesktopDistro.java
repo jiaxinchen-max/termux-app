@@ -30,6 +30,7 @@ public final class DesktopDistro {
     private final String resolution;
     private final int refreshRate;
     private final DesktopUsbStorageMode usbStorage;
+    private final long createdAt;
 
     public DesktopDistro(String id, String name, DesktopRunMode runMode, String prootDistro,
                          DesktopDe de, DesktopGlMode hostGlMode, DesktopGuestGlMode guestGlMode,
@@ -43,6 +44,16 @@ public final class DesktopDistro {
                          DesktopDe de, DesktopGlMode hostGlMode, DesktopGuestGlMode guestGlMode,
                          String resolution, int refreshRate, DesktopUsbStorageMode usbStorage,
                          String runtimeId, String themeId) {
+        this(id, name, runMode, prootDistro, de, hostGlMode, guestGlMode, resolution, refreshRate,
+            usbStorage, runtimeId, themeId, System.currentTimeMillis());
+    }
+
+    public DesktopDistro(String id, String name, DesktopRunMode runMode, String prootDistro,
+                         DesktopDe de, DesktopGlMode hostGlMode, DesktopGuestGlMode guestGlMode,
+                         String resolution, int refreshRate, DesktopUsbStorageMode usbStorage,
+                         String runtimeId, String themeId, long createdAt) {
+        if (createdAt < 0) throw new IllegalArgumentException("invalid_creation_time");
+        this.createdAt = createdAt;
         if (de == DesktopDe.HYPRLAND) HyprlandComponents.requireSupported(runtimeId, themeId);
         else if (!"".equals(runtimeId) || !"".equals(themeId))
             throw new IllegalArgumentException("hyprland_components_require_hyprland");
@@ -82,11 +93,12 @@ public final class DesktopDistro {
     public int getSchemaVersion() { return de == DesktopDe.HYPRLAND ? HYPRLAND_SCHEMA_VERSION : SCHEMA_VERSION; }
     public DesktopDistro withHyprlandComponents(String runtime, String theme) {
         return new DesktopDistro(id, name, runMode, prootDistro, de, hostGlMode, guestGlMode,
-            resolution, refreshRate, usbStorage, runtime, theme);
+            resolution, refreshRate, usbStorage, runtime, theme, createdAt);
     }
 
     public String getId() { return id; }
     public String getName() { return name; }
+    public long getCreatedAt() { return createdAt; }
     public DesktopRunMode getRunMode() { return runMode; }
     /** The proot-distro alias of this desktop's own container instance; empty for native. */
     public String getProotDistro() { return prootDistro; }
@@ -108,21 +120,21 @@ public final class DesktopDistro {
 
     public DesktopDistro withName(String newName) {
         return new DesktopDistro(id, newName, runMode, prootDistro, de, hostGlMode, guestGlMode, resolution,
-            refreshRate, usbStorage, hyprlandRuntimeId, hyprlandThemeId);
+            refreshRate, usbStorage, hyprlandRuntimeId, hyprlandThemeId, createdAt);
     }
 
     public DesktopDistro withRenderers(DesktopGlMode host, DesktopGuestGlMode guest) {
-        return new DesktopDistro(id, name, runMode, prootDistro, de, host, guest, resolution, refreshRate, usbStorage, hyprlandRuntimeId, hyprlandThemeId);
+        return new DesktopDistro(id, name, runMode, prootDistro, de, host, guest, resolution, refreshRate, usbStorage, hyprlandRuntimeId, hyprlandThemeId, createdAt);
     }
 
     public DesktopDistro withOutput(String newResolution, int newRefreshRate) {
         return new DesktopDistro(id, name, runMode, prootDistro, de, hostGlMode, guestGlMode, newResolution,
-            newRefreshRate, usbStorage, hyprlandRuntimeId, hyprlandThemeId);
+            newRefreshRate, usbStorage, hyprlandRuntimeId, hyprlandThemeId, createdAt);
     }
 
     public DesktopDistro withUsbStorage(DesktopUsbStorageMode mode) {
         return new DesktopDistro(id, name, runMode, prootDistro, de, hostGlMode, guestGlMode, resolution,
-            refreshRate, mode, hyprlandRuntimeId, hyprlandThemeId);
+            refreshRate, mode, hyprlandRuntimeId, hyprlandThemeId, createdAt);
     }
 
     public static boolean isValidId(String value) {

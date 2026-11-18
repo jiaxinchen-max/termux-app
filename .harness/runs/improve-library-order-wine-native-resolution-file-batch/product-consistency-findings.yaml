@@ -1,0 +1,6 @@
+schema: review_findings_v1
+change_id: improve-library-order-wine-native-resolution-file-batch
+stage: product-consistency
+verdict: PENDING
+findings: []
+reason: 实施及本地回归完成，最终设备验收和产品文档一致性审查待完成

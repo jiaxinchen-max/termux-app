@@ -1,0 +1,17 @@
+schema: review_findings_v1
+change_id: improve-library-order-wine-native-resolution-file-batch
+stage: planning-review
+verdict: APPROVED_WITH_TOOLING_LIMITATIONS
+reviewer: 同代理直接源码自审，未使用独立子代理
+findings: []
+reviewed:
+  - 创建时间持久化、旧记录一次补齐、更新稳定性及固定入口完整性
+  - Wine窗口尺寸在任务冻结前测量并持久化，准备暂停恢复与活动任务重入
+  - Native和PRoot及游戏和Wine桌面四条显示路径
+  - 批量预检、串行写入、首错停止、部分移动及剪贴板恢复边界
+  - 原有文件菜单、固定根保护、链接及系统应用选择器行为
+  - 文档分类、回滚、APK交付约束及阶段授权
+limitations:
+  - 需求确认Pending，禁止提前实现
+  - Harness引导及严格脚本、OpenSpec CLI、产品基线缺失
+  - 后续以实际代码和测试证据检验，当前不表示产品验收

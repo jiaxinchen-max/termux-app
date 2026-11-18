@@ -1,0 +1,254 @@
+{
+  "change_id": "improve-library-order-wine-native-resolution-file-batch",
+  "timestamp_utc": "2026-11-18T03:52:51.616760+00:00",
+  "source_commit": "fc0d8819b57fcfffd55a4564cb6f5510e141fd93",
+  "planning_approved": true,
+  "implementation_complete": true,
+  "tests": {
+    "tests": 147,
+    "failures": 0,
+    "suites": [
+      {
+        "module": "termux-ui",
+        "name": "com.termux.ui.wine.runtime.WineDisplayPolicyTest",
+        "tests": "4",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "termux-ui",
+        "name": "com.termux.ui.wine.data.FileGameRepositoryTest",
+        "tests": "7",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "termux-ui",
+        "name": "com.termux.ui.wine.data.GameLibraryRepositoryTest",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "termux-ui",
+        "name": "com.termux.ui.files.BrowserFileOperationsTest",
+        "tests": "24",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "termux-ui",
+        "name": "com.termux.ui.desktop.data.FileDesktopDistroRepositoryTest",
+        "tests": "10",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "termux-ui",
+        "name": "com.termux.ui.wine.runtime.RuntimeComponentLaunchContractTest",
+        "tests": "11",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "termux-ui",
+        "name": "com.termux.ui.wine.data.LaunchSpecCodecTest",
+        "tests": "13",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "termux-ui",
+        "name": "com.termux.ui.wine.runtime.GameRuntimeBackendTest",
+        "tests": "12",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "termux-ui",
+        "name": "com.termux.ui.wine.runtime.GameContainerProfileResolverTest",
+        "tests": "3",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "termux-ui",
+        "name": "com.termux.ui.wine.importer.QuickGameImportTest",
+        "tests": "4",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "app",
+        "name": "com.termux.ui.activity.GameFileManagerBlankSpaceTest",
+        "tests": "7",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "app",
+        "name": "com.termux.ui.desktop.activity.DesktopCardGeometryTest",
+        "tests": "8",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "app",
+        "name": "com.termux.ui.desktop.activity.DesktopNativeEntriesTest",
+        "tests": "6",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "app",
+        "name": "com.termux.ui.activity.GameFileManagerOperationsTest",
+        "tests": "24",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "app",
+        "name": "com.termux.ui.wine.activity.LaunchStatusRecoveryTest",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "app",
+        "name": "com.termux.ui.desktop.activity.DesktopNativeResolutionTest",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "app",
+        "name": "com.termux.ui.activity.WineCardGeometryTest",
+        "tests": "7",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "module": "app",
+        "name": "com.termux.ui.wine.activity.WineNativeResolutionTest",
+        "tests": "3",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      }
+    ]
+  },
+  "apk": {
+    "name": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "bytes": 45513845,
+    "sha256": "572e95f102e0d19005175adb08b811dd5b9577e07136117a4e8fc4922baa607c",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "zip_integrity": "PASS",
+    "new_classes_packaged": [
+      "com/termux/ui/data/RecordCreationTime",
+      "com/termux/ui/activity/BrowserBatchViewModel",
+      "com/termux/ui/files/BrowserBatchOperations",
+      "com/termux/ui/wine/data/LaunchWindowGeometry",
+      "com/termux/ui/wine/runtime/WineDisplayPolicy"
+    ],
+    "source_assets_compared": [
+      "local-games/start_local_game.sh",
+      "local-games/start_rootfs_game.sh",
+      "local-games/rootfs_prefix_warmup.sh"
+    ],
+    "inter_entry_gaps": 0,
+    "source_commit": "fc0d8819b57fcfffd55a4564cb6f5510e141fd93",
+    "type": "debug",
+    "testOnly": false,
+    "certificate_sha256": "b6da01480eefd5fbf2cd3771b8d1021ec791304bdd6c4bf41d3faabad48ee5e1",
+    "original_certificate_preserved": true,
+    "zipalign_16KiB": "PASS",
+    "http_full_download": "PASS",
+    "build_task": ":app:assembleDebug",
+    "ide_abi_injection": false,
+    "installed_to_device": false,
+    "strict_gate": "Unavailable_MissingScript_exit127",
+    "tests": 147,
+    "test_failures": 0,
+    "download_url": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122868586048442368/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk?v=572e95f102e0"
+  },
+  "source_sha256": {
+    "app/src/test/java/com/termux/ui/activity/GameFileManagerBlankSpaceTest.java": "c0e1a8318e816dd3b503596f100c1116294eff9a1f7c0780bbc8fe42d93e7bd8",
+    "app/src/test/java/com/termux/ui/activity/GameFileManagerOperationsTest.java": "6604198698ae76f6533db50adefe484a54376a4072713ab35788c946198b566d",
+    "app/src/test/java/com/termux/ui/wine/activity/WineNativeResolutionTest.java": "2893b5349ba9af0360e3f5be7208af0bed63160c0f085e003f90fbd3f8eb480f",
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/design.md": "9edfa62759f46f4b5a18f9fe87a9e06e6a5881298ab70109c6c5a7ad8b83cf95",
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/proposal.md": "47863c74026206ff2146ee5a824fb7fa8b665b62fbd38ee7568d867f85ee41b4",
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/specs/file-manager/spec.md": "f62d8d4b64f43200189c3daeae4b784bdc14fbff01cb79eb0f134744e650cbd8",
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/specs/library-order/spec.md": "55a0ff33f313910497859897d8383bb1fdd276d043499cab2958a238b7ff1a63",
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/specs/wine-display/spec.md": "25cf267965c637c3ef5340dde865e5d8712eb6f812bbcbcc542b347e88e2e2f3",
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/tasks.md": "adb5fd44da5699da491e6deb9e59854691dfcc977b00bf4d9dd3b337493f0e6e",
+    "termux-ui/src/main/java/com/termux/ui/activity/AppUiActivity.java": "40305ad7cb124305e4f518b63523b0ae46abadd893ac6a6c76fdebfe08682bba",
+    "termux-ui/src/main/java/com/termux/ui/activity/BrowserBatchViewModel.java": "186e384eb762e26a1442bd74d1ac0f8f9e18d2472b99c40d53a5eb312bc9eb55",
+    "termux-ui/src/main/java/com/termux/ui/activity/GameFileManagerActivity.java": "a112a7164ede0e16e02194c523444dc8f5a3a4c5cf2598e953b2032f7fdcc6ac",
+    "termux-ui/src/main/java/com/termux/ui/data/RecordCreationTime.java": "8b51c32f0a109de37a591fe9c6b581f2e74ecc2e9666ba7c2fae80cdb0e1e488",
+    "termux-ui/src/main/java/com/termux/ui/desktop/data/FileDesktopDistroRepository.java": "c5613d64214a7115c23d1d14642fba3e1f7d54fbd155f562915e527d4c899ce7",
+    "termux-ui/src/main/java/com/termux/ui/desktop/domain/DesktopDistro.java": "f8fc004c4cb9b1ada1c4c800758854383eb74f1db9d65fb1d0a52e6d44cafc8e",
+    "termux-ui/src/main/java/com/termux/ui/files/BrowserBatchOperations.java": "e2038b7a34a2687915d33bb4cc1103d9e2c0f019d42e5ea7c7df918bb835aaf9",
+    "termux-ui/src/main/java/com/termux/ui/files/BrowserFileOperations.java": "e6ea48625f208eb43458306f70b1a25aea1711304ca195174eeb0b9b412cf488",
+    "termux-ui/src/main/java/com/termux/ui/wine/activity/GameDetailActivity.java": "d84fa63c0af58db302602d9027d33d99f6083a7b453e31d80680c21fc4b3f802",
+    "termux-ui/src/main/java/com/termux/ui/wine/activity/GameLaunchActivity.java": "0ee9f966748959a65c2d90da51d1f8a03b144e666471a24f774eeddabf05527e",
+    "termux-ui/src/main/java/com/termux/ui/wine/activity/GameRuntimeOptionsView.java": "58093fd52d64aaecb77217aa4b3e116f92e7f3b7a0742578ac75a71659e38117",
+    "termux-ui/src/main/java/com/termux/ui/wine/data/FileGameRepository.java": "f18ae02a257cc753258f9cce10cc83b0fb97d472b53a9f69aa228c9f50b23399",
+    "termux-ui/src/main/java/com/termux/ui/wine/data/LaunchWindowGeometry.java": "b83c4b65b7c76610dd729c09f2b8f611793d194304f3aa9f236b0901048d5957",
+    "termux-ui/src/main/java/com/termux/ui/wine/domain/Game.java": "0b63801f2711d0ee5f4d93b42273f788fa745aa31958957ad3b641b39d14aac1",
+    "termux-ui/src/main/java/com/termux/ui/wine/domain/RuntimeProfile.java": "9cdbfef09e2b05d11a147facbc09c85502e99a19990f1185546297a73f7510a4",
+    "termux-ui/src/main/java/com/termux/ui/wine/runtime/LaunchSpecFactory.java": "fcc999edb9438341768342374888a6b058e541a5eb2dad693ad048d4a5069b4b",
+    "termux-ui/src/main/java/com/termux/ui/wine/runtime/WineDisplayPolicy.java": "e7a2afac1e226bf73454b365ff1b8f5838af7a6bd03b096ceaab292a5ff3edd9",
+    "termux-ui/src/main/java/com/termux/ui/wine/service/LocalGameOrchestratorService.java": "c94fa6d319f1d77abcefcfae3700a6dc16eb4e5d1a655cfeac3c8f4bed6b2105",
+    "termux-ui/src/main/java/com/termux/ui/wine/service/PersistentLocalGameOrchestrator.java": "d11ecaf4bf63565eabdb084489e5590cd77b3eafb3361585d9cdefb72cc6362c",
+    "termux-ui/src/main/java/com/termux/ui/wine/service/PrefixSetupForegroundService.java": "37bacde6e7164ed9289bd8b2d0e3526534424f8b54039f6063693c0dded45398",
+    "termux-ui/src/main/res/drawable/local_games_bg_file_tile.xml": "43304db6eaf485ada45776cf74200181400ff236df8c45a7d5ac39a8c22f9d34",
+    "termux-ui/src/main/res/menu/local_game_browser_actions.xml": "c9bb5f122e8c641ab2ac7b8fa04f92cacda44150278f95225aa1785356fe6462",
+    "termux-ui/src/main/res/values-zh-rCN/strings.xml": "a39f300239372f31f3e6130accfa7e780535c24a9974b5472afc4aec89e69d63",
+    "termux-ui/src/main/res/values/strings.xml": "f5f5ed3a155e057663fc0997056767c569a97427d8385b8de3af96e6c683a4c1",
+    "termux-ui/src/test/java/com/termux/ui/desktop/data/FileDesktopDistroRepositoryTest.java": "ff4a43a60ff20ac32f5cf548ccbcaf314d717ef26081d1b4ef85d1cc0d4b4f54",
+    "termux-ui/src/test/java/com/termux/ui/files/BrowserFileOperationsTest.java": "05c95cfda7a9869bf7ebdd488bc324f222135e767e8ade5dfac5e12e89d5dd14",
+    "termux-ui/src/test/java/com/termux/ui/wine/data/FileGameRepositoryTest.java": "b16ab86e36624b90bcd14b4995c42e9464cc9d2e9f6987824217b61ffe064f7f",
+    "termux-ui/src/test/java/com/termux/ui/wine/runtime/WineDisplayPolicyTest.java": "9a29f1a017bdc149f52c7fbea0c6db65c7a851fccef6e94679893b4a8c13f40f"
+  },
+  "evidence_sha256": {
+    "verified-regression-final.log": "2299447425c9e893e3146cdbb9f1939e74d482db9f3283ac76a9e9b444baaa75",
+    "compact-build.log": "d41b0b95aa46507db5cef853a11216ad6d58ee745266a204cc694b39b2e388c4",
+    "signature.txt": "87223ec24fbdadd61b8b947e36f037ff22bb35ff9c29d3fe078da9db607b186a",
+    "manifest.txt": "8e79feca44d2d17e8fe146a2173cd5a323608a091a9a0d42ec7c7a48c9a98936",
+    "verification.json": "68bf1c8d3a30214a89df7515c2d676d0d494014cfd41b910816e27df4a9d890d",
+    "implementation-review.yaml": "6a6a0ba0d92c332d9ec2b2e7cc3c489c0f871f2bb642b4151c7dc9383af0d3e2"
+  },
+  "strict_gate": {
+    "command": ".harness/scripts/verify.sh --change-id improve-library-order-wine-native-resolution-file-batch --strict-run",
+    "exit_code": 127,
+    "status": "Unavailable_MissingScript"
+  },
+  "review": "DirectSourceSelfReview",
+  "device_verification": "NotPerformed",
+  "user_acceptance": "Pending",
+  "product_consistency": "Pending",
+  "git_operations_performed": false,
+  "device_installation_performed": false,
+  "archive_performed": false,
+  "publication_authorized": true,
+  "evidence_capture_stage": "PreCommit"
+}

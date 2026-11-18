@@ -74,6 +74,40 @@ public class FileGameRepositoryTest {
             Arrays.asList("--name", "Player One"), "", 0);
     }
 
+    @Test public void sortsByCreationAndKeepsOrderAcrossEditsAndPlay() throws Exception {
+        FileGameRepository repository = new FileGameRepository(temporaryFolder.newFolder("ordered"));
+        repository.save(new Game("old", "AAA", "file:///games", "game.exe", ".", Arrays.asList(), "", 0, 100));
+        repository.save(new Game("new-b", "ZZZ", "file:///games", "game.exe", ".", Arrays.asList(), "", 0, 200));
+        repository.save(new Game("new-a", "ZZZ", "file:///games", "game.exe", ".", Arrays.asList(), "", 0, 200));
+        assertEquals(Arrays.asList("new-a", "new-b", "old"), ids(repository));
+        Game old = repository.find("old").get();
+        assertEquals(100, old.withLastPlayedAt(900).getCreatedAt());
+        repository.save(old.withLaunchDetails("Newest name", ".", Arrays.asList()).withLastPlayedAt(900));
+        // An old caller constructing a replacement cannot reset its persisted creation time either.
+        repository.save(game("old", "Edited again"));
+        assertEquals(100, repository.find("old").get().getCreatedAt());
+        assertEquals(Arrays.asList("new-a", "new-b", "old"), ids(repository));
+    }
+
+    @Test public void capturesLegacyFileTimeOnceBeforeAtomicRewrite() throws Exception {
+        File directory = temporaryFolder.newFolder("legacy");
+        File record = new File(directory, "game-1.properties");
+        try (FileOutputStream output = new FileOutputStream(record)) { properties(game("game-1", "Old")).store(output, null); }
+        assertTrue(record.setLastModified(1234000));
+        long before = record.lastModified();
+        FileGameRepository repository = new FileGameRepository(directory);
+        assertEquals(before, repository.list().get(0).getCreatedAt());
+        assertTrue(record.setLastModified(9999000));
+        repository.save(game("game-1", "Renamed"));
+        assertEquals(before, new FileGameRepository(directory).find("game-1").get().getCreatedAt());
+    }
+
+    private static java.util.List<String> ids(FileGameRepository repository) throws Exception {
+        java.util.List<String> result = new java.util.ArrayList<>();
+        for (Game game : repository.list()) result.add(game.getId());
+        return result;
+    }
+
     private static Properties properties(Game game) {
         Properties properties = new Properties();
         properties.setProperty("schemaVersion", "1");

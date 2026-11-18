@@ -121,7 +121,7 @@ public class GameFileManagerBlankSpaceTest {
             GameFileManagerActivity a = c.get(); browse(a, a.getFilesDir());
             ScrollView scroll = a.findViewById(R.id.local_game_file_manager_scroll);
             longPress(scroll, scroll.getWidth()/2f, scroll.getHeight()-1); assertNull(popup(a));
-            Field clipboard = a.getClass().getDeclaredField("clipboardSource"); clipboard.setAccessible(true); clipboard.set(a, folder);
+            Field clipboard = a.getClass().getDeclaredField("clipboardSources"); clipboard.setAccessible(true); ((java.util.List<File>) clipboard.get(a)).add(folder);
             longPress(scroll, scroll.getWidth()/2f, scroll.getHeight()-1);
             assertNull(popup(a));
         }

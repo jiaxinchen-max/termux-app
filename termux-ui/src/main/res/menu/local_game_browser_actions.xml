@@ -12,4 +12,10 @@
     <item android:id="@+id/browser_paste" android:title="@string/browser_paste" app:showAsAction="never" />
     <item android:id="@+id/browser_cancel_clipboard" android:title="@string/browser_cancel_clipboard" app:showAsAction="never" />
     <item android:id="@+id/browser_show_hidden" android:title="@string/browser_show_hidden" android:checkable="true" app:showAsAction="never" />
+    <item android:id="@+id/browser_select" android:title="@string/browser_select" app:showAsAction="never" />
+    <item android:id="@+id/browser_select_all" android:title="@string/browser_select_all" app:showAsAction="never" />
+    <item android:id="@+id/browser_cancel_selection" android:title="@string/browser_cancel_selection" app:showAsAction="never" />
+    <item android:id="@+id/browser_copy_selection" android:title="@string/browser_copy" app:showAsAction="ifRoom" />
+    <item android:id="@+id/browser_cut_selection" android:title="@string/browser_cut" app:showAsAction="ifRoom" />
+    <item android:id="@+id/browser_delete_selection" android:title="@string/browser_delete" app:showAsAction="ifRoom" />
 </menu>

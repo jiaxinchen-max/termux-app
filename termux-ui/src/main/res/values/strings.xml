@@ -567,6 +567,7 @@
     <string name="desktop_container_more_desc">Ubuntu / Arch containers later</string>
     <string name="desktop_select_resolution">Resolution</string>
     <string name="desktop_resolution_native">Native (window size)</string>
+    <string name="wine_resolution_native_hint">Uses the window pixels when starting a new session. Restart Wine to use a changed window size.</string>
     <string name="desktop_resolution_native_hint">Uses the window pixels at startup. Restart the desktop to use a changed window size.</string>
     <string name="desktop_refresh_gnome_fixed_hint">The current GNOME Android backend supports only 60 Hz.</string>
     <string name="desktop_select_refresh">Refresh rate</string>
@@ -749,4 +750,22 @@
     <string name="desktop_state_installing">Installing…</string>
     <string name="desktop_action_view_install">View installation</string>
     <string name="desktop_container_account_hint">Default user: termux · Initial password: termux\nUse passwd to change the password; use sudo for administration.\nApplies to new containers; recreate older containers.</string>
+
+    <string name="browser_select">Select multiple</string>
+    <string name="browser_select_all">Select all</string>
+    <string name="browser_deselect_all">Deselect all</string>
+    <string name="browser_cancel_selection">Exit selection</string>
+    <string name="browser_selected_count">%1$d selected</string>
+    <string name="browser_paste_count">Paste %1$d items</string>
+    <string name="browser_copy_pending_count">Ready to copy %1$d items</string>
+    <string name="browser_cut_pending_count">Ready to move %1$d items</string>
+    <string name="browser_delete_count_confirm">Delete these %1$d items?</string>
+    <string name="browser_batch_complete">Completed %1$d items</string>
+    <string name="browser_batch_result">Completed: %1$d; failed: %2$d; not attempted: %3$d</string>
+    <string name="browser_batch_preflight_failed">The selection could not pass preflight. No items were changed.</string>
+    <string name="browser_batch_completed_items">Completed:</string>
+    <string name="browser_batch_failed_item">Failed:</string>
+    <string name="browser_batch_unattempted_items">Not attempted:</string>
+    <string name="browser_batch_manual_check">Some contents may have been moved or deleted. Check the source and destination before selecting the remaining items again.</string>
+    <string name="browser_batch_interrupted">The previous file operation was interrupted. Some items may have changed. Check the source and destination; the operation will not resume automatically.</string>
 </resources>

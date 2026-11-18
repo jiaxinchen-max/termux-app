@@ -17,10 +17,18 @@ public final class Game {
     private final List<String> arguments;
     private final String artworkUri;
     private final long lastPlayedAt;
+    private final long createdAt;
 
     public Game(String id, String name, String rootUri, String executable,
                 String workingDirectory, List<String> arguments, String artworkUri,
                 long lastPlayedAt) {
+        this(id, name, rootUri, executable, workingDirectory, arguments, artworkUri,
+            lastPlayedAt, System.currentTimeMillis());
+    }
+
+    public Game(String id, String name, String rootUri, String executable,
+                String workingDirectory, List<String> arguments, String artworkUri,
+                long lastPlayedAt, long createdAt) {
         this.id = DomainValidation.requireText(id, "id");
         this.name = DomainValidation.requireText(name, "name");
         this.rootUri = DomainValidation.requireText(rootUri, "rootUri");
@@ -32,6 +40,8 @@ public final class Game {
             throw new IllegalArgumentException("lastPlayedAt must not be negative");
         }
         this.lastPlayedAt = lastPlayedAt;
+        if (createdAt < 0) throw new IllegalArgumentException("invalid_creation_time");
+        this.createdAt = createdAt;
     }
 
     public String getId() { return id; }
@@ -42,14 +52,15 @@ public final class Game {
     public List<String> getArguments() { return arguments; }
     public String getArtworkUri() { return artworkUri; }
     public long getLastPlayedAt() { return lastPlayedAt; }
+    public long getCreatedAt() { return createdAt; }
 
     public Game withLastPlayedAt(long playedAt) {
         return new Game(id, name, rootUri, executable, workingDirectory,
-            arguments, artworkUri, playedAt);
+            arguments, artworkUri, playedAt, createdAt);
     }
 
     public Game withLaunchDetails(String name, String workingDirectory, List<String> arguments) {
         return new Game(id, name, rootUri, executable, workingDirectory,
-            arguments, artworkUri, lastPlayedAt);
+            arguments, artworkUri, lastPlayedAt, createdAt);
     }
 }

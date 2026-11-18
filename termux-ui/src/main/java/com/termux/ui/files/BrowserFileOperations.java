@@ -10,7 +10,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.UUID;
 
-/** Single-item browser operations. Never follows links while copying or deleting a tree. */
+/** Browser operations. Never follows links while copying or deleting a tree. */
 public final class BrowserFileOperations {
     public interface Links {
         boolean isLink(File file) throws IOException;
@@ -90,7 +90,10 @@ public final class BrowserFileOperations {
         return target;
     }
 
-    public File paste(File original, File destination, boolean cut) throws IOException {
+    public File validateDelete(File original) throws IOException { return source(original); }
+
+    /** Read-only preflight. Paste repeats it because other apps may change the directory. */
+    public File validatePaste(File original, File destination) throws IOException {
         File source = source(original);
         File parent = destination.getCanonicalFile();
         scoped(parent);
@@ -100,6 +103,13 @@ public final class BrowserFileOperations {
             throw failure("destination_inside_source", target);
         }
         if (target.exists() || links.isLink(target)) throw failure("destination_exists", target);
+        return target;
+    }
+
+    public File paste(File original, File destination, boolean cut) throws IOException {
+        File target = validatePaste(original, destination);
+        File source = source(original);
+        File parent = target.getParentFile();
         File stage = new File(parent, ".file-transfer-" + UUID.randomUUID());
         boolean published = false;
         Throwable failure = null;

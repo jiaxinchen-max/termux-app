@@ -1,0 +1,35 @@
+{
+  "change_id": "improve-library-order-wine-native-resolution-file-batch",
+  "source_commit": "fc0d8819b57fcfffd55a4564cb6f5510e141fd93",
+  "planning_structure": "PASS",
+  "json_parse": "PASS",
+  "yaml_review": "DirectManualReview",
+  "yaml_machine_parse": "Unavailable: PyYAML is not installed",
+  "implementation_started": false,
+  "strict_exit": 127,
+  "strict_status": "Unavailable",
+  "planning_sha256": {
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/proposal.md": "d61117aa6306a44970958b4ae216c4df1c372b63afeb573da919376f1d144f98",
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/design.md": "994607286cb3d6571825d717487d5bb7f6dd06ca5b4ecfc4b62e51e808e0a181",
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/tasks.md": "a3998253d7d74f18e1595264f425a9d8b226ee3025f2a5547f66e201c839c063",
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/specs/file-manager/spec.md": "f62d8d4b64f43200189c3daeae4b784bdc14fbff01cb79eb0f134744e650cbd8",
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/specs/library-order/spec.md": "55a0ff33f313910497859897d8383bb1fdd276d043499cab2958a238b7ff1a63",
+    "openspec/changes/improve-library-order-wine-native-resolution-file-batch/specs/wine-display/spec.md": "25cf267965c637c3ef5340dde865e5d8712eb6f812bbcbcc542b347e88e2e2f3"
+  },
+  "source_sha256": {
+    "termux-ui/src/main/java/com/termux/ui/wine/data/FileGameRepository.java": "971f31068206f647e77b978261f952db9b2889f25d9d0f755d2e9a79f8dcbb8d",
+    "termux-ui/src/main/java/com/termux/ui/wine/domain/Game.java": "f2cadd7780cbde7e514204e5fa8085e3c6f2ab8393e6495ff1e4e67049a1b1be",
+    "termux-ui/src/main/java/com/termux/ui/desktop/data/FileDesktopDistroRepository.java": "e5f02a4648b92c91d6b9c3fab57ef70a5233d1c87dab624f57599797af0868c5",
+    "termux-ui/src/main/java/com/termux/ui/desktop/domain/DesktopDistro.java": "a5b1c69f2f15e561118f54a675dffcd2d579742d0efebfd73c5cab5153bc452f",
+    "termux-ui/src/main/java/com/termux/ui/wine/activity/GameRuntimeOptionsView.java": "b13dd585b7681bbf1ebc89cf8de77a439f75e8b8e244394b121f7e5878e20618",
+    "termux-ui/src/main/java/com/termux/ui/wine/activity/GameLaunchActivity.java": "25541811c23f1ac14fa2b02b07cf6048e977eb9ee1c45041050ff819c22104dd",
+    "termux-ui/src/main/java/com/termux/ui/wine/activity/GameSessionActivity.java": "8e5f4869b588fb8c7a4c932319a0282a79f11a37e8144c80afcea639f3204cd0",
+    "termux-ui/src/main/java/com/termux/ui/wine/service/PersistentLocalGameOrchestrator.java": "d1eb9b69194e8721de7e5b78e1295f29cb99ec8b188ca3a92a5ceea739215552",
+    "termux-ui/src/main/java/com/termux/ui/wine/service/LocalGameOrchestratorService.java": "a420ce126e23e34c18d7349968e85bd09aa391b715444b469f772be3e2bcbd90",
+    "termux-ui/src/main/java/com/termux/ui/wine/runtime/LaunchSpecFactory.java": "6217738b005f6e39527a98e729bfcd5a9747c8f651d093f8ff475a294b8e445d",
+    "termux-ui/src/main/java/com/termux/ui/desktop/runtime/DesktopDisplayPolicy.java": "0b60754619bf4ba3ac1749d1b686960d7f338193b0d8d5796fb615582afe7688",
+    "termux-ui/src/main/java/com/termux/ui/desktop/activity/DesktopSessionActivity.java": "16c8988558fe2472e32a9f80adc705d59b1a64e2375b1d360cf746118463663e",
+    "termux-ui/src/main/java/com/termux/ui/activity/GameFileManagerActivity.java": "07939599e37223c9f877f2faafa440b6433300dffa3223233c949582d4a5fd67",
+    "termux-ui/src/main/java/com/termux/ui/files/BrowserFileOperations.java": "eca5d9c3fa4bdd3d6c43cb9ec0622caa6ef0e76fe9e0ad5e2b92acd3f8bb172a"
+  }
+}

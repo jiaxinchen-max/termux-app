@@ -34,6 +34,32 @@ public class FileDesktopDistroRepositoryTest {
         return new DesktopDistro("p-1", "Debian KDE", DesktopRunMode.PROOT, "debian", DesktopDe.KWIN_PLASMA, DesktopGlMode.ZINK, DesktopGuestGlMode.ZINK, "1920x1080", 60, DesktopUsbStorageMode.OFF);
     }
 
+    @Test public void creationOrderSurvivesEveryConfigurationCopyAndLegacySave() throws Exception {
+        FileDesktopDistroRepository repository = repository();
+        DesktopDistro old = new DesktopDistro("old", "Zulu", DesktopRunMode.PROOT, "ubuntu-old", DesktopDe.XFCE4,
+            DesktopGlMode.SYSTEM, DesktopGuestGlMode.ZINK, "1280x720", 60, DesktopUsbStorageMode.OFF, "", "", 100);
+        DesktopDistro newer = new DesktopDistro("new", "Alpha", DesktopRunMode.PROOT, "ubuntu-new", DesktopDe.XFCE4,
+            DesktopGlMode.SYSTEM, DesktopGuestGlMode.ZINK, "1280x720", 60, DesktopUsbStorageMode.OFF, "", "", 200);
+        repository.save(old); repository.save(newer);
+        DesktopDistro edited = old.withName("Changed").withOutput("1920x1080", 90)
+            .withUsbStorage(DesktopUsbStorageMode.OFF).withRenderers(DesktopGlMode.ZINK, DesktopGuestGlMode.ZINK);
+        assertEquals(100, edited.getCreatedAt());
+        repository.save(edited);
+        assertEquals("new", repository.list().get(0).getId());
+        assertEquals(100, repository.find("old").get().getCreatedAt());
+        File file = new File(temporaryFolder.getRoot(), "distros/old.properties");
+        Properties properties = new Properties();
+        try (java.io.FileInputStream input = new java.io.FileInputStream(file)) { properties.load(input); }
+        properties.remove("createdAt");
+        try (FileOutputStream output = new FileOutputStream(file)) { properties.store(output, null); }
+        assertTrue(file.setLastModified(4567000));
+        long legacy = file.lastModified();
+        assertEquals(legacy, repository.find("old").get().getCreatedAt());
+        assertTrue(file.setLastModified(9999000));
+        repository.save(edited);
+        assertEquals(legacy, repository.find("old").get().getCreatedAt());
+    }
+
     @Test
     public void emptyWhenDirectoryMissing() throws Exception {
         assertTrue(repository().list().isEmpty());

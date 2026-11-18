@@ -296,7 +296,8 @@ public final class PrefixSetupForegroundService extends Service {
             property(writer, "NATIVE_PREFIX_PREPARATION_IDENTITY", NativePrefixAssets.preparationIdentity(this));
             property(writer, "GAMES_CUSTOM_BOX64_ID",
                 profile.getEnvironment().getOrDefault("GAMES_CUSTOM_BOX64_ID", ""));
-            property(writer, "TERMUX_BOX_RESOLUTION", profile.getResolution());
+            property(writer, "TERMUX_BOX_RESOLUTION",
+                com.termux.ui.wine.runtime.WineDisplayPolicy.preparationResolution(profile.getResolution()));
             property(writer, "TERMUX_BOX_BOX64_PRESET", profile.getBox64Preset());
             property(writer, "TERMUX_BOX_GRAPHICS_DRIVER", profile.getGraphicsDriver());
             property(writer, "TERMUX_BOX_DXWRAPPER", profile.getDxWrapper());

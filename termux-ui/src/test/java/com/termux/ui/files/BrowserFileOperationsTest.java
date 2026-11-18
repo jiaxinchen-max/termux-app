@@ -34,6 +34,75 @@ public class BrowserFileOperationsTest {
     }
     private interface Throwing { void run() throws Exception; }
 
+    @Test public void batchCopiesMixedTreesAndLinksWithoutTraversingLinks() throws Exception {
+        File first = file("one.txt", "one");
+        File tree = file("tree/.hidden/item", "two").getParentFile().getParentFile();
+        File outside = temp.newFolder("external");
+        Files.write(new File(outside, "precious").toPath(), new byte[]{1});
+        Files.createSymbolicLink(new File(tree, "link").toPath(), outside.toPath());
+        BrowserBatchOperations.Result result = new BrowserBatchOperations(operations).run(
+            java.util.Arrays.asList(first, tree), destination, BrowserBatchOperations.Action.COPY);
+        assertTrue(result.isSuccess()); assertEquals(2, result.completed.size());
+        assertEquals("two", new String(Files.readAllBytes(new File(destination, "tree/.hidden/item").toPath()), "UTF-8"));
+        assertTrue(Files.isSymbolicLink(new File(destination, "tree/link").toPath()));
+        assertTrue(first.exists()); assertTrue(new File(outside, "precious").exists());
+    }
+
+    @Test public void batchPreflightRejectsLaterConflictBeforeCopyingAnything() throws Exception {
+        File first = file("one", "one"), second = file("two", "two");
+        file("destination/two", "precious");
+        BrowserBatchOperations.Result result = new BrowserBatchOperations(operations).run(
+            java.util.Arrays.asList(first, second), destination, BrowserBatchOperations.Action.MOVE);
+        assertFalse(result.isSuccess()); assertTrue(result.preflightFailure);
+        assertEquals(second, result.failed); assertTrue(result.completed.isEmpty());
+        assertFalse(new File(destination, "one").exists()); assertTrue(first.exists()); assertTrue(second.exists());
+        assertEquals("precious", new String(Files.readAllBytes(new File(destination, "two").toPath()), "UTF-8"));
+    }
+
+    @Test public void batchDeletePreflightKeepsFilesWhenAnySourceIsProtected() throws Exception {
+        File first = file("one", "one");
+        BrowserBatchOperations.Result result = new BrowserBatchOperations(operations).run(
+            java.util.Arrays.asList(first, games), null, BrowserBatchOperations.Action.DELETE);
+        assertFalse(result.isSuccess()); assertTrue(result.preflightFailure);
+        assertTrue(first.exists()); assertTrue(games.exists()); assertTrue(result.completed.isEmpty());
+    }
+
+    @Test public void batchStopsAfterFirstRuntimeErrorAndReportsWhatWasNotAttempted() throws Exception {
+        File first = file("one", "one"), second = file("two", "two"), third = file("three", "three");
+        BrowserFileOperations broken = new BrowserFileOperations(new BrowserFileOperations.Links() {
+            public boolean isLink(File file) throws IOException {
+                if (file.equals(second) && new File(destination, "one").exists()) throw new IOException("permission_changed");
+                return links.isLink(file);
+            }
+            public String read(File file) throws IOException { return links.read(file); }
+            public void create(String value, File file) throws IOException { links.create(value, file); }
+        }, root, games);
+        BrowserBatchOperations.Result result = new BrowserBatchOperations(broken).run(
+            java.util.Arrays.asList(first, second, third), destination, BrowserBatchOperations.Action.COPY);
+        assertFalse(result.isSuccess()); assertFalse(result.preflightFailure);
+        assertEquals(java.util.Arrays.asList(first), result.completed);
+        assertEquals(second, result.failed); assertEquals(java.util.Arrays.asList(third), result.unattempted);
+        assertTrue(new File(destination, "one").exists()); assertFalse(new File(destination, "three").exists());
+    }
+
+    @Test public void batchMoveMarksPublishedDestinationWithFailedSourceDeletionAsPartial() throws Exception {
+        File first = file("one", "one"), second = file("two", "two");
+        BrowserFileOperations broken = new BrowserFileOperations(new BrowserFileOperations.Links() {
+            public boolean isLink(File file) throws IOException {
+                if (file.equals(first) && new File(destination, "one").exists()) throw new IOException("delete_permission_changed");
+                return links.isLink(file);
+            }
+            public String read(File file) throws IOException { return links.read(file); }
+            public void create(String value, File file) throws IOException { links.create(value, file); }
+        }, root, games);
+        BrowserBatchOperations.Result result = new BrowserBatchOperations(broken).run(
+            java.util.Arrays.asList(first, second), destination, BrowserBatchOperations.Action.MOVE);
+        assertFalse(result.isSuccess()); assertTrue(result.needsManualCheck());
+        assertTrue(result.completed.isEmpty()); assertEquals(first, result.failed);
+        assertTrue(new File(destination, "one").isFile()); assertTrue(first.exists()); assertTrue(second.exists());
+        assertEquals(java.util.Arrays.asList(second), result.unattempted);
+    }
+
     @Test public void createsEmptyFilesAndSingleFoldersInEveryRootWithoutChangingNames() throws Exception {
         File shared = temp.newFolder("shared");
         BrowserFileOperations creator = new BrowserFileOperations(links, root, games, shared);

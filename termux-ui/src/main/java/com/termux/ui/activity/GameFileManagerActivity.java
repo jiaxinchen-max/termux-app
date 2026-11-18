@@ -33,6 +33,7 @@ import com.termux.shared.android.PermissionUtils;
 import com.termux.ui.R;
 import com.termux.ui.api.LocalGames;
 import com.termux.ui.files.BrowserFileOperations;
+import com.termux.ui.files.BrowserBatchOperations;
 import com.termux.ui.files.BrowserDocumentsProvider;
 import com.termux.ui.data.GameStoragePaths;
 import com.termux.ui.databinding.ActivityLocalGameFileManagerBinding;
@@ -48,6 +49,12 @@ import java.text.DateFormat;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -68,8 +75,8 @@ public final class GameFileManagerActivity extends AppUiActivity {
         | FileObserver.MOVE_SELF;
     private static final long DIRECTORY_REFRESH_DELAY_MS = 150L;
 
-    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable ->
-        new Thread(runnable, "GamesFileManagerIo"));
+    private ExecutorService ioExecutor;
+    private BrowserBatchViewModel batchModel;
     private final PeExecutableInspector peInspector = new PeExecutableInspector();
     private final Handler directoryHandler = new Handler(Looper.getMainLooper());
     private final Runnable directoryRefresh = this::refreshDirectory;
@@ -90,10 +97,16 @@ public final class GameFileManagerActivity extends AppUiActivity {
     private boolean operating;
     private boolean showHidden;
     private BrowserFileOperations fileOperations;
-    @Nullable private File clipboardSource;
+    private final List<File> clipboardSources = new ArrayList<>();
+    private final Set<String> blockedClipboard = new LinkedHashSet<>();
     private boolean clipboardCut;
+    private boolean selecting;
+    private final Set<String> selectedPaths = new LinkedHashSet<>();
+    private final Map<String, File> visibleEntries = new LinkedHashMap<>();
+    private final Map<String, View> entryViews = new LinkedHashMap<>();
+    private final Map<String, android.widget.CheckBox> entryChecks = new LinkedHashMap<>();
     @Nullable private PopupMenu activeFileMenu;
-    private static final int OPEN = 101, COPY = 102, CUT = 103, DELETE = 104, IMPORT = 106;
+    private static final int OPEN = 101, COPY = 102, CUT = 103, DELETE = 104, IMPORT = 106, SELECT = 107;
 
 
     @Override
@@ -102,6 +115,11 @@ public final class GameFileManagerActivity extends AppUiActivity {
         readImportBackend(getIntent());
         binding = ActivityLocalGameFileManagerBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        batchModel = new androidx.lifecycle.ViewModelProvider(this,
+            new androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory(getApplication()))
+            .get(BrowserBatchViewModel.class);
+        ioExecutor = batchModel.executor;
+        operating = batchModel.isBusy();
         GameStoragePaths paths = new GameStoragePaths(getFilesDir());
         filesRoot = getFilesDir();
         gameFilesRoot = paths.getImportedGamesDirectory();
@@ -113,9 +131,17 @@ public final class GameFileManagerActivity extends AppUiActivity {
         showHidden = getSharedPreferences("local_games_settings", MODE_PRIVATE)
             .getBoolean("file_manager_show_hidden", false);
         if (savedInstanceState != null) {
-            String source = savedInstanceState.getString("clipboard_source");
-            if (source != null) clipboardSource = new File(source);
+            ArrayList<String> sources = savedInstanceState.getStringArrayList("clipboard_sources");
+            if (sources != null) for (String source : sources) {
+                File file = new File(source);
+                if (fileOperations.canOperate(file)) clipboardSources.add(file);
+            }
+            ArrayList<String> blocked = savedInstanceState.getStringArrayList("clipboard_blocked");
+            if (blocked != null) blockedClipboard.addAll(blocked);
             clipboardCut = savedInstanceState.getBoolean("clipboard_cut");
+            selecting = savedInstanceState.getBoolean("selecting");
+            ArrayList<String> selected = savedInstanceState.getStringArrayList("selected_paths");
+            if (selected != null) selectedPaths.addAll(selected);
         }
         collectionToolbar = new CollectionToolbar(this, binding.localGameFileManagerToolbar,
             "file_manager", R.string.local_game_file_manager_title,
@@ -135,6 +161,15 @@ public final class GameFileManagerActivity extends AppUiActivity {
         File restored = restoreBrowsedDirectory(savedInstanceState);
         if (restored != null) showLocal(restored);
         else showHome();
+        batchModel.state().observe(this, this::renderBatchState);
+        String interrupted = batchModel.takeInterrupted();
+        if (interrupted != null) {
+            clipboardSources.clear(); blockedClipboard.clear();
+            updateFileActions();
+            directoryHandler.post(() -> {
+                if (!destroyed) showBatchMessage(getString(R.string.browser_batch_interrupted) + "\n\n" + interrupted);
+            });
+        }
     }
 
     @Override
@@ -166,10 +201,13 @@ public final class GameFileManagerActivity extends AppUiActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        if (clipboardSource != null) {
-            outState.putString("clipboard_source", clipboardSource.getPath());
-            outState.putBoolean("clipboard_cut", clipboardCut);
-        }
+        ArrayList<String> sources = new ArrayList<>();
+        for (File source : clipboardSources) sources.add(source.getPath());
+        outState.putStringArrayList("clipboard_sources", sources);
+        outState.putStringArrayList("clipboard_blocked", new ArrayList<>(blockedClipboard));
+        outState.putBoolean("clipboard_cut", clipboardCut);
+        outState.putBoolean("selecting", selecting);
+        outState.putStringArrayList("selected_paths", new ArrayList<>(selectedPaths));
         if (localCurrent != null) {
             outState.putString(STATE_BROWSED_DIRECTORY, localCurrent.getPath());
         }
@@ -205,7 +243,8 @@ public final class GameFileManagerActivity extends AppUiActivity {
 
     @Override
     public void onBackPressed() {
-        if (isHome()) super.onBackPressed();
+        if (selecting) exitSelection();
+        else if (isHome()) super.onBackPressed();
         else navigateUp();
     }
 
@@ -215,12 +254,13 @@ public final class GameFileManagerActivity extends AppUiActivity {
         if (activeFileMenu != null) activeFileMenu.dismiss();
         stopWatchingDirectory();
         directoryHandler.removeCallbacksAndMessages(null);
-        ioExecutor.shutdownNow();
+        // The ViewModel owns its executor and any confirmed batch across recreation/closure.
         binding = null;
         super.onDestroy();
     }
 
     private void navigateUp() {
+        if (selecting) { exitSelection(); return; }
         if (localCurrent == null) {
             finish();
             return;
@@ -252,6 +292,8 @@ public final class GameFileManagerActivity extends AppUiActivity {
     private void showHome() {
         stopWatchingDirectory();
         localCurrent = null;
+        selecting = false;
+        selectedPaths.clear();
         updateFileActions();
         binding.localGameFileManagerLocation.setText(
             R.string.local_game_file_manager_internal_storage);
@@ -282,6 +324,10 @@ public final class GameFileManagerActivity extends AppUiActivity {
                 showHome();
                 return;
             }
+            if (localCurrent != null && !localCurrent.equals(canonical)) {
+                selecting = false;
+                selectedPaths.clear();
+            }
             localCurrent = canonical;
             updateFileActions();
             watchDirectory(canonical);
@@ -290,10 +336,12 @@ public final class GameFileManagerActivity extends AppUiActivity {
             File[] entries = canonical.listFiles();
             if (entries == null) {
                 addEmpty(getString(R.string.local_game_file_manager_unreadable));
+                reconcileSelection();
                 return;
             }
             if (entries.length == 0) {
                 addEmpty(getString(R.string.local_game_file_manager_empty));
+                reconcileSelection();
                 return;
             }
             Arrays.sort(entries, Comparator.comparing(File::isFile).thenComparing(File::getName,
@@ -304,15 +352,13 @@ public final class GameFileManagerActivity extends AppUiActivity {
                 if (!isWithin(root, entry)) continue;
                 visible++;
                 if (entry.isDirectory()) {
-                    addEntry(entry.getName(), entrySubtitle(entry), true, view -> showLocal(entry),
-                        view -> showFileMenu(view, entry));
+                    addLocalEntry(entry, true);
                 } else {
-                    addEntry(entry.getName(), entrySubtitle(entry), false,
-                        view -> showFileDetails(entry),
-                        view -> showFileMenu(view, entry));
+                    addLocalEntry(entry, false);
                 }
             }
             if (visible == 0) addEmpty(getString(R.string.local_game_file_manager_empty));
+            reconcileSelection();
         } catch (IOException error) {
             showHome();
         }
@@ -409,26 +455,60 @@ public final class GameFileManagerActivity extends AppUiActivity {
             .setOnMenuItemClickListener(item -> { pasteIntoCurrent(); return true; });
         binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_cancel_clipboard)
             .setOnMenuItemClickListener(item -> {
-                clipboardSource = null; updateFileActions(); return true;
+                clipboardSources.clear(); blockedClipboard.clear(); updateFileActions(); return true;
             });
+        binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_select)
+            .setOnMenuItemClickListener(item -> {
+                if (!operating && !importing && localCurrent != null) {
+                    selecting = true; updateSelectionAppearance();
+                }
+                return true;
+            });
+        binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_select_all)
+            .setOnMenuItemClickListener(item -> {
+                if (operating || importing || !selecting) return true;
+                List<File> eligible = selectableEntries();
+                if (selectedPaths.size() == eligible.size()) selectedPaths.clear();
+                else for (File file : eligible) selectedPaths.add(file.getAbsolutePath());
+                updateSelectionAppearance(); return true;
+            });
+        binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_cancel_selection)
+            .setOnMenuItemClickListener(item -> { if (!operating) exitSelection(); return true; });
+        binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_copy_selection)
+            .setOnMenuItemClickListener(item -> { setClipboard(selectedFiles(), false); return true; });
+        binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_cut_selection)
+            .setOnMenuItemClickListener(item -> { setClipboard(selectedFiles(), true); return true; });
+        binding.localGameFileManagerToolbar.getMenu().findItem(R.id.browser_delete_selection)
+            .setOnMenuItemClickListener(item -> { confirmDelete(selectedFiles()); return true; });
         updateFileActions();
     }
 
     private void updateFileActions() {
         if (binding == null) return;
-        if (localCurrent == null) binding.localGameFileManagerToolbar.setNavigationIcon(null);
+        if (localCurrent == null && !selecting) binding.localGameFileManagerToolbar.setNavigationIcon(null);
         else binding.localGameFileManagerToolbar.setNavigationIcon(R.drawable.local_games_ic_back);
         android.view.Menu menu = binding.localGameFileManagerToolbar.getMenu();
         if (menu.findItem(R.id.browser_paste) == null) return;
-        boolean pending = clipboardSource != null;
+        boolean pending = !clipboardSources.isEmpty();
         boolean ready = !operating && !importing;
-        menu.findItem(R.id.browser_new).setVisible(localCurrent != null).setEnabled(ready);
+        menu.findItem(R.id.browser_new).setVisible(localCurrent != null && !selecting).setEnabled(ready);
         menu.findItem(R.id.browser_new_file).setEnabled(ready && localCurrent != null);
         menu.findItem(R.id.browser_new_folder).setEnabled(ready && localCurrent != null);
-        menu.findItem(R.id.browser_paste).setVisible(pending).setEnabled(ready && localCurrent != null)
-            .setTitle(pending ? getString(R.string.browser_paste_named, clipboardSource.getName()) : getString(R.string.browser_paste));
+        menu.findItem(R.id.browser_paste).setVisible(pending && !selecting).setEnabled(ready && localCurrent != null)
+            .setTitle(pending ? clipboardSources.size() == 1
+                ? getString(R.string.browser_paste_named, clipboardSources.get(0).getName())
+                : getString(R.string.browser_paste_count, clipboardSources.size()) : getString(R.string.browser_paste));
         menu.findItem(R.id.browser_cancel_clipboard).setVisible(pending).setEnabled(ready);
         menu.findItem(R.id.browser_show_hidden).setChecked(showHidden).setEnabled(ready);
+        menu.findItem(R.id.browser_select).setVisible(localCurrent != null && !selecting).setEnabled(ready);
+        menu.findItem(R.id.browser_select_all).setVisible(selecting).setEnabled(ready)
+            .setTitle(!selectedPaths.isEmpty() && selectedPaths.size() == selectableEntries().size()
+                ? R.string.browser_deselect_all : R.string.browser_select_all);
+        menu.findItem(R.id.browser_cancel_selection).setVisible(selecting).setEnabled(ready);
+        for (int id : new int[]{R.id.browser_copy_selection, R.id.browser_cut_selection, R.id.browser_delete_selection})
+            menu.findItem(id).setVisible(selecting).setEnabled(ready && !selectedPaths.isEmpty());
+        binding.localGameFileManagerToolbar.setTitle(selecting
+            ? getString(R.string.browser_selected_count, selectedPaths.size()) : getString(R.string.local_game_file_manager_title));
     }
 
     private void showCreateDialog(boolean directory) {
@@ -472,18 +552,18 @@ public final class GameFileManagerActivity extends AppUiActivity {
         menu.getMenu().add(0, CUT, 3, R.string.browser_cut);
         menu.getMenu().add(0, DELETE, 4, R.string.browser_delete);
         if (!target.isDirectory()) menu.getMenu().add(0, IMPORT, 5, importLabel(selectedImportBackend()));
+        menu.getMenu().add(0, SELECT, 6, R.string.browser_select);
         menu.setOnMenuItemClickListener(item -> {
             if (operating || importing) return true;
             switch (item.getItemId()) {
                 case OPEN: openExternally(target); break;
                 case COPY: case CUT:
-                    clipboardSource = target; clipboardCut = item.getItemId() == CUT;
-                    updateFileActions();
-                    Toast.makeText(this, getString(clipboardCut ? R.string.browser_cut_pending : R.string.browser_copy_pending,
-                        target.getName()), Toast.LENGTH_SHORT).show();
+                    setClipboard(java.util.Collections.singletonList(target), item.getItemId() == CUT);
                     break;
-                case DELETE: confirmDelete(target); break;
+                case DELETE: confirmDelete(java.util.Collections.singletonList(target)); break;
                 case IMPORT: importConfiguration(target, selectedImportBackend()); break;
+                case SELECT:
+                    selecting = true; selectedPaths.add(target.getAbsolutePath()); updateSelectionAppearance(); break;
             }
             return true;
         });
@@ -511,34 +591,119 @@ public final class GameFileManagerActivity extends AppUiActivity {
         }
     }
 
-    private void confirmDelete(File target) {
+    private void confirmDelete(List<File> sources) {
+        if (operating || importing || sources.isEmpty()) return;
+        List<File> snapshot = new ArrayList<>(sources);
+        StringBuilder names = new StringBuilder(getString(R.string.browser_delete_count_confirm, snapshot.size()));
+        for (File file : snapshot) names.append('\n').append(file.getName());
         new FrostedDialogBuilder(this).setTitle(R.string.browser_delete)
-            .setMessage(getString(R.string.browser_delete_confirm, target.getName()))
+            .setView(batchMessageView(names.toString()))
             .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.browser_delete, (dialog, which) -> runFileOperation(() -> {
-                fileOperations.delete(target);
-                return target;
-            }, () -> {
-                if (clipboardSource != null && BrowserFileOperations.contains(target.getAbsoluteFile(), clipboardSource.getAbsoluteFile())) {
-                    clipboardSource = null;
-                }
-            })).show();
+            .setPositiveButton(R.string.browser_delete, (dialog, which) ->
+                runBatch(snapshot, null, BrowserBatchOperations.Action.DELETE)).show();
     }
 
     private void pasteIntoCurrent() {
-        if (clipboardSource == null || localCurrent == null || operating || importing) return;
-        File source = clipboardSource, destination = localCurrent;
-        boolean cut = clipboardCut;
-        runFileOperation(() -> fileOperations.paste(source, destination, cut), () -> {
-            if (cut && source.equals(clipboardSource)) clipboardSource = null;
-        });
+        if (clipboardSources.isEmpty() || localCurrent == null || operating || importing) return;
+        if (!blockedClipboard.isEmpty()) {
+            showBatchMessage(getString(R.string.browser_batch_manual_check)); return;
+        }
+        runBatch(new ArrayList<>(clipboardSources), localCurrent,
+            clipboardCut ? BrowserBatchOperations.Action.MOVE : BrowserBatchOperations.Action.COPY);
+    }
+
+    private void setClipboard(List<File> sources, boolean cut) {
+        if (operating || importing || sources.isEmpty()) return;
+        clipboardSources.clear(); clipboardSources.addAll(sources);
+        blockedClipboard.clear(); clipboardCut = cut;
+        exitSelection();
+        Toast.makeText(this, getString(cut ? R.string.browser_cut_pending_count : R.string.browser_copy_pending_count,
+            sources.size()), Toast.LENGTH_SHORT).show();
+    }
+
+    private void runBatch(List<File> sources, @Nullable File destination, BrowserBatchOperations.Action action) {
+        if (operating || importing || destroyed || sources.isEmpty()) return;
+        List<File> snapshot = new ArrayList<>(sources);
+        Runnable submit = () -> {
+            if (operating || importing || destroyed) return;
+            try {
+                selecting = false; selectedPaths.clear();
+                batchModel.start(fileOperations, snapshot, destination, action);
+            } catch (IOException | RuntimeException error) { showOperationFailure(error); }
+        };
+        boolean shared = destination != null && isWithin(sharedStorageRoot, destination);
+        for (File source : snapshot) shared |= isWithin(sharedStorageRoot, source);
+        if (shared) ensureSharedStoragePermission(submit); else submit.run();
+    }
+
+    private void renderBatchState(@Nullable BrowserBatchViewModel.Snapshot state) {
+        if (state == null || destroyed || binding == null) return;
+        operating = true;
+        stopWatchingDirectory();
+        binding.localGameFileManagerProgress.setVisibility(View.VISIBLE);
+        updateSelectionAppearance();
+        if (state.result == null) return;
+        BrowserBatchOperations.Result result = state.result;
+        if (state.action == BrowserBatchOperations.Action.MOVE) {
+            clipboardSources.removeAll(result.completed);
+            if (result.needsManualCheck() && result.failed != null)
+                blockedClipboard.add(result.failed.getAbsolutePath());
+        }
+        if (state.action == BrowserBatchOperations.Action.DELETE) {
+            clipboardSources.removeIf(source -> !fileOperations.canOperate(source));
+        }
+        blockedClipboard.removeIf(path -> clipboardSources.stream().noneMatch(source -> source.getAbsolutePath().equals(path)));
+        operating = false;
+        batchModel.consume(state);
+        binding.localGameFileManagerProgress.setVisibility(View.GONE);
+        File current = localCurrent;
+        while (current != null && rootFor(current) != null && !current.isDirectory()) current = current.getParentFile();
+        if (current != null && rootFor(current) != null) showLocal(current); else showHome();
+        if (result.isSuccess()) {
+            Toast.makeText(this, getString(R.string.browser_batch_complete, result.completed.size()), Toast.LENGTH_SHORT).show();
+        } else {
+            StringBuilder message = new StringBuilder(getString(R.string.browser_batch_result,
+                result.completed.size(), result.failed == null ? 0 : 1, result.unattempted.size()));
+            if (result.preflightFailure) message.append("\n\n").append(getString(R.string.browser_batch_preflight_failed));
+            if (!result.completed.isEmpty()) {
+                message.append("\n\n").append(getString(R.string.browser_batch_completed_items));
+                for (File source : result.completed) message.append('\n').append(source.getPath());
+            }
+            if (result.failed != null) message.append("\n\n").append(getString(R.string.browser_batch_failed_item))
+                .append('\n').append(result.failed.getPath());
+            if (state.destination != null) message.append("\n→ ").append(state.destination.getPath());
+            if (result.error != null) message.append('\n').append(result.error.getMessage());
+            if (result.needsManualCheck()) message.append("\n\n").append(getString(R.string.browser_batch_manual_check));
+            if (!result.unattempted.isEmpty()) {
+                message.append("\n\n").append(getString(R.string.browser_batch_unattempted_items));
+                for (File source : result.unattempted) message.append('\n').append(source.getPath());
+            }
+            showBatchMessage(message.toString());
+        }
+        updateFileActions();
+    }
+
+    private View batchMessageView(String message) {
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        TextView text = new TextView(this);
+        text.setText(message); text.setTextIsSelectable(true);
+        text.setTextColor(ContextCompat.getColor(this, R.color.local_games_on_surface));
+        text.setPadding(dp(24), dp(12), dp(24), dp(12));
+        scroll.addView(text, new android.widget.ScrollView.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return scroll;
+    }
+
+    private void showBatchMessage(String message) {
+        new FrostedDialogBuilder(this).setTitle(R.string.local_game_file_manager_title)
+            .setView(batchMessageView(message)).setPositiveButton(android.R.string.ok, null).show();
     }
 
     private interface FileOperation { File run() throws IOException; }
 
     private void runFileOperation(FileOperation operation, Runnable success) {
         if ((localCurrent != null && isWithin(sharedStorageRoot, localCurrent))
-                || (clipboardSource != null && isWithin(sharedStorageRoot, clipboardSource))) {
+                || clipboardSources.stream().anyMatch(source -> isWithin(sharedStorageRoot, source))) {
             ensureSharedStoragePermission(() -> runFileOperationReady(operation, success));
         } else runFileOperationReady(operation, success);
     }
@@ -628,8 +793,79 @@ public final class GameFileManagerActivity extends AppUiActivity {
     }
 
     private void clearRows() {
+        visibleEntries.clear(); entryViews.clear(); entryChecks.clear();
         binding.localGameFileManagerItems.removeAllViews();
         binding.localGameFileManagerItems.setColumnCount(gridColumns());
+    }
+
+    private void addLocalEntry(File file, boolean directory) {
+        String path = file.getAbsolutePath();
+        addEntry(file.getName(), entrySubtitle(file), directory, view -> {
+            if (operating || importing) return;
+            if (selecting) toggleSelection(file);
+            else if (directory) showLocal(file);
+            else showFileDetails(file);
+        }, view -> {
+            if (selecting) toggleSelection(file); else showFileMenu(view, file);
+        });
+        View view = binding.localGameFileManagerItems.getChildAt(binding.localGameFileManagerItems.getChildCount() - 1);
+        android.widget.CheckBox check = new androidx.appcompat.widget.AppCompatCheckBox(this);
+        check.setClickable(false); check.setFocusable(false);
+        check.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        if (view instanceof FrameLayout) {
+            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(32), dp(32), Gravity.TOP | Gravity.END);
+            ((FrameLayout) view).addView(check, params);
+        } else {
+            ((LinearLayout) view).addView(check, 0, new LinearLayout.LayoutParams(dp(32), dp(32)));
+        }
+        visibleEntries.put(path, file); entryViews.put(path, view); entryChecks.put(path, check);
+        androidx.core.view.ViewCompat.setAccessibilityDelegate(view, new androidx.core.view.AccessibilityDelegateCompat() {
+            @Override public void onInitializeAccessibilityNodeInfo(View host,
+                androidx.core.view.accessibility.AccessibilityNodeInfoCompat info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                info.setCheckable(selecting); info.setChecked(selectedPaths.contains(path));
+            }
+        });
+    }
+
+    private List<File> selectableEntries() {
+        List<File> result = new ArrayList<>();
+        for (File file : visibleEntries.values()) if (fileOperations.canOperate(file)) result.add(file);
+        return result;
+    }
+
+    private List<File> selectedFiles() {
+        List<File> result = new ArrayList<>();
+        for (File file : selectableEntries()) if (selectedPaths.contains(file.getAbsolutePath())) result.add(file);
+        return result;
+    }
+
+    private void toggleSelection(File file) {
+        if (operating || importing || !fileOperations.canOperate(file)) return;
+        String path = file.getAbsolutePath();
+        if (!selectedPaths.remove(path)) selectedPaths.add(path);
+        updateSelectionAppearance();
+    }
+
+    private void reconcileSelection() {
+        selectedPaths.removeIf(path -> !visibleEntries.containsKey(path)
+            || !fileOperations.canOperate(visibleEntries.get(path)));
+        updateSelectionAppearance();
+    }
+
+    private void exitSelection() {
+        selecting = false; selectedPaths.clear(); updateSelectionAppearance();
+    }
+
+    private void updateSelectionAppearance() {
+        for (Map.Entry<String, View> item : entryViews.entrySet()) {
+            boolean selected = selectedPaths.contains(item.getKey());
+            item.getValue().setSelected(selected);
+            android.widget.CheckBox check = entryChecks.get(item.getKey());
+            check.setVisibility(selecting ? View.VISIBLE : View.GONE);
+            check.setChecked(selected);
+        }
+        updateFileActions();
     }
 
     /** Second line of a list row: size and date for a file, date for a folder. */

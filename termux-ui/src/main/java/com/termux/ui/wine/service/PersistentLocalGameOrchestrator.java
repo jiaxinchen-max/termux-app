@@ -51,6 +51,11 @@ public final class PersistentLocalGameOrchestrator implements LocalGameOrchestra
     }
 
     private String launch(String gameId, boolean desktop) throws OrchestrationException {
+        return launch(gameId, desktop, 0, 0);
+    }
+
+    public String launch(String gameId, boolean desktop, int windowWidth, int windowHeight)
+        throws OrchestrationException {
         try {
             String taskId;
             boolean[] created = {false};
@@ -62,7 +67,15 @@ public final class PersistentLocalGameOrchestrator implements LocalGameOrchestra
                 }
                 String createdTaskId = (desktop ? LaunchTasks.DESKTOP_TASK_PREFIX
                     : LaunchTasks.GAME_TASK_PREFIX) + UUID.randomUUID().toString();
-                repository.save(LaunchTask.queued(createdTaskId, gameId, System.currentTimeMillis()));
+                com.termux.ui.wine.data.LaunchWindowGeometry geometry =
+                    new com.termux.ui.wine.data.LaunchWindowGeometry(paths.getLaunchSpecsDirectory());
+                if (windowWidth > 0 || windowHeight > 0) geometry.write(createdTaskId, windowWidth, windowHeight);
+                try {
+                    repository.save(LaunchTask.queued(createdTaskId, gameId, System.currentTimeMillis()));
+                } catch (IOException failure) {
+                    try { geometry.delete(createdTaskId); } catch (IOException cleanup) { failure.addSuppressed(cleanup); }
+                    throw failure;
+                }
                 created[0] = true;
                 return createdTaskId;
             });

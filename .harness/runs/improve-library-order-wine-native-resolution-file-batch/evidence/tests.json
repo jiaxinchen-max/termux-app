@@ -1,0 +1,150 @@
+{
+  "tests": 147,
+  "failures": 0,
+  "suites": [
+    {
+      "module": "termux-ui",
+      "name": "com.termux.ui.wine.runtime.WineDisplayPolicyTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "termux-ui",
+      "name": "com.termux.ui.wine.data.FileGameRepositoryTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "termux-ui",
+      "name": "com.termux.ui.wine.data.GameLibraryRepositoryTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "termux-ui",
+      "name": "com.termux.ui.files.BrowserFileOperationsTest",
+      "tests": "24",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "termux-ui",
+      "name": "com.termux.ui.desktop.data.FileDesktopDistroRepositoryTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "termux-ui",
+      "name": "com.termux.ui.wine.runtime.RuntimeComponentLaunchContractTest",
+      "tests": "11",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "termux-ui",
+      "name": "com.termux.ui.wine.data.LaunchSpecCodecTest",
+      "tests": "13",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "termux-ui",
+      "name": "com.termux.ui.wine.runtime.GameRuntimeBackendTest",
+      "tests": "12",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "termux-ui",
+      "name": "com.termux.ui.wine.runtime.GameContainerProfileResolverTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "termux-ui",
+      "name": "com.termux.ui.wine.importer.QuickGameImportTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "app",
+      "name": "com.termux.ui.activity.GameFileManagerBlankSpaceTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "app",
+      "name": "com.termux.ui.desktop.activity.DesktopCardGeometryTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "app",
+      "name": "com.termux.ui.desktop.activity.DesktopNativeEntriesTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "app",
+      "name": "com.termux.ui.activity.GameFileManagerOperationsTest",
+      "tests": "24",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "app",
+      "name": "com.termux.ui.wine.activity.LaunchStatusRecoveryTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "app",
+      "name": "com.termux.ui.desktop.activity.DesktopNativeResolutionTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "app",
+      "name": "com.termux.ui.activity.WineCardGeometryTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "module": "app",
+      "name": "com.termux.ui.wine.activity.WineNativeResolutionTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ]
+}

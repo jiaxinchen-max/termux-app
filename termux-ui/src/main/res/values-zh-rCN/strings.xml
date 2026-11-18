@@ -546,6 +546,7 @@
     <string name="desktop_container_more_desc">Ubuntu / Arch 容器后续支持</string>
     <string name="desktop_select_resolution">分辨率</string>
     <string name="desktop_resolution_native">Native（窗口原生尺寸）</string>
+    <string name="wine_resolution_native_hint">按新会话启动时的窗口像素尺寸显示；窗口大小改变后，重启 Wine 生效。</string>
     <string name="desktop_resolution_native_hint">按启动时窗口的像素尺寸显示；窗口大小改变后，重启桌面生效。</string>
     <string name="desktop_refresh_gnome_fixed_hint">当前 GNOME Android 后端仅支持 60 Hz。</string>
     <string name="desktop_select_refresh">刷新率</string>
@@ -733,4 +734,22 @@
     <string name="desktop_state_installing">正在安装…</string>
     <string name="desktop_action_view_install">查看安装进度</string>
     <string name="desktop_container_account_hint">默认用户：termux · 初始密码：termux\n可在容器终端使用 passwd 修改密码，使用 sudo 执行管理操作。\n仅对新建容器生效，旧容器请重新创建。</string>
+
+    <string name="browser_select">多选</string>
+    <string name="browser_select_all">全选</string>
+    <string name="browser_deselect_all">取消全选</string>
+    <string name="browser_cancel_selection">退出多选</string>
+    <string name="browser_selected_count">已选择 %1$d 项</string>
+    <string name="browser_paste_count">粘贴 %1$d 项</string>
+    <string name="browser_copy_pending_count">待复制 %1$d 项</string>
+    <string name="browser_cut_pending_count">待移动 %1$d 项</string>
+    <string name="browser_delete_count_confirm">确定删除以下 %1$d 项？</string>
+    <string name="browser_batch_complete">已完成 %1$d 项</string>
+    <string name="browser_batch_result">已完成：%1$d 项；失败：%2$d 项；未执行：%3$d 项</string>
+    <string name="browser_batch_preflight_failed">批次预检查失败，未修改任何项目。</string>
+    <string name="browser_batch_completed_items">已完成：</string>
+    <string name="browser_batch_failed_item">失败：</string>
+    <string name="browser_batch_unattempted_items">未执行：</string>
+    <string name="browser_batch_manual_check">部分内容可能已经移动或删除。请检查源和目标，再重新选择需要处理的项目。</string>
+    <string name="browser_batch_interrupted">上次文件操作被中断，部分项目可能已处理。请检查源和目标；不会自动重复执行。</string>
 </resources>

@@ -1,0 +1,20 @@
+change_id: improve-library-order-wine-native-resolution-file-batch
+stage: delivery
+status: AwaitingAcceptance
+planning: Complete
+planning_review: APPROVED_WITH_TOOLING_LIMITATIONS
+implementation: Complete
+verification: LocalRegressionPassed_147Tests
+strict_gate: Unavailable_MissingScript
+product_consistency: Pending
+acceptance: Pending
+git_operations: Approved_User_2026_11_18_DirectPush
+device_deployment: NotAuthorizedForThisChange
+archive: NotAuthorized
+
+apk_verification: Passed_OriginalName_Debug_OriginalSignature_NoTestOnly_Arm64
+delivery_evidence: /home/user/workspace/artifacts/library-display-batch-20261118/verification.json
+
+publication_target: origin/master-x11-submodule-tmp
+publication_status: Authorized
+publication_receipt: /home/user/workspace/artifacts/library-display-batch-20261118/push-receipt.json

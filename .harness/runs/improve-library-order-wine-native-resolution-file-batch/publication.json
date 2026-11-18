@@ -1,0 +1,27 @@
+{
+  "change_id": "improve-library-order-wine-native-resolution-file-batch",
+  "timestamp_utc": "2026-11-18T03:54:13.215127+00:00",
+  "authorization": "用户明确要求：直接推送代码",
+  "remote": "origin",
+  "branch": "master-x11-submodule-tmp",
+  "remote_before": "fc0d8819b57fcfffd55a4564cb6f5510e141fd93",
+  "source_evidence_match": true,
+  "tests": 147,
+  "failures": 0,
+  "review": "APPROVED_WITH_TOOLING_LIMITATIONS_DirectSourceSelfReview",
+  "strict_gate": "Unavailable_exit127_missing_script",
+  "status": "PublicationAuthorized",
+  "excluded": [
+    "wrapper gitlink",
+    "seven dirty native submodules",
+    "APK binary"
+  ],
+  "evidence_sha256": {
+    "compact-build.log": "d41b0b95aa46507db5cef853a11216ad6d58ee745266a204cc694b39b2e388c4",
+    "test-commands.txt": "3a43d24c17890a22a52bef80d2ce07c137723136bef295373b099b25fd3f79a5",
+    "tests.json": "8423115d5edb02ac3b09cdabcc8905294d5b5fdb0eef766aacd5f4aa53f6c877",
+    "verification.json": "68bf1c8d3a30214a89df7515c2d676d0d494014cfd41b910816e27df4a9d890d",
+    "verified-regression-final.log": "2299447425c9e893e3146cdbb9f1939e74d482db9f3283ac76a9e9b444baaa75"
+  },
+  "receipt": "/home/user/workspace/artifacts/library-display-batch-20261118/push-receipt.json"
+}

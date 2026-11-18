@@ -142,6 +142,12 @@ public final class RuntimeProfile {
             runtimeBackendType, rootfsPackage, containerId, xinputEnabled, dinputEnabled);
     }
 
+    public RuntimeProfile withResolution(String value) {
+        return new RuntimeProfile(id, winePackage, graphicsDriver, dxWrapper, audioDriver,
+            value, box64Preset, environment, inputProfileId, launchExecutionMode, componentVersions,
+            runtimeBackendType, rootfsPackage, containerId, xinputEnabled, dinputEnabled);
+    }
+
     /**
      * Copy with another input selection. Unlike the permissive constructor (legacy profiles may hold
      * an empty value), a new value must satisfy the encoding {@link LaunchSpec} enforces, so a

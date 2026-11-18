@@ -7,6 +7,7 @@ import com.termux.ui.desktop.domain.DesktopGlMode;
 import com.termux.ui.desktop.domain.DesktopGuestGlMode;
 import com.termux.ui.desktop.domain.DesktopRunMode;
 import com.termux.ui.desktop.domain.DesktopUsbStorageMode;
+import com.termux.ui.data.RecordCreationTime;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -31,7 +32,7 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
 
     private static final String SUFFIX = ".properties";
     private static final Set<String> KEYS = new HashSet<>(Arrays.asList("schemaVersion", "id",
-        "name", "runMode", "prootDistro", "de", "hostGlMode", "guestGlMode", "resolution", "refreshRate", "usbStorage", "hyprlandRuntimeId", "hyprlandThemeId"));
+        "name", "runMode", "prootDistro", "de", "hostGlMode", "guestGlMode", "resolution", "refreshRate", "usbStorage", "hyprlandRuntimeId", "hyprlandThemeId", "createdAt"));
 
     private final File directory;
     private final File home;
@@ -60,6 +61,8 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
         Arrays.sort(files, Comparator.comparing(File::getName));
         List<DesktopDistro> result = new ArrayList<>();
         for (File file : files) result.add(read(file));
+        result.sort(Comparator.comparingLong(DesktopDistro::getCreatedAt).reversed()
+            .thenComparing(DesktopDistro::getId));
         return Collections.unmodifiableList(result);
     }
 
@@ -69,13 +72,19 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
     }
 
     @Override public synchronized void save(DesktopDistro distro) throws IOException {
+        synchronized (RecordCreationTime.class) { saveRecord(distro); }
+    }
+
+    private void saveRecord(DesktopDistro distro) throws IOException {
         if (!directory.isDirectory() && !directory.mkdirs()) {
             throw new IOException("desktop_repository_create_failed");
         }
         File target = fileFor(distro.getId());
         File temporary = new File(directory, distro.getId() + SUFFIX + ".tmp");
+        Properties properties = encode(distro);
+        properties.setProperty("createdAt", Long.toString(RecordCreationTime.forSave(target, distro.getCreatedAt())));
         try (FileOutputStream output = new FileOutputStream(temporary)) {
-            encode(distro).store(output, null);
+            properties.store(output, null);
             output.getFD().sync();
         } catch (IOException error) {
             temporary.delete();
@@ -88,8 +97,10 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
     }
 
     @Override public synchronized void delete(String distroId) throws IOException {
-        File file = fileFor(distroId);
-        if (file.exists() && !file.delete()) throw new IOException("desktop_delete_failed");
+        synchronized (RecordCreationTime.class) {
+            File file = fileFor(distroId);
+            if (file.exists() && !file.delete()) throw new IOException("desktop_delete_failed");
+        }
     }
 
     /** Publishes a new record without replacement; persist its identity before writing bytes. */
@@ -122,6 +133,10 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
     }
 
     private DesktopDistro read(File file) throws IOException {
+        synchronized (RecordCreationTime.class) { return readRecord(file); }
+    }
+
+    private DesktopDistro readRecord(File file) throws IOException {
         Properties properties = new Properties();
         try (FileInputStream input = new FileInputStream(file)) { properties.load(input); }
         String schema = properties.getProperty("schemaVersion");
@@ -147,7 +162,8 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
                 required(properties, "name"), mode, properties.getProperty("prootDistro", ""), de,
                 host, guest, required(properties, "resolution"),
                 Integer.parseInt(required(properties, "refreshRate")),
-                DesktopUsbStorageMode.fromStorageValue(properties.getProperty("usbStorage", "off")), runtime, theme);
+                DesktopUsbStorageMode.fromStorageValue(properties.getProperty("usbStorage", "off")), runtime, theme,
+                RecordCreationTime.read(properties, file));
             if (!file.getName().equals(distro.getId() + SUFFIX)) {
                 throw new IOException("desktop_id_file_mismatch");
             }
@@ -158,6 +174,9 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
                         java.nio.file.Files.readAllBytes(backup.toPath())))
                     throw new IOException("desktop_migration_backup_conflict");
                 save(distro);
+            } else if (!properties.containsKey("createdAt")) {
+                save(distro);
+                return read(file);
             }
             return distro;
         } catch (IllegalArgumentException error) {
@@ -169,6 +188,7 @@ public final class FileDesktopDistroRepository implements DesktopDistroRepositor
         Properties result = new Properties();
         result.setProperty("schemaVersion", Integer.toString(distro.getSchemaVersion()));
         result.setProperty("id", distro.getId());
+        result.setProperty("createdAt", Long.toString(distro.getCreatedAt()));
         result.setProperty("name", distro.getName());
         result.setProperty("runMode", distro.getRunMode().getStorageValue());
         result.setProperty("prootDistro", distro.getProotDistro());

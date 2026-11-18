@@ -1,0 +1,36 @@
+{
+  "name": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "bytes": 45513845,
+  "sha256": "572e95f102e0d19005175adb08b811dd5b9577e07136117a4e8fc4922baa607c",
+  "abis": [
+    "arm64-v8a"
+  ],
+  "zip_integrity": "PASS",
+  "new_classes_packaged": [
+    "com/termux/ui/data/RecordCreationTime",
+    "com/termux/ui/activity/BrowserBatchViewModel",
+    "com/termux/ui/files/BrowserBatchOperations",
+    "com/termux/ui/wine/data/LaunchWindowGeometry",
+    "com/termux/ui/wine/runtime/WineDisplayPolicy"
+  ],
+  "source_assets_compared": [
+    "local-games/start_local_game.sh",
+    "local-games/start_rootfs_game.sh",
+    "local-games/rootfs_prefix_warmup.sh"
+  ],
+  "inter_entry_gaps": 0,
+  "source_commit": "fc0d8819b57fcfffd55a4564cb6f5510e141fd93",
+  "type": "debug",
+  "testOnly": false,
+  "certificate_sha256": "b6da01480eefd5fbf2cd3771b8d1021ec791304bdd6c4bf41d3faabad48ee5e1",
+  "original_certificate_preserved": true,
+  "zipalign_16KiB": "PASS",
+  "http_full_download": "PASS",
+  "build_task": ":app:assembleDebug",
+  "ide_abi_injection": false,
+  "installed_to_device": false,
+  "strict_gate": "Unavailable_MissingScript_exit127",
+  "tests": 147,
+  "test_failures": 0,
+  "download_url": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122868586048442368/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk?v=572e95f102e0"
+}

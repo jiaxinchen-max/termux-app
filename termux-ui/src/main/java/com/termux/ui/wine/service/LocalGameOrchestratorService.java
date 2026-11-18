@@ -177,6 +177,10 @@ public final class LocalGameOrchestratorService extends Service {
                 RuntimeProfile gameProfile = profiles.find(game.getId()).orElseGet(() ->
                     RuntimeProfilePresets.create(game.getId(), RuntimeProfilePreset.RECOMMENDED));
                 RuntimeProfile profile = resolveContainer(gameProfile);
+                String output = com.termux.ui.wine.runtime.WineDisplayPolicy.NATIVE.equals(profile.getResolution())
+                    ? new com.termux.ui.wine.data.LaunchWindowGeometry(paths.getLaunchSpecsDirectory()).read(taskId)
+                    : com.termux.ui.wine.runtime.WineDisplayPolicy.requireNumeric(profile.getResolution());
+                profile = com.termux.ui.wine.runtime.WineDisplayPolicy.forLaunch(profile, output);
                 GameRuntimeBackend backend = backendRegistry.require(profile.getRuntimeBackendType());
                 if (profile.getRuntimeBackendType() == GameRuntimeBackendType.GLIBC_TERMUX_BOX &&
                     !ensureGlibcPrefix(taskId, game, profile)) {

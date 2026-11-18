@@ -600,7 +600,7 @@ public final class GameDetailActivity extends AppUiActivity {
         if (!valid) return;
 
         Game updated = new Game(game.getId(), name, game.getRootUri(), game.getExecutable(),
-            workingDirectory, arguments, game.getArtworkUri(), game.getLastPlayedAt());
+            workingDirectory, arguments, game.getArtworkUri(), game.getLastPlayedAt(), game.getCreatedAt());
         persistGame(updated);
     }
 
@@ -938,7 +938,7 @@ public final class GameDetailActivity extends AppUiActivity {
 
     private static Game copyWithArtwork(Game game, String artworkUri) {
         return new Game(game.getId(), game.getName(), game.getRootUri(), game.getExecutable(),
-            game.getWorkingDirectory(), game.getArguments(), artworkUri, game.getLastPlayedAt());
+            game.getWorkingDirectory(), game.getArguments(), artworkUri, game.getLastPlayedAt(), game.getCreatedAt());
     }
 
     private static String textOf(android.widget.TextView view) {

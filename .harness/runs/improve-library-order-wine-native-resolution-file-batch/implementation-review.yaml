@@ -1,0 +1,30 @@
+schema: review_findings_v1
+change_id: improve-library-order-wine-native-resolution-file-batch
+stage: code-review
+verdict: APPROVED_WITH_TOOLING_LIMITATIONS
+reviewer: 同代理直接源码自审，无独立子代理审查
+findings: []
+resolved_findings:
+  - 游戏详情两处重新构造记录保留创建时间，仓库存储再次强制保留已有时间
+  - 跨仓库实例串行化创建时间迁移及写入，避免迁移覆盖并发更新
+  - 冻结分辨率同步保留尺寸覆盖变量，成功快照仍读取用户配置
+  - 任务尺寸写在排队记录发布之前，准备恢复及重入不会重新测量
+  - 文件批次不持有Activity，重建复用任务，并拒绝第二浏览页清理或覆盖活动请求
+  - 文件批次完成前不释放进程内写入所有权，进程恢复只提示核对，不自动重放
+  - 使用当前Application构造ViewModel工厂，避免测试生命周期中复用旧Application
+reviewed_paths:
+  - Game和DesktopDistro全部构造、复制、创建、更新及恢复路径
+  - 两个记录仓库、卡片界面筛选顺序和Desktop状态索引绑定
+  - Wine配置选择、排队请求、服务准备、LaunchSpec和Session绑定
+  - 两后端shell尺寸参数及Native prefix独立准备流程
+  - 文件多选、权限、批量预检、源目标边界、部分失败和剪贴板恢复
+verification:
+  tests: 147
+  failures: 0
+  test_suites: 18
+  evidence: /home/user/workspace/artifacts/library-display-batch-20261118/verified-regression-final.log
+  strict_gate: Unavailable_exit_127_missing_script
+limitations:
+  - 未在Android设备执行真实Native和PRoot Wine会话或共享存储授权交互
+  - 缺少Harness引导文件、严格脚本、OpenSpec CLI、基线与产品文档索引
+  - 产品一致性及最终用户验收保持Pending，不作归档批准；本轮Git发布已由用户明确授权

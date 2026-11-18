@@ -3,6 +3,7 @@ package com.termux.ui.wine.data;
 import com.termux.ui.wine.artwork.GameArtworkReference;
 import com.termux.ui.wine.domain.Game;
 import com.termux.ui.wine.importer.GameImportValidation;
+import com.termux.ui.data.RecordCreationTime;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -36,7 +37,7 @@ public final class FileGameRepository implements GameRepository {
         Arrays.sort(files, Comparator.comparing(File::getName));
         List<Game> games = new ArrayList<>();
         for (File file : files) games.add(read(file));
-        games.sort(Comparator.comparing(Game::getName, String.CASE_INSENSITIVE_ORDER)
+        games.sort(Comparator.comparingLong(Game::getCreatedAt).reversed()
             .thenComparing(Game::getId));
         return Collections.unmodifiableList(games);
     }
@@ -49,6 +50,10 @@ public final class FileGameRepository implements GameRepository {
 
     @Override
     public synchronized void save(Game game) throws IOException {
+        synchronized (RecordCreationTime.class) { saveRecord(game); }
+    }
+
+    private void saveRecord(Game game) throws IOException {
         GameImportValidation.requireSafeGamePaths(game.getExecutable(),
             game.getWorkingDirectory());
         requireOwnedArtwork(game);
@@ -56,6 +61,7 @@ public final class FileGameRepository implements GameRepository {
         File target = fileFor(game.getId());
         File temporary = new File(directory, game.getId() + ".tmp");
         Properties properties = encode(game);
+        properties.setProperty("createdAt", Long.toString(RecordCreationTime.forSave(target, game.getCreatedAt())));
         try (FileOutputStream output = new FileOutputStream(temporary)) {
             properties.store(output, null);
             output.getFD().sync();
@@ -71,11 +77,17 @@ public final class FileGameRepository implements GameRepository {
 
     @Override
     public synchronized void delete(String gameId) throws IOException {
-        File file = fileFor(gameId);
-        if (file.exists() && !file.delete()) throw new IOException("game_repository_delete_failed");
+        synchronized (RecordCreationTime.class) {
+            File file = fileFor(gameId);
+            if (file.exists() && !file.delete()) throw new IOException("game_repository_delete_failed");
+        }
     }
 
     private Game read(File file) throws IOException {
+        synchronized (RecordCreationTime.class) { return readRecord(file); }
+    }
+
+    private Game readRecord(File file) throws IOException {
         Properties properties = new Properties();
         try (FileInputStream input = new FileInputStream(file)) {
             properties.load(input);
@@ -94,12 +106,16 @@ public final class FileGameRepository implements GameRepository {
                 required(properties, "rootUri"), required(properties, "executable"),
                 required(properties, "workingDirectory"), arguments,
                 properties.getProperty("artworkUri", ""),
-                Long.parseLong(required(properties, "lastPlayedAt")));
+                Long.parseLong(required(properties, "lastPlayedAt")), RecordCreationTime.read(properties, file));
             GameImportValidation.requireSafeGamePaths(game.getExecutable(),
                 game.getWorkingDirectory());
             requireOwnedArtwork(game);
             if (!file.getName().equals(game.getId() + SUFFIX)) {
                 throw new IOException("game_id_file_mismatch");
+            }
+            if (!properties.containsKey("createdAt")) {
+                save(game);
+                return read(file);
             }
             return game;
         } catch (IllegalArgumentException error) {
@@ -127,7 +143,7 @@ public final class FileGameRepository implements GameRepository {
     private static void requireExactKeys(Properties properties) throws IOException {
         Set<String> allowed = new HashSet<>(Arrays.asList("schemaVersion", "id", "name",
             "rootUri", "executable", "workingDirectory", "artworkUri", "lastPlayedAt",
-            "arguments.count"));
+            "arguments.count", "createdAt"));
         int count = parseInt(properties, "arguments.count");
         if (count >= 0 && count <= 1024) {
             for (int index = 0; index < count; index++) allowed.add("argument." + index);

@@ -59,7 +59,7 @@ public final class LaunchSpecFactory {
             game.getWorkingDirectory(), game.getArguments(),
             backend.resolvePrefix(paths, profile).getCanonicalPath(),
             profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(), profile.getAudioDriver(),
-            profile.getResolution(), profile.getBox64Preset(), profile.getInputProfileId(),
+            WineDisplayPolicy.requireNumeric(profile.getResolution()), profile.getBox64Preset(), profile.getInputProfileId(),
             profile.getLaunchExecutionMode(),
             profile.getEnvironment(),
             new File(paths.getLaunchEventsDirectory(), taskId + ".jsonl").getCanonicalPath(),

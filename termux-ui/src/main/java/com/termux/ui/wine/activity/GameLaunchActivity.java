@@ -25,6 +25,11 @@ import com.termux.ui.wine.runtime.OrchestrationException;
 import com.termux.ui.wine.runtime.Subscription;
 import com.termux.ui.wine.runtime.TaskObserver;
 import com.termux.ui.wine.service.PersistentLocalGameOrchestrator;
+import com.termux.ui.wine.runtime.WineDisplayPolicy;
+import com.termux.ui.wine.data.FileRuntimeProfileRepository;
+import com.termux.ui.wine.data.FileLaunchTaskRepository;
+import com.termux.ui.activity.GameSessionOrientation;
+import com.termux.ui.platform.X11SessionOverrides;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -51,6 +56,9 @@ public final class GameLaunchActivity extends AppUiActivity {
     private String taskId;
     private boolean destroyed;
     private boolean sessionOpened;
+    private boolean nativeWindow;
+    @Nullable private android.view.ViewTreeObserver.OnPreDrawListener windowMeasurement;
+    @Nullable private Runnable measurementTimeout;
 
     @NonNull
     public static Intent createTaskIntent(@NonNull Context context, @NonNull String gameId,
@@ -62,6 +70,8 @@ public final class GameLaunchActivity extends AppUiActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        gameId = getIntent().getStringExtra(EXTRA_GAME_ID);
+        nativeWindow = savedInstanceState != null && savedInstanceState.getBoolean("native-window");
         super.onCreate(savedInstanceState);
         binding = ActivityGameLaunchBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -106,12 +116,14 @@ public final class GameLaunchActivity extends AppUiActivity {
     protected void onSaveInstanceState(Bundle outState) {
         outState.putString(STATE_TASK_ID, taskId);
         outState.putBoolean(STATE_SESSION_OPENED, sessionOpened);
+        outState.putBoolean("native-window", nativeWindow);
         super.onSaveInstanceState(outState);
     }
 
     @Override
     protected void onDestroy() {
         destroyed = true;
+        clearWindowMeasurement();
         if (subscription != null) subscription.close();
         ioExecutor.shutdownNow();
         binding = null;
@@ -145,8 +157,83 @@ public final class GameLaunchActivity extends AppUiActivity {
         setLoading(true);
         ioExecutor.execute(() -> {
             try {
-                String created = desktop ? orchestrator.launchDesktop(gameId)
-                    : orchestrator.launch(gameId);
+                GameStoragePaths paths = new GameStoragePaths(getFilesDir());
+                boolean active = new FileLaunchTaskRepository(paths.getLaunchTasksDirectory())
+                    .findActiveForGame(gameId).isPresent();
+                com.termux.ui.wine.domain.RuntimeProfile profile = active ? null
+                    : new FileRuntimeProfileRepository(paths.getProfilesDirectory()).find(gameId).orElse(null);
+                boolean needsWindow = profile != null && WineDisplayPolicy.NATIVE.equals(profile.getResolution());
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    if (needsWindow) measureNativeWindow();
+                    else submitLaunch(0, 0);
+                });
+            } catch (IOException | RuntimeException error) { showFailure(error.getMessage()); }
+        });
+    }
+
+    @Override
+    protected void applyAppOrientation() {
+        if (nativeWindow && gameId != null) {
+            setRequestedOrientation(GameSessionOrientation.requestedFor(
+                new X11SessionOverrides(this).getGameOrientation(gameId)));
+        } else super.applyAppOrientation();
+    }
+
+    private void measureNativeWindow() {
+        clearWindowMeasurement();
+        nativeWindow = true;
+        applyAppOrientation();
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            android.view.WindowManager.LayoutParams attributes = getWindow().getAttributes();
+            attributes.layoutInDisplayCutoutMode = android.os.Build.VERSION.SDK_INT >= 30
+                ? android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                : android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().setAttributes(attributes);
+        }
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        androidx.core.view.WindowInsetsControllerCompat insets =
+            androidx.core.view.WindowCompat.getInsetsController(getWindow(), binding.getRoot());
+        insets.setSystemBarsBehavior(androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        insets.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+        windowMeasurement = () -> {
+            if (destroyed || binding == null) return true;
+            View root = binding.getRoot();
+            int width = root.getWidth(), height = root.getHeight();
+            if (width <= 0 || height <= 0) return true;
+            com.termux.ui.platform.OrientationPreference orientation = new X11SessionOverrides(this).getGameOrientation(gameId);
+            boolean multiWindow = android.os.Build.VERSION.SDK_INT >= 24 && isInMultiWindowMode();
+            int current = getResources().getConfiguration().orientation;
+            if (!multiWindow && (orientation == com.termux.ui.platform.OrientationPreference.HORIZONTAL
+                    && current != android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                || orientation == com.termux.ui.platform.OrientationPreference.VERTICAL
+                    && current != android.content.res.Configuration.ORIENTATION_PORTRAIT)) return true;
+            clearWindowMeasurement();
+            submitLaunch(width, height);
+            return true;
+        };
+        binding.getRoot().getViewTreeObserver().addOnPreDrawListener(windowMeasurement);
+        measurementTimeout = () -> {
+            clearWindowMeasurement();
+            showFailure("window_size_required");
+        };
+        binding.getRoot().postDelayed(measurementTimeout, 5000);
+        binding.getRoot().requestLayout();
+    }
+
+    private void clearWindowMeasurement() {
+        if (binding == null) return;
+        if (windowMeasurement != null && binding.getRoot().getViewTreeObserver().isAlive())
+            binding.getRoot().getViewTreeObserver().removeOnPreDrawListener(windowMeasurement);
+        if (measurementTimeout != null) binding.getRoot().removeCallbacks(measurementTimeout);
+        windowMeasurement = null;
+        measurementTimeout = null;
+    }
+
+    private void submitLaunch(int width, int height) {
+        ioExecutor.execute(() -> {
+            try {
+                String created = orchestrator.launch(gameId, desktop, width, height);
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     taskId = created;

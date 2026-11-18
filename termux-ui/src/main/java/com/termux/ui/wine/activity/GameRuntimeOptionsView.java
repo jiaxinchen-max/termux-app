@@ -344,7 +344,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                     setOption(HangoverEmulationMode.ENVIRONMENT_KEY, modes[which].getStorageValue()));
             addReadOnly(s(R.string.local_game_runtime_hangover_64bit), "FEX (ARM64EC)");
         }
-        addMenu(s(R.string.local_game_runtime_menu_common), profile.getResolution() + " · "
+        addMenu(s(R.string.local_game_runtime_menu_common), resolutionLabel(profile.getResolution()) + " · "
             + componentLabel(profile.getGraphicsDriver()) + " · " + componentLabel(profile.getDxWrapper()), Page.BASE);
         addMenu(s(R.string.local_game_runtime_menu_wine), s(R.string.local_game_runtime_menu_wine_summary), Page.WINE);
         addMenu(s(R.string.local_game_runtime_menu_libraries),
@@ -411,11 +411,18 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     private void renderBase() {
         pageTitle(s(R.string.local_game_runtime_menu_common));
-        addChoice(s(R.string.local_game_runtime_common_resolution), withCurrent(profile.getResolution(),
-                "960x540", "1280x720", "1600x900", "1920x1080"), value ->
+        String[] resolutions = com.termux.ui.wine.runtime.WineDisplayPolicy.resolutions(profile.getResolution());
+        String[] resolutionLabels = new String[resolutions.length];
+        for (int i = 0; i < resolutions.length; i++) resolutionLabels[i] = resolutionLabel(resolutions[i]);
+        addChoice(s(R.string.local_game_runtime_common_resolution), resolutionLabels,
+            indexOf(resolutions, profile.getResolution()), which -> {
+            String value = resolutions[which];
             replace(profile.getWinePackage(), profile.getGraphicsDriver(), profile.getDxWrapper(),
                 profile.getAudioDriver(), value, profile.getBox64Preset(), profile.getEnvironment(),
-                profile.getInputProfileId(), profile.getLaunchExecutionMode()));
+                profile.getInputProfileId(), profile.getLaunchExecutionMode());
+        });
+        if (com.termux.ui.wine.runtime.WineDisplayPolicy.NATIVE.equals(profile.getResolution()))
+            addReadOnly(s(R.string.local_game_runtime_common_resolution), s(R.string.wine_resolution_native_hint));
         boolean rootfs = profile.getRuntimeBackendType() == GameRuntimeBackendType.ROOTFS_PROOT;
         addRow(s(R.string.local_game_runtime_common_graphics_driver), componentLabel(profile.getGraphicsDriver()), true,
             view -> showGraphicsFamily(rootfs));
@@ -839,6 +846,11 @@ public final class GameRuntimeOptionsView extends LinearLayout {
         if (s(R.string.local_game_runtime_common_audio_driver).equals(label)) return profile.getAudioDriver();
         if (s(R.string.local_game_runtime_advanced_box64_preset).equals(label)) return profile.getBox64Preset();
         return emptyAs(profile.getInputProfileId(), "default");
+    }
+
+    private String resolutionLabel(String value) {
+        return com.termux.ui.wine.runtime.WineDisplayPolicy.NATIVE.equals(value)
+            ? s(R.string.desktop_resolution_native) : value;
     }
 
     private void addEdit(String label, String value, boolean multiline, EditCallback callback) {

@@ -100,6 +100,150 @@ public class GameFileManagerOperationsTest {
         }
     }
 
+    @Test public void multipleFilesCopyAndMoveThroughTheToolbarAndAcrossDirectories() throws Exception {
+        write("one.txt", "one"); write("two.txt", "two");
+        File target = new File(folder, "target"); assertTrue(target.mkdir());
+        try (ActivityController<GameFileManagerActivity> c = open()) {
+            GameFileManagerActivity a = c.get();
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_select, 0);
+            entry(a, "one.txt").performClick(); entry(a, "two.txt").performClick();
+            assertTrue(entry(a, "one.txt").isSelected());
+            assertEquals(a.getString(R.string.browser_selected_count, 2), toolbar(a).getTitle());
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_copy_selection, 0);
+            browse(a, target);
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_paste, 0); flush(a);
+            assertEquals("one", new String(Files.readAllBytes(new File(target, "one.txt").toPath()), "UTF-8"));
+            assertTrue(new File(folder, "one.txt").exists()); assertTrue(new File(target, "two.txt").exists());
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_select, 0);
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_select_all, 0);
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_cut_selection, 0);
+            File moved = new File(folder, "moved"); assertTrue(moved.mkdir()); browse(a, moved);
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_paste, 0); flush(a);
+            assertEquals(0, target.list().length); assertEquals(2, moved.list().length);
+            assertFalse(toolbar(a).getMenu().findItem(R.id.browser_paste).isVisible());
+        }
+    }
+
+    @Test public void selectionSurvivesLayoutAndRecreationAndBackExitsItFirst() throws Exception {
+        write("one.txt", "one"); write("two.txt", "two");
+        try (ActivityController<GameFileManagerActivity> c = open()) {
+            GameFileManagerActivity a = c.get();
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_select, 0);
+            entry(a, "one.txt").performClick();
+            toolbar(a).getMenu().performIdentifierAction(R.id.local_games_action_view_mode, 0);
+            assertTrue(entry(a, "one.txt").isSelected());
+            c.recreate(); a = c.get(); flush(a);
+            assertTrue(entry(a, "one.txt").isSelected()); assertFalse(entry(a, "two.txt").isSelected());
+            a.onBackPressed();
+            assertFalse(entry(a, "one.txt").isSelected());
+            assertEquals(folder.getCanonicalFile(), field(a, "localCurrent"));
+            assertTrue(toolbar(a).getMenu().findItem(R.id.browser_select).isVisible());
+        }
+    }
+
+    @Test public void selectAllOnlyIncludesVisibleItemsAndDeleteStillRequiresConfirmation() throws Exception {
+        File one = write("one.txt", "one"), two = write("two.txt", "two"), hidden = write(".secret", "secret");
+        try (ActivityController<GameFileManagerActivity> c = open()) {
+            GameFileManagerActivity a = c.get();
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_select, 0);
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_select_all, 0);
+            assertEquals(a.getString(R.string.browser_selected_count, 2), toolbar(a).getTitle());
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_delete_selection, 0);
+            AlertDialog dialog = (AlertDialog) ShadowDialog.getLatestDialog();
+            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).performClick(); flush(a);
+            assertTrue(one.exists()); assertTrue(two.exists());
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_delete_selection, 0);
+            dialog = (AlertDialog) ShadowDialog.getLatestDialog();
+            dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick(); flush(a);
+            assertFalse(one.exists()); assertFalse(two.exists()); assertTrue(hidden.exists());
+        }
+    }
+
+    @Test public void aConflictInSecondItemDoesNotCopyTheFirstItem() throws Exception {
+        write("one.txt", "one"); write("two.txt", "two");
+        File target = write("target/two.txt", "precious").getParentFile();
+        try (ActivityController<GameFileManagerActivity> c = open()) {
+            GameFileManagerActivity a = c.get();
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_select, 0);
+            entry(a, "one.txt").performClick(); entry(a, "two.txt").performClick();
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_copy_selection, 0);
+            browse(a, target); toolbar(a).getMenu().performIdentifierAction(R.id.browser_paste, 0); flush(a);
+            assertFalse(new File(target, "one.txt").exists());
+            assertEquals("precious", new String(Files.readAllBytes(new File(target, "two.txt").toPath()), "UTF-8"));
+            AlertDialog error = (AlertDialog) ShadowDialog.getLatestDialog(); assertTrue(error.isShowing());
+            assertNotNull(findMessage(error.getWindow().getDecorView()));
+        }
+    }
+
+    @Test public void queuedBatchSurvivesRecreationWithoutRepeatingTheWrite() throws Exception {
+        write("one.txt", "one");
+        File target = new File(folder, "target"); assertTrue(target.mkdir());
+        CountDownLatch entered = new CountDownLatch(1), release = new CountDownLatch(1);
+        try (ActivityController<GameFileManagerActivity> c = open()) {
+            GameFileManagerActivity a = c.get();
+            entry(a, "one.txt").performLongClick(); popup(a).getMenu().performIdentifierAction(102, 0);
+            browse(a, target);
+            ExecutorService worker = (ExecutorService) field(a, "ioExecutor");
+            worker.execute(() -> {
+                entered.countDown();
+                try { release.await(10, TimeUnit.SECONDS); }
+                catch (InterruptedException error) { Thread.currentThread().interrupt(); }
+            });
+            assertTrue(entered.await(10, TimeUnit.SECONDS));
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_paste, 0);
+            Object model = field(a, "batchModel");
+            assertEquals(Boolean.TRUE, field(a, "operating"));
+            BrowserBatchViewModel other = new BrowserBatchViewModel(RuntimeEnvironment.getApplication());
+            try {
+                assertNull(other.takeInterrupted());
+                assertTrue(RuntimeEnvironment.getApplication().getSharedPreferences("file_browser_batch", 0).contains("pending"));
+                com.termux.ui.files.BrowserFileOperations files = (com.termux.ui.files.BrowserFileOperations) field(a, "fileOperations");
+                assertThrows(java.io.IOException.class, () -> other.start(files, java.util.Collections.singletonList(new File(folder, "one.txt")),
+                    target, com.termux.ui.files.BrowserBatchOperations.Action.COPY));
+            } finally { other.onCleared(); }
+            c.recreate(); a = c.get();
+            assertSame(model, field(a, "batchModel")); assertSame(worker, field(a, "ioExecutor"));
+            assertFalse(toolbar(a).getMenu().findItem(R.id.browser_paste).isEnabled());
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_paste, 0);
+            release.countDown(); flush(a);
+            assertEquals(1, target.list().length);
+            assertEquals("one", new String(Files.readAllBytes(new File(target, "one.txt").toPath()), "UTF-8"));
+            assertEquals(Boolean.FALSE, field(a, "operating"));
+            assertFalse(RuntimeEnvironment.getApplication().getSharedPreferences("file_browser_batch", 0).contains("pending"));
+            assertNull(ShadowDialog.getLatestDialog());
+        } finally { release.countDown(); }
+    }
+
+    @Test public void refreshDropsDeletedSelectionAndInterruptedRequestIsNeverReplayed() throws Exception {
+        File source = write("one.txt", "one");
+        try (ActivityController<GameFileManagerActivity> c = open()) {
+            GameFileManagerActivity a = c.get();
+            toolbar(a).getMenu().performIdentifierAction(R.id.browser_select, 0);
+            entry(a, "one.txt").performClick();
+            assertTrue(source.delete()); browse(a, folder);
+            assertEquals(a.getString(R.string.browser_selected_count, 0), toolbar(a).getTitle());
+            assertFalse(toolbar(a).getMenu().findItem(R.id.browser_delete_selection).isEnabled());
+        }
+        File keep = write("keep.txt", "keep");
+        RuntimeEnvironment.getApplication().getSharedPreferences("file_browser_batch", 0).edit()
+            .putString("pending", "DELETE\n" + keep.getPath()).commit();
+        try (ActivityController<GameFileManagerActivity> c = open()) {
+            flush(c.get());
+            assertTrue(keep.exists());
+            assertNotNull(ShadowDialog.getLatestDialog());
+            assertTrue(ShadowDialog.getLatestDialog().isShowing());
+            assertFalse(RuntimeEnvironment.getApplication().getSharedPreferences("file_browser_batch", 0).contains("pending"));
+        }
+    }
+
+    private View findMessage(View parent) {
+        if (parent instanceof TextView && ((TextView) parent).getText().toString().contains("destination_exists")) return parent;
+        if (parent instanceof ViewGroup) for (int i=0; i<((ViewGroup)parent).getChildCount(); i++) {
+            View result = findMessage(((ViewGroup)parent).getChildAt(i)); if (result != null) return result;
+        }
+        return null;
+    }
+
     @Test public void itemsKeepTheirMenusAndImportWhileBlankAreasHaveNoMenu() throws Exception {
         write("file.txt", "one"); File child = new File(folder, "child"); assertTrue(child.mkdir());
         try (ActivityController<GameFileManagerActivity> c = open()) {
@@ -142,16 +286,16 @@ public class GameFileManagerOperationsTest {
             entry(a,"one.txt").performLongClick();popup(a).getMenu().performIdentifierAction(103,0);
             File source2=new File(target,"one.txt");assertTrue(source2.exists());File other=new File(folder,"other");assertTrue(other.mkdir());browse(a,other);
             toolbar(a).getMenu().performIdentifierAction(R.id.browser_paste,0);flush(a);
-            assertTrue(new File(other,"one.txt").isFile());assertFalse(source2.exists());assertNull(field(a,"clipboardSource"));
+            assertTrue(new File(other,"one.txt").isFile());assertFalse(source2.exists());assertTrue(((java.util.List<?>)field(a,"clipboardSources")).isEmpty());
         }
     }
     @Test public void clipboardSurvivesRecreationAndCanBeCancelled() throws Exception {
         File source=write("one.txt","payload");
         try(ActivityController<GameFileManagerActivity> c=open()) {
             GameFileManagerActivity a=c.get();entry(a,"one.txt").performLongClick();popup(a).getMenu().performIdentifierAction(103,0);
-            c.recreate();a=c.get();assertEquals(source,field(a,"clipboardSource"));assertEquals(true,field(a,"clipboardCut"));
+            c.recreate();a=c.get();assertEquals(java.util.Collections.singletonList(source),field(a,"clipboardSources"));assertEquals(true,field(a,"clipboardCut"));
             assertTrue(source.exists());toolbar(a).getMenu().performIdentifierAction(R.id.browser_cancel_clipboard,0);
-            assertNull(field(a,"clipboardSource"));assertFalse(toolbar(a).getMenu().findItem(R.id.browser_paste).isVisible());assertTrue(source.exists());
+            assertTrue(((java.util.List<?>)field(a,"clipboardSources")).isEmpty());assertFalse(toolbar(a).getMenu().findItem(R.id.browser_paste).isVisible());assertTrue(source.exists());
         }
     }
     @Test public void deleteCancelPreservesContentsAndConfirmDeletesSelectedDirectory() throws Exception {

@@ -39,7 +39,7 @@ public abstract class AppUiActivity extends AppCompatActivity {
         if (rootPage) overridePendingTransition(0, 0);
     }
 
-    private void applyAppOrientation() {
+    protected void applyAppOrientation() {
         setRequestedOrientation(OrientationPreference.load(this).getRequestedOrientation());
     }
 }

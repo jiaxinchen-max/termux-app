@@ -1,0 +1,11 @@
+工作目录：/home/user/workspace/idap-2031193509335416832/submodule
+JAVA_HOME=/home/user/.local/jdks/default
+ANDROID_HOME=/home/user/.local/android-sdk
+ANDROID_SDK_ROOT=/home/user/.local/android-sdk
+GRADLE_USER_HOME=/home/user/.cache/gradle
+PATH=/home/user/.local/tools/bison/usr/bin:$PATH
+BISON_PKGDATADIR=/home/user/.local/tools/bison/usr/share/bison
+
+sh ./gradlew -I /home/user/workspace/artifacts/apk-card-layout-build/arm64-only.init.gradle :termux-ui:testDebugUnitTest --tests com.termux.ui.files.BrowserFileOperationsTest --tests com.termux.ui.wine.data.FileGameRepositoryTest --tests com.termux.ui.desktop.data.FileDesktopDistroRepositoryTest --tests com.termux.ui.wine.runtime.WineDisplayPolicyTest --tests com.termux.ui.wine.runtime.GameRuntimeBackendTest --tests com.termux.ui.wine.data.LaunchSpecCodecTest --tests com.termux.ui.wine.runtime.RuntimeComponentLaunchContractTest --tests com.termux.ui.wine.runtime.GameContainerProfileResolverTest --tests com.termux.ui.wine.data.GameLibraryRepositoryTest --tests com.termux.ui.wine.importer.QuickGameImportTest :app:testDebugUnitTest --tests com.termux.ui.activity.GameFileManagerOperationsTest --tests com.termux.ui.activity.GameFileManagerBlankSpaceTest --tests com.termux.ui.wine.activity.WineNativeResolutionTest --tests com.termux.ui.wine.activity.LaunchStatusRecoveryTest --tests com.termux.ui.desktop.activity.DesktopNativeResolutionTest --tests com.termux.ui.activity.WineCardGeometryTest --tests com.termux.ui.desktop.activity.DesktopCardGeometryTest --tests com.termux.ui.desktop.activity.DesktopNativeEntriesTest -Pandroid.injected.testOnly=false --max-workers=4 --console=plain
+
+sh ./gradlew -I /home/user/workspace/artifacts/apk-card-layout-build/arm64-only.init.gradle :app:assembleDebug -Pandroid.injected.testOnly=false --max-workers=4 --console=plain

@@ -1,0 +1,58 @@
+change_id: improve-library-order-wine-native-resolution-file-batch
+stage: delivery
+status: AwaitingAcceptance
+approval:
+  requirement: 用户要求按创建时间倒序、Wine Native 分辨率和文件浏览批量操作
+  planning: Approved_User_2026_11_18
+  implementation: Approved_User_2026_11_18
+  git_operations: Approved_User_2026_11_18_DirectPush
+  device_deployment: NotAuthorizedForThisChange
+api_docs:
+  status: N/A
+  reason: 仅 Android 本地模型、启动和文件操作，不增删改 HTTP 契约
+product_docs:
+  status: Required
+  reason: 改变卡片顺序、显示选项和文件浏览操作流程
+  documents:
+    - docs/product/local-games.md
+    - docs/product/desktop.md
+    - docs/product/file-manager.md
+  consistency:
+    status: Pending
+    evidence: .harness/runs/improve-library-order-wine-native-resolution-file-batch/product-consistency-evidence.json
+    findings: .harness/runs/improve-library-order-wine-native-resolution-file-batch/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  reason: 未发现仓库保护路径定义及 policy id，不据此推定额外审批要求
+  impact: 游戏与桌面记录格式、Wine 启动几何、用户主动发起的文件批量写入及删除
+  rollback: 分能力撤销代码；备份后移除新增字段并把Wine native切回固定尺寸以供旧版读取；已执行文件变更由用户备份恢复
+  verification: 仓库更新稳定性、任务恢复与X11几何一致性、真实临时目录批量部分失败及界面回归
+tooling:
+  harness_bootstrap: Missing
+  strict_gate: Missing
+  openspec_cli: Missing
+  baseline_specs: Missing
+  product_docs: Missing
+planning_review: APPROVED_WITH_TOOLING_LIMITATIONS_DirectSourceSelfReview
+implementation: Complete
+acceptance: Pending
+archive: NotAuthorized
+apk_constraints:
+  file_name: termux-app_apt-android-7-debug_arm64-v8a.apk
+  build_type: debug
+  signing_certificate: PreserveOriginal
+  test_only: false
+
+code_review: APPROVED_WITH_TOOLING_LIMITATIONS_DirectSourceSelfReview
+verification:
+  tests: 147
+  failures: 0
+  strict_exit: 127
+  strict_status: Unavailable_MissingScript
+
+apk_verification: Passed_OriginalName_Debug_OriginalSignature_NoTestOnly_Arm64
+delivery_evidence: /home/user/workspace/artifacts/library-display-batch-20261118/verification.json
+
+publication_target: origin/master-x11-submodule-tmp
+publication_status: Authorized
+publication_receipt: /home/user/workspace/artifacts/library-display-batch-20261118/push-receipt.json
