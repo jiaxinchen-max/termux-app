@@ -631,8 +631,7 @@ public final class LocalGamesActivity extends AppUiActivity {
         ItemLocalGameImportBinding importCard = ItemLocalGameImportBinding.bind(getLayoutInflater().inflate(
             collectionToolbar.isList() ? R.layout.item_local_game_import_list : R.layout.item_local_game_import,
             binding.localGamesLibraryItems, false));
-        applyGameCardLayout(importCard.getRoot(), LibraryGridColumns.importCardIndex(visibleItems.size()),
-            true);
+        applyGameCardLayout(importCard.getRoot(), LibraryGridColumns.importCardIndex(visibleItems.size()));
         importCard.getRoot().setOnClickListener(view -> startImportFlow());
         binding.localGamesLibraryItems.addView(importCard.getRoot());
     }
@@ -647,21 +646,17 @@ public final class LocalGamesActivity extends AppUiActivity {
         return Math.max(dp(140), getResources().getDisplayMetrics().widthPixels - padding);
     }
 
+    /** Games and Import share a fixed grid height; list rows keep their content height. */
     private void applyGameCardLayout(View card, int index) {
-        applyGameCardLayout(card, index, false);
-    }
-
-    /** Places a card in its grid cell. The Import card ({@code fillRow}) stretches to the tallest
-     *  card of its row; game cards keep their own height. */
-    private void applyGameCardLayout(View card, int index, boolean fillRow) {
         int gridWidth = renderedGridWidth > 0 ? renderedGridWidth : libraryGridWidth();
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
         params.width = LibraryGridColumns.cardWidthPx(gridWidth, libraryColumns, dp(4),
             getResources().getDisplayMetrics().density);
-        params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        params.height = collectionToolbar.isList() ? ViewGroup.LayoutParams.WRAP_CONTENT
+            : getResources().getDimensionPixelSize(R.dimen.local_game_card_height);
         params.columnSpec = GridLayout.spec(LibraryGridColumns.columnOf(index, libraryColumns));
         int row = LibraryGridColumns.rowOf(index, libraryColumns);
-        params.rowSpec = fillRow ? GridLayout.spec(row, GridLayout.FILL) : GridLayout.spec(row);
+        params.rowSpec = GridLayout.spec(row, GridLayout.TOP);
         params.setMargins(dp(2), dp(2), dp(2), dp(6));
         card.setLayoutParams(params);
     }

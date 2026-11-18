@@ -1,0 +1,23 @@
+schema: review_findings_v1
+change_id: fix-wine-library-card-geometry
+stage: planning-review
+verdict: APPROVED_WITH_TOOLING_LIMITATIONS
+reviewer: 同代理直接源码自审，未使用独立子代理
+findings: []
+reviewed:
+  - 截图长短Wine换行与源码内容高度相符，修复涵盖实际GridLayout参数而非仅XML。
+  - 游戏及导入项统一高度，图片固定边界与异步更新均纳入验证。
+  - Native和PRoot共用路径，保留列表全宽及桌面管理既有设计。
+  - 省略仅影响展示，不修改已保存Wine身份、名称或路径。
+  - 记录产品文档Pending、回滚和授权边界。
+limitations:
+  - 本审查不等于用户Stage 1/2确认，不授权提前修改业务代码。
+  - 仓库缺严格验证脚本、OpenSpec CLI及产品基线。
+
+desktop_extension_review:
+  verdict: APPROVED_WITH_TOOLING_LIMITATIONS
+  authorization: 用户明确要求desktop同类问题一并修复
+  scope: 保持既有管理尺寸及创建页字体自适应，仅补齐展示边界
+  api_docs: N/A
+  product_docs: Required_Pending
+  evidence: desktop-extension-planning-evidence.json

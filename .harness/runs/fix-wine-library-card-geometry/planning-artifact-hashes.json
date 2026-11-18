@@ -1,0 +1,7 @@
+{
+  "openspec/changes/fix-wine-library-card-geometry/design.md": "54cbd2081dbf333ecf7836da0945abf3b782ac5ac00bff858425871b6d79f4d4",
+  "openspec/changes/fix-wine-library-card-geometry/proposal.md": "adce20f05b881b8372606e4905efeed647ceeec5ca408526055c10552c6dca21",
+  "openspec/changes/fix-wine-library-card-geometry/specs/desktop-card-geometry/spec.md": "b3069a7abac96c7f98b3b224cb732dd3a774ac56d3622d1fcd1d89bd21317a34",
+  "openspec/changes/fix-wine-library-card-geometry/specs/game-library/spec.md": "7a4f0520dcea2213535118e643eb008eb969596aae40ae6031af7c67f6d9c34c",
+  "openspec/changes/fix-wine-library-card-geometry/tasks.md": "6bd0eff37ebc9898fa01f1637771d5239742003f9b6cf71a99063587daf9553f"
+}

@@ -1,0 +1,17 @@
+schema: review_findings_v1
+change_id: fix-wine-library-card-geometry
+stage: pre-push-review
+verdict: APPROVED
+reviewer: 同代理直接源码与真实测试复核，非独立代理审查
+findings: []
+reviewed:
+  - 用户已明确授权提交和推送；当前授权记录覆盖历史实施记录中的NotAuthorized状态。
+  - 远端55026c58的两次提交已快进保留，不回退Ubuntu26.04迁移及桌面修复。
+  - 创建卡片合并保持Activity固定边界，29项聚焦测量及23项完整应用测试均通过。
+  - 两组新增布局测试纳入仓库，覆盖长文本、大字体、主题、图片比例和卡片操作区。
+  - 提交范围为12个业务文件、2个测试类、当前OpenSpec和当前run台账；排除native构建补丁、wrapper索引和二进制制品。
+  - 使用普通推送至master-x11-submodule-tmp，推送前校验远端及提交内容。
+limitations:
+  - strict命令实际exit127，脚本缺失，不宣称Harness严格门禁通过。
+  - 设备视觉验收、用户接受和产品一致性仍Pending；不归档或部署。
+  - 原名APK保留历史构建身份，本轮仅推送源码。

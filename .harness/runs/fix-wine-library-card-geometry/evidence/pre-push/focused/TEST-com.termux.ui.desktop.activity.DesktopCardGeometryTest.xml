@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.desktop.activity.DesktopCardGeometryTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-18T03:00:11" hostname="skynet-env-362805450227519488-378012184997830656-z9s95" time="3.763">
+  <properties/>
+  <testcase name="localizedActionAndStatusLabelsKeepTheirAvailableAreas" classname="com.termux.ui.desktop.activity.DesktopCardGeometryTest" time="0.706"/>
+  <testcase name="coversFitAllAspectRatiosWithoutChangingGeometry" classname="com.termux.ui.desktop.activity.DesktopCardGeometryTest" time="0.095"/>
+  <testcase name="listActionsCannotConsumeTheTextColumn" classname="com.termux.ui.desktop.activity.DesktopCardGeometryTest" time="0.177"/>
+  <testcase name="addImportLabelsAreBoundedInGridAndList" classname="com.termux.ui.desktop.activity.DesktopCardGeometryTest" time="0.075"/>
+  <testcase name="createTitlesKeepEqualHeightAndDoNotOverlapBadges" classname="com.termux.ui.desktop.activity.DesktopCardGeometryTest" time="0.18"/>
+  <testcase name="pendingImportMenuAndCreatedBadgeFitAtLargeFont" classname="com.termux.ui.desktop.activity.DesktopCardGeometryTest" time="0.163"/>
+  <testcase name="fixedManagementCardsKeepReadableTextAndActionsInside" classname="com.termux.ui.desktop.activity.DesktopCardGeometryTest" time="0.615"/>
+  <testcase name="fixedCardsStayAlignedInsideFiniteScrollableWindows" classname="com.termux.ui.desktop.activity.DesktopCardGeometryTest" time="1.75"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -32,9 +32,10 @@
                 android:src="@drawable/local_games_ic_download"
                 app:tint="@color/local_games_on_surface" />
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxLines="1" android:ellipsize="end"
                 android:layout_marginTop="5dp"
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
@@ -59,6 +60,8 @@
             android:text="⋯"
             android:textColor="@color/local_games_on_surface"
             android:textSize="14sp"
+            app:autoSizeTextType="uniform" app:autoSizeMinTextSize="6sp"
+            app:autoSizeMaxTextSize="14sp" app:autoSizeStepGranularity="1sp"
             android:visibility="gone" />
     </FrameLayout>
 </com.google.android.material.card.MaterialCardView>

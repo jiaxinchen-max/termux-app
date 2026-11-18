@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-18T03:02:20.104413+00:00",
+  "authorization": "用户明确要求推送代码",
+  "actions": [
+    "stage",
+    "commit",
+    "push"
+  ],
+  "repository": "jiaxinchen-max/termux-app",
+  "branch": "master-x11-submodule-tmp",
+  "force_push": false,
+  "upstream_before_push": "55026c58b3ca3ac4c56c3c570f7c144af5dba07a",
+  "original_checkout_base": "68858272719da9adccbb2ed1d9ff31029163da6a",
+  "integration": "先备份原始补丁，再快进保留远端两次提交；合并LocalGamesActivity中Ubuntu26.04身份及创建卡片的固定边界，原始native子模块构建补丁保留。",
+  "excluded": [
+    "native submodule generated patches",
+    "wrapper repository gitlink",
+    "APK/binaries/local cleanup scripts"
+  ],
+  "acceptance": "Pending",
+  "archive": "NotAuthorized",
+  "deployment": "NotAuthorized"
+}

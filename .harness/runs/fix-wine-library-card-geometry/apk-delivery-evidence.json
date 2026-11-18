@@ -1,0 +1,48 @@
+{
+  "checkedAt": "2026-11-18T02:25:50.644545+00:00",
+  "authorization": "用户要求把apk给我下载",
+  "status": "Built_Verified_ForDownload",
+  "file": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "path": "/home/user/workspace/artifacts/apk-download/termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "bytes": 45430807,
+  "MiB": 43.33,
+  "sha256": "aeffc7ce8704c094efea75cd3b4bc07e76775cf5eafc3368e721b98583b8e9c8",
+  "applicationId": "com.termux",
+  "versionCode": 118,
+  "versionName": "0.118.0",
+  "abis": [
+    "arm64-v8a"
+  ],
+  "zipIntegrity": "Passed",
+  "signature": "Verified_v1_v2_RepositoryDebugSigning",
+  "downloadLocalHTTP": {
+    "status": 200,
+    "bytesAndSha256Match": true
+  },
+  "downloadUrl": "https://de.shopee.io/api/platform/agent_task/v1/sandbox_proxy/task/2122868586048442368/port/8182/termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "buildCommand": "PATH=/home/user/.local/tools/bison/usr/bin:$PATH BISON_PKGDATADIR=/home/user/.local/tools/bison/usr/share/bison sh ./gradlew -I /home/user/workspace/artifacts/apk-card-layout-build/arm64-only.init.gradle :app:assembleDebug -Pandroid.injected.build.abi=arm64-v8a --max-workers=4 --console=plain --info -Dorg.gradle.internal.http.connectionTimeout=20000 -Dorg.gradle.internal.http.socketTimeout=20000",
+  "buildLog": "/home/user/workspace/artifacts/apk-card-layout-build/assemble-debug-3.log",
+  "buildResult": "BUILD SUCCESSFUL in 2m 19s; 208 tasks",
+  "sourceHashesMatchPriorVerification": true,
+  "buildInputs": "仅通过仓库外init脚本限制arm64并调整依赖仓库顺序；未修改仓库构建脚本、API级别或文件命名。CMake 3.22.1和Bison已补齐。",
+  "nativeSubmodules": "16项按仓库固定提交初始化，7项由仓库现有CMake recipes自动应用补丁；未提交。",
+  "deviceInstallation": "NotPerformed",
+  "deviceUI": "Pending",
+  "strictGate": "Unavailable_Exit127",
+  "gitOperations": "NoStageCommitPush",
+  "evidenceHashes": {
+    "/home/user/workspace/artifacts/apk-card-layout-build/apk-badging.log": "48269913c066cb97d7c638586d012550ac0d0fde36accf76615f285cd04c19e9",
+    "/home/user/workspace/artifacts/apk-card-layout-build/apk-signature.log": "87223ec24fbdadd61b8b947e36f037ff22bb35ff9c29d3fe078da9db607b186a",
+    "/home/user/workspace/artifacts/apk-card-layout-build/arm64-only.init.gradle": "58f488b51c3ab2f3e71a58a6a2511d0cb3000f107547e937885dfc4009897b4f",
+    "/home/user/workspace/artifacts/apk-card-layout-build/assemble-debug-2.log": "dce08ef9233826226362399fae6923ae02b4d23249c822e5062f852bc975ff6a",
+    "/home/user/workspace/artifacts/apk-card-layout-build/assemble-debug-3.log": "fc87b3289a789fb4dd68dff09a4350a05217ba90baa0b4ef3bf725bce18d7868",
+    "/home/user/workspace/artifacts/apk-card-layout-build/assemble-debug.log": "d2cdf930bb3e1076382beddefd7c3a4360ea61c7c34796b23fd7b1b75135339b",
+    "/home/user/workspace/artifacts/apk-card-layout-build/bison-download.log": "f4f2f0fbc468f8f4c4dbbfe264f38bfa481225833d9e8217109147c81357e1a6",
+    "/home/user/workspace/artifacts/apk-card-layout-build/bison_3.8.2+dfsg-1+b3_amd64.deb": "40a8b7a56d4a5a3f0d3d3371ad33700ab59c1323bbe0a4dd2899d39e0a88c5e2",
+    "/home/user/workspace/artifacts/apk-card-layout-build/gradle-thread-diagnostic.txt": "0f4b784bd8fe16f985d26eb72b9be783ca887485440cada0d5d642dfe2d20305",
+    "/home/user/workspace/artifacts/apk-card-layout-build/packaged-desktop-layout.txt": "56300ee9eebd29f90de41f1127ae734d799171fbe00387b0d2526bc01960d9aa",
+    "/home/user/workspace/artifacts/apk-card-layout-build/packaged-desktop-option-layout.txt": "5ac744c5a04f07cf12232db2d84e1ec4d53dada39e513cf903d3f6e18228f6ab",
+    "/home/user/workspace/artifacts/apk-card-layout-build/sdk-cmake.log": "386eae62fc2b023535898d415004b798d65bad770800ff942766ee48c2657a87",
+    "/home/user/workspace/artifacts/apk-card-layout-build/submodules.log": "8a7af7cab9cf7971ff465adbdb7a8981cbd51deb7203d735dc49501a64eb40e7"
+  }
+}

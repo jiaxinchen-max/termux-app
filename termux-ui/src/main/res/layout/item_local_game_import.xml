@@ -1,18 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The "Import game" card: the last item of the Library game grid (LocalGamesActivity.renderLibrary).
-     Same card tokens as the game cards (frosted surface, 8dp radius) with the 1dp outline; the
-     width and grid cell are set at run time like a game card's, the height is at least
-     desktop_action_card_min_height and fills the grid row. -->
+     Uses the same fixed height and grid cell sizing as the game cards. -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/local_games_add_button"
     android:layout_width="0dp"
-    android:layout_height="wrap_content"
+    android:layout_height="@dimen/local_game_card_height"
     android:clickable="true"
     android:contentDescription="@string/local_games_import_hero_action"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    android:minHeight="@dimen/desktop_action_card_min_height"
     app:cardBackgroundColor="@color/local_games_surface"
     app:cardCornerRadius="4dp"
     app:cardElevation="0dp"
@@ -23,7 +20,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
-        android:minHeight="@dimen/desktop_action_card_min_height"
         android:orientation="vertical"
         android:padding="6dp">
 
@@ -38,10 +34,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="5dp"
+            android:ellipsize="end"
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
             android:importantForAccessibility="no"
             android:letterSpacing="0.02"
+            android:maxLines="1"
             android:text="@string/local_games_import_hero_action"
             android:textColor="@color/local_games_on_surface"
             android:textSize="11sp" />

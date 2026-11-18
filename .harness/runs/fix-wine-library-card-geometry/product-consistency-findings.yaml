@@ -1,0 +1,5 @@
+schema: review_findings_v1
+change_id: fix-wine-library-card-geometry
+stage: product-consistency
+verdict: PENDING
+findings: []

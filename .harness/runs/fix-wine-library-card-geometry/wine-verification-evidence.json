@@ -1,0 +1,113 @@
+{
+  "change_id": "fix-wine-library-card-geometry",
+  "checkedAt": "2026-11-18T02:06:06.988650+00:00",
+  "status": "Passed_FocusedVerification",
+  "baseCommit": "68858272719da9adccbb2ed1d9ff31029163da6a",
+  "sourceHashes": {
+    "termux-ui/src/main/java/com/termux/ui/activity/LocalGamesActivity.java": "caf3a5f3ba8e0cbefa057d6ed96e86c1bd25c56f9fc486d92ec619a2ffa8fdf8",
+    "termux-ui/src/main/res/layout/item_local_game.xml": "7fa98dd5d9deb9c8ca34bc598d2c48c57bc817e966eadac4983479dd98e2e737",
+    "termux-ui/src/main/res/layout/item_local_game_import.xml": "308ded13bc1126ef4e100bddc86f721231d57b6bb84183f772c48f2e4b83d0b8",
+    "termux-ui/src/main/res/layout/item_local_game_list.xml": "6795357ebdb267603317404cf4d3fff07065a97ce7c76ce8cb5064b700e5dcbf",
+    "termux-ui/src/main/res/values/dimens.xml": "0dd433f423f23fd650a5b5eb798a91782aaa19beca27926aa0c457082a87a1ea"
+  },
+  "suites": [
+    {
+      "suite": "com.termux.ui.activity.LibraryGridColumnsTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "report": "/home/user/workspace/artifacts/wine-card-layout-verification/build/test-results/testDebugUnitTest/TEST-com.termux.ui.activity.LibraryGridColumnsTest.xml",
+      "sha256": "f023b542a352038af0ec20504cbbf4eea5edaac8589934c64739c46ad59f6bdc"
+    },
+    {
+      "suite": "com.termux.ui.activity.WineCardGeometryTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "report": "/home/user/workspace/artifacts/wine-card-layout-verification/build/test-results/testDebugUnitTest/TEST-com.termux.ui.activity.WineCardGeometryTest.xml",
+      "sha256": "110374e7e6ba87beb5b89faed5040ffb08cca9b988ec5b6413e80273912daaa5"
+    }
+  ],
+  "passedTests": 20,
+  "coverage": {
+    "existingGridCases": 13,
+    "actualXmlGeometryCases": 7,
+    "windowWidthsDp": [
+      328,
+      688,
+      900
+    ],
+    "fontScales": [
+      1,
+      1.3,
+      2
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "imageSizes": [
+      [
+        800,
+        80
+      ],
+      [
+        80,
+        800
+      ],
+      [
+        400,
+        400
+      ]
+    ],
+    "additionalChecks": [
+      "English short/long Wine, Chinese title and executable, full text retained with ellipsis",
+      "Aligned 28dp action row and native text metrics within bounded fields",
+      "Finite ScrollView viewport, empty library and import on next row",
+      "Image FIT_CENTER matrix and unchanged action bounds after bitmap replacement",
+      "List Wine line limit and equal row height for short/long English Wine"
+    ]
+  },
+  "fixture": {
+    "path": "/home/user/workspace/artifacts/wine-card-layout-verification",
+    "resources": "Reads complete termux-ui/src/main/res directly; symlinks the existing grid implementation and its 13 tests",
+    "hostResource": "Only new_task string from termux-x11 is supplied for linking unrelated session layouts",
+    "graphics": "Robolectric 4.14.1 SDK33 native graphics",
+    "activityPlacement": "LocalGamesActivity.applyGameCardLayout directly reviewed; full Activity was not exercised by isolated fixture"
+  },
+  "historicalFailures": {
+    "hostResourceLinking": "Missing host string in initial isolated fixture; fixed only in fixture",
+    "baselineAlignment": "Actual text baseline alignment displaced Details and More by 2px; fixed with baselineAligned=false",
+    "largeFontChineseExe": "Actual fallback glyph metrics required bounded space and smaller minimum font; final full text layout now fits",
+    "listFixture": "Adjusted comparison to change only Wine field, isolating the requested single-line contract; grid matrix still includes Chinese fields",
+    "buttonTraversal": "Fixture accounts for auto-size second traversal before text/layout assertions"
+  },
+  "artifactHashes": {
+    "/home/user/workspace/artifacts/wine-card-layout-verification/test-run.log": "b294304d7a6fa135d65bb1ba7a57ed67cbe2be0a3944dea5ecb832b7f1ad825a",
+    "/home/user/workspace/artifacts/wine-card-layout-verification/test-run-direct-agp.log": "fc2802d463f0501060db79630770c2454a28c1cb91563075874cbb6a90bc3d0f",
+    "/home/user/workspace/artifacts/wine-card-layout-verification/test-run-host-resources.log": "f3ead934b8d66ca71f0e2e56779f0719127c0a4826d7aa1a33ba9182031d6ac7",
+    "/home/user/workspace/artifacts/wine-card-layout-verification/test-run-aligned-actions.log": "729081b295afa7f2927652869c8e862dc03191410310fd6d4360fc96fc0b8795",
+    "/home/user/workspace/artifacts/wine-card-layout-verification/test-run-bounded-text.log": "5d029143131d57f1fde2a944e7f4cb15988d5eafb7aba5c297a2145c76ebce62",
+    "/home/user/workspace/artifacts/wine-card-layout-verification/test-run-final-layout.log": "5dba23df4c84da9b7724b19603943e885fd818f37d3c070246a8b2882d8e9aae",
+    "/home/user/workspace/artifacts/wine-card-layout-verification/strict-gate.log": "311d57e1a6080076fedd98f0673846d77a2930bec78acbe6a41a87c87215fda0",
+    "/home/user/workspace/artifacts/wine-card-layout-verification/src/test/java/com/termux/ui/activity/WineCardGeometryTest.java": "55524d3f33e80c3f5ea226d26fc5e015b6d6420856bfc6004220c072a76e770b",
+    "/home/user/workspace/artifacts/wine-card-layout-verification/build.gradle": "c3218ccecd259ae77223d7aa7d1882db11a31ae1c8aca7b699a8a619c949a09e",
+    "/home/user/workspace/artifacts/wine-card-layout-verification/settings.gradle": "7bea35ce17410fec6e7086eddb71af868c762f35d32a18b9757e38361b71cfff",
+    "/home/user/workspace/artifacts/wine-card-layout-verification/src/main/res/values/host_strings.xml": "589c7aa6c1bebc0d8e60109f73c1f1f91a904b8575d219096e7abd53d39b84a4"
+  },
+  "diffCheck": "Passed",
+  "strictGate": {
+    "status": "Unavailable",
+    "exitCode": 127,
+    "reason": "Repository script is missing",
+    "log": "/home/user/workspace/artifacts/wine-card-layout-verification/strict-gate.log"
+  },
+  "limitations": [
+    "No full application APK build or device UI acceptance in this run",
+    "Preview bitmap is diagnostic only: detached Robolectric drawing omits MaterialButton labels although native text layouts, visibility, colors and measured bounds are valid; not visual acceptance evidence",
+    "Existing unrelated resource-default warnings were not repaired",
+    "No Git stage/commit/push, device installation or archive"
+  ],
+  "productConsistency": "Pending",
+  "acceptance": "Pending"
+}

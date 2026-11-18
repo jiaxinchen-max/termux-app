@@ -1,0 +1,28 @@
+schema: review_findings_v1
+change_id: fix-wine-library-card-geometry
+stage: implementation-review
+verdict: APPROVED
+reviewer: 同代理直接源码自审，非独立代理审查
+scope: 已批准的Wine游戏库卡片尺寸与图片文字展示修复
+findings: []
+resolved:
+  - id: WINE-CARD-001
+    description: 内容高度与Wine最多两行导致相邻卡片高度不同
+    resolution: XML与实际GridLayout参数使用同一180dp高度，导入项同步，底部操作独立
+  - id: WINE-CARD-002
+    description: 不同字号按钮按基线对齐，产生2px上下错位
+    resolution: 按钮行baselineAligned=false，原生实际边界对齐测试通过
+  - id: WINE-CARD-003
+    description: 两倍字体下中文备用字体的EXE两行高度超出可用空间
+    resolution: 有界行权重与字号下限调整，最终完整原生文字布局在区域内
+reviewed:
+  - Native和PRoot复用同一路径，卡宽与列数逻辑、模型数据及运行流程不变。
+  - 完整文本通过TextView保留，只做尾部省略；EXE固定两行。
+  - 封面固定边界内等比完整缩放，异步替换不改变卡片或按钮位置。
+  - 列表仍全宽，Wine单行；桌面管理尺寸资源未修改。
+  - 20项聚焦测试通过，git差异仅5个业务源码/资源文件及当前规划记录。
+limitations:
+  - strict脚本缺失且实际exit127，不能称完整门禁通过。
+  - 隔离资源和布局测量通过，未执行完整Activity、完整APK构建或设备UI验收。
+  - 原生图形离屏预览不作为MaterialButton视觉绘制的验收证据。
+  - 产品一致性及用户接受Pending，不授权Git、设备安装或归档。

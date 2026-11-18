@@ -1,0 +1,11 @@
+{
+  "change_id": "fix-wine-library-card-geometry",
+  "status": "Pending",
+  "reason": "Wine与desktop实现及聚焦验证完成，等待用户视觉验收；缺少产品基线和归档工具，未最终化产品文档",
+  "documents": [
+    "docs/product/local-games.md",
+    "docs/product/desktop.md"
+  ],
+  "claims": [],
+  "verification": "/home/user/workspace/idap-2031193509335416832/submodule/.harness/runs/fix-wine-library-card-geometry/verification-evidence.json"
+}

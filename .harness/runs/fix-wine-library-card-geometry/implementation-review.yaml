@@ -1,0 +1,31 @@
+schema: review_findings_v1
+change_id: fix-wine-library-card-geometry
+stage: implementation-review
+verdict: APPROVED
+reviewer: 同代理直接源码自审，非独立代理审查
+scope: 已批准Wine卡片修复及用户明确要求的desktop同类展示修复
+findings: []
+resolved:
+  - id: DESKTOP-CARD-001
+    description: 长中文标题原生布局36px超出30dp标题区域，字体放大可能挤压正文
+    resolution: 标题有界缩放省略，正文使用剩余高度，状态固定16dp；保持128×160dp及52dp封面
+  - id: DESKTOP-CARD-002
+    description: 列表长主按钮在240dp窗口将正文挤至0宽
+    resolution: 操作列固定72dp，主按钮48dp高、单行缩放省略，正文保留可用宽度
+  - id: DESKTOP-CARD-003
+    description: 新增导入标签无行数限制，创建页长名称多行导致高度不一
+    resolution: 动作标签单行省略；创建标题固定两行底部对齐，同字体下高度一致且可随字体整体增高
+  - id: DESKTOP-CARD-004
+    description: 两倍字体中文角标和启动状态及更多图标超出高度
+    resolution: 角标13dp、状态16dp与有界字号；主操作及更多保持48dp，导入菜单图标在原28dp范围缩放
+reviewed:
+  - 直接复核7个desktop布局、DesktopActivity.render/place/bindCard和DesktopCreateActivity.optionCard；未改后端或数据。
+  - 保留Native和PRoot共用布局、安装进度View、点击与确认流程、完整文本和既有无障碍描述。
+  - 管理网格固定尺寸规范不变；创建页保持按字体自适应，不强制为管理卡片高度。
+  - Desktop三种封面原本已经等比缩放；仅显式声明默认策略，没有捏造原图问题。
+  - 使用真实资源与Material/AppCompat inflater，29项通过；Wine已交付五文件SHA256一致。
+  - 原有Wine审查保留在wine-implementation-review.yaml和wine-implementation-review.md。
+limitations:
+  - strict实际exit127，缺少脚本；不能称Harness门禁通过。
+  - 完整APK已构建及校验；未执行完整Activity或设备视觉验收。
+  - 产品一致性Pending，不授权Git写操作、设备部署或归档。

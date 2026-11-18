@@ -1,0 +1,17 @@
+change_id: fix-wine-library-card-geometry
+stage: acceptance
+status: AwaitingUserAcceptance
+implementation: Complete_ApprovedScope_IncludingDesktopExtension
+planning_review: APPROVED_WITH_TOOLING_LIMITATIONS
+product_consistency: Pending
+acceptance: Pending
+archive: NotAuthorized
+implementation_review: APPROVED_DirectSourceSelfReview
+verification: Passed_29_FocusedTests
+strict_gate: Unavailable_Exit127
+full_apk: Built_Verified_ForDownload
+device_ui: Pending
+git_operations: Authorized_User_ExplicitPush_2026_11_18
+pre_push_review: APPROVED
+upstream_integration: Preserved_55026c58
+app_regression: Passed_23_Tests

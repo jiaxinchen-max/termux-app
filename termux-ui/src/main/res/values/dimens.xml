@@ -46,6 +46,8 @@
          sharing the row equally. -->
     <dimen name="local_games_top_tab_width">34dp</dimen>
     <dimen name="local_games_top_tab_gap">0dp</dimen>
+    <dimen name="local_game_card_height">180dp</dimen>
+    <dimen name="local_game_card_cover_height">56dp</dimen>
     <dimen name="desktop_action_card_min_height">160dp</dimen>
     <dimen name="desktop_card_width">128dp</dimen>
     <dimen name="desktop_card_height">160dp</dimen>

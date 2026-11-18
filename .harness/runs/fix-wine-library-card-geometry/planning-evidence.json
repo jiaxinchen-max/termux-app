@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-11-18T01:53:10.316426+00:00",
+  "head": "68858272719da9adccbb2ed1d9ff31029163da6a",
+  "screenshot": "/home/user/workspace/artifacts/card-layout-user-screenshot-20261118.png",
+  "screenshotSha256": "2027c024ee20d61d939a495ce6c241791d975c16574fcacba67e55b77252091f",
+  "planningArtifacts": 4,
+  "businessCodeUnmodified": true,
+  "strictExitCode": 127,
+  "strictLog": "/home/user/workspace/artifacts/card-layout-planning-strict.log",
+  "implementation": "NotStarted_AwaitingStage1Stage2Confirmation"
+}

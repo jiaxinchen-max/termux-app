@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-11-18T02:15:20.590575+00:00",
+  "authorization": "用户明确要求desktop是否存在类似问题，一并修复；适用已批准展示原则和既有desktop管理尺寸",
+  "scope": "desktop管理／列表／新增导入／创建的文字与图片边界，不改运行流程",
+  "api_docs": "N/A_无HTTP合约变化",
+  "product_docs": {
+    "status": "Required",
+    "documents": [
+      "docs/product/local-games.md",
+      "docs/product/desktop.md"
+    ],
+    "consistency": "Pending"
+  },
+  "normativeRelation": "创建页继续随字体增高；最新用户要求将长标题改为两行省略，完整名称保留于文本及既有无障碍描述。管理卡片仍沿用128×160dp固定规范。",
+  "review": "直接源码及既有OpenSpec审查，未启用子代理",
+  "planningArtifacts": {
+    "openspec/changes/fix-wine-library-card-geometry/design.md": "4e610c2d0e1ddd6be05d0bcac3a17bf385d1cb17e9f142280b199efd88d3c4dd",
+    "openspec/changes/fix-wine-library-card-geometry/proposal.md": "adce20f05b881b8372606e4905efeed647ceeec5ca408526055c10552c6dca21",
+    "openspec/changes/fix-wine-library-card-geometry/specs/desktop-card-geometry/spec.md": "b3069a7abac96c7f98b3b224cb732dd3a774ac56d3622d1fcd1d89bd21317a34",
+    "openspec/changes/fix-wine-library-card-geometry/specs/game-library/spec.md": "7a4f0520dcea2213535118e643eb008eb969596aae40ae6031af7c67f6d9c34c",
+    "openspec/changes/fix-wine-library-card-geometry/tasks.md": "635fd618312de6c108e9f2d332ed490bc909d7ab2117069b06a0e96c3875d355"
+  }
+}

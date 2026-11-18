@@ -1,0 +1,109 @@
+{
+  "change_id": "fix-wine-library-card-geometry",
+  "checkedAt": "2026-11-18T02:15:20.590575+00:00",
+  "status": "Passed_FocusedVerification",
+  "baseCommit": "68858272719da9adccbb2ed1d9ff31029163da6a",
+  "tests": 29,
+  "testSuites": [
+    {
+      "name": "com.termux.ui.activity.LibraryGridColumnsTest",
+      "tests": "13",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.termux.ui.activity.WineCardGeometryTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.termux.ui.desktop.activity.DesktopCardGeometryTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.termux.ui.desktop.activity.DesktopCardLayoutTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "desktopTests": 9,
+  "wineRegressionTests": 20,
+  "sourceHashes": {
+    "termux-ui/src/main/java/com/termux/ui/activity/LocalGamesActivity.java": "caf3a5f3ba8e0cbefa057d6ed96e86c1bd25c56f9fc486d92ec619a2ffa8fdf8",
+    "termux-ui/src/main/res/layout/item_desktop.xml": "3187c07658ab22704887067394328f48f461b1577a385d9c8a26031179706d5d",
+    "termux-ui/src/main/res/layout/item_desktop_add.xml": "40da17ef2408570ce8fbc5d593fb8de5900c4b9c7227bbbd73b3eb4aa8747ade",
+    "termux-ui/src/main/res/layout/item_desktop_add_list.xml": "464205bf134811390fb96dccea5b5486b8e5fe4a5e09dabad0e33b8f7b880c35",
+    "termux-ui/src/main/res/layout/item_desktop_import.xml": "81565af7d75f19a598b8a6112153d7c4fd834b0f0c5b27a103af26a00319bac5",
+    "termux-ui/src/main/res/layout/item_desktop_import_list.xml": "8c9881142dcb1d92665acbc5a5788412759d9c13a090d748c606bfac025c2a5e",
+    "termux-ui/src/main/res/layout/item_desktop_list.xml": "0d28a883f67694500cf1b66cdd135fb610c80181ed4c3f15e35558adcca8ea24",
+    "termux-ui/src/main/res/layout/item_desktop_option.xml": "8d23d198a828a970fc239da6d74b745c64c472034a7fe29241e9a947686b1743",
+    "termux-ui/src/main/res/layout/item_local_game.xml": "7fa98dd5d9deb9c8ca34bc598d2c48c57bc817e966eadac4983479dd98e2e737",
+    "termux-ui/src/main/res/layout/item_local_game_import.xml": "308ded13bc1126ef4e100bddc86f721231d57b6bb84183f772c48f2e4b83d0b8",
+    "termux-ui/src/main/res/layout/item_local_game_list.xml": "6795357ebdb267603317404cf4d3fff07065a97ce7c76ce8cb5064b700e5dcbf",
+    "termux-ui/src/main/res/values/dimens.xml": "0dd433f423f23fd650a5b5eb798a91782aaa19beca27926aa0c457082a87a1ea"
+  },
+  "wineSourceHashesUnchangedFromPreviousDelivery": true,
+  "testCommand": "sh ./gradlew -p /home/user/workspace/artifacts/desktop-card-layout-verification testDebugUnitTest --console=plain",
+  "testLog": "/home/user/workspace/artifacts/desktop-card-layout-verification/test-final-2.log",
+  "beforeLog": "/home/user/workspace/artifacts/desktop-card-layout-verification/test-before.log",
+  "coverage": [
+    "真实资源、真实AppCompat/Material控件与原生文字测量",
+    "API33/mdpi，1/1.3/2倍字体，浅深主题，中英文及真实本地化安装／启动标签",
+    "管理网格／列表／新增导入／创建卡片",
+    "240/328/688/900dp窗口与有限ScrollView混排",
+    "Native/PRoot角标，安装扫描条和导入日志菜单",
+    "800×80、80×800、400×400封面比例及替换前后几何边界"
+  ],
+  "artifactHashes": {
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/README.md": "469198e70de305585bb6c39a13fdd3a555b2d765eda2ab50e91f9ac01ff3f499",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/build/test-results/testDebugUnitTest/TEST-com.termux.ui.activity.LibraryGridColumnsTest.xml": "7d28d7e23919c569a96c7f85409743783cb837420409994765cb201a8395e2eb",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/build/test-results/testDebugUnitTest/TEST-com.termux.ui.activity.WineCardGeometryTest.xml": "e5e1395f2b8d01f5efb235393a8c57726a163482ffbb8b6939124af2ae9d89bc",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/build/test-results/testDebugUnitTest/TEST-com.termux.ui.desktop.activity.DesktopCardGeometryTest.xml": "0c218f0082d471fa990328a0bf6cd429c8fbf2ab2162ae4cbe30628a0ce76e40",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/build/test-results/testDebugUnitTest/TEST-com.termux.ui.desktop.activity.DesktopCardLayoutTest.xml": "12cd9c3c93531b19bda20ebc258872372b000a32bee6f27d374814f4db6d3272",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/build.gradle": "c3218ccecd259ae77223d7aa7d1882db11a31ae1c8aca7b699a8a619c949a09e",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/gradle.properties": "58b6148c869d55b7ea0b056f623461ffcd5ac64082ef811307ac7eee6d0b5f91",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/settings.gradle": "7bea35ce17410fec6e7086eddb71af868c762f35d32a18b9757e38361b71cfff",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/src/main/AndroidManifest.xml": "e46ea629b0af9a4ea33ca0d8fa3a3ff21df20b4fb09663ddbb0a2674106dde49",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/src/main/java/com/termux/ui/activity/LibraryGridColumns.java": "555957d788e7100175a487c9a059e81e852f6aa8caa4189146a07f7ce0e9f314",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/src/main/java/com/termux/ui/desktop/activity/DesktopCardLayout.java": "9f5119cbf3c88b2976ee229a6e80c3d3dade3ead009e7e487d98fc557ba48fa6",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/src/main/java/com/termux/ui/desktop/activity/DesktopInstallProgressView.java": "b9953c7bfc486ed950ca653901b08b216eea0ea865ef7ebb35fd531753243431",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/src/main/res/values/host_strings.xml": "589c7aa6c1bebc0d8e60109f73c1f1f91a904b8575d219096e7abd53d39b84a4",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/src/test/java/com/termux/ui/activity/LibraryGridColumnsTest.java": "c086ac39ad12653d3333263e384a821854948a683b14a1be9dd01caff379d07e",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/src/test/java/com/termux/ui/activity/WineCardGeometryTest.java": "55524d3f33e80c3f5ea226d26fc5e015b6d6420856bfc6004220c072a76e770b",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/src/test/java/com/termux/ui/desktop/activity/DesktopCardGeometryTest.java": "00e1aab9e828f114e3fe0bf240a3605a7a8ffc7e4ec74dbb207d4314597e1589",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/src/test/java/com/termux/ui/desktop/activity/DesktopCardLayoutTest.java": "93c0185f34c58a09f057690f46ad0d352fba2d876b1288e51487e5aaefe10387",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/strict-gate.log": "311d57e1a6080076fedd98f0673846d77a2930bec78acbe6a41a87c87215fda0",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/test-after-1.log": "9c2f9a1111e42d2e520c1ae10f49a9831b57448507e2cb586d29989c53a07aac",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/test-after-2.log": "7f379bc8c0397d617a30a287a31af0aa25e095855622fcc03ea2d2619448bbaa",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/test-after-3.log": "0180068cd82d530dd18b1c10576cec060444903f68d7ad4351d87e63345be4f2",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/test-before.log": "10c0b89fd4bbe5f10da247174800af0c31061023b26903ade804359bbc7405f1",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/test-create-diagnostic.log": "9e17151bd6f0831169fec7507fe28e72de5410b4bb0e993b9275f7acc9b1fc0c",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/test-expanded.log": "b0305ca7f2e127e8986b30cf202d341b57ef295174ddd6c9850b4e29e727ed48",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/test-final-2.log": "f49be29f3c9817f449a34f676f2416d5bade16fe4e747d7a6d16d8d379e12ed6",
+    "/home/user/workspace/artifacts/desktop-card-layout-verification/test-final.log": "9cb3cef6785a4f2d93735ea9ebe74018a4242a834d5109ff0c3b9d7606fefc6f"
+  },
+  "diffCheck": "Passed",
+  "strictGate": {
+    "status": "Unavailable",
+    "exitCode": 127,
+    "log": "/home/user/workspace/artifacts/desktop-card-layout-verification/strict-gate.log"
+  },
+  "limitations": [
+    "完整APK已构建且签名、ZIP和下载字节校验通过；未安装设备或执行实机视觉验收",
+    "Native/PRoot共用绑定路径通过直接源码审查，聚焦测试不实例化完整Activity",
+    "strict脚本仍缺失exit127；产品一致性和用户验收Pending，无Git写操作或归档"
+  ],
+  "apkDelivery": {
+    "status": "Built_Verified_ForDownload",
+    "evidence": "/home/user/workspace/idap-2031193509335416832/submodule/.harness/runs/fix-wine-library-card-geometry/apk-delivery-evidence.json",
+    "sha256": "aeffc7ce8704c094efea75cd3b4bc07e76775cf5eafc3368e721b98583b8e9c8"
+  }
+}

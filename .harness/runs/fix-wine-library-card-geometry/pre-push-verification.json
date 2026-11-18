@@ -1,0 +1,100 @@
+{
+  "date": "2026-11-18T03:04:22.057852+00:00",
+  "base": "55026c58b3ca3ac4c56c3c570f7c144af5dba07a",
+  "sourceHashes": {
+    "termux-ui/src/main/java/com/termux/ui/activity/LocalGamesActivity.java": "f2a2bf2cce4bf86fa674f04300f806c585b9509c456f43390670509d4ba56c47",
+    "termux-ui/src/main/res/layout/item_desktop.xml": "3187c07658ab22704887067394328f48f461b1577a385d9c8a26031179706d5d",
+    "termux-ui/src/main/res/layout/item_desktop_add.xml": "40da17ef2408570ce8fbc5d593fb8de5900c4b9c7227bbbd73b3eb4aa8747ade",
+    "termux-ui/src/main/res/layout/item_desktop_add_list.xml": "464205bf134811390fb96dccea5b5486b8e5fe4a5e09dabad0e33b8f7b880c35",
+    "termux-ui/src/main/res/layout/item_desktop_import.xml": "81565af7d75f19a598b8a6112153d7c4fd834b0f0c5b27a103af26a00319bac5",
+    "termux-ui/src/main/res/layout/item_desktop_import_list.xml": "8c9881142dcb1d92665acbc5a5788412759d9c13a090d748c606bfac025c2a5e",
+    "termux-ui/src/main/res/layout/item_desktop_list.xml": "0d28a883f67694500cf1b66cdd135fb610c80181ed4c3f15e35558adcca8ea24",
+    "termux-ui/src/main/res/layout/item_desktop_option.xml": "4ab1b51e61aad19c98cb757a1f5a3e72513b8d04ab2b443e828e76e50b02573c",
+    "termux-ui/src/main/res/layout/item_local_game.xml": "7fa98dd5d9deb9c8ca34bc598d2c48c57bc817e966eadac4983479dd98e2e737",
+    "termux-ui/src/main/res/layout/item_local_game_import.xml": "308ded13bc1126ef4e100bddc86f721231d57b6bb84183f772c48f2e4b83d0b8",
+    "termux-ui/src/main/res/layout/item_local_game_list.xml": "6795357ebdb267603317404cf4d3fff07065a97ce7c76ce8cb5064b700e5dcbf",
+    "termux-ui/src/main/res/values/dimens.xml": "0dd433f423f23fd650a5b5eb798a91782aaa19beca27926aa0c457082a87a1ea",
+    "app/src/test/java/com/termux/ui/activity/WineCardGeometryTest.java": "55524d3f33e80c3f5ea226d26fc5e015b6d6420856bfc6004220c072a76e770b",
+    "app/src/test/java/com/termux/ui/desktop/activity/DesktopCardGeometryTest.java": "7c4c1c41962ec77b726d4868e974c83628cb8cbcc06830b4ce34a91bef568240"
+  },
+  "status": "Passed",
+  "focusedTests": 29,
+  "appTests": 23,
+  "suites": {
+    "focused": [
+      {
+        "name": "com.termux.ui.activity.LibraryGridColumnsTest",
+        "tests": "13",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.termux.ui.activity.WineCardGeometryTest",
+        "tests": "7",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.termux.ui.desktop.activity.DesktopCardGeometryTest",
+        "tests": "8",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.termux.ui.desktop.activity.DesktopCardLayoutTest",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      }
+    ],
+    "app": [
+      {
+        "name": "com.termux.ui.activity.WineCardGeometryTest",
+        "tests": "7",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.termux.ui.desktop.activity.DesktopCardGeometryTest",
+        "tests": "8",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.termux.ui.desktop.activity.DesktopCreateRenderingTest",
+        "tests": "8",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      }
+    ]
+  },
+  "commands": {
+    "focused": "JAVA_HOME=/home/user/.local/jdks/default ANDROID_HOME=/home/user/.local/android-sdk ANDROID_SDK_ROOT=/home/user/.local/android-sdk GRADLE_USER_HOME=/home/user/.cache/gradle sh ./gradlew -p /home/user/workspace/artifacts/desktop-card-layout-verification testDebugUnitTest --console=plain",
+    "app": "sh ./gradlew -I /home/user/workspace/artifacts/apk-card-layout-build/arm64-only.init.gradle :app:testDebugUnitTest --tests com.termux.ui.desktop.activity.DesktopCardGeometryTest --tests com.termux.ui.activity.WineCardGeometryTest --tests com.termux.ui.desktop.activity.DesktopCreateRenderingTest --max-workers=4 --console=plain"
+  },
+  "source_review": [
+    "保留Ubuntu26.04 shared base重建身份",
+    "创建页保留52dp×max(1,fontScale)及match_parent内层边界，合并角标与标题修复",
+    "Native与PRoot复用同一布局，无后端运行和模型数据变更",
+    "管理网格128×160dp、Wine网格180dp保持固定；列表保持全宽",
+    "两个实际布局测试类纳入app/src/test，应用现有Robolectric4.10下23项通过"
+  ],
+  "strict_gate": {
+    "status": "Unavailable",
+    "exitCode": 127,
+    "reason": "仓库缺少.harness/scripts/verify.sh"
+  },
+  "limitations": [
+    "未执行设备视觉验收，产品一致性和用户接受仍Pending",
+    "此前下载APK的历史构建记录保留；未将其宣称为55026c58集成后源码的制品",
+    "未安装APK、未修改文件命名、未归档"
+  ],
+  "evidence": ".harness/runs/fix-wine-library-card-geometry/evidence/pre-push"
+}

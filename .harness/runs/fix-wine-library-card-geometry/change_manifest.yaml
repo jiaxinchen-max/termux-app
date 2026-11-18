@@ -1,0 +1,64 @@
+change_id: fix-wine-library-card-geometry
+stage: acceptance
+status: AwaitingUserAcceptance
+approval:
+  requirement: 用户要求卡片尺寸统一、长文字截断、图片缩放
+  planning: Approved_User_2026_11_18
+  implementation: Approved_User_2026_11_18
+  git_operations: Authorized_User_ExplicitPush_2026_11_18
+  device_deployment: NotAuthorizedForThisChange
+api_docs:
+  status: N/A
+  reason: 仅本地Android布局与图片展示，不修改HTTP契约
+product_docs:
+  status: Required
+  reason: 修改游戏库及desktop卡片的可见展示规则
+  documents: [docs/product/local-games.md, docs/product/desktop.md]
+  consistency:
+    status: Pending
+    evidence: .harness/runs/fix-wine-library-card-geometry/product-consistency-evidence.json
+    findings: .harness/runs/fix-wine-library-card-geometry/product-consistency-findings.yaml
+protected_paths:
+  registered: []
+  reason: 未发现仓库保护路径定义，仅规划UI布局与尺寸资源
+  impact: Native和PRoot游戏及desktop网格、列表、新增导入和desktop创建卡片展示
+  rollback: 撤销本变更布局和摆放参数，不更改游戏或容器数据
+  verification: 实际布局测量、长文本及不同比例图片、已有网格测试和可用构建
+tooling:
+  harness_bootstrap: Missing
+  strict_gate: Missing
+  openspec_cli: Missing
+  baseline_specs: Missing
+  product_docs: Missing
+acceptance: Pending
+archive: NotAuthorized
+
+verification:
+  status: Passed_FocusedVerification
+  tests: 29
+  evidence: .harness/runs/fix-wine-library-card-geometry/verification-evidence.json
+  strict_gate: Unavailable_Exit127
+  full_apk: Built_Verified_ForDownload
+  device_ui: Pending
+implementation_review: APPROVED_DirectSourceSelfReview
+
+desktop_extension:
+  authorization: 用户2026-11-18明确要求desktop同类问题一并修复
+  approval: 在已批准展示原则内扩展，保持desktop已有尺寸设计
+  api_docs: N/A_仅本地布局
+  product_docs: Required
+
+apk_delivery:
+  authorization: 用户明确要求提供APK下载
+  status: Built_Verified_ForDownload
+  evidence: .harness/runs/fix-wine-library-card-geometry/apk-delivery-evidence.json
+
+git_publication:
+  authorization: Authorized_User_ExplicitPush_2026_11_18
+  target: origin/master-x11-submodule-tmp
+  force_push: false
+  review: .harness/runs/fix-wine-library-card-geometry/pre-push-review.yaml
+  verification: .harness/runs/fix-wine-library-card-geometry/pre-push-verification.json
+  app_tests: 23_Passed
+  focused_tests: 29_Passed
+  product_acceptance: Pending

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.activity.LibraryGridColumnsTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-11-18T03:00:02" hostname="skynet-env-362805450227519488-378012184997830656-z9s95" time="0.004">
+  <properties/>
+  <testcase name="importCardIsTheOnlyCellOfAnEmptyLibrary" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.001"/>
+  <testcase name="cardWidthIsTheColumnShareMinusTheGutter" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.001"/>
+  <testcase name="importCardWrapsToTheFirstColumnOfANewRowWhenTheLastRowIsFull" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.0"/>
+  <testcase name="cellHelpersAreSafeForADegenerateColumnCount" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.0"/>
+  <testcase name="singleColumnPutsEveryItemInItsOwnRowWithImportLast" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.0"/>
+  <testcase name="cardWidthNeverGoesBelowTheMinimum" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.001"/>
+  <testcase name="portraitPhoneKeepsFourColumns" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.0"/>
+  <testcase name="portraitTabletAndWideWindowsGetMoreColumns" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.0"/>
+  <testcase name="portraitNeverDropsBelowFourColumns" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.0"/>
+  <testcase name="importCardPositionFollowsTheColumnCountAfterARotation" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.0"/>
+  <testcase name="landscapeUsesTheAvailableWidth" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.0"/>
+  <testcase name="importCardFollowsTheLastGameInTheSameRowWhenACellIsFree" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.0"/>
+  <testcase name="landscapeFallsBackToOneColumnInANarrowWindowAndIsCapped" classname="com.termux.ui.activity.LibraryGridColumnsTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

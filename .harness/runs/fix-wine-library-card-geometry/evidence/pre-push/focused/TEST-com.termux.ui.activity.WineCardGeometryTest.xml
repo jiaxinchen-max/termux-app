@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.termux.ui.activity.WineCardGeometryTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-18T03:00:02" hostname="skynet-env-362805450227519488-378012184997830656-z9s95" time="8.488">
+  <properties/>
+  <testcase name="emptyLibraryImportKeepsTheSameHeight" classname="com.termux.ui.activity.WineCardGeometryTest" time="5.112"/>
+  <testcase name="imageReplacementFitsAllAspectRatiosWithoutMovingActions" classname="com.termux.ui.activity.WineCardGeometryTest" time="0.463"/>
+  <testcase name="overflowingLabelsEllipsizeWithoutChangingTheirStoredText" classname="com.termux.ui.activity.WineCardGeometryTest" time="0.171"/>
+  <testcase name="shortAndLongCardsAlignAcrossWindowsFontsAndThemes" classname="com.termux.ui.activity.WineCardGeometryTest" time="1.998"/>
+  <testcase name="finiteScrollViewportAndExtraRowDoNotStretchCards" classname="com.termux.ui.activity.WineCardGeometryTest" time="0.202"/>
+  <testcase name="renderReviewPreviewsFromActualLayouts" classname="com.termux.ui.activity.WineCardGeometryTest" time="0.423"/>
+  <testcase name="listWineRemainsSingleLineAndImagesKeepTheirRatio" classname="com.termux.ui.activity.WineCardGeometryTest" time="0.118"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

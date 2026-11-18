@@ -1,0 +1,128 @@
+> Task :preBuild UP-TO-DATE
+> Task :preDebugBuild UP-TO-DATE
+> Task :generateDebugResValues UP-TO-DATE
+> Task :generateDebugResources
+> Task :packageDebugResources
+> Task :javaPreCompileDebug UP-TO-DATE
+> Task :preDebugUnitTestBuild UP-TO-DATE
+> Task :javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :writeDebugAarMetadata UP-TO-DATE
+> Task :parseDebugLocalResources
+> Task :checkDebugUnitTestAarMetadata UP-TO-DATE
+> Task :generateDebugUnitTestResValues UP-TO-DATE
+> Task :generateDebugRFile
+> Task :compileDebugLibraryResources
+> Task :mapDebugUnitTestSourceSetPaths
+> Task :compileDebugJavaWithJavac UP-TO-DATE
+> Task :bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :generateDebugUnitTestResources UP-TO-DATE
+> Task :bundleLibCompileToJarDebug
+> Task :extractDeepLinksDebug UP-TO-DATE
+> Task :processDebugManifest UP-TO-DATE
+> Task :processDebugUnitTestManifest UP-TO-DATE
+> Task :mergeDebugShaders UP-TO-DATE
+> Task :compileDebugShaders NO-SOURCE
+> Task :generateDebugAssets UP-TO-DATE
+> Task :mergeDebugAssets UP-TO-DATE
+> Task :generateDebugUnitTestAssets UP-TO-DATE
+> Task :packageDebugAssets UP-TO-DATE
+> Task :mergeDebugUnitTestAssets UP-TO-DATE
+> Task :processDebugJavaRes NO-SOURCE
+> Task :processDebugUnitTestJavaRes NO-SOURCE
+> Task :mergeDebugUnitTestResources
+warn: removing resource com.termux.ui.test:string/local_game_import_arguments_hint without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_candidate_metadata without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_candidate_recommended without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_candidate_review without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_candidate_signals without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_candidates without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_choose_directory without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_complete without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_confirm without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_description without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_failed without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_help without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_no_candidates without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_posix_access_required without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_relative_path_hint without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_saving without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_scan_incomplete without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_scan_summary without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_scanning without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_signal_deep without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_signal_helper without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_signal_large without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_signal_launcher without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_signal_name_match without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_signal_none without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_signal_root without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_signal_support without required default value.
+warn: removing resource com.termux.ui.test:string/local_game_import_title without required default value.
+
+> Task :processDebugUnitTestResources
+> Task :compileDebugUnitTestJavaWithJavac
+> Task :packageDebugUnitTestForUnitTest
+> Task :generateDebugUnitTestConfig
+
+> Task :testDebugUnitTest
+
+com.termux.ui.activity.LibraryGridColumnsTest > importCardIsTheOnlyCellOfAnEmptyLibrary PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > cardWidthIsTheColumnShareMinusTheGutter PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > importCardWrapsToTheFirstColumnOfANewRowWhenTheLastRowIsFull PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > cellHelpersAreSafeForADegenerateColumnCount PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > singleColumnPutsEveryItemInItsOwnRowWithImportLast PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > cardWidthNeverGoesBelowTheMinimum PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > portraitPhoneKeepsFourColumns PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > portraitTabletAndWideWindowsGetMoreColumns PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > portraitNeverDropsBelowFourColumns PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > importCardPositionFollowsTheColumnCountAfterARotation PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > landscapeUsesTheAvailableWidth PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > importCardFollowsTheLastGameInTheSameRowWhenACellIsFree PASSED
+
+com.termux.ui.activity.LibraryGridColumnsTest > landscapeFallsBackToOneColumnInANarrowWindowAndIsCapped PASSED
+
+com.termux.ui.activity.WineCardGeometryTest > emptyLibraryImportKeepsTheSameHeight PASSED
+
+com.termux.ui.activity.WineCardGeometryTest > imageReplacementFitsAllAspectRatiosWithoutMovingActions PASSED
+
+com.termux.ui.activity.WineCardGeometryTest > overflowingLabelsEllipsizeWithoutChangingTheirStoredText PASSED
+
+com.termux.ui.activity.WineCardGeometryTest > shortAndLongCardsAlignAcrossWindowsFontsAndThemes PASSED
+
+com.termux.ui.activity.WineCardGeometryTest > finiteScrollViewportAndExtraRowDoNotStretchCards PASSED
+
+com.termux.ui.activity.WineCardGeometryTest > renderReviewPreviewsFromActualLayouts PASSED
+
+com.termux.ui.activity.WineCardGeometryTest > listWineRemainsSingleLineAndImagesKeepTheirRatio PASSED
+
+com.termux.ui.desktop.activity.DesktopCardGeometryTest > localizedActionAndStatusLabelsKeepTheirAvailableAreas PASSED
+
+com.termux.ui.desktop.activity.DesktopCardGeometryTest > coversFitAllAspectRatiosWithoutChangingGeometry PASSED
+
+com.termux.ui.desktop.activity.DesktopCardGeometryTest > listActionsCannotConsumeTheTextColumn PASSED
+
+com.termux.ui.desktop.activity.DesktopCardGeometryTest > addImportLabelsAreBoundedInGridAndList PASSED
+
+com.termux.ui.desktop.activity.DesktopCardGeometryTest > createTitlesKeepEqualHeightAndDoNotOverlapBadges PASSED
+
+com.termux.ui.desktop.activity.DesktopCardGeometryTest > pendingImportMenuAndCreatedBadgeFitAtLargeFont PASSED
+
+com.termux.ui.desktop.activity.DesktopCardGeometryTest > fixedManagementCardsKeepReadableTextAndActionsInside PASSED
+
+com.termux.ui.desktop.activity.DesktopCardGeometryTest > fixedCardsStayAlignedInsideFiniteScrollableWindows PASSED
+
+com.termux.ui.desktop.activity.DesktopCardLayoutTest > compactCardsAdaptWithoutStretchingToFillWindow PASSED
+
+BUILD SUCCESSFUL in 15s
+29 actionable tasks: 13 executed, 16 up-to-date
