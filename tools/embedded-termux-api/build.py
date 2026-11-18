@@ -24,7 +24,8 @@ for abi,arch in [('arm64-v8a','aarch64'),('armeabi-v7a','arm'),('x86','i686'),('
         shutil.copy2(out/abi/'termux-api',dest/'libexec/termux-api');shutil.copy2(out/'termux-callback',dest/'libexec/termux-callback')
         for f in dest.rglob('*'):
             if f.is_file(): f.chmod(0o755)
-        subprocess.run(['dpkg-deb','--root-owner-group','--build',str(package),str(out/abi/'termux-api.deb')],check=True,env=dict(os.environ,SOURCE_DATE_EPOCH='0'))
+        # Ubuntu defaults to zstd; keep the xz format used by the published catalog.
+        subprocess.run(['dpkg-deb','-Zxz','-z6','--root-owner-group','--build',str(package),str(out/abi/'termux-api.deb')],check=True,env=dict(os.environ,SOURCE_DATE_EPOCH='0'))
 (out/'manifest.json').write_text(json.dumps({str(f.relative_to(out)):hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(out.rglob('*')) if f.is_file()},sort_keys=True,indent=2)+'\n')
 
 # Release payloads are build outputs, never Android asset inputs.
