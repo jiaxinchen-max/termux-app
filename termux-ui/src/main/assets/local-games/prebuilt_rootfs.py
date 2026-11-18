@@ -183,7 +183,7 @@ def pack(root, output, descriptor_path, assets, zstd):
     spec = importlib.util.spec_from_file_location('image_trim', Path(__file__).with_name('minimize-rootfs.py'))
     trim = importlib.util.module_from_spec(spec); spec.loader.exec_module(trim)
     receipt = json.loads((root / 'etc/wine-rootfs-trim.json').read_text())
-    require(receipt['state'] == 'Verified' and len(receipt['batches']) == 5, 'image_trim_not_verified')
+    require(receipt['state'] == 'Verified' and receipt['batches'] == list(trim.BUILD_BATCHES), 'image_trim_not_verified')
     protected = trim.protect(root, assets)
     entries = inventory(root)
     m = {'schemaVersion': 1, 'imageId': IMAGE_ID, 'sourceComponentSha256': SOURCE_SHA,

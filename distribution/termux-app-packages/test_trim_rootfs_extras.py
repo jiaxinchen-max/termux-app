@@ -28,7 +28,7 @@ class Cleanup(unittest.TestCase):
         self.descriptor = self.base / 'source.json'
         self.destination = self.base / 'candidate'
         self.files = {
-            'etc/wine-runtime.properties': b'recipeVersion=12\nruntimeBackend=rootfs_proot\n',
+            'etc/wine-runtime.properties': b'recipeVersion=13\nbaseImage=ubuntu:resolute\nruntimeBackend=rootfs_proot\n',
             'usr/bin/wine': b'ELF-Wine',
             'usr/bin/perl': b'ELF-Perl',
             'usr/lib/aarch64-linux-gnu/perl/5.40/CORE/test.h': b'development header',

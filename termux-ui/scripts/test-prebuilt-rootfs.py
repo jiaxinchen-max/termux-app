@@ -146,10 +146,24 @@ class ImageTests(unittest.TestCase):
             else:p.symlink_to(r['link'])
         (source/'etc/machine-id').write_bytes(b'secret-machine-id')
         (source/'root/.ssh').mkdir(parents=True);(source/'var/log').mkdir(parents=True);(source/'var/log/private').write_bytes(b'log')
-        (source/'etc/wine-rootfs-trim.json').write_text(json.dumps({'state':'Verified','batches':[1,2,3,4,5]}))
+        (source/'etc/wine-rootfs-trim.json').write_text(json.dumps({'state':'Verified','batches':['development','resources','fonts','build-tools','gpu-drivers','runtime-extras']}))
         assets=self.base/'assets';assets.mkdir();(assets/'manifest.json').write_bytes(b'[]');(assets/'bundle.json').write_bytes(m.raw_json({'sourceComponentSha256':m.SOURCE_SHA,'assets':{'manifest.json':m.sha_bytes(b'[]')},'runtimeFiles':{'usr/bin/wine':m.sha_bytes(b'wine')}}))
         out=self.base/'one.tar.zst';desc=self.base/'one.json';d=m.pack(source,out,desc,assets,'zstd');out2=self.base/'two.tar.zst';desc2=self.base/'two.json';d2=m.pack(source,out2,desc2,assets,'zstd');self.assertEqual(d['sha256'],d2['sha256'])
         m.restore(out,self.root,desc,self.recipe,'zstd');self.assertEqual((self.root/'etc/machine-id').read_bytes(),b'');self.assertFalse((self.root/'var/log/private').exists());self.assertEqual((source/'etc/machine-id').read_bytes(),b'secret-machine-id')
+    def test_pack_rejects_incomplete_duplicate_or_unknown_trim_batches(self):
+        source = self.base / 'source'; (source / 'etc').mkdir(parents=True)
+        qualified = ['development', 'resources', 'fonts', 'build-tools',
+                     'gpu-drivers', 'runtime-extras']
+        for batches in (qualified[:-1], qualified[:-1] + ['gpu-drivers'],
+                        qualified[:-1] + ['unknown'], list(reversed(qualified))):
+            with self.subTest(batches=batches):
+                (source / 'etc/wine-rootfs-trim.json').write_text(json.dumps(
+                    {'state': 'Verified', 'batches': batches}))
+                with self.assertRaisesRegex(ValueError, 'image_trim_not_verified'):
+                    m.pack(source, self.archive, self.descriptor, self.base / 'assets', 'zstd')
+                self.assertFalse(self.archive.exists())
+                self.assertFalse(self.descriptor.exists())
+
     def test_cancel_reaps_decoder_and_removes_owned_tree(self):
         self.build(); decoder=self.base/'slow-zstd'
         decoder.write_text('#!'+__import__('sys').executable+'\nimport os,time\nopen('+repr(str(self.base/'decoder.pid'))+',"w").write(str(os.getpid()))\ntime.sleep(30)\n');decoder.chmod(0o700)

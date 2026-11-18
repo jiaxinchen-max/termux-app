@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "package": "coreutils-from-gnu",
+  "version": "0.0.0~ubuntu25",
+  "architecture": "all",
+  "url": "https://ports.ubuntu.com/ubuntu-ports/pool/main/c/coreutils-from/coreutils-from-gnu_0.0.0~ubuntu25_all.deb",
+  "bytes": 6902,
+  "sha256": "862be75c7dd5d92815f2b80149bbcf819d11d21b1dba734f62b545bc5acb0eb7",
+  "index": "https://ports.ubuntu.com/ubuntu-ports/dists/resolute/main/binary-arm64/Packages.xz",
+  "indexSha256": "537715817d9ed77cc919f5123edb91a48d9ae97abf05588a8f18208cc7227e08",
+  "gnuCoreutilsVersion": "9.7-3ubuntu2.1",
+  "qualification": "SourceVerified_NotDeviceQualified"
+}

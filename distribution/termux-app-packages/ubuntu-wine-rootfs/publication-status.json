@@ -1,47 +1,69 @@
 {
-  "state": "Published_PublicDownloadsAndIndexesVerified",
-  "approval": "Approved_ExplicitUser_FourNewPrereleases",
+  "state": "PublishedInPlace_AnonymousFullDownloadsAndIndexVerified",
+  "approval": "Approved_User_InPlaceAfterValidation_NoNewVersion",
   "productionIndexEnabled": true,
-  "urlState": "Published_PublicDownloadVerified",
+  "urlState": "OriginalUrls_UpdatedAndVerified",
   "entry": "../prebuilt-rootfs-index-entry.json",
   "descriptor": "../../../termux-ui/src/main/assets/local-games/runtime-rootfs-v13/image.json",
-  "remoteIndexPush": "Completed",
+  "remoteIndexPush": "Completed_InPlaceUpdate",
   "assets": [
     {
       "componentId": "rootfs_ubuntu2604_hangover_pdb2_minimal",
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-ubuntu2604-hangover-pdb2-minimal-v1/rootfs-ubuntu2604-hangover-pdb2-minimal-v1.tar.zst",
-      "bytes": 421418301,
-      "sha256": "656b0a9214f2188c3f8b48c9d218c3275e97753690f827b52784536300bb8877",
+      "bytes": 344435653,
+      "sha256": "fc6ad4f58e9136639768edccaf27245bbea48fc20d403724c05035f72e9dcf99",
       "releaseUrl": "https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/rootfs-ubuntu2604-hangover-pdb2-minimal-v1"
     },
     {
       "componentId": "rootfs_prefix_hangover_pdb2_ubuntu2604",
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-hangover-pdb2-ubuntu2604-v1/rootfs-prefix-hangover-pdb2-ubuntu2604-v1.tar.gz",
-      "bytes": 4455741,
-      "sha256": "129f42647f034f29cafe9c6a0f0aa8106db54a5eb8885a380492a866e2535b6f",
+      "bytes": 4456330,
+      "sha256": "be69fbed6d6b5f359fb9f67d4bf801472a73960e9e90429f7f42b82d378a3d53",
       "releaseUrl": "https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/rootfs-prefix-hangover-pdb2-ubuntu2604-v1"
     },
     {
       "componentId": "rootfs_prefix_wine10_wow64_ubuntu2604",
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-wine10-wow64-ubuntu2604-v1/rootfs-prefix-wine10-wow64-ubuntu2604-v1.tar.gz",
-      "bytes": 2210153,
-      "sha256": "28393042e4aab5e949cc524ff155702e17626177f0c08b50564ab415c95b028d",
+      "bytes": 2210738,
+      "sha256": "e499bcfe7c8a92d6998e5462f8d2df5dd708cf44b3fac544e1e635fc73c2f31e",
       "releaseUrl": "https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/rootfs-prefix-wine10-wow64-ubuntu2604-v1"
     },
     {
       "componentId": "rootfs_prefix_proton11_wow64_ubuntu2604",
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-proton11-wow64-ubuntu2604-v1/rootfs-prefix-proton11-wow64-ubuntu2604-v1.tar.gz",
-      "bytes": 2506910,
-      "sha256": "e5e6ba50b3ae77d43bde84c77875f2a9798c38d566d215dd035a08e19ba70bc2",
+      "bytes": 2507393,
+      "sha256": "db95c3ab286b52140bb48b4f57cdfcca3030e5e83a0031a6e8ee1131a3517601",
       "releaseUrl": "https://github.com/jiaxinchen-max/termux-app-packages/releases/tag/rootfs-prefix-proton11-wow64-ubuntu2604-v1"
     }
   ],
-  "assetIndexCommit": "7d2bb960ee1847ee92e93b76e06363d739239ecc",
   "apk": {
+    "bytes": 45637279,
+    "sha256": "06ce49200f72577c667a259ba905c26e5713e9c29acf33d4b6f9cad65e64fef8",
+    "testOnly": false,
+    "installation": "NotPerformed",
+    "file": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "acceptance": "Pending_AppUI_HardwareGPU"
+  },
+  "inPlaceUpdate": {
+    "state": "PublishedAndVerified",
+    "runtimeTests": 9,
+    "excludedGStreamerChecks": 12,
+    "runtimeEvidenceSha256": "fbe186b2a72db544ddbdbfff001ee46483c1158f914545fadf09145c94d52933",
+    "appUiAcceptance": "Pending",
+    "hardwareGpuAcceptance": "Pending",
+    "distinctExecutions": 8,
+    "gstreamerAcceptance": "ExcludedByUser_NotPassed",
+    "publishedAt": "2026-11-18T13:06:32.669079+00:00",
+    "indexSha256": "d1d783bb6908cd4dae603d90124848fe3194cf7fa46e3f9e5a64a971c4b55ee1",
+    "publicationEvidenceSha256": "ad467230dd7ebb0ad9c225d6f0cf28513da196a4019c088c7c7d51081d057361"
+  },
+  "previousIndexCommit": "7d2bb960ee1847ee92e93b76e06363d739239ecc",
+  "previousApk": {
     "file": "termux-app_apt-android-7-debug_arm64-v8a.apk",
     "bytes": 45485383,
     "sha256": "5cdf36d6ed9ed957ee9f389d7ec0da207dd43480e68d10d2811d3c8c5c61ceb3",
     "installation": "NotPerformed",
     "acceptance": "Pending_AppUI_HardwareGPU"
-  }
+  },
+  "assetIndexCommit": "f1205279d131df700b1b3aae2ad20c28bbac72ee"
 }

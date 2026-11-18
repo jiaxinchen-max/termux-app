@@ -5,9 +5,11 @@ This command never publishes a release or replaces the installed shared root.
 Run from a complete source checkout; retain the work directory as build evidence.
 """
 import argparse
+import base64
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import stat
@@ -32,8 +34,11 @@ def digest(path):
     return h.hexdigest()
 
 
-def build_container_root(prefix):
-    root = prefix / 'var/lib/proot-distro/containers' / NAME / 'rootfs'
+def build_container_root(prefix, name=NAME):
+    require(isinstance(name, str) and re.fullmatch(
+        r'wine-ubuntu2604-build(?:-[a-z0-9][a-z0-9-]{0,47})?', name),
+        'private_build_container_name_invalid')
+    root = prefix / 'var/lib/proot-distro/containers' / name / 'rootfs'
     # Reject an aliased parent before guest apt can modify any existing tree.
     for path in (root, *root.parents):
         require(not path.is_symlink(), 'build_root_symlink')
@@ -42,6 +47,32 @@ def build_container_root(prefix):
     if root.exists():
         require(root.is_dir() and root.resolve(strict=True) == root, 'build_root_alias')
     return root
+
+
+def validate_cached_oci_manifest(prefix, lock):
+    """Verify the registry bytes, excluding only PRoot-distro's internal tag."""
+    cached = prefix / 'var/lib/proot-distro/cache/oci_manifests'
+    for path in cached.glob('*.json'):
+        if path.is_symlink() or not path.is_file():
+            continue
+        try:
+            record = json.loads(path.read_text())
+            if (not isinstance(record, dict) or
+                    record.get('image_ref') != lock['reference'] or
+                    record.get('arch') != lock['architecture']):
+                continue
+            raw = base64.b64decode(record['documents'][lock['manifestDigest']], validate=True)
+            if 'sha256:' + hashlib.sha256(raw).hexdigest() != lock['manifestDigest']:
+                continue
+            manifest = dict(record['manifest'])
+            if '_ct' in manifest:
+                if manifest.pop('_ct') != lock['manifest']['mediaType']:
+                    continue
+            if json.loads(raw) == lock['manifest'] and manifest == lock['manifest']:
+                return
+        except (KeyError, TypeError, ValueError):
+            continue
+    raise ValueError('official_base_manifest_not_found')
 
 
 def prepare_hangover(work, target):
@@ -211,9 +242,42 @@ def prepare_image_homes(root, work):
     return records
 
 
+def validate_coreutils(root):
+    """Fail before trimming if the official GNU provider was not installed.
+
+    Resolve guest absolute links inside the candidate, never against the host.
+    Also reject leftover Rust payload: deleting command links alone saves no data.
+    """
+    from prebuilt_rootfs import guest
+    lock = json.loads((Path(__file__).parent /
+                       'ubuntu-wine-rootfs/coreutils-provider-lock.json').read_text())
+    status = (root / 'var/lib/dpkg/status').read_text()
+    installed = {}
+    for paragraph in status.split('\n\n'):
+        fields = dict(line.split(': ', 1) for line in paragraph.splitlines()
+                      if ': ' in line and not line.startswith((' ', '\t')))
+        if fields.get('Status') == 'install ok installed':
+            installed[fields['Package']] = fields
+    require(installed.get('coreutils-from-gnu', {}).get('Version') == lock['version'] and
+            installed.get('gnu-coreutils', {}).get('Version') == lock['gnuCoreutilsVersion'] and
+            not {'coreutils-from-uutils', 'rust-coreutils'}.intersection(installed),
+            'gnu_coreutils_package_identity')
+    for name in ('[', 'env', 'cat', 'ls', 'chmod', 'mkdir', 'cp', 'mv', 'rm',
+                 'ln', 'readlink', 'realpath', 'stat', 'sort', 'sha256sum', 'timeout'):
+        target = guest(root, 'usr/bin/' + name)
+        require(target == root / ('usr/bin/gnu' + name) and
+                target.is_file() and os.access(target, os.X_OK),
+                'gnu_coreutils_command:' + name)
+    for name in ('usr/bin/coreutils', 'usr/lib/cargo/bin/coreutils'):
+        target = root / name
+        require(not target.exists() and not target.is_symlink(), 'rust_coreutils_payload_remains')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--work', type=Path, required=True)
+    parser.add_argument('--build-container-name', default=NAME,
+                        help='Separate private build root: wine-ubuntu2604-build[-suffix]')
     parser.add_argument('--hangover-archive', type=Path, required=True,
                         help='Verified Ubuntu-adapted input produced by package-hangover-ubuntu.py')
     parser.add_argument('--ffmpeg4-archive', type=Path, required=True,
@@ -234,23 +298,23 @@ def main():
     here = Path(__file__).resolve().parent
     assets = here.parents[1] / 'termux-ui/src/main/assets/local-games'
     image_lock = json.loads((here / 'ubuntu-wine-rootfs/ubuntu-oci-lock.json').read_text())
-    root = build_container_root(prefix)
+    container_name = args.build_container_name
+    root = build_container_root(prefix, container_name)
     if root.exists():
         require(args.reuse_build_container, 'build_container_exists_requires_explicit_reuse')
     else:
-        subprocess.run([str(prefix / 'bin/proot-distro'), 'install', '--name', NAME,
+        subprocess.run([str(prefix / 'bin/proot-distro'), 'install', '--name', container_name,
                         image_lock['reference']], check=True)
-    build_container_root(prefix)
+    build_container_root(prefix, container_name)
     # On an explicit reuse, require the original official OCI manifest to be in the verified cache.
-    cached = prefix / 'var/lib/proot-distro/cache/oci_manifests'
-    require(any(json.loads(p.read_text()).get('manifest') == image_lock['manifest']
-                for p in cached.glob('*.json')), 'official_base_manifest_not_found')
+    validate_cached_oci_manifest(prefix, image_lock)
     prepare_hangover(work, args.hangover_archive)
     helpers = ['desktop_container_statx_setup.sh', 'desktop_container_apt_sources.sh',
                'desktop_container_statx_aarch64.bin', 'desktop_container_run_config.sh']
     for name in helpers:
         shutil.copyfile(assets / name, work / name)
     shutil.copyfile(here / 'setup-ubuntu-wine-rootfs.sh', work / 'setup-ubuntu-wine-rootfs.sh')
+    shutil.copyfile(here / 'ubuntu-wine-rootfs/check-coreutils-plan.sh', work / 'check-coreutils-plan.sh')
     package_lock = here / 'ubuntu-wine-rootfs/ubuntu-packages.tsv'
     shutil.copyfile(package_lock, work / 'ubuntu-packages.lock.tsv')
     shutil.copyfile(assets / 'runtime-rootfs-v13/wine-runtime.properties', work / 'wine-runtime.properties')
@@ -258,14 +322,15 @@ def main():
     trust.parent.mkdir(parents=True, exist_ok=True)
     require(not trust.is_symlink(), 'build_trust_symlink')
     shutil.copyfile(prefix / 'etc/tls/cert.pem', trust)
-    subprocess.run([str(prefix / 'bin/proot-distro'), 'login', NAME, '--user', 'root',
+    subprocess.run([str(prefix / 'bin/proot-distro'), 'login', container_name, '--user', 'root',
                     '--bind', str(work) + ':/run/wine-build', '--', '/bin/sh',
                     '/run/wine-build/setup-ubuntu-wine-rootfs.sh'], check=True)
+    validate_coreutils(root)
     compatibility_lock = here / 'ubuntu-wine-rootfs/ffmpeg4-compatibility-lock.json'
     ffmpeg4 = install_ffmpeg4(root, args.ffmpeg4_archive, compatibility_lock)
     ubuntu_media = install_ubuntu_media(root, args.ubuntu_media_archive,
         here / 'ubuntu-wine-rootfs/ubuntu-media-lock.json')
-    subprocess.run([str(prefix / 'bin/proot-distro'), 'login', NAME, '--user', 'root',
+    subprocess.run([str(prefix / 'bin/proot-distro'), 'login', container_name, '--user', 'root',
                     '--', '/sbin/ldconfig'], check=True)
     # Recompute every source file against the actual Ubuntu tree. The original
     # Debian bundle is an input reference, never the output used for packing.
@@ -280,13 +345,15 @@ def main():
               'sourceSha256': SOURCE_SHA, 'sourceBytes': SOURCE_BYTES,
               'ffmpeg4': ffmpeg4,
               'ubuntuMedia': ubuntu_media,
+              'coreutilsProvider': json.loads((here / 'ubuntu-wine-rootfs/coreutils-provider-lock.json').read_text()),
               'packageLockSha256': digest(package_lock),
               'homeScaffolding': home_scaffolding,
               'helpers': {name: digest(work / name) for name in helpers},
               'prefixBundleSha256': digest(prefix_assets / 'bundle.json'),
               'buildTools': {name: digest(here / name) for name in
                              ('build-ubuntu-wine-rootfs.py', 'setup-ubuntu-wine-rootfs.sh',
-                              'ubuntu-wine-rootfs/requalify-prefix.py', 'minimize-rootfs.py',
+                              'ubuntu-wine-rootfs/requalify-prefix.py',
+                              'ubuntu-wine-rootfs/check-coreutils-plan.sh', 'minimize-rootfs.py',
                               'audit-rootfs-elf.py', 'prebuilt_rootfs.py')},
               'guestSetupSha256': digest(work / 'setup-ubuntu-wine-rootfs.sh'),
               'packages': (work / 'ubuntu-packages.tsv').read_text(),

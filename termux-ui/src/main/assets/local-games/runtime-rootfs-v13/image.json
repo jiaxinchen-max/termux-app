@@ -1,1 +1,11 @@
-{"bytes":421418301,"entryCount":15448,"expandedBytes":2886156797,"file":"rootfs-ubuntu2604-hangover-pdb2-minimal-v1.tar.zst","imageId":"rootfs_ubuntu2604_hangover_pdb2_minimal","manifestSha256":"eefe48fcec547f55340e176c2df47e569650ea87f81e69efebc49e85bd29fdb9","schemaVersion":1,"sha256":"656b0a9214f2188c3f8b48c9d218c3275e97753690f827b52784536300bb8877","sourceComponentSha256":"8deeb1286d8227d267d261420ecd04321c9670802a3ce1b70da807a4d8d54885"}
+{
+  "bytes": 344435653,
+  "entryCount": 12068,
+  "expandedBytes": 1576741773,
+  "file": "rootfs-ubuntu2604-hangover-pdb2-minimal-v1.tar.zst",
+  "imageId": "rootfs_ubuntu2604_hangover_pdb2_minimal",
+  "manifestSha256": "b9e17bd191495e96e23abb0f8f9b02e91b24d2237bd3d52f5098668aadf9d27e",
+  "schemaVersion": 1,
+  "sha256": "fc6ad4f58e9136639768edccaf27245bbea48fc20d403724c05035f72e9dcf99",
+  "sourceComponentSha256": "8deeb1286d8227d267d261420ecd04321c9670802a3ce1b70da807a4d8d54885"
+}

@@ -100,21 +100,25 @@ class Minimize(unittest.TestCase):
 
     def test_gpu_batch_removes_exact_pairs_and_keeps_supported_icds(self):
         removed = []
-        for driver in ('broadcom', 'nouveau', 'panfrost', 'radeon',
-                       'freedreno', 'lvp', 'gfxstream', 'virtio'):
+        excluded = ('asahi', 'broadcom', 'intel', 'nouveau', 'panfrost', 'powervr_mesa', 'radeon')
+        for driver in (*excluded, 'freedreno', 'lvp', 'gfxstream', 'virtio', 'intel_custom'):
             for name in ('usr/lib/aarch64-linux-gnu/libvulkan_' + driver + '.so',
-                         'usr/share/vulkan/icd.d/' + driver + '_icd.json'):
+                         'usr/share/vulkan/icd.d/' +
+                         ('gfxstream_vk' if driver == 'gfxstream' else driver) + '_icd.json'):
                 path = self.root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(name)
-                if driver in ('broadcom', 'nouveau', 'panfrost', 'radeon'):
+                if driver in excluded:
                     removed.append(name)
         plan = m.plan(self.root, self.assets, 'gpu-drivers')
         self.assertEqual(set(removed), {r['path'] for r in plan['deletions']})
         m.apply(self.root, self.assets, plan, self.journal)
-        for driver in ('freedreno', 'lvp', 'gfxstream', 'virtio'):
+        for driver in ('freedreno', 'lvp', 'gfxstream', 'virtio', 'intel_custom'):
             self.assertTrue((self.root / ('usr/lib/aarch64-linux-gnu/libvulkan_' + driver + '.so')).exists())
+        self.assertTrue((self.root / 'usr/share/vulkan/icd.d/gfxstream_vk_icd.json').exists())
         m.rollback(self.root, self.journal)
+        for name in removed:
+            self.assertEqual(name, (self.root / name).read_text())
 
     def test_independent_clone_apply_and_rollback_exact_content(self):
         original = m.tree(self.root)
@@ -421,6 +425,7 @@ class Minimize(unittest.TestCase):
 
     def test_combined_installer_policy_matches_incremental_qualified_batches(self):
         self.font_fixture()
+        self.extras_fixture()
         doc = self.root / 'usr/share/doc/wine/README'
         doc.write_text('unneeded documentation')
         for name in ('usr/share/i18n/locales/zh_CN', 'usr/bin/apt-get',
@@ -436,7 +441,7 @@ class Minimize(unittest.TestCase):
             self.generate_cache_fixture(root, stage)
             for path in stage.iterdir():
                 os.utime(path, ns=(123000000000, 123000000000))
-        with mock.patch.object(m, 'BUILD_BATCHES', ('development', 'resources', 'fonts', 'build-tools', 'gpu-drivers')), \
+        with mock.patch.object(m, 'regenerate_ld_cache', side_effect=self.ld_cache_fixture), \
                 mock.patch.object(m, 'regenerate_font_cache', side_effect=cache):
             for batch in m.BUILD_BATCHES:
                 plan = m.plan(self.root, self.assets, batch)
@@ -448,6 +453,173 @@ class Minimize(unittest.TestCase):
         self.assertFalse((other / 'usr/include/wine/test.h').exists())
         self.assertFalse(doc.exists())
         self.assertTrue((other / 'usr/share/doc/wine/copyright').exists())
+
+    def extras_fixture(self, root=None):
+        root = root or self.root
+        removed = ['usr/lib/aarch64-linux-gnu/perl/5.40.1/CORE/perl.h',
+                   'usr/share/perl/5.40.1/pod/perlintro.pod', 'usr/bin/pebble',
+                   'usr/lib/aarch64-linux-gnu/libhwy_contrib.so.1.3.0',
+                   'usr/lib/aarch64-linux-gnu/libhwy_test.so.1.3.0']
+        kept = ['usr/share/perl/5.40.1/strict.pm', 'usr/bin/perl',
+                'usr/lib/aarch64-linux-gnu/libhwy.so.1.3.0',
+                'usr/bin/pebble-helper', 'usr/lib/aarch64-linux-gnu/libhwy_tests.so.1',
+                'usr/share/perl/5.40.1/LICENSE.pod',
+                'usr/share/perl/5.40.1/example.pod.gz']
+        for name in removed + kept + list(m.LD_CACHES):
+            p = root / name
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(name)
+        for name in ('libhwy_contrib', 'libhwy_test', 'libhwy'):
+            (root / ('usr/lib/aarch64-linux-gnu/' + name + '.so.1')).symlink_to(name + '.so.1.3.0')
+        return set(removed) | {'usr/lib/aarch64-linux-gnu/libhwy_' + n + '.so.1'
+                               for n in ('contrib', 'test')}, kept
+
+    def ld_cache_fixture(self, root, stage):
+        self.assertFalse((root / 'usr/lib/aarch64-linux-gnu/libhwy_test.so.1').exists())
+        self.assertFalse((root / 'etc/ld.so.cache').exists())
+        (stage / 'ld.so.cache').write_text('new loader cache')
+        (stage / 'aux-cache').write_text('new auxiliary cache')
+        os.utime(stage / 'aux-cache', ns=(123000000000, 123000000000))
+        os.utime(stage / 'ld.so.cache', ns=(123000000000, 123000000000))
+
+    def test_extras_exact_selection_cache_rebuild_and_rollback(self):
+        removed, kept = self.extras_fixture()
+        before = m.tree(self.root)
+        plan = m.plan(self.root, self.assets, 'runtime-extras')
+        self.assertEqual(removed | set(m.LD_CACHES), {r['path'] for r in plan['deletions']})
+        with mock.patch.object(m, 'regenerate_ld_cache', side_effect=self.ld_cache_fixture):
+            journal = m.apply(self.root, self.assets, plan, self.journal)
+        self.assertEqual('new loader cache', (self.root / 'etc/ld.so.cache').read_text())
+        self.assertEqual('new auxiliary cache', (self.root / 'var/cache/ldconfig/aux-cache').read_text())
+        for name in kept:
+            self.assertEqual(before[name], m.tree(self.root)[name])
+        self.assertFalse(Path(journal['generatedLdCacheStage']).exists())
+        m.rollback(self.root, self.journal)
+        self.assertEqual(before, m.tree(self.root))
+
+    def test_extras_cache_generation_failure_restores_every_original(self):
+        self.extras_fixture()
+        before = m.tree(self.root)
+        plan = m.plan(self.root, self.assets, 'runtime-extras')
+        def fail(root, stage):
+            (stage / 'incomplete').write_text('partial')
+            raise ValueError('ldconfig failed')
+        with mock.patch.object(m, 'regenerate_ld_cache', side_effect=fail):
+            with self.assertRaisesRegex(ValueError, 'ldconfig failed'):
+                m.apply(self.root, self.assets, plan, self.journal)
+        self.assertEqual(before, m.tree(self.root))
+
+    def test_changed_generated_loader_cache_blocks_rollback(self):
+        self.extras_fixture()
+        plan = m.plan(self.root, self.assets, 'runtime-extras')
+        with mock.patch.object(m, 'regenerate_ld_cache', side_effect=self.ld_cache_fixture):
+            m.apply(self.root, self.assets, plan, self.journal)
+        (self.root / 'etc/ld.so.cache').write_text('new user data')
+        with self.assertRaisesRegex(ValueError, 'rollback_generated_cache_changed'):
+            m.rollback(self.root, self.journal)
+        self.assertEqual('new user data', (self.root / 'etc/ld.so.cache').read_text())
+
+    def test_loader_auxiliary_install_interruption_restores_both_old_caches(self):
+        self.extras_fixture()
+        before = m.tree(self.root)
+        plan = m.plan(self.root, self.assets, 'runtime-extras')
+        replace = os.replace
+        def fail(src, dst):
+            if '.ld-cache-' in str(Path(src).parent) and Path(src).name == 'aux-cache':
+                raise OSError('auxiliary install interrupted')
+            return replace(src, dst)
+        with mock.patch.object(m, 'regenerate_ld_cache', side_effect=self.ld_cache_fixture), \
+                mock.patch.object(m.os, 'replace', side_effect=fail):
+            with self.assertRaisesRegex(OSError, 'auxiliary install interrupted'):
+                m.apply(self.root, self.assets, plan, self.journal)
+        self.assertEqual(before, m.tree(self.root))
+
+    def test_extras_protected_perl_or_incoming_library_link_blocks_plan(self):
+        self.extras_fixture()
+        name = 'usr/share/perl/5.40.1/pod/perlintro.pod'
+        self.metadata['runtimeFiles'][name] = m.digest(self.root / name)
+        self.write_metadata()
+        with self.assertRaisesRegex(ValueError, 'protected_deletion'):
+            m.plan(self.root, self.assets, 'runtime-extras')
+        del self.metadata['runtimeFiles'][name]
+        self.write_metadata()
+        (self.root / 'usr/bin/incoming').symlink_to('/usr/lib/aarch64-linux-gnu/libhwy_test.so.1')
+        # Resource policy retains complete routes of surviving links.
+        plan = m.plan(self.root, self.assets, 'runtime-extras')
+        self.assertNotIn('usr/lib/aarch64-linux-gnu/libhwy_test.so.1', {r['path'] for r in plan['deletions']})
+
+    def test_no_highway_deletion_does_not_touch_loader_caches(self):
+        for name in m.LD_CACHES:
+            p = self.root / name
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text('keep cache')
+        plan = m.plan(self.root, self.assets, 'runtime-extras')
+        self.assertEqual([], plan['deletions'])
+        with mock.patch.object(m, 'regenerate_ld_cache') as generator:
+            m.apply(self.root, self.assets, plan, self.journal)
+        generator.assert_not_called()
+        self.assertEqual('keep cache', (self.root / 'etc/ld.so.cache').read_text())
+
+    def test_combined_extras_and_fonts_preserve_both_generated_cache_records(self):
+        self.extras_fixture()
+        self.font_fixture()
+        before = m.tree(self.root)
+        plan = m.plan(self.root, self.assets, 'runtime')
+        with mock.patch.object(m, 'regenerate_ld_cache', side_effect=self.ld_cache_fixture), \
+                mock.patch.object(m, 'regenerate_font_cache', side_effect=self.generate_cache_fixture):
+            journal = m.apply(self.root, self.assets, plan, self.journal)
+        self.assertEqual({'etc/ld.so.cache', 'var/cache/ldconfig/aux-cache', 'var/cache/fontconfig/new.cache',
+                          'var/cache/fontconfig/CACHEDIR.TAG'}, set(journal['generatedFiles']))
+        m.rollback(self.root, self.journal)
+        self.assertEqual(before, m.tree(self.root))
+
+    def test_protected_loader_cache_blocks_highway_removal_before_changes(self):
+        self.extras_fixture()
+        name = 'etc/ld.so.cache'
+        self.metadata['runtimeFiles'][name] = m.digest(self.root / name)
+        self.write_metadata()
+        before = m.tree(self.root)
+        with self.assertRaisesRegex(ValueError, 'protected_deletion'):
+            m.plan(self.root, self.assets, 'runtime-extras')
+        self.assertEqual(before, m.tree(self.root))
+
+    def test_invalid_generated_loader_cache_is_never_installed(self):
+        self.extras_fixture()
+        before = m.tree(self.root)
+        plan = m.plan(self.root, self.assets, 'runtime-extras')
+        def generate(root, stage):
+            (stage / 'ld.so.cache').symlink_to('/etc/passwd')
+        with mock.patch.object(m, 'regenerate_ld_cache', side_effect=generate):
+            with self.assertRaisesRegex(ValueError, 'ld_cache_stage_invalid'):
+                m.apply(self.root, self.assets, plan, self.journal)
+        self.assertEqual(before, m.tree(self.root))
+
+    def test_loader_cache_regeneration_recovers_if_old_cache_already_restored(self):
+        self.extras_fixture()
+        before = m.tree(self.root)
+        plan = m.plan(self.root, self.assets, 'runtime-extras')
+        with mock.patch.object(m, 'regenerate_ld_cache', side_effect=self.ld_cache_fixture):
+            journal = m.apply(self.root, self.assets, plan, self.journal)
+        name = 'etc/ld.so.cache'
+        (self.root / name).unlink()
+        os.replace(Path(journal['quarantine']) / name, self.root / name)
+        m.rollback(self.root, self.journal)
+        self.assertEqual(before, m.tree(self.root))
+
+    def test_loader_cache_install_interruption_rolls_back(self):
+        self.extras_fixture()
+        before = m.tree(self.root)
+        plan = m.plan(self.root, self.assets, 'runtime-extras')
+        replace = os.replace
+        def fail(src, dst):
+            if '.ld-cache-' in str(Path(src).parent):
+                raise OSError('loader install interrupted')
+            return replace(src, dst)
+        with mock.patch.object(m, 'regenerate_ld_cache', side_effect=self.ld_cache_fixture), \
+                mock.patch.object(m.os, 'replace', side_effect=fail):
+            with self.assertRaisesRegex(OSError, 'loader install interrupted'):
+                m.apply(self.root, self.assets, plan, self.journal)
+        self.assertEqual(before, m.tree(self.root))
 
     def test_apk_policy_assets_are_byte_identical_to_reviewed_tools(self):
         directory = Path(__file__).resolve().parent
@@ -496,6 +668,35 @@ class Minimize(unittest.TestCase):
         ubuntu.rename(other)
         with self.assertRaisesRegex(ValueError, 'not_private_build_root'):
             m.build_root(other, owner)
+
+    def test_named_private_build_completes_and_receipt_verifies(self):
+        owner, root, report = self.build_fixture()
+        named = root.parents[1] / 'wine-ubuntu2604-build-slim-20261118/rootfs'
+        named.parent.mkdir()
+        root.rename(named)
+        with mock.patch.object(m, 'build_locales'):
+            receipt = m.build(named, owner, self.assets, 'a' * 64, report)
+        self.assertEqual('Verified', receipt['state'])
+        self.assertEqual(receipt, m.verify_build(named, 'a' * 64))
+
+    def test_named_build_root_rejects_shared_names_paths_and_aliases(self):
+        owner, root, report = self.build_fixture()
+        containers = root.parents[1]
+        for name in ('games-shared-rootfs', 'other', 'wine-ubuntu2604-build-',
+                     'wine-ubuntu2604-build-A', 'wine-ubuntu2604-build-' + 'a' * 49):
+            with self.subTest(name=name):
+                target = containers / name / 'rootfs'
+                target.mkdir(parents=True)
+                with self.assertRaisesRegex(ValueError, 'not_private_build_root'):
+                    m.build_root(target, owner)
+        nested = containers / 'other/wine-ubuntu2604-build-private/rootfs'
+        nested.mkdir(parents=True)
+        with self.assertRaisesRegex(ValueError, 'not_private_build_root'):
+            m.build_root(nested, owner)
+        alias = containers / 'wine-ubuntu2604-build-alias'
+        alias.symlink_to(root.parent, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, 'not_private_build_root'):
+            m.build_root(alias / 'rootfs', owner)
 
     def test_build_refuses_live_or_game_tree_and_alias(self):
         owner, root, report = self.build_fixture()

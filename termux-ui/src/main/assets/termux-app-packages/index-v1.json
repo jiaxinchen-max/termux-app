@@ -879,8 +879,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-ubuntu2604-hangover-pdb2-minimal-v1/rootfs-ubuntu2604-hangover-pdb2-minimal-v1.tar.zst",
-      "size": 421418301,
-      "sha256": "656b0a9214f2188c3f8b48c9d218c3275e97753690f827b52784536300bb8877"
+      "size": 344435653,
+      "sha256": "fc6ad4f58e9136639768edccaf27245bbea48fc20d403724c05035f72e9dcf99"
     },
     {
       "id": "rootfs_prefix_hangover_pdb2_ubuntu2604",
@@ -899,8 +899,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-hangover-pdb2-ubuntu2604-v1/rootfs-prefix-hangover-pdb2-ubuntu2604-v1.tar.gz",
-      "size": 4455741,
-      "sha256": "129f42647f034f29cafe9c6a0f0aa8106db54a5eb8885a380492a866e2535b6f"
+      "size": 4456330,
+      "sha256": "be69fbed6d6b5f359fb9f67d4bf801472a73960e9e90429f7f42b82d378a3d53"
     },
     {
       "id": "rootfs_prefix_wine10_wow64_ubuntu2604",
@@ -919,8 +919,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-wine10-wow64-ubuntu2604-v1/rootfs-prefix-wine10-wow64-ubuntu2604-v1.tar.gz",
-      "size": 2210153,
-      "sha256": "28393042e4aab5e949cc524ff155702e17626177f0c08b50564ab415c95b028d"
+      "size": 2210738,
+      "sha256": "e499bcfe7c8a92d6998e5462f8d2df5dd708cf44b3fac544e1e635fc73c2f31e"
     },
     {
       "id": "rootfs_prefix_proton11_wow64_ubuntu2604",
@@ -939,8 +939,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs-prefix-proton11-wow64-ubuntu2604-v1/rootfs-prefix-proton11-wow64-ubuntu2604-v1.tar.gz",
-      "size": 2506910,
-      "sha256": "e5e6ba50b3ae77d43bde84c77875f2a9798c38d566d215dd035a08e19ba70bc2"
+      "size": 2507393,
+      "sha256": "db95c3ab286b52140bb48b4f57cdfcca3030e5e83a0031a6e8ee1131a3517601"
     }
   ]
 }

@@ -3,6 +3,7 @@
 set -eu
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export DEBIAN_FRONTEND=noninteractive
+export LC_ALL=C.UTF-8
 work=/run/wine-build
 phase=${1:-complete}
 case "$phase" in complete|dependencies-only) ;; *) exit 64 ;; esac
@@ -47,7 +48,14 @@ while IFS="$(printf '\t')" read -r package architecture version status; do
     fi
     set -- "$@" "$package:$architecture=$version"
 done < "$work/ubuntu-packages.lock.tsv"
-run_proot_config proc-fdinfo apt-get install -y --no-install-recommends --no-remove \
+# The official OCI contains a Protected Rust provider. Replace only that
+# provider and its payload, in this private build root, using Ubuntu's package
+# scripts (including diversions). Reject any other planned package removal.
+set -- "$@" coreutils-from-uutils- rust-coreutils-
+run_proot_config proc-fdinfo apt-get --simulate install --allow-remove-essential \
+    --no-install-recommends "$@" > "$work/ubuntu-install-plan.txt"
+/bin/sh "$work/check-coreutils-plan.sh" "$work/ubuntu-install-plan.txt"
+run_proot_config proc-fdinfo apt-get install -y --no-install-recommends --allow-remove-essential \
     -o Acquire::https::CaInfo=/etc/ssl/certs/ca-certificates.crt \
     -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
     "$@"

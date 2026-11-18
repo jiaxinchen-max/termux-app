@@ -9,7 +9,7 @@ bsdutils	arm64	1:2.41.3-3ubuntu2.2	install ok installed
 bubblewrap	arm64	0.11.1-1ubuntu0.3	install ok installed
 ca-certificates	all	20260816ubuntu0.26.04.2	install ok installed
 coreutils	all	9.5-1ubuntu2+0.0.0~ubuntu25	install ok installed
-coreutils-from-uutils	all	0.0.0~ubuntu25	install ok installed
+coreutils-from-gnu	all	0.0.0~ubuntu25	install ok installed
 curl	arm64	8.18.0-1ubuntu2.8	install ok installed
 dash	arm64	0.5.12-12ubuntu3	install ok installed
 debconf	all	1.5.92	install ok installed
@@ -334,7 +334,6 @@ pinentry-curses	arm64	1.3.2-3ubuntu1	install ok installed
 procps	arm64	2:4.0.4-9ubuntu1	install ok installed
 pulseaudio-utils	arm64	1:17.0+dfsg1-2ubuntu4	install ok installed
 readline-common	all	8.3-4	install ok installed
-rust-coreutils	arm64	0.10.0-1ubuntu2~26.04.1	install ok installed
 sed	arm64	4.9-2ubuntu1	install ok installed
 sensible-utils	all	0.0.26build1	install ok installed
 shared-mime-info	arm64	2.4-5build3	install ok installed

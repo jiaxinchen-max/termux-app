@@ -25,9 +25,10 @@ REVISION = 'pdb2-incremental-1'
 MARKER = '.wine-minimize-candidate.json'
 PACKAGE = '11.16~ubuntu26.04+idap.pdb2.1'
 LIVE = 'games-shared-rootfs'
-BUILD_BATCHES = ('development', 'resources', 'fonts', 'build-tools', 'gpu-drivers')  # Expand only after each batch passes device validation.
+BUILD_BATCHES = ('development', 'resources', 'fonts', 'build-tools', 'gpu-drivers', 'runtime-extras')  # Expand only after each batch passes device validation.
 TRIM_RECEIPT = 'etc/wine-rootfs-trim.json'
 EXTERNAL_WINE_RECEIPT = 'etc/wine-external-wine-dependencies.json'
+LD_CACHES = ('etc/ld.so.cache', 'var/cache/ldconfig/aux-cache')
 
 
 def require(ok, message):
@@ -293,8 +294,11 @@ def build_root(root, termux_files):
     require(termux_files.is_dir() and termux_files == termux_files.resolve(strict=True),
             'build_owner_alias')
     containers = termux_files / 'usr/var/lib/proot-distro/containers'
-    allowed = {containers / name / 'rootfs' for name in ('tmpl-build', 'wine-ubuntu2604-build')}
-    require(root in allowed and root.is_dir() and root == root.resolve(strict=True),
+    name = root.parent.name
+    allowed_name = name == 'tmpl-build' or re.fullmatch(
+        r'wine-ubuntu2604-build(?:-[a-z0-9][a-z0-9-]{0,47})?', name)
+    require(allowed_name and root == containers / name / 'rootfs'
+            and root.is_dir() and root == root.resolve(strict=True),
             'not_private_build_root')
     require(LIVE not in root.parts, 'live_build_forbidden')
     idle(root)
@@ -453,10 +457,19 @@ def reason(name, batch):
         if re.fullmatch(r'usr/lib/aarch64-linux-gnu/libapt-(pkg|private)\.so\.[0-9.]+', name):
             return 'Private APT library; all known ELF consumers are removed with APT'
     if batch == 'gpu-drivers':
-        if re.fullmatch(r'usr/lib/aarch64-linux-gnu/libvulkan_(broadcom|nouveau|panfrost|radeon)\.so', name):
+        if re.fullmatch(r'usr/lib/aarch64-linux-gnu/libvulkan_(asahi|broadcom|intel|nouveau|panfrost|powervr_mesa|radeon)\.so', name):
             return 'Non-target Vulkan ICD; keep Turnip, software, gfxstream and virtio drivers'
-        if re.fullmatch(r'usr/share/vulkan/icd.d/(broadcom|nouveau|panfrost|radeon)_icd\.json', name):
+        if re.fullmatch(r'usr/share/vulkan/icd.d/(asahi|broadcom|intel|nouveau|panfrost|powervr_mesa|radeon)_icd\.json', name):
             return 'Registration of the matching non-target Vulkan driver'
+    if batch == 'runtime-extras':
+        if re.fullmatch(r'usr/lib/(?:aarch64-linux-gnu/)?perl/[^/]+/(?:[^/]+/)*[^/]+\.h', name):
+            return 'Perl development header; interpreter and runtime modules retained'
+        if re.fullmatch(r'usr/(?:lib|share)/(?:aarch64-linux-gnu/)?perl[^/]*/(?:[^/]+/)*[^/]+\.pod', name):
+            return 'Standalone Perl documentation; embedded runtime module documentation retained'
+        if name == 'usr/bin/pebble':
+            return 'Unused Canonical Pebble service manager from base image'
+        if re.fullmatch(r'usr/lib/aarch64-linux-gnu/libhwy_(contrib|test)\.so\.[0-9]+(?:\.[0-9]+)*', name):
+            return 'Unused Highway auxiliary/test library; core Highway retained'
     if batch == 'fonts':
         if re.fullmatch(r'usr/share/fonts/opentype/noto/NotoSerifCJK-[^/]+\.ttc', name):
             return 'Unreferenced Noto Serif CJK font; prefix Sans sources remain protected'
@@ -545,12 +558,20 @@ def plan(root, assets, batch):
     elif batch == 'runtime' and 'resources' in BUILD_BATCHES:
         retained = resource_retained(snapshot, selected,
                                      {name for name in selected if reason(name, 'resources')})
+    if batch in ('runtime-extras', 'runtime'):
+        retained.update(resource_retained(snapshot, selected,
+                         {p for p in selected if reason(p, 'runtime-extras') and p.endswith(('.pod', '.h'))}))
+    refresh_ld_cache = any(reason(p, 'runtime-extras') and '/libhwy_' in p
+                           and 'link' not in snapshot[p] for p in selected.difference(retained))
+    if refresh_ld_cache:
+        selected.update(p for p in LD_CACHES if p in snapshot)
     deletions = []
     for name, item in sorted(snapshot.items()):
-        why = reason(name, batch)
+        why = ('Old loader cache; regenerated transactionally' if refresh_ld_cache and name in LD_CACHES
+               else reason(name, batch))
         if why and name in selected and name not in retained:
             leaf(root, name)
-            require(name not in protected, 'protected_deletion:' + name)
+            require(name not in protected and name not in external, 'protected_deletion:' + name)
             # A development symlink may point at a live file; unlinking it must not
             # invalidate any surviving link. Scan all incoming edges below.
             deletions.append(dict(item, path=name, reason=why))
@@ -562,9 +583,10 @@ def plan(root, assets, batch):
               'deletions': deletions, 'logicalBytes': sum(d['bytes'] for d in deletions if 'link' not in d),
               'allocatedBytes': sum(d['allocated'] for d in deletions if 'link' not in d)}
     result['retainedByExternalDependencies'] = sorted(external)
-    if batch in ('resources', 'runtime'):
+    result['regenerateLdCache'] = refresh_ld_cache
+    if batch in ('resources', 'runtime', 'runtime-extras'):
         result['retainedByPolicy'] = [{'path': p, 'reason': why} for p, why in sorted(retained.items())]
-    if batch in ('fonts', 'runtime'):
+    if batch in ('fonts', 'runtime', 'runtime-extras'):
         result.update(inputLogicalBytes=sum(v['bytes'] for v in snapshot.values() if 'link' not in v),
                       inputAllocatedBytes=sum(v['allocated'] for v in snapshot.values() if 'link' not in v),
                       inputFiles=len(snapshot))
@@ -574,7 +596,7 @@ def plan(root, assets, batch):
     return result
 
 
-def regenerate_font_cache(root, stage):
+def proot_owner(root):
     marker = json.loads((root / MARKER).read_text())
     if marker.get('kind') == 'UnpublishedBuild':
         owner = Path(marker['termuxFiles'])
@@ -583,10 +605,25 @@ def regenerate_font_cache(root, stage):
         owner = source.parents[5]
         require(source == owner / 'usr/var/lib/proot-distro/games-shared-rootfs/rootfs',
                 'font_cache_source_layout')
+    return owner
+
+
+def regenerate_font_cache(root, stage):
+    owner = proot_owner(root)
     subprocess.run([str(owner / 'usr/bin/proot'), '--kill-on-exit', '--link2symlink', '-0',
                     '-r', str(root), '-b', '/dev', '-b', '/proc', '-b', str(stage) + ':/var/cache/fontconfig',
                     '-w', '/', '/usr/bin/env', '-i', 'PATH=/usr/bin:/bin',
                     'FONTCONFIG_FILE=/etc/fonts/fonts.conf', '/usr/bin/fc-cache', '-f'], check=True)
+
+
+def regenerate_ld_cache(root, stage):
+    owner = proot_owner(root)
+    # -X forbids link updates; -i ignores old auxiliary input. Ubuntu ldconfig
+    # still emits a fresh auxiliary cache, captured by the same private bind.
+    subprocess.run([str(owner / 'usr/bin/proot'), '--kill-on-exit', '--link2symlink', '-0',
+                    '-r', str(root), '-b', '/dev', '-b', '/proc',
+                    '-b', str(stage) + ':/var/cache/ldconfig', '-w', '/',
+                    '/usr/sbin/ldconfig', '-X', '-i', '-C', '/var/cache/ldconfig/ld.so.cache'], check=True)
 
 
 def record_matches(path, record):
@@ -640,11 +677,35 @@ def apply(root, assets, expected, journal_path):
                 require(not target.exists() and not target.is_symlink(), 'font_cache_target_exists')
                 os.replace(stage / name, target)
             stage.rmdir()
+        if expected['regenerateLdCache']:
+            leaf(root, 'etc/ld.so.cache')
+            leaf(root, 'var/cache/ldconfig/.private-directory-check')
+            stage = root.with_name(root.name + '.ld-cache-' + signature(str(journal_path))[:12])
+            require(not stage.exists() and not stage.is_symlink(), 'ld_cache_stage_exists')
+            stage.mkdir(mode=0o700)
+            journal.update(state='RegeneratingLdCache', generatedLdCacheStage=str(stage))
+            save(journal_path, journal)
+            regenerate_ld_cache(root, stage)
+            generated = tree(stage)
+            require(set(generated) in ({'ld.so.cache'}, {'ld.so.cache', 'aux-cache'})
+                    and all('link' not in item and item['bytes'] > 0 for item in generated.values()),
+                    'ld_cache_stage_invalid')
+            destinations = {'ld.so.cache': 'etc/ld.so.cache',
+                            'aux-cache': 'var/cache/ldconfig/aux-cache'}
+            journal.setdefault('generatedFiles', {}).update(
+                {destinations[name]: entry for name, entry in generated.items()})
+            journal['state'] = 'InstallingGeneratedLdCache'
+            save(journal_path, journal)
+            for name in generated:
+                target = leaf(root, destinations[name])
+                require(not target.exists() and not target.is_symlink(), 'ld_cache_target_exists')
+                os.replace(stage / name, target)
+            stage.rmdir()
         after = tree(root)
         protect(root, assets, after)
         journal['state'] = 'AppliedPendingRuntimeValidation'
         journal['outputTreeSha256'] = signature(after)
-        if expected['batch'] in ('fonts', 'runtime'):
+        if expected['batch'] in ('fonts', 'runtime', 'runtime-extras'):
             journal.update(logicalBytesReclaimed=expected['inputLogicalBytes'] -
                            sum(v['bytes'] for v in after.values() if 'link' not in v),
                            allocatedBytesReclaimed=expected['inputAllocatedBytes'] -
@@ -662,13 +723,14 @@ def rollback(root, journal_path):
     candidate_root(root)
     journal = json.loads(journal_path.read_text())
     require(journal['state'] in ('Applying', 'RegeneratingFontCache', 'InstallingGeneratedFontCache',
-                                'AppliedPendingRuntimeValidation') and
+                                'AppliedPendingRuntimeValidation', 'RegeneratingLdCache', 'InstallingGeneratedLdCache') and
             journal['plan']['root'] == str(root), 'rollback_identity')
     quarantine = root.with_name(root.name + '.removed-' + journal['plan']['batch'])
     require(journal['quarantine'] == str(quarantine) and not quarantine.is_symlink(), 'rollback_quarantine')
     originals = {r['path']: r for r in journal['plan']['deletions']}
     for name, record in journal.get('generatedFiles', {}).items():
-        require(name.startswith('var/cache/fontconfig/'), 'rollback_generated_path')
+        require(name.startswith('var/cache/fontconfig/') or name in LD_CACHES,
+                'rollback_generated_path')
         target = leaf(root, name)
         if not target.exists() and not target.is_symlink():
             continue
@@ -739,7 +801,7 @@ def main():
         if command != 'rollback':
             c.add_argument('--assets', type=Path, required=True)
         if command == 'plan':
-            c.add_argument('--batch', choices=['development', 'resources', 'fonts', 'build-tools', 'gpu-drivers'], required=True)
+            c.add_argument('--batch', choices=list(BUILD_BATCHES), required=True)
             c.add_argument('--output', type=Path, required=True)
         elif command == 'apply':
             c.add_argument('--plan', type=Path, required=True)

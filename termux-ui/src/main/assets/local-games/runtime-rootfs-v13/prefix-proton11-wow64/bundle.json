@@ -125,6 +125,20 @@
       }
     },
     "sourceVerificationSha256": "6604c00b07d6ad1dd975a61e51a26ee7ae62cbcc6c9fa398feef436dee78d51e",
-    "targetAcceptance": "pending"
+    "targetAcceptance": "Passed_PrivateDeviceGraphicsDesktop_GStreamerExcludedByUser_AppUiPending",
+    "runtimeQualification": {
+      "evidenceSha256": "fbe186b2a72db544ddbdbfff001ee46483c1158f914545fadf09145c94d52933",
+      "rawRuntimeEvidenceSha256": "dbbd0d83dabb7bbbfe7f8dd133150af71ded60d420fa22b3463c6b97ab8909b4",
+      "supplementalDesktopEvidenceSha256": "ff0dd283258418ac23322c52220491a06780a9bece83e826242490490b4fe631",
+      "policy": "UserExcludedGStreamer_GraphicsAndObservedDesktop_FunctionalCleanup_Raw137Retained",
+      "scope": "PE32_PE64_Unicode_Glyphs_WinMM_VirtualDesktop",
+      "functionalProbes": 2,
+      "publicPlaybackProbes": 0,
+      "gstreamerAcceptance": "ExcludedByUser_NotPassed",
+      "sourceKind": "proton11",
+      "hardwareGpuAcceptance": "Pending",
+      "appUiAcceptance": "Pending",
+      "rawExitCodesChanged": false
+    }
   }
 }

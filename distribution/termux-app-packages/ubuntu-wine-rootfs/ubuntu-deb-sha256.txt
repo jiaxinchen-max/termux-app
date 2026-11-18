@@ -262,3 +262,4 @@ a033c711ab0a969c1baf77111a0507b6b9ef8de8f24ce7a8fb9554239135a636  /var/cache/apt
 337e36734fc6da228101d041dcfd21ba4cf7ec877792df1409f6458e60904240  /var/cache/apt/archives/libsane1_1.4.0-1ubuntu1_arm64.deb
 63b15b692fba64647c4e35d37290f791de30657bc71f8bd777f0d40e5498f7e4  /var/cache/apt/archives/libxkbregistry0_1.13.1-1_arm64.deb
 bfd06b2b37cde0c1eec67b834b057253e256a032571be549afc58c7c4909ff0c  /var/cache/apt/archives/libncurses6_6.6+20251231-1_arm64.deb
+862be75c7dd5d92815f2b80149bbcf819d11d21b1dba734f62b545bc5acb0eb7  /var/cache/apt/archives/coreutils-from-gnu_0.0.0~ubuntu25_all.deb
