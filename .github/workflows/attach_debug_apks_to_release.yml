@@ -6,18 +6,36 @@ on:
       release_tag:
         description: "GitHub release tag"
         required: true
-        default: "1.0.8"
+        default: "v1.0.8.1"
       release_name:
         description: "GitHub release title"
         required: true
-        default: "v1.0.8"
+        default: "v1.0.8.1"
       release_notes:
         description: "GitHub release notes"
         required: false
-        default: "Refactor the app, changing the X11 display service from an Activity to a reusable view component.
-Optimize the user experience.\n
-Fix the virtual button scaling misalignment issue in portrait mode.\n
-Optimize the floating ball experience."
+        default: |
+          ## 中文
+
+          本期新增 termux-ui 模块，为 Windows 应用、Linux 桌面、文件和运行组件提供统一图形界面。
+
+          - Windows 应用与游戏：通过独立的 Wine 环境导入、配置、管理和运行程序。
+          - Linux 桌面：创建、启动、管理和重新安装 Native 与 PRoot 桌面环境。
+          - 运行组件：下载和管理 Wine、Box64、图形及配套组件，支持自定义 Wine 和 Box64 版本。
+          - 文件管理：浏览文件、批量操作、查看文件信息，并将检测到的 Windows 程序导入程序库。
+          - 输入与显示：按程序配置显示设置、键盘鼠标输入、虚拟按键和游戏手柄。
+          - 备份与恢复：导出和恢复 PRoot 桌面容器、Wine 环境及 Wine C 盘。
+
+          ## English
+
+          Introduce the new termux-ui module with a unified graphical interface for Windows applications, Linux desktops, files, and runtime components.
+
+          - Windows apps and games: import, configure, manage, and launch programs with dedicated Wine environments.
+          - Linux desktops: create, launch, manage, and reinstall Native and PRoot desktop environments.
+          - Runtime components: download and manage Wine, Box64, graphics, and supporting components, including custom Wine and Box64 builds.
+          - File management: browse files, perform batch operations, view file details, and import detected Windows programs.
+          - Input and display: configure per-program display settings, keyboard and mouse input, virtual controls, and game controllers.
+          - Backup and recovery: export and restore PRoot desktop containers, Wine environments, and Wine C drives.
 
 permissions:
   contents: write
