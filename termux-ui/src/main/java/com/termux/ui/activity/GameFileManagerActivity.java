@@ -26,6 +26,7 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.view.ContextThemeWrapper;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.core.content.ContextCompat;
 
@@ -56,7 +57,6 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /** Browser with explicit file operations and temporary read-only system-open grants. */
 public final class GameFileManagerActivity extends AppUiActivity {
@@ -106,6 +106,8 @@ public final class GameFileManagerActivity extends AppUiActivity {
     private final Map<String, View> entryViews = new LinkedHashMap<>();
     private final Map<String, android.widget.CheckBox> entryChecks = new LinkedHashMap<>();
     @Nullable private PopupMenu activeFileMenu;
+    @Nullable private AlertDialog activeFileDetails;
+    private long inspectionGeneration;
     private static final int OPEN = 101, COPY = 102, CUT = 103, DELETE = 104, IMPORT = 106, SELECT = 107;
 
 
@@ -175,6 +177,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        dismissFileInspection();
         setIntent(intent);
         readImportBackend(intent);
     }
@@ -194,6 +197,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
     @Override
     protected void onPause() {
         resumed = false;
+        dismissFileInspection();
         stopWatchingDirectory();
         super.onPause();
     }
@@ -251,7 +255,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
     @Override
     protected void onDestroy() {
         destroyed = true;
-        if (activeFileMenu != null) activeFileMenu.dismiss();
+        dismissFileInspection();
         stopWatchingDirectory();
         directoryHandler.removeCallbacksAndMessages(null);
         // The ViewModel owns its executor and any confirmed batch across recreation/closure.
@@ -290,6 +294,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
     }
 
     private void showHome() {
+        dismissFileInspection();
         stopWatchingDirectory();
         localCurrent = null;
         selecting = false;
@@ -325,6 +330,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
                 return;
             }
             if (localCurrent != null && !localCurrent.equals(canonical)) {
+                dismissFileInspection();
                 selecting = false;
                 selectedPaths.clear();
             }
@@ -410,30 +416,76 @@ public final class GameFileManagerActivity extends AppUiActivity {
         watchedDirectory = null;
     }
 
-    /** Request #2: tapping a file shows read-only details instead of doing nothing. */
+    /** Ordinary files have read-only details; import appears only after content inspection. */
     private void showFileDetails(File file) {
-        boolean looksExecutable = looksLikePortableExecutable(file);
+        if (destroyed || operating || importing) return;
+        dismissFileInspection();
         String details = getString(R.string.local_game_file_details_body,
             Formatter.formatShortFileSize(this, Math.max(0, file.length())),
-            DateFormat.getDateTimeInstance().format(new Date(file.lastModified())),
-            getString(looksExecutable ? R.string.local_game_file_details_looks_executable
-                : R.string.local_game_file_details_not_executable));
+            DateFormat.getDateTimeInstance().format(new Date(file.lastModified())));
         GameRuntimeBackendType backend = selectedImportBackend();
-        new FrostedDialogBuilder(this)
+        AlertDialog dialog = new FrostedDialogBuilder(this)
             .setTitle(file.getName())
-            .setMessage(details + "\n\n" + getString(R.string.local_game_file_details_c_drive_tip))
-            .setNegativeButton(android.R.string.cancel, null)
+            .setMessage(details)
+            .setNegativeButton(android.R.string.ok, null)
             .setPositiveButton(importLabel(backend),
-                (dialog, which) -> importConfiguration(file, backend))
-            .show();
+                (closed, which) -> importConfiguration(file, backend))
+            .create();
+        activeFileDetails = dialog;
+        dialog.setOnDismissListener(closed -> {
+            if (activeFileDetails == dialog) {
+                activeFileDetails = null;
+                inspectionGeneration++;
+            }
+        });
+        showBrowserDialog(dialog);
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).setVisibility(View.GONE);
+        inspectWindowsProgram(file, executable -> {
+            if (!executable || activeFileDetails != dialog || !dialog.isShowing()) return;
+            dialog.setMessage(details + "\n\n" + getString(R.string.local_game_file_details_c_drive_tip));
+            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setText(android.R.string.cancel);
+            dialog.getButton(DialogInterface.BUTTON_POSITIVE).setVisibility(View.VISIBLE);
+        });
     }
 
-    private boolean looksLikePortableExecutable(File file) {
-        try (InputStream input = new FileInputStream(file)) {
-            return peInspector.isPortableExecutable(input);
-        } catch (IOException error) {
+    private boolean isWindowsProgram(File file) {
+        try {
+            File root = rootFor(file);
+            if (root == null || !isWithin(root, file) || !file.isFile()) return false;
+            try (InputStream input = new FileInputStream(file)) {
+                return peInspector.isWindowsProgram(input);
+            }
+        } catch (IOException | SecurityException error) {
             return false;
         }
+    }
+
+    private void inspectWindowsProgram(File file, java.util.function.Consumer<Boolean> result) {
+        long generation = inspectionGeneration;
+        ioExecutor.execute(() -> {
+            boolean executable = isWindowsProgram(file);
+            runOnUiThread(() -> {
+                if (!destroyed && !operating && !importing && generation == inspectionGeneration) {
+                    result.accept(executable);
+                }
+            });
+        });
+    }
+
+    private void dismissFileInspection() {
+        inspectionGeneration++;
+        PopupMenu menu = activeFileMenu;
+        AlertDialog details = activeFileDetails;
+        // Dialog dismiss callbacks may be posted: they must not invalidate a newer request.
+        activeFileMenu = null;
+        activeFileDetails = null;
+        if (menu != null) menu.dismiss();
+        if (details != null) details.dismiss();
+    }
+
+    private AlertDialog showBrowserDialog(AlertDialog dialog) {
+        dialog.show();
+        return dialog;
     }
 
     private void configureFileActions() {
@@ -528,7 +580,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.browser_create, null)
             .create();
-        dialog.show();
+        showBrowserDialog(dialog);
         nameInput.requestFocus();
         dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(view -> {
             if (operating || importing || destroyed) return;
@@ -545,13 +597,14 @@ public final class GameFileManagerActivity extends AppUiActivity {
     private boolean showFileMenu(View anchor, File target) {
         if (operating || importing || destroyed) return false;
         if (!fileOperations.canOperate(target)) return false;
-        PopupMenu menu = new PopupMenu(this, anchor);
-        menu.getMenu().add(target.getName()).setEnabled(false);
+        dismissFileInspection();
+        PopupMenu menu = new PopupMenu(new ContextThemeWrapper(this,
+            R.style.ThemeOverlay_TermuxLocalGames_FileBrowserPopup), anchor);
         menu.getMenu().add(0, OPEN, 1, R.string.browser_open);
         menu.getMenu().add(0, COPY, 2, R.string.browser_copy);
         menu.getMenu().add(0, CUT, 3, R.string.browser_cut);
         menu.getMenu().add(0, DELETE, 4, R.string.browser_delete);
-        if (!target.isDirectory()) menu.getMenu().add(0, IMPORT, 5, importLabel(selectedImportBackend()));
+        GameRuntimeBackendType backend = selectedImportBackend();
         menu.getMenu().add(0, SELECT, 6, R.string.browser_select);
         menu.setOnMenuItemClickListener(item -> {
             if (operating || importing) return true;
@@ -561,16 +614,25 @@ public final class GameFileManagerActivity extends AppUiActivity {
                     setClipboard(java.util.Collections.singletonList(target), item.getItemId() == CUT);
                     break;
                 case DELETE: confirmDelete(java.util.Collections.singletonList(target)); break;
-                case IMPORT: importConfiguration(target, selectedImportBackend()); break;
+                case IMPORT: importConfiguration(target, backend); break;
                 case SELECT:
                     selecting = true; selectedPaths.add(target.getAbsolutePath()); updateSelectionAppearance(); break;
             }
             return true;
         });
-        if (activeFileMenu != null) activeFileMenu.dismiss();
         activeFileMenu = menu;
-        menu.setOnDismissListener(dismissed -> { if (activeFileMenu == dismissed) activeFileMenu = null; });
+        menu.setOnDismissListener(dismissed -> {
+            if (activeFileMenu == dismissed) {
+                activeFileMenu = null;
+                inspectionGeneration++;
+            }
+        });
         menu.show();
+        if (!target.isDirectory()) inspectWindowsProgram(target, executable -> {
+            if (executable && activeFileMenu == menu) {
+                menu.getMenu().add(0, IMPORT, 5, importLabel(backend));
+            }
+        });
         return true;
     }
 
@@ -596,11 +658,11 @@ public final class GameFileManagerActivity extends AppUiActivity {
         List<File> snapshot = new ArrayList<>(sources);
         StringBuilder names = new StringBuilder(getString(R.string.browser_delete_count_confirm, snapshot.size()));
         for (File file : snapshot) names.append('\n').append(file.getName());
-        new FrostedDialogBuilder(this).setTitle(R.string.browser_delete)
+        showBrowserDialog(new FrostedDialogBuilder(this).setTitle(R.string.browser_delete)
             .setView(batchMessageView(names.toString()))
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.browser_delete, (dialog, which) ->
-                runBatch(snapshot, null, BrowserBatchOperations.Action.DELETE)).show();
+                runBatch(snapshot, null, BrowserBatchOperations.Action.DELETE)).create());
     }
 
     private void pasteIntoCurrent() {
@@ -695,8 +757,8 @@ public final class GameFileManagerActivity extends AppUiActivity {
     }
 
     private void showBatchMessage(String message) {
-        new FrostedDialogBuilder(this).setTitle(R.string.local_game_file_manager_title)
-            .setView(batchMessageView(message)).setPositiveButton(android.R.string.ok, null).show();
+        showBrowserDialog(new FrostedDialogBuilder(this).setTitle(R.string.local_game_file_manager_title)
+            .setView(batchMessageView(message)).setPositiveButton(android.R.string.ok, null).create());
     }
 
     private interface FileOperation { File run() throws IOException; }
@@ -740,8 +802,8 @@ public final class GameFileManagerActivity extends AppUiActivity {
             : detail.startsWith("move_source_delete_failed") ? R.string.browser_move_partial
             : detail.startsWith("delete_failed_may_be_partial") ? R.string.browser_delete_partial
             : R.string.browser_operation_failed;
-        new FrostedDialogBuilder(this).setTitle(R.string.browser_operation_failed)
-            .setMessage(getString(message) + "\n" + detail).setPositiveButton(android.R.string.ok, null).show();
+        showBrowserDialog(new FrostedDialogBuilder(this).setTitle(R.string.browser_operation_failed)
+            .setMessage(getString(message) + "\n" + detail).setPositiveButton(android.R.string.ok, null).create());
     }
 
     private GameRuntimeBackendType selectedImportBackend() {
@@ -769,6 +831,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
             String gameId;
             String error = null;
             try {
+                if (!isWindowsProgram(file)) throw new IOException(getString(R.string.browser_not_windows_program));
                 gameId = QuickGameImport.importGame(getFilesDir(), file, backend);
             } catch (IOException | RuntimeException importError) {
                 gameId = null;

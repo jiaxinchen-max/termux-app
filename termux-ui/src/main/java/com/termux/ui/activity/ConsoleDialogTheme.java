@@ -19,8 +19,7 @@ final class ConsoleDialogTheme {
     private ConsoleDialogTheme() { }
 
     static void applyWindow(Dialog dialog) {
-        FrostedWindow.applyPanelSurface(dialog.getWindow(), dialog.getContext(),
-            R.color.local_games_console_background);
+        FrostedWindow.applyDialogSurface(dialog.getWindow(), dialog.getContext());
         FrostedWindow.applyScrim(dialog);
         Window window = dialog.getWindow();
         if (window != null) {
@@ -50,7 +49,8 @@ final class ConsoleDialogTheme {
                            TextView status, boolean failed) {
         Context context = dialog.getContext();
         applyWindow(dialog);
-        UiTerminalTheme.apply(terminal, R.color.local_games_console_background);
+        // The window supplies the fill; keep this override local to the embedded view.
+        UiTerminalTheme.apply(terminal, android.R.color.transparent);
         log.applyTheme();
         status.setTextColor(ContextCompat.getColor(context, failed
             ? R.color.local_games_error : R.color.local_games_terminal_secondary));

@@ -47,6 +47,12 @@ public class UiTerminalThemeTest {
             assertArrayEquals(original, emulator.mColors.mCurrentColors);
             assertArrayEquals(defaults, TerminalColors.COLOR_SCHEME.mDefaultColors);
             assertEquals(0xff123456, traditional.getTerminalBackgroundColor());
+            UiTerminalTheme.apply(ui, android.R.color.transparent);
+            ui.draw(new Canvas(Bitmap.createBitmap(400, 200, Bitmap.Config.ARGB_8888)));
+            assertEquals(0, ui.getTerminalBackgroundColor());
+            assertArrayEquals(original, emulator.mColors.mCurrentColors);
+            assertArrayEquals(defaults, TerminalColors.COLOR_SCHEME.mDefaultColors);
+            assertEquals(0xff123456, traditional.getTerminalBackgroundColor());
             ui.setColorPaletteOverride(null);
             assertEquals(0xff123456, ui.getTerminalBackgroundColor());
         }

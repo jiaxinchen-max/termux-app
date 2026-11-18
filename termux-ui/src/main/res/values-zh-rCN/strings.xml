@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="local_game_file_details_body">大小：%1$s\n修改时间：%2$s</string>
+    <string name="browser_not_windows_program">该文件不是可读取的 Windows 程序，可能在选择后已发生变化。</string>
     <string name="wine_cdrive_title">C 盘备份</string>
     <string name="wine_cdrive_completed">C 盘操作完成</string>
     <string name="wine_cdrive_failed">C 盘操作失败</string>

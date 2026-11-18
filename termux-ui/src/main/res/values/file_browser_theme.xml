@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="ThemeOverlay.TermuxLocalGames.FileBrowserPopup" parent="">
+        <item name="popupMenuStyle">@style/Widget.TermuxLocalGames.FileBrowserPopup</item>
+    </style>
+    <style name="Widget.TermuxLocalGames.FileBrowserPopup" parent="Widget.AppCompat.PopupMenu">
+        <item name="android:popupBackground">@drawable/browser_bg_panel</item>
+    </style>
+    <color name="browser_panel_surface">@color/local_games_dialog_surface</color>
+</resources>

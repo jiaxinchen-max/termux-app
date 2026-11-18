@@ -3,7 +3,7 @@ package com.termux.ui.wine.importer;
 import java.io.IOException;
 import java.io.InputStream;
 
-/** Minimal bounded DOS + PE signature check. */
+/** Bounded DOS/PE inspection; file names do not determine the content type. */
 public final class PeExecutableInspector {
 
     private static final int DOS_HEADER_SIZE = 64;
@@ -25,6 +25,30 @@ public final class PeExecutableInspector {
         return readFully(input, signature, 0, signature.length) &&
             signature[0] == 'P' && signature[1] == 'E' &&
             signature[2] == 0 && signature[3] == 0;
+    }
+
+    /** Windows GUI/console applications, excluding DLLs, drivers and other PE subsystems. */
+    public boolean isWindowsProgram(InputStream input) throws IOException {
+        if (!isPortableExecutable(input)) return false;
+        byte[] coff = new byte[20];
+        if (!readFully(input, coff, 0, coff.length)) return false;
+        int characteristics = unsignedShort(coff, 18);
+        if (unsignedShort(coff, 0) == 0 || unsignedShort(coff, 2) == 0
+                || (characteristics & 0x0002) == 0 || (characteristics & 0x3000) != 0) return false;
+        int optionalSize = unsignedShort(coff, 16);
+        if (optionalSize < 96) return false;
+        // SizeOfOptionalHeader is a 16-bit field, so this allocation/read is bounded to 64 KiB.
+        byte[] optional = new byte[optionalSize];
+        if (!readFully(input, optional, 0, optional.length)) return false;
+        int magic = unsignedShort(optional, 0);
+        if (magic != 0x10b && magic != 0x20b) return false;
+        if (magic == 0x20b && optionalSize < 112) return false;
+        int subsystem = unsignedShort(optional, 68);
+        return subsystem == 2 || subsystem == 3;
+    }
+
+    private static int unsignedShort(byte[] bytes, int offset) {
+        return (bytes[offset] & 0xff) | ((bytes[offset + 1] & 0xff) << 8);
     }
 
     private static boolean readFully(InputStream input, byte[] target, int offset, int length)

@@ -132,8 +132,6 @@ final class ComponentTaskConsoleDialog extends Dialog {
         title.setTextColor(color(R.color.local_games_on_surface));
         state.setTextColor(color(failed ? R.color.local_games_error : R.color.local_games_terminal_secondary));
         output.applyTheme();
-        output.setBackground(FrostedWindow.surface(getContext(),
-            R.color.local_games_console_background, FrostedWindow.ROW_RADIUS_DP));
         int accent = color(failed ? R.color.local_games_error : R.color.local_games_primary);
         progress.setProgressTintList(ColorStateList.valueOf(accent));
         progress.setIndeterminateTintList(ColorStateList.valueOf(accent));

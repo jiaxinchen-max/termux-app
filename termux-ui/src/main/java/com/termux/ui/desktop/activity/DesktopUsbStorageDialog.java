@@ -15,7 +15,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.termux.ui.R;
-import com.termux.ui.activity.FrostedWindow;
+import com.termux.ui.activity.FrostedDialogBuilder;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.radiobutton.MaterialRadioButton;
@@ -56,7 +56,7 @@ final class DesktopUsbStorageDialog {
                                     DesktopDistro distro, Runnable changed) {
         this.activity = activity; this.desktops = desktops; this.distro = distro; this.changed = changed;
         usb = new DesktopUsbStorageTasks(activity);
-        MaterialAlertDialogBuilder builder = solidBuilder();
+        MaterialAlertDialogBuilder builder = dialogBuilder();
         themedContext = builder.getContext();
         body = new LinearLayout(themedContext); body.setOrientation(LinearLayout.VERTICAL);
         int padding = dp(20); body.setPadding(padding, dp(8), padding, padding);
@@ -72,7 +72,6 @@ final class DesktopUsbStorageDialog {
         ScrollView scroll = new ScrollView(themedContext); scroll.addView(body);
         dialog = builder.setTitle(R.string.desktop_usb_title).setView(scroll)
             .setPositiveButton(android.R.string.ok, null).create();
-        FrostedWindow.applyScrim(dialog);
         setControlsEnabled(false);
         dialog.setOnDismissListener(ignored -> { closed = true; handler.removeCallbacks(refreshTick); io.shutdown(); });
         dialog.setOnShowListener(ignored -> reload());
@@ -82,7 +81,7 @@ final class DesktopUsbStorageDialog {
                 : selected == readOnly.getId() ? DesktopUsbStorageMode.READ_ONLY : DesktopUsbStorageMode.OFF;
             if (mode == this.distro.getUsbStorage()) return;
             if (mode == DesktopUsbStorageMode.READ_WRITE) {
-                solidBuilder().setTitle(R.string.desktop_usb_enable_read_write)
+                dialogBuilder().setTitle(R.string.desktop_usb_enable_read_write)
                     .setMessage(R.string.desktop_usb_write_notice)
                     .setPositiveButton(android.R.string.ok, (d, which) -> work(() -> showTask(usb.setMode(this.distro, mode))))
                     .setNegativeButton(android.R.string.cancel, (d, which) -> reload())
@@ -97,9 +96,8 @@ final class DesktopUsbStorageDialog {
     }
 
     private boolean usable() { return !closed && !activity.isFinishing() && !activity.isDestroyed(); }
-    private MaterialAlertDialogBuilder solidBuilder() {
-        return new MaterialAlertDialogBuilder(activity).setBackground(FrostedWindow.surface(
-            activity, R.color.desktop_usb_dialog_surface, FrostedWindow.PANEL_RADIUS_DP));
+    private MaterialAlertDialogBuilder dialogBuilder() {
+        return new FrostedDialogBuilder(activity);
     }
     private int unsupportedReason() {
         return R.string.desktop_usb_native_unsupported;
@@ -250,7 +248,7 @@ final class DesktopUsbStorageDialog {
             activity.runOnUiThread(() -> {
                 if (!usable()) return;
                 busy = false;
-                if (result != null) solidBuilder().setTitle(R.string.desktop_usb_error)
+                if (result != null) dialogBuilder().setTitle(R.string.desktop_usb_error)
                     .setMessage(result).setPositiveButton(android.R.string.ok, null).show();
                 reload();
             });

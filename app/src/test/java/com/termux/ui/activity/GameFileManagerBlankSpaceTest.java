@@ -112,8 +112,8 @@ public class GameFileManagerBlankSpaceTest {
             GridLayout grid = a.findViewById(R.id.local_game_file_manager_items); View item = grid.getChildAt(0);
             longPress(scroll, grid.getLeft()+item.getLeft()+item.getWidth()/2f,
                 grid.getTop()+item.getTop()+item.getHeight()/2f-scroll.getScrollY());
-            assertNotNull(popup(a)); assertEquals(file.getName(), popup(a).getMenu().getItem(0).getTitle());
-            assertNotNull(popup(a).getMenu().findItem(106));
+            assertNotNull(popup(a)); assertEquals(101, popup(a).getMenu().getItem(0).getItemId());
+            assertNull(popup(a).getMenu().findItem(106));
         }
     }
     @Test public void rootBlankLongPressHasNoMenuEvenWithPendingClipboard() throws Exception {

@@ -27,8 +27,8 @@
     <color name="local_games_overlay">#C7FCF7F0</color>
     <!-- In-game overlay (session drawer) fill: a little more opaque so the game window controls do not ghost through. -->
     <color name="local_games_overlay_game">#E6FCF7F0</color>
-    <!-- Dialog / popup window fill: clearly more translucent than the generic overlay (about 55% vs 78%); the blur (API 31+) keeps text readable. -->
-    <color name="local_games_dialog_surface">#8CFCF7F0</color>
+    <!-- Single dialog / popup fill: 85% opacity in both themes, with or without blur. -->
+    <color name="local_games_dialog_surface">#D9FCF7F0</color>
     <!-- Dialog / popup edge hairline: a bit stronger than the generic outline so dialogs separate from the page. -->
     <color name="local_games_dialog_outline">#2E5A3C1E</color>
     <!-- Warm, light dialog scrim (drawn by the app, a black window dim cannot be tinted). With and without window blur. -->
@@ -39,7 +39,6 @@
     <color name="local_games_session_backdrop">@color/local_games_background</color>
     <color name="local_games_session_waiting">#E6F3ECE3</color>
     <color name="local_games_cover">#E8D3B8</color>
-    <color name="local_games_console_background">#F7F1E8</color>
     <color name="local_games_icon_base">#FFFFFFFF</color>
     <color name="local_games_icon_folder">#C98A2E</color>
     <color name="local_games_icon_folder_front">#E8B456</color>
@@ -76,5 +75,4 @@
         <item>#277476</item>
         <item>#8A7969</item>
     </array>
-    <color name="desktop_usb_dialog_surface">#FFFCF7F0</color>
 </resources>

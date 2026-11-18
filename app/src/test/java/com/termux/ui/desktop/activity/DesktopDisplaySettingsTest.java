@@ -101,6 +101,13 @@ public class DesktopDisplaySettingsTest {
                     "native", de.isGnomeSession() ? 60 : 120, DesktopUsbStorageMode.OFF);
                 DesktopSettingsDialog.show(activity, new DesktopTasks(activity), desktop, () -> { });
                 Dialog sheet = ShadowDialog.getLatestDialog();
+                View panel = sheet.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+                android.graphics.drawable.GradientDrawable background =
+                    (android.graphics.drawable.GradientDrawable) panel.getBackground();
+                assertEquals(activity.getColor(R.color.local_games_dialog_surface), background.getColor().getDefaultColor());
+                assertEquals(217, android.graphics.Color.alpha(background.getColor().getDefaultColor()));
+                assertEquals(1f, panel.getAlpha(), 0f);
+                assertNull(((android.view.ViewGroup)panel).getChildAt(0).getBackground());
                 View resolution = sheet.findViewById(R.id.desktop_settings_resolution);
                 assertEquals(activity.getString(R.string.desktop_resolution_native), value(resolution));
                 assertEquals(Arrays.asList(activity.getString(R.string.desktop_resolution_native),

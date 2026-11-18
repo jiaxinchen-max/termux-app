@@ -3,6 +3,8 @@ package com.termux.ui.activity;
 import android.app.Activity;
 import android.app.Dialog;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.Color;
 import android.view.ViewGroup;
 import android.view.View;
 import android.view.WindowManager;
@@ -17,10 +19,12 @@ import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.android.controller.ActivityController;
+import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class)
+@Config(sdk = {28, 31})
 public class ConsoleDialogThemeTest {
     @Test public void recolorsOpenConsoleWithoutLosingOutputOrStackingScrims() {
         RuntimeEnvironment.setQualifiers("+notnight");
@@ -48,7 +52,8 @@ public class ConsoleDialogThemeTest {
                 assertTrue((dialog.getWindow().getDecorView().getSystemUiVisibility() & View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR) != 0);
                 assertEquals(0, dialog.getWindow().getAttributes().flags
                     & (WindowManager.LayoutParams.FLAG_DIM_BEHIND | WindowManager.LayoutParams.FLAG_BLUR_BEHIND));
-                assertEquals(0xfff7f1e8, terminal.getTerminalBackgroundColor());
+                assertTransparentContent(terminal, log);
+                assertEquals(0xd9fcf7f0, ((GradientDrawable) dialog.getWindow().getDecorView().getBackground()).getColor().getDefaultColor());
                 assertEquals(originalChildren + 1, hostDecor.getChildCount());
                 ConsoleDialogTheme.applySetup(dialog, terminal, log, status, false);
                 assertEquals(originalChildren + 1, hostDecor.getChildCount());
@@ -57,11 +62,11 @@ public class ConsoleDialogThemeTest {
                 ConsoleDialogTheme.applySetup(dialog, terminal, log, status, true);
                 ShadowLooper.idleMainLooper();
                 assertEquals(0, dialog.getWindow().getDecorView().getSystemUiVisibility() & View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-                assertEquals(0xff120d0a, terminal.getTerminalBackgroundColor());
+                assertTransparentContent(terminal, log);
                 assertEquals(originalChildren, hostDecor.getChildCount());
                 assertTrue((dialog.getWindow().getAttributes().flags & WindowManager.LayoutParams.FLAG_DIM_BEHIND) != 0);
                 assertEquals(host.getColor(R.color.local_games_error), status.getCurrentTextColor());
-                assertEquals(0xff120d0a, ((GradientDrawable) dialog.getWindow().getDecorView().getBackground()).getColor().getDefaultColor());
+                assertEquals(0xd9201813, ((GradientDrawable) dialog.getWindow().getDecorView().getBackground()).getColor().getDefaultColor());
                 assertEquals("Existing installation output\nSecond line", ((TextView) log.getChildAt(0)).getText().toString());
 
                 RuntimeEnvironment.setQualifiers("+notnight");
@@ -70,12 +75,20 @@ public class ConsoleDialogThemeTest {
                 assertTrue((dialog.getWindow().getDecorView().getSystemUiVisibility() & View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR) != 0);
                 assertEquals(0, dialog.getWindow().getAttributes().flags
                     & (WindowManager.LayoutParams.FLAG_DIM_BEHIND | WindowManager.LayoutParams.FLAG_BLUR_BEHIND));
-                assertEquals(0xfff7f1e8, terminal.getTerminalBackgroundColor());
+                assertTransparentContent(terminal, log);
                 assertEquals(originalChildren + 1, hostDecor.getChildCount());
             } finally {
                 dialog.dismiss();
             }
             assertEquals(originalChildren, hostDecor.getChildCount());
         }
+    }
+
+    private void assertTransparentContent(TerminalView terminal, FollowingLogView log) {
+        assertEquals(Color.TRANSPARENT, terminal.getTerminalBackgroundColor());
+        assertEquals(Color.TRANSPARENT, ((ColorDrawable) terminal.getBackground()).getColor());
+        assertNull(log.getBackground());
+        assertEquals(1f, terminal.getAlpha(), 0f);
+        assertEquals(1f, log.getAlpha(), 0f);
     }
 }

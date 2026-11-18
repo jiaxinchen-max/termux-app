@@ -244,16 +244,18 @@ public class GameFileManagerOperationsTest {
         return null;
     }
 
-    @Test public void itemsKeepTheirMenusAndImportWhileBlankAreasHaveNoMenu() throws Exception {
+    @Test public void itemsKeepCompactMenusWithoutImportForOrdinaryFilesAndBlankAreasHaveNoMenu() throws Exception {
         write("file.txt", "one"); File child = new File(folder, "child"); assertTrue(child.mkdir());
         try (ActivityController<GameFileManagerActivity> c = open()) {
             GameFileManagerActivity a=c.get();
             assertTrue(entry(a,"file.txt").performLongClick());
-            assertEquals("file.txt", popup(a).getMenu().getItem(0).getTitle());
-            assertNotNull(popup(a).getMenu().findItem(106));
+            flush(a);
+            assertEquals(101, popup(a).getMenu().getItem(0).getItemId());
+            assertEquals(5, popup(a).getMenu().size());
+            assertNull(popup(a).getMenu().findItem(106));
             popup(a).dismiss();
             assertTrue(entry(a,"child").performLongClick());
-            assertEquals("child",popup(a).getMenu().getItem(0).getTitle());
+            assertEquals(101,popup(a).getMenu().getItem(0).getItemId());
             assertNull(popup(a).getMenu().findItem(106)); popup(a).dismiss();
             for (int id : new int[]{R.id.local_game_file_manager_items,R.id.local_game_file_manager_scroll}) {
                 assertFalse(a.findViewById(id).performLongClick());

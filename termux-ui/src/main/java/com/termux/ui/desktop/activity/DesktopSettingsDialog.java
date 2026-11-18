@@ -40,6 +40,12 @@ final class DesktopSettingsDialog {
             LayoutInflater.from(activity));
         BottomSheetDialog dialog = new BottomSheetDialog(activity);
         dialog.setContentView(sheet.getRoot());
+        // BottomSheetDialog has a transparent full-window host; fill only the sheet panel.
+        View panel = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (panel != null) {
+            panel.setBackgroundResource(R.drawable.local_games_bg_dialog);
+            FrostedWindow.clipToPanel(panel, activity);
+        }
         FrostedWindow.applyScrim(dialog);
         dialog.getBehavior().setSkipCollapsed(true);
         dialog.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
