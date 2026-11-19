@@ -34,7 +34,7 @@ def check(kwin_deb, libei_deb):
         package = subprocess.check_output(['dpkg-deb', '-f', str(deb), 'Package'], text=True).strip()
         packages[package] = subprocess.check_output(
             ['dpkg-deb', '-f', str(deb), 'Version'], text=True).strip()
-    assert packages['kwin'] == '6.7.5-4', packages
+    assert packages['kwin'] == '6.7.5-5', packages
     native_files = [line.split()[1] for line in required.splitlines()
                     if line.startswith('kwin ') or line.startswith('libei ')]
     helpers = [

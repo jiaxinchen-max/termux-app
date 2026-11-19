@@ -208,7 +208,7 @@ dpkg() { return 0; }
                           DESKTOP_CONTAINER_CODENAME='resolute', DESKTOP_GNOME_SESSION_PROFILE='ubuntu',
                           DESKTOP_GNOME_BACKEND='android', DESKTOP_GNOME_RENDERER='system', DESKTOP_GNOME_SESSION_STARTUP='direct', DESKTOP_GNOME_APPLICATION_RENDERER='llvmpipe',
                           DESKTOP_GNOME_DISPLAY_GL_MODE='', DESKTOP_GNOME_DISPLAY_BUFFER_MODE='',
-                          DESKTOP_RELEASE_TAG='termux-hwaccel-6.7-r4', DESKTOP_LOG_FILE=str(base/'log'),
+                          DESKTOP_RELEASE_TAG='termux-hwaccel-6.7-r5', DESKTOP_LOG_FILE=str(base/'log'),
                           DESKTOP_STATUS_FILE=str(base/'status'), DESKTOP_PID_FILE=str(base/'pid'), DESKTOP_REFRESH_RATE='60')
             values.update(patch or {})
             file = base / 'spec'; file.write_text(''.join(k+'='+shlex.quote(v)+'\n' for k,v in values.items()))

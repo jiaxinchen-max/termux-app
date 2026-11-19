@@ -58,7 +58,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/test.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/test.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/test.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.7-r4
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.7-r5
 SPEC
 }
 
@@ -350,7 +350,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/inst.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/inst.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/inst.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.7-r4
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.7-r5
 SPEC
 INST_LOG="$TEST_ROOT/inst-calls"
 INST_CONTAINERS="$INST_ROOT/usr/var/lib/proot-distro/containers"
@@ -618,7 +618,7 @@ DESKTOP_PID_FILE=$TEST_ROOT/state/dlfail.pid
 DESKTOP_STATUS_FILE=$TEST_ROOT/state/dlfail.status
 DESKTOP_LOG_FILE=$TEST_ROOT/logs/dlfail.log
 DESKTOP_RENDER_SOCKET=$TEST_ROOT/termux-render
-DESKTOP_RELEASE_TAG=termux-hwaccel-6.7-r4
+DESKTOP_RELEASE_TAG=termux-hwaccel-6.7-r5
 SPEC
 rm -rf "$FAIL_ROOT/usr/tmp"/desktop-debs-* "$TEST_ROOT/tmp"/desktop-debs-* 2>/dev/null || true
 : > "$FAIL_ROOT/calls"

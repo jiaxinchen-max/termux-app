@@ -44,7 +44,7 @@ if name == os.environ.get('FAIL'): sys.exit(43)
             path.chmod(0o700)
         self.values = dict(DESKTOP_SPEC_VERSION='3', DESKTOP_ID='save-test', DESKTOP_MODE='native',
             DESKTOP_DE='xfce4', DESKTOP_HOST_GL_MODE='system', DESKTOP_GUEST_GL_MODE='none',
-            DESKTOP_USB_STORAGE='off', DESKTOP_RELEASE_TAG='termux-hwaccel-6.7-r4',
+            DESKTOP_USB_STORAGE='off', DESKTOP_RELEASE_TAG='termux-hwaccel-6.7-r5',
             DESKTOP_AUDIO_MODE='host-pulseaudio', DESKTOP_PID_FILE=str(self.base / 'state/pid'),
             DESKTOP_STATUS_FILE=str(self.base / 'state/status'), DESKTOP_LOG_FILE=str(self.base / 'log'),
             DESKTOP_WIDTH='1280', DESKTOP_HEIGHT='720', DESKTOP_REFRESH_RATE='60',

@@ -160,7 +160,7 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
                     DESKTOP_SPEC_VERSION='3', DESKTOP_HOST_GL_MODE='llvmpipe' if de=='kwin_plasma' else 'system',
                     DESKTOP_GUEST_GL_MODE='llvmpipe' if de=='kwin_plasma' else 'default', DESKTOP_USB_STORAGE='off',
                     DESKTOP_LOG_FILE=str(case/'install.log'), DESKTOP_PID_FILE=str(case/'state/pid'),
-                    DESKTOP_STATUS_FILE=str(case/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.7-r4')
+                    DESKTOP_STATUS_FILE=str(case/'state/status'), DESKTOP_RELEASE_TAG='termux-hwaccel-6.7-r5')
         if de == 'ubuntu_gnome':
             spec.update(DESKTOP_CONTAINER_BASE='ubuntu:resolute', DESKTOP_CONTAINER_CODENAME='resolute',
                         DESKTOP_GUEST_GL_MODE='llvmpipe', DESKTOP_REFRESH_RATE='60',
@@ -258,7 +258,7 @@ with tempfile.TemporaryDirectory(prefix='desktop-prereq-', dir='/tmp') as tempor
         run(name+'-remains', lambda data,case,b=binary,k=keep: data.update(missing_binaries=[b], **{k:True}), code=1)
     def missing(data, case): data['versions'].pop('kwin')
     case, calls = run('missing', missing)
-    assert len(re.findall(r'^curl ',calls,re.M)) == 1 and 'kwin_6.7.5-4_aarch64.deb' in calls
+    assert len(re.findall(r'^curl ',calls,re.M)) == 1 and 'kwin_6.7.5-5_aarch64.deb' in calls
     def mismatch(data, case): data['versions']['kwin'] = '6.6.0-26'
     case, calls = run('version-mismatch', mismatch)
     assert len(re.findall(r'^curl ',calls,re.M)) == 1

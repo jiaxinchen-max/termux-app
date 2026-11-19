@@ -134,8 +134,8 @@ if [ "$DESKTOP_MODE:$DESKTOP_DE" = proot:kwin_plasma ] &&
 fi
 
 BASE_URL="https://github.com/jiaxinchen-max/kwin/releases/download/$DESKTOP_RELEASE_TAG"
-# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.7-r4).
-if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.7-r4" ]; then
+# sha256 of the pinned release assets (GitHub release digests of termux-hwaccel-6.7-r5).
+if [ "$DESKTOP_RELEASE_TAG" != "termux-hwaccel-6.7-r5" ]; then
     log "Unsupported desktop release $DESKTOP_RELEASE_TAG"
     exit 65
 fi
@@ -162,7 +162,7 @@ termux-render_0.1.0-1_aarch64.deb 4dc75a1aed887a59790f03a8c76948de514678fd7c8a00
 DEBS="
 libandroid-stub_30-3_aarch64.deb 88c7f4ba78a5eb57eafc2f1102ceea562a156fe7346528ca35c771eb0927fefc
 gl4es_1.1.7.20260927_aarch64.deb eb0ba70d084c87b84b144ef2ce6ad415ca3810dcb356d77e4e8cefe962157913
-kwin_6.7.5-4_aarch64.deb cd29a2fbefcf81930ac740b1ac3fef71bed29620164d28ff41b9c937936aa4c4
+kwin_6.7.5-5_aarch64.deb 0ae72b7f2533740865da08b1cab501c6b2b88d5b557d3acf194beaa46035dec4
 libei_1.6.0_aarch64.deb be94458e11fe2f0eceec657a67d3da0f2286ff1f92ecc49775a8382c5f1a7b8b
 libepoxy_1.5.10-6_aarch64.deb c78f1674337e4a90a9c933d6301d058bf2be85bc926baae6202320e803582d83
 qt6-qtbase-cross-tools_6.12.0-1+termuxkwin1_all.deb 07b9a9ae857225a814e85c74fdc613cc0720c328d3b2f4f5270a47b67169bf5f
@@ -422,7 +422,7 @@ kwin bin/kwin_wayland 607bdf70293405e79432dc04cddbd4c806339e31928198f2207e47ad1f
 kwin bin/start-plasma 366c1300a6b3c255e401b13d358778b2536300a4a92fe96117887ed9431e6de0
 kwin bin/kwin-android-rendering-env c00cef0311e4829e8229059837cb8ee177751345856c159294b15494572c42da
 kwin bin/kwin-qt-client-renderer-probe 6a3839f89da5717af765622b29cc5a3601997789699dbc78c6722c827b98d5a5
-kwin lib/libkwin.so.6.7.5 cdd9076305fdaaf6b4903b029b28bfd4272803eb9a7f4b3f2a95995cd3d4f8e4
+kwin lib/libkwin.so.6.7.5 cd2046ee512ca6597eacb9996dc5bc35dbb9ac02881ff776f9a7d2910743282b
 kwin lib/qt6/plugins/wayland-graphics-integration-client/libqt-plugin-termux-ahardware-buffer.so cf16443e4e24941e11a5052f3e182d2bb07df47eecf8b4d29f592501864c02b8
 kwin lib/qt6/termux-system-egl/libEGL.so.1 2f20863549ee9c552985f1d9dda6cab4635b43c4cf00288288d962ca264d293b
 kwin lib/qt6/termux-system-egl/libEGL.so 2f20863549ee9c552985f1d9dda6cab4635b43c4cf00288288d962ca264d293b
