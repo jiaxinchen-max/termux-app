@@ -289,6 +289,45 @@ class NativeRestoreTests(unittest.TestCase):
         self.assertFalse(list(self.target.glob('.games-runtime/*.tmp.*')))
         self.assertNotIn('forbidden-wine-execution', result.stderr)
 
+    def test_wine_font_scan_unix_path_preserves_registry_and_prefix(self):
+        self.assertEqual(self.bootstrap().returncode, 0)
+        font = self.base / 'system fonts' / 'NotoSansCJK-Regular.ttc'
+        font.parent.mkdir()
+        font.write_bytes(b'system-font')
+        nt_path = ('\\??\\unix' + str(font).replace('/', '\\')).replace('\\', '\\\\')
+        registry = self.target / 'system.reg'
+        registry.write_text(registry.read_text().replace(
+            '="NotoSansCJK-Regular.ttc"', '="' + nt_path + '"'))
+        before = registry.read_bytes()
+        inode = self.target.stat().st_ino
+        (self.target / 'save.dat').write_text('keep')
+        result = self.bootstrap(preparation_identity='c' * 64)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(registry.read_bytes(), before)
+        self.assertEqual(self.target.stat().st_ino, inode)
+        self.assertEqual((self.target / 'save.dat').read_text(), 'keep')
+        self.assertNotIn('forbidden-wine-execution', result.stderr)
+
+    def test_invalid_registered_font_paths_still_rejected(self):
+        self.assertEqual(self.bootstrap().returncode, 0)
+        registry = self.target / 'system.reg'
+        original = registry.read_text()
+        other = self.base / 'OtherFont.ttc'
+        other.write_bytes(b'other-font')
+        missing = self.base / 'missing' / 'NotoSansCJK-Regular.ttc'
+        directory = self.base / 'NotoSansCJK-Regular.ttc'
+        directory.mkdir()
+        for path in (missing, other, directory):
+            with self.subTest(path=path):
+                nt_path = ('\\??\\unix' + str(path).replace('/', '\\')).replace('\\', '\\\\')
+                registry.write_text(original.replace('="NotoSansCJK-Regular.ttc"', '="' + nt_path + '"'))
+                before = registry.read_bytes()
+                result = self.bootstrap(preparation_identity='c' * 64)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('font state is invalid', result.stdout)
+                self.assertEqual(registry.read_bytes(), before)
+                self.assertEqual((self.target / '.games-runtime/preparation-script-identity').read_text(), 'b' * 64 + '\n')
+
     def test_bootstrap_missing_locale_stops_without_generation_or_prefix_write(self):
         result=self.bootstrap(locale_ready=False)
         self.assertNotEqual(result.returncode,0)

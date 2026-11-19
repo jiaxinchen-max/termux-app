@@ -19,9 +19,18 @@ ensure_games_wine_fonts() {
         return 1
     }
     _font_registry_is_persisted() {
-        grep -F '"Tahoma"="Noto Sans CJK SC"' "$WINEPREFIX/system.reg" >/dev/null 2>&1 && \
-            grep -F '"Noto Sans CJK SC (TrueType)"="NotoSansCJK-Regular.ttc"' \
-                "$WINEPREFIX/system.reg" >/dev/null 2>&1
+        grep -F '"Tahoma"="Noto Sans CJK SC"' "$WINEPREFIX/system.reg" >/dev/null 2>&1 || return 1
+        # Wine's font scan can replace the prebuilt filename with an NT Unix path.
+        # Decode path separators without executing registry text or rewriting it.
+        _registered_font=$(awk -F '"' '$2 == "Noto Sans CJK SC (TrueType)" { print $4; exit }' \
+            "$WINEPREFIX/system.reg" | tr '\\' '/' | sed 's#//*#/#g')
+        case "$_registered_font" in
+            NotoSansCJK-Regular.ttc) return 0 ;;
+            '/??/unix/'*) _registered_font=${_registered_font#'/??/unix'} ;;
+            *) return 1 ;;
+        esac
+        [ "${_registered_font##*/}" = NotoSansCJK-Regular.ttc ] &&
+            [ -f "$_registered_font" ] && [ -r "$_registered_font" ]
     }
     [ -f "$_font_marker" ] && _font_registry_is_persisted && return 0
     echo "ERROR: Native prebuilt prefix font state is invalid."
