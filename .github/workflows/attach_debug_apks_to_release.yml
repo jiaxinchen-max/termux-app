@@ -14,31 +14,14 @@ on:
       release_notes:
         description: "GitHub release notes"
         required: false
-        default: |
-          ## 中文
-
-          本期新增 termux-ui 模块，为 Windows 应用、Linux 桌面、文件和运行组件提供统一图形界面。
-
-          - Windows 应用与游戏：通过独立的 Wine 环境导入、配置、管理和运行程序。
-          - Linux 桌面：创建、启动、管理和重新安装 Native 与 PRoot 桌面环境。
-          - 运行组件：下载和管理 Wine、Box64、图形及配套组件，支持自定义 Wine 和 Box64 版本。
-          - 文件管理：浏览文件、批量操作、查看文件信息，并将检测到的 Windows 程序导入程序库。
-          - 输入与显示：按程序配置显示设置、键盘鼠标输入、虚拟按键和游戏手柄。
-          - 备份与恢复：导出和恢复 PRoot 桌面容器、Wine 环境及 Wine C 盘。
-
-          ## English
-
-          Introduce the new termux-ui module with a unified graphical interface for Windows applications, Linux desktops, files, and runtime components.
-
-          - Windows apps and games: import, configure, manage, and launch programs with dedicated Wine environments.
-          - Linux desktops: create, launch, manage, and reinstall Native and PRoot desktop environments.
-          - Runtime components: download and manage Wine, Box64, graphics, and supporting components, including custom Wine and Box64 builds.
-          - File management: browse files, perform batch operations, view file details, and import detected Windows programs.
-          - Input and display: configure per-program display settings, keyboard and mouse input, virtual controls, and game controllers.
-          - Backup and recovery: export and restore PRoot desktop containers, Wine environments, and Wine C drives.
+        default: '## 中文\n\n本期新增 termux-ui 模块，为 Windows 应用、Linux 桌面、文件和运行组件提供统一图形界面。\n\n- Windows 应用与游戏：通过独立的 Wine 环境导入、配置、管理和运行程序。\n- Linux 桌面：创建、启动、管理和重新安装 Native 与 PRoot 桌面环境。\n- 运行组件：下载和管理 Wine、Box64、图形及配套组件，支持自定义 Wine 和 Box64 版本。\n- 文件管理：浏览文件、批量操作、查看文件信息，并将检测到的 Windows 程序导入程序库。\n- 输入与显示：按程序配置显示设置、键盘鼠标输入、虚拟按键和游戏手柄。\n- 备份与恢复：导出和恢复 PRoot 桌面容器、Wine 环境及 Wine C 盘。\n\n## English\n\nIntroduce the new termux-ui module with a unified graphical interface for Windows applications, Linux desktops, files, and runtime components.\n\n- Windows apps and games: import, configure, manage, and launch programs with dedicated Wine environments.\n- Linux desktops: create, launch, manage, and reinstall Native and PRoot desktop environments.\n- Runtime components: download and manage Wine, Box64, graphics, and supporting components, including custom Wine and Box64 builds.\n- File management: browse files, perform batch operations, view file details, and import detected Windows programs.\n- Input and display: configure per-program display settings, keyboard and mouse input, virtual controls, and game controllers.\n- Backup and recovery: export and restore PRoot desktop containers, Wine environments, and Wine C drives.'
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.release_tag }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -120,19 +103,29 @@ jobs:
 
           ls -la "$RELEASE_APK_DIR"
       - name: Create or update release notes
-        if: ${{ github.event.inputs.release_notes != '' }}
+        shell: bash
         env:
           RELEASE_TAG: ${{ github.event.inputs.release_tag }}
           RELEASE_NAME: ${{ github.event.inputs.release_name }}
           RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
         run: |
-          printf '%s\n' "$RELEASE_NOTES" > release-notes.md
+          set -euo pipefail
+
+          python3 - <<'PYTHON'
+          import os
+          from pathlib import Path
+
+          notes = os.environ["RELEASE_NOTES"].replace("\\n", "\n")
+          Path("release-notes.md").write_text(notes + "\n", encoding="utf-8")
+          PYTHON
+
+          release_args=(--repo "$GITHUB_REPOSITORY" --title "$RELEASE_NAME")
+          if [[ -n "$RELEASE_NOTES" ]]; then
+            release_args+=(--notes-file release-notes.md)
+          fi
 
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "$RELEASE_NAME" \
-              --notes-file release-notes.md
+            gh release edit "$RELEASE_TAG" "${release_args[@]}"
           else
             gh release create "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
@@ -140,12 +133,28 @@ jobs:
               --title "$RELEASE_NAME" \
               --notes-file release-notes.md
           fi
-      - name: Upload APKs to release
-        uses: termux/upload-release-action@v4.1.0
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: "release-apks/*.apk"
-          file_glob: true
-          release_name: ${{ github.event.inputs.release_name }}
-          tag: ${{ github.event.inputs.release_tag }}
-          checksums: sha256,sha512,md5
+      - name: Upload or replace APKs and checksums
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          apks=(release-apks/*.apk)
+          if (( ${#apks[@]} == 0 )); then
+            echo "No APKs found for release" >&2
+            exit 1
+          fi
+
+          for algorithm in sha256 sha512 md5; do
+            checksum_file="CHECKSUMS-$algorithm.txt"
+            : > "$checksum_file"
+            for apk in "${apks[@]}"; do
+              digest="$("${algorithm}sum" "$apk")"
+              printf '%s\t%s\n' "$apk" "${digest%% *}" >> "$checksum_file"
+            done
+          done
+
+          gh release upload "$RELEASE_TAG" "${apks[@]}" \
+            CHECKSUMS-sha256.txt CHECKSUMS-sha512.txt CHECKSUMS-md5.txt \
+            --repo "$GITHUB_REPOSITORY" --clobber
