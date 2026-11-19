@@ -1,0 +1,17 @@
+Subject: [PATCH] gstreamer: depend on GLib's object system instead of GTK
+
+Backport of https://github.com/ptitSeb/box64/pull/4528 to v0.4.4
+(2f130fab1d6e1a4ee8a71dc60cfdfcc839ad192a). The wrapper uses GLib's
+object system through gtkclass.c but makes no GTK calls.
+
+diff --git a/src/wrapped/wrappedgstreamer.c b/src/wrapped/wrappedgstreamer.c
+--- a/src/wrapped/wrappedgstreamer.c
++++ b/src/wrapped/wrappedgstreamer.c
+@@ -1489,6 +1489,6 @@
+     SetGstURIHandlerID(my->gst_uri_handler_get_type());        \
+     SetGstBufferPoolID(my->gst_buffer_pool_get_type());        \
+ 
+-#define NEEDED_LIBS "libgtk-3.so.0"
++#define NEEDED_LIBS "libgobject-2.0.so.0", "libglib-2.0.so.0", "libgmodule-2.0.so.0"
+ 
+ #include "wrappedlib_init.h"

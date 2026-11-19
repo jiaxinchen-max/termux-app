@@ -1,0 +1,11 @@
+--- a/src/wrapped/wrappedgstreamer.c
++++ b/src/wrapped/wrappedgstreamer.c
+@@ -1154,7 +1154,7 @@
+ #ifdef ANDROID
+ #define NEEDED_LIBS "libgtk-3.so"
+ #else
+-#define NEEDED_LIBS "libgtk-3.so.0"
++#define NEEDED_LIBS "libgobject-2.0.so.0", "libglib-2.0.so.0", "libgmodule-2.0.so.0"
+ #endif
+ 
+ #include "wrappedlib_init.h"

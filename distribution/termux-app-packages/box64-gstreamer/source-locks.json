@@ -1,0 +1,35 @@
+{
+  "0.2.8": {
+    "commit": "8545d0505f274554561ca30e1839027dd7be783a",
+    "archiveSha256": "f3f8abbbdaa9bf613795bc2ac29fae06d8fe11cc2e3df55dfa5100052a2e988e",
+    "originalWrapperSha256": "2bdce96b1efb2bb7fc72e36e9e56bb594973fbc87450989885d7a2e01ce97df6",
+    "patchedWrapperSha256": "c2e86c237ba27b959f258163ab3d96d59680977585ed621e9c1c46e76969fd2b",
+    "patchSha256": "3ee4b3dbbd13845af20715a9383e14a09ac79af3336514054f5d241077bdf8c6",
+    "sourceFiles": 1630,
+    "changed": [
+      "src/wrapped/wrappedgstreamer.c"
+    ]
+  },
+  "0.3.8": {
+    "commit": "81c56d7155cdd7a4c49173a2fe4d7bdd87698683",
+    "archiveSha256": "9faec090103d5b6d1e879853d82607e7f37724f170bd968cbaa58341307e8c90",
+    "originalWrapperSha256": "e678a71e33b3c55f4e35a0ec6df9b3d89b8c5d359e89124fbe80d15feb887587",
+    "patchedWrapperSha256": "34210d1a08f6e7b3fa24b6986f4104fd0211eb41d03ad32a84ee7086bdfef598",
+    "patchSha256": "b6f3c94f98a0719205eae860e1f92c4fd6918f3ff8655392291ef6bcc1a6943d",
+    "sourceFiles": 2344,
+    "changed": [
+      "src/wrapped/wrappedgstreamer.c"
+    ]
+  },
+  "0.4.4": {
+    "commit": "2f130fab1d6e1a4ee8a71dc60cfdfcc839ad192a",
+    "archiveSha256": "ce844041092de3f44316bd1c033a3cc10024e5f798c1a8e8a58f046c6d967981",
+    "originalWrapperSha256": "e548d89714edb2218fc59a713d4bf25b9efac5e193142733f08f7b5fa0570acc",
+    "patchedWrapperSha256": "54d560bdfdb1eae89f854447fcf7febb306ff9f9aff323c69b5417ac8ffe9765",
+    "patchSha256": "c32c1f0f47ae7dedda952e34bcf754651a46fae4e78b3e76df7534bd76fb85fa",
+    "sourceFiles": 2587,
+    "changed": [
+      "src/wrapped/wrappedgstreamer.c"
+    ]
+  }
+}

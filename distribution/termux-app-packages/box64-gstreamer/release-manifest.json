@@ -1,0 +1,199 @@
+{
+  "scope": "Six currently selectable Native/PRoot Box64 candidates",
+  "authorization": "User explicitly requested same-tag component publication and both repository pushes",
+  "sourceLocks": "source-locks.json",
+  "buildMatrixScriptSha256": "bfbed2496a9bd15063ece18b282bc83f51c08961ec661fa63a2d7ba90b24d922",
+  "packageScriptSha256": "80d89ac3258757b1b11be37ce7dc793b1dfff805fbbc3b318ea5127fa43b1f51",
+  "builderVerification": {
+    "passed": 42,
+    "total": 42,
+    "gstreamer": "1.26.2",
+    "evidenceArchiveSha256": "bba116d978c741874df74ace9bfc9722e22daf36e501243193eccc48dda676a4"
+  },
+  "deviceVerification": {
+    "state": "Passed",
+    "passed": 36,
+    "total": 36,
+    "nativeGstreamer": "1.26.2 isolated SDK test libraries with device GLIBC2.44",
+    "prootGstreamer": "1.28.2 existing Ubuntu26.04.1",
+    "selinux": "u:r:untrusted_app_27:s0:c215,c256,c512,c768",
+    "evidenceArchiveSha256": "fa077e22b750d4319c46b719eb23663b8e5d22dc3d403c3de47ad24e1973bfae"
+  },
+  "publicVerification": {
+    "state": "Passed",
+    "count": 6,
+    "result": "Each original URL downloaded in full; size and SHA256 match new archives"
+  },
+  "strictGate": {
+    "state": "Unavailable_NotPassed",
+    "exitCode": 127
+  },
+  "packages": [
+    {
+      "original": {
+        "name": "glibc_box64_0.2.8.tar.xz",
+        "size": 4352376,
+        "sha256": "8a7b66812af95c1393f1bd534ab7fbcc1f21e53ce9651b008a42fbfa0707ba4d"
+      },
+      "replacement": {
+        "member": "glibc/bin/box64",
+        "size": 17971944,
+        "sha256": "817777c7ad90627442fa0d6b78431cbd3a32fa6ab2e01bd55d2008ad3aec2034"
+      },
+      "output": {
+        "name": "glibc_box64_0.2.8.tar.xz",
+        "size": 4355736,
+        "sha256": "8461aea7c97f86305f0303f4da1164317b7dc5acd42086ddd75349c63c6abfed"
+      },
+      "onlyChangedMember": "glibc/bin/box64",
+      "otherContentAndMetadata": "Unchanged",
+      "id": "glibc_box64_0.2.8",
+      "versionName": "0.2.8",
+      "backend": "native",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_box64_0.2.8/glibc_box64_0.2.8.tar.xz",
+      "indexVersion": 1
+    },
+    {
+      "original": {
+        "name": "glibc_box64_0.3.8.tar.xz",
+        "size": 5196672,
+        "sha256": "d2444162e2b47b0829413663a29eaddcb00e0848900cbbd582b95518a424da3d"
+      },
+      "replacement": {
+        "member": "glibc/bin/box64",
+        "size": 23159200,
+        "sha256": "c56923a324694c6e3398324c7c0be872f442b543a146bf69dc1efd098b792892"
+      },
+      "output": {
+        "name": "glibc_box64_0.3.8.tar.xz",
+        "size": 5198300,
+        "sha256": "299f632c62a879087f10156b51ab0a16e0ff90329cca293b6355fc74a7cdd2b1"
+      },
+      "onlyChangedMember": "glibc/bin/box64",
+      "otherContentAndMetadata": "Unchanged",
+      "id": "glibc_box64_0.3.8",
+      "versionName": "0.3.8",
+      "backend": "native",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_box64_0.3.8/glibc_box64_0.3.8.tar.xz",
+      "indexVersion": 1
+    },
+    {
+      "original": {
+        "name": "glibc_box64_0.4.4.tar.xz",
+        "size": 12846180,
+        "sha256": "e7f054c193f63102864222b51763eb7bee5171240e4c3400d1e6d25939fe9921"
+      },
+      "replacement": {
+        "member": "glibc/bin/box64",
+        "size": 26113544,
+        "sha256": "485bbc26a1fdaca645a3698292ba20b7e26aa74d7cfc6cdcec42520934a6593e"
+      },
+      "output": {
+        "name": "glibc_box64_0.4.4.tar.xz",
+        "size": 5452904,
+        "sha256": "aaf8fd55a403ace2160e739f9171e66110157cb3e24f340c0396eb925b01cb2d"
+      },
+      "onlyChangedMember": "glibc/bin/box64",
+      "otherContentAndMetadata": "Unchanged",
+      "id": "glibc_box64_0.4.4",
+      "versionName": "0.4.4",
+      "backend": "native",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_box64_0.4.4/glibc_box64_0.4.4.tar.xz",
+      "indexVersion": 1
+    },
+    {
+      "original": {
+        "name": "rootfs_box64_0.2.8.tar.xz",
+        "size": 5352260,
+        "sha256": "870f46487e11e7acbb5f72e6684be29d844f91b64668cb234f9638dd3e621d16"
+      },
+      "replacement": {
+        "member": "bin/box64",
+        "size": 17971944,
+        "sha256": "9dd0957904f8dc41700561af608b60afe209af0bef4bd85ce302f68cbd3d852a"
+      },
+      "output": {
+        "name": "rootfs_box64_0.2.8.tar.xz",
+        "size": 5349524,
+        "sha256": "7e41c4cc90a26598a69e82ad73f323a488a0d000ca9d53b51e50ae9ebc3589c4"
+      },
+      "onlyChangedMember": "bin/box64",
+      "otherContentAndMetadata": "Unchanged",
+      "id": "rootfs_box64_0.2.8",
+      "versionName": "0.2.8",
+      "backend": "proot",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.2.8/rootfs_box64_0.2.8.tar.xz",
+      "indexVersion": 1
+    },
+    {
+      "original": {
+        "name": "rootfs_box64_0.3.8.tar.xz",
+        "size": 6185748,
+        "sha256": "939c3e738da05301ef1343af404404fdc7fa461f2a83ac84c36b3e7b0fa66508"
+      },
+      "replacement": {
+        "member": "bin/box64",
+        "size": 23159200,
+        "sha256": "3ea5cf99c4c489ec6e4074edc3adf78b911f304f5e63c0e129912ff2d68418a6"
+      },
+      "output": {
+        "name": "rootfs_box64_0.3.8.tar.xz",
+        "size": 6189544,
+        "sha256": "a72331421ea37e089870c463cf51344f9cadae92da50e98c3424246ba87bfa3c"
+      },
+      "onlyChangedMember": "bin/box64",
+      "otherContentAndMetadata": "Unchanged",
+      "id": "rootfs_box64_0.3.8",
+      "versionName": "0.3.8",
+      "backend": "proot",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.3.8/rootfs_box64_0.3.8.tar.xz",
+      "indexVersion": 1
+    },
+    {
+      "original": {
+        "name": "rootfs_box64_0.4.4.tar.xz",
+        "size": 6470584,
+        "sha256": "7fa5b348073c4d33914b657e5415bbd19844c957f0badc60d1bec7fa7f3cfe2f"
+      },
+      "replacement": {
+        "member": "bin/box64",
+        "size": 26113544,
+        "sha256": "a11088ce6f9fc9cd18b5d6f13075ee4a0bd00064cc3de4cd1cc4137ab463ecbe"
+      },
+      "output": {
+        "name": "rootfs_box64_0.4.4.tar.xz",
+        "size": 6467952,
+        "sha256": "2846a0ddaa138671a1e63edaaada90771bc3549e762931583f0cdcba5a849fd1"
+      },
+      "onlyChangedMember": "bin/box64",
+      "otherContentAndMetadata": "Unchanged",
+      "id": "rootfs_box64_0.4.4",
+      "versionName": "0.4.4",
+      "backend": "proot",
+      "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.4.4/rootfs_box64_0.4.4.tar.xz",
+      "indexVersion": 1
+    }
+  ],
+  "publication": "PublishedAllSix_PublicDownloadVerified",
+  "acceptance": "Pending_UserAcceptance",
+  "codeReview": "Approved_DirectSourceSelfReview_WithToolingLimitations",
+  "publishedAt": "2026-11-19T03:45:58.934610+00:00",
+  "componentRepository": "https://github.com/jiaxinchen-max/termux-app-packages",
+  "sourceSynchronization": "App bundled index and both component repository catalogs synchronized in related source commits; remote commit IDs are recorded with final release evidence",
+  "integrationRegression": {
+    "passed": 20,
+    "tests": [
+      "test-native-box64-libraries.py",
+      "test-box64-selected-runtime.py",
+      "test-proot-component-bindings.py"
+    ]
+  },
+  "componentRepositoryCommit": "15404a87beb2bdb9fb484efa2e62d114e92f6c49",
+  "deviceCleanup": {
+    "dedicatedTestDirectoryRemoved": true,
+    "directoryBeforeKiB": 479660,
+    "testProcesses": 0,
+    "testPrefixCopies": 0,
+    "evidenceSavedOnBuilder": true
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "dateUtc": "2026-11-19",
+  "candidateSha256": "a11088ce6f9fc9cd18b5d6f13075ee4a0bd00064cc3de4cd1cc4137ab463ecbe",
+  "publication": "NotPublished",
+  "buildLocation": "Existing builder 120.24.191.156:6022; Debian13 SDK; no local component compilation",
+  "sourceComparison": {
+    "files": 2587,
+    "changed": [
+      "src/wrapped/wrappedgstreamer.c"
+    ]
+  },
+  "builder": {
+    "gstreamer": "1.26.2",
+    "passed": 16,
+    "failed": 0
+  },
+  "android": {
+    "distribution": "Ubuntu 26.04.1",
+    "gstreamer": "1.28.2",
+    "selinux": "u:r:untrusted_app_27:s0:c215,c256,c512,c768",
+    "lowLevel": {
+      "passed": 9,
+      "failed": 3,
+      "failureReason": "videotestsrc missing in all three variants; real WMV2 decode passes"
+    },
+    "publicWine": {
+      "family": "Proton11 via Box64",
+      "launch": "TermuxService App domain; backend explorer virtual-desktop command; independent cloned prefixes; default GStreamer scanner",
+      "media": "64x64 AVI/WMV2",
+      "cases": [
+        {
+          "variant": "original",
+          "bits": 64,
+          "timedOut": false,
+          "exitCode": 0,
+          "rawWaitReturnCode": 0,
+          "stoppedAfterProbeCleanup": true,
+          "playback": {
+            "bits": 64,
+            "render": 0,
+            "run": 1,
+            "complete": 0,
+            "event": 1,
+            "width": 64,
+            "height": 64,
+            "failures": 0
+          },
+          "cleanup": {
+            "state": "Completed"
+          }
+        },
+        {
+          "variant": "patched",
+          "bits": 64,
+          "timedOut": false,
+          "exitCode": 0,
+          "rawWaitReturnCode": 0,
+          "stoppedAfterProbeCleanup": true,
+          "playback": {
+            "bits": 64,
+            "render": 0,
+            "run": 1,
+            "complete": 0,
+            "event": 1,
+            "width": 64,
+            "height": 64,
+            "failures": 0
+          },
+          "cleanup": {
+            "state": "Completed"
+          }
+        },
+        {
+          "variant": "original",
+          "bits": 32,
+          "timedOut": true,
+          "exitCode": 124,
+          "rawWaitReturnCode": -9,
+          "stoppedAfterProbeCleanup": false
+        },
+        {
+          "variant": "patched",
+          "bits": 32,
+          "timedOut": false,
+          "exitCode": 1,
+          "rawWaitReturnCode": 1,
+          "stoppedAfterProbeCleanup": true,
+          "playback": {
+            "bits": 32,
+            "render": 0,
+            "run": 1,
+            "complete": 0,
+            "event": 1,
+            "width": 64,
+            "height": 64,
+            "failures": 0
+          },
+          "cleanup": {
+            "state": "Completed"
+          }
+        }
+      ],
+      "limitations": [
+        "Original PE32 timed out before GStreamer; single observation is not causal proof of a fix",
+        "Patched PE32 playback and COM cleanup succeeded; raw session exit 1 after controlled wineserver shutdown is retained",
+        "Full Java controller/LaunchSpec flow, real games, all codecs, Media Foundation, and Hangover are not qualified"
+      ]
+    },
+    "sourcePrefixRegistry": "Hashes unchanged; asserted before orchestrator exit 0",
+    "cleanup": true
+  },
+  "conclusion": "Removes unnecessary GTK dependency errors. Original also decodes WMV2 and plays PE64 video; prior Wine media failure root cause is not established.",
+  "excludedEvidence": [
+    "Early direct probe without virtual desktop failed Video Renderer for both variants; corrected command passes PE64",
+    "Early shared-prefix timeout cleanup contaminated later test; not qualification evidence"
+  ],
+  "evidence": {
+    "builder": {
+      "name": "verification-evidence.tar.xz",
+      "sha256": "18ecf8aacc58c63119bac086189e02d480213e1afea2b58c74816f02159394be"
+    },
+    "android": {
+      "name": "device-evidence.tar.gz",
+      "sha256": "54d59601ee9a6afea3172779f3308cba6f0f52a1e1d4cbf71ae371d5279169d8"
+    },
+    "serverDirectory": "/home/builder/proton-sud-dc26-20261108/debian13-buildroot/work/idap-box64-gstreamer-20261119"
+  },
+  "strictGate": {
+    "status": "Unavailable",
+    "exitCode": 127,
+    "reason": ".harness/scripts/verify.sh is absent"
+  },
+  "acceptance": "Pending_UserAcceptance"
+}

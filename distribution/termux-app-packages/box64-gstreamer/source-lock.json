@@ -1,0 +1,40 @@
+{
+  "source": {
+    "repository": "https://github.com/ptitSeb/box64",
+    "commit": "2f130fab1d6e1a4ee8a71dc60cfdfcc839ad192a",
+    "tag": "v0.4.4",
+    "archiveUrl": "https://codeload.github.com/ptitSeb/box64/tar.gz/2f130fab1d6e1a4ee8a71dc60cfdfcc839ad192a",
+    "archiveSha256": "ce844041092de3f44316bd1c033a3cc10024e5f798c1a8e8a58f046c6d967981",
+    "originalWrapperSha256": "e548d89714edb2218fc59a713d4bf25b9efac5e193142733f08f7b5fa0570acc"
+  },
+  "backport": {
+    "upstreamPullRequest": "https://github.com/ptitSeb/box64/pull/4528",
+    "upstreamMergeCommit": "abfb8c3b2faddf2273d8ebe532c362d86bfa0356",
+    "patch": "box64-0.4.4-glib-dependencies.patch",
+    "sha256": "779943bc8f1bd090e8ef442bdbf3adf0272ddf961f0b57d61886948c19fc791f"
+  },
+  "build": {
+    "host": "120.24.191.156:6022",
+    "existingSdk": "/home/builder/proton-sud-dc26-20261108/debian13-buildroot",
+    "compiler": "aarch64-linux-gnu-gcc (Debian 14.2.0-19) 14.2.0",
+    "cmake": "3.31.6",
+    "historicalArchive": "/home/builder/box64-0.4.4-proot-results.tar.xz",
+    "historicalBinarySha256": "269e4ab1310fd889a88f2c5716645cceea528157e08e84db21c9a1c8ccee9910",
+    "script": "build-proot.sh",
+    "scriptSha256": "08807ee2e16f9c582bb857cc8a4dd5f68807cf4fcb406c7e4a1784ec92662809",
+    "candidateBinarySha256": "a11088ce6f9fc9cd18b5d6f13075ee4a0bd00064cc3de4cd1cc4137ab463ecbe"
+  },
+  "state": "Published_DependencyBackport_WithinDocumentedSmokeScope",
+  "publication": "Published_InPlace_SeeReleaseManifest",
+  "verification": {
+    "builder": "Debian 13 SDK + QEMU aarch64; GStreamer 1.26.2; 16/16 passed",
+    "android": "Ubuntu 26.04.1 App untrusted_app_27; GStreamer 1.28.2; core/custom element/WMV2 9 passed; videotestsrc absent in all 3 variants",
+    "winePublic": "Proton11 WMV2: original/patched PE64 playback and COM cleanup passed; patched PE32 playback and COM cleanup passed with session exit 1 after controlled shutdown; original PE32 startup timed out before GStreamer",
+    "qualification": "GTK dependency error removed; original also plays PE64 WMV2. No causal proof for PE32 startup difference; not full App UI, all codecs, Media Foundation, or real-game acceptance",
+    "summary": "verification-summary.json",
+    "builderEvidenceSha256": "18ecf8aacc58c63119bac086189e02d480213e1afea2b58c74816f02159394be",
+    "androidEvidenceSha256": "54d59601ee9a6afea3172779f3308cba6f0f52a1e1d4cbf71ae371d5279169d8",
+    "strictGate": "Unavailable_MissingScript_Exit127",
+    "sixCandidateRelease": "release-manifest.json"
+  }
+}

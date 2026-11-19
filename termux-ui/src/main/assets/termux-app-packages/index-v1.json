@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-10T10:46:24Z",
+  "generatedAt": "2026-11-19T03:36:40.179755Z",
   "packages": [
     {
       "id": "glibc_box64_0.2.8",
@@ -8,7 +8,7 @@
       "type": "translator",
       "displayName": "box64_0.2.8",
       "versionName": "0.2.8",
-      "summary": "Box64 0.2.8 with Native glibc loader and x86_64 support libraries.",
+      "summary": "Box64 0.2.8 with Native glibc loader, x86_64 support libraries and GStreamer GLib dependency backport.",
       "framework": "Termux GLIBC",
       "base": true,
       "recommended": true,
@@ -19,8 +19,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_box64_0.2.8/glibc_box64_0.2.8.tar.xz",
-      "size": 4352376,
-      "sha256": "8a7b66812af95c1393f1bd534ab7fbcc1f21e53ce9651b008a42fbfa0707ba4d"
+      "size": 4355736,
+      "sha256": "8461aea7c97f86305f0303f4da1164317b7dc5acd42086ddd75349c63c6abfed"
     },
     {
       "id": "glibc_box64_0.3.8",
@@ -28,7 +28,7 @@
       "type": "translator",
       "displayName": "box64_0.3.8",
       "versionName": "0.3.8",
-      "summary": "Box64 0.3.8 with target-specific x86_64 support libraries.",
+      "summary": "Box64 0.3.8 with Native glibc loader, x86_64 support libraries and GStreamer GLib dependency backport.",
       "framework": "Termux GLIBC",
       "base": false,
       "recommended": false,
@@ -39,8 +39,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_box64_0.3.8/glibc_box64_0.3.8.tar.xz",
-      "size": 5196672,
-      "sha256": "d2444162e2b47b0829413663a29eaddcb00e0848900cbbd582b95518a424da3d"
+      "size": 5198300,
+      "sha256": "299f632c62a879087f10156b51ab0a16e0ff90329cca293b6355fc74a7cdd2b1"
     },
     {
       "id": "glibc_box64_0.4.4",
@@ -48,7 +48,7 @@
       "type": "translator",
       "displayName": "box64_0.4.4",
       "versionName": "0.4.4",
-      "summary": "x86-64 to ARM64 instruction translator used by the GLIBC runtime.",
+      "summary": "Box64 0.4.4 with Native glibc loader, x86_64 support libraries and GStreamer GLib dependency backport.",
       "framework": "Termux GLIBC",
       "base": false,
       "recommended": false,
@@ -59,8 +59,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/glibc_box64_0.4.4/glibc_box64_0.4.4.tar.xz",
-      "size": 12846180,
-      "sha256": "e7f054c193f63102864222b51763eb7bee5171240e4c3400d1e6d25939fe9921"
+      "size": 5452904,
+      "sha256": "aaf8fd55a403ace2160e739f9171e66110157cb3e24f340c0396eb925b01cb2d"
     },
     {
       "id": "glibc_scripts_29",
@@ -528,7 +528,7 @@
       "type": "translator",
       "displayName": "box64_0.2.8",
       "versionName": "0.2.8",
-      "summary": "Box64 0.2.8 with PRoot loader and x86_64 support libraries.",
+      "summary": "Box64 0.2.8 with PRoot loader, x86_64 support libraries and GStreamer GLib dependency backport.",
       "framework": "ROOTFS",
       "base": false,
       "recommended": false,
@@ -539,8 +539,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.2.8/rootfs_box64_0.2.8.tar.xz",
-      "size": 5352260,
-      "sha256": "870f46487e11e7acbb5f72e6684be29d844f91b64668cb234f9638dd3e621d16"
+      "size": 5349524,
+      "sha256": "7e41c4cc90a26598a69e82ad73f323a488a0d000ca9d53b51e50ae9ebc3589c4"
     },
     {
       "id": "rootfs_box64_0.3.8",
@@ -548,7 +548,7 @@
       "type": "translator",
       "displayName": "box64_0.3.8",
       "versionName": "0.3.8",
-      "summary": "Box64 0.3.8 with target-specific x86_64 support libraries.",
+      "summary": "Box64 0.3.8 with PRoot loader, x86_64 support libraries and GStreamer GLib dependency backport.",
       "framework": "ROOTFS",
       "base": false,
       "recommended": false,
@@ -559,8 +559,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.3.8/rootfs_box64_0.3.8.tar.xz",
-      "size": 6185748,
-      "sha256": "939c3e738da05301ef1343af404404fdc7fa461f2a83ac84c36b3e7b0fa66508"
+      "size": 6189544,
+      "sha256": "a72331421ea37e089870c463cf51344f9cadae92da50e98c3424246ba87bfa3c"
     },
     {
       "id": "rootfs_box64_0.4.4",
@@ -568,7 +568,7 @@
       "type": "translator",
       "displayName": "box64_0.4.4",
       "versionName": "0.4.4",
-      "summary": "Box64 0.4.4 with target-specific x86_64 support libraries.",
+      "summary": "Box64 0.4.4 with PRoot loader, x86_64 support libraries and GStreamer GLib dependency backport.",
       "framework": "ROOTFS",
       "base": false,
       "recommended": false,
@@ -579,8 +579,8 @@
       ],
       "version": 1,
       "url": "https://github.com/jiaxinchen-max/termux-app-packages/releases/download/rootfs_box64_0.4.4/rootfs_box64_0.4.4.tar.xz",
-      "size": 6470584,
-      "sha256": "7fa5b348073c4d33914b657e5415bbd19844c957f0badc60d1bec7fa7f3cfe2f"
+      "size": 6467952,
+      "sha256": "2846a0ddaa138671a1e63edaaada90771bc3549e762931583f0cdcba5a849fd1"
     },
     {
       "id": "rootfs_dxvk_2.7",

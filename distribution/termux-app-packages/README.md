@@ -682,3 +682,9 @@ python3 distribution/termux-app-packages/trim-rootfs-extras.py \
 2026-11-10 回移 Wine 官方提交 `70ed59e3f4570e61aea2f36a4d18b9c6eaa0f922`，修复无力反馈虚拟手柄因可选 AUTOCENTER 不支持而被面板过滤的问题。Native/PRoot各更新i386及x86_64的 `joy.cpl`，其他归档内容不变；组件ID、版本号、原下载URL和prefix保持不变，用户显式重装获取修复。
 
 构建、源补丁、回调回归及逐成员重打包核验见 [proton-joy-cpl](proton-joy-cpl/README.md)。四份PE来源、架构、builtin标记、导入及资源检查通过；875项Java测试通过。两份资产已发布至原标签并核验公开下载；Android界面和游戏输入待用户手动验收。
+
+### 六项 Box64 的 GStreamer 依赖原地回移（2026-11-19）
+
+Native/PRoot 的0.2.8、0.3.8、0.4.4均分别回移上游PR#4528，去除非必要GTK依赖，使用GLib/GObject/GModule。全部在现有编译机SDK构建和打包；原标签、同名tar.xz、URL、版本及默认选择保持，仅替换Box64 ELF，支持库和成员元数据逐项不变。六包已原地发布，原URL公开下载大小及摘要一致，App索引与组件仓库两索引同步。
+
+编译机42项、真实Android App域36项以及既有接入回归20项通过。Native媒体检查使用隔离SDK测试库，PRoot使用现有Ubuntu媒体库；不声明全部格式或实际游戏验收，亦不认定GTK报错为此前播放失败根因。已装组件需使用更新后的App手动重新安装；不重建prefix。修复来源、原/新摘要和精确验证边界见[box64-gstreamer](box64-gstreamer/README.md)。
