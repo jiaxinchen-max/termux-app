@@ -113,6 +113,7 @@ public final class LocalGamesActivity extends AppUiActivity {
     private CollectionToolbar collectionToolbar;
     private static final int TAB_LIBRARY = 0;
     private static final int TAB_SETTINGS = 2;
+    private static final int GAME_ACTION_IMPORT_ENTRY = 7;
     private static final int GAME_ACTION_ENGINE = 0;
     private static final int GAME_ACTION_EDIT = 1;
     private static final int GAME_ACTION_STORAGE = 2;
@@ -632,8 +633,30 @@ public final class LocalGamesActivity extends AppUiActivity {
             collectionToolbar.isList() ? R.layout.item_local_game_import_list : R.layout.item_local_game_import,
             binding.localGamesLibraryItems, false));
         applyGameCardLayout(importCard.getRoot(), LibraryGridColumns.importCardIndex(visibleItems.size()));
-        importCard.getRoot().setOnClickListener(view -> startImportFlow());
+        if (collectionToolbar.isProot()) {
+            importCard.getRoot().setContentDescription(getString(R.string.local_game_create_container));
+            importCard.localGamesAddLabel.setText(R.string.local_game_create_container);
+        }
+        importCard.getRoot().setOnClickListener(view -> {
+            if (collectionToolbar.isProot()) createProotContainer();
+            else startImportFlow();
+        });
         binding.localGamesLibraryItems.addView(importCard.getRoot());
+    }
+
+    private void createProotContainer() {
+        libraryExecutor.execute(() -> {
+            try {
+                String id = com.termux.ui.wine.importer.QuickGameImport.createContainer(
+                    getFilesDir(), getString(R.string.local_game_proot_container_name));
+                mainHandler.post(() -> {
+                    if (started && binding != null)
+                        startActivity(LocalGames.createGameDetailIntent(this, id));
+                });
+            } catch (IOException | RuntimeException error) {
+                mainHandler.post(() -> Toast.makeText(this, safeMessage(error), Toast.LENGTH_LONG).show());
+            }
+        });
     }
 
     /** The width the grid has (or is about to have): its laid-out width, or, before the first
@@ -670,7 +693,7 @@ public final class LocalGamesActivity extends AppUiActivity {
                 ? R.string.local_game_runtime_profile_backend_rootfs
                 : R.string.local_game_runtime_profile_backend_glibc);
         row.localGameExecutable.setText(getString(R.string.local_game_configuration_executable,
-            runtime, game.getExecutable()));
+            runtime, game.isWineFileBrowser() ? getString(R.string.local_game_wine_file_browser) : game.getExecutable()));
         String profileError = libraryProfileErrors.get(game.getId());
         row.localGameWine.setText(profileError == null ? getString(R.string.local_game_card_wine,
             libraryWines.get(game.getId())) : getString(R.string.local_game_profile_invalid));
@@ -819,6 +842,9 @@ public final class LocalGamesActivity extends AppUiActivity {
         popup.setElevation(dp(3));
         if (!libraryProfileErrors.containsKey(item.getGame().getId()))
             addTextPopupAction(content, popup, item, R.string.local_game_action_edit, GAME_ACTION_EDIT);
+        if (libraryBackends.get(item.getGame().getId()) == GameRuntimeBackendType.ROOTFS_PROOT
+                && !libraryProfileErrors.containsKey(item.getGame().getId()))
+            addTextPopupAction(content, popup, item, R.string.local_game_set_entry, GAME_ACTION_IMPORT_ENTRY);
         addTextPopupAction(content, popup, item, R.string.local_game_action_remove,
             GAME_ACTION_REMOVE);
         content.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
@@ -870,7 +896,7 @@ public final class LocalGamesActivity extends AppUiActivity {
     }
 
     private int textPopupWidth() {
-        int[] labels = { R.string.local_game_action_edit, R.string.local_game_action_remove };
+        int[] labels = { R.string.local_game_action_edit, R.string.local_game_action_remove, R.string.local_game_set_entry };
         android.text.TextPaint paint = new android.text.TextPaint();
         paint.setTextSize(getResources().getDisplayMetrics().scaledDensity * 16f);
         float widest = 0f;
@@ -910,6 +936,13 @@ public final class LocalGamesActivity extends AppUiActivity {
     private void performGameActionWhenIdle(GameLibraryItem item, int action) {
         Game game = item.getGame();
         switch (action) {
+            case GAME_ACTION_IMPORT_ENTRY:
+                startActivity(UiNavigation.tabIntent(LocalGames.createFileManagerIntent(this))
+                    .putExtra(GameFileManagerActivity.EXTRA_IMPORT_BACKEND,
+                        GameRuntimeBackendType.ROOTFS_PROOT.getStorageValue())
+                    .putExtra(GameFileManagerActivity.EXTRA_ENTRY_GAME_ID, game.getId())
+                    .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+                return;
             case GAME_ACTION_ENGINE:
                 startActivity(LocalGames.createRuntimeOptionsIntent(this, game.getId()));
                 return;

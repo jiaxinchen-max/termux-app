@@ -769,4 +769,8 @@
     <string name="browser_batch_unattempted_items">Not attempted:</string>
     <string name="browser_batch_manual_check">Some contents may have been moved or deleted. Check the source and destination before selecting the remaining items again.</string>
     <string name="browser_batch_interrupted">The previous file operation was interrupted. Some items may have changed. Check the source and destination; the operation will not resume automatically.</string>
+    <string name="local_game_create_container">Create container</string>
+    <string name="local_game_proot_container_name">PRoot Wine container</string>
+    <string name="local_game_wine_file_browser">Wine file browser</string>
+    <string name="local_game_set_entry">Import game / Set entry point</string>
 </resources>

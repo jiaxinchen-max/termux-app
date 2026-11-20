@@ -8,6 +8,10 @@ import java.util.List;
 public final class Game {
 
     public static final int SCHEMA_VERSION = 1;
+    /** Reserved entry token, never a host file. Only the PRoot launcher interprets it. */
+    public static final String WINE_FILE_BROWSER = ".wine-builtins/winefile.exe";
+
+    public boolean isWineFileBrowser() { return WINE_FILE_BROWSER.equals(executable); }
 
     private final String id;
     private final String name;

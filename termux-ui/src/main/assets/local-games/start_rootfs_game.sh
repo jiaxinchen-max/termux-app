@@ -394,15 +394,23 @@ resolve_rootfs_translator
 configure_hangover_emulator
 
 ROOT_CANONICAL=$(realpath "$GAME_ROOT" 2>/dev/null) || terminal_failure game_root_unreadable null true
-EXE_CANONICAL=$(realpath "$GAME_ROOT/$EXECUTABLE" 2>/dev/null) || terminal_failure game_executable_unreadable null true
+# The reserved built-in entry is resolved by Wine, never against the host game directory.
+WINE_FILE_BROWSER=0
+if [ "$EXECUTABLE" = .wine-builtins/winefile.exe ]; then
+    WINE_FILE_BROWSER=1
+else
+    EXE_CANONICAL=$(realpath "$GAME_ROOT/$EXECUTABLE" 2>/dev/null) || terminal_failure game_executable_unreadable null true
+fi
 if [ "$WORKING_DIRECTORY" = . ]; then
     WORK_CANONICAL=$ROOT_CANONICAL
 else
     WORK_CANONICAL=$(realpath "$GAME_ROOT/$WORKING_DIRECTORY" 2>/dev/null) || terminal_failure game_workdir_unreadable null true
 fi
-case "$EXE_CANONICAL/" in "$ROOT_CANONICAL"/*) ;; *) terminal_failure game_executable_outside_root ;; esac
+if [ "$WINE_FILE_BROWSER" = 0 ]; then
+    case "$EXE_CANONICAL/" in "$ROOT_CANONICAL"/*) ;; *) terminal_failure game_executable_outside_root ;; esac
+    [ -f "$EXE_CANONICAL" ] || terminal_failure game_executable_unreadable null true
+fi
 case "$WORK_CANONICAL/" in "$ROOT_CANONICAL"/*) ;; *) terminal_failure game_workdir_outside_root ;; esac
-[ -f "$EXE_CANONICAL" ] || terminal_failure game_executable_unreadable null true
 [ -d "$WORK_CANONICAL" ] || terminal_failure game_workdir_unreadable null true
 [ -d "$ROOTFS_CANONICAL/mnt/games/game" ] && \
     [ -d "$ROOTFS_CANONICAL/mnt/games/prefix" ] || \
@@ -752,9 +760,15 @@ if [ "$DESKTOP_ONLY" = 1 ]; then
         set -- "$GUEST_WINE" explorer "/desktop=shell,$RESOLUTION"
     fi
 else
+    # Built-in winefile is available in every Wine prefix and needs no imported EXE.
+    if [ "$WINE_FILE_BROWSER" = 1 ]; then
+        GUEST_EXECUTABLE='C:\windows\system32\winefile.exe'
+    fi
     # The program is started by wine-bridge.exe when the controller bridge is installed, and that takes a Windows path.
     GAME_TARGET=$GUEST_EXECUTABLE
-    [ -z "$CONTROLLER_WRAPPER" ] || GAME_TARGET=$(games_controller_windows_target "$GUEST_EXECUTABLE")
+    if [ "$WINE_FILE_BROWSER" = 0 ] && [ -n "$CONTROLLER_WRAPPER" ]; then
+        GAME_TARGET=$(games_controller_windows_target "$GUEST_EXECUTABLE")
+    fi
     if [ "$RUNTIME_TRANSLATOR" = hangover ]; then
         set -- explorer "/desktop=shell,$RESOLUTION" ${CONTROLLER_WRAPPER:+"$CONTROLLER_WRAPPER"} "$GAME_TARGET" "$@"
     else

@@ -39,13 +39,16 @@ public final class LaunchSpecFactory {
         if (backend == null || backend.getType() != profile.getRuntimeBackendType()) {
             throw new IllegalArgumentException("runtime_backend_profile_mismatch");
         }
+        boolean wineBrowser = game.isWineFileBrowser();
+        if (wineBrowser && profile.getRuntimeBackendType() != com.termux.ui.wine.domain.GameRuntimeBackendType.ROOTFS_PROOT)
+            throw new IOException("proot_container_required");
         File root = new File(resolvedGameRoot).getCanonicalFile();
         File executable = new File(root, game.getExecutable()).getCanonicalFile();
         File workingDirectory = ".".equals(game.getWorkingDirectory()) ? root :
             new File(root, game.getWorkingDirectory()).getCanonicalFile();
         requireContained(root, executable, "game_executable_outside_root");
         requireContained(root, workingDirectory, "game_workdir_outside_root");
-        if (!executable.isFile() || !executable.canRead()) throw new IOException("game_executable_unreadable");
+        if (!wineBrowser && (!executable.isFile() || !executable.canRead())) throw new IOException("game_executable_unreadable");
         if (!workingDirectory.isDirectory() || !workingDirectory.canRead()) {
             throw new IOException("game_workdir_unreadable");
         }

@@ -754,4 +754,8 @@
     <string name="browser_batch_unattempted_items">未执行：</string>
     <string name="browser_batch_manual_check">部分内容可能已经移动或删除。请检查源和目标，再重新选择需要处理的项目。</string>
     <string name="browser_batch_interrupted">上次文件操作被中断，部分项目可能已处理。请检查源和目标；不会自动重复执行。</string>
+    <string name="local_game_create_container">创建容器</string>
+    <string name="local_game_proot_container_name">PRoot Wine 容器</string>
+    <string name="local_game_wine_file_browser">Wine 文件浏览器</string>
+    <string name="local_game_set_entry">导入游戏 / 指定入口</string>
 </resources>

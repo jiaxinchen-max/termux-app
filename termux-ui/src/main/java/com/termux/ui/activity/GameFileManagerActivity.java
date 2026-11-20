@@ -61,6 +61,8 @@ import java.util.concurrent.ExecutorService;
 /** Browser with explicit file operations and temporary read-only system-open grants. */
 public final class GameFileManagerActivity extends AppUiActivity {
     public static final String EXTRA_IMPORT_BACKEND = "com.termux.ui.extra.IMPORT_BACKEND";
+    public static final String EXTRA_ENTRY_GAME_ID = "com.termux.ui.extra.ENTRY_GAME_ID";
+    @Nullable private String entryGameId;
     @Nullable private GameRuntimeBackendType importBackend;
 
     private static final String STATE_BROWSED_DIRECTORY = "browsed_directory";
@@ -183,6 +185,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
     }
 
     private void readImportBackend(Intent intent) {
+        entryGameId = intent.getStringExtra(EXTRA_ENTRY_GAME_ID);
         String value = intent.getStringExtra(EXTRA_IMPORT_BACKEND);
         importBackend = value == null ? null : GameRuntimeBackendType.fromStorageValue(value);
     }
@@ -813,6 +816,7 @@ public final class GameFileManagerActivity extends AppUiActivity {
     }
 
     private String importLabel(GameRuntimeBackendType backend) {
+        if (entryGameId != null) return getString(R.string.local_game_set_entry);
         return getString(backend == GameRuntimeBackendType.ROOTFS_PROOT
             ? R.string.local_game_import_proot_exe : R.string.local_game_import_native_exe);
     }
@@ -827,12 +831,22 @@ public final class GameFileManagerActivity extends AppUiActivity {
         if (destroyed || importing || operating) return;
         importing = true;
         updateFileActions();
+        final String targetGameId = entryGameId;
         ioExecutor.execute(() -> {
             String gameId;
             String error = null;
             try {
                 if (!isWindowsProgram(file)) throw new IOException(getString(R.string.browser_not_windows_program));
-                gameId = QuickGameImport.importGame(getFilesDir(), file, backend);
+                if (targetGameId == null) {
+                    gameId = QuickGameImport.importGame(getFilesDir(), file, backend);
+                } else {
+                    com.termux.ui.wine.runtime.RuntimeEditingStop.game(getFilesDir(),
+                        LocalGames.requireHost(this), targetGameId);
+                    synchronized (com.termux.ui.wine.runtime.RuntimeEditingStop.LOCK) {
+                        QuickGameImport.setEntry(getFilesDir(), targetGameId, file);
+                    }
+                    gameId = targetGameId;
+                }
             } catch (IOException | RuntimeException importError) {
                 gameId = null;
                 error = importError.getMessage() == null
@@ -849,7 +863,9 @@ public final class GameFileManagerActivity extends AppUiActivity {
                         Toast.LENGTH_LONG).show();
                     return;
                 }
-                startActivity(LocalGames.createGameDetailIntent(this, importedId));
+                startActivity(targetGameId == null
+                    ? LocalGames.createGameDetailIntent(this, importedId)
+                    : LocalGames.createLibraryIntentShowingSetupConsole(this, null, true));
                 finish();
             });
         });

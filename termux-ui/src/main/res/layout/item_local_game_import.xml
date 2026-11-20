@@ -31,6 +31,7 @@
             app:tint="@color/local_games_on_surface" />
 
         <TextView
+            android:id="@+id/local_games_add_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="5dp"

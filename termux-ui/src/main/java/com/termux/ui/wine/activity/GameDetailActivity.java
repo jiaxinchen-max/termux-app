@@ -359,7 +359,8 @@ public final class GameDetailActivity extends AppUiActivity {
                     ? R.string.local_game_runtime_profile_backend_rootfs
                     : R.string.local_game_runtime_profile_backend_glibc)));
         binding.gameDetailExecutable.setText(getString(
-            R.string.local_game_detail_executable, game.getExecutable()));
+            R.string.local_game_detail_executable, game.isWineFileBrowser()
+                ? getString(R.string.local_game_wine_file_browser) : game.getExecutable()));
         binding.gameDetailRootUri.setText(getString(
             R.string.local_game_detail_root, game.getRootUri()));
         binding.gameDetailName.setText(applyRestoredForm && restoredName != null

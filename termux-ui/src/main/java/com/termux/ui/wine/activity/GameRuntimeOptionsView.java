@@ -326,7 +326,7 @@ public final class GameRuntimeOptionsView extends LinearLayout {
 
     private void renderRoot() {
         pageTitle(getContext().getString(R.string.local_game_runtime_title_root, game.getName()));
-        addMenu(s(R.string.local_game_runtime_menu_general), workingDirectoryDisplay() + " · " + game.getExecutable(), Page.GENERAL);
+        addMenu(s(R.string.local_game_runtime_menu_general), workingDirectoryDisplay() + " · " + executableDisplay(), Page.GENERAL);
         addComponentVersionRow(s(R.string.local_game_runtime_common_wine_package), CustomRuntimeComponent.Kind.WINE,
             profile.getWinePackage(), lockedRootfsTranslator(),
             value -> replace(value, profile.getGraphicsDriver(), profile.getDxWrapper(),
@@ -385,7 +385,11 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                     Toast.LENGTH_LONG).show();
             }
         });
-        addReadOnly(s(R.string.local_game_runtime_general_executable), game.getExecutable());
+        addReadOnly(s(R.string.local_game_runtime_general_executable), executableDisplay());
+    }
+
+    private String executableDisplay() {
+        return game.isWineFileBrowser() ? s(R.string.local_game_wine_file_browser) : game.getExecutable();
     }
 
     private File resolvedGameRoot() throws IOException {
