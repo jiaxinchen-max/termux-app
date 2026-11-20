@@ -14,7 +14,8 @@ public class DesktopRendererPolicyTest {
         for (DesktopDe de : new DesktopDe[] {DesktopDe.XFCE4, DesktopDe.KWIN_PLASMA,
                 DesktopDe.UBUNTU_GNOME, DesktopDe.HYPRLAND}) {
             DesktopDistro desktop = new DesktopDistro("usb", "USB", DesktopRunMode.PROOT, "ubuntu-usb-1", de,
-                DesktopGlMode.SYSTEM, DesktopRendererPolicy.guestModes(DesktopRunMode.PROOT, de).get(0),
+                DesktopGlMode.SYSTEM, de == DesktopDe.KWIN_PLASMA ? DesktopGuestGlMode.LLVMPIPE
+                    : DesktopRendererPolicy.guestModes(DesktopRunMode.PROOT, de).get(0),
                 "1280x720", 60, DesktopUsbStorageMode.READ_ONLY);
             DesktopRendererPolicy.requireSupported(desktop.withUsbStorage(DesktopUsbStorageMode.READ_WRITE));
             DesktopRendererPolicy.requireSupported(desktop);
@@ -59,7 +60,7 @@ public class DesktopRendererPolicyTest {
             + "native:kwin_plasma:system:none native:kwin_plasma:zink:none native:kwin_plasma:llvmpipe:none "
             + "native:ubuntu_gnome:system:none native:hyprland:system:none "
             + "proot:xfce4:system:default proot:xfce4:zink:default proot:xfce4:llvmpipe:default "
-            + "proot:kwin_plasma:system:llvmpipe proot:kwin_plasma:system:zink proot:kwin_plasma:zink:llvmpipe proot:kwin_plasma:zink:zink proot:kwin_plasma:llvmpipe:llvmpipe "
+            + "proot:kwin_plasma:system:llvmpipe proot:kwin_plasma:zink:llvmpipe proot:kwin_plasma:zink:zink proot:kwin_plasma:llvmpipe:llvmpipe "
             + "proot:ubuntu_gnome:system:llvmpipe "
             + "proot:hyprland:system:default proot:hyprland:system:zink";
         java.util.Set<String> pairs = new java.util.HashSet<>(Arrays.asList(accepted.split(" ")));

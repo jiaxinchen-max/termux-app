@@ -9,7 +9,7 @@ desktop_resolve_rendering() {
         native:kwin_plasma:system:none|native:kwin_plasma:zink:none|native:kwin_plasma:llvmpipe:none|\
         native:ubuntu_gnome:system:none|native:hyprland:system:none|\
         proot:xfce4:system:default|proot:xfce4:zink:default|proot:xfce4:llvmpipe:default|\
-        proot:kwin_plasma:system:llvmpipe|proot:kwin_plasma:system:zink|proot:kwin_plasma:zink:llvmpipe|proot:kwin_plasma:zink:zink|proot:kwin_plasma:llvmpipe:llvmpipe|\
+        proot:kwin_plasma:system:llvmpipe|proot:kwin_plasma:zink:llvmpipe|proot:kwin_plasma:zink:zink|proot:kwin_plasma:llvmpipe:llvmpipe|\
         proot:ubuntu_gnome:system:llvmpipe|\
         proot:hyprland:system:default|proot:hyprland:system:zink) ;;
         *) return 64 ;;

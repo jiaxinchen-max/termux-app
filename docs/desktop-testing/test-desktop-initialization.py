@@ -127,11 +127,19 @@ class InitializationTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'explicit lvp'):
             self.m.plasma_icd(self.prefix, False, True)
 
-    def test_plasma_four_pairs_keep_abis_separate_and_publish_after_both_probes(self):
+    def test_plasma_gpu_rejects_hosts_without_dmabuf_before_probing(self):
+        for host in ('system', 'llvmpipe'):
+            with patch.object(self.m, 'check_egl') as probe:
+                with self.assertRaisesRegex(RuntimeError, 'container Zink requires host Zink'):
+                    self.m.plasma_rendering(self.args('kwin_plasma', 'proot', host, 'zink'),
+                                            self.prefix / 'container', ['env'], {})
+                probe.assert_not_called()
+
+    def test_plasma_compatible_pairs_keep_abis_separate_and_publish_after_both_probes(self):
         guest_root = self.prefix / 'container'
         host_icd, _ = self.vulkan_fixture(self.prefix)
         guest_icd, _ = self.vulkan_fixture(guest_root, guest=True)
-        for host, guest in itertools.product(('system', 'zink'), ('llvmpipe', 'zink')):
+        for host, guest in [('system', 'llvmpipe'), ('zink', 'llvmpipe'), ('zink', 'zink')]:
             args = self.args('kwin_plasma', 'proot', host, guest)
             with patch.object(self.m, 'is_emulator', return_value=True), \
                  patch.object(self.m.runpy, 'run_path', return_value={'host_probe': lambda: {}}), \
@@ -161,15 +169,16 @@ class InitializationTests(unittest.TestCase):
                    DESKTOP_PLASMA_HOST_ICD='/explicit/lvp.json', DESKTOP_PLASMA_HOST_SOFTWARE='1')
         self.assertIn('zink|/explicit/lvp.json|1|off', subprocess.check_output(command, env=env, text=True))
 
-    def test_plasma_container_zink_uses_gl_over_its_own_initialized_icd(self):
+    def test_plasma_container_gpu_uses_vulkan_over_its_own_initialized_icd(self):
         script = (ASSETS / 'desktop_container_session.sh').read_text().split('# Optional:')[0]
+        script = script[script.index('export WAYLAND_DISPLAY='):]
         script += '\nprintf "%s|%s|%s|%s" "$QSG_RHI_BACKEND" "$GALLIUM_DRIVER" "$VK_DRIVER_FILES" "$LIBGL_ALWAYS_SOFTWARE"'
         env = dict(os.environ, DESKTOP_GUEST_GL_MODE='zink', DESKTOP_KDE_SERVICE_POLICY='kwin-wayland',
                    QT_QPA_PLATFORM='wayland', XDG_SESSION_TYPE='wayland',
                    DESKTOP_PLASMA_GUEST_ICD='/usr/share/vulkan/icd.d/lvp_icd.json', DESKTOP_PLASMA_GUEST_SOFTWARE='1',
                    VK_DRIVER_FILES='/wrong/host/icd.json')
         self.assertEqual(subprocess.check_output(['sh', '-c', script], env=env, text=True),
-                         'opengl|zink|/usr/share/vulkan/icd.d/lvp_icd.json|1')
+                         'vulkan|zink|/usr/share/vulkan/icd.d/lvp_icd.json|1')
         del env['DESKTOP_PLASMA_GUEST_ICD']
         self.assertEqual(subprocess.run(['sh', '-c', script], env=env, capture_output=True).returncode, 66)
 
@@ -202,7 +211,7 @@ class InitializationTests(unittest.TestCase):
 
     def test_emulator_install_routes_matching_mesa_and_never_turnip_overlay(self):
         contract = runpy.run_path(str(ROOT / 'docs/desktop-testing/test-gnome-usb-install.py'))
-        for host, guest in itertools.product(('system', 'zink'), ('llvmpipe', 'zink')):
+        for host, guest in [('system', 'llvmpipe'), ('zink', 'llvmpipe'), ('zink', 'zink')]:
             with self.subTest(host=host, guest=guest):
                 fixture = contract['InstallContract']()
                 fixture.setUp()

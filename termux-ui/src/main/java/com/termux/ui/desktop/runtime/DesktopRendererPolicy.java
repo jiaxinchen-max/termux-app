@@ -60,8 +60,9 @@ public final class DesktopRendererPolicy {
             case HYPRLAND: return host == DesktopGlMode.SYSTEM;
             case GNOME: return host == DesktopGlMode.SYSTEM && guest == DesktopGuestGlMode.LLVMPIPE
                 || host == DesktopGlMode.ZINK && guest == DesktopGuestGlMode.ZINK;
-            case KWIN_PLASMA: return host == DesktopGlMode.SYSTEM || host == DesktopGlMode.ZINK
-                || host == DesktopGlMode.LLVMPIPE && guest == DesktopGuestGlMode.LLVMPIPE;
+            // GPU clients need linux-dmabuf, which Android System EGL cannot import.
+            case KWIN_PLASMA: return guest == DesktopGuestGlMode.LLVMPIPE
+                || host == DesktopGlMode.ZINK && guest == DesktopGuestGlMode.ZINK;
             default: return false;
         }
     }

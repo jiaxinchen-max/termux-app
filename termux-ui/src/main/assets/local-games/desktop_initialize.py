@@ -185,8 +185,8 @@ def plasma_rendering(args, root, guest, env):
     """Verify both layers, then publish only this pair's trusted startup environment."""
     if (args.host_gl_mode not in ('system', 'zink', 'llvmpipe')
             or args.guest_gl_mode not in ('zink', 'llvmpipe')
-            or (args.host_gl_mode == 'llvmpipe' and args.guest_gl_mode != 'llvmpipe')):
-        raise RuntimeError('Unsupported Plasma renderer pair')
+            or (args.guest_gl_mode == 'zink' and args.host_gl_mode != 'zink')):
+        raise RuntimeError('Unsupported Plasma renderer pair: container Zink requires host Zink for linux-dmabuf')
     destination = getattr(args, 'rendering_output', None) or (args.prefix / 'var/lib/termux-desktop/rendering' / (
         args.alias + '.' + args.host_gl_mode + '.' + args.guest_gl_mode + '.env'))
     destination.unlink(missing_ok=True)
