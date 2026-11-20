@@ -278,7 +278,7 @@ public final class LoriePreferences {
             setSummary("displayStretch", R.string.pref_summary_requiresExactOrCustom);
             setSummary("adjustResolution", R.string.pref_summary_requiresExactOrCustom);
             setSummary("pauseKeyInterceptingWithEsc", R.string.pref_summary_requiresIntercepting);
-            setSummary("scaleTouchpad", R.string.pref_summary_requiresTrackpadAndNative);
+            setSummary("scaleTouchpad", R.string.pref_summary_requiresTrackpad);
 
             if (!SamsungDexUtils.available())
                 setVisible("dexMetaKeyCapture", false);
@@ -406,7 +406,7 @@ public final class LoriePreferences {
             setEnabled("displayStretch", displayStretchEnabled);
             setEnabled("adjustResolution", displayStretchEnabled);
 
-            setEnabled("scaleTouchpad", "1".equals(prefs.touchMode.get()) && !"native".equals(prefs.displayResolutionMode.get()));
+            setEnabled("scaleTouchpad", "1".equals(prefs.touchMode.get()));
             setEnabled("showMouseHelper", "1".equals(prefs.touchMode.get()));
 
             boolean enableFloatBallMenu = prefs.enableFloatBallMenu.get();

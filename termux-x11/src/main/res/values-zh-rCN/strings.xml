@@ -37,7 +37,7 @@
     <string name="pref_keepScreenOn">保持屏幕长亮</string>
 
     <string name="pref_touchMode">触屏输入模式</string>
-    <string name="pref_scaleTouchpad">将显示比例因子应用于触摸板d</string>
+    <string name="pref_scaleTouchpad">触控板移动距离与屏幕一致</string>
     <string name="pref_showStylusClickOverride">显示触控笔点击选项</string>
     <string name="pref_showStylusClickOverride_summary">S触控笔触摸覆盖，左键、中键或右键单击（仅限触控笔）</string>
     <string name="pref_stylusIsMouse">启用触控笔鼠标模式</string>
@@ -98,7 +98,7 @@
 
     <string name="pref_summary_requiresExactOrCustom">显示分辨率模式为 真实 或 自定义</string>
     <string name="pref_summary_requiresIntercepting">使用 Dex 模式或辅助功能服务拦截系统快捷方式</string>
-    <string name="pref_summary_requiresTrackpadAndNative">触摸屏触控板输入模式,非原生显示分辨率模式</string>
+    <string name="pref_summary_requiresTrackpad">触控板模式下，任何分辨率均使手指与鼠标在屏幕上的移动距离一致。</string>
 
 
     <!--    <string name="output">视频输出</string>-->

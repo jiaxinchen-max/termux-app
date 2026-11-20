@@ -469,9 +469,7 @@ public class TouchInputHandler {
         mInjector.tapToMove = p.tapToMove.get();
         mInjector.preferScancodes = p.preferScancodes.get();
         mInjector.pointerCapture = p.pointerCapture.get();
-        mInjector.scaleTouchpad = p.scaleTouchpad.get() &&
-            "1".equals(p.touchMode.get()) &&
-            !"native".equals(p.displayResolutionMode.get());
+        mInjector.scaleTouchpad = p.scaleTouchpad.get() && "1".equals(p.touchMode.get());
         mInjector.capturedPointerSpeedFactor = ((float) p.capturedPointerSpeedFactor.get())/100;
         mInjector.dexMetaKeyCapture = p.dexMetaKeyCapture.get();
         mInjector.stylusIsMouse = p.stylusIsMouse.get();
@@ -697,8 +695,10 @@ public class TouchInputHandler {
 
             if (mInputStrategy instanceof InputStrategyInterface.TrackpadInputStrategy) {
                 if (mInjector.scaleTouchpad) {
-                    distanceX *= mRenderData.scale.x;
-                    distanceY *= mRenderData.scale.y;
+                    // Match finger travel in displayed pixels, including letterboxing,
+                    // stretched desktops and viewport zoom, at every guest resolution.
+                    distanceX = mRenderData.mapScreenDeltaX(distanceX);
+                    distanceY = mRenderData.mapScreenDeltaY(distanceY);
                 }
                 moveCursorByOffset(distanceX, distanceY);
             }

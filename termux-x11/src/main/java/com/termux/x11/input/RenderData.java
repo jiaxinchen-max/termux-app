@@ -38,6 +38,18 @@ public class RenderData {
         return new PointF(mCursorPosition.x, mCursorPosition.y);
     }
 
+    /** Converts a view-pixel movement to desktop pixels, using the rendered viewport.
+     * Offsets affect absolute positions only. Keep fractional deltas for slow movements. */
+    public float mapScreenDeltaX(float delta) {
+        int width = viewportWidth > 0 ? viewportWidth : imageWidth;
+        return screenWidth > 0 && width > 0 ? delta * screenWidth / width : delta;
+    }
+
+    public float mapScreenDeltaY(float delta) {
+        int height = viewportHeight > 0 ? viewportHeight : imageHeight;
+        return screenHeight > 0 && height > 0 ? delta * screenHeight / height : delta;
+    }
+
     public float mapScreenX(float x) {
         int width = viewportWidth > 0 ? viewportWidth : imageWidth;
         return width > 0 ? (x - viewportOffsetX) * (float) screenWidth / width : x;

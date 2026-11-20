@@ -41,7 +41,7 @@
     <string name="pref_keepScreenOn">Keep Screen On</string>
 
     <string name="pref_touchMode">Touchscreen input mode</string>
-    <string name="pref_scaleTouchpad">Apply display scale factor to touchpad</string>
+    <string name="pref_scaleTouchpad">Match touchpad movement to the screen</string>
     <string name="pref_showStylusClickOverride">Show stylus click options</string>
     <string name="pref_showStylusClickOverride_summary">Stylus touch override, left, middle or right click (stylus only)</string>
     <string name="pref_stylusIsMouse">Enable stylus mouse mode</string>
@@ -104,7 +104,7 @@
 
     <string name="pref_summary_requiresExactOrCustom">Requires "display resolution mode" to be "exact" or "custom"</string>
     <string name="pref_summary_requiresIntercepting">Requires intercepting system shortcuts with Dex mode or with Accessibility service</string>
-    <string name="pref_summary_requiresTrackpadAndNative">Requires "Touchscreen input mode" to be "Trackpad" and "Display resolution mode" to be not "native"</string>
+    <string name="pref_summary_requiresTrackpad">In trackpad mode, match finger and cursor travel on screen at any resolution.</string>
 
 
 <!--    <string name="pref_main">Preferences</string>-->
