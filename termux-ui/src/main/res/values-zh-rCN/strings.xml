@@ -757,5 +757,5 @@
     <string name="local_game_create_container">创建容器</string>
     <string name="local_game_proot_container_name">PRoot Wine 容器</string>
     <string name="local_game_wine_file_browser">Wine 文件浏览器</string>
-    <string name="local_game_set_entry">导入游戏 / 指定入口</string>
+    <string name="local_game_set_entry">导入</string>
 </resources>

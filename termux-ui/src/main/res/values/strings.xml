@@ -772,5 +772,5 @@
     <string name="local_game_create_container">Create container</string>
     <string name="local_game_proot_container_name">PRoot Wine container</string>
     <string name="local_game_wine_file_browser">Wine file browser</string>
-    <string name="local_game_set_entry">Import game / Set entry point</string>
+    <string name="local_game_set_entry">Import</string>
 </resources>
