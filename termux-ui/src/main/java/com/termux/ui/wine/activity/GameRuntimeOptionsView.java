@@ -1063,8 +1063,11 @@ public final class GameRuntimeOptionsView extends LinearLayout {
                 com.termux.ui.wine.importer.GameWorkingDirectory.relative(resolvedGameRoot(),
                     com.termux.ui.wine.importer.GameWorkingDirectory.display(resolvedGameRoot(), gameToSave.getWorkingDirectory()));
                 com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(getContext().getFilesDir());
+                RuntimeProfile before = new com.termux.ui.wine.data.FileRuntimeProfileRepository(
+                    new com.termux.ui.data.GameStoragePaths(getContext().getFilesDir()).getProfilesDirectory())
+                    .find(toSave.getId()).orElse(null);
                 new com.termux.ui.wine.importer.GameImportDrafts(getContext().getFilesDir()).commit(gameToSave, toSave);
-                String warmupTaskId = RuntimeWarmup.warm(getContext(), toSave);
+                String warmupTaskId = RuntimeWarmup.warmAfterSave(getContext(), before, toSave);
                 post(() -> {
                     if (!destroyed) listener.onRuntimeOptionsSaved(warmupTaskId, rootfs);
                 });

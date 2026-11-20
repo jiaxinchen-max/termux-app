@@ -640,11 +640,14 @@ public final class GameDetailActivity extends AppUiActivity {
                     : drafts.editingProfiles(updated.getId()).find(updated.getId())
                         .orElseThrow(() -> new IOException("runtime_profile_missing"));
                 com.termux.ui.wine.api.WineCDriveBackupTasks.requireAvailable(getFilesDir());
+                RuntimeProfile before = new com.termux.ui.wine.data.FileRuntimeProfileRepository(
+                    new com.termux.ui.data.GameStoragePaths(getFilesDir()).getProfilesDirectory())
+                    .find(profile.getId()).orElse(null);
                 drafts.commit(updated, profile);
                 gameRepository = drafts.editingGames(updated.getId());
                 rootfs = profile.getRuntimeBackendType() ==
                     com.termux.ui.wine.domain.GameRuntimeBackendType.ROOTFS_PROOT;
-                preparationTaskId = com.termux.ui.wine.api.RuntimeWarmup.warm(this, profile);
+                preparationTaskId = com.termux.ui.wine.api.RuntimeWarmup.warmAfterSave(this, before, profile);
             } catch (IOException | RuntimeException saveError) {
                 error = safeMessage(saveError);
             }
