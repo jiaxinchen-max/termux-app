@@ -117,11 +117,12 @@ final class DesktopSettingsDialog {
                         String task = tasks.changeHyprlandComponents(updated);
                         activity.runOnUiThread(() -> activity.showInstallConsole(task));
                     } else {
-                        tasks.save(updated);
                         if (updated.getHostGlMode() != distro.getHostGlMode()
                                 || updated.getGuestGlMode() != distro.getGuestGlMode()) {
-                            activity.installAndShowConsole(updated);
+                            String task = tasks.changeRenderers(updated);
+                            activity.runOnUiThread(() -> activity.showInstallConsole(task));
                         } else {
+                            tasks.save(updated);
                             String task = tasks.prepare(updated);
                             activity.runOnUiThread(() -> activity.showInstallConsole(task));
                         }

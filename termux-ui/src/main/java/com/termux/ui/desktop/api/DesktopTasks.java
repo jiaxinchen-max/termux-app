@@ -357,6 +357,24 @@ public final class DesktopTasks {
         }
     }
 
+    /** Change graphics backends without reinstalling desktop packages or the container. */
+    public String changeRenderers(@NonNull DesktopDistro desktop) throws LaunchHostException {
+        synchronized (DesktopOperationGate.LOCK) {
+            try {
+                DesktopOperationGate.requireAvailable();
+                DesktopRendererPolicy.requireSupported(desktop);
+                List<DesktopDistro> desktops = repository.list();
+                for (DesktopDistro entry : desktops) requireNoInstallation(entry);
+                // Graphics libraries are shared: stop all desktop trees before changing them.
+                for (DesktopDistro entry : desktops) forceStop(entry);
+                save(desktop);
+                return install(desktop, false, false, true, false, false, true);
+            } catch (IOException | IllegalArgumentException error) {
+                throw new LaunchHostException(error.getMessage(), true, error);
+            }
+        }
+    }
+
     /** Prepare changed settings during Save, without downloading or reinstalling packages. */
     public String prepare(@NonNull DesktopDistro distro) throws LaunchHostException {
         return install(distro, false, false, true);
@@ -378,6 +396,12 @@ public final class DesktopTasks {
 
     private String install(DesktopDistro distro, boolean componentSelection, boolean themeOnly,
                            boolean prepareOnly, boolean usbSelection, boolean reinstall) throws LaunchHostException {
+        return install(distro, componentSelection, themeOnly, prepareOnly, usbSelection, reinstall, false);
+    }
+
+    private String install(DesktopDistro distro, boolean componentSelection, boolean themeOnly,
+                           boolean prepareOnly, boolean usbSelection, boolean reinstall,
+                           boolean rendererOnly) throws LaunchHostException {
         synchronized (DesktopOperationGate.LOCK) {
             String existing = activeInstallTask(distro);
             if (existing != null) return existing;
@@ -406,6 +430,12 @@ public final class DesktopTasks {
                 if (prepareOnly) {
                     try (FileOutputStream output = new FileOutputStream(paths.getDesktopSpecFile(distro.getId()), true)) {
                         output.write("DESKTOP_PREPARE_ONLY=1\n".getBytes(StandardCharsets.US_ASCII));
+                        output.getFD().sync();
+                    }
+                }
+                if (rendererOnly) {
+                    try (FileOutputStream output = new FileOutputStream(paths.getDesktopSpecFile(distro.getId()), true)) {
+                        output.write("DESKTOP_RENDERER_CONFIGURE_ONLY=1\n".getBytes(StandardCharsets.US_ASCII));
                         output.getFD().sync();
                     }
                 }

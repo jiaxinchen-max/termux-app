@@ -67,6 +67,10 @@ trap 'exit 143' TERM
 trap 'exit 129' HUP
 [ "$OPERATION" != install ] || printf 'installing\n' > "$DESKTOP_STATUS_FILE" || exit 74
 case "${DESKTOP_REINSTALL:-0}" in 0|1) ;; *) log 'Invalid explicit reinstall flag'; exit 64 ;; esac
+case "${DESKTOP_RENDERER_CONFIGURE_ONLY:-0}" in 0|1) ;; *) log 'Invalid renderer configuration flag'; exit 64 ;; esac
+if [ "${DESKTOP_RENDERER_CONFIGURE_ONLY:-0}" = 1 ]; then
+    [ "$OPERATION:${DESKTOP_PREPARE_ONLY:-0}:${DESKTOP_REINSTALL:-0}:${DESKTOP_USB_CONFIGURE_ONLY:-0}:${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" = install:1:0:0:0 ] || exit 64
+fi
 REINSTALL_OPTION=''
 if [ "${DESKTOP_REINSTALL:-0}" = 1 ]; then
     if [ "$OPERATION" != install ] || [ "${DESKTOP_PREPARE_ONLY:-0}" != 0 ] ||
@@ -815,6 +819,30 @@ install_usb_guest() {
         run proot-distro login "$DESKTOP_PROOT_DISTRO" --user root --shared-tmp -- gio-querymodules \
             /usr/local/lib/termux-usb-bridge/gio/modules || fail 'registering container GIO module'
 }
+
+# Renderer changes reuse the installed desktop, without fetching compositor assets,
+# refreshing the software catalog, provisioning accounts, or reinstalling packages.
+if [ "${DESKTOP_RENDERER_CONFIGURE_ONLY:-0}" = 1 ]; then
+    [ "$OPERATION:${DESKTOP_PREPARE_ONLY:-0}:${DESKTOP_REINSTALL:-0}:${DESKTOP_USB_CONFIGURE_ONLY:-0}:${DESKTOP_HYPRLAND_COMPONENT_SWITCH:-0}" = install:1:0:0:0 ] || exit 64
+    set -- --de "$DESKTOP_DE" --host-mode "$DESKTOP_HOST_GL_MODE" --guest-mode "$DESKTOP_GUEST_GL_MODE"
+    [ "$DESKTOP_MODE" != proot ] || set -- "$@" --alias "$DESKTOP_PROOT_DISTRO"
+    renderer_setup="$(dirname "$0")/desktop_renderer_setup.py"
+    run "$PREFIX/bin/python3" -I -B "$renderer_setup" dependencies "$@" || fail 'graphics dependencies'
+    if [ "$DESKTOP_MODE:$DESKTOP_GUEST_GL_MODE:$PLASMA_EMULATOR" = proot:zink:0 ]; then
+        if run "$PREFIX/bin/python3" -I -B "$renderer_setup" probe-guest "$@"; then
+            log 'Reusing the working container Zink backend'
+        else
+            if [ "$DESKTOP_DE" = hyprland ]; then
+                ensure_resolute_turnip_icd "$DESKTOP_PROOT_DISTRO" "$PREFIX/var/lib/proot-distro/containers/$DESKTOP_PROOT_DISTRO/.hyprland-mesa-backup"
+            else
+                ensure_turnip_icd "$DESKTOP_PROOT_DISTRO"
+            fi
+        fi
+    fi
+    initialize_desktop
+    INSTALL_DONE=1
+    exit 0
+fi
 
 # Saving an existing desktop prepares it locally. No network, apt or repair.
 if [ "${DESKTOP_PREPARE_ONLY:-0}" = 1 ]; then
