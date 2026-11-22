@@ -171,6 +171,7 @@
                     android:insetBottom="0dp"
                     android:layout_weight="1"
                     android:letterSpacing="0.02"
+                    android:gravity="start|center_vertical"
                     android:maxLines="1"
                     android:singleLine="true"
                     android:ellipsize="end"
