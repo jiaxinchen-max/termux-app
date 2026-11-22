@@ -21,6 +21,13 @@ class InstallTests(unittest.TestCase):
 from pathlib import Path
 p=Path(os.environ['PREFIX']); mode=os.environ['FIXTURE_MODE']
 with (p/'calls.jsonl').open('a') as f: f.write(json.dumps(sys.argv[1:])+'\\n')
+index=p/'main-index-ready'
+if sys.argv[1:]==['update']:
+ if mode=='initial-update-failure' and not index.exists(): sys.exit(26)
+ if mode=='glibc-update-failure' and index.exists(): sys.exit(27)
+ index.touch()
+if 'install' in sys.argv and not index.exists():
+ print('E: Unable to locate package (indexes missing)'); sys.exit(28)
 if mode=='package-failure' and 'glibc-repo' in sys.argv: sys.exit(23)
 if mode=='archive-package-failure' and 'zip' in sys.argv: sys.exit(25)
 if mode=='xrandr-package-failure' and 'libxrandr-glibc' in sys.argv: sys.exit(24)
@@ -94,10 +101,26 @@ for name in ['zh_CN.utf8','zh_CN.gbk']:
     def test_success_installs_host_packages_and_python_before_verifying(self):
         code, event, calls = self.execute('success')
         self.assertEqual((code, event), (0, 'SUCCEEDED'))
-        self.assertEqual(calls[0], ['install', '-y', 'glibc-repo'])
+        self.assertEqual(calls[:3], [['update'], ['install', '-y', 'glibc-repo'], ['update']])
         self.assertIn(['install', '-y', 'glibc', 'glibc-runner', 'python',
                        '7zip', 'zip', 'unzip', 'tar', 'gzip', 'bzip2', 'xz-utils', 'zstd'], calls)
         self.assertTrue(any('libxrandr-glibc' in call for call in calls))
+
+    def test_initial_update_failure_stops_before_installing_any_package(self):
+        code, event, calls = self.execute('initial-update-failure')
+        self.assertNotEqual(code, 0)
+        self.assertEqual(event, 'FAILED')
+        self.assertEqual(calls, [['update']])
+        self.assertEqual(self.locale_calls, 0)
+        self.assertFalse(self.marker_published)
+
+    def test_new_repository_update_failure_stops_before_installing_glibc(self):
+        code, event, calls = self.execute('glibc-update-failure')
+        self.assertNotEqual(code, 0)
+        self.assertEqual(event, 'FAILED')
+        self.assertEqual(calls, [['update'], ['install', '-y', 'glibc-repo'], ['update']])
+        self.assertEqual(self.locale_calls, 0)
+        self.assertFalse(self.marker_published)
 
     def test_archive_package_failure_stops_before_graphics_and_locale(self):
         code, event, calls = self.execute('archive-package-failure')
@@ -141,7 +164,7 @@ for name in ['zh_CN.utf8','zh_CN.gbk']:
         code, event, calls = self.execute('package-failure')
         self.assertNotEqual(code, 0)
         self.assertEqual(event, 'FAILED')
-        self.assertEqual(calls, [['install', '-y', 'glibc-repo']])
+        self.assertEqual(calls, [['update'], ['install', '-y', 'glibc-repo']])
 
     def test_package_success_without_python_is_failure(self):
         code, event, _ = self.execute('missing-python')

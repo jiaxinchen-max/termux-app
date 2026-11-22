@@ -37,6 +37,9 @@ else
         | tee -a "$TERMUX_GLIBC_LOG_FILE"
     PACKAGE_MANAGER="$PREFIX/bin/apt"
 fi
+# A fresh bootstrap has no APT indexes. Load the main repository before looking
+# up glibc-repo, then refresh again below to include the newly enabled repository.
+run "$PACKAGE_MANAGER" update || { emit FAILED; exit 1; }
 run "$PACKAGE_MANAGER" install -y glibc-repo || { emit FAILED; exit 1; }
 run "$PACKAGE_MANAGER" update || { emit FAILED; exit 1; }
 run "$PACKAGE_MANAGER" install -y glibc glibc-runner python \
