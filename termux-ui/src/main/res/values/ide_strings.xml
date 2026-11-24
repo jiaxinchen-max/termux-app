@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="ide_title">IDE</string>
+    <string name="settings_advanced">Advanced</string>
+    <string name="settings_advanced_summary">Optional features</string>
+    <string name="settings_ide_enabled">Enable IDE</string>
+    <string name="settings_ide_enabled_summary">Show the IDE tab</string>
+    <string name="settings_ide_on">On</string>
+    <string name="settings_ide_off">Off</string>
+    <string name="ide_projects">Projects</string>
+    <string name="ide_new_project">New Android project</string>
+    <string name="ide_open_terminal">Open terminal</string>
+    <string name="ide_save">Save</string>
+    <string name="ide_name">Name</string>
+    <string name="ide_io_error">Unable to read or save this file.</string>
+    <string name="ide_unsaved">Discard unsaved changes?</string>
+    <string name="ide_saved">Saved</string>
+    <string name="ide_tools">Tools</string>
+    <string name="ide_check_tools">Check tools</string>
+    <string name="ide_prepare_tools">Prepare tools</string>
+    <string name="ide_accept_prepare">Accept and prepare</string>
+    <string name="ide_files">Files</string>
+    <string name="ide_task">Build log</string>
+    <string name="ide_build">Build APK</string>
+    <string name="ide_task_running">Android development task running</string>
+    <string name="ide_import_project">Import project folder</string>
+    <string name="ide_new_file">New file</string>
+    <string name="ide_new_folder">New folder</string>
+    <string name="ide_delete_project">Delete project</string>
+    <string name="ide_delete_warning">Permanently delete project %1$s and its files?</string>
+    <string name="ide_project_name">Project name</string>
+    <string name="ide_application_id">Application ID (e.g. com.example.app)</string>
+    <string name="ide_text_only">Only UTF-8 text files up to 128 KiB can be edited.</string>
+    <string name="ide_build_warning">This runs the project’s Gradle Wrapper and build scripts with Termux app access. Only build projects you trust. Dependencies may be downloaded. Continue?</string>
+    <string name="ide_prepare_warning">Installs missing Termux packages (JDK 17, aapt2, curl, unzip), then Android SDK command-line tools, platform 34 and build-tools 34.0.0. Existing compatible tools are reused. This may download hundreds of MB and requires at least 1.2 GiB free space. By continuing you accept the Android SDK license at https://developer.android.com/studio/terms . NDK support is not included.</string>
+    <string name="ide_ndk_limit">Native Clang/CMake/Ninja detection does not establish Android Gradle NDK or externalNativeBuild compatibility. Use Check tools for actual Java/AAPT2/native C probe results.</string>
+    <string name="ide_tool_paths">Tool paths (empty = automatic)</string>
+    <string name="ide_already_running">An IDE task is already running. View its log or cancel it first.</string>
+    <string name="ide_export_apk">Export APK</string>
+    <string name="ide_no_apk">No APK from a successful build is available.</string>
+    <string name="ide_exported">APK exported. Install it manually when needed.</string>
+    <string name="ide_state_idle">No task</string>
+    <string name="ide_state_running">Running</string>
+    <string name="ide_state_cancelling">Cancelling</string>
+    <string name="ide_state_cancelled">Cancelled</string>
+    <string name="ide_state_succeeded">Succeeded</string>
+    <string name="ide_state_failed">Failed</string>
+    <string name="ide_state_interrupted">Interrupted</string>
+    <string name="ide_state_queued">Queued</string>
+    <string name="ide_android_version">Native Android tools require Android 8 or later. Project browsing and editing remain available.</string>
+    <string name="ide_runtime_missing">Open the Termux terminal once to initialize the native runtime, then return to IDE.</string>
+</resources>

@@ -14,6 +14,7 @@ public final class SettingsPageTest {
         assertEquals(SettingsPage.CORE_COMPONENTS, SettingsPage.NATIVE.parent());
         assertEquals(SettingsPage.CORE_COMPONENTS, SettingsPage.PROOT.parent());
         assertEquals(SettingsPage.ROOT, SettingsPage.CORE_COMPONENTS.parent());
+        assertEquals(SettingsPage.ROOT, SettingsPage.ADVANCED.parent());
     }
 
     @Test
@@ -23,6 +24,14 @@ public final class SettingsPageTest {
         assertFalse(SettingsPage.CORE_COMPONENTS.isRoot());
         assertFalse(SettingsPage.NATIVE.isRoot());
         assertFalse(SettingsPage.PROOT.isRoot());
+    }
+
+    @Test
+    public void addingAdvancedPreservesPreviouslySavedPages() {
+        assertEquals(SettingsPage.ROOT, SettingsPage.fromOrdinal(0));
+        assertEquals(SettingsPage.CORE_COMPONENTS, SettingsPage.fromOrdinal(1));
+        assertEquals(SettingsPage.NATIVE, SettingsPage.fromOrdinal(2));
+        assertEquals(SettingsPage.PROOT, SettingsPage.fromOrdinal(3));
     }
 
     @Test

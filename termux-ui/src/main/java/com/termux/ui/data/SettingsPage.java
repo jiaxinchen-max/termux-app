@@ -7,7 +7,8 @@ public enum SettingsPage {
     ROOT(null),
     CORE_COMPONENTS(ROOT),
     NATIVE(CORE_COMPONENTS),
-    PROOT(CORE_COMPONENTS);
+    PROOT(CORE_COMPONENTS),
+    ADVANCED(ROOT);
 
     @Nullable private final SettingsPage parent;
 

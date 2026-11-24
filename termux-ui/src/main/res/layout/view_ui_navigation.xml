@@ -74,6 +74,22 @@
             app:tint="@color/local_games_top_tab_tint" />
 
         <ImageView
+            android:id="@+id/local_games_top_tab_ide"
+            android:layout_width="@dimen/local_games_top_tab_width"
+            android:layout_height="match_parent"
+            android:layout_marginStart="@dimen/local_games_top_tab_gap"
+            android:background="@drawable/local_games_bg_top_tab"
+            android:clickable="true"
+            android:contentDescription="@string/ide_title"
+            android:focusable="true"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:scaleType="fitCenter"
+            android:visibility="gone"
+            android:src="@drawable/local_games_ic_ide"
+            app:tint="@color/local_games_top_tab_tint" />
+
+        <ImageView
             android:id="@+id/local_games_top_tab_settings"
             android:layout_width="@dimen/local_games_top_tab_width"
             android:layout_height="match_parent"
@@ -101,7 +117,7 @@
         android:background="@color/local_games_outline"
         android:importantForAccessibility="no" />
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
+    <com.termux.ui.activity.RootNavigationView
         android:id="@+id/local_games_navigation"
         android:layout_width="match_parent"
         android:layout_height="72dp"
@@ -114,7 +130,6 @@
         app:itemRippleColor="@android:color/transparent"
         app:itemTextColor="@color/local_games_navigation_tint"
         app:itemHorizontalTranslationEnabled="false"
-        app:labelVisibilityMode="labeled"
-        app:menu="@menu/local_games_bottom_navigation" />
+        app:labelVisibilityMode="labeled" />
 
 </LinearLayout>

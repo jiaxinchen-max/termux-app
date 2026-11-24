@@ -7,6 +7,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application>
+        <service android:name="com.termux.ui.ide.IdeBuildService" android:exported="false" />
+        <activity android:name="com.termux.ui.activity.IdeActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TermuxLocalGames.DayNight.NoActionBar" />
         <activity
             android:name="com.termux.ui.platform.ExternalStoragePermissionActivity"
             android:exported="false"

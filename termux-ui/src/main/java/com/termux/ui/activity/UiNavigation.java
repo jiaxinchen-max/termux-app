@@ -19,6 +19,7 @@ import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleOwner;
 
 import com.termux.ui.R;
+import com.termux.ui.platform.IdePreference;
 import com.termux.ui.api.LocalGames;
 import com.termux.ui.databinding.ViewUiNavigationBinding;
 
@@ -55,6 +56,7 @@ public final class UiNavigation {
                 // Termux consumes its launch Intent when connecting to the session service.
                 Intent intent = activity.getIntent();
                 if (event == Lifecycle.Event.ON_RESUME) {
+                    navigation.refreshOptionalDestinations();
                     navigation.applySystemBars();
                     navigation.binding.getRoot().post(navigation::applySystemBars);
                 }
@@ -75,6 +77,7 @@ public final class UiNavigation {
         binding = ViewUiNavigationBinding.inflate(LayoutInflater.from(context));
         applySystemBars();
         this.selected = selected;
+        refreshOptionalDestinations();
         setSelected(selected);
         binding.localGamesNavigation.setOnItemSelectedListener(item -> {
             if (updating) return true;
@@ -135,6 +138,9 @@ public final class UiNavigation {
             intent = LocalGames.createDesktopIntent(activity);
         } else if (destination == R.id.local_games_navigation_file_manager) {
             intent = LocalGames.createFileManagerIntent(activity);
+        } else if (destination == R.id.local_games_navigation_ide) {
+            if (!IdePreference.isEnabled(activity)) return;
+            intent = new Intent(activity, IdeActivity.class);
         } else if (destination == R.id.local_games_navigation_terminal) {
             LocalGames.requireHost(activity).openTerminal();
             activity.overridePendingTransition(0, 0);
@@ -163,7 +169,7 @@ public final class UiNavigation {
         selected = destination;
         updating = true;
         try {
-            binding.localGamesNavigation.setSelectedItemId(destination);
+            if (!isLandscape()) binding.localGamesNavigation.setSelectedItemId(destination);
             int[] ids = destinations();
             View[] tabs = topTabs();
             for (int index = 0; index < ids.length; index++) tabs[index].setSelected(ids[index] == destination);
@@ -177,7 +183,20 @@ public final class UiNavigation {
         updateConfiguration();
     }
 
+    public void refreshOptionalDestinations() {
+        boolean enabled = IdePreference.isEnabled(activity);
+        updating = true;
+        try {
+            // Landscape uses the top tabs. Do not inflate/update an invisible Material menu.
+            if (!isLandscape()) binding.localGamesNavigation.prepareMenu(enabled, selected);
+            binding.localGamesTopTabIde.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        } finally {
+            updating = false;
+        }
+    }
+
     public void updateConfiguration() {
+        refreshOptionalDestinations();
         boolean next = isLandscape();
         if (landscape != next) dispatchedStatusBarInsetPx = -1;
         landscape = next;
@@ -218,12 +237,12 @@ public final class UiNavigation {
     private static int[] destinations() {
         return new int[] {R.id.local_games_navigation_library, R.id.local_games_navigation_desktop,
             R.id.local_games_navigation_terminal, R.id.local_games_navigation_file_manager,
-            R.id.local_games_navigation_settings};
+            R.id.local_games_navigation_ide, R.id.local_games_navigation_settings};
     }
 
     private View[] topTabs() {
         return new View[] {binding.localGamesTopTabLibrary, binding.localGamesTopTabDesktop,
             binding.localGamesTopTabTerminal, binding.localGamesTopTabFileManager,
-            binding.localGamesTopTabSettings};
+            binding.localGamesTopTabIde, binding.localGamesTopTabSettings};
     }
 }

@@ -1236,6 +1236,7 @@ public final class LocalGamesActivity extends AppUiActivity {
 
     private String settingsPageTitle(SettingsPage page) {
         switch (page) {
+            case ADVANCED: return getString(R.string.settings_advanced);
             case CORE_COMPONENTS: return getString(R.string.local_games_settings_core_components);
             case NATIVE: return getString(R.string.collection_mode_native);
             case PROOT: return getString(R.string.collection_mode_proot);
@@ -1308,6 +1309,15 @@ public final class LocalGamesActivity extends AppUiActivity {
             menu.heading(pageTitle);
         }
         switch (settingsPage) {
+            case ADVANCED:
+                menu.choice(getString(R.string.settings_ide_enabled),
+                    new String[] {getString(R.string.settings_ide_off), getString(R.string.settings_ide_on)},
+                    com.termux.ui.platform.IdePreference.isEnabled(this) ? 1 : 0, which -> {
+                        com.termux.ui.platform.IdePreference.setEnabled(this, which == 1);
+                        navigation.refreshOptionalDestinations();
+                        renderSettingsMenu();
+                    });
+                break;
             case CORE_COMPONENTS:
                 menu.row(getString(R.string.collection_mode_native),
                     environmentStateLabel(glibcStatus), view -> openSettingsPage(SettingsPage.NATIVE));
@@ -1346,6 +1356,8 @@ public final class LocalGamesActivity extends AppUiActivity {
         menu.row(getString(R.string.local_games_settings_core_components),
             getString(R.string.local_games_settings_core_components_summary),
             view -> openSettingsPage(SettingsPage.CORE_COMPONENTS));
+        menu.row(getString(R.string.settings_advanced), getString(R.string.settings_advanced_summary),
+            view -> openSettingsPage(SettingsPage.ADVANCED));
         XServerSettings.render(this, menu, this::renderSettingsMenu);
         UiThemePreference[] themes = UiThemePreference.values();
         String[] themeLabels = new String[themes.length];
