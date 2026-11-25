@@ -97,6 +97,63 @@ public class IdeEditorRestoreTest {
             .inRoot(androidx.test.espresso.matcher.RootMatchers.isDialog())
             .perform(androidx.test.espresso.action.ViewActions.click());
     }
+    @Test public void toolsBackReturnsToWelcomeAfterRotation() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        boolean wasEnabled = IdePreference.isEnabled(context);
+        IdePreference.setEnabled(context, true);
+        try (ActivityScenario<IdeActivity> scenario = ActivityScenario.launch(new Intent(context, IdeActivity.class))) {
+            awaitWelcome(scenario);
+            clickRow(scenario, context.getString(com.termux.ui.R.string.ide_tools));
+            awaitTools(scenario);
+            scenario.recreate();
+            awaitTools(scenario);
+            scenario.onActivity(activity -> activity.getOnBackPressedDispatcher().onBackPressed());
+            clickRow(scenario, context.getString(com.termux.ui.R.string.ide_new_project));
+            androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withHint(com.termux.ui.R.string.ide_project_name))
+                .check(androidx.test.espresso.assertion.ViewAssertions.matches(androidx.test.espresso.matcher.ViewMatchers.isDisplayed()));
+            androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withText(android.R.string.cancel))
+                .inRoot(androidx.test.espresso.matcher.RootMatchers.isDialog())
+                .perform(androidx.test.espresso.action.ViewActions.click());
+        } finally { IdePreference.setEnabled(context, wasEnabled); }
+    }
+    @Test public void toolsBackPreservesWorkspaceDraftAfterRotation() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        boolean wasEnabled = IdePreference.isEnabled(context);
+        IdePreference.setEnabled(context, true);
+        IdeWorkspace workspace = new IdeWorkspace(new File(context.getFilesDir(), "home/projects"));
+        File project = workspace.project("tools-back-" + UUID.randomUUID()); assertTrue(project.mkdir());
+        workspace.write(new File(project, "Demo.java"), "class Demo {}\n");
+        try (ActivityScenario<IdeActivity> scenario = ActivityScenario.launch(new Intent(context, IdeActivity.class))) {
+            openProject(scenario, project.getName()); clickRow(scenario, "Demo.java");
+            await(scenario, activity -> {
+                EditText input = editor(activity.findViewById(android.R.id.content));
+                if (input == null) return false;
+                input.setText("class Demo { int draft = 42; }\n"); return true;
+            });
+            clickRow(scenario, context.getString(com.termux.ui.R.string.ide_more));
+            androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withText(com.termux.ui.R.string.ide_tools))
+                .perform(androidx.test.espresso.action.ViewActions.click());
+            awaitTools(scenario);
+            scenario.recreate();
+            awaitTools(scenario);
+            scenario.onActivity(activity -> activity.getOnBackPressedDispatcher().onBackPressed());
+            await(scenario, activity -> {
+                EditText input = editor(activity.findViewById(android.R.id.content));
+                return input != null && input.getText().toString().contains("draft = 42");
+            });
+            try (BufferedReader input = new BufferedReader(new FileReader(new File(project, "Demo.java")))) {
+                assertEquals("class Demo {}", input.readLine());
+            }
+        } finally { IdePreference.setEnabled(context, wasEnabled); workspace.deleteProject(project); }
+    }
+    private void awaitTools(ActivityScenario<IdeActivity> scenario) {
+        await(scenario, activity -> {
+            java.util.ArrayList<View> paths = new java.util.ArrayList<>();
+            activity.findViewById(android.R.id.content).findViewsWithText(paths,
+                activity.getString(com.termux.ui.R.string.ide_tool_paths), View.FIND_VIEWS_WITH_TEXT);
+            return !paths.isEmpty();
+        });
+    }
     @Test public void welcomeCreateActionOpensExistingProjectForm() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         boolean wasEnabled = IdePreference.isEnabled(context);

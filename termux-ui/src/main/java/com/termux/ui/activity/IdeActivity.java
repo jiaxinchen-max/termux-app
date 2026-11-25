@@ -39,6 +39,8 @@ public final class IdeActivity extends AppUiActivity {
     private LinearLayout workbench, treeRows, tabs, logPanel;
     private IdeEditorSession session = new IdeEditorSession();
     private boolean inWorkspace;
+    private enum Page { DIRECTORY, TOOLS, TASK }
+    private Page page = Page.DIRECTORY;
     private int treeGeneration, treeLimit = 500;
     private final Runnable poll = new Runnable() {
         @Override public void run() { refreshTask(); handler.postDelayed(this, 1000); }
@@ -83,6 +85,7 @@ public final class IdeActivity extends AppUiActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
                 if (busy) return;
+                if (page != Page.DIRECTORY) { showDirectory(); return; }
                 if (inWorkspace && session.logVisible) { setLogVisible(false); return; }
                 if (inWorkspace && treeScroll.getVisibility() == View.VISIBLE
                     && getResources().getConfiguration().screenWidthDp < 600) { toggleTree(); return; }
@@ -94,7 +97,11 @@ public final class IdeActivity extends AppUiActivity {
                 });
             }
         });
-        if (state != null && state.getString("editing") != null) {
+        if (state != null && Page.TOOLS.name().equals(state.getString("page"))) {
+            showTools();
+        } else if (state != null && Page.TASK.name().equals(state.getString("page"))) {
+            showTask();
+        } else if (state != null && state.getString("editing") != null) {
             openFile(new File(state.getString("editing")), state.getString("text"), state.getString("saved"));
         } else showDirectory();
     }
@@ -109,6 +116,7 @@ public final class IdeActivity extends AppUiActivity {
     @Override protected void onDestroy() { handler.removeCallbacksAndMessages(null); if (syntax != null) syntax.detach(); io.shutdownNow(); super.onDestroy(); }
     @Override protected void onSaveInstanceState(Bundle state) {
         captureDocument();
+        state.putString("page", page.name());
         if (directory != null) state.putString("directory", directory.getPath());
         if (editing != null && editor != null) {
             state.putString("editing", editing.getPath()); state.putString("text", editor.getText().toString()); state.putString("saved", savedText);
@@ -134,6 +142,7 @@ public final class IdeActivity extends AppUiActivity {
         button.setOnClickListener(v -> { if (!busy) run.run(); }); toolbar.addView(button);
     }
     private void showDirectory() {
+        page = Page.DIRECTORY;
         if (!directory.equals(workspace.root)) { showWorkspace(); return; }
         reset(getString(R.string.ide_projects));
         session.documents.clear(); session.active = null; session.expanded.clear(); treeLimit = 500;
@@ -476,6 +485,7 @@ public final class IdeActivity extends AppUiActivity {
     }
     private void showTools() {
         reset(getString(R.string.ide_tools));
+        page = Page.TOOLS;
         action(R.string.ide_files, this::showDirectory);
         action(R.string.ide_check_tools, () -> startTask("check", null));
         action(R.string.ide_prepare_tools, () -> new FrostedDialogBuilder(this, R.style.ThemeOverlay_TermuxLocalGames_Dialog)
@@ -503,6 +513,7 @@ public final class IdeActivity extends AppUiActivity {
     private void showTask() {
         if (inWorkspace) { setLogVisible(true); return; }
         reset(getString(R.string.ide_task)); action(R.string.ide_files, this::showDirectory);
+        page = Page.TASK;
         action(android.R.string.cancel, () -> IdeBuildService.start(this, "cancel", null));
         action(R.string.ide_export_apk, this::chooseArtifact);
         logView = text(12); logView.setTypeface(Typeface.MONOSPACE); logView.setTextIsSelectable(true); content.addView(logView); refreshTask();
