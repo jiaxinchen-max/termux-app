@@ -34,6 +34,12 @@ public final class IdeActivity extends AppUiActivity {
     private IdeSyntax syntax;
     private String savedText;
     private boolean busy, refreshingTask;
+    private FrameLayout pageHost, editorHost;
+    private ScrollView pageScroll, treeScroll, logScroll;
+    private LinearLayout workbench, treeRows, tabs, logPanel;
+    private IdeEditorSession session = new IdeEditorSession();
+    private boolean inWorkspace;
+    private int treeGeneration, treeLimit = 500;
     private final Runnable poll = new Runnable() {
         @Override public void run() { refreshTask(); handler.postDelayed(this, 1000); }
     };
@@ -54,16 +60,21 @@ public final class IdeActivity extends AppUiActivity {
                 if (export != null) exportFile = checkedArtifact(export);
             }
         } catch (IOException e) { fail(e); finish(); return; }
+        Object retained = getLastCustomNonConfigurationInstance();
+        if (retained instanceof IdeEditorSession) session = (IdeEditorSession) retained;
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundResource(R.color.local_games_background);
-        title = text(20); root.addView(title);
+        title = text(16); title.setSingleLine(); title.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE); root.addView(title);
         toolbar = new LinearLayout(this);
         HorizontalScrollView actions = new HorizontalScrollView(this); actions.addView(toolbar); root.addView(actions);
-        ScrollView scroll = new ScrollView(this);
+        pageHost = new FrameLayout(this);
+        pageScroll = new ScrollView(this); pageScroll.setFillViewport(true);
         content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(12), dp(8), dp(12), dp(8)); scroll.addView(content);
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-        status = text(12); status.setOnClickListener(v -> afterDiscard(this::showTask)); root.addView(status);
+        content.setPadding(dp(12), dp(8), dp(12), dp(8)); pageScroll.addView(content);
+        pageHost.addView(pageScroll);
+        root.addView(pageHost, new LinearLayout.LayoutParams(-1, 0, 1));
+        status = text(12); status.setSingleLine(); status.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        status.setOnClickListener(v -> showTask()); root.addView(status);
         setContentView(root);
         UiNavigation.install(this, R.id.local_games_navigation_ide, destination -> {
             if (destination != R.id.local_games_navigation_ide) afterDiscard(() -> UiNavigation.openDestination(this, destination));
@@ -72,19 +83,23 @@ public final class IdeActivity extends AppUiActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
                 if (busy) return;
+                if (inWorkspace && session.logVisible) { setLogVisible(false); return; }
+                if (inWorkspace && treeScroll.getVisibility() == View.VISIBLE
+                    && getResources().getConfiguration().screenWidthDp < 600) { toggleTree(); return; }
                 afterDiscard(() -> {
-                    if (editing != null || logView != null) showDirectory();
+                    if (inWorkspace) { directory = workspace.root; showDirectory(); }
+                    else if (editing != null || logView != null) showDirectory();
                     else if (!directory.equals(workspace.root)) { directory = directory.getParentFile(); showDirectory(); }
                     else { UiNavigation.openDestination(IdeActivity.this, R.id.local_games_navigation_library); finish(); }
                 });
             }
         });
         if (state != null && state.getString("editing") != null) {
-            title.setText(R.string.ide_title);
-            action(R.string.ide_files, this::showDirectory);
             openFile(new File(state.getString("editing")), state.getString("text"), state.getString("saved"));
         } else showDirectory();
     }
+    @Override public Object onRetainCustomNonConfigurationInstance() { captureDocument(); return session; }
+
     @Override protected void onResume() {
         super.onResume();
         if (!IdePreference.isEnabled(this)) { UiNavigation.openDestination(this, R.id.local_games_navigation_library); finish(); return; }
@@ -93,6 +108,7 @@ public final class IdeActivity extends AppUiActivity {
     @Override protected void onPause() { handler.removeCallbacks(poll); super.onPause(); }
     @Override protected void onDestroy() { handler.removeCallbacksAndMessages(null); if (syntax != null) syntax.detach(); io.shutdownNow(); super.onDestroy(); }
     @Override protected void onSaveInstanceState(Bundle state) {
+        captureDocument();
         if (directory != null) state.putString("directory", directory.getPath());
         if (editing != null && editor != null) {
             state.putString("editing", editing.getPath()); state.putString("text", editor.getText().toString()); state.putString("saved", savedText);
@@ -101,49 +117,63 @@ public final class IdeActivity extends AppUiActivity {
         super.onSaveInstanceState(state);
     }
     private void reset(String heading) {
+        captureDocument(); inWorkspace = false; treeGeneration++;
+        if (workbench != null) workbench.setVisibility(View.GONE);
+        pageScroll.setVisibility(View.VISIBLE);
         if (syntax != null) { syntax.detach(); syntax = null; }
         editor = null; editing = null; logView = null;
         content.removeAllViews(); toolbar.removeAllViews(); title.setText(heading);
+        content.setPadding(dp(12), dp(8), dp(12), dp(8));
+        title.setVisibility(View.VISIBLE); ((View) toolbar.getParent()).setVisibility(View.VISIBLE);
     }
     private File currentProject() throws IOException { return workspace.owner(directory); }
     private void action(int label, Runnable run) {
         Button button = new Button(this); button.setText(label); button.setTextSize(12);
+        button.setAllCaps(false); button.setMinWidth(0); button.setMinimumWidth(0);
+        button.setPadding(dp(12), 0, dp(12), 0);
         button.setOnClickListener(v -> { if (!busy) run.run(); }); toolbar.addView(button);
     }
     private void showDirectory() {
-        reset(directory.equals(workspace.root) ? getString(R.string.ide_projects) : directory.getName());
-        action(R.string.ide_tools, this::showTools);
-        action(R.string.ide_open_terminal, () -> LocalGames.requireHost(this).openTerminal());
-        if (directory.equals(workspace.root)) {
-            action(R.string.ide_new_project, this::createProject);
-            action(R.string.ide_import_project, () -> startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), IMPORT));
-        } else {
-            action(R.string.ide_build, this::build);
-            action(R.string.ide_new_file, () -> createEntry(false));
-            action(R.string.ide_new_folder, () -> createEntry(true));
-            action(R.string.ide_delete_project, this::deleteProject);
-        }
-        action(R.string.ide_task, this::showTask);
-        SettingsMenuBuilder menu = new SettingsMenuBuilder(this, content);
-        menu.row(directory.getPath(), null, null);
-        if (!directory.equals(workspace.root)) menu.row("..", null, v -> { directory = directory.getParentFile(); showDirectory(); });
-        background(() -> {
-            List<File> result;
-            if (directory.equals(workspace.root)) result = workspace.projects();
-            else {
-                File[] files = directory.listFiles(); if (files == null) throw new IOException("Cannot list directory");
-                result = new ArrayList<>(Arrays.asList(files));
-                result.sort((a, b) -> a.isDirectory() != b.isDirectory() ? (a.isDirectory() ? -1 : 1) : a.getName().compareToIgnoreCase(b.getName()));
-            }
-            List<File> safe = new ArrayList<>();
-            for (File file : result) { try { workspace.checked(file); safe.add(file); } catch (IOException ignored) { } }
-            return safe;
-        }, files -> {
-            for (File file : files) menu.row(file.getName(), file.isDirectory() ? "/" : android.text.format.Formatter.formatFileSize(this, file.length()), v -> {
+        if (!directory.equals(workspace.root)) { showWorkspace(); return; }
+        reset(getString(R.string.ide_projects));
+        session.documents.clear(); session.active = null; session.expanded.clear(); treeLimit = 500;
+        title.setVisibility(View.GONE); ((View) toolbar.getParent()).setVisibility(View.GONE);
+        content.setPadding(0, 0, 0, 0);
+        IdeWelcomeView welcome = new IdeWelcomeView(this, new IdeWelcomeView.Actions() {
+            @Override public void onAction(int label) {
                 if (busy) return;
-                if (file.isDirectory()) { directory = file; showDirectory(); } else openFile(file, null, null);
-            });
+                if (label == R.string.ide_new_project) createProject();
+                else if (label == R.string.ide_open_project || label == R.string.ide_all_projects) chooseProject();
+                else if (label == R.string.ide_import_project) startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), IMPORT);
+                else if (label == R.string.ide_tools) showTools();
+                else if (label == R.string.ide_open_terminal) LocalGames.requireHost(IdeActivity.this).openTerminal();
+                else if (label == R.string.ide_task) showTask();
+            }
+            @Override public void onProject(File project) {
+                if (!busy) { directory = project; showDirectory(); }
+            }
+        });
+        content.addView(welcome, new LinearLayout.LayoutParams(-1, -2));
+        background(this::recentProjects, projects -> {
+            if (welcome.getParent() == content) welcome.setProjects(projects);
+        });
+    }
+    private List<File> recentProjects() throws IOException {
+        List<File> projects = workspace.projects();
+        SharedPreferences history = getSharedPreferences("termux_ide_recent_projects", MODE_PRIVATE);
+        // Stable sort retains creation order for projects that have never been opened.
+        projects.sort((a, b) -> Long.compare(history.getLong(b.getAbsolutePath(), 0), history.getLong(a.getAbsolutePath(), 0)));
+        return projects;
+    }
+    private void chooseProject() {
+        background(this::recentProjects, projects -> {
+            if (projects.isEmpty()) { Toast.makeText(this, R.string.ide_no_projects, Toast.LENGTH_LONG).show(); return; }
+            String[] names = new String[projects.size()];
+            for (int i = 0; i < names.length; i++) names[i] = projects.get(i).getName();
+            new FrostedDialogBuilder(this, R.style.ThemeOverlay_TermuxLocalGames_Dialog).setTitle(R.string.ide_open_project)
+                .setItems(names, (dialog, which) -> { directory = projects.get(which); showDirectory(); })
+                .setNegativeButton(android.R.string.cancel, null).show();
         });
     }
     private void createProject() {
@@ -186,6 +216,9 @@ public final class IdeActivity extends AppUiActivity {
         } catch (IOException e) { fail(e); }
     }
     private void openFile(File file, @Nullable String restored, @Nullable String saved) {
+        if (!session.documents.containsKey(file.getAbsolutePath()) && session.documents.size() >= 12) {
+            Toast.makeText(this, R.string.ide_tab_limit, Toast.LENGTH_LONG).show(); return;
+        }
         background(() -> {
             File checked = workspace.checked(file);
             if (!checked.isFile() || checked.length() > MAX_EDITOR_SIZE) throw new IOException(getString(R.string.ide_text_only));
@@ -194,37 +227,236 @@ public final class IdeActivity extends AppUiActivity {
             for (byte value : bytes) if (value == 0) throw new IOException(getString(R.string.ide_text_only));
             return StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString();
         }, value -> {
-            reset(file.getName()); editing = file; savedText = saved == null ? value : saved;
-            action(R.string.ide_save, () -> save(null));
-            action(R.string.ide_build, () -> save(this::build));
-            action(R.string.ide_files, () -> afterDiscard(this::showDirectory));
-            action(R.string.ide_task, () -> afterDiscard(this::showTask));
-            editor = new EditText(this);
-            editor.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.local_games_on_surface));
-            editor.setGravity(Gravity.TOP | Gravity.START); editor.setHorizontallyScrolling(true);
-            editor.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-            editor.setTypeface(Typeface.MONOSPACE); editor.setTextSize(14);
-            // Source code needs neither paragraph optimization nor dictionary hyphenation.
-            if (Build.VERSION.SDK_INT >= 23) {
-                editor.setBreakStrategy(android.text.Layout.BREAK_STRATEGY_SIMPLE);
-                editor.setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_NONE);
-            }
-            editor.setImeOptions(android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI
-                | android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
-            editor.setFilters(new android.text.InputFilter[] {new android.text.InputFilter.LengthFilter(MAX_EDITOR_SIZE)});
-            editor.setText(restored == null ? value : restored); editor.setMinLines(18);
-            content.addView(editor, new LinearLayout.LayoutParams(-1, -2)); syntax = new IdeSyntax(editor, file.getName());
+            captureDocument();
+            String path = file.getAbsolutePath();
+            if (!session.documents.containsKey(path)) session.documents.put(path,
+                new IdeEditorSession.Document(restored == null ? value : restored, saved == null ? value : saved));
+            session.active = path;
+            directory = file.getParentFile();
+            showWorkspace();
         });
     }
-    private void save(@Nullable Runnable after) {
+    private void captureDocument() {
         if (editing == null || editor == null) return;
-        File file = editing; String text = editor.getText().toString();
+        IdeEditorSession.Document document = session.documents.get(editing.getAbsolutePath());
+        if (document == null) return;
+        document.text = editor.getText().toString(); document.saved = savedText;
+        document.cursor = editor.getSelectionStart(); document.scroll = editor.getScrollY();
+    }
+    private void displayDocument(String path) {
+        captureDocument();
+        IdeEditorSession.Document document = session.documents.get(path);
+        if (document == null) return;
+        if (syntax != null) syntax.detach();
+        editing = new File(path); savedText = document.saved; session.active = path;
+        editorHost.removeAllViews();
+        editor = new IdeCodeEditor(this);
+        editor.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        editor.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.local_games_on_surface));
+        editor.setGravity(Gravity.TOP | Gravity.START); editor.setHorizontallyScrolling(true);
+        editor.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        editor.setTypeface(Typeface.MONOSPACE); editor.setTextSize(14);
+        if (Build.VERSION.SDK_INT >= 23) {
+            editor.setBreakStrategy(android.text.Layout.BREAK_STRATEGY_SIMPLE);
+            editor.setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_NONE);
+        }
+        editor.setImeOptions(android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI
+            | android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
+        editor.setFilters(new android.text.InputFilter[] {new android.text.InputFilter.LengthFilter(MAX_EDITOR_SIZE)});
+        editor.setText(document.text);
+        editor.setSelection(Math.max(0, Math.min(document.cursor, editor.length())));
+        editorHost.addView(editor, new FrameLayout.LayoutParams(-1, -1));
+        syntax = new IdeSyntax(editor, editing.getName());
+        EditText target = editor;
+        target.post(() -> { if (editor == target) target.scrollTo(0, document.scroll); });
+        editor.addTextChangedListener(new android.text.TextWatcher() {
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                boolean wasDirty = document.dirty(); document.text = s.toString();
+                if (wasDirty != document.dirty()) renderTabs();
+            }
+            public void afterTextChanged(android.text.Editable s) { }
+        });
+        renderTabs();
+    }
+    private void showWorkspace() {
+        captureDocument();
+        final File project;
+        try { project = currentProject(); if (project == null) return; }
+        catch (IOException e) { fail(e); return; }
+        if (!inWorkspace) getSharedPreferences("termux_ide_recent_projects", MODE_PRIVATE).edit()
+            .putLong(project.getAbsolutePath(), System.currentTimeMillis()).apply();
+        inWorkspace = true; pageScroll.setVisibility(View.GONE);
+        title.setVisibility(View.VISIBLE); ((View) toolbar.getParent()).setVisibility(View.VISIBLE);
+        title.setText(project.getName()); title.setContentDescription(project.getPath()); toolbar.removeAllViews();
+        action(R.string.ide_files, this::toggleTree);
+        action(R.string.ide_save, () -> save(null));
+        action(R.string.ide_build, () -> save(this::build));
+        action(R.string.ide_task, () -> setLogVisible(!session.logVisible));
+        action(R.string.ide_more, this::workspaceMenu);
+        if (workbench == null) {
+            workbench = new LinearLayout(this); workbench.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout body = new LinearLayout(this);
+            treeScroll = new ScrollView(this); treeScroll.setFillViewport(true);
+            treeScroll.setBackgroundResource(R.color.local_games_surface);
+            treeRows = new LinearLayout(this); treeRows.setOrientation(LinearLayout.VERTICAL); treeScroll.addView(treeRows);
+            int width = Math.min(260, Math.max(150, getResources().getConfiguration().screenWidthDp * 2 / 5));
+            body.addView(treeScroll, new LinearLayout.LayoutParams(dp(width), -1));
+            LinearLayout center = new LinearLayout(this); center.setOrientation(LinearLayout.VERTICAL);
+            HorizontalScrollView tabScroll = new HorizontalScrollView(this); tabScroll.setHorizontalScrollBarEnabled(false);
+            tabs = new LinearLayout(this); tabs.setBackgroundResource(R.color.local_games_surface);
+            tabScroll.addView(tabs); center.addView(tabScroll);
+            editorHost = new FrameLayout(this); center.addView(editorHost, new LinearLayout.LayoutParams(-1, 0, 1));
+            body.addView(center, new LinearLayout.LayoutParams(0, -1, 1));
+            workbench.addView(body, new LinearLayout.LayoutParams(-1, 0, 1));
+            logPanel = new LinearLayout(this); logPanel.setOrientation(LinearLayout.VERTICAL);
+            logPanel.setBackgroundResource(R.color.local_games_surface);
+            LinearLayout logActions = new LinearLayout(this);
+            panelButton(logActions, R.string.ide_hide_log, () -> setLogVisible(false));
+            panelButton(logActions, android.R.string.cancel, () -> IdeBuildService.start(this, "cancel", null));
+            panelButton(logActions, R.string.ide_export_apk, this::chooseArtifact);
+            HorizontalScrollView logButtons = new HorizontalScrollView(this); logButtons.addView(logActions); logPanel.addView(logButtons);
+            logScroll = new ScrollView(this); logPanel.addView(logScroll, new LinearLayout.LayoutParams(-1, 0, 1));
+            int height = Math.max(120, Math.min(240, getResources().getConfiguration().screenHeightDp / 3));
+            workbench.addView(logPanel, new LinearLayout.LayoutParams(-1, dp(height)));
+            pageHost.addView(workbench);
+        }
+        workbench.setVisibility(View.VISIBLE);
+        treeScroll.setVisibility(session.treeVisible ? View.VISIBLE : View.GONE);
+        session.expanded.add(project.getAbsolutePath()); renderTree(project);
+        if (session.active != null && session.documents.containsKey(session.active)) displayDocument(session.active);
+        else { editorHost.removeAllViews(); TextView hint = text(14); hint.setText(R.string.ide_select_file); editorHost.addView(hint); renderTabs(); }
+        setLogVisible(session.logVisible);
+    }
+    private void panelButton(LinearLayout row, int label, Runnable run) {
+        Button button = new Button(this); button.setText(label); button.setTextSize(11); button.setAllCaps(false);
+        button.setOnClickListener(v -> { if (!busy) run.run(); }); row.addView(button);
+    }
+    private void workspaceMenu() {
+        int[] labels = {R.string.ide_projects, R.string.ide_new_file, R.string.ide_new_folder,
+            R.string.ide_close_tab, R.string.ide_tools, R.string.ide_open_terminal, R.string.ide_delete_project};
+        PopupMenu popup = new PopupMenu(this, toolbar.getChildAt(toolbar.getChildCount() - 1));
+        for (int i = 0; i < labels.length; i++) popup.getMenu().add(0, i, i, labels[i]);
+        popup.setOnMenuItemClickListener(item -> {
+            switch (item.getItemId()) {
+                case 0: afterDiscard(() -> { directory = workspace.root; showDirectory(); }); break;
+                case 1: createEntry(false); break;
+                case 2: createEntry(true); break;
+                case 3: closeDocument(); break;
+                case 4: showTools(); break;
+                case 5: LocalGames.requireHost(this).openTerminal(); break;
+                case 6: afterDiscard(this::deleteProject); break;
+            }
+            return true;
+        }); popup.show();
+    }
+    private void toggleTree() { session.treeVisible = !session.treeVisible; treeScroll.setVisibility(session.treeVisible ? View.VISIBLE : View.GONE); }
+    private void renderTabs() {
+        if (tabs == null) return;
+        tabs.removeAllViews();
+        for (Map.Entry<String, IdeEditorSession.Document> entry : session.documents.entrySet()) {
+            String path = entry.getKey(); TextView tab = text(13);
+            tab.setText(new File(path).getName() + (entry.getValue().dirty() ? " •" : ""));
+            tab.setContentDescription(path); tab.setSingleLine(); tab.setMaxWidth(dp(220));
+            tab.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+            if (path.equals(session.active)) {
+                tab.setTypeface(null, Typeface.BOLD); tab.setBackgroundResource(R.color.local_games_selected_surface);
+                tab.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.local_games_primary_text));
+            }
+            tab.setAlpha(path.equals(session.active) ? 1f : 0.65f);
+            tab.setOnClickListener(v -> { if (!busy) displayDocument(path); });
+            tab.setOnLongClickListener(v -> { if (!busy) { displayDocument(path); closeDocument(); } return true; });
+            LinearLayout tabItem = new LinearLayout(this); tabItem.setGravity(Gravity.CENTER_VERTICAL);
+            tabItem.setBackgroundResource(path.equals(session.active) ? R.color.local_games_selected_surface : R.color.local_games_surface);
+            tabItem.addView(tab, new LinearLayout.LayoutParams(-2, dp(44)));
+            TextView close = text(18); close.setText("×"); close.setGravity(Gravity.CENTER);
+            close.setPadding(0, 0, 0, 0); close.setContentDescription(getString(R.string.ide_close_file, new File(path).getName()));
+            close.setOnClickListener(v -> { if (!busy) { displayDocument(path); closeDocument(); } });
+            tabItem.addView(close, new LinearLayout.LayoutParams(dp(44), dp(44)));
+            tabs.addView(tabItem);
+        }
+    }
+    private void closeDocument() {
+        captureDocument(); final String path = session.active;
+        if (path == null) return;
+        Runnable close = () -> {
+            if (syntax != null) { syntax.detach(); syntax = null; }
+            editor = null; editing = null; session.documents.remove(path);
+            session.active = session.documents.isEmpty() ? null : session.documents.keySet().iterator().next(); showWorkspace();
+        };
+        if (session.documents.get(path).dirty()) new FrostedDialogBuilder(this, R.style.ThemeOverlay_TermuxLocalGames_Dialog)
+            .setMessage(R.string.ide_unsaved).setPositiveButton(android.R.string.ok, (d, w) -> close.run())
+            .setNegativeButton(android.R.string.cancel, null).show();
+        else close.run();
+    }
+    private void renderTree(File project) {
+        final int generation = ++treeGeneration, limit = treeLimit;
+        final Set<String> expanded = new HashSet<>(session.expanded);
+        io.execute(() -> {
+            List<File> files = new ArrayList<>(); List<Integer> depths = new ArrayList<>();
+            try { collectTree(project, project.getCanonicalFile(), limit, 0, expanded, files, depths, new HashSet<>()); }
+            catch (IOException e) { handler.post(() -> { if (!isDestroyed()) fail(e); }); }
+            handler.post(() -> {
+                if (isDestroyed() || !inWorkspace || generation != treeGeneration) return;
+                treeRows.removeAllViews();
+                for (int i = 0; i < files.size(); i++) {
+                    File file = files.get(i); boolean folder = file.isDirectory();
+                    TextView row = text(12); row.setSingleLine(); row.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+                    row.setPadding(dp(10 + depths.get(i) * 12), dp(10), dp(6), dp(10));
+                    row.setText((folder ? (expanded.contains(file.getAbsolutePath()) ? "▾ " : "▸ ") : "  ") + file.getName());
+                    row.setContentDescription(file.getName());
+                    if (file.getAbsolutePath().equals(session.active)) row.setBackgroundResource(R.color.local_games_selected_surface);
+                    row.setOnClickListener(v -> {
+                        if (busy) return;
+                        if (folder) { directory = file; if (!session.expanded.remove(file.getAbsolutePath())) session.expanded.add(file.getAbsolutePath()); renderTree(project); }
+                        else { if (getResources().getConfiguration().screenWidthDp < 600) { session.treeVisible = false; treeScroll.setVisibility(View.GONE); } openFile(file, null, null); }
+                    }); treeRows.addView(row);
+                }
+                if (files.size() >= limit) {
+                    TextView more = text(12); more.setText(R.string.ide_more_files);
+                    more.setOnClickListener(v -> { treeLimit += 500; renderTree(project); }); treeRows.addView(more);
+                }
+            });
+        });
+    }
+    private void collectTree(File file, File boundary, int limit, int depth, Set<String> expanded, List<File> files, List<Integer> depths, Set<String> visited) throws IOException {
+        if (depth > 30 || files.size() >= limit || Thread.currentThread().isInterrupted()) return;
+        File checked = workspace.checked(file);
+        if (!checked.equals(boundary) && !checked.getPath().startsWith(boundary.getPath() + File.separator)) return;
+        files.add(file); depths.add(depth);
+        if (!file.isDirectory() || !expanded.contains(file.getAbsolutePath()) || !visited.add(checked.getCanonicalPath())) return;
+        File[] children = checked.listFiles(); if (children == null) return;
+        Arrays.sort(children, (a, b) -> a.isDirectory() != b.isDirectory() ? (a.isDirectory() ? -1 : 1) : a.getName().compareToIgnoreCase(b.getName()));
+        for (File child : children) { try { workspace.checked(child); } catch (IOException ignored) { continue; } collectTree(child, boundary, limit, depth + 1, expanded, files, depths, visited); }
+    }
+    private void setLogVisible(boolean visible) {
+        session.logVisible = visible; logPanel.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (visible) {
+            if (logScroll.getChildCount() == 0) {
+                logView = text(12); logView.setTypeface(Typeface.MONOSPACE); logView.setTextIsSelectable(true); logScroll.addView(logView);
+            } else logView = (TextView) logScroll.getChildAt(0);
+            refreshTask();
+        } else logView = null;
+    }
+
+    private void save(@Nullable Runnable after) {
+        captureDocument();
+        Map<String, String> changes = new LinkedHashMap<>();
+        for (Map.Entry<String, IdeEditorSession.Document> entry : session.documents.entrySet())
+            if (entry.getValue().dirty()) changes.put(entry.getKey(), entry.getValue().text);
+        if (changes.isEmpty()) { if (after != null) after.run(); return; }
         background(() -> {
-            AtomicFile target = new AtomicFile(workspace.checked(file)); FileOutputStream output = null;
-            try { output = target.startWrite(); output.write(text.getBytes(StandardCharsets.UTF_8)); target.finishWrite(output); }
-            catch (IOException e) { target.failWrite(output); throw e; }
-            return text;
-        }, saved -> { savedText = saved; Toast.makeText(this, R.string.ide_saved, Toast.LENGTH_SHORT).show(); if (after != null) after.run(); });
+            for (Map.Entry<String, String> entry : changes.entrySet()) {
+                AtomicFile target = new AtomicFile(workspace.checked(new File(entry.getKey()))); FileOutputStream output = null;
+                try { output = target.startWrite(); output.write(entry.getValue().getBytes(StandardCharsets.UTF_8)); target.finishWrite(output); }
+                catch (IOException e) { target.failWrite(output); throw e; }
+            }
+            return changes;
+        }, saved -> {
+            for (Map.Entry<String, String> entry : saved.entrySet()) session.documents.get(entry.getKey()).saved = entry.getValue();
+            if (editing != null) savedText = session.documents.get(editing.getAbsolutePath()).saved;
+            renderTabs(); Toast.makeText(this, R.string.ide_saved, Toast.LENGTH_SHORT).show(); if (after != null) after.run();
+        });
     }
     private void build() {
         try {
@@ -269,6 +501,7 @@ public final class IdeActivity extends AppUiActivity {
             }).setNegativeButton(android.R.string.cancel, null).show();
     }
     private void showTask() {
+        if (inWorkspace) { setLogVisible(true); return; }
         reset(getString(R.string.ide_task)); action(R.string.ide_files, this::showDirectory);
         action(android.R.string.cancel, () -> IdeBuildService.start(this, "cancel", null));
         action(R.string.ide_export_apk, this::chooseArtifact);
@@ -410,9 +643,10 @@ public final class IdeActivity extends AppUiActivity {
     }
     private void afterDiscard(Runnable action) {
         if (busy) return;
-        if (editor != null && !editor.getText().toString().equals(savedText)) {
+        captureDocument();
+        if (session.dirty()) {
             new FrostedDialogBuilder(this, R.style.ThemeOverlay_TermuxLocalGames_Dialog).setMessage(R.string.ide_unsaved)
-                .setPositiveButton(android.R.string.ok, (d, w) -> { editor.setText(savedText); action.run(); })
+                .setPositiveButton(android.R.string.ok, (d, w) -> { session.discard(); if (editor != null) editor.setText(savedText); action.run(); })
                 .setNegativeButton(android.R.string.cancel, null).show();
         } else action.run();
     }

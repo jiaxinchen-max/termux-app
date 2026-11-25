@@ -49,4 +49,20 @@
     <string name="ide_state_queued">Queued</string>
     <string name="ide_android_version">Native Android tools require Android 8 or later. Project browsing and editing remain available.</string>
     <string name="ide_runtime_missing">Open the Termux terminal once to initialize the native runtime, then return to IDE.</string>
+    <string name="ide_more">More</string>
+    <string name="ide_close_tab">Close tab</string>
+    <string name="ide_hide_log">Hide log</string>
+    <string name="ide_select_file">Open a file from the project tree to start editing.</string>
+    <string name="ide_tab_limit">Close a tab before opening more files (maximum 12).</string>
+    <string name="ide_close_file">Close %1$s</string>
+    <string name="ide_more_files">Show more files</string>
+    <string name="ide_welcome">IDE welcome</string>
+    <string name="ide_brand">Termux IDE</string>
+    <string name="ide_welcome_subtitle">Your Android development workspace.</string>
+    <string name="ide_get_started">Get started</string>
+    <string name="ide_open_project">Open existing project</string>
+    <string name="ide_recent_projects">Recent projects</string>
+    <string name="ide_no_projects">No projects yet. Create a project or import an existing one to get started.</string>
+    <string name="ide_loading_projects">Loading projects…</string>
+    <string name="ide_all_projects">All projects</string>
 </resources>

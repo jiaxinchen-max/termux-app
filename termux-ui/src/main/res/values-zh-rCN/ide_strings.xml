@@ -49,4 +49,20 @@
     <string name="ide_state_queued">等待开始</string>
     <string name="ide_android_version">原生 Android 工具链要求 Android 8 或更新版本；仍可浏览和编辑项目。</string>
     <string name="ide_runtime_missing">请先打开一次 Termux 终端初始化原生环境，然后返回 IDE。</string>
+    <string name="ide_more">更多</string>
+    <string name="ide_close_tab">关闭标签</string>
+    <string name="ide_hide_log">收起日志</string>
+    <string name="ide_select_file">从项目文件树打开文件，开始编辑。</string>
+    <string name="ide_tab_limit">最多打开 12 个文件，请先关闭一个标签。</string>
+    <string name="ide_close_file">关闭 %1$s</string>
+    <string name="ide_more_files">显示更多文件</string>
+    <string name="ide_welcome">IDE 欢迎页</string>
+    <string name="ide_brand">Termux IDE</string>
+    <string name="ide_welcome_subtitle">你的 Android 开发工作区</string>
+    <string name="ide_get_started">开始使用</string>
+    <string name="ide_open_project">打开已有项目</string>
+    <string name="ide_recent_projects">最近项目</string>
+    <string name="ide_no_projects">还没有项目，创建新项目或导入已有项目即可开始。</string>
+    <string name="ide_loading_projects">正在加载项目…</string>
+    <string name="ide_all_projects">全部项目</string>
 </resources>
