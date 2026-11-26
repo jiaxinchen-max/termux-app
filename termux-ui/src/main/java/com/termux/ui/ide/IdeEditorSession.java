@@ -8,6 +8,8 @@ public final class IdeEditorSession {
     public static final class Document {
         public String text, saved;
         public int cursor, scroll;
+        // Content owns undo history, but no Activity/View reference after editor.release().
+        public io.github.rosemoe.sora.text.Content buffer;
         public Document(String text, String saved) { this.text = text; this.saved = saved; }
         public boolean dirty() { return !text.equals(saved); }
     }
@@ -19,5 +21,5 @@ public final class IdeEditorSession {
         for (Document document : documents.values()) if (document.dirty()) return true;
         return false;
     }
-    public void discard() { for (Document document : documents.values()) document.text = document.saved; }
+    public void discard() { for (Document document : documents.values()) { document.text = document.saved; document.buffer = null; } }
 }

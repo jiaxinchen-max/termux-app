@@ -1,0 +1,54 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'io.github.rosemoe.sora'
+    compileSdk rootProject.properties.compileSdkVersion.toInteger()
+    defaultConfig {
+        minSdk 21
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+    sourceSets { main.assets.srcDir 'notice-assets' }
+    testOptions { unitTests.includeAndroidResources = true }
+}
+
+dependencies {
+    api 'androidx.annotation:annotation:1.7.1'
+    implementation 'androidx.collection:collection:1.4.0'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'com.google.truth:truth:1.4.2'
+    testImplementation 'org.robolectric:robolectric:4.11.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+// Fail closed if copied sources drift from the reviewed upstream revision.
+// Host build integration belongs here, never in the pinned upstream files.
+tasks.register('verifyUpstreamSources') {
+    inputs.file 'upstream-lock.json'
+    inputs.files fileTree('src'), file('LICENSE'), file('consumer-rules.pro')
+    doLast {
+        def lock = new groovy.json.JsonSlurper().parse(file('upstream-lock.json'))
+        lock.files.each { relative, expected ->
+            def source = file(relative)
+            if (!source.isFile()) throw new GradleException("Missing Sora source: ${relative}")
+            def actual = java.security.MessageDigest.getInstance('SHA-256')
+                .digest(source.bytes).encodeHex().toString()
+            if (actual != expected) throw new GradleException("Sora upstream source changed: ${relative}")
+        }
+        def sources = fileTree('src').files.findAll { it.isFile() }.collect {
+            projectDir.toPath().relativize(it.toPath()).toString().replace('\\', '/')
+        } as Set
+        def expectedSources = lock.files.keySet().findAll { it.startsWith('src/') } as Set
+        if (sources != expectedSources) throw new GradleException('Sora source file list differs from upstream-lock.json')
+    }
+}
+tasks.named('preBuild').configure { dependsOn tasks.named('verifyUpstreamSources') }

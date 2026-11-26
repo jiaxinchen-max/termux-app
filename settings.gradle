@@ -8,3 +8,11 @@ include ':termux-ui'
 include ':termux-usb'
 
 include ':termux-api'
+
+// AndroidIDE's exact Sora revision, built from pinned sources instead of a snapshot.
+include ':ide-editor'
+project(':ide-editor').projectDir = file('third-party/sora-editor')
+
+include ':ide-tooling', ':ide-jaxp'
+project(':ide-tooling').projectDir = file('third-party/androidide-tooling')
+project(':ide-jaxp').projectDir = file('third-party/androidide-tooling/jaxp')

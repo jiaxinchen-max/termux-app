@@ -1,0 +1,16 @@
+schema: review_findings_v1
+reviewer: direct_source_self_review
+scope: IDE组件按需下载、项目模型持久化与本次构建适配
+status: APPROVED_WITH_LIMITATIONS
+findings: []
+checks:
+  - 固定非空SHA256、大小、协议及组件仓库HTTPS地址
+  - 使用既有下载器的HTTPS跳转及摘要检查，外部下载文件不直接执行
+  - 私有目录按摘要隔离、原子提交、复制期间二次摘要校验、提交前取消检查
+  - Android26和34测试覆盖原子文件实现差异及离线修复重试
+  - 标准APK不含tooling JAR，保留许可证与源码溯源
+limitations:
+  - 未进行独立审查，未运行可选安全审计
+  - 设备此前出现无响应，完整设备同步及ANR原因尚未验证
+  - 仓库缺少严格Harness脚本，不宣称门禁通过
+  - Java和XML语义能力及设计器仍未完成

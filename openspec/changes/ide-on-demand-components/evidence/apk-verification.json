@@ -1,0 +1,12 @@
+{
+  "apk": "/home/user/workspace/artifacts/apk/termux-app_apt-android-7-debug_arm64-v8a.apk",
+  "size": 46335908,
+  "sha256": "cd1b637ff019995946ad802d05fec17e80a3c62b95a6b3779e1ad3cc51c7b838",
+  "previous_size": 62745266,
+  "reduced_bytes": 16409358,
+  "bundled_tooling_jar": false,
+  "host_tests": 54,
+  "jaxp_tests": 1,
+  "device_sync": "Pending_manual_install_and_regression",
+  "strict_gate": "Unavailable"
+}

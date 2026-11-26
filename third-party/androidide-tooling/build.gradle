@@ -1,0 +1,106 @@
+// AndroidIDE's JVM tooling server. It runs under Termux's JDK, never in ART.
+apply plugin: 'java-library'
+apply plugin: 'org.jetbrains.kotlin.jvm'
+apply plugin: 'kotlin-kapt'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions.jvmTarget = '11'
+}
+
+def modules = ['tooling/api', 'tooling/model', 'tooling/events', 'tooling/impl',
+               'tooling/builder-model-impl', 'utilities/shared', 'logging/logger', 'xml/dom']
+sourceSets.main.java.srcDirs = modules.collect { "upstream/$it/src/main/java" }
+sourceSets.main.java.srcDir layout.buildDirectory.dir('generated/build-info')
+
+def verifySources = tasks.register('verifyUpstreamSources') {
+    inputs.file 'upstream-lock.json'
+    inputs.dir 'upstream'
+    doLast {
+        def lock = new groovy.json.JsonSlurper().parse(file('upstream-lock.json'))
+        def actual = fileTree('upstream').files.collect { file('upstream').toPath().relativize(it.toPath()).toString() }.toSet()
+        if (actual != lock.files.keySet()) throw new GradleException('AndroidIDE source inventory differs')
+        lock.files.each { path, sha ->
+            def digest = java.security.MessageDigest.getInstance('SHA-256').digest(file("upstream/$path").bytes).encodeHex().toString()
+            if (digest != sha) throw new GradleException("AndroidIDE source changed: $path")
+        }
+    }
+}
+def generateInfo = tasks.register('generateBuildInfo') {
+    dependsOn verifySources
+    def template = file('upstream/utilities/build-info/src/main/java/com/itsaky/androidide/buildinfo/BuildInfo.java.in')
+    inputs.file template
+    def output = layout.buildDirectory.file('generated/build-info/com/itsaky/androidide/buildinfo/BuildInfo.java')
+    outputs.file output
+    doLast {
+        def values = [PACKAGE_NAME:'com.itsaky.androidide', MVN_GROUP_ID:'com.itsaky.androidide',
+            VERSION_NAME:'v0.1.0-termux', VERSION_NAME_SIMPLE:'0.1.0', VERSION_NAME_PUBLISHING:'0.1.0-termux',
+            VERSION_NAME_DOWNLOAD:'0.1.0-termux', CI_BUILD:'false', CI_GIT_BRANCH:'dev',
+            CI_COMMIT_HASH:'77ee1a315f34b9ed74a9da94f94a0dc276f72ff6', FDROID_BUILD:'false',
+            FDROID_BUILD_VERSION_NAME:'', FDROID_BUILD_VERSION_CODE:'-1', REPO_HOST:'github.com',
+            REPO_OWNER:'AndroidIDEOfficial', REPO_NAME:'AndroidIDE', PROJECT_SITE:'https://androidide.com',
+            AGP_VERSION_MININUM:'7.2.0', AGP_VERSION_LATEST:'8.5.0', AGP_VERSION_GRADLE_LATEST:'8.7',
+            SNAPSHOTS_REPOSITORY:'https://s01.oss.sonatype.org/content/repositories/snapshots/',
+            PUBLIC_REPOSITORY:'https://s01.oss.sonatype.org/content/groups/public/']
+        def text = template.getText('UTF-8')
+        values.each { key, value -> text = text.replace("@@${key}@@", value) }
+        if (text.contains('@@')) throw new GradleException('Unresolved BuildInfo template token')
+        output.get().asFile.parentFile.mkdirs()
+        output.get().asFile.setText(text, 'UTF-8')
+    }
+}
+tasks.named('compileKotlin') { dependsOn generateInfo }
+tasks.named('compileJava') { dependsOn generateInfo }
+tasks.matching { it.name.startsWith('kapt') }.configureEach { dependsOn generateInfo }
+
+def sdkProperties = new Properties()
+if (rootProject.file('local.properties').isFile()) rootProject.file('local.properties').withInputStream { sdkProperties.load(it) }
+def sdkPath = sdkProperties.getProperty('sdk.dir') ?: System.getenv('ANDROID_HOME') ?: System.getenv('ANDROID_SDK_ROOT')
+if (!sdkPath) throw new GradleException('Configure sdk.dir or ANDROID_HOME')
+
+dependencies {
+    implementation project(':ide-jaxp')
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24'
+    implementation 'androidx.annotation:annotation:1.7.1'
+    implementation 'androidx.collection:collection-jvm:1.4.0'
+    implementation 'com.google.guava:guava:32.1.3-android'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc:0.22.0'
+    implementation 'com.android.tools.build:builder-model:8.5.0'
+    implementation 'com.itsaky.androidide.gradle:gradle-tooling-api:8.6'
+    implementation 'org.jsoup:jsoup:1.17.2'
+    implementation 'com.kotcrab.remark:remark:1.2.0'
+    implementation 'xml-resolver:xml-resolver:1.2'
+    implementation 'xerces:xercesImpl:2.12.2'
+    implementation 'xml-apis:xml-apis:2.0.2'
+    // JVM-only server: use upstream JVM logback; ART never loads this jar.
+    implementation 'ch.qos.logback:logback-classic:1.5.3'
+    compileOnly files("${sdkPath}/platforms/android-${rootProject.property('compileSdkVersion')}/android.jar")
+    implementation 'com.google.auto.service:auto-service-annotations:1.1.1'
+    kapt 'com.google.auto.service:auto-service:1.1.1'
+}
+
+tasks.register('serverJar', Jar) {
+    dependsOn tasks.named('classes'), configurations.runtimeClasspath
+    archiveFileName = 'androidide-tooling.jar'
+    reproducibleFileOrder = true
+    preserveFileTimestamps = false
+    destinationDirectory = layout.buildDirectory.dir('server')
+    manifest { attributes 'Main-Class': 'com.itsaky.androidide.tooling.impl.Main', 'Termux-Tooling-Protocol': '1' }
+    from sourceSets.main.output
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class', 'META-INF/versions/**/module-info.class'
+}
+
+// Publishing is explicit. Ordinary APK assembly only consumes the small pinned manifest.
+tasks.register('componentBundle', Sync) {
+    dependsOn tasks.named('serverJar')
+    into layout.buildDirectory.dir('component')
+    from(layout.buildDirectory.file('server/androidide-tooling.jar'))
+    from('LICENSE')
+    from('upstream-lock.json')
+}

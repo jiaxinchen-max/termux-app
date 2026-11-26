@@ -758,4 +758,8 @@
     <string name="local_game_proot_container_name">PRoot Wine 容器</string>
     <string name="local_game_wine_file_browser">Wine 文件浏览器</string>
     <string name="local_game_set_entry">导入</string>
+    <string name="ide_undo">撤销</string>
+    <string name="ide_redo">重做</string>
+    <string name="ide_editor_license">IDE 开源许可</string>
+    <string name="ide_sync_project">同步 Gradle 项目</string>
 </resources>

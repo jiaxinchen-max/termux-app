@@ -1,0 +1,9 @@
+{
+  "status": "Passed_Targeted_Host_Tests",
+  "tests": 4,
+  "command": ":termux-ui:testDebugUnitTest --tests com.termux.ui.ide.IdeProjectModelStoreTest --tests com.termux.ui.ide.IdeToolingModelTest",
+  "log": "/home/user/workspace/artifacts/ide-model-store-tests.log",
+  "device_sync": "Unverified_ADB_Timeouts",
+  "language_service": "Not_Connected",
+  "strict_gate": "Unavailable"
+}

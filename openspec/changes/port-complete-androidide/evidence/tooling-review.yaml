@@ -1,0 +1,30 @@
+schema_version: review_findings_v1
+change_id: port-complete-androidide
+scope: tooling 源码构建、宿主前台同步与 stdio/模型适配
+review_type: direct_source_self_review
+findings:
+  - id: TOOLING-01
+    severity: medium
+    status: resolved
+    description: 原服务继承接口 selectProject/getType 没有 root 前缀，枚举在线路上按数字编码。
+    evidence: 真实服务实验及 IdeToolingModelTest.originalServerReturnsRealMultiModuleModel
+  - id: TOOLING-02
+    severity: medium
+    status: resolved
+    description: 原服务关闭后存在非守护线程残留；宿主不能无限等待退出。
+    evidence: server/shutdown 最多等待3秒，随后 execute.finally 校验 runner 身份并回收该任务私有进程组
+  - id: TOOLING-03
+    severity: medium
+    status: resolved
+    description: stdio 消息及服务日志必须有内存和磁盘上限，连接中断需解除等待。
+    evidence: IdeToolingRpcTest 四项协议测试及 IdeToolingLogTest 大消息轮转测试
+  - id: TOOLING-04
+    severity: medium
+    status: resolved
+    description: JAXP Java 源码目录内的解析器属性资源不能在源码合并构建时遗漏。
+    evidence: jaxp/build.gradle 与 JaxpResourcesTest
+limitations:
+  - 当前为直接源码自审，未宣称独立审查或完整移植验收通过。
+  - Android 和 Java 模型通过宿主 JVM 原服务验证；native 设备组件传输超时，设备同步链路待安装新APK后验证。
+  - Java/XML 语言服务、索引与设计器等仍待接入。
+  - 仓库缺少严格 Harness 脚本，未执行严格门禁。

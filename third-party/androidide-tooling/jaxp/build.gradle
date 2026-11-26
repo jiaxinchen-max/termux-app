@@ -1,0 +1,13 @@
+apply plugin: 'java-library'
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+sourceSets.main.java.srcDir '../upstream/composite-builds/build-deps/jaxp/src/main/java'
+tasks.named('compileJava') { dependsOn ':ide-tooling:verifyUpstreamSources' }
+// Xerces loads localized parser messages and character tables from its package.
+sourceSets.main.resources {
+    srcDir '../upstream/composite-builds/build-deps/jaxp/src/main/java'
+    include '**/*.properties', '**/*.res'
+}
+dependencies { testImplementation 'junit:junit:4.13.2' }

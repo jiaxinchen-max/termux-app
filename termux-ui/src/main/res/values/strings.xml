@@ -773,4 +773,8 @@
     <string name="local_game_proot_container_name">PRoot Wine container</string>
     <string name="local_game_wine_file_browser">Wine file browser</string>
     <string name="local_game_set_entry">Import</string>
+    <string name="ide_undo">Undo</string>
+    <string name="ide_redo">Redo</string>
+    <string name="ide_editor_license">IDE open source licenses</string>
+    <string name="ide_sync_project">Sync Gradle project</string>
 </resources>

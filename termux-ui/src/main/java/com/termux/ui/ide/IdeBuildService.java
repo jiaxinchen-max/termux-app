@@ -23,6 +23,7 @@ public final class IdeBuildService extends Service {
     private volatile File taskDirectory;
     private volatile java.lang.Process process;
     private IdeJobStore store;
+    private volatile IdeToolingRpc toolingRpc;
 
     public static void start(Context context, String operation, String project) {
         Intent intent = new Intent(context, IdeBuildService.class).putExtra("operation", operation)
@@ -65,14 +66,18 @@ public final class IdeBuildService extends Service {
                 if (IdeJobStore.active(state)) { state.setProperty("state", "cancelling"); store.write(state); }
             } catch (IOException ignored) { }
             if (owned) new Thread(() -> {
-                try { killWhenReady(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                try {
+                    IdeToolingRpc rpc = toolingRpc;
+                    if (rpc != null) try { rpc.call("server/cancelCurrentBuild", null, 3); } catch (Exception ignored) { }
+                    killWhenReady();
+                } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
             }, "ide-cancel").start();
             else { try { recover(this); } catch (IOException ignored) { } stopSelf(); }
             return START_NOT_STICKY;
         }
         synchronized (JOB_LOCK) {
             if (owned) return START_NOT_STICKY;
-            if (!Arrays.asList("check", "prepare", "build").contains(operation)) { stopSelf(); return START_NOT_STICKY; }
+            if (!Arrays.asList("check", "prepare", "build", "sync").contains(operation)) { stopSelf(); return START_NOT_STICKY; }
             try { recover(this); } catch (IOException e) { stopSelf(); return START_NOT_STICKY; }
             owned = true;
             cancelled = false;
@@ -103,8 +108,14 @@ public final class IdeBuildService extends Service {
             store.write(state);
             if (Build.VERSION.SDK_INT < 26) throw new IOException("Native Android development tools require Android 8 or later.");
             IdeWorkspace workspace = new IdeWorkspace(new File(getFilesDir(), "home/projects"));
-            File project = "build".equals(operation) ? workspace.project(projectName) : new File(getFilesDir(), "home");
+            File project = ("build".equals(operation) || "sync".equals(operation)) ? workspace.project(projectName) : new File(getFilesDir(), "home");
             if (!project.isDirectory()) throw new IOException("Project does not exist");
+            if ("sync".equals(operation)) {
+                synchronizeProject(project);
+                if (cancelled) throw new InterruptedException();
+                state.setProperty("state", "succeeded");
+                return;
+            }
             // Move all previous APK outputs outside the project before starting. Failure cannot expose them as a new result.
             if ("build".equals(operation)) {
                 IdeJobStore.isolatePreviousApks(project, workspace, new File(taskDirectory, "previous-apks"));
@@ -176,6 +187,100 @@ public final class IdeBuildService extends Service {
             state.setProperty("finished", Long.toString(System.currentTimeMillis()));
             try { store.write(state); } catch (IOException ignored) { }
             taskDirectory = null;
+        }
+    }
+    /** Uses the project's own Wrapper and native JDK. Never invokes bootstrap/install. */
+    private void synchronizeProject(File project) throws Exception {
+        IdeToolchain tools = new IdeToolchain(this);
+        File java = new File(tools.javaHome, "bin/java");
+        if (!java.canExecute()) throw new IOException("Missing native JDK. Prepare tools first.");
+        if (!new File(project, "gradle/wrapper/gradle-wrapper.properties").isFile()
+            || !new File(project, "gradle/wrapper/gradle-wrapper.jar").isFile())
+            throw new IOException("Project Gradle Wrapper is incomplete.");
+        File jar;
+        try (IdeToolingLog preparation = new IdeToolingLog(taskDirectory)) {
+            final long[] lastPercent = {-1};
+            jar = IdeToolingRuntime.prepare(this,
+                () -> cancelled ? com.termux.ui.components.DownloadControl.Decision.CANCEL
+                    : com.termux.ui.components.DownloadControl.Decision.CONTINUE,
+                (downloaded, total) -> {
+                    long percent = downloaded * 100 / total;
+                    if (percent == lastPercent[0]) return;
+                    lastPercent[0] = percent;
+                    byte[] message = ("Preparing IDE component: " + percent + "%\n").getBytes(StandardCharsets.UTF_8);
+                    preparation.write(message, message.length);
+                });
+        }
+        File runner = new File(taskDirectory, "runner.sh");
+        File script = new File(taskDirectory, "toolchain.sh");
+        try (OutputStream out = new FileOutputStream(runner)) { out.write(IdeProcessIdentity.RUNNER_SCRIPT.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream out = new FileOutputStream(script)) {
+            out.write(("set -eu\nexec " + IdeToolchain.quote(java.getPath()) + " -Xmx512m -jar "
+                + IdeToolchain.quote(jar.getPath()) + "\n").getBytes(StandardCharsets.UTF_8));
+        }
+        File setsid = new File(tools.prefix, "bin/setsid");
+        if (!setsid.canExecute()) setsid = new File("/system/bin/setsid");
+        if (!setsid.canExecute()) throw new IOException("Missing setsid. Install Termux util-linux.");
+        ProcessBuilder builder = new ProcessBuilder(setsid.getPath(), new File(tools.prefix, "bin/bash").getPath(), runner.getPath());
+        builder.directory(project);
+        builder.environment().clear(); builder.environment().putAll(tools.environment(this));
+        builder.environment().put("IDE_JOB_DIR", taskDirectory.getPath());
+        if (cancelled) throw new InterruptedException();
+        process = builder.start();
+        try (IdeToolingLog log = new IdeToolingLog(taskDirectory)) {
+            java.lang.Process child = process;
+            Thread stderr = new Thread(() -> {
+                try (InputStream input = child.getErrorStream()) {
+                    byte[] bytes = new byte[4096]; int n;
+                    while ((n = input.read(bytes)) != -1) log.write(bytes, n);
+                } catch (IOException ignored) { }
+            }, "ide-tooling-stderr");
+            stderr.setDaemon(true); stderr.start();
+            try (IdeToolingRpc rpc = new IdeToolingRpc(child.getInputStream(), child.getOutputStream(), new IdeToolingRpc.Client() {
+                @Override public Object request(String method, Object params) throws Exception {
+                    if (method.equals("client/checkGradleWrapperAvailability"))
+                        return new org.json.JSONObject().put("isAvailable", true);
+                    if (method.equals("client/getBuildArguments")) return new org.json.JSONArray()
+                        .put("--console=plain").put("--max-workers=2").put("--no-watch-fs")
+                        .put("-Pandroid.aapt2FromMavenOverride=" + tools.aapt2.getPath())
+                        .put("-Dorg.gradle.java.home=" + tools.javaHome.getPath());
+                    throw new IOException("Unsupported tooling callback: " + method);
+                }
+                @Override public void notification(String method, Object params) {
+                    if (method.equals("client/logOutput") || method.equals("client/logMessage")) {
+                        try { byte[] bytes = (String.valueOf(params) + "\n").getBytes(StandardCharsets.UTF_8); log.write(bytes, bytes.length); }
+                        catch (IOException e) { child.destroy(); }
+                    }
+                }
+            })) {
+                toolingRpc = rpc;
+                try {
+                    if (cancelled) throw new InterruptedException();
+                    rpc.call("server/metadata", null, 30);
+                    org.json.JSONObject params = new org.json.JSONObject().put("directory", project.getCanonicalPath())
+                        .put("gradleDistribution", new org.json.JSONObject().put("type", "GRADLE_WRAPPER").put("value", ""))
+                        .put("androidParams", new org.json.JSONObject().put("variantSelections", new org.json.JSONObject()));
+                    Object initialized = rpc.call("server/initialize", params, 900);
+                    if (!(initialized instanceof org.json.JSONObject) || !((org.json.JSONObject) initialized).optBoolean("isSuccessful"))
+                        throw new IOException("Gradle synchronization failed: " + initialized);
+                    org.json.JSONObject model = IdeToolingModel.read((method, arguments) -> {
+                        if (cancelled) throw new InterruptedException();
+                        return rpc.call(method, arguments, 90);
+                    }, project.getCanonicalPath());
+                    if (cancelled) throw new InterruptedException();
+                    FileOutputStream output = null;
+                    android.util.AtomicFile file = new android.util.AtomicFile(new File(taskDirectory, "project-model.json"));
+                    try {
+                        output = file.startWrite(); output.write(model.toString(2).getBytes(StandardCharsets.UTF_8)); file.finishWrite(output);
+                    } catch (Exception e) { file.failWrite(output); throw e; }
+                    new IdeProjectModelStore(getFilesDir()).write(project, model);
+                    String summary = "Gradle project synchronized: " + model.getJSONArray("modules").length() + " modules.\n";
+                    byte[] bytes = summary.getBytes(StandardCharsets.UTF_8); log.write(bytes, bytes.length);
+                } finally {
+                    try { rpc.call("server/shutdown", null, 3); } catch (Exception ignored) { }
+                    toolingRpc = null;
+                }
+            }
         }
     }
     private void killWhenReady() throws InterruptedException {

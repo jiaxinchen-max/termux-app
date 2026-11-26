@@ -1,0 +1,107 @@
+{
+  "scope": "Gradle tooling 源码构建、宿主同步入口及模型适配；非完整移植验收",
+  "tests": [
+    {
+      "suite": "com.termux.ui.ide.IdeProcessIdentityTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ui.ide.IdeToolingLogTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ui.ide.IdeEditorSessionTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ui.ide.IdeSoraBufferTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ui.ide.IdeSoraStylesTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ui.ide.IdeToolchainScriptTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ui.ide.IdeWorkspaceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ui.ide.IdeToolingRpcTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ui.data.SettingsPageTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ui.ide.IdeToolingModelTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ui.ide.IdeSoraEditorTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ui.ide.IdeSyntaxTokensTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.termux.ide.JaxpResourcesTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0
+    }
+  ],
+  "host_tests": 46,
+  "jaxp_tests": 1,
+  "android_test": "编译通过，未安装执行",
+  "live_gradle_java_model": "通过：原服务及宿主模型适配器，两模块项目",
+  "live_gradle_android_model": "通过：原服务，debug变体、源码集、引导类路径和依赖库表",
+  "device": "ADB初次认证失败后恢复；IDE标签及欢迎页正常，native JDK17可运行；后续UI/18MB组件传输连续超时，native模型未验证",
+  "device_transfer_cleanup": "已移除临时传输目标，确认文件不存在；push未完成，未进入创建私有探针目录步骤",
+  "apk": {
+    "name": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "bytes": 62745266,
+    "sha256": "852d73b68e5a4bf58a597ad97b71ca2d956e787e334d196d9fde3468b510a3a7",
+    "tooling_jar_bytes": 18168751,
+    "tooling_sha256": "a07cc41f61a9f7a38c2788d7d0e6fa6501b1c4b77954b51b40ae3d37f528ff56",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "minSdk": 21,
+    "targetSdk": 28,
+    "testOnly": false,
+    "zip_payload_compressed_bytes": 62305847
+  },
+  "strict_gate": "仓库脚本缺失，未执行",
+  "remaining": "Java/XML语言服务、索引、设计器、完整动作及设置等仍未完成",
+  "packaging": "删除增量打包状态后由标准 assembleDebug 重建，避免ZIP空洞；未更改APK名称或类型"
+}

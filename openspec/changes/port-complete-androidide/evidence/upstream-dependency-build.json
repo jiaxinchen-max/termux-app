@@ -1,0 +1,37 @@
+{
+  "upstreamRevision": "77ee1a315f34b9ed74a9da94f94a0dc276f72ff6",
+  "command": ":java:lsp:assembleDebug :tooling:impl:shadowJar --configure-on-demand --console=plain --stacktrace",
+  "result": "BUILD SUCCESSFUL",
+  "tasks": 357,
+  "sora": "本仓库 ce8de8e 源码生成的 AAR，在临时 Maven 目录替换失效 snapshot；宿主无此临时目录依赖",
+  "configuration": "原生 fdroid 构建版本设置 v0.1.0-dev；仅独立验证，不改变 termux-app 版本",
+  "artifacts": [
+    {
+      "path": "java/lsp/build/outputs/aar/lsp-debug.aar",
+      "bytes": 620446,
+      "sha256": "678dd25ea4a534efdaccb25b4a6ef6d978ae78b3b728a6b4978ecf39b57d5aaf"
+    },
+    {
+      "path": "tooling/impl/build/libs/tooling-api-all.jar",
+      "bytes": 18497127,
+      "sha256": "95022a1fb0970b4470e5f3a595ebce723544055d8a984043226bd3b28083edc4"
+    }
+  ],
+  "toolingSmoke": {
+    "transport": "stdio",
+    "metadataRequest": "returned_without_jsonrpc_error",
+    "isServerInitialized": "returned_false",
+    "eofExit": "did_not_exit_within_10_seconds; test_child_terminated",
+    "status": "partial; host_process_lifecycle_adapter_pending"
+  },
+  "hostIntegration": false,
+  "deviceLanguageServiceValidation": false,
+  "treeSitterPomAvailability": {
+    "android-tree-sitter": "HTTP200; POM availability only",
+    "tree-sitter-java": "HTTP200; POM availability only",
+    "tree-sitter-json": "HTTP200; POM availability only",
+    "tree-sitter-kotlin": "HTTP200; POM availability only",
+    "tree-sitter-log": "HTTP200; POM availability only",
+    "tree-sitter-xml": "HTTP200; POM availability only"
+  }
+}

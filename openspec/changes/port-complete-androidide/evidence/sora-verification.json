@@ -1,0 +1,61 @@
+{
+  "baseCommit": "997ed195ee108393cb96d52a43bab50b28323368",
+  "branch": "master-x11-submodule-tmp",
+  "tests": {
+    "termux-ui": {
+      "tests": 39,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "third-party/sora-editor": {
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "instrumentation": "compiled_only_not_installed_or_executed",
+  "normalApk": {
+    "name": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "bytes": 47962926,
+    "sha256": "e2dc185e8cef94d92a99f2acf93d8370a277d9c8e7cd3cd7ca2aabf4045009a8",
+    "testOnly": false,
+    "minSdk": 21,
+    "abi": "arm64-v8a"
+  },
+  "files": {
+    "build.gradle": "c4196bd7871a273bbd581f0c43c8ed53317e943355859edb0af1959951196c17",
+    "settings.gradle": "386bf8cf975a677fa5a0d70116eb1064784cca8bdbaa3cbc44fdbe690c0ebe22",
+    "termux-ui/build.gradle": "cc80af41d26ec4838ab762f4af8b811a69a5cb2811ff28df3f73bc87dc92920e",
+    "termux-ui/src/androidTest/java/com/termux/ui/activity/IdeEditorRestoreTest.java": "772f486d364e7c37fec768684a8060de80a81b8e341128bf74ed7815db5745e4",
+    "termux-ui/src/main/java/com/termux/ui/activity/IdeActivity.java": "bf04a89702e6ddf0f6b9cfa7ca5315d6d3e872461b21994b4cdb01a4a5355595",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeBuildService.java": "16fb85cf1e29aadc864dcba57df85aae0e243e76672428db385db3b2551241db",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeCodeEditor.java": "a95734de2c907adba85e454d877eb4d0bccd84b8c3d6667515fda3bbc6f32210",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeEditorBuffer.java": "3cee11d4a920fd034fc25249c3c1a4cd1fafcb68c75fb27834fd3de722060c36",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeEditorSession.java": "98f786b315fdbbcf6dcb9c4a1904641e688fa41861c12a4261f396c691bb09fb",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeJobStore.java": "7ce5e89787c60d23b46b0b231758cb0ab384536ed6d3601721df270c5e9eda6a",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeProcessIdentity.java": "4ac088be6e184e3d96f82157188ebde203a667079ab0921d43e04bbcad38e807",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeSyntax.java": "d8c334aa5d961b1d8b5852ee778c8d78bf802b93146c6c57bb5d00097f34f0c8",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeSyntaxTokens.java": "0e4f54f8e13ed54abe21e96ffef3332927b3f8fdc4ece89985271b9dbefe9a5f",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeTemplate.java": "cf021a34ecad7d5be053764c8a773e91f563805cfc874158c0730ac235305a0b",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeToolchain.java": "640445216848a830fd6bf96d5295229bf302a2e3d7a1b1d66c207ce2f89d9514",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeWelcomeView.java": "b9760a20fd21b1d1d7da18f728d7c5b2ad498377cb37082a32481b65842e13f8",
+    "termux-ui/src/main/java/com/termux/ui/ide/IdeWorkspace.java": "45b4a829da5ee73cb6153394383579285e4cc53bf3e793d0f13a6fad6f37f9fd",
+    "termux-ui/src/main/res/values/strings.xml": "d9edfd978465bf9a4cf48600263a8c6448d115139e45a9aa6575aade8b563db0",
+    "termux-ui/src/main/res/values-zh-rCN/strings.xml": "691ab32ee852d5b6c6ff9bc1b9eff88a8560f49cd0ce115c52b66be4a86951f0",
+    "termux-ui/src/test/java/com/termux/ui/ide/IdeEditorSessionTest.java": "6900bd8317d82eddaaefddaf0ad67f34fc68fc6b86536e0904eb881662fbcd6c",
+    "termux-ui/src/test/java/com/termux/ui/ide/IdeProcessIdentityTest.java": "5d866086da3337bd8bdbbe9aef82ee7bb005cc2c78200e0b8e21f2aebda0b13e",
+    "termux-ui/src/test/java/com/termux/ui/ide/IdeSoraBufferTest.java": "bea64f581a81fea62d91ade168d39678020a78b0a9bc9fe5425581acf17b801e",
+    "termux-ui/src/test/java/com/termux/ui/ide/IdeSoraEditorTest.java": "3ea4189d09b945095bf5948ff84fe0187f7b7f69cae0fa70d3fbb517913c050c",
+    "termux-ui/src/test/java/com/termux/ui/ide/IdeSoraStylesTest.java": "44412e4869abf12bcf2e7a6811f40436b8ba4ae70a581aa50309602bbe3f7f28",
+    "termux-ui/src/test/java/com/termux/ui/ide/IdeSyntaxTokensTest.java": "24d8928d2c16180665d3a4552a1df434716c1f12105136c49ee30730efc6c93f",
+    "termux-ui/src/test/java/com/termux/ui/ide/IdeToolchainScriptTest.java": "911d7e739dc5f8e416d406f3980f5167a52be333b673152e060e4647e3317dd8",
+    "termux-ui/src/test/java/com/termux/ui/ide/IdeWorkspaceTest.java": "0d336df6afa771dc526d33ef04fb2ff726aa9f894436893e83ec9401f96cb8c0",
+    "third-party/sora-editor/build.gradle": "8560ec1f9b504b5ba4eff2966eccc85f45bbd6bb9e479cac0c02ab309cadb54f",
+    "third-party/sora-editor/notice-assets/ide/licenses/sora-editor.txt": "84b1349b780835e46df1affbbd13901bfee5dc9ee2e008661361765e3ebea472",
+    "third-party/sora-editor/upstream-lock.json": "8fbfebcec43402452bb7c97da99b394cfb6c047d784d9aa6403b608c23e6e6e3"
+  },
+  "strictHarness": "not_available_in_checkout",
+  "completePort": false
+}

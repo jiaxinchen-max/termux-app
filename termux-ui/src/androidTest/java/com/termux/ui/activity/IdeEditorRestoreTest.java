@@ -8,6 +8,7 @@ import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import com.termux.ui.ide.IdeWorkspace;
+import com.termux.ui.ide.IdeCodeEditor;
 import com.termux.ui.platform.IdePreference;
 import java.io.*;
 import java.util.UUID;
@@ -29,13 +30,13 @@ public class IdeEditorRestoreTest {
         try (ActivityScenario<IdeActivity> scenario = ActivityScenario.launch(new Intent(context, IdeActivity.class))) {
             openProject(scenario, project.getName()); clickRow(scenario, "Demo.java");
             await(scenario, activity -> {
-                EditText editor = editor(activity.findViewById(android.R.id.content));
+                IdeCodeEditor editor = editor(activity.findViewById(android.R.id.content));
                 if (editor == null) return false;
                 editor.setText("class Demo { int unsaved = 42; }\n"); return true;
             });
             scenario.recreate();
             await(scenario, activity -> {
-                EditText editor = editor(activity.findViewById(android.R.id.content));
+                IdeCodeEditor editor = editor(activity.findViewById(android.R.id.content));
                 return editor != null && editor.getText().toString().contains("unsaved = 42");
             });
             try (java.io.BufferedReader input = new java.io.BufferedReader(new FileReader(new File(project, "Demo.java")))) {
@@ -54,28 +55,28 @@ public class IdeEditorRestoreTest {
         try (ActivityScenario<IdeActivity> scenario = ActivityScenario.launch(new Intent(context, IdeActivity.class))) {
             openProject(scenario, project.getName()); clickRow(scenario, "A.java");
             await(scenario, activity -> {
-                EditText input = editor(activity.findViewById(android.R.id.content));
+                IdeCodeEditor input = editor(activity.findViewById(android.R.id.content));
                 if (input == null || !input.getText().toString().contains("class A")) return false;
                 input.setText("class A { int draft = 1; }\n"); input.setSelection(8); return true;
             });
             clickRow(scenario, "B.java");
             await(scenario, activity -> {
-                EditText input = editor(activity.findViewById(android.R.id.content));
+                IdeCodeEditor input = editor(activity.findViewById(android.R.id.content));
                 if (input == null || !input.getText().toString().contains("class B")) return false;
                 input.setText("class B { int draft = 2; }\n"); return true;
             });
             scenario.recreate();
             await(scenario, activity -> {
-                EditText input = editor(activity.findViewById(android.R.id.content));
+                IdeCodeEditor input = editor(activity.findViewById(android.R.id.content));
                 return input != null && input.getText().toString().contains("draft = 2");
             });
             clickRow(scenario, "A.java •");
             await(scenario, activity -> {
-                EditText input = editor(activity.findViewById(android.R.id.content));
+                IdeCodeEditor input = editor(activity.findViewById(android.R.id.content));
                 return input != null && input.getText().toString().contains("draft = 1") && input.getSelectionStart() == 8;
             });
             scenario.onActivity(activity -> {
-                EditText before = editor(activity.findViewById(android.R.id.content));
+                IdeCodeEditor before = editor(activity.findViewById(android.R.id.content));
                 assertTrue(click(activity.findViewById(android.R.id.content), activity.getString(com.termux.ui.R.string.ide_task)));
                 assertSame(before, editor(activity.findViewById(android.R.id.content)));
                 assertTrue(click(activity.findViewById(android.R.id.content), activity.getString(com.termux.ui.R.string.ide_hide_log)));
@@ -126,7 +127,7 @@ public class IdeEditorRestoreTest {
         try (ActivityScenario<IdeActivity> scenario = ActivityScenario.launch(new Intent(context, IdeActivity.class))) {
             openProject(scenario, project.getName()); clickRow(scenario, "Demo.java");
             await(scenario, activity -> {
-                EditText input = editor(activity.findViewById(android.R.id.content));
+                IdeCodeEditor input = editor(activity.findViewById(android.R.id.content));
                 if (input == null) return false;
                 input.setText("class Demo { int draft = 42; }\n"); return true;
             });
@@ -138,7 +139,7 @@ public class IdeEditorRestoreTest {
             awaitTools(scenario);
             scenario.onActivity(activity -> activity.getOnBackPressedDispatcher().onBackPressed());
             await(scenario, activity -> {
-                EditText input = editor(activity.findViewById(android.R.id.content));
+                IdeCodeEditor input = editor(activity.findViewById(android.R.id.content));
                 return input != null && input.getText().toString().contains("draft = 42");
             });
             try (BufferedReader input = new BufferedReader(new FileReader(new File(project, "Demo.java")))) {
@@ -204,11 +205,11 @@ public class IdeEditorRestoreTest {
         }
         return false;
     }
-    private EditText editor(View view) {
-        if (view instanceof EditText) return (EditText)view;
+    private IdeCodeEditor editor(View view) {
+        if (view instanceof IdeCodeEditor) return (IdeCodeEditor)view;
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup)view;
-            for (int i = 0; i < group.getChildCount(); i++) { EditText found = editor(group.getChildAt(i)); if (found != null) return found; }
+            for (int i = 0; i < group.getChildCount(); i++) { IdeCodeEditor found = editor(group.getChildAt(i)); if (found != null) return found; }
         }
         return null;
     }

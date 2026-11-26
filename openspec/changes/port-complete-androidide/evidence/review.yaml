@@ -1,0 +1,24 @@
+schema_version: review_findings_v1
+change_id: port-complete-androidide
+scope: Sora 内核及宿主连接，非完整移植验收
+review_type: direct_source_self_review
+findings:
+  - id: SORA-01
+    severity: medium
+    status: resolved
+    description: EditText 替换后必须保留输入长度限制并避免截断代理对。
+    evidence: IdeEditorBuffer 与 IdeSoraBufferTest
+  - id: SORA-02
+    severity: medium
+    status: resolved
+    description: 需要等待 Sora 异步布局和 View 尺寸才能恢复滚动位置。
+    evidence: IdeCodeEditor.applyPendingScroll 与 IdeSoraEditorTest
+  - id: SORA-03
+    severity: medium
+    status: resolved
+    description: 着色行号必须与 Sora 对 CRLF、CR、LF 的解释一致。
+    evidence: IdeSyntax.analyze 与 IdeSoraStylesTest
+limitations:
+  - 未执行设备测试，没有完整端到端移植验收。
+  - 缺少仓库 Harness 脚本，未执行严格门禁。
+  - 语言服务、项目模型与设计器等其余范围仍未接入。

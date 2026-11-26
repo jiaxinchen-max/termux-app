@@ -23,14 +23,14 @@ import java.util.concurrent.*;
 
 /** Native Android project workspace, editor, supervised Gradle tasks and explicit APK export. */
 public final class IdeActivity extends AppUiActivity {
-    private static final int MAX_EDITOR_SIZE = 128 * 1024, IMPORT = 301, EXPORT = 302;
+    private static final int MAX_EDITOR_SIZE = IdeEditorBuffer.MAX_LENGTH, IMPORT = 301, EXPORT = 302;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler handler = new Handler(Looper.getMainLooper());
     private IdeWorkspace workspace;
     private File directory, editing, exportFile;
     private LinearLayout content, toolbar;
     private TextView title, status, logView;
-    private EditText editor;
+    private IdeCodeEditor editor;
     private IdeSyntax syntax;
     private String savedText;
     private boolean busy, refreshingTask;
@@ -113,7 +113,7 @@ public final class IdeActivity extends AppUiActivity {
         handler.post(poll);
     }
     @Override protected void onPause() { handler.removeCallbacks(poll); super.onPause(); }
-    @Override protected void onDestroy() { handler.removeCallbacksAndMessages(null); if (syntax != null) syntax.detach(); io.shutdownNow(); super.onDestroy(); }
+    @Override protected void onDestroy() { handler.removeCallbacksAndMessages(null); releaseEditor(); io.shutdownNow(); super.onDestroy(); }
     @Override protected void onSaveInstanceState(Bundle state) {
         captureDocument();
         state.putString("page", page.name());
@@ -128,7 +128,7 @@ public final class IdeActivity extends AppUiActivity {
         captureDocument(); inWorkspace = false; treeGeneration++;
         if (workbench != null) workbench.setVisibility(View.GONE);
         pageScroll.setVisibility(View.VISIBLE);
-        if (syntax != null) { syntax.detach(); syntax = null; }
+        releaseEditor();
         editor = null; editing = null; logView = null;
         content.removeAllViews(); toolbar.removeAllViews(); title.setText(heading);
         content.setPadding(dp(12), dp(8), dp(12), dp(8));
@@ -250,43 +250,32 @@ public final class IdeActivity extends AppUiActivity {
         IdeEditorSession.Document document = session.documents.get(editing.getAbsolutePath());
         if (document == null) return;
         document.text = editor.getText().toString(); document.saved = savedText;
-        document.cursor = editor.getSelectionStart(); document.scroll = editor.getScrollY();
+        document.cursor = editor.getSelectionStart(); document.scroll = editor.getOffsetY();
+        document.buffer = editor.getText();
     }
     private void displayDocument(String path) {
         captureDocument();
         IdeEditorSession.Document document = session.documents.get(path);
         if (document == null) return;
-        if (syntax != null) syntax.detach();
+        releaseEditor();
         editing = new File(path); savedText = document.saved; session.active = path;
         editorHost.removeAllViews();
         editor = new IdeCodeEditor(this);
-        editor.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-        editor.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.local_games_on_surface));
-        editor.setGravity(Gravity.TOP | Gravity.START); editor.setHorizontallyScrolling(true);
-        editor.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        editor.setTypeface(Typeface.MONOSPACE); editor.setTextSize(14);
-        if (Build.VERSION.SDK_INT >= 23) {
-            editor.setBreakStrategy(android.text.Layout.BREAK_STRATEGY_SIMPLE);
-            editor.setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_NONE);
-        }
-        editor.setImeOptions(android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI
-            | android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
-        editor.setFilters(new android.text.InputFilter[] {new android.text.InputFilter.LengthFilter(MAX_EDITOR_SIZE)});
-        editor.setText(document.text);
-        editor.setSelection(Math.max(0, Math.min(document.cursor, editor.length())));
+        editor.setText(document.buffer == null ? document.text : document.buffer);
+        editor.setSelection(document.cursor);
         editorHost.addView(editor, new FrameLayout.LayoutParams(-1, -1));
         syntax = new IdeSyntax(editor, editing.getName());
-        EditText target = editor;
-        target.post(() -> { if (editor == target) target.scrollTo(0, document.scroll); });
-        editor.addTextChangedListener(new android.text.TextWatcher() {
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                boolean wasDirty = document.dirty(); document.text = s.toString();
-                if (wasDirty != document.dirty()) renderTabs();
-            }
-            public void afterTextChanged(android.text.Editable s) { }
+        IdeCodeEditor target = editor;
+        target.post(() -> { if (editor == target) target.restoreScroll(document.scroll); });
+        editor.subscribeEvent(io.github.rosemoe.sora.event.ContentChangeEvent.class, (event, unsubscribe) -> {
+            boolean wasDirty = document.dirty(); document.text = target.getText().toString();
+            if (wasDirty != document.dirty()) renderTabs();
         });
         renderTabs();
+    }
+    private void releaseEditor() {
+        if (syntax != null) { syntax.detach(); syntax = null; }
+        if (editor != null) { editor.release(); editor = null; }
     }
     private void showWorkspace() {
         captureDocument();
@@ -343,11 +332,19 @@ public final class IdeActivity extends AppUiActivity {
     }
     private void workspaceMenu() {
         int[] labels = {R.string.ide_projects, R.string.ide_new_file, R.string.ide_new_folder,
-            R.string.ide_close_tab, R.string.ide_tools, R.string.ide_open_terminal, R.string.ide_delete_project};
+            R.string.ide_close_tab, R.string.ide_tools, R.string.ide_open_terminal, R.string.ide_delete_project, R.string.ide_undo, R.string.ide_redo, R.string.ide_sync_project};
         PopupMenu popup = new PopupMenu(this, toolbar.getChildAt(toolbar.getChildCount() - 1));
         for (int i = 0; i < labels.length; i++) popup.getMenu().add(0, i, i, labels[i]);
+        popup.getMenu().findItem(7).setEnabled(editor != null && editor.canUndo());
+        popup.getMenu().findItem(8).setEnabled(editor != null && editor.canRedo());
         popup.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
+                case 9: save(() -> {
+                    try { File project = currentProject(); if (project != null) startTask("sync", project.getName()); }
+                    catch (IOException e) { fail(e); }
+                }); break;
+                case 7: if (editor != null) editor.undo(); break;
+                case 8: if (editor != null) editor.redo(); break;
                 case 0: afterDiscard(() -> { directory = workspace.root; showDirectory(); }); break;
                 case 1: createEntry(false); break;
                 case 2: createEntry(true); break;
@@ -389,7 +386,7 @@ public final class IdeActivity extends AppUiActivity {
         captureDocument(); final String path = session.active;
         if (path == null) return;
         Runnable close = () -> {
-            if (syntax != null) { syntax.detach(); syntax = null; }
+            releaseEditor();
             editor = null; editing = null; session.documents.remove(path);
             session.active = session.documents.isEmpty() ? null : session.documents.keySet().iterator().next(); showWorkspace();
         };
@@ -488,6 +485,20 @@ public final class IdeActivity extends AppUiActivity {
         page = Page.TOOLS;
         action(R.string.ide_files, this::showDirectory);
         action(R.string.ide_check_tools, () -> startTask("check", null));
+        action(R.string.ide_editor_license, () -> background(() -> {
+            StringBuilder licenses = new StringBuilder();
+            for (String path : new String[] {"ide/licenses/sora-editor.txt", "ide/tooling/LICENSE.txt"}) {
+                licenses.append(path).append("\n\n");
+                try (InputStream input = getAssets().open(path); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                    byte[] bytes = new byte[4096]; int count;
+                    while ((count = input.read(bytes)) != -1) output.write(bytes, 0, count);
+                    licenses.append(output.toString("UTF-8")).append("\n\n");
+                }
+            }
+            return licenses.toString();
+        }, license -> new FrostedDialogBuilder(this, R.style.ThemeOverlay_TermuxLocalGames_Dialog)
+            .setTitle(R.string.ide_editor_license).setMessage(license)
+            .setPositiveButton(android.R.string.ok, null).show()));
         action(R.string.ide_prepare_tools, () -> new FrostedDialogBuilder(this, R.style.ThemeOverlay_TermuxLocalGames_Dialog)
             .setTitle(R.string.ide_prepare_tools).setMessage(R.string.ide_prepare_warning)
             .setPositiveButton(R.string.ide_accept_prepare, (d, w) -> startTask("prepare", null))

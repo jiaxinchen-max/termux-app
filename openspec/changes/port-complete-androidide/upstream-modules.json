@@ -1,0 +1,1249 @@
+{
+  "repository": "https://github.com/jiaxinchen-max/AndroidIDE",
+  "revision": "77ee1a315f34b9ed74a9da94f94a0dc276f72ff6",
+  "modules": [
+    {
+      "path": ":annotation:annotations",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "utilities.frameworkStubs",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "androidx.annotation",
+        "common.jkotlin"
+      ],
+      "buildFileSha256": "f7a065fd6653e70083b764fef6bf5df4e3923dbec33d1ae9d957fd562f5c9a45",
+      "sourceFiles": 2
+    },
+    {
+      "path": ":annotation:processors",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "annotation.annotations",
+        "event.eventbus"
+      ],
+      "libraryAliases": [
+        "androidx.annotation",
+        "common.javapoet",
+        "google.auto.service",
+        "google.auto.service.annotations"
+      ],
+      "buildFileSha256": "f59d7d5819d780f724e9873ff434237cb485954f569e044eb2b051b2d84d54d9",
+      "sourceFiles": 1
+    },
+    {
+      "path": ":annotation:processors-ksp",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "annotation.annotations"
+      ],
+      "libraryAliases": [
+        "androidx.annotation",
+        "common.javapoet",
+        "common.ksp",
+        "google.auto.service",
+        "google.auto.service.annotations"
+      ],
+      "buildFileSha256": "827da50f10756effff46d58edc56743fb31f676bb66916f98859be334b02022c",
+      "sourceFiles": 5
+    },
+    {
+      "path": ":core:actions",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "core.resources"
+      ],
+      "libraryAliases": [
+        "androidx.core.ktx",
+        "androidx.nav.fragment",
+        "androidx.nav.ui",
+        "common.editor",
+        "common.kotlin",
+        "common.kotlin.coroutines.android",
+        "common.utilcode",
+        "google.auto.service",
+        "google.auto.service.annotations",
+        "google.material"
+      ],
+      "buildFileSha256": "73107273ba9ce48096229a301f8e3fb9fe157dac15c13ef3e141452a7adb9640",
+      "sourceFiles": 12
+    },
+    {
+      "path": ":core:app",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "annotation.processors",
+        "core.actions",
+        "core.common",
+        "core.indexingApi",
+        "core.indexingCore",
+        "core.lspApi",
+        "core.projects",
+        "core.resources",
+        "editor.impl",
+        "editor.lexers",
+        "event.eventbus",
+        "event.eventbusAndroid",
+        "event.eventbusEvents",
+        "java.javacServices",
+        "java.lsp",
+        "logging.idestats",
+        "logging.logsender",
+        "termux.application",
+        "termux.emulator",
+        "termux.shared",
+        "termux.view",
+        "testing.androidTest",
+        "testing.unitTest",
+        "tooling.api",
+        "tooling.impl",
+        "tooling.pluginConfig",
+        "utilities.buildInfo",
+        "utilities.lookup",
+        "utilities.preferences",
+        "utilities.templatesApi",
+        "utilities.templatesImpl",
+        "utilities.treeview",
+        "utilities.uidesigner",
+        "utilities.xmlInflater",
+        "xml.aaptcompiler",
+        "xml.lsp",
+        "xml.utils"
+      ],
+      "libraryAliases": [
+        "aapt2.common",
+        "androidx.animated.vectors",
+        "androidx.annotation",
+        "androidx.appcompat",
+        "androidx.cardview",
+        "androidx.constraintlayout",
+        "androidx.coordinatorlayout",
+        "androidx.core.ktx",
+        "androidx.drawer",
+        "androidx.grid",
+        "androidx.nav.fragment",
+        "androidx.nav.ui",
+        "androidx.preference",
+        "androidx.recyclerview",
+        "androidx.splashscreen",
+        "androidx.transition",
+        "androidx.vectors",
+        "androidx.work",
+        "androidx.work.ktx",
+        "common.charts",
+        "common.editor",
+        "common.glide",
+        "common.glide.ap",
+        "common.hiddenApiBypass",
+        "common.jsoup",
+        "common.kotlin",
+        "common.kotlin.coroutines.android",
+        "common.leakcanary",
+        "common.retrofit",
+        "common.retrofit.gson",
+        "common.utilcode",
+        "composite.appintro",
+        "composite.desugaringCore",
+        "composite.javapoet",
+        "git.jgit",
+        "google.auto.service",
+        "google.auto.service.annotations",
+        "google.flexbox",
+        "google.gson",
+        "google.guava",
+        "google.material",
+        "logging.logback.core"
+      ],
+      "buildFileSha256": "bd5cb5e19016425dbe886674a09892a475f6955d77199ede2d15a725f2216494",
+      "sourceFiles": 305
+    },
+    {
+      "path": ":core:common",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.resources",
+        "editor.lexers",
+        "event.eventbusAndroid",
+        "event.eventbusEvents",
+        "logging.logger",
+        "utilities.buildInfo",
+        "utilities.flashbar",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "androidx.animated.vectors",
+        "androidx.appcompat",
+        "androidx.collection",
+        "androidx.core.ktx",
+        "androidx.preference",
+        "androidx.vectors",
+        "common.editor",
+        "common.kotlin",
+        "common.lang3",
+        "common.utilcode",
+        "google.guava",
+        "google.material",
+        "tests.google.truth",
+        "tests.junit",
+        "tests.robolectric"
+      ],
+      "buildFileSha256": "1c1f5171b1548050baa038d202e085ef990037ea4747827ee44ba956e80580d4",
+      "sourceFiles": 82
+    },
+    {
+      "path": ":core:indexing-api",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "core.projects",
+        "logging.logger",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "google.auto.service",
+        "google.auto.service.annotations"
+      ],
+      "buildFileSha256": "cb9e7c361ec4319f01f6fabe62fa5d89ce9052d50e5cd701a90f0dba1c8186b5",
+      "sourceFiles": 6
+    },
+    {
+      "path": ":core:indexing-core",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "core.indexingApi",
+        "logging.logger",
+        "testing.unitTest",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "composite.jaxp",
+        "google.auto.service",
+        "google.auto.service.annotations"
+      ],
+      "buildFileSha256": "530ea334b232cd19484639372a4f85d60c4b9234adac55c02e6d7af055f61caf",
+      "sourceFiles": 3
+    },
+    {
+      "path": ":core:lsp-api",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "annotation.processors",
+        "core.actions",
+        "core.common",
+        "core.lspModels",
+        "core.projects",
+        "event.eventbusEvents",
+        "utilities.lookup",
+        "utilities.preferences",
+        "xml.utils"
+      ],
+      "libraryAliases": [
+        "androidx.appcompat",
+        "androidx.core.ktx",
+        "common.editor",
+        "common.kotlin",
+        "common.utilcode",
+        "composite.fuzzysearch",
+        "google.material"
+      ],
+      "buildFileSha256": "5070d756aae797b9f3b2ecf4106b1014d51bbd2efd873b981a2f47290ef753b0",
+      "sourceFiles": 24
+    },
+    {
+      "path": ":core:lsp-models",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common"
+      ],
+      "libraryAliases": [
+        "androidx.appcompat",
+        "androidx.core.ktx",
+        "common.editor",
+        "common.kotlin",
+        "common.utilcode",
+        "composite.fuzzysearch"
+      ],
+      "buildFileSha256": "aab05c2dd5ccbb703f241a4c53acb46ecec4dd704ae665b5bc9681cac8c10e7e",
+      "sourceFiles": 22
+    },
+    {
+      "path": ":core:projects",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "annotation.processors",
+        "core.common",
+        "event.eventbus",
+        "event.eventbusEvents",
+        "java.javacServices",
+        "logging.logger",
+        "testing.gradleToolingTest",
+        "tooling.api",
+        "utilities.lookup",
+        "utilities.shared",
+        "xml.utils"
+      ],
+      "libraryAliases": [
+        "common.io",
+        "common.kotlin.coroutines.android",
+        "google.auto.service",
+        "google.auto.service.annotations",
+        "google.guava"
+      ],
+      "buildFileSha256": "203ddcdfad3924a747f8336dbe316d68ca422731292752f8495cc9acd10b819a",
+      "sourceFiles": 26
+    },
+    {
+      "path": ":core:resources",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [],
+      "libraryAliases": [
+        "androidx.appcompat",
+        "androidx.preference",
+        "androidx.splashscreen",
+        "google.material"
+      ],
+      "buildFileSha256": "c628806e5d90eb28136ad6458409f032d9c9995b9e2b1c0a883d2661a212f491",
+      "sourceFiles": 243
+    },
+    {
+      "path": ":editor:api",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "core.lspApi",
+        "core.lspModels",
+        "logging.logger"
+      ],
+      "libraryAliases": [
+        "androidide.ts"
+      ],
+      "buildFileSha256": "e5ccd94143503ec2e3a141a2f897053d3acfa587208a6f443d66260a423d662f",
+      "sourceFiles": 22
+    },
+    {
+      "path": ":editor:impl",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "annotation.annotations",
+        "annotation.processors",
+        "annotation.processorsKsp",
+        "core.actions",
+        "core.common",
+        "core.lspApi",
+        "core.resources",
+        "editor.api",
+        "editor.lexers",
+        "editor.treesitter",
+        "event.eventbusAndroid",
+        "event.eventbusEvents",
+        "java.lsp",
+        "utilities.shared",
+        "xml.lsp"
+      ],
+      "libraryAliases": [
+        "androidide.ts",
+        "androidide.ts.java",
+        "androidide.ts.json",
+        "androidide.ts.kotlin",
+        "androidide.ts.log",
+        "androidide.ts.xml",
+        "androidx.annotation",
+        "androidx.appcompat",
+        "androidx.collection",
+        "androidx.constraintlayout",
+        "androidx.tracing",
+        "androidx.tracing.ktx",
+        "common.editor",
+        "common.utilcode",
+        "composite.jdt",
+        "google.material",
+        "tests.google.truth",
+        "tests.junit",
+        "tests.robolectric",
+        "versions.ksp"
+      ],
+      "buildFileSha256": "95033513e5d5e99eef20b5ddd5de2b2c701ae65deff22878654a41817032ad6f",
+      "sourceFiles": 118
+    },
+    {
+      "path": ":editor:lexers",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [],
+      "libraryAliases": [
+        "common.antlr4.runtime",
+        "common.jkotlin",
+        "tests.google.truth",
+        "tests.junit"
+      ],
+      "buildFileSha256": "9aef55d14695831d651aeb7309d08fa30527c95ba203d57bc83ef158d0a1aa44",
+      "sourceFiles": 17
+    },
+    {
+      "path": ":editor:treesitter",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "editor.api",
+        "logging.logger"
+      ],
+      "libraryAliases": [
+        "androidide.ts",
+        "androidx.collection",
+        "common.editor",
+        "common.kotlin.coroutines.android"
+      ],
+      "buildFileSha256": "0d34fbfd78ca0ba46d5b535bf7cbafe48b101810f3839684331da288d5028651",
+      "sourceFiles": 28
+    },
+    {
+      "path": ":event:eventbus",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [],
+      "libraryAliases": [
+        "common.jkotlin"
+      ],
+      "buildFileSha256": "f2ff951f36967f92f426f6ecc1b25b5f2a13c5c544df5cd0f568b9d048420d85",
+      "sourceFiles": 28
+    },
+    {
+      "path": ":event:eventbus-android",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "event.eventbus"
+      ],
+      "libraryAliases": [],
+      "buildFileSha256": "d9df7c8de0d30594056dff8a3ee0861363a8acecc39f4254e3bec297cbac4e72",
+      "sourceFiles": 5
+    },
+    {
+      "path": ":event:eventbus-events",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "event.eventbus",
+        "logging.logger",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "common.kotlin"
+      ],
+      "buildFileSha256": "3b931f779b7e6bafd410c1d8a44644284602c4564b43b8155eaf40dc7149d905",
+      "sourceFiles": 10
+    },
+    {
+      "path": ":java:javac-services",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "logging.logger"
+      ],
+      "libraryAliases": [
+        "common.kotlin",
+        "common.utilcode",
+        "composite.javac",
+        "google.guava",
+        "tests.google.truth",
+        "tests.junit",
+        "tests.robolectric"
+      ],
+      "buildFileSha256": "d031dcdaae552a3b887d6e8990d11576fe6ad4fbc7712ed49231c15d2bddf9bf",
+      "sourceFiles": 39
+    },
+    {
+      "path": ":java:lsp",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "annotation.processors",
+        "core.actions",
+        "core.common",
+        "core.indexingApi",
+        "core.lspApi",
+        "core.resources",
+        "editor.api",
+        "java.javacServices",
+        "testing.androidTest",
+        "testing.commonTest",
+        "testing.lspTest",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "androidide.ts",
+        "androidide.ts.java",
+        "androidx.annotation",
+        "androidx.appcompat",
+        "androidx.core.ktx",
+        "common.editor",
+        "common.javaparser",
+        "common.kotlin",
+        "common.utilcode",
+        "composite.googleJavaFormat",
+        "composite.javac",
+        "composite.javapoet",
+        "composite.jaxp",
+        "composite.jdkJdeps",
+        "composite.jdt",
+        "google.auto.service",
+        "google.auto.service.annotations",
+        "google.gson",
+        "google.guava",
+        "google.material"
+      ],
+      "buildFileSha256": "7135b36da4ba2905f82d5842a441616ecd18a5c79e3ccd4a4a0608f7f1a889d7",
+      "sourceFiles": 152
+    },
+    {
+      "path": ":logging:idestats",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "logging.logger",
+        "utilities.buildInfo",
+        "utilities.preferences"
+      ],
+      "libraryAliases": [
+        "androidx.work",
+        "androidx.work.ktx",
+        "common.retrofit",
+        "common.retrofit.gson",
+        "common.utilcode",
+        "google.gson",
+        "tests.androidx.junit",
+        "tests.androidx.test.core",
+        "tests.androidx.test.rules",
+        "tests.androidx.test.runner",
+        "tests.androidx.work.testing",
+        "tests.google.truth"
+      ],
+      "buildFileSha256": "d403eb4536d260dd4295fad63c46f98f66a5b5b45e08a8bdee11456e9887bc82",
+      "sourceFiles": 7
+    },
+    {
+      "path": ":logging:logger",
+      "disposition": "固定原始源码合并编译至独立 native JVM tooling 服务；宿主同步链路已接入，设备回归待完成",
+      "verified": false,
+      "gradleProjectReferences": [
+        "utilities.buildInfo",
+        "utilities.frameworkStubs"
+      ],
+      "libraryAliases": [
+        "logging.logback.classic",
+        "logging.logback.core",
+        "tests.google.truth",
+        "tests.junit"
+      ],
+      "buildFileSha256": "675db3bebe51ad24206bf739d07ca85648548e3dd25d664e2644997ea03f4ec2",
+      "sourceFiles": 10,
+      "evidence": "evidence/tooling-verification.json"
+    },
+    {
+      "path": ":logging:logsender",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [],
+      "libraryAliases": [
+        "tests.google.truth",
+        "tests.junit",
+        "tests.robolectric"
+      ],
+      "buildFileSha256": "9a0b477a91aa33c9e15359e5cda27b4679ae46dda27c74915b57c4abeec6be2f",
+      "sourceFiles": 16
+    },
+    {
+      "path": ":logging:logsender-sample",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "logging.logger",
+        "logging.logsender"
+      ],
+      "libraryAliases": [
+        "androidx.appcompat",
+        "androidx.constraintlayout",
+        "google.material",
+        "tests.google.truth",
+        "tests.junit",
+        "tests.robolectric"
+      ],
+      "buildFileSha256": "3bfaf7efbd1c80b58b7af882418da334d6e03b443cc6a9b42a61873c8c0a36f2",
+      "sourceFiles": 11
+    },
+    {
+      "path": ":termux:application",
+      "disposition": "复用现有 Termux 模块",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "core.resources",
+        "termux.shared",
+        "termux.view",
+        "testing.unitTest",
+        "utilities.preferences"
+      ],
+      "libraryAliases": [
+        "androidx.annotation",
+        "androidx.core",
+        "androidx.drawer",
+        "androidx.preference",
+        "androidx.viewpager",
+        "common.markwon.core",
+        "common.markwon.extStrikethrough",
+        "common.markwon.linkify",
+        "common.markwon.recycler",
+        "google.guava",
+        "google.material"
+      ],
+      "buildFileSha256": "908e7e24bb5ee32b478e66ffced9e92e2139e49fe6fe93a927369c283d778fc0",
+      "sourceFiles": 41
+    },
+    {
+      "path": ":termux:emulator",
+      "disposition": "复用现有 Termux 模块",
+      "verified": false,
+      "gradleProjectReferences": [
+        "testing.unitTest"
+      ],
+      "libraryAliases": [
+        "androidx.annotation"
+      ],
+      "buildFileSha256": "fa97c38f74842c0e8be1cad3f6e17344e1f7990ea0190fb42e1b1e10dd973829",
+      "sourceFiles": 35
+    },
+    {
+      "path": ":termux:shared",
+      "disposition": "复用现有 Termux 模块",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "core.resources",
+        "termux.view",
+        "testing.androidTest",
+        "testing.unitTest",
+        "utilities.buildInfo",
+        "utilities.preferences"
+      ],
+      "libraryAliases": [
+        "androidx.annotation",
+        "androidx.appcompat",
+        "androidx.core",
+        "androidx.window.v1alpha9",
+        "common.hiddenApiBypass",
+        "common.io",
+        "common.markwon.core",
+        "common.markwon.extStrikethrough",
+        "common.markwon.linkify",
+        "common.markwon.recycler",
+        "common.termuxAmLib",
+        "google.guava",
+        "google.material"
+      ],
+      "buildFileSha256": "b841847f819ba4580860c89c22c76b2f945c377824ac00aa7b47132b3d222231",
+      "sourceFiles": 129
+    },
+    {
+      "path": ":termux:view",
+      "disposition": "复用现有 Termux 模块",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.resources",
+        "termux.emulator",
+        "testing.unitTest"
+      ],
+      "libraryAliases": [
+        "androidx.annotation"
+      ],
+      "buildFileSha256": "08b857006284a91216b47120e592f23a9cf2e08c0f337f3c7291f8d8360a4d08",
+      "sourceFiles": 9
+    },
+    {
+      "path": ":testing:androidTest",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "testing.commonTest",
+        "utilities.buildInfo",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "google.protobuf",
+        "tests.androidx.espresso.contrib",
+        "tests.androidx.espresso.core",
+        "tests.androidx.junit",
+        "tests.androidx.test.core",
+        "tests.androidx.test.rules",
+        "tests.androidx.test.runner",
+        "tests.androidx.uiautomator",
+        "tests.barista",
+        "tests.google.truth",
+        "tests.junit"
+      ],
+      "buildFileSha256": "1dc492adcc05109da5ece4c6e6603075a0e4bd07bfd210055f5b08eaa7f4bff7",
+      "sourceFiles": 8
+    },
+    {
+      "path": ":testing:benchmarks",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "core.indexingApi",
+        "java.lsp",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "androidx.benchmark.junit4",
+        "plugins.android.library",
+        "plugins.benchmark",
+        "plugins.kotlin.android",
+        "tests.androidx.junit",
+        "tests.androidx.test.runner",
+        "tests.google.truth",
+        "tests.junit"
+      ],
+      "buildFileSha256": "149a521d167a5aa9e82bb493d6b49af51f16749d77c41ec18b59f217748dc701",
+      "sourceFiles": 2
+    },
+    {
+      "path": ":testing:commonTest",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "logging.logger",
+        "tooling.impl"
+      ],
+      "libraryAliases": [
+        "google.auto.service",
+        "google.auto.service.annotations",
+        "tests.junit"
+      ],
+      "buildFileSha256": "004e5eb12d029f82733ad21eb839b6ed11a6baa0aae5c22b5b6eb46433204bec",
+      "sourceFiles": 5
+    },
+    {
+      "path": ":testing:gradleToolingTest",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "logging.logger",
+        "testing.commonTest",
+        "tooling.api",
+        "tooling.impl",
+        "utilities.buildInfo",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "common.jkotlin",
+        "tests.google.truth",
+        "tests.junit",
+        "tests.mockk",
+        "tests.robolectric"
+      ],
+      "buildFileSha256": "30a3b088a123369517fffaa342d7540637ef42b32177374eb9e9278187f6fa7e",
+      "sourceFiles": 3
+    },
+    {
+      "path": ":testing:lspTest",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.actions",
+        "core.common",
+        "core.lspApi",
+        "event.eventbusAndroid",
+        "testing.androidTest",
+        "testing.commonTest",
+        "testing.gradleToolingTest",
+        "testing.unitTest"
+      ],
+      "libraryAliases": [
+        "androidx.core.ktx",
+        "common.editor",
+        "common.kotlin",
+        "tests.mockito.kotlin"
+      ],
+      "buildFileSha256": "b327d38e25840304e2b12a3e3960fa30270910f4de44f292b25b2e6763507208",
+      "sourceFiles": 3
+    },
+    {
+      "path": ":testing:unitTest",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "testing.commonTest",
+        "utilities.buildInfo",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "tests.androidx.test.core",
+        "tests.google.truth",
+        "tests.junit",
+        "tests.mockk",
+        "tests.robolectric"
+      ],
+      "buildFileSha256": "87823466c99850e52777c96332a01a480a014bb3f3d2d31e651fea7037fe22ad",
+      "sourceFiles": 0
+    },
+    {
+      "path": ":tooling:api",
+      "disposition": "固定原始源码合并编译至独立 native JVM tooling 服务；宿主同步链路已接入，设备回归待完成",
+      "verified": false,
+      "gradleProjectReferences": [
+        "logging.logger",
+        "tooling.events",
+        "tooling.model",
+        "utilities.buildInfo",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "common.jkotlin",
+        "common.jsonrpc",
+        "google.gson"
+      ],
+      "buildFileSha256": "7f7c2b24aced78bfdafa126a10c0de7bf90c238158f0c061f7581a856e1c3f62",
+      "sourceFiles": 20,
+      "evidence": "evidence/tooling-verification.json"
+    },
+    {
+      "path": ":tooling:builder-model-impl",
+      "disposition": "固定原始源码合并编译至独立 native JVM tooling 服务；宿主同步链路已接入，设备回归待完成",
+      "verified": false,
+      "gradleProjectReferences": [
+        "utilities.buildInfo"
+      ],
+      "libraryAliases": [
+        "common.jkotlin",
+        "tooling.builderModel"
+      ],
+      "buildFileSha256": "d6b86e6d4e2f5614991dcc99ebce1654004e929386a4b3ce143484ca824302c2",
+      "sourceFiles": 37,
+      "evidence": "evidence/tooling-verification.json"
+    },
+    {
+      "path": ":tooling:events",
+      "disposition": "固定原始源码合并编译至独立 native JVM tooling 服务；宿主同步链路已接入，设备回归待完成",
+      "verified": false,
+      "gradleProjectReferences": [],
+      "libraryAliases": [
+        "common.jkotlin"
+      ],
+      "buildFileSha256": "83f6ae3949b05015e823dd1a668eae372c85312f45d6fb5b1f4fc6f607c33c2a",
+      "sourceFiles": 48,
+      "evidence": "evidence/tooling-verification.json"
+    },
+    {
+      "path": ":tooling:impl",
+      "disposition": "固定原始源码合并编译至独立 native JVM tooling 服务；宿主同步链路已接入，设备回归待完成",
+      "verified": false,
+      "gradleProjectReferences": [
+        "testing.gradleToolingTest",
+        "tooling.api",
+        "utilities.buildInfo",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "common.jkotlin",
+        "google.auto.service",
+        "google.auto.service.annotations",
+        "tooling.gradleApi",
+        "tooling.slf4j",
+        "xml.apis",
+        "xml.xercesImpl"
+      ],
+      "buildFileSha256": "c4505c8c383dbb1284ff523e55eced659d11a849368a4c9eaa1691589849f4d6",
+      "sourceFiles": 30,
+      "evidence": "evidence/tooling-verification.json"
+    },
+    {
+      "path": ":tooling:model",
+      "disposition": "固定原始源码合并编译至独立 native JVM tooling 服务；宿主同步链路已接入，设备回归待完成",
+      "verified": false,
+      "gradleProjectReferences": [
+        "logging.logger",
+        "tooling.builderModelImpl",
+        "xml.dom"
+      ],
+      "libraryAliases": [
+        "common.jkotlin",
+        "common.jsonrpc"
+      ],
+      "buildFileSha256": "d80daf82176fb5b26ef2dadbbededa53b627f6550d06d0efcfc093823758d9d4",
+      "sourceFiles": 30,
+      "evidence": "evidence/tooling-verification.json"
+    },
+    {
+      "path": ":tooling:plugin",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "tooling.pluginConfig",
+        "utilities.buildInfo",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "tests.google.truth",
+        "tests.junit.jupiter",
+        "tests.junit.platformLauncher"
+      ],
+      "buildFileSha256": "c8594cb07430a2ebfc84188554a5dc24f83e60e537d826474a3592de6996c0e5",
+      "sourceFiles": 34
+    },
+    {
+      "path": ":tooling:plugin-config",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [],
+      "libraryAliases": [],
+      "buildFileSha256": "4829a447bf17fd248dd50918c826cbbfb5d66132e8021f0fcf24427f90cc6bb8",
+      "sourceFiles": 2
+    },
+    {
+      "path": ":utilities:build-info",
+      "disposition": "固定原始源码合并编译至独立 native JVM tooling 服务；宿主同步链路已接入，设备回归待完成",
+      "verified": false,
+      "gradleProjectReferences": [],
+      "libraryAliases": [
+        "versions.agp.tooling.get"
+      ],
+      "buildFileSha256": "74ad85ef2740ae8c8012c6e852aa395f90bd6592637e9a91dea7b18c28727700",
+      "sourceFiles": 1,
+      "evidence": "evidence/tooling-verification.json"
+    },
+    {
+      "path": ":utilities:flashbar",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.resources"
+      ],
+      "libraryAliases": [
+        "androidx.annotation",
+        "androidx.appcompat",
+        "androidx.constraintlayout",
+        "androidx.core.ktx",
+        "common.utilcode",
+        "google.material"
+      ],
+      "buildFileSha256": "36de4252b43f62e12457fd3fc6869ef0ce485b8cba591afa8932f1dcae3431fb",
+      "sourceFiles": 18
+    },
+    {
+      "path": ":utilities:framework-stubs",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [],
+      "libraryAliases": [],
+      "buildFileSha256": "f1d1ab5ff1354c6fa86d7860bc07d77cfa3e6a5c696ac28aafe79de6bcc07f18",
+      "sourceFiles": 0
+    },
+    {
+      "path": ":utilities:lookup",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "logging.logger",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "common.jkotlin",
+        "google.auto.service",
+        "google.auto.service.annotations",
+        "google.guava",
+        "tests.google.truth",
+        "tests.junit"
+      ],
+      "buildFileSha256": "8790dac4d68210d6b028dad06dee35a83422510e47530a3d1a7e66923f2fdf0d",
+      "sourceFiles": 6
+    },
+    {
+      "path": ":utilities:preferences",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "core.resources",
+        "event.eventbusEvents",
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "androidx.annotation",
+        "androidx.preference",
+        "google.material"
+      ],
+      "buildFileSha256": "f6483a3487d84b9578730e1314e54ea9254fa90dfd47237eb0e29b05ee0d07a5",
+      "sourceFiles": 29
+    },
+    {
+      "path": ":utilities:shared",
+      "disposition": "固定原始源码合并编译至独立 native JVM tooling 服务；宿主同步链路已接入，设备回归待完成",
+      "verified": false,
+      "gradleProjectReferences": [
+        "logging.logger",
+        "utilities.buildInfo"
+      ],
+      "libraryAliases": [
+        "androidx.annotation",
+        "androidx.collection",
+        "google.gson",
+        "google.guava",
+        "tests.google.truth",
+        "tests.junit"
+      ],
+      "buildFileSha256": "79f9bd2db2b2b1e94bf20fa16c70df6db0188d3b83e643594135c873b0857960",
+      "sourceFiles": 28,
+      "evidence": "evidence/tooling-verification.json"
+    },
+    {
+      "path": ":utilities:templates-api",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "core.resources",
+        "logging.logger",
+        "xml.dom",
+        "xml.utils"
+      ],
+      "libraryAliases": [
+        "aapt2.common",
+        "androidx.annotation",
+        "androidx.appcompat",
+        "composite.javapoet",
+        "google.material"
+      ],
+      "buildFileSha256": "23932cae11c3c42c8c4ca8085b5126810e13b63c0fe5dbcb0621188ddfce168a",
+      "sourceFiles": 51
+    },
+    {
+      "path": ":utilities:templates-impl",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "core.lspApi",
+        "core.projects",
+        "testing.gradleToolingTest",
+        "testing.unitTest",
+        "utilities.preferences",
+        "utilities.shared",
+        "utilities.templatesApi"
+      ],
+      "libraryAliases": [
+        "androidx.annotation",
+        "androidx.core.ktx",
+        "google.auto.service",
+        "google.auto.service.annotations"
+      ],
+      "buildFileSha256": "f98b32361d606b8ab38496bbcd3a253c29cdaea9f58371e04c00a07a29c954de",
+      "sourceFiles": 79
+    },
+    {
+      "path": ":utilities:treeview",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [],
+      "libraryAliases": [
+        "androidx.appcompat"
+      ],
+      "buildFileSha256": "1b16b9f06cd95a0647c0a7b41ac5c36fb248fd1fb1236b720cec6507de30329d",
+      "sourceFiles": 7
+    },
+    {
+      "path": ":utilities:uidesigner",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "annotation.annotations",
+        "core.actions",
+        "core.common",
+        "core.lspApi",
+        "core.resources",
+        "editor.impl",
+        "logging.logger",
+        "utilities.lookup",
+        "utilities.xmlInflater",
+        "xml.lsp"
+      ],
+      "libraryAliases": [
+        "androidx.appcompat",
+        "androidx.core.ktx",
+        "androidx.fragment.ktx",
+        "androidx.nav.fragment",
+        "androidx.nav.ui",
+        "common.editor",
+        "common.kotlin",
+        "common.utilcode",
+        "google.material",
+        "tests.google.truth",
+        "tests.junit",
+        "tests.mockito.kotlin",
+        "tests.robolectric"
+      ],
+      "buildFileSha256": "bbfcec1fa1dc0e18f3c2658e96c178da25a33a77194db9f17a4a6bf812d05c7d",
+      "sourceFiles": 70
+    },
+    {
+      "path": ":utilities:xml-inflater",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "annotation.annotations",
+        "annotation.processorsKsp",
+        "core.common",
+        "core.projects",
+        "core.resources",
+        "testing.commonTest",
+        "testing.gradleToolingTest",
+        "xml.aaptcompiler",
+        "xml.utils"
+      ],
+      "libraryAliases": [
+        "androidx.appcompat",
+        "common.kotlin",
+        "common.utilcode",
+        "versions.ksp"
+      ],
+      "buildFileSha256": "c43e7739776eabd1826b93252cffb093c1dd650039c5cb800fb10de9d104611f",
+      "sourceFiles": 123
+    },
+    {
+      "path": ":xml:aaptcompiler",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "logging.logger",
+        "utilities.shared",
+        "xml.resourcesApi"
+      ],
+      "libraryAliases": [
+        "aapt2.annotations",
+        "aapt2.common",
+        "androidx.collection",
+        "common.kotlin",
+        "composite.jaxp",
+        "composite.layoutlibApi",
+        "google.protobuf",
+        "tests.google.truth",
+        "tests.junit",
+        "tests.robolectric"
+      ],
+      "buildFileSha256": "82394c5f1841f4c1821a98e02f473cc15e3e8e4b04864cee310e9871469f49f7",
+      "sourceFiles": 40
+    },
+    {
+      "path": ":xml:dom",
+      "disposition": "固定原始源码合并编译至独立 native JVM tooling 服务；宿主同步链路已接入，设备回归待完成",
+      "verified": false,
+      "gradleProjectReferences": [
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "common.jsonrpc",
+        "common.jsoup",
+        "composite.jaxp",
+        "google.gson",
+        "google.guava",
+        "xml.remark",
+        "xml.resolver"
+      ],
+      "buildFileSha256": "6fe3e965b73ecddf15e9960a74b416d372f7639edb0f1c6f64a305cdce41e874",
+      "sourceFiles": 47,
+      "evidence": "evidence/tooling-verification.json"
+    },
+    {
+      "path": ":xml:lsp",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "annotation.processors",
+        "core.actions",
+        "core.common",
+        "core.lspApi",
+        "core.projects",
+        "editor.lexers",
+        "testing.commonTest",
+        "testing.lspTest",
+        "tooling.api",
+        "xml.dom",
+        "xml.utils"
+      ],
+      "libraryAliases": [
+        "androidide.ts",
+        "androidide.ts.xml",
+        "androidx.core.ktx",
+        "common.antlr4",
+        "common.editor",
+        "common.kotlin",
+        "common.utilcode",
+        "google.material"
+      ],
+      "buildFileSha256": "ea97bf5bf2e3d5b59941deab4e91fafa428d2847a7409673f2603c527bc62586",
+      "sourceFiles": 58
+    },
+    {
+      "path": ":xml:resources-api",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "utilities.shared"
+      ],
+      "libraryAliases": [
+        "aapt2.annotations",
+        "aapt2.common",
+        "composite.jaxp",
+        "composite.layoutlibApi",
+        "google.protobuf"
+      ],
+      "buildFileSha256": "2ccb30a427c040190ee97665527eef6d3833649d9aab8f5709f94f4d48bea47b",
+      "sourceFiles": 33
+    },
+    {
+      "path": ":xml:utils",
+      "disposition": "待迁移评估",
+      "verified": false,
+      "gradleProjectReferences": [
+        "core.common",
+        "logging.logger",
+        "utilities.lookup",
+        "xml.aaptcompiler",
+        "xml.resourcesApi"
+      ],
+      "libraryAliases": [
+        "common.kotlin",
+        "composite.jaxp",
+        "composite.jdt",
+        "google.auto.service",
+        "google.auto.service.annotations",
+        "tests.google.truth",
+        "tests.junit",
+        "tests.robolectric"
+      ],
+      "buildFileSha256": "f01abc19de5b3c7b9f96ce730f7434924781ad39bf4045d66e7db5cb8941bdcf",
+      "sourceFiles": 28
+    }
+  ]
+}

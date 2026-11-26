@@ -42,6 +42,7 @@ android {
 
     testOptions {
         unitTests.returnDefaultValues = true
+        unitTests.includeAndroidResources = true
     }
 
     sourceSets {
@@ -50,6 +51,7 @@ android {
 }
 
 dependencies {
+    implementation project(':ide-editor')
     implementation project(':termux-shared')
     implementation project(':termux-usb')
     implementation project(':termux-x11')
@@ -65,6 +67,7 @@ dependencies {
     implementation 'org.apache.commons:commons-compress:1.20'
 
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.11.1'
     // org.json.JSONObject is provided by the Android platform at runtime (RootfsSetupForegroundService,
     // UpstreamWineReleaseResolver use it as-is with no extra dependency needed on-device) but JVM unit
     // tests run against android.jar's stub with unitTests.returnDefaultValues = true, which makes every
@@ -74,4 +77,20 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.5'
+}
+
+// Keep only the component pin and license in the APK. The JVM payload is downloaded on demand.
+def toolingAssets = tasks.register('generateIdeToolingAssets', Sync) {
+    from rootProject.file('third-party/androidide-tooling/LICENSE')
+    into layout.buildDirectory.dir('generated/ide-tooling-assets/ide/tooling')
+    rename { 'LICENSE.txt' }
+}
+android.sourceSets.main.assets.srcDir layout.buildDirectory.dir('generated/ide-tooling-assets')
+tasks.configureEach {
+    if (name.matches('(merge|package).*Assets') || name.matches('generate.*Lint.*Model')) dependsOn toolingAssets
+}
+tasks.withType(Test).configureEach {
+    dependsOn ':ide-tooling:serverJar'
+    systemProperty 'ide.tooling.jar', project(':ide-tooling').layout.buildDirectory.file('server/androidide-tooling.jar').get().asFile.path
+    systemProperty 'ide.tooling.gradle', gradle.gradleHomeDir.path
 }
