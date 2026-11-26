@@ -19,3 +19,7 @@ APK为termux-app_apt-android-7-debug_arm64-v8a.apk，46,335,908字节（44.19MiB
 继续以master-x11-submodule-tmp为开发分支，优先恢复设备同步回归，再接入固定上游语言服务；不要把临时词法颜色当成语义能力。APK只由用户手工安装，保留标准名称和类型。禁止提交CMake自动生成的七个嵌套子模块补丁；本次已恢复其原先干净状态。
 
 产品文档一致性Pending，严格Harness脚本缺失，未归档。验证细节见evidence目录。
+
+## 提交可复现性核对
+
+Git索引核对发现并修正通用text=auto换行转换和build目录忽略规则对上游源码的影响，使用third-party/** -text保留固定源码字节，并显式纳入锁清单中的包路径文件。发布的对应源码压缩包同样按2316项锁清单核对，防止误排除com/android/build包路径。

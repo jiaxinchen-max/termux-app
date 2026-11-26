@@ -3,3 +3,6 @@
 *.gradle    text eol=lf
 *.mk        text eol=lf
 *.sh        text eol=lf
+
+# Preserve vendored upstream bytes: build verification uses exact SHA256 pins.
+third-party/** -text
