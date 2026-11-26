@@ -1,0 +1,58 @@
+{
+  "status": "partial",
+  "device": "120.24.191.156:8057",
+  "apk_commit": "7efb988f",
+  "sync": {
+    "job": "8b5c445c-d5f4-4778-982e-2d2631b832af",
+    "state": "succeeded",
+    "modules": [
+      ":",
+      ":app"
+    ],
+    "variants": [
+      "debug",
+      "release"
+    ],
+    "platform": "android-34"
+  },
+  "repeat": {
+    "job": "af8abbf7-fbd1-49ab-9b56-e315f38f0073",
+    "component_cache_hit": true,
+    "state": "cancelled",
+    "private_processes_absent": [
+      32622,
+      32625,
+      32672
+    ],
+    "component_bytes_retained": 18168770,
+    "offline_device_test": false
+  },
+  "module_contexts": {
+    "unit_tests": 5,
+    "tooling_integration_tests": 2,
+    "failures": 0,
+    "fixtures": [
+      "host AGP8.5/Gradle8.7",
+      "native Android35/JDK17/Gradle8.7"
+    ],
+    "device_validation": "pending new APK"
+  },
+  "strict_gate": "Unavailable",
+  "remaining": [
+    "language service consumer",
+    "indexing",
+    "configuration invalidation",
+    "Java/XML semantic features",
+    "designer"
+  ],
+  "delivery": {
+    "apk": "termux-app_apt-android-7-debug_arm64-v8a.apk",
+    "bytes": 46335904,
+    "sha256": "6d349ece7fdefe6db3e2d4387959d91c135e760d87054b39882d2a2a336879d9",
+    "standard_assembleDebug": "passed",
+    "ide_regression_tests": 54,
+    "failures": 0,
+    "testOnly": false,
+    "automatic_install": false
+  }
+}

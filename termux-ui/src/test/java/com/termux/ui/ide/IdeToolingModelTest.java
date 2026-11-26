@@ -58,6 +58,10 @@ public class IdeToolingModelTest {
                     assertTrue(library.getJSONArray("tasks").toString().contains(":library:compileJava"));
                     assertTrue(library.getJSONArray("sources").toString().contains("library/src/main/java"));
                     assertTrue(library.has("dependencies"));
+                    IdeModuleContexts contexts = new IdeModuleContexts(model);
+                    IdeModuleContexts.Module owner = contexts.forFile(project.resolve("library/src/main/java/example/Demo.java").toFile());
+                    assertNotNull(owner); assertEquals(":library", owner.path);
+                    assertTrue(owner.sources.contains(project.resolve("library/src/main/java").toFile().getCanonicalFile()));
                 } finally { try { rpc.call("server/shutdown", null, 3); } catch (Exception ignored) { } }
             }
         } finally {

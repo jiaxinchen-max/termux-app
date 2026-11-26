@@ -47,3 +47,13 @@
 ## tooling组件化交付
 
 新增范围ide-on-demand-components已获批准并完成代码与主机测试，标准APK46,335,908字节，相较原tooling版减少15.65MiB；组件及源码已发布并重新下载校验。详细记录见相邻变更的progress.md和evidence。语言服务完整移植仍未完成，设备ANR和同步回归待继续，未归档。
+
+## 人工安装后的设备回归与模块上下文
+
+首次按需组件下载及真实 native Gradle 同步成功：VerifyWelcome，任务8b5c445c-d5f4-4778-982e-2d2631b832af，得到根Java模块和:app Android模块、debug/release变体、android-34平台类路径；Gradle配置约6分50秒。第二次同步直接显示组件100%，任务af8abbf7-fbd1-49ab-9b56-e315f38f0073，点击取消后状态cancelled，runner/tooling/私有Gradle进程均已退出，18,168,770字节组件保留。未进行设备断网测试，不将缓存命中等同于断网验证。此前ANR原因仍未定位。
+
+新增IdeModuleContexts，从固定上游服务返回的原模型提取模块源码、编译类路径、Android平台及资源目录；处理依赖环、路径归属、生成目录和错误模块引用。同步时将languageContexts写入任务及持久化模型。真实宿主AGP模型、真实设备模型和真实两模块服务集成测试共7项通过。当前安装的APK尚不含此适配层，不能声称新层已完成设备运行验证。
+
+语言服务消费者、索引及配置失效检测仍未接通；Java/XML补全、方法跳转、诊断和设计器仍未完成。未归档；严格Harness门禁仍Unavailable。
+
+本次标准assembleDebug通过，54项IDE宿主回归测试零失败。交付APK 46335904字节，SHA256 6d349ece7fdefe6db3e2d4387959d91c135e760d87054b39882d2a2a336879d9，未自动安装；新增模块上下文需下次人工安装后验证。构建引入的七个嵌套子模块补丁已恢复。

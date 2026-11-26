@@ -23,3 +23,9 @@ APK为termux-app_apt-android-7-debug_arm64-v8a.apk，46,335,908字节（44.19MiB
 ## 提交可复现性核对
 
 Git索引核对发现并修正通用text=auto换行转换和build目录忽略规则对上游源码的影响，使用third-party/** -text保留固定源码字节，并显式纳入锁清单中的包路径文件。发布的对应源码压缩包同样按2316项锁清单核对，防止误排除com/android/build包路径。
+
+## 人工安装后的设备回归与模块上下文
+
+首次按需组件下载及真实 native Gradle 同步成功：VerifyWelcome，任务8b5c445c-d5f4-4778-982e-2d2631b832af，得到根Java模块和:app Android模块、debug/release变体、android-34平台类路径；Gradle配置约6分50秒。第二次同步直接显示组件100%，任务af8abbf7-fbd1-49ab-9b56-e315f38f0073，点击取消后状态cancelled，runner/tooling/私有Gradle进程均已退出，18,168,770字节组件保留。未进行设备断网测试，不将缓存命中等同于断网验证。此前ANR原因仍未定位。
+
+设备断网复用验证仍待进行；主机离线复用测试已通过。

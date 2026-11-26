@@ -1,0 +1,248 @@
+{
+  "fixtureSource": "Installed termux-app, UI-triggered native sync of VerifyWelcome on Android35 arm64; original AndroidIDE tooling 77ee1a3",
+  "modules": [
+    {
+      "metadata": {
+        "compilerSettings": {
+          "javaSourceVersion": "17",
+          "javaBytecodeVersion": "17",
+          "gsonType": "com.itsaky.androidide.tooling.api.models.JavaModuleCompilerSettings",
+          "serialVersionUID": 1
+        },
+        "classesJar": "module-jar-does-not-exist.jar",
+        "buildScript": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/build.gradle",
+        "type": 0,
+        "name": "AndroidApp",
+        "projectPath": ":",
+        "projectDir": "/data/user/0/com.termux/files/home/projects/VerifyWelcome",
+        "buildDir": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/build",
+        "gsonType": "com.itsaky.androidide.tooling.api.models.JavaProjectMetadata",
+        "serialVersionUID": 1
+      },
+      "type": "Java",
+      "sources": [
+        {
+          "serialVersionUID": 1,
+          "sourceDirectories": [],
+          "testDirectories": []
+        }
+      ],
+      "dependencies": []
+    },
+    {
+      "metadata": {
+        "androidType": 0,
+        "flags": {
+          "booleanFlagMap": {},
+          "serialVersionUID": 1
+        },
+        "javaCompileOptions": {
+          "encoding": "UTF-8",
+          "isCoreLibraryDesugaringEnabled": false,
+          "sourceCompatibility": "1.8",
+          "targetCompatibility": "1.8",
+          "javaSourceVersion": "1.8",
+          "javaBytecodeVersion": "1.8",
+          "gsonType": "com.itsaky.androidide.builder.model.DefaultJavaCompileOptions",
+          "serialVersionUID": 1
+        },
+        "viewBindingOptions": {
+          "serialVersionUID": 1,
+          "isEnabled": false
+        },
+        "namespace": "com.example.myapplication",
+        "androidTestNamespace": "com.example.myapplication.test",
+        "classesJar": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/intermediates/compile_library_classes_jar/debug/classes.jar",
+        "buildScript": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build.gradle",
+        "type": 0,
+        "name": "app",
+        "projectPath": ":app",
+        "projectDir": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app",
+        "buildDir": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build",
+        "gsonType": "com.itsaky.androidide.tooling.api.models.AndroidProjectMetadata",
+        "serialVersionUID": 1
+      },
+      "type": "Android",
+      "variant": "debug",
+      "variants": [
+        {
+          "name": "debug",
+          "mainArtifact": {
+            "name": "debug",
+            "applicationId": "com.example.myapplication",
+            "resGenTaskName": "generateDebugResources",
+            "assembleTaskOutputListingFile": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/intermediates/apk_ide_redirect_file/debug/createDebugApkListingFileRedirect/redirect.txt",
+            "generatedResourceFolders": [
+              "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/generated/res/resValues/debug"
+            ],
+            "generatedSourceFolders": [
+              "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/generated/ap_generated_sources/debug/out"
+            ],
+            "minSdkVersion": 21,
+            "signingConfigName": "debug",
+            "sourceGenTaskName": "generateDebugSources",
+            "assembleTaskName": "assembleDebug",
+            "classJars": [
+              "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/intermediates/compile_and_runtime_not_namespaced_r_class_jar/debug/processDebugResources/R.jar"
+            ],
+            "compileTaskName": "compileDebugSources",
+            "targetSdkVersionOverride": 34,
+            "gsonType": "com.itsaky.androidide.tooling.api.models.AndroidArtifactMetadata",
+            "serialVersionUID": 1
+          },
+          "gsonType": "com.itsaky.androidide.tooling.api.models.BasicAndroidVariantMetadata",
+          "serialVersionUID": 1
+        },
+        {
+          "name": "release",
+          "mainArtifact": {
+            "name": "release",
+            "applicationId": "com.example.myapplication",
+            "resGenTaskName": "generateReleaseResources",
+            "assembleTaskOutputListingFile": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/intermediates/apk_ide_redirect_file/release/createReleaseApkListingFileRedirect/redirect.txt",
+            "generatedResourceFolders": [
+              "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/generated/res/resValues/release"
+            ],
+            "generatedSourceFolders": [
+              "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/generated/ap_generated_sources/release/out"
+            ],
+            "minSdkVersion": 21,
+            "sourceGenTaskName": "generateReleaseSources",
+            "assembleTaskName": "assembleRelease",
+            "classJars": [
+              "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/intermediates/compile_and_runtime_not_namespaced_r_class_jar/release/processReleaseResources/R.jar"
+            ],
+            "compileTaskName": "compileReleaseSources",
+            "targetSdkVersionOverride": 34,
+            "gsonType": "com.itsaky.androidide.tooling.api.models.AndroidArtifactMetadata",
+            "serialVersionUID": 1
+          },
+          "gsonType": "com.itsaky.androidide.tooling.api.models.BasicAndroidVariantMetadata",
+          "serialVersionUID": 1
+        }
+      ],
+      "bootClasspaths": [
+        "/data/data/com.termux/files/home/android-sdk/platforms/android-34/android.jar"
+      ],
+      "sources": {
+        "serialVersionUID": 1,
+        "androidTestSourceProvider": {
+          "serialVersionUID": 1,
+          "assetsDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/androidTest/assets"
+          ],
+          "customDirectories": [],
+          "javaDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/androidTest/java"
+          ],
+          "jniLibsDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/androidTest/jniLibs"
+          ],
+          "kotlinDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/androidTest/java",
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/androidTest/kotlin"
+          ],
+          "manifestFile": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/androidTest/AndroidManifest.xml",
+          "name": "androidTest",
+          "resDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/androidTest/res"
+          ],
+          "resourcesDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/androidTest/resources"
+          ],
+          "shadersDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/androidTest/shaders"
+          ]
+        },
+        "sourceProvider": {
+          "serialVersionUID": 1,
+          "assetsDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/main/assets"
+          ],
+          "customDirectories": [],
+          "javaDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/main/java"
+          ],
+          "jniLibsDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/main/jniLibs"
+          ],
+          "kotlinDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/main/java",
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/main/kotlin"
+          ],
+          "manifestFile": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/main/AndroidManifest.xml",
+          "name": "main",
+          "resDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/main/res"
+          ],
+          "resourcesDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/main/resources"
+          ],
+          "shadersDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/main/shaders"
+          ]
+        },
+        "unitTestSourceProvider": {
+          "serialVersionUID": 1,
+          "assetsDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/test/assets"
+          ],
+          "customDirectories": [],
+          "javaDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/test/java"
+          ],
+          "jniLibsDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/test/jniLibs"
+          ],
+          "kotlinDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/test/java",
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/test/kotlin"
+          ],
+          "manifestFile": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/test/AndroidManifest.xml",
+          "name": "test",
+          "resDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/test/res"
+          ],
+          "resourcesDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/test/resources"
+          ],
+          "shadersDirectories": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/src/test/shaders"
+          ]
+        },
+        "deviceTestSourceProviders": {},
+        "hostTestSourceProviders": {}
+      },
+      "libraries": {},
+      "artifact": {
+        "otherArtifacts": {},
+        "name": "debug",
+        "mainArtifact": {
+          "name": "debug",
+          "applicationId": "com.example.myapplication",
+          "resGenTaskName": "generateDebugResources",
+          "assembleTaskOutputListingFile": "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/intermediates/apk_ide_redirect_file/debug/createDebugApkListingFileRedirect/redirect.txt",
+          "generatedResourceFolders": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/generated/res/resValues/debug"
+          ],
+          "generatedSourceFolders": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/generated/ap_generated_sources/debug/out"
+          ],
+          "minSdkVersion": 21,
+          "signingConfigName": "debug",
+          "sourceGenTaskName": "generateDebugSources",
+          "assembleTaskName": "assembleDebug",
+          "classJars": [
+            "/data/user/0/com.termux/files/home/projects/VerifyWelcome/app/build/intermediates/compile_and_runtime_not_namespaced_r_class_jar/debug/processDebugResources/R.jar"
+          ],
+          "compileTaskName": "compileDebugSources",
+          "targetSdkVersionOverride": 34,
+          "gsonType": "com.itsaky.androidide.tooling.api.models.AndroidArtifactMetadata",
+          "serialVersionUID": 1
+        },
+        "gsonType": "com.itsaky.androidide.tooling.api.models.AndroidVariantMetadata",
+        "serialVersionUID": 1
+      }
+    }
+  ]
+}

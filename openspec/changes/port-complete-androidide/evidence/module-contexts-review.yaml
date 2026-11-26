@@ -1,0 +1,24 @@
+schema: review_findings_v1
+scope:
+  base: 7efb988f
+  paths:
+    - termux-ui/src/main/java/com/termux/ui/ide/IdeModuleContexts.java
+    - termux-ui/src/main/java/com/termux/ui/ide/IdeBuildService.java
+    - termux-ui/src/test/java/com/termux/ui/ide/IdeModuleContextsTest.java
+    - termux-ui/src/test/java/com/termux/ui/ide/IdeToolingModelTest.java
+findings: []
+verification:
+  focused_tests: 7
+  focused_failures: 0
+  ide_regression_tests: 54
+  ide_regression_failures: 0
+  direct_source_review:
+    - 对照固定上游JavaModule与AndroidModule的源码、依赖及类路径规则
+    - 确认原getLibraryMap仅返回主变体compileDependencies可达图
+    - 校验路径归属使用规范化目录边界，传递依赖不改变文件所属模块
+    - 校验循环依赖终止、缺失模块拒绝、生成输出保留和绝对路径约束
+limitations:
+  - 当前设备APK尚不包含新增上下文适配层；仅原同步链路完成设备验证
+  - 不包含语义服务消费者、项目索引和配置失效检测
+  - 外部源码根和组合构建需后续专项适配验证
+strict_gate: Unavailable

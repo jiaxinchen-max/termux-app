@@ -268,6 +268,7 @@ public final class IdeBuildService extends Service {
                         return rpc.call(method, arguments, 90);
                     }, project.getCanonicalPath());
                     if (cancelled) throw new InterruptedException();
+                    model.put("languageContexts", new IdeModuleContexts(model).toJson());
                     FileOutputStream output = null;
                     android.util.AtomicFile file = new android.util.AtomicFile(new File(taskDirectory, "project-model.json"));
                     try {
